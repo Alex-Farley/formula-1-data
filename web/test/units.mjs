@@ -98,7 +98,7 @@ import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty } from '../src/queries/race.js'
-import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
+import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
 import { pitPairs, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
 import {
   SEASONS_RACED_WIDTH,
@@ -2395,6 +2395,18 @@ describe('a Grand Prix and the venues it has used', () => {
     assert.equal(circuitYears(null, { first_year: null, last_year: null, scheduled: 1 }), 'not yet run')
     assert.equal(venuesCount([{ races: 21 }, { races: 0, scheduled: 1 }]), '1 · 1 to come')
     assert.equal(venuesCount([{ races: 11 }, { races: 18 }]), '2')
+  })
+
+  // SD-38: the circuit's race list counts what the tile counts, and the rest apart.
+  it('counts a circuit\'s races run as its tile does, and the ones to come apart', () => {
+    const races = (run, ahead) => [
+      ...Array.from({ length: ahead }, () => ({ status: 'scheduled' })),
+      ...Array.from({ length: run }, () => ({ status: 'completed' })),
+    ]
+    assert.equal(racesCount(races(61, 1)), '61 · 1 to come')
+    assert.equal(racesCount(races(76, 0)), '76')
+    assert.equal(racesCount(races(0, 1)), '0 · 1 to come', 'a venue only booked has run none')
+    assert.equal(racesCount([]), '0')
   })
 
   it('names the car an entrant ran where no constructor row exists, and none for an edition to come', () => {

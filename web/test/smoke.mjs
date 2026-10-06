@@ -3781,7 +3781,7 @@ try {
           rows: [...main.querySelectorAll('.layout-timeline > article h3')].length,
         }
       }
-      const order = ['Most wins here', 'Constructors here', 'Every layout raced here', 'Every race held here']
+      const order = ['Most wins here', 'Constructors here', 'Every layout raced here', 'Every race here']
       const inOrder = (blocks, names) => {
         const at = names.map((name) => blocks.findIndex((b) => b.startsWith(name)))
         return at.every((i, k) => i >= 0 && (k === 0 || i > at[k - 1]))
@@ -3802,6 +3802,15 @@ try {
         is(got.strip.length, got.rows, `/circuits/monza, ${half}: the strip names every row of the timeline`)
       }
       is(JSON.stringify(served.strip), JSON.stringify(app.strip), 'the static strip is the app’s, in the same words and order')
+      // SD-38: the race list's count leads with the tile's figure - v_circuits
+      // counts the races run - and puts the ones still to run apart, where it
+      // used to count both as one figure a race above the tile.
+      const run = one("SELECT races FROM v_circuits WHERE id = 'monza'")
+      const ahead = one("SELECT scheduled FROM v_circuits WHERE id = 'monza'")
+      const racesHeading = `Every race here ${ahead ? `${run} · ${ahead} to come` : run}`
+      for (const [half, got] of [['the app', app], ['the static page', served]]) {
+        truthy(got.blocks.includes(racesHeading), `/circuits/monza, ${half}: “${racesHeading}” — ${got.blocks.join(' · ')}`)
+      }
     }
 
     // Skipped rather than failed when the overlay is absent: a build without
@@ -3829,7 +3838,7 @@ try {
       truthy(!(await page.$('svg.lapfigure')), 'the trace is stated, not drawn again')
       const headings = await page.$$eval('#root main h2', (n) => n.map((h) => h.textContent))
       const outlineAt = headings.findIndex((h) => h.startsWith('Every layout raced here'))
-      const racesAt = headings.findIndex((h) => h.startsWith('Every race held here'))
+      const racesAt = headings.findIndex((h) => h.startsWith('Every race here'))
       const traceAt = headings.findIndex((h) => h.startsWith('Traced and measured'))
       // PD-60: the trace is method, so it follows the races as well.
       truthy(outlineAt >= 0 && racesAt > outlineAt && traceAt > racesAt, 'the outlines and the races lead and the trace follows them')
@@ -7177,14 +7186,14 @@ try {
       await same('/races/1955/1', gp(1955, 1), 'Classification')
       // Rung five: a constructor's and a circuit's three tables each.
       for (const heading of ['Season by season', 'Every win', 'Cars built']) await same('/constructors/ferrari', 'Ferrari', heading)
-      for (const heading of ['Most wins here', 'Constructors here', 'Every race held here']) {
+      for (const heading of ['Most wins here', 'Constructors here', 'Every race here']) {
         await same('/circuits/silverstone', 'Silverstone', heading)
       }
       // A venue with a race still to run: its row has a "not yet run" mark and
       // no winning car, which is where a column keyed "constructor" once found
       // Object.prototype.constructor and printed "[object Object]".
       const pending = db.prepare("SELECT c.id, c.name FROM circuits c JOIN races r ON r.circuit_id = c.id WHERE r.status = 'scheduled' ORDER BY r.round LIMIT 1").get()
-      if (pending) await same(`/circuits/${pending.id}`, pending.name, 'Every race held here')
+      if (pending) await same(`/circuits/${pending.id}`, pending.name, 'Every race here')
       // Rung six: the car page - a car whose variants are separate chassis, and
       // a chassis with a page of its own - and the reference and data pages.
       await same('/cars/lotus-72', 'Lotus', 'Variants')
