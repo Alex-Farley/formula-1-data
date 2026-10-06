@@ -31,8 +31,11 @@ import {
   GRID_FLAG_TITLE,
   NEIGHBOURS,
   PITS,
-  PITS_FOOTER,
-  PIT_COLUMNS,
+  PITS_FROM,
+  PITS_HEADING,
+  PIT_ORDER_COLUMNS,
+  PIT_ORDER_HEADING,
+  PIT_ORDER_NOTE,
   QUALIFYING,
   QUALIFYING_FOOTER,
   RACE,
@@ -41,6 +44,8 @@ import {
   SPRINT,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
+  STINTS_TITLE,
+  STINT_COLUMNS,
   carName,
   classificationFooter,
   gridFlagLabel,
@@ -61,12 +66,17 @@ import {
   practiceSummaryCount,
   sprintQualifyingColumns,
   sprintQualifyingFooter,
+  stintsEmpty,
+  stintsLabel,
+  stintsNote,
 } from '../queries/race.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Figure from '../charts/Figure.jsx'
 import GridFlag from '../charts/GridFlag.jsx'
 import { gridFlagRows, gridFlagShown, undrawnOf } from '../charts/gridFlag.js'
+import Stints from '../charts/Stints.jsx'
+import { lateStops, pitPairs, stintRows, stintTableRows, stintsShown, unbarredOf } from '../charts/stints.js'
 
 import { ONWARD, TRAIL, raceSteps } from '../lib/wayfinding.js'
 /*
@@ -186,13 +196,6 @@ const sessionRenders = (year) => ({ driver: sessionDriverLink, constructor: cons
 
 const sprintRenders = (year) => ({ rail: RAIL, driver: driverLink, constructor: constructorLink(year), status: outTag })
 
-const PITS_APP = {
-  driver: {
-    render: (name, row) =>
-      row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name ?? row.driver_key),
-  },
-}
-
 const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
 
 export default function Race() {
@@ -206,6 +209,7 @@ export default function Race() {
     sprintQualifying: [SPRINT_QUALIFYING, args],
     sprint: [SPRINT, args],
     pits: [PITS, args],
+    pitsFrom: [PITS_FROM],
     neighbours: [NEIGHBOURS, args],
     disagreements: [RACE_DISAGREEMENTS, args],
     sessions: [RACE_SESSIONS, args],
@@ -257,6 +261,9 @@ function RaceBody({ race, data, year, round }) {
   const classified = useMemo(() => inClassificationOrder(entries), [entries])
   // PD-30: the cars the grid-to-flag figure draws, in the order it ends them.
   const flag = useMemo(() => gridFlagRows(entries), [entries])
+  // PD-56: the drivers the stint figure draws, and the pairs the pit order reads.
+  const stints = useMemo(() => stintRows(entries, pits), [entries, pits])
+  const pairs = useMemo(() => pitPairs(entries, pits), [entries, pits])
 
   const winners = classified.filter((e) => e.finish_position === 1)
   // The pole, the car that started first, the fastest qualifier and the
@@ -413,18 +420,39 @@ function RaceBody({ race, data, year, round }) {
         </Section>
       )}
 
-      {pits.length > 0 && (
-        <Section title="Pit stops" count={`${pits.length} stops`}>
-          <DataTable
-            rows={pits}
-            rowKey={(row) => row.id}
-            sortable
-            sort="lap_number"
-            direction="asc"
-            page={80}
-            columns={withRenders(PIT_COLUMNS, PITS_APP)}
-            footer={PITS_FOOTER}
-          />
+      {/* PD-56: each driver's race split at their stops, then who stopped
+          first between neighbours - charts/stints.js says what neither can
+          claim, and scripts/prerender.js draws the same. A race run with no
+          figure says why, rather than losing the section. */}
+      {!scheduled && classified.length > 0 && (
+        <Section title={PITS_HEADING} count={pits.length > 0 ? `${pits.length} stops` : undefined}>
+          {stintsShown(stints) ? (
+            <>
+              <Figure
+                title={STINTS_TITLE}
+                note={stintsNote(stints, lateStops(stints), unbarredOf(entries, pits))}
+                table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS }}
+              >
+                <Stints entries={entries} pits={pits} label={stintsLabel(stints)} />
+              </Figure>
+              {pairs.length > 0 && (
+                <>
+                  <h3>{PIT_ORDER_HEADING}</h3>
+                  <DataTable
+                    rows={pairs}
+                    rowKey={(row) => `${row.ahead.id}-${row.behind.id}`}
+                    caption={PIT_ORDER_HEADING}
+                    sortable={false}
+                    page={80}
+                    columns={PIT_ORDER_COLUMNS}
+                    footer={PIT_ORDER_NOTE}
+                  />
+                </>
+              )}
+            </>
+          ) : (
+            <p className="muted">{stintsEmpty(race, data.pitsFrom.rows[0]?.year)}</p>
+          )}
         </Section>
       )}
 

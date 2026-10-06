@@ -93,8 +93,9 @@ import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
-import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
+import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
+import { pitPairs, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, recordFigures } from '../src/queries/constructor.js'
 import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
@@ -1661,7 +1662,7 @@ describe('a column every row agrees on (VD-29)', () => {
     assert.deepEqual(shared(columns, rows).shared.map((s) => s.column.label), ['First'])
   })
 
-  // The columns the repository declares, in the four modules that declare
+  // The columns the repository declares, in the three modules that declare
   // any. That nobody draws one of them is not checkable from here - a
   // `render` is written in a page and a link in prerender's own map - so it
   // is a conventions test and a build failure instead; see
@@ -1671,12 +1672,11 @@ describe('a column every row agrees on (VD-29)', () => {
       ...RACE_COLUMNS,
       ...SEASON_COLUMNS,
       ...TEAM_SEASON_COLUMNS,
-      ...PIT_COLUMNS,
       ...recordColumns([{ confidence: 'reference' }]),
     ].filter((c) => c.collapse === true)
     assert.deepEqual(
       declared.map((c) => c.key),
-      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles', 'source'],
+      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles'],
     )
   })
 })
@@ -2402,5 +2402,88 @@ describe("a constructor's record figures (CD-34)", () => {
     } finally {
       db.close()
     }
+  })
+})
+
+// ------------------------------------------------------ stint windows (PD-56)
+
+describe('stint windows and the pit order (PD-56)', () => {
+  const entry = (id, finish, laps, grid, extra = {}) => ({
+    id,
+    driver_id: id,
+    driver: id,
+    finish_position: finish,
+    position_text: finish == null ? 'DNF' : String(finish),
+    laps_completed: laps,
+    grid,
+    ...extra,
+  })
+  const stop = (driver, n, lap) => ({ driver_id: driver, stop_number: n, lap_number: lap })
+  const entries = [
+    entry('c', null, 20, 1),
+    entry('a', 1, 50, 2),
+    entry('b', 2, 50, 3),
+    entry('d', null, null, 4, { position_text: 'DSQ' }),
+    entry('e', null, 0, 5, { position_text: 'DNS' }),
+  ]
+  const pits = [stop('a', 1, 20), stop('b', 1, 18), stop('a', 2, 35), stop('c', 1, 21), stop('d', 1, 10)]
+
+  it('draws a bar for every driver who started with a lap count, in finishing order', () => {
+    const rows = stintRows(entries, pits)
+    assert.deepEqual(
+      rows.map((r) => [r.entry.id, r.stops.join(' '), r.out]),
+      [
+        ['a', '20 35', false],
+        ['b', '18', false],
+        ['c', '21', true],
+      ],
+    )
+    assert.equal(stintsShown(rows), true)
+    assert.equal(stintsShown(stintRows(entries, [])), false, 'no stop recorded, no figure')
+  })
+
+  it('splits a bar at each stop, and marks a stop past the last lap at its end', () => {
+    const layout = stintLayout(entries, pits)
+    const [a, , c] = layout.cars
+    assert.equal(a.stints.length, 3)
+    assert.equal(a.stops.length, 2)
+    // c stopped on lap 21 and completed 20: the stop is at the bar's end, not past it.
+    assert.equal(c.stints.length, 1)
+    assert.equal(c.stops[0], c.end)
+    assert.ok(c.cross, 'a car not classified ends on a cross')
+    assert.equal(a.cross, null)
+    assert.ok(Math.max(...layout.cars.map((car) => car.end)) <= layout.width)
+  })
+
+  it('tables the drawn drivers and the ones with stops and no lap count', () => {
+    assert.deepEqual(
+      unbarredOf(entries, pits).map((e) => e.id),
+      ['d'],
+    )
+    assert.deepEqual(
+      stintTableRows(entries, pits).map((r) => [r.id, r.stops, r.stop_laps]),
+      [
+        ['a', 2, '20, 35'],
+        ['b', 1, '18'],
+        ['c', 1, '21'],
+        ['d', 1, '10'],
+      ],
+    )
+  })
+
+  it('pairs classified neighbours on the grid or at the flag, in grid order, and says who stopped first', () => {
+    const field = [entry('p', 1, 50, 3), entry('q', 2, 50, 1), entry('r', 3, 50, 2), entry('s', 4, 50, 9)]
+    const stops = [stop('p', 1, 10), stop('q', 1, 12), stop('r', 1, 12), stop('s', 1, 30)]
+    const pairs = pitPairs(field, stops)
+    assert.deepEqual(
+      pairs.map((x) => [x.ahead.id, x.behind.id, x.first?.id ?? 'same', x.swapped]),
+      [
+        ['q', 'p', 'p', true],
+        ['r', 'p', 'p', true],
+        ['q', 'r', 'same', false],
+        ['r', 's', 'r', false],
+      ],
+    )
+    assert.deepEqual(pitPairs(field, []), [], 'no stop, no pair')
   })
 })

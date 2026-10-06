@@ -45,7 +45,8 @@ export const GRID_FLAG_HEADS = { grid: 'Grid', result: 'Result', axis: 'Laps com
 /** The width the static page draws at, and the app's before it has measured. */
 export const GRID_FLAG_WIDTH = 640
 
-const NOT_STARTED = new Set(['DNS', 'DNQ', 'DNPQ', 'DNP', 'EX'])
+/** The results that mean an entry never took the start; the stint figure (PD-56) reads it too. */
+export const NOT_STARTED = new Set(['DNS', 'DNQ', 'DNPQ', 'DNP', 'EX'])
 
 const ROW = 16
 const TOP = 26
@@ -70,7 +71,7 @@ const SPACE = 6
 // figure. The table under the figure carries every name whole.
 const MOST = 0.6
 
-const textWidth = (value) =>
+export const textWidth = (value) =>
   [...String(value)].reduce((sum, c) => sum + (/[MW]/.test(c) ? WIDE : /[A-Z0-9]/.test(c) ? CAPITAL : LOWER), 0)
 
 /** A name cut to `room`, with an ellipsis, where it would not fit whole. */
@@ -82,6 +83,28 @@ const fit = (name, room) => {
 }
 
 const round = (value) => Math.round(value * 10) / 10
+
+/**
+ * The name each driver is labelled with inside a figure, given the width of
+ * the figure and the width the label column needs besides the name (a
+ * result, the gaps). Full names where the column carries them in two-fifths
+ * of the width; three-letter abbreviations where it cannot, except one two
+ * drivers in the race share, which would name neither and keeps the full
+ * name; and any name past MOST of the width cut, with an ellipsis, to fit.
+ * Grid to flag labels its right-hand column with it, and the stint figure
+ * (PD-56, charts/stints.js) its left-hand one.
+ */
+export function driverLabels(entries, width, reserved) {
+  const full = (entry) => text(entry.driver ?? entry.driver_id)
+  const codes = new Map()
+  for (const entry of entries) if (entry.abbreviation) codes.set(entry.abbreviation, (codes.get(entry.abbreviation) ?? 0) + 1)
+  const short = (entry) => (entry.abbreviation && codes.get(entry.abbreviation) === 1 ? entry.abbreviation : full(entry))
+  const column = (names) => reserved + Math.max(...names.map(textWidth))
+  let names = entries.map(full)
+  if (column(names) > width * 0.4) names = entries.map(short)
+  const room = width * MOST - reserved
+  return names.map((name) => fit(name, room))
+}
 
 /** Whether an entry has a line: it started, from a slot or the pit lane, and its laps are recorded. */
 export const drawnOf = (entry) =>
@@ -130,18 +153,15 @@ export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
   if (!gridFlagShown(rows)) return null
   const laps = Math.max(...rows.map((r) => r.entry.laps_completed))
 
-  const full = (entry) => text(entry.driver ?? entry.driver_id)
-  const codes = new Map()
-  for (const { entry } of rows) if (entry.abbreviation) codes.set(entry.abbreviation, (codes.get(entry.abbreviation) ?? 0) + 1)
-  const short = (entry) => (entry.abbreviation && codes.get(entry.abbreviation) === 1 ? entry.abbreviation : full(entry))
   const resultWidth = Math.max(...rows.map((r) => textWidth(result(r.entry))))
-  const column = (names) => GAP + resultWidth + SPACE + Math.max(...names.map(textWidth))
-  let names = rows.map((r) => full(r.entry))
-  if (column(names) > width * 0.4) names = rows.map((r) => short(r.entry))
-  const room = width * MOST - GAP - resultWidth - SPACE
-  names = names.map((name) => fit(name, room))
+  const reserved = GAP + resultWidth + SPACE
+  const names = driverLabels(
+    rows.map((r) => r.entry),
+    width,
+    reserved,
+  )
 
-  const right = column(names)
+  const right = reserved + Math.max(...names.map(textWidth))
   const x = linear([0, laps], [LEFT, width - right])
   const y = (slot) => TOP + slot * ROW + ROW / 2
   const height = TOP + rows.length * ROW + BOTTOM
