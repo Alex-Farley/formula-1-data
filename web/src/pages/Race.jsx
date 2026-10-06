@@ -20,6 +20,7 @@ import {
   raceCategoryLink,
   racePhotographAlt,
   EYEBROWS,
+  LABELS,
 } from '../lib/site.js'
 import { categoryUrl } from '../lib/commons.js'
 import { outlineCaption } from '../lib/outline.js'
@@ -298,7 +299,7 @@ function RaceBody({ race, data, year, round }) {
 
   return (
     <Page
-      eyebrow={EYEBROWS.race(round, year)}
+      eyebrow={EYEBROWS.race(round, neighbours.rounds, race.date_iso)}
       title={NAMES.race(year, race.name_used).headline}
       documentName={NAMES.race(year, race.name_used).title}
       trail={TRAIL.race(year, round, race.name_used)}
@@ -508,7 +509,7 @@ function RaceBody({ race, data, year, round }) {
 
       {!scheduled && timetable}
 
-      <Section title="Where this comes from">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             // The event this race is an edition of, and the way to every other

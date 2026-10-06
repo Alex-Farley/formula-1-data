@@ -13,6 +13,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { finished, missing, number, span, text } from '../lib/format.js'
+import { LABELS } from '../lib/site.js'
 
 /**
  * Every chassis a page covers.
@@ -310,7 +311,7 @@ export const NO_SPECIFICATION =
  * picture is what they came to match it against; every other car's page
  * leads with its figures and the photographs follow, as before. "This
  * year's" is the last season any variant the page covers raced - the span
- * the Raced tile prints - reaching meta.current_season (lib/season.js), and
+ * the Seasons tile prints - reaching meta.current_season (lib/season.js), and
  * never the latest season the register holds. Both renderers ask here.
  */
 /**
@@ -335,12 +336,12 @@ export const NO_ENTRIES =
  * What a car page counts from its rows: the seasons its variants raced, and
  * the wins, poles and fastest laps in its entries. One reading for the strip
  * and for the rest of Car.jsx, which prints the same span as the strip's
- * Raced and sets its derived wins against the published figure.
+ * Seasons and sets its derived wins against the published figure.
  *
  * `raced` runs from the first variant's first season to the last season any
  * variant ran, a variant with no last season counting its first; a page
  * whose variants carry no season at all has [null, null], and the strip
- * then has no Raced tile.
+ * then has no Seasons tile.
  */
 export const carRecord = (variants, entries) => {
   const firsts = variants.map((v) => v.first_year).filter((y) => !missing(y))
@@ -365,9 +366,9 @@ export const carRecord = (variants, entries) => {
 export const carStrip = (variants, car, entries) => {
   const { raced, wins, poles, fastest } = carRecord(variants, entries)
   return [
-    { label: 'Raced', value: raced[0] === null ? null : span(raced[0], raced[1]) },
+    { label: LABELS.seasons, value: raced[0] === null ? null : span(raced[0], raced[1]) },
     variants.length > 1 ? { label: 'Variants', value: number(variants.length) } : null,
-    { label: 'Recorded entries', value: number(entries.length) },
+    { label: LABELS.entries, value: number(entries.length) },
     { label: 'Wins', value: number(wins), lead: wins > 0 },
     { label: 'Poles', value: number(poles) },
     { label: 'Fastest laps', value: number(fastest) },

@@ -25,7 +25,7 @@ import {
 } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
 
-import { EYEBROWS, NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import {
   CIRCUIT,
   GEOMETRY,
@@ -372,7 +372,7 @@ function CircuitBody({ circuit, data }) {
         <Section note={overlay ? noTrace(coverage?.traced, coverage?.circuits) : TRACE_NOT_LOADED} />
       )}
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             { label: 'Official name', value: circuit.official_name },

@@ -524,7 +524,7 @@ export const CALENDAR_COLUMNS = [
   { key: 'circuit', label: 'Circuit' },
   { key: 'date_iso', label: 'Dates', text: (_, row) => text(raceDates(row)) },
   { key: 'winner', label: 'Winner', text: roundWinner },
-  { key: 'winning_team', label: 'Car', text: roundResult },
+  { key: 'winning_team', label: 'Constructor', text: roundResult },
   { key: 'pole', label: 'Pole', text: roundResult },
   { key: 'fastest', label: 'Fastest lap', text: roundResult },
 ]

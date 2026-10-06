@@ -15,7 +15,7 @@
  */
 import { classificationOrder, finished, missing, number, points, raceDates, result, text } from '../lib/format.js'
 import { linked } from '../lib/tiles.js'
-import { SHARED } from '../lib/site.js'
+import { LABELS, SHARED } from '../lib/site.js'
 import { LATE_NOTE, raceDay } from '../lib/refresh.js'
 
 export const RACE = `
@@ -112,13 +112,20 @@ export const PITS_FROM = `
 `
 
 export const NEIGHBOURS = `
+  WITH before AS (
+         SELECT year, round, name_used FROM races
+          WHERE (year < ?1) OR (year = ?1 AND round < ?2)
+          ORDER BY year DESC, round DESC LIMIT 1),
+       after AS (
+         SELECT year, round, name_used FROM races
+          WHERE (year > ?1) OR (year = ?1 AND round > ?2)
+          ORDER BY year, round LIMIT 1)
   SELECT
-    (SELECT year || '/' || round FROM races
-      WHERE (year < ?1) OR (year = ?1 AND round < ?2)
-      ORDER BY year DESC, round DESC LIMIT 1) AS previous,
-    (SELECT year || '/' || round FROM races
-      WHERE (year > ?1) OR (year = ?1 AND round > ?2)
-      ORDER BY year, round LIMIT 1) AS next
+    (SELECT year || '/' || round FROM before)     AS previous,
+    (SELECT year || ' ' || name_used FROM before) AS previous_name,
+    (SELECT year || '/' || round FROM after)      AS next,
+    (SELECT year || ' ' || name_used FROM after)  AS next_name,
+    (SELECT COUNT(*) FROM races WHERE year = ?1)  AS rounds
 `
 
 /**
@@ -738,7 +745,7 @@ export const raceStrip = (race, entries, qualifying) => {
     entries.length === 0
       ? null
       : {
-          label: 'Entries',
+          label: LABELS.entries,
           value: number(entries.length),
           note: scheduled ? undefined : `${finishers} classified`,
         },

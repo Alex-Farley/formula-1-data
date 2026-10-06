@@ -72,7 +72,7 @@ import {
 // file emits HTML - but the question it answers, "who is credited and may this
 // be shown at all", has exactly one answer on this site, and it is imported
 // here for the same reason the cars gallery had to stop writing its own.
-import { attribution, canShow, categoryUrl, fileTitle, photoAlt, thumbUrl } from '../src/lib/commons.js'
+import { attribution, canShow, categoryUrl, fileLinkName, fileTitle, photoAlt, thumbUrl } from '../src/lib/commons.js'
 import {
   ABOUT,
   ABOUT_LEDE,
@@ -114,6 +114,7 @@ import {
   SITE,
   NAMES,
   EYEBROWS,
+  LABELS,
   SO_FAR,
   SPRINT,
   GUNZIP_NOTE,
@@ -356,6 +357,7 @@ import {
   carAddress,
   carFacts,
   carPageName,
+  carRecord,
   carStrip,
   winsNote,
   entryColumns,
@@ -1475,9 +1477,9 @@ const LAST_RUN = {
  * shows.
  */
 
-/** An external link, as CommonsImage writes it. */
-const outbound = (url, label) =>
-  `<a href="${esc(url)}" target="_blank" rel="noreferrer noopener">${esc(label)}</a>`
+/** An external link, as CommonsImage writes it, with the name it gives a file's credit link. */
+const outbound = (url, label, name = null) =>
+  `<a href="${esc(url)}" target="_blank" rel="noreferrer noopener"${name ? ` aria-label="${esc(name)}"` : ''}>${esc(label)}</a>`
 
 /**
  * One photograph and its credit, as CommonsImage draws it.
@@ -1501,7 +1503,7 @@ const photograph = (image, width, caption = null, alt = caption, checks = true) 
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
   return `<figure class="photo">
         <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />
-        <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
+        <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title, fileLinkName(image))} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
         }${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
       </figure>`
@@ -2262,7 +2264,7 @@ const page = ({
         url: `${ORIGIN}${href(`seasons/${year}`)}`,
       },
       body: `
-        ${opening({ title: NAMES.season(year).headline, lede: s.notes })}
+        ${opening({ eyebrow: EYEBROWS.season(s.rounds, run), title: NAMES.season(year).headline, lede: s.notes })}
         ${stepperNav(seasonSteps(neighbours))}
         ${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}
         ${permutations ? note(permutations) : ''}
@@ -2292,7 +2294,7 @@ const page = ({
               })}${note(ENTRANTS_FOOTER)}`
             : EMPTY_STATE
         }
-        <h2>The season on the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
           // (VD-49): the strip is queries/season.js's, as the app's is, and
@@ -2492,7 +2494,7 @@ const page = ({
         eventStatus: 'https://schema.org/EventScheduled',
       },
       body: `
-        ${opening({ eyebrow: EYEBROWS.race(r.round, r.year), title: headline, lede: standfirst })}
+        ${opening({ eyebrow: EYEBROWS.race(r.round, neighbours.rounds, r.date_iso), title: headline, lede: standfirst })}
         ${stepperNav(raceSteps(neighbours))}
         <section class="section"><div${r.outline ? ' class="with-outline with-lead"' : ''}>${tiles(raceStrip(r, entryRows, qualifying))}
         ${outlineCard(
@@ -2595,7 +2597,7 @@ const page = ({
         }
         ${raceStrips(r)}
         ${scheduled ? '' : timetable}
-        <h2>Where this comes from</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
           // (VD-49): the circuit, the result, the pole and the fastest lap
@@ -2749,7 +2751,7 @@ const page = ({
         jobTitle: 'Formula One driver',
       },
       body: `
-        ${opening({ eyebrow: EYEBROWS.driver(), title: NAMES.driver(d.full_name).headline, lede: lede(d, derived, constructors, practice) })}
+        ${opening({ eyebrow: EYEBROWS.driver(d.nationality, d.born), title: NAMES.driver(d.full_name).headline, lede: lede(d, derived, constructors, practice) })}
         ${liveryBand(teamColour, driverBandNote(lastTeam, teamColour))}
         ${practiceOnly ? noteBox(PRACTICE_ONLY_NOTICE.head, PRACTICE_ONLY_NOTICE.body) : ''}
         ${
@@ -2800,7 +2802,7 @@ const page = ({
               <p>${link(comparePath(d.id), compareWith(d.full_name))}</p>`
             : ''
         }
-        <h2>On the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${
           pointsDiffer(d, derived)
             ? noteBox(pointsNote(d, derived).head, pointsNote(d, derived).body)
@@ -2924,7 +2926,7 @@ page({
         ...(c.country ? { location: { '@type': 'Place', name: c.country } } : {}),
       },
       body: `
-        ${opening({ eyebrow: EYEBROWS.constructor(), title: NAMES.constructor(c.name).headline, lede: c.notes })}
+        ${opening({ eyebrow: EYEBROWS.constructor(c.country, c.base), title: NAMES.constructor(c.name).headline, lede: c.notes })}
         ${liveryBand(identity, constructorBandNote(c, lastSeason, livery, identity))}
         ${tiles(teamStrip(c, teamDerived))}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
@@ -2955,7 +2957,7 @@ page({
               }, { fold: FOLD_NOUN.designs })}`
             : ''
         }
-        <h2>On the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
           // (VD-49): the span, the entries and the titles are
@@ -3145,7 +3147,7 @@ page({
               }, { fold: FOLD_NOUN.races })}`
             : EMPTY_STATE
         }
-        <h2>On the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
           // (VD-49): the races, the span and the layout's figures are
@@ -3241,7 +3243,7 @@ page({
               ? link(`constructors/${row.constructor_id}`, name)
               : esc(editionCar(name, row)),
         })}
-        <h2>On the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           ['Also run as', gp.aliases ? esc(gp.aliases) : null],
           ['Confidence', gp.confidence ? link('data/quality', gp.confidence) : text(gp.confidence)],
@@ -3409,7 +3411,7 @@ page({
       trail: TRAIL.car(at, name),
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
-        ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor), title: NAMES.car(name).headline, lede: c.story })}
+        ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced), title: NAMES.car(name).headline, lede: c.story })}
         ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${tiles(carStrip(variants, row, carEntries))}
         ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
@@ -3418,7 +3420,7 @@ page({
         ${prose(c.innovations)}
         ${prose(c.outcome)}
         ${carTables(c.id, variants, carEntries)}
-        <h2>On the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
           // (VD-49). The strip is queries/car.js's, as the app's is, so its
@@ -3491,7 +3493,7 @@ page({
       onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
         ${opening({
-          eyebrow: EYEBROWS.car(variants[0]?.constructor),
+          eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced),
           title: NAMES.car(name).headline,
           // The design's story, where the chassis is one of a curated family:
           // Car.jsx reads the car behind a chassis as well as the car of its
@@ -3507,7 +3509,7 @@ page({
             : ''
         }
         ${carTables(ch.id, variants, carEntries)}
-        <h2>On the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
           // (VD-49): the seasons, the entries and the wins are
@@ -3569,7 +3571,7 @@ page({
             (c) =>
               `<p class="record-card-extra">${esc(c.label)}: ${c.key === 'confidence' ? confidencePill(row.confidence) : esc(row[c.key])}</p>`,
           )
-          .join('')}<details class="record-card-how"><summary>${esc(DERIVATION)}</summary><p>${esc(row.detail)}</p></details></li>`
+          .join('')}<details class="record-card-how"><summary>${esc(DERIVATION)}<span class="sr-only">, ${esc(row.record)}</span></summary><p>${esc(row.detail)}</p></details></li>`
       })
       .join('')}</ul>`
   const driverLink = { full_name: (name, row) => link(`drivers/${row.driver_id}`, name) }
@@ -3662,7 +3664,7 @@ page({
         ${tiles(recordStrip(record))}
         <h2>${esc(DERIVATION)}</h2>
         ${prose(record.detail)}
-        <h2>On the record</h2>
+        <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           ['As of', esc(record.as_of)],
           ['Confidence', confidencePill(record.confidence)],
@@ -3914,7 +3916,7 @@ page({
       reader: (value, row) =>
         `<p class="gap-reader">${esc(value)}</p><details class="gap-note"><summary>${esc(
           MAINTAINER_NOTE,
-        )}</summary>${prose(row.description)}${prose(row.resolution)}</details>`,
+        )}<span class="sr-only">, ${esc(row.area)}</span></summary>${prose(row.description)}${prose(row.resolution)}</details>`,
     })}`
   }
   page({

@@ -103,9 +103,15 @@ export default function Figure({ note, legend, marks = 'swatch', lead = false, t
       })}
     </div>
   )
+  // The disclosure carries the figure's name for a screen reader, as a fold
+  // carries its table's: five figures on /records each opening "The numbers
+  // behind this chart" read alike out of context (DP-30).
   const numbers = table && (
     <details>
-      <summary>The numbers behind this chart</summary>
+      <summary>
+        The numbers behind this chart
+        {name && <span className="sr-only">, {name}</span>}
+      </summary>
       <DataTable
         rows={table.rows}
         columns={table.columns}

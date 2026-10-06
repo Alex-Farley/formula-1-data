@@ -17,6 +17,7 @@ import { EMPTY, finished, missing, number, points, result, span, text, yearList 
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { PRACTICE_SESSIONS } from './race.js'
+import { LABELS } from '../lib/site.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -664,11 +665,11 @@ export function strip(driver, derived) {
   )
   return [
     {
-      label: 'Seasons',
+      label: LABELS.seasons,
       value: span(driver.first_season, driver.last_season),
       note: seasonsNote(driver, derived),
     },
-    { label: 'Entries', value: number(entries) },
+    { label: LABELS.entries, value: number(entries) },
     // Only where an entry was not a start. On 417 careers the two figures are
     // the same and a second tile would restate the first - the two drivers
     // with no entry at all among them, 0 and 0 - and on the other 445 the gap

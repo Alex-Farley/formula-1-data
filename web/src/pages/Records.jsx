@@ -106,8 +106,15 @@ function RecordCards({ rows, extras }) {
                 {column.label}: {column.key === 'confidence' ? <Confidence value={row.confidence} /> : row[column.key]}
               </p>
             ))}
+            {/* Named for its record as well as for what it holds: twelve cards
+                saying "How it is derived" read alike in a screen reader's
+                list of controls (DP-30), as the folds' would without the
+                table's name. scripts/prerender.js writes the same words. */}
             <details className="record-card-how">
-              <summary>{DERIVATION}</summary>
+              <summary>
+                {DERIVATION}
+                <span className="sr-only">, {row.record}</span>
+              </summary>
               <p>{row.detail}</p>
             </details>
           </li>

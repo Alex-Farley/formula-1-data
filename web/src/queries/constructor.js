@@ -13,6 +13,7 @@
  */
 import { EMPTY, missing, number, points, span, text, yearList } from '../lib/format.js'
 import { derivedAndPublished } from './driver.js'
+import { LABELS } from '../lib/site.js'
 
 export const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
 
@@ -182,11 +183,11 @@ export const DESIGN_COLUMNS = [
 export const teamStrip = (constructor, derived) =>
   [
     {
-      label: 'Entered',
+      label: LABELS.seasons,
       value: span(constructor.first_entry, constructor.active ? null : constructor.last_entry),
       note: `${derived.seasons ?? 0} ${derived.seasons === 1 ? 'season' : 'seasons'}`,
     },
-    { label: 'Race entries', value: number(derived.entries) },
+    { label: LABELS.entries, value: number(derived.entries) },
     { label: 'Wins', value: number(derived.wins ?? 0), lead: Number(derived.wins) > 0 },
     { label: 'Podiums', value: number(derived.podiums ?? 0) },
     { label: 'Poles', value: number(derived.poles ?? 0) },

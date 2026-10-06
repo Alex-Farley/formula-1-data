@@ -15,7 +15,7 @@ import { points as fmtPoints, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
-import { NAMES, NOT_YET_RUN, SPRINT } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { SEASON_IMAGES } from '../queries/photographs.js'
 import {
   CALENDAR,
@@ -480,10 +480,13 @@ function SeasonBody({ year, season, data }) {
   )
 
   return (
-    // No eyebrow: the h1 is "2026 FIA Formula One World Championship" now
-    // rather than the bare year (PD-40), so the "Season" above it restated
-    // the heading it was there to explain.
+    // The eyebrow used to be left off: the h1 is "2026 FIA Formula One World
+    // Championship" rather than the bare year (PD-40), so a bare "Season"
+    // above it restated the heading it was there to explain. It now carries
+    // the type and the fact that identifies the season, as every entity
+    // page's does (VD-81): "Season · 24 rounds, 16 run".
     <Page
+      eyebrow={EYEBROWS.season(season.rounds, run)}
       title={NAMES.season(year).headline}
       documentName={NAMES.season(year).title}
       trail={TRAIL.season(year)}
@@ -605,7 +608,7 @@ function SeasonBody({ year, season, data }) {
         />
       </Section>
 
-      <Section title="The season on the record">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             { label: 'Engine formula', value: season.engine_formula },

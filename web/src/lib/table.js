@@ -230,7 +230,7 @@ export const folds = (count) => count > FOLD_OVER
 export const FOLD_NOUN = {
   constructors: 'constructors',
   designs: 'designs',
-  entries: 'races',
+  entries: 'entries',
   practice: 'sessions',
   races: 'races',
   seasons: 'seasons',

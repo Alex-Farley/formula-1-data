@@ -32,7 +32,7 @@ import {
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
-import { EYEBROWS, NAMES } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/constructor.js defines — the
@@ -141,7 +141,7 @@ function ConstructorBody({ constructor, data }) {
 
   return (
     <Page
-      eyebrow={EYEBROWS.constructor()}
+      eyebrow={EYEBROWS.constructor(constructor.country, constructor.base)}
       title={NAMES.constructor(constructor.name).headline}
       trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
@@ -259,7 +259,7 @@ function ConstructorBody({ constructor, data }) {
         </Section>
       )}
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         {constructor.confidence === 'medium' && (
           <Note>
             <strong>Trust the counted figures.</strong> Where this panel gives a figure twice, the

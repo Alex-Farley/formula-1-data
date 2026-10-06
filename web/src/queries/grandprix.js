@@ -13,7 +13,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { span, text } from '../lib/format.js'
-import { NOT_YET_RUN } from '../lib/site.js'
+import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 import { carName } from './race.js'
 import { raceName, raceWinner } from './races.js'
 
@@ -112,7 +112,7 @@ export const CIRCUIT_COLUMNS = [
   { key: 'circuit', rowHeader: true, label: 'Circuit' },
   { key: 'country', label: 'Country' },
   { key: 'races', label: 'Races', align: 'num' },
-  { key: 'first_year', label: 'Span', align: 'num', text: circuitYears },
+  { key: 'first_year', label: LABELS.seasons, align: 'num', text: circuitYears },
 ]
 
 export const EDITION_COLUMNS = [
@@ -120,7 +120,7 @@ export const EDITION_COLUMNS = [
   { key: 'name_used', rowHeader: true, label: 'Run as', text: raceName },
   { key: 'circuit', label: 'Circuit' },
   { key: 'winner', label: 'Winner', text: raceWinner },
-  { key: 'constructor', label: 'Car', text: editionCar },
+  { key: 'constructor', label: 'Constructor', text: editionCar },
 ]
 
 export const WINNER_COLUMNS = [
@@ -137,7 +137,7 @@ export const WINNER_COLUMNS = [
  */
 export const grandPrixStrip = (gp) => [
   { label: 'Times held', value: gp.held },
-  { label: 'Span', value: span(gp.first_held, gp.last_held) },
+  { label: LABELS.seasons, value: span(gp.first_held, gp.last_held) },
   { label: 'Circuits', value: gp.circuits },
   gp.scheduled ? { label: 'Still to come', value: gp.scheduled } : null,
 ]

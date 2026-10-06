@@ -49,6 +49,7 @@ import {
 import {
   EMPTY,
   classificationOrder,
+  longDate,
   missing,
   number,
   percent,
@@ -118,7 +119,9 @@ import {
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, recordFigures } from '../src/queries/constructor.js'
 import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
-import { DIGEST_NOTE, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
+import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
+import { raceSteps } from '../src/lib/wayfinding.js'
+import { NEIGHBOURS as RACE_NEIGHBOURS } from '../src/queries/race.js'
 import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
   LIVERIES,
@@ -149,7 +152,7 @@ import {
   roundShortName,
   roundStates,
 } from '../src/lib/outline.js'
-import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
+import { THUMB_WIDTH, attribution, canShow, fileLinkName, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { GRACE_DAYS, LATE_NOTE, lateDays, lateLine, lateNotice, lateRaces, raceDay, readerDay } from '../src/lib/refresh.js'
 import { UNRESULTED } from '../src/queries/changes.js'
 import {
@@ -1169,7 +1172,7 @@ describe('the queries a page and the prerenderer share', () => {
       recordColumns(shared).map((c) => c.label),
       // The value is second: the record and its figure are the pair the
       // page is for, and the holder answers the question after that (VD-51).
-      ['Record', 'Value', 'Holder', 'How it is derived'],
+      ['Record', 'Value', 'Held by', 'How it is derived'],
     )
     assert.equal(recordColumns([{ confidence: 'reference' }, { confidence: 'high' }]).at(-1).key, 'confidence')
     const apart = [{ ...shared[0] }, { ...shared[1], as_of: '2026-09-07' }]
@@ -1287,9 +1290,18 @@ describe('thumbUrl and fileTitle: the stored address, or one built from the file
     assert.equal(thumbUrl({ file_name: 'File:' }), null)
     assert.equal(thumbUrl(null), null)
   })
-  it('captions with the name a person would read', () => {
-    assert.equal(fileTitle('File:Ayrton_Senna_1988.jpg'), 'Ayrton Senna 1988.jpg')
+  it('captions with the name a person would read, as Commons heads the page (DP-31)', () => {
+    assert.equal(fileTitle('File:Ayrton_Senna_1988.jpg'), 'Ayrton Senna 1988')
+    assert.equal(fileTitle('Circuit de Monaco, April 1, 2018 SkySat (cropped).jpg'), 'Circuit de Monaco, April 1, 2018 SkySat (cropped)')
+    assert.equal(fileTitle('File:Lotus 49 (1967).PNG'), 'Lotus 49 (1967)')
+    // Only a trailing extension: a dot inside a title is part of it.
+    assert.equal(fileTitle('File:Dr. Giuseppe Farina.jpg'), 'Dr. Giuseppe Farina')
     assert.equal(fileTitle(undefined), '')
+  })
+  it('names the credit link for the photograph and where it goes, beginning with what it shows', () => {
+    const name = fileLinkName({ file_name: 'File:Ayrton_Senna_1988.jpg' })
+    assert.equal(name, 'Ayrton Senna 1988, on Wikimedia Commons')
+    assert.ok(name.startsWith(fileTitle('File:Ayrton_Senna_1988.jpg')), 'the visible text begins the name (2.5.3)')
   })
 })
 
@@ -2761,5 +2773,48 @@ describe('the counts the register ledes spell out (VD-79)', () => {
     opens(CARS_LEDE, count('SELECT COUNT(*) FROM cars'), 'designs')
     const chassis = count('SELECT COUNT(*) FROM chassis').toLocaleString('en-GB')
     assert.ok(CARS_LEDE.includes(`${chassis} of them`), `the lede counts the chassis, and f1.db holds ${chassis}`)
+  })
+})
+
+describe('one eyebrow rule: the page type, then the facts that identify the entity (VD-81, IA-09)', () => {
+  it('writes a whole ISO day out, and nothing for half of one', () => {
+    assert.equal(longDate('1985-01-07'), '7 January 1985')
+    assert.equal(longDate('2025-07-06'), '6 July 2025')
+    assert.equal(longDate('1911'), null)
+    assert.equal(longDate(null), null)
+  })
+  it('leads with the type on every entity page, and leaves out a fact not held', () => {
+    assert.equal(EYEBROWS.driver('United Kingdom', '1985-01-07'), 'Driver · United Kingdom · born 7 January 1985')
+    assert.equal(EYEBROWS.driver('United States of America', null), 'Driver · United States of America')
+    assert.equal(EYEBROWS.constructor('Italy', 'Maranello, Italy'), 'Constructor · Italy · Maranello')
+    // A base abroad keeps its country: the constructor's is not the base's.
+    assert.equal(EYEBROWS.constructor('Austria', 'Milton Keynes, United Kingdom'), 'Constructor · Austria · Milton Keynes, United Kingdom')
+    assert.equal(EYEBROWS.constructor('United Kingdom', null), 'Constructor · United Kingdom')
+    assert.equal(EYEBROWS.circuit('Silverstone', 'United Kingdom'), 'Circuit · Silverstone, United Kingdom')
+    assert.equal(EYEBROWS.race(12, 24, '2025-07-06'), 'Race · Round 12 of 24 · 6 July 2025')
+    assert.equal(EYEBROWS.season(24, 24), 'Season · 24 rounds, all run')
+    assert.equal(EYEBROWS.season(24, 16), 'Season · 24 rounds, 16 run')
+    assert.equal(EYEBROWS.season(24, 0), 'Season · 24 rounds, none run yet')
+    assert.equal(EYEBROWS.car('Red Bull Racing', 2023, 2023), 'Car · Red Bull Racing · 2023')
+    assert.equal(EYEBROWS.car('Ferrari', 1952, 1953), 'Car · Ferrari · 1952–1953')
+    assert.equal(EYEBROWS.car(null, null, null), 'Car')
+    assert.equal(EYEBROWS.grandPrix('United Kingdom'), 'Grand Prix · United Kingdom')
+    assert.equal(EYEBROWS.grandPrix(null), 'Grand Prix')
+  })
+  it('names a race page\'s neighbours as their own pages are headed', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const middle = db.prepare(RACE_NEIGHBOURS).get(2025, 12)
+      const steps = raceSteps(middle)
+      assert.equal(steps.previous.label, `2025 ${db.prepare('SELECT name_used FROM races WHERE year = 2025 AND round = 11').get().name_used}`)
+      assert.equal(steps.next.label, `2025 ${db.prepare('SELECT name_used FROM races WHERE year = 2025 AND round = 13').get().name_used}`)
+      assert.equal(middle.rounds, db.prepare('SELECT COUNT(*) AS n FROM races WHERE year = 2025').get().n)
+      // Across a season's edge, the step names the other season's race.
+      const first = raceSteps(db.prepare(RACE_NEIGHBOURS).get(2025, 1))
+      assert.ok(first.previous.label.startsWith('2024 '), first.previous.label)
+      assert.equal(raceSteps(db.prepare(RACE_NEIGHBOURS).get(1950, 1)).previous, null, 'the first race has no step back')
+    } finally {
+      db.close()
+    }
   })
 })

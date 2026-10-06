@@ -3,7 +3,7 @@ import { Confidence, Fields, Onward, Page, Section, Stats } from '../components/
 import { Result } from '../components/States.jsx'
 import SearchKey from '../components/SearchKey.jsx'
 import { number } from '../lib/format.js'
-import { NAMES } from '../lib/site.js'
+import { LABELS, NAMES } from '../lib/site.js'
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { DERIVATION, RECORD, holderPath, recordStrip } from '../queries/records.js'
 import { useQueries } from '../data/useQuery.js'
@@ -58,7 +58,7 @@ function RecordBody({ record }) {
         <p className="measure">{record.detail}</p>
       </Section>
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             { label: 'As of', value: record.as_of },

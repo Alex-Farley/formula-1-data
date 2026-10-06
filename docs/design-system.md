@@ -44,8 +44,8 @@ it is, so that nobody holds new work to a rule that has not landed:
 
 §1's principles bind from adoption. The steps: VD-78 (#865, the grid, the
 measure and the design-system tests), VD-79 (#866, tiles, one page
-header and the handover) and VD-80 (#867, one figure grammar) are built.
-Pending are VD-81 (#868, one vocabulary), VD-82 (#869, one reveal control, with sort and fold in the
+header and the handover), VD-80 (#867, one figure grammar) and VD-81 (#868,
+one vocabulary) are built. Pending are VD-82 (#869, one reveal control, with sort and fold in the
 address), VD-83 (#870, one section order per page type) and VD-84 (#871, the
 opening slot and the middle type register); VD-86 (#884) holds the core
 rules none of the seven named. **A step's pull request moves
@@ -225,18 +225,20 @@ column in the opening band.
 The result: **two text edges per page, both grid lines**, where there were
 seven.
 
-### Page header (core) — built (VD-79), but for the eyebrow's rule and the stepper's names (VD-81)
+### Page header (core) — built (VD-79, VD-81)
 
 - **Job:** say what this page is, and how to move along a sequence.
 - **Parts:** eyebrow, h1, lede, stepper.
-  - The **eyebrow** follows one rule: the page type, then the one fact that
-    identifies the entity, for example *Driver · United Kingdom · born 7
-    January 1985* or *Race · Round 12 of 24 · 6 July 2025*. This settles
-    IA-09 (#253). *Pending (VD-81):* each page still carries the eyebrow it
-    had, now from one place, `EYEBROWS` in `web/src/lib/site.js`, where the
-    rule will be applied.
-  - The **stepper** names its neighbours: *← 2025 Austrian Grand Prix*.
-    *Pending (VD-81).*
+  - The **eyebrow** follows one rule: the page type, then the facts that
+    identify the entity, for example *Driver · United Kingdom · born 7
+    January 1985* or *Race · Round 12 of 24 · 6 July 2025*. A fact the
+    database does not hold is left out, never printed as a dash. All seven
+    entity types carry one, seasons included (*Season · 23 rounds, 16
+    run*), from `EYEBROWS` in `web/src/lib/site.js`, which both renderers
+    read. This settles IA-09 (#253); smoke's *one vocabulary* check holds
+    each entity page's eyebrow to its type in both halves (VD-81).
+  - The **stepper** names its neighbours: *← 2025 Austrian Grand Prix*, as
+    the race's own h1 names it (`raceSteps` in `lib/wayfinding.js`, VD-81).
 - **One component drawn by both renderers.** `Page` in
   `components/Page.jsx` draws it in the app, and `opening()` with
   `structure()` in `scripts/prerender.js` draws the same markup, class for
@@ -283,7 +285,7 @@ An empty slot gives its width to the header. The band is as tall as the
 taller of the two, and the tiles start under both, so nothing below is
 ragged. VD-53's interim side-by-side opening holds the place until then.
 
-### Tile strip (core) — built (VD-79), but for its labels (VD-81), its em dash and its name (VD-88 #887)
+### Tile strip (core) — built (VD-79, VD-81), but for its em dash and its name (VD-88 #887)
 
 - **Job:** the handful of figures the page is about.
 - **Parts:** label (`--size-2` mono), figure (`--size-8`, or `--size-6` for a
@@ -307,7 +309,10 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   only the app draws is the season's *Next session*, because only a browser
   knows how long until it starts; §8's test 5 declares it.
 - **Labels from one vocabulary:** *Seasons* for every year span, and
-  *Entries* everywhere (CD-12 #258). *Pending (VD-81).*
+  *Entries* everywhere (CD-12 #258); a record's strip is *Value* and
+  *Held by*, as /records' tables are. The words are `LABELS` in
+  `lib/site.js`, which every strip reads (VD-81); §8's test 7 refuses a
+  synonym.
 - **States:** a value not established is an em dash (**floor**: the NULL
   rule). *Pending (VD-88 #887):* both renderers still drop a tile whose
   value is null.
@@ -402,10 +407,11 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   silverstone-8 · …*, and the OpenStreetMap sentence appears only where a
   trace is drawn (content C10; AX-26 #509).
 
-### Provenance and citation (core) — pending (the name: VD-81; the citation: CD-46 #631)
+### Provenance and citation (core) — built: the name (VD-81); pending: the citation (CD-46 #631)
 
-- **One name, *Where this comes from*,** on every page type. Today it has
-  three names, and "On the record" collides with `/records`.
+- **One name, *Where this comes from*,** on every page type, from
+  `LABELS.provenance` in both renderers. It had three names, and "On the
+  record" collided with `/records` (VD-81).
 - **The citation** carries the *Behind this page* sentence on every page type
   (CD-46 #631). It is a framed note under the text rule.
 
@@ -481,7 +487,7 @@ puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core) — built: voice and NULL; pending (VD-81): one label per concept
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -489,9 +495,19 @@ puts the classification before the outline (visual defect 7).
   - year span: *Seasons*;
   - entries: *Entries*;
   - provenance: *Where this comes from*;
-  - a record tile: *Held by*, not *HOLDER*.
+  - a record: its *Value*, *Held by*, not *HOLDER*, on its tiles and in
+    /records' tables.
 
-  These are CD-12's vocabulary, applied.
+  These are CD-12's vocabulary, applied: `LABELS` in `lib/site.js`, and
+  `REPLACED` beside it lists the words they replaced, which the tests
+  refuse. *Pending (CD-58 #893):* the `/constructors` and `/cars` register
+  columns still say *Entered*, *Raced* and *Race entries*, declared in the
+  test until that item moves them.
+- **A disclosure or a link says what it opens.** A disclosure that repeats
+  on a page carries what it belongs to for a screen reader, as a fold
+  carries its table's name: *How it is derived, Most Grand Prix wins*. A
+  photograph's credit link is the file's title as Commons heads its page,
+  with no extension, and is named *…, on Wikimedia Commons* (DP-30, DP-31).
 - **Figures in prose** go stale; a lede carries no count that a tile beside
   it also shows.
 - **Numbers:** tabular figures in every column. A season is printed as
@@ -558,7 +574,7 @@ handover (VD-79). Pending: state in the address and the one reveal control
 | Reflow at 400 and 320 px with no sideways page scroll | **floor** | smoke at 400 |
 | Hover box opens on focus | **aim** | — |
 | Revealing content moves focus to the first revealed item | **aim** | — |
-| A disclosure's name says what it opens | **aim** | — |
+| A disclosure's name says what it opens | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-81): no two disclosures, and no two stand-alone links to different places, share a name on a smoke route |
 | The tile strip carries a name | **aim** | — |
 | Text 12 px or smaller is not also faint and longer than the small measure | **aim** (33–62 % of entity-page text is ≤12 px; zoom and reflow work, so this is not pressed against the design) | the measure tokens |
 | Target size of at least 24 px for controls and 6 px for chart marks | **aim** | — |
@@ -613,7 +629,7 @@ The system is held by tests, not by memory.
 
 **The system's own tests, one each, so a drift fails the build.** Built in
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
-Pending: 7 (VD-81).
+Built in VD-81: 7.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -640,7 +656,13 @@ Pending: 7 (VD-81).
    note under the plot in 50 words or fewer (`smoke.mjs`, *One figure
    grammar*).
 7. **One vocabulary.** Tile labels and provenance headings come from one
-   list in `lib/site.js`, and a test refuses a synonym.
+   list, `LABELS` in `lib/site.js`, and a test refuses a synonym: in the
+   source (`conventions.mjs`, *one vocabulary*), in any tile or column of
+   `queries/*.js` but the register columns declared until CD-58 (#893),
+   where a strip that writes a word of the list as a literal fails too, and
+   on the smoke routes in
+   both halves (`smoke.mjs`), which also hold every entity page's eyebrow
+   to its type and its provenance section to *Where this comes from*.
 8. **Tokens are used.** Every token defined in `tokens.css` is referenced
    somewhere, so `--size-9/10/11` either earn their place or go.
 9. **Focus is visible.** `conventions.mjs` refuses an `all: unset` (or

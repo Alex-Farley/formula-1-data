@@ -10,7 +10,7 @@ import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
-import { EYEBROWS, ENTRIES_NOTE, NAMES } from '../lib/site.js'
+import { EYEBROWS, ENTRIES_NOTE, LABELS, NAMES } from '../lib/site.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { colourForEntry, colourSource, driverBandNote, lastTeamColour } from '../lib/liveries.js'
 import {
@@ -329,7 +329,7 @@ function DriverBody({ driver, data }) {
 
   return (
     <Page
-      eyebrow={EYEBROWS.driver()}
+      eyebrow={EYEBROWS.driver(driver.nationality, driver.born)}
       title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors, practice)}
@@ -471,7 +471,7 @@ function DriverBody({ driver, data }) {
       )}
 
       {!practiceOnly && (
-        <Section title="Every entry" count={`${results.length} races`}>
+        <Section title="Every entry" count={`${results.length.toLocaleString('en-GB')} ${results.length === 1 ? 'entry' : 'entries'}`}>
           <DataTable
             rows={results}
             fold={FOLD_NOUN.entries}
@@ -487,7 +487,7 @@ function DriverBody({ driver, data }) {
 
       <Disagreement rows={rows(data, 'disagreements')} what="this career" />
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         {differ && (
           <Note>
             <strong>{pointsNote(driver, derived).head}</strong> {pointsNote(driver, derived).body}
