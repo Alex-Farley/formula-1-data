@@ -212,6 +212,30 @@ export const FOLD_TO = 10
 /** Does a folding table of this many rows fold? */
 export const folds = (count) => count > FOLD_OVER
 
+/**
+ * WHAT A FOLD'S ROWS ARE, NAMED ON ITS BUTTON (CD-52).
+ *
+ * A bare "Show all 74" under *Team-mates — 46 team-mates* could not be
+ * squared by a reader: the rows are team-mates by season, and the button
+ * counted those while the heading counted drivers. So every fold names its
+ * unit, the same one its heading counts, and `fold` takes it in place of
+ * `true` - in DataTable and in scripts/prerender.js alike, from this one map,
+ * so the two halves print the same words. web/test/conventions.mjs refuses a
+ * fold declared without one.
+ */
+export const FOLD_NOUN = {
+  constructors: 'constructors',
+  designs: 'designs',
+  entries: 'races',
+  practice: 'sessions',
+  races: 'races',
+  seasons: 'seasons',
+  teamMates: 'team-mate seasons',
+  winners: 'drivers',
+  wins: 'wins',
+}
+
 /** The disclosure's two faces, closed and open, as both halves print them. */
-export const foldMore = (count) => `Show all ${count.toLocaleString('en-GB')}`
+export const foldMore = (count, noun) =>
+  `Show all ${count.toLocaleString('en-GB')}${typeof noun === 'string' ? ` ${noun}` : ''}`
 export const FOLD_LESS = `Show the first ${FOLD_TO}`

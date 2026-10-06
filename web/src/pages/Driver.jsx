@@ -11,6 +11,7 @@ import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
 import { ENTRIES_NOTE, NAMES } from '../lib/site.js'
+import { FOLD_NOUN } from '../lib/table.js'
 import { colourForEntry, colourSource, lastTeamColour } from '../lib/liveries.js'
 import { canonicalCountry } from '../lib/racingColours.js'
 import {
@@ -369,7 +370,7 @@ function DriverBody({ driver, data }) {
         <Section title="Practice sessions" count={practiceCount(practice)}>
           <DataTable
             rows={practice}
-            fold
+            fold={FOLD_NOUN.practice}
             rowKey={(row) => row.id}
             sortable
             sort="year"
@@ -457,7 +458,7 @@ function DriverBody({ driver, data }) {
         <Section title="Season by season" count={`${seasons.length} seasons`}>
           <DataTable
             rows={seasons}
-            fold
+            fold={FOLD_NOUN.seasons}
             rowKey={(row) => row.year}
             sortable
             sort="year"
@@ -474,7 +475,7 @@ function DriverBody({ driver, data }) {
         <Section title="Team-mates" count={teamMateCount(teamMates)}>
           <DataTable
             rows={teamMates}
-            fold
+            fold={FOLD_NOUN.teamMates}
             rowKey={(row) => `${row.year}-${row.constructor_id}-${row.mate_id}`}
             sortable
             sort="year"
@@ -495,7 +496,7 @@ function DriverBody({ driver, data }) {
         <Section title="Every entry" count={`${results.length} races`}>
           <DataTable
             rows={results}
-            fold
+            fold={FOLD_NOUN.entries}
             rowKey={(row) => `${row.year}-${row.round}`}
             sortable
             sort="year"

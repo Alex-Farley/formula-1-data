@@ -86,7 +86,7 @@ import {
   recordFamilies,
 } from '../src/queries/records.js'
 import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
-import { FOLD_LESS, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
+import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
@@ -3191,6 +3191,89 @@ try {
     is(await page.$$eval('#root main .tooltip', (n) => n.length), 0, 'Escape lets go of it')
   })
 
+  /*
+   * IX-44. A chart's hover box is whole wherever it opens: centred over
+   * Ferrari's 2026 column it ran out of the figure, which clips it, and risen
+   * above the season chart's plot it was cut off at every width and left the
+   * screen at 400. Every column chart and line chart on these pages is read
+   * at its first and last mark - and a column chart at its tallest, whose
+   * box has no room above it - at a phone's width and a desktop's, and the
+   * box must lie inside the window and inside every ancestor that clips.
+   * The dot plot's own boxes are held to the same rule in the section above.
+   */
+  await section('chart hover boxes  (whole at every edge: IX-44)', async () => {
+    const clipped = () =>
+      page
+        .$eval('#root main .tooltip', (tip) => {
+          const t = tip.getBoundingClientRect()
+          const out = []
+          if (t.left < 0 || t.top < 0 || t.right > window.innerWidth || t.bottom > window.innerHeight) out.push('the window')
+          for (let node = tip.parentElement; node; node = node.parentElement) {
+            const style = getComputedStyle(node)
+            if (style.overflowX === 'visible' && style.overflowY === 'visible') continue
+            const r = node.getBoundingClientRect()
+            if (t.left < r.left - 0.5 || t.right > r.right + 0.5 || t.top < r.top - 0.5 || t.bottom > r.bottom + 0.5) {
+              out.push(`${node.tagName.toLowerCase()}.${[...node.classList].join('.')}`)
+            }
+          }
+          return { said: tip.querySelector('b')?.textContent ?? '', out }
+        })
+        .catch(() => null)
+    for (const width of [400, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const [route, heading] of [['/constructors/ferrari', 'Ferrari'], ['/', null], ['/seasons/2024', '2024']]) {
+        await go(route, heading)
+        const wrong = []
+        let read = 0
+        for (const holder of await page.$$('#root main figure.figure .plot-holder')) {
+          await holder.scrollIntoViewIfNeeded()
+          const columns = await holder.$$('svg g > rect[fill="transparent"]')
+          const points = []
+          if (columns.length) {
+            const tops = await Promise.all(columns.map(async (c) => (await c.evaluate((n) => n.nextElementSibling?.getBBox().y ?? 0))))
+            const tallest = tops.indexOf(Math.min(...tops))
+            for (const i of new Set([0, columns.length - 1, tallest])) {
+              const b = await columns[i].boundingBox()
+              points.push([b.x + b.width / 2, b.y + b.height - 4])
+            }
+          } else if (await holder.$('svg[role="img"]:not([tabindex]):not([class])')) {
+            // A line chart reads the round nearest the pointer, so its two
+            // ends are a pointer near either side of the plot.
+            const b = await (await holder.$('svg[role="img"]')).boundingBox()
+            points.push([b.x + b.width * 0.03, b.y + b.height / 2], [b.x + b.width * 0.97, b.y + b.height / 2])
+          }
+          for (const [px, py] of points) {
+            await page.mouse.move(px, py)
+            const got = await clipped()
+            if (!got) wrong.push(`no box at ${Math.round(px)},${Math.round(py)}`)
+            else {
+              read += 1
+              if (got.out.length) wrong.push(`${got.said} cut off by ${got.out.join(', ')}`)
+            }
+          }
+          await page.mouse.move(0, 0)
+        }
+        atLeast(read, 2, `at ${width}, ${route} opens a box at the edges of its charts`)
+        truthy(wrong.length === 0, `at ${width}, every one of them is whole, inside the window and every frame that clips${wrong.length ? `; ${wrong.join('; ')}` : ''}`)
+      }
+      truthy(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        `at ${width}, and the page does not scroll sideways`,
+      )
+    }
+    // Escape closes a box opened by the pointer, without moving it (1.4.13).
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await go('/constructors/ferrari', 'Ferrari')
+    const column = (await page.$$('#root main figure.figure .plot-holder svg g > rect[fill="transparent"]')).at(-1)
+    await column.scrollIntoViewIfNeeded()
+    const b = await column.boundingBox()
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height - 4)
+    is(await page.$$eval('#root main .tooltip', (n) => n.length), 1, 'pointed at, a column opens its box')
+    await page.keyboard.press('Escape')
+    is(await page.$$eval('#root main .tooltip', (n) => n.length), 0, 'and Escape closes it with the pointer still there')
+    await page.mouse.move(0, 0)
+  })
+
   await section('/constructors', async () => {
     await go('/constructors', 'Constructors')
     const everyConstructor = count('SELECT COUNT(*) FROM constructors')
@@ -3397,8 +3480,8 @@ try {
       truthy(got?.folded, 'Every win is folded')
       is(got?.shown, FOLD_TO, `and shows its first ${FOLD_TO}`)
       truthy(got && got.drawn > FOLD_TO, `with the rest still in the document — ${got?.drawn} drawn`)
-      is(got?.face, foldMore(wins), 'the disclosure names the whole count')
-      is(got?.name, `${foldMore(wins)}, Every win`, 'and its accessible name says which table')
+      is(got?.face, foldMore(wins, FOLD_NOUN.wins), 'the disclosure names the whole count')
+      is(got?.name, `${foldMore(wins, FOLD_NOUN.wins)}, Every win`, 'and its accessible name says which table')
       is(got?.open, false, 'and starts closed')
 
       // A sort acts on every row, and the fold shows the new first ten: the
@@ -3445,7 +3528,7 @@ try {
       let got = await plain.evaluate(fold, served)
       is(got?.drawn, wins, `the static Every win holds all ${wins} rows`)
       is(got?.shown, FOLD_TO, `and shows ${FOLD_TO} of them`)
-      is(got?.name, `${foldMore(wins)}, Every win`, 'behind the same disclosure, named the same way')
+      is(got?.name, `${foldMore(wins, FOLD_NOUN.wins)}, Every win`, 'behind the same disclosure, named the same way')
       await under(plain, '#prerendered').locator('details.table-fold > summary').click()
       got = await plain.evaluate(fold, served)
       is(got?.shown, got?.drawn, 'which opens with no script, showing every row')
@@ -4829,15 +4912,17 @@ try {
       ['1988', 'Alain Prost', 'McLaren', String(want.races), want.qualifying.join('–'), want.race.join('–'), want.points.join('–')].join(' | '),
       'the 1988 McLaren pairing reads as the races, compared one by one, add up',
     )
-    // The count is team-mates, not rows: Berger is three seasons and one driver.
+    // The count is team-mates, and then rows: Berger is three seasons and one
+    // driver. The fold counts the rows, so the heading names them too (CD-52).
     const mates = count(
       `SELECT COUNT(DISTINCT o.driver_id) FROM race_entries e
          JOIN race_entries o ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id AND o.driver_id <> e.driver_id
         WHERE e.driver_id = 'senna'`,
     )
     truthy(
-      (await text('#root main section:has(h2:text-matches("^Team-mates")) h2 .count')) === `${mates} team-mates`,
-      `the heading counts ${mates} different team-mates`,
+      (await text('#root main section:has(h2:text-matches("^Team-mates")) h2 .count')) ===
+        `${mates} team-mates, ${await rowsUnder('Team-mates')} team-mate seasons`,
+      `the heading counts ${mates} different team-mates, and the team-mate seasons its rows are`,
     )
     truthy(
       await page.$('#root main a[href="/compare?a=senna"]'),
