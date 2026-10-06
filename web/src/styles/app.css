@@ -2770,53 +2770,49 @@ figure.figure {
   overflow: hidden;
 }
 
-figure.figure > figcaption {
-  padding: var(--space-6) var(--space-7) 0;
-}
-
-figure.figure > figcaption b {
-  display: block;
-  font-size: var(--size-5);
-  font-weight: var(--weight-semibold);
-}
-
-figure.figure > figcaption span {
-  display: block;
-  font-size: var(--size-3);
-  color: var(--ink-faint);
-  margin-top: var(--space-1);
-  max-width: var(--measure-small);
-}
-
-/* A figure that leads its page (VD-67): one line of title, then the plot,
-   then the legend and the method note beneath it. The plot starts within
-   40 px of the box top at any width: 10 px of padding, a 19.5 px title line
-   and the body's 6 px. That holds for a title of one line, so a lead title
-   is short by construction: it fits one line down to 320 px, the reflow
-   width, and the smoke suite measures it there. It is never clipped - a
-   title too long wraps and is all still read, and the suite fails it. */
-figure.figure-lead > figcaption {
-  padding-top: var(--space-5);
-}
-
-figure.figure-lead > figcaption b {
-  line-height: 1.3;
-}
-
-figure.figure-lead > .legend {
+/* One figure grammar (VD-80, DP-04): the heading above names the figure
+   and there is no caption title, so the box opens on the plot; then the
+   legend, then the method note, then the numbers. The plot starts 12 px
+   into the box, well inside the 40 px the smoke suite holds a lead figure
+   to, so a phone's first screen under the heading is data, not prose. */
+figure.figure > .legend {
   padding-top: var(--space-2);
 }
 
+/* The method note is text that belongs to the box (section 3, the
+   text-width rule, kind 2): a band inside the frame, under a hairline as
+   wide as the box, its lines stopping at the small measure. The band is
+   the paragraph and the measure its one span, so the hairline still runs
+   edge to edge. */
 .figure-note {
   margin: 0;
-  padding: 0 var(--space-7) var(--space-6);
+  border-top: 1px solid var(--rule);
+  padding: var(--space-5) var(--space-7) var(--space-6);
   font-size: var(--size-3);
   color: var(--ink-faint);
-  max-width: calc(var(--measure-small) + 2 * var(--space-7)); /* the small measure plus the note's own padding */
+}
+
+.figure-note > span {
+  display: block;
+  max-width: var(--measure-small);
+}
+
+/* The static half draws no plot for most figures, so its note can open the
+   box, with nothing above it to rule off. */
+figure.figure > .figure-note:first-child {
+  border-top: 0;
+  padding-top: var(--space-6);
 }
 
 .figure-body {
-  padding: var(--space-3) var(--space-5) var(--space-5);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+}
+
+/* One of two figures in one section (FigurePart): its h3 names it, a step
+   below the section's h2 and clear of the frame. */
+.figure-part > h3 {
+  margin: var(--space-6) 0 var(--space-4);
+  font-size: var(--size-7);
 }
 
 .figure svg {
@@ -2860,11 +2856,18 @@ figure.figure-lead > .legend {
    carries as a stroke, and at full strength: that colour is the pair
    test/conventions.mjs holds to 3:1 on the panel, and the 0.5 opacity this
    ring had took it to 2.33:1 in light and 2.69:1 in dark (AX-23), under
-   1.4.11's floor for a mark that is the site's flag for a title. It reads as
-   a surround rather than a second mark by its weight instead: a hairline,
-   under the dot's own 2 px edge. conventions.mjs refuses an opacity here. */
+   1.4.11's floor for a mark that is the site's flag for a title.
+
+   And 2 px wide, the dot's own edge (DP-33). The design pass measured the
+   ring at 1.83:1 in light and 2.23:1 in dark on Hamilton's chart while the
+   opacity stood; CR-74 took the opacity off and left a 1 px hairline, which
+   on a radius that falls between pixels is drawn as two half-covered
+   pixels, each a blend of the colour and the panel, so the colour's 3:1 is
+   not what reaches the screen. At 2 px a whole pixel of the colour does.
+   Weight, not a duller palette: conventions.mjs refuses an opacity here and
+   a stroke under 2 px. */
 .figure .mark-halo {
-  stroke-width: 1;
+  stroke-width: 2;
 }
 
 /* THE MARK FOR A SEASON OR A TEAM WITH NO RECORDED COLOUR (AF-55).
@@ -2892,8 +2895,8 @@ figure.figure-lead > .legend {
 }
 
 /* The ring round a hollow dot - a title won inside the gap. Ink, like the
-   dot it surrounds, and it keeps .mark-halo's hairline weight so it still
-   reads as a surround rather than a second mark. */
+   dot it surrounds, at .mark-halo's 2 px, and --ink-soft clears 3:1 on the
+   panel in both themes (conventions.mjs measures it). */
 .figure .mark-halo-hollow {
   stroke: var(--ink-soft);
 }

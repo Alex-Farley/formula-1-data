@@ -41,6 +41,8 @@ import {
   careerStrip,
   teamsBySeason,
   roundsRun,
+  finishesFigureNote,
+  thisSeasonFigureNote,
   thisSeasonFooter,
   thisSeasonHeading,
   thisSeasonLine,
@@ -172,14 +174,7 @@ function ThisSeason({ name, rows: calendar, standings }) {
   return (
     <Section title={thisSeasonHeading(calendar)} note={thisSeasonLine(calendar, standings)}>
       <Figure
-        title={`${name}'s finishes in ${season}`}
-        note={`Where ${name} finished in each round of ${season}, P1 at the top. A round with no dot is one ${name} was not classified in or not entered for, and the table says which${toCome ? '; the space to the right is the rounds still to run' : ''}. A win is ringed. ${
-          inColour
-            ? `Each dot is in the colour of the team raced that weekend: ${colourSource(placed.map((d) => d.colour))}.${
-                mixed ? ' A hollow dot is a round this record holds no colour for.' : ''
-              }`
-            : 'The dots are not in team colours: no round on this record has one.'
-        }`}
+        note={thisSeasonFigureNote(toCome, inColour ? colourSource(placed.map((d) => d.colour)) : null, mixed)}
         table={{
           rows: run,
           columns: THIS_SEASON_COLUMNS.map((column) => ({ ...column, ...THIS_SEASON_APP[column.key] })),
@@ -377,16 +372,7 @@ function DriverBody({ driver, data }) {
         <Section lead title="Where each championship finished">
           <Figure
             lead
-            title="Final standing by season"
-            note={`Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed. ${
-              finishesInColour
-                ? `Each dot is coloured for the team that season finished with, named in the table: ${colourSource(plotted.map((s) => s.colour))}.${
-                    finishesMixed
-                      ? ' A hollow dot is a season this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here, so the dot names its team on hover or keyboard focus rather than wearing one.'
-                      : ''
-                  }`
-                : 'The dots are not in team colours: no season on this record has one.'
-            }`}
+            note={finishesFigureNote(finishesInColour ? colourSource(plotted.map((s) => s.colour)) : null, finishesMixed)}
             table={{
               rows: finishes,
               columns: [

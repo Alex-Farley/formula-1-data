@@ -1045,7 +1045,23 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
       const body = rule(selector)
       assert.ok(!/opacity\s*:/.test(body), `${selector} sets an opacity, which takes its colour under the 3:1 it is held to: ${body.trim()}`)
       assert.ok(!/stroke-opacity\s*:/.test(body), `${selector} sets a stroke-opacity: ${body.trim()}`)
+      const width = /stroke-width\s*:\s*([\d.]+)/.exec(body)
+      if (width) assert.ok(Number(width[1]) >= 2, `${selector} draws a ${width[1]} px ring: under 2 px it is antialiased into the panel, below its colour's ratio (DP-33)`)
     }
+    // DP-33: a 1 px hairline on a radius that falls between pixels is drawn
+    // as two half-covered pixels, each a blend of the colour and the panel,
+    // so the pair's 3:1 above is not what reaches the screen. The hollow
+    // ring inherits this width, and DotPlot.jsx sets none of its own.
+    const halo = /stroke-width\s*:\s*([\d.]+)/.exec(rule('.figure .mark-halo'))
+    assert.ok(halo && Number(halo[1]) >= 2, `.figure .mark-halo is ${halo?.[1] ?? 'unset'} px wide; a title ring is at least 2 px (DP-33)`)
+    // Each <circle ... /> in DotPlot.jsx, whole, so a strokeWidth written
+    // before the className is caught as well as one after it.
+    const circles = read(join(web, 'src', 'charts', 'DotPlot.jsx')).match(/<circle\b[\s\S]*?\/>/g) ?? []
+    assert.ok(circles.some((c) => c.includes('mark-halo')), 'DotPlot.jsx draws no mark-halo circle')
+    assert.ok(
+      circles.filter((c) => c.includes('mark-halo')).every((c) => !/strokeWidth/.test(c)),
+      'DotPlot.jsx sets the ring\'s width inline, where this test cannot see it',
+    )
     assert.match(rule('.figure .mark-halo-hollow'), /stroke:\s*var\(--ink-soft\)/)
     for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
       const t = tokens(block)
@@ -1865,6 +1881,118 @@ describe('the design system holds its grid: widths, breakpoints and tokens (VD-7
     assert.deepEqual(off, [], `unsets the focus ring and draws none of its own:\n  ${off.join('\n  ')}\nAdd \`<selector>:focus-visible { outline: ... }\`.`)
     const stale = Object.keys(NO_RING).filter((s) => ringed.has(s))
     assert.deepEqual(stale, [], 'declared ringless, and now ringed: take it out of NO_RING')
+  })
+})
+
+describe('one figure grammar: the heading names the figure, and the note goes under it in 50 words (VD-80, DP-04)', () => {
+  // docs/design-system.md section 8, test 6. Every figure had an h2 and a
+  // bold title of its own, and two caption orders: the note under the plot on
+  // the three lead figures VD-67 reached, above it everywhere else, at up to
+  // 126 words. smoke.mjs holds the rendered figures on its routes; this holds
+  // the source, so a page cannot bring a second title back between visits,
+  // and holds every note builder to the 50 words at its longest.
+  const figureSource = read(join(web, 'src', 'charts', 'Figure.jsx'))
+  const prerender = read(join(web, 'scripts', 'prerender.js'))
+  const lineOf = (text, index) => text.slice(0, index).split('\n').length
+
+  // The props of each <Figure ...> element: from the tag to the > that closes
+  // it at brace depth zero, so an arrow function's => inside a prop is not
+  // taken for the end of the tag.
+  const figureTags = (source) => {
+    const tags = []
+    for (const m of source.matchAll(/<Figure\b/g)) {
+      let depth = 0
+      let at = m.index + m[0].length
+      for (; at < source.length; at += 1) {
+        const c = source[at]
+        if (c === '{') depth += 1
+        else if (c === '}') depth -= 1
+        else if (c === '>' && depth === 0 && source[at - 1] !== '=') break
+      }
+      tags.push({ index: m.index, props: source.slice(m.index, at) })
+    }
+    return tags
+  }
+
+  it('no page passes a figure a title, and Figure takes none', () => {
+    const files = ['pages', 'components', 'charts'].flatMap((dir) => sourceFiles(join(web, 'src', dir), /\.jsx$/))
+    const off = []
+    let figures = 0
+    for (const file of files) {
+      const source = read(file)
+      for (const { index, props } of figureTags(source)) {
+        figures += 1
+        if (/\stitle=/.test(props)) off.push(`${rel(file)}:${lineOf(source, index)}`)
+      }
+    }
+    assert.ok(figures >= 14, `found ${figures} <Figure> elements; the scan has stopped finding them`)
+    assert.deepEqual(off, [], `a figure with a second title; the heading above it is its name:\n  ${off.join('\n  ')}`)
+    assert.doesNotMatch(/export default function Figure\(\{([^}]*)\}/.exec(figureSource)?.[1] ?? '', /\btitle\b/, 'Figure takes a title prop')
+    assert.doesNotMatch(figureSource, /<figcaption/, 'Figure renders a figcaption, which is a second name')
+  })
+
+  it('Figure takes its note as a prop and renders it under the plot, named as the description', () => {
+    assert.match(/export default function Figure\(\{([^}]*)\}/.exec(figureSource)?.[1] ?? '', /\bnote\b/)
+    const body = figureSource.indexOf('className="figure-body"')
+    const noteAt = figureSource.indexOf('className="figure-note"')
+    assert.ok(body > 0 && noteAt > body, 'the note is rendered after the plot')
+    assert.match(figureSource, /aria-describedby=\{note \? noteId : undefined\}/)
+    assert.match(figureSource, /aria-label=\{name \?\? undefined\}/, 'the figure is named from its heading')
+  })
+
+  it('the static half frames every figure the same way', () => {
+    assert.doesNotMatch(prerender, /<figure class="figure"[^>]*>\s*<figcaption/, 'a static figure with a caption title')
+    const helper = /const figure = \(([^)]*)\) =>\n([\s\S]*?)\n\n/.exec(prerender)
+    assert.ok(helper, 'prerender.js has no figure() helper')
+    assert.ok(helper[2].indexOf('figure-body') < helper[2].indexOf('figure-note'), "the static note follows the drawing, as the app's does")
+    // Every static chart figure goes through the helper.
+    assert.equal((prerender.match(/<figure class="figure"/g) ?? []).length, 1, 'a static figure written out by hand rather than through figure()')
+  })
+
+  it('every note builder is 50 words at its longest', async () => {
+    const { gridFlagNote, stintsNote } = await import('../src/queries/race.js')
+    const { finishesFigureNote, thisSeasonFigureNote } = await import('../src/queries/driver.js')
+    const records = await import('../src/queries/records.js')
+    const { progressionNote } = await import('../src/queries/season.js')
+    const { chartNote } = await import('../src/queries/home.js')
+    const { CHASSIS_NOTE } = await import('../src/queries/quality.js')
+    const { colourSource } = await import('../src/lib/liveries.js')
+    const livery = colourSource([{ kind: 'livery' }])
+    const national = colourSource([{ kind: 'national' }])
+    const both = colourSource([{ kind: 'livery' }, { kind: 'national' }])
+    const many = records.LEADERS_DRAWN + 10
+    const notes = {
+      // Every conditional sentence at once: a car out and a shared drive.
+      'grid to flag': gridFlagNote([{ out: true, entry: { shared_drive: 1 } }]),
+      // A gap in the record, a car out, and stops on the lap a car went out.
+      stints: stintsNote([{ stops: [], out: true }], [{}, {}]),
+      // A career can cross from national colours into the gap; no career
+      // spans 1967 and 2010, but the note is held to it anyway.
+      'championship, both kinds and a hollow dot': finishesFigureNote(both, true),
+      'championship, national and a hollow dot': finishesFigureNote(national, true),
+      'championship, no colour': finishesFigureNote(null, false),
+      // A season is one year: liveries or national colours, never both.
+      'season so far, liveries': thisSeasonFigureNote(true, livery, true),
+      'season so far, national colours': thisSeasonFigureNote(true, national, true),
+      'season so far, no colour': thisSeasonFigureNote(true, null, false),
+      'constructors, every kind and a hollow bar': records.constructorWinsNote(both, true),
+      'title race, dropped scores': progressionNote(false, 'Best 5 results'),
+      'races per season, two calendars': chartNote([
+        { year: 1950, rounds: 7, run: true },
+        { year: 2026, rounds: 24, run: true },
+        { year: 2027, rounds: 24, run: false },
+        { year: 2028, rounds: 24, run: false },
+      ]),
+      'chassis named': CHASSIS_NOTE,
+    }
+    for (const spec of [records.DRIVER_WINS_FIGURE, records.DRIVER_POLES_FIGURE, records.CONSTRUCTOR_WINS_FIGURE]) {
+      notes[`${spec.title}, static`] = `${spec.note} ${records.leadersDrawnLine(many)}`
+    }
+    const words = (text) => text.trim().split(/\s+/).length
+    const long = Object.entries(notes)
+      .filter(([, text]) => words(text) > 50)
+      .map(([name, text]) => `${name}: ${words(text)} words: ${text}`)
+    assert.deepEqual(long, [], `a figure note over 50 words; cut it to what stops a misreading:\n  ${long.join('\n  ')}`)
   })
 })
 

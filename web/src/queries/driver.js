@@ -266,6 +266,34 @@ export const THIS_SEASON = `
  * restated the strip's last tile 100 px above it; the tile says where the
  * season stands, and this section is the rounds, so its heading says that.
  */
+/**
+ * The notes under the driver's two figures, here rather than in Driver.jsx so
+ * conventions.mjs can hold each to the figure grammar's 50 words at its
+ * longest (VD-80). `source` is colourSource()'s clause for the colours the
+ * figure drew, or null where it drew none; `hollow` is whether some mark is
+ * drawn hollow among coloured ones.
+ */
+const colourClause = (lead, source, hollow, mark, none) =>
+  source
+    ? `${lead}: ${source}.${hollow ? ` A hollow ${mark} has no colour on record.` : ''}`
+    : `The ${mark}s are not in team colours: ${none}.`
+
+/** The championship chart's note: 50 words at the longest, a career that runs from national colours into the gap. */
+export const finishesFigureNote = (source, hollow) =>
+  `Final championship position by season, ringed for a title; a season with points and no dot was an exclusion. ${colourClause(
+    'Dots are coloured for each season’s final team',
+    source,
+    hollow,
+    'dot',
+    'no season on this record has one',
+  )}`
+
+/** The season-so-far chart's note: 50 words at the longest. A season is one year, so it draws liveries or national colours, never both. */
+export const thisSeasonFigureNote = (toCome, source, hollow) =>
+  `Finishing position by round, P1 at the top, a win ringed. No dot: not classified or not entered.${
+    toCome ? ' The space at the right is rounds to come.' : ''
+  } ${colourClause('Dots are coloured for that weekend’s team', source, hollow, 'dot', 'no round on this record has one')}`
+
 export const thisSeasonHeading = (rows) => `${rows[0]?.season}, round by round`
 
 /** The rounds run, which are the table's rows: a round still to come has no result to state. */

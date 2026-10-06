@@ -256,7 +256,6 @@ export const BOARD = [
 ]
 
 export const CHART_HEADING = 'The shape of the championship'
-export const CHART_TITLE = 'Championship races per season'
 
 /** "2026 and 2027", "2026, 2027 and 2028", "2027". */
 const years = (list) =>

@@ -213,10 +213,21 @@ export const DRIVER_POLES_FIGURE = {
 }
 export const CONSTRUCTOR_WINS_FIGURE = {
   title: 'Most wins by constructor',
-  note: "A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables.",
+  note: 'A win belongs to the car, so a shared drive counts once here and twice in the driver tables.',
   key: 'wins',
   label: (n) => `The ${howMany(n)} constructors with the most Grand Prix wins`,
 }
+
+/**
+ * The constructors' figure's note in the app, where the bars wear colours:
+ * 49 words at the longest, with liveries, national colours and a hollow bar
+ * all drawn, under the 50 the figure grammar allows (VD-80). `source` is
+ * colourSource()'s clause, or null where no bar is coloured.
+ */
+export const constructorWinsNote = (source, hollow) =>
+  `${CONSTRUCTOR_WINS_FIGURE.note}${
+    source ? ` Coloured as of each team’s last win: ${source}.${hollow ? ' A hollow bar has no colour on record.' : ''}` : ''
+  }`
 
 const year = (value) => String(value)
 export const DRIVER_WINS_COLUMNS = [

@@ -399,7 +399,6 @@ export const SPRINT_FOOTER =
  * no line is not in it, and the note says how many.
  */
 export const GRID_FLAG_HEADING = 'Grid to flag'
-export const GRID_FLAG_TITLE = 'Where each car started, and where it ended'
 
 export const GRID_FLAG_COLUMNS = [
   { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
@@ -410,28 +409,34 @@ export const GRID_FLAG_COLUMNS = [
 
 /**
  * What the lines mean and what they cannot, and - only where the page has
- * one - a car out, a shared car and the entries left undrawn. The sentence
- * on what the record holds is the one that must never be lost: the database holds no position between
- * the start and the end, so a crossing is not an overtake at that lap.
+ * one - a car out and a shared car: 48 words at the longest, under the 50
+ * the figure grammar allows (VD-80). The sentence on what the record holds
+ * is the one that must never be lost: the database holds no position
+ * between the start and the end, so a crossing is not an overtake at that
+ * lap.
  */
-export const gridFlagNote = (rows, undrawn) =>
+export const gridFlagNote = (rows) =>
   [
-    'Each line runs from the slot a driver started in to their place in the result, ending at the last lap they completed.',
-    rows.some((r) => r.out)
-      ? 'A dashed line ending in a cross is a driver the result does not classify, so a retirement stops where it went out.'
-      : '',
-    'The record holds where each driver started and where they ended, not where they ran in between, so the lines are straight and a crossing is not an overtake at that lap.',
-    rows.some((r) => r.entry.shared_drive === 1)
-      ? 'Where drivers shared a car, each has a line of their own: from the slot they started in to the shared place, ending at the laps they completed.'
-      : '',
-    undrawn.length
-      ? `${number(undrawn.length)} ${undrawn.length === 1 ? 'entry' : 'entries'} with no recorded grid slot or lap count ${
-          undrawn.length === 1 ? 'is' : 'are'
-        } in the classification and not drawn.`
-      : '',
+    'Lines run from grid slot to result, ending at the last lap completed.',
+    rows.some((r) => r.out) ? 'A dashed line ending in a cross is a driver not classified.' : '',
+    'Nothing between is recorded, so a crossing is not an overtake at that lap.',
+    rows.some((r) => r.entry.shared_drive === 1) ? 'Drivers who shared a car have a line each.' : '',
   ]
     .filter(Boolean)
     .join(' ')
+
+/**
+ * The entries the classification holds and the figure cannot draw, said
+ * under the figure's table, which is short of them by the same count: it is
+ * a fact about the table, and a note that carried it as well ran to 59
+ * words.
+ */
+export const gridFlagUndrawn = (undrawn) =>
+  undrawn.length
+    ? `${number(undrawn.length)} ${undrawn.length === 1 ? 'entry' : 'entries'} with no recorded grid slot or lap count ${
+        undrawn.length === 1 ? 'is' : 'are'
+      } in the classification and not drawn.`
+    : undefined
 
 /** The figure's name for a screen reader, which hears the table and the note with it. */
 export const gridFlagLabel = (rows) => {
@@ -450,7 +455,6 @@ export const gridFlagLabel = (rows) => {
  * the note says in words what the empty columns said by being empty.
  */
 export const PITS_HEADING = 'Pit stops'
-export const STINTS_TITLE = 'Each driver’s race, split where they stopped'
 
 export const STINT_COLUMNS = [
   { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
@@ -465,32 +469,30 @@ export const STINT_COLUMNS = [
 
 /**
  * What the bars mean and what they cannot, and - only where the page has
- * one - a car out, a stop on the lap a driver went out, and the entries in
- * the table and not drawn. The sentence on what the record holds is the one
- * that must never be lost: the lap of each stop, and no duration, tyre or
- * lap time, so nothing here measures what a stop gained.
+ * one - a gap in the record, a car out and a stop on the lap a driver went
+ * out on: 49 words at the longest, under the 50 the figure grammar allows
+ * (VD-80). The sentence on what the record holds is the one that must never
+ * be lost: the lap of each stop, and no duration, tyre or lap time, so
+ * nothing here measures what a stop gained.
  */
-export const stintsNote = (rows, late, unbarred) =>
+export const stintsNote = (rows, late) =>
   [
-    'Each bar is one driver’s race, from the start to the last lap they completed, broken with a tick at the end of each lap they stopped on. The drivers are in finishing order.',
-    rows.some((r) => r.stops.length === 0)
-      ? 'A bar with no break is a driver with no stop recorded, which is not always a driver who did not stop: F1DB’s record of stops has gaps.'
-      : '',
-    rows.some((r) => r.out) ? 'A bar ending in a cross is a driver the result does not classify, so a retirement stops where it went out.' : '',
-    late.length
-      ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on the lap they went out on, which ${
-          late.length === 1 ? 'is' : 'are'
-        } marked at the end of the bar.`
-      : '',
-    'The record holds the lap of each stop and nothing else: not how long it took, the tyres fitted or a lap time either side of it. So the bars show when each driver stopped, not what a stop gained or lost.',
-    unbarred.length
-      ? `${number(unbarred.length)} ${unbarred.length === 1 ? 'driver' : 'drivers'} with stops recorded and no lap count ${
-          unbarred.length === 1 ? 'is' : 'are'
-        } in the table and not drawn.`
-      : '',
+    'Bars run in finishing order, ticked on each lap a driver stopped.',
+    rows.some((r) => r.stops.length === 0) ? 'An unticked bar may hide a stop: F1DB’s record has gaps.' : '',
+    rows.some((r) => r.out) ? 'A cross is a driver not classified.' : '',
+    late.length ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on their final lap.` : '',
+    'Only the lap is recorded: not a stop’s length, tyres or gain.',
   ]
     .filter(Boolean)
     .join(' ')
+
+/** The drivers in the figure's table and not in its drawing, said under that table, as gridFlagUndrawn() is. */
+export const stintsUnbarred = (unbarred) =>
+  unbarred.length
+    ? `${number(unbarred.length)} ${unbarred.length === 1 ? 'driver' : 'drivers'} with stops recorded and no lap count ${
+        unbarred.length === 1 ? 'is' : 'are'
+      } in the table and not drawn.`
+    : undefined
 
 /** The figure's name for a screen reader, which hears the table and the note with it. */
 export const stintsLabel = (rows) => {

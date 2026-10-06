@@ -30,7 +30,6 @@ import {
   FASTEST_LAP,
   GRID_FLAG_COLUMNS,
   GRID_FLAG_HEADING,
-  GRID_FLAG_TITLE,
   NEIGHBOURS,
   PITS,
   PITS_FROM,
@@ -46,12 +45,12 @@ import {
   SPRINT,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
-  STINTS_TITLE,
   STINT_COLUMNS,
   carName,
   classificationFooter,
   gridFlagLabel,
   gridFlagNote,
+  gridFlagUndrawn,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -71,6 +70,7 @@ import {
   stintsEmpty,
   stintsLabel,
   stintsNote,
+  stintsUnbarred,
 } from '../queries/race.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
@@ -376,9 +376,8 @@ function RaceBody({ race, data, year, round }) {
             {gridFlagShown(flag) && (
               <Section title={GRID_FLAG_HEADING}>
                 <Figure
-                  title={GRID_FLAG_TITLE}
-                  note={gridFlagNote(flag, undrawnOf(entries))}
-                  table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS }}
+                  note={gridFlagNote(flag)}
+                  table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS, footer: gridFlagUndrawn(undrawnOf(entries)) }}
                 >
                   <GridFlag entries={entries} label={gridFlagLabel(flag)} />
                 </Figure>
@@ -436,9 +435,8 @@ function RaceBody({ race, data, year, round }) {
           {stintsShown(stints) ? (
             <>
               <Figure
-                title={STINTS_TITLE}
-                note={stintsNote(stints, lateStops(stints), unbarredOf(entries, pits))}
-                table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS }}
+                note={stintsNote(stints, lateStops(stints))}
+                table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS, footer: stintsUnbarred(unbarredOf(entries, pits)) }}
               >
                 <Stints entries={entries} pits={pits} label={stintsLabel(stints)} />
               </Figure>
