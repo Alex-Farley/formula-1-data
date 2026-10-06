@@ -65,8 +65,9 @@ const stopLaps = (pits) => {
 
 /**
  * The drivers drawn, in the order they ended, each with their stop laps -
- * an empty list for a driver with none, which is a driver who did not stop
- * in a race whose stops are recorded.
+ * an empty list for a driver with none recorded. That is not always a
+ * driver who did not stop: F1DB's record has gaps (/races/1995/7 holds
+ * stops for 5 of its 16 finishers), so nothing that prints it may say so.
  */
 export function stintRows(entries, pits) {
   const laps = stopLaps(pits)
@@ -96,8 +97,8 @@ export const unbarredOf = (entries, pits) => {
 /**
  * The figure's numbers: every driver it draws and every one it cannot with
  * a stop recorded, in the classification's order, with how many times each
- * stopped and on which laps. `stops` is a count over the race's stops, so a
- * driver with none stopped no times.
+ * stopped and on which laps. `stops` counts the stops recorded, which is
+ * what the column says it is - not how many times the driver stopped.
  */
 export function stintTableRows(entries, pits) {
   const laps = stopLaps(pits)
@@ -186,8 +187,9 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
  * Who stopped first, between drivers who started or finished next to each
  * other (PD-56, part 2): pairs of classified drivers with a numbered grid
  * slot and a stop recorded each, whose grid slots or finishing places are
- * consecutive. Each pair is in grid order - the one who started ahead first
- * - so the result column reads as what became of that order.
+ * consecutive. The two in a pair are in grid order - the one who started
+ * ahead first - and the pairs run by the better finishing place of each -
+ * so the result column reads as what became of that order.
  *
  * It is the order of events and no more. The record holds the lap each
  * stop was made on, not how long it took or a lap time either side of it,

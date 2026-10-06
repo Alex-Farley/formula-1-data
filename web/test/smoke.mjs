@@ -2584,6 +2584,16 @@ try {
       is(served.width, STINTS_WIDTH, `the static page draws at ${STINTS_WIDTH}, the width the app starts at`)
     }
 
+    // A driver with no stop recorded is not said not to have stopped: F1DB
+    // holds stops for a third of the finishers at /races/1995/7, the winner
+    // not among them.
+    const france = await both('/races/1995/7')
+    for (const [half, got] of [['the app', france.app], ['the static page', france.served]]) {
+      truthy((got?.tableRows ?? []).some((row) => row.includes('None recorded')), `/races/1995/7, ${half}: a driver with no stop recorded reads “None recorded”`)
+      is(/\bNo stop\b|did not stop\./.test(got?.text ?? ''), false, `/races/1995/7, ${half}: and nothing says they did not stop`)
+      truthy(/no stop recorded, which is not always a driver who did not stop/.test(got?.text ?? ''), `/races/1995/7, ${half}: the note says the record has gaps`)
+    }
+
     // A stop on the lap a car went out on is drawn at the end of its bar.
     const spain = await both('/races/1994/5')
     for (const [half, got] of [['the app', spain.app], ['the static page', spain.served]]) {

@@ -450,10 +450,11 @@ export const STINT_COLUMNS = [
   { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
   { key: 'position_text', label: 'Result', align: 'num', text: position, glossary: 'results' },
   { key: 'laps_completed', label: 'Laps', align: 'num' },
-  { key: 'stops', label: 'Stops', align: 'num' },
-  // A driver with no stop in a race whose stops are recorded did not stop,
-  // which an em dash - "not established" - would contradict.
-  { key: 'stop_laps', label: 'Stopped on lap', text: (value, row) => (row.stops === 0 ? 'No stop' : text(value)) },
+  { key: 'stops', label: 'Stops recorded', align: 'num' },
+  // A driver with no stop recorded is not always a driver who did not stop:
+  // F1DB's record has gaps (/races/1995/7 holds stops for 5 of its 16
+  // finishers), so the cell says what the record holds and no more.
+  { key: 'stop_laps', label: 'Stopped on lap', text: (value, row) => (row.stops === 0 ? 'None recorded' : text(value)) },
 ]
 
 /**
@@ -466,6 +467,9 @@ export const STINT_COLUMNS = [
 export const stintsNote = (rows, late, unbarred) =>
   [
     'Each bar is one driver’s race, from the start to the last lap they completed, broken with a tick at the end of each lap they stopped on. The drivers are in finishing order.',
+    rows.some((r) => r.stops.length === 0)
+      ? 'A bar with no break is a driver with no stop recorded, which is not always a driver who did not stop: F1DB’s record of stops has gaps.'
+      : '',
     rows.some((r) => r.out) ? 'A bar ending in a cross is a driver the result does not classify, so a retirement stops where it went out.' : '',
     late.length
       ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on the lap they went out on, which ${
@@ -510,7 +514,7 @@ export const PIT_ORDER_COLUMNS = [
   { key: 'result', label: 'Result', align: 'num', text: (_, row) => both(row, (e) => result(e)) },
   {
     key: 'laps',
-    label: 'First stop, lap',
+    label: 'First recorded stop, lap',
     align: 'num',
     text: (_, row) => `${text(row.firstAhead)} · ${text(row.firstBehind)}`,
   },
@@ -519,7 +523,7 @@ export const PIT_ORDER_COLUMNS = [
 ]
 
 export const PIT_ORDER_NOTE =
-  'Pairs of classified drivers who started or finished next to each other, each with a stop recorded, in grid order. It is the order things happened in and no more: with no stop duration and no lap times, the record cannot say whether stopping first won or lost a place.'
+  'Pairs of classified drivers who started or finished next to each other, each with a stop recorded; the two names in a row are in grid order. Both are read from the stops F1DB records, which has gaps. It is the order things happened in and no more: with no stop duration and no lap times, the record cannot say whether stopping first won or lost a place.'
 
 /**
  * What happened, in one sentence, counted from the race records rather than
