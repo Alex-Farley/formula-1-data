@@ -96,6 +96,17 @@ import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { pitPairs, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
+import {
+  SEASONS_RACED_WIDTH,
+  SPARK_HEIGHT,
+  TITLE_RACE_WIDTH,
+  runsOf,
+  seasonsRacedLayout,
+  seasonsRacedText,
+  titleRaceLayout,
+  titleRaceOf,
+  titleRaceText,
+} from '../src/charts/spark.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, recordFigures } from '../src/queries/constructor.js'
 import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
@@ -2515,5 +2526,73 @@ describe('stint windows and the pit order (PD-56)', () => {
       ],
     )
     assert.deepEqual(pitPairs(field, []), [], 'no stop, no pair')
+  })
+})
+
+describe('the registers\' small multiples (VD-54)', () => {
+  const done = { undecided: 0, not_started: 0 }
+
+  it('reads the triples in round order, whatever order group_concat gave', () => {
+    assert.deepEqual(titleRaceOf('3:20.0:9.0 1:9.0:6.0 2:15.0:12.0'), [
+      { round: 1, gap: 3 },
+      { round: 2, gap: 3 },
+      { round: 3, gap: 11 },
+    ])
+  })
+
+  it('keeps a side at nought before its first row and at its last total after a gap', () => {
+    // 2014: Hamilton had no row after Melbourne.
+    assert.deepEqual(titleRaceOf('1::18.0 2:25.0:43.0 3::51.0'), [
+      { round: 1, gap: -18 },
+      { round: 2, gap: -18 },
+      { round: 3, gap: -26 },
+    ])
+  })
+
+  it('draws no line and prints a dash where there is none, as Margin does in that row', () => {
+    assert.equal(titleRaceOf(null), null)
+    assert.equal(titleRaceText(null, done), '—')
+    assert.equal(titleRaceText(null, { undecided: 0, not_started: 1 }), '—')
+  })
+
+  it('names the round the lead over the runner-up was taken for good, and level is not ahead', () => {
+    assert.equal(titleRaceText('1:9:6 2:15:12', done), 'Ahead of the runner-up after every round')
+    assert.equal(titleRaceText('1:6:9 2:15:12 3:18:18 4:24:18', done), 'Ahead of the runner-up from round 4 of 4')
+    assert.equal(titleRaceText('1:9:6 2:9:12 3:18:12', done), 'Ahead of the runner-up from round 3 of 3')
+    assert.equal(titleRaceText('1:9:9', done), 'Level with the runner-up after the last round')
+    assert.equal(titleRaceText('1:6:9', done), 'Behind the runner-up after the last round')
+    assert.equal(titleRaceText('1:9:6', { undecided: 1, not_started: 0 }), 'Ahead of second place after every round so far')
+    assert.equal(titleRaceText('1:6:9 2:15:12', { undecided: 1, not_started: 0 }), 'Ahead of second place from round 2 of 2 run')
+  })
+
+  it('draws from nought at the start, with the line at nought inside the box', () => {
+    const layout = titleRaceLayout('1:6:9 2:15:12')
+    assert.equal(layout.width, TITLE_RACE_WIDTH)
+    assert.equal(layout.height, SPARK_HEIGHT)
+    assert.match(layout.line, /^M2,/)
+    assert.ok(layout.zero > 0 && layout.zero < SPARK_HEIGHT)
+    // A season that never left nought still has its line in the middle.
+    assert.equal(titleRaceLayout('1:0:0').zero, SPARK_HEIGHT / 2)
+    assert.equal(titleRaceLayout(null), null)
+  })
+
+  it('joins consecutive seasons into runs and says them as words', () => {
+    assert.deepEqual(runsOf([1950, 1951, 1979, 1980, 1985]), [
+      [1950, 1951],
+      [1979, 1980],
+      [1985, 1985],
+    ])
+    assert.equal(seasonsRacedText('1951,1950,1979,1980,1981'), '1950–1951, 1979–1981')
+    assert.equal(seasonsRacedText(null), 'No race entries')
+  })
+
+  it('puts every constructor on one axis, from the first season to the current one', () => {
+    const whole = seasonsRacedLayout('1950,1951', 1950, 1951)
+    assert.deepEqual(whole.runs, [{ x: 0, width: SEASONS_RACED_WIDTH }])
+    const one = seasonsRacedLayout('2026', 1950, 2026)
+    assert.equal(one.runs.length, 1)
+    assert.ok(one.runs[0].x + one.runs[0].width <= SEASONS_RACED_WIDTH + 0.1)
+    assert.deepEqual(seasonsRacedLayout(null, 1950, 2026).runs, [])
+    assert.equal(seasonsRacedLayout('1950', null, 2026), null)
   })
 })

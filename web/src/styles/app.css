@@ -1283,6 +1283,55 @@ td.rail i.classified {
   background: var(--rail-classified);
 }
 
+/*
+ * The registers' small multiples (VD-54): the title race on /seasons, the
+ * seasons raced on /constructors, one picture per row, drawn by both
+ * renderers from charts/spark.js at the sizes it names. The picture is
+ * the cell's shape and its <title> is the cell's words, so nothing here
+ * carries a fact in colour alone; the line at nought and the track are
+ * context, which is why they may be quieter than the data on them.
+ */
+th.spark,
+td.spark {
+  padding-inline: var(--space-4);
+}
+
+/* The header may take two lines here and nowhere else: "Title race" set in
+   the header's tracked capitals is wider than the 64 px line under it, and
+   on one line it would widen the column past what the table has room for. */
+thead th.spark {
+  white-space: normal;
+}
+
+td.spark svg.spark {
+  display: block;
+  overflow: visible;
+}
+
+.spark-zero {
+  stroke: var(--ink-soft);
+  stroke-width: 0.75;
+  stroke-dasharray: 2 2;
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.spark-end,
+.spark-run {
+  fill: var(--series-1);
+}
+
+.spark-track {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
 tbody td.strong,
 tbody th.strong {
   font-weight: var(--weight-semibold);

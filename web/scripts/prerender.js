@@ -514,6 +514,7 @@ import {
 // relational layer at all; both now come from one place.
 import { ONWARD, TRAIL, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
+import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
 import {
   STINT_HEADS,
   lateStops,
@@ -981,6 +982,35 @@ const gridFlagSvg = (layout, label) => {
     )
     .join('')}</svg></div>`
 }
+
+/*
+ * The registers' small multiples (VD-54), drawn: charts/Spark.jsx's elements
+ * and classes, from the layouts charts/spark.js gives both renderers. `label`
+ * is the column's text for the row - the picture's <title>, which names it - and
+ * the cell is that text alone where there is nothing to draw, as the app's is.
+ */
+const sparkSvg = (layout, label, marks) =>
+  layout
+    ? `<svg class="spark" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img"><title>${esc(label)}</title>${marks(layout)}</svg>`
+    : esc(label)
+
+const titleRaceSvg = (value, label) =>
+  sparkSvg(
+    titleRaceLayout(value),
+    label,
+    (l) =>
+      `<line class="spark-zero" x1="0" x2="${l.width}" y1="${l.zero}" y2="${l.zero}"/><path class="spark-line" d="${l.line}"/><circle class="spark-end" cx="${l.end.x}" cy="${l.end.y}" r="2"/>`,
+  )
+
+const seasonsRacedSvg = (value, first, last, label) =>
+  sparkSvg(
+    seasonsRacedLayout(value, first, last),
+    label,
+    (l) =>
+      `<line class="spark-track" x1="0" x2="${l.width}" y1="${l.track}" y2="${l.track}"/>${l.runs
+        .map((run) => `<rect class="spark-run" x="${run.x}" y="${l.bar.y}" width="${run.width}" height="${l.bar.height}"/>`)
+        .join('')}`,
+  )
 
 /*
  * Stint windows (PD-56), drawn: charts/Stints.jsx's elements and classes,
@@ -2021,6 +2051,7 @@ const page = ({
         champion_team: (name, row) => (row.champion_team_id ? link(`constructors/${row.champion_team_id}`, name) : text(name)),
         runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
         constructors_champion: marked('constructors', 'constructors_champion_id'),
+        title_race: (value, row) => titleRaceSvg(value, titleRaceText(value, row)),
       })}
       ${note(SEASON_LIST_FOOTER)}`,
   })
@@ -2750,6 +2781,8 @@ page({
       <p class="lede">${constructors.length} constructors that have entered a championship Grand Prix.</p>
       ${fromColumns(CONSTRUCTOR_COLUMNS, all(CONSTRUCTORS), {
         name: (name, row) => link(`constructors/${row.id}`, name),
+        seasons_raced: (value, row) =>
+          seasonsRacedSvg(value, row.first_season, row.grid_season, seasonsRacedText(value)),
       })}
       ${note(CONSTRUCTORS_FOOTER)}`,
   })

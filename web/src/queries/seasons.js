@@ -13,6 +13,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
+import { titleRaceText } from '../charts/spark.js'
 import { EMPTY, missing, points, text } from '../lib/format.js'
 import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
 
@@ -33,6 +34,16 @@ import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
  * driver second to them and the gap — and the column formatters below say so. A concluded season with no champion recorded stays blank:
  * the leader of a finished table is a champion, and if the register does not
  * say who, this query does not guess.
+ *
+ * `title_race` is the line charts/spark.js draws in the Title race column
+ * (VD-54): after each round, the row's champion's running total and the
+ * runner-up's, as "round:champion:runner-up" - from the one source per season
+ * STANDINGS in queries/season.js reads, chosen the same way, so the line here
+ * is the season page's own chart reduced to the two names this row carries.
+ * A side with no row after a round is left blank and spark.js says what that
+ * means. For the season still running the two are its leader and second, as
+ * every other cell of that row is; a season nobody has raced has no rounds,
+ * and no line.
  *
  * The SELECT is wrapped so each of the row's two constructors can be joined
  * back to `constructors` for its country, which is what the pre-1968 national
@@ -86,11 +97,36 @@ export const SEASONS = `
       LEFT JOIN ranked d1 ON d1.year = s.year AND d1.table_type = 'drivers'      AND d1.rank = 1
       LEFT JOIN ranked d2 ON d2.year = s.year AND d2.table_type = 'drivers'      AND d2.rank = 2
       LEFT JOIN ranked k1 ON k1.year = s.year AND k1.table_type = 'constructors' AND k1.rank = 1
-  )
+  ),
+  running_source AS (
+    SELECT year, source FROM (
+      SELECT year, source,
+             ROW_NUMBER() OVER (PARTITION BY year
+                                ORDER BY COUNT(DISTINCT after_round) DESC, MAX(after_round) DESC, source) AS pick
+        FROM standings
+       WHERE basis = 'running'
+       GROUP BY year, source)
+     WHERE pick = 1),
+  running AS (
+    SELECT st.year, st.after_round, st.driver_id, st.points
+      FROM standings st
+      JOIN running_source rs ON rs.year = st.year AND rs.source = st.source
+     WHERE st.basis = 'running' AND st.table_type = 'drivers'),
+  title_race AS (
+    SELECT sr.year,
+           group_concat(r.after_round || ':' || COALESCE(c.points, '') || ':' || COALESCE(u.points, ''), ' ') AS title_race
+      FROM season_row sr
+      JOIN (SELECT DISTINCT year, after_round FROM running) r ON r.year = sr.year
+      LEFT JOIN running c ON c.year = sr.year AND c.after_round = r.after_round AND c.driver_id = sr.champion_id
+      LEFT JOIN running u ON u.year = sr.year AND u.after_round = r.after_round AND u.driver_id = sr.runner_up_id
+     WHERE sr.champion_id IS NOT NULL AND sr.runner_up_id IS NOT NULL
+     GROUP BY sr.year)
   SELECT sr.*,
          ct.country AS champion_team_country,
-         ck.country AS constructors_champion_country
+         ck.country AS constructors_champion_country,
+         tr.title_race
     FROM season_row sr
+    LEFT JOIN title_race tr ON tr.year = sr.year
     LEFT JOIN constructors ct ON ct.id = sr.champion_team_id
     LEFT JOIN constructors ck ON ck.id = sr.constructors_champion_id
    ORDER BY sr.year DESC
@@ -114,8 +150,13 @@ export const SEASONS_COLUMNS = [
   { key: 'champion_wins', label: 'Wins', align: 'num' },
   { key: 'runner_up', label: 'Runner-up' },
   { key: 'margin', label: 'Margin', align: 'num', text: points },
+  // The champion's lead round by round (VD-54), drawn by charts/spark.js in
+  // both renderers; the cell's words are when the lead was taken for good.
+  // `align` names the cell's class outright: left to DataTable's guess, the
+  // raw triples are long enough to make it a prose column 42ch wide.
+  { key: 'title_race', label: 'Title race', align: 'spark', sortable: false, text: titleRaceText },
   { key: 'constructors_champion', label: "Constructors' champion", text: soFar },
 ]
 
 export const SEASON_LIST_FOOTER =
-  `Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A row marked “so far” is the season still running: its leader, not its champion. A row reading “${NOT_YET_RUN}” is a calendar that has been announced and not yet raced. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.`
+  `Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A row marked “so far” is the season still running: its leader, not its champion. The title race is the champion’s lead over the runner-up after each round, above the line when ahead and below it when behind, each season drawn to its own scale. A row reading “${NOT_YET_RUN}” is a calendar that has been announced and not yet raced. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.`

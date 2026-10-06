@@ -1139,6 +1139,13 @@ try {
   await section('/seasons', async () => {
     await go('/seasons', 'Seasons')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM seasons'), 'every season is listed')
+    // VD-54: a title-race line in every season that has a running table, and
+    // none in the one nobody has raced.
+    is(
+      await page.$$eval('#root main td.spark svg.spark', (nodes) => nodes.length),
+      count(`SELECT COUNT(DISTINCT year) FROM standings WHERE basis = 'running'`),
+      'a title-race line for every season with a running table (VD-54)',
+    )
 
   })
 
@@ -2974,6 +2981,12 @@ try {
     await go('/constructors', 'Constructors')
     const everyConstructor = count('SELECT COUNT(*) FROM constructors')
     is((await tableRows())[0], everyConstructor, 'the constructor register')
+    // VD-54: one seasons-raced picture per row, on the one page of 150.
+    is(
+      await page.$$eval('#root main td.spark svg.spark', (nodes) => nodes.length),
+      Math.min(everyConstructor, 150),
+      'a seasons-raced picture on every row shown (VD-54)',
+    )
 
     // VD-30: it opened on AFM, AGS, Alfa Special - roughly sixty of the
     // seventy-eight figures on the first screen were zero. Most race entries
