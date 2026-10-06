@@ -210,7 +210,6 @@ import {
   BOARD_HEADING,
   BOARD_NOTE,
   CHART_HEADING,
-  CHART_TITLE,
   CLASSIFICATION_LINK,
   LAST_RACE,
   LEDE as HOME_LEDE,
@@ -257,7 +256,6 @@ import {
   FASTEST_LAP,
   GRID_FLAG_COLUMNS,
   GRID_FLAG_HEADING,
-  GRID_FLAG_TITLE,
   PITS,
   PITS_FROM,
   PITS_HEADING,
@@ -281,15 +279,16 @@ import {
   SPRINT as SPRINT_RESULTS,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
-  STINTS_TITLE,
   STINT_COLUMNS,
   carName,
   classificationFooter,
   stintsEmpty,
   stintsLabel,
   stintsNote,
+  stintsUnbarred,
   gridFlagLabel,
   gridFlagNote,
+  gridFlagUndrawn,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -946,19 +945,25 @@ const timeline = (milestones) =>
     : ''
 
 /**
- * A figure, as charts/Figure.jsx frames one: a caption and, always, a table
- * of the same numbers.
+ * A figure, as charts/Figure.jsx frames one, in its one grammar (VD-80):
+ * named for the heading above it, which `name` repeats and the page has
+ * already written, with no title of its own; the drawing where this file
+ * can draw one; the method note under it; and, always, a table of the same
+ * numbers, with what it holds that the drawing does not said beneath it.
  *
- * The drawing itself is not here — it is a React component reading a layout
- * this file has no way to run — and that is the whole of what the static
- * half is missing. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words:
- * it is the copy of the figure that a keyboard, a screen reader and anything
- * pasting it elsewhere can actually use, and it is what both halves carry.
- * It is open here rather than behind the app's disclosure, because there is
- * no chart above it to be the thing on display.
+ * Most drawings are not here — a React component reading a layout this
+ * file has no way to run — and that is the whole of what the static half is
+ * missing; grid to flag and the stints are drawn, from layouts both halves
+ * share. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words: it is the
+ * copy of the figure that a keyboard, a screen reader and anything pasting
+ * it elsewhere can actually use, and it is what both halves carry. It is
+ * open here rather than behind the app's disclosure, because there is no
+ * chart above it to be the thing on display.
  */
-const figure = (title, caption, body) =>
-  `<figure class="figure"><figcaption><b>${esc(title)}</b><span>${esc(caption)}</span></figcaption>${body}</figure>`
+const figure = (name, figureNote, body, { plot = '', footer } = {}) =>
+  `<figure class="figure" aria-label="${esc(name)}">${plot ? `<div class="figure-body">${plot}</div>` : ''}<p class="figure-note"><span>${esc(
+    figureNote,
+  )}</span></p>${body}${note(footer)}</figure>`
 
 /*
  * Grid to flag (PD-30), drawn: charts/GridFlag.jsx's elements and classes,
@@ -1088,12 +1093,10 @@ const pitSection = (race, entryRows, pits, span) => {
   const rows = stintRows(entryRows, pits)
   if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
   const pairs = pitPairs(entryRows, pits)
-  return `<h2>${esc(PITS_HEADING)}</h2><figure class="figure"><figcaption><b>${esc(STINTS_TITLE)}</b><span>${esc(
-    stintsNote(rows, lateStops(rows), unbarredOf(entryRows, pits)),
-  )}</span></figcaption><div class="figure-body">${stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows))}</div>${fromColumns(
-    STINT_COLUMNS,
-    stintTableRows(entryRows, pits),
-  )}</figure>${
+  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits)), {
+    plot: stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows)),
+    footer: stintsUnbarred(unbarredOf(entryRows, pits)),
+  })}${
     pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs)}${note(PIT_ORDER_NOTE)}` : ''
   }`
 }
@@ -2056,7 +2059,7 @@ const page = ({
       ).join('')}</div>
       ${heading(CHART_HEADING)}
       ${figure(
-        CHART_TITLE,
+        CHART_HEADING,
         chartNote(seasons),
         table(
           ['Season', 'Rounds'],
@@ -2527,15 +2530,15 @@ const page = ({
           // PD-30: the figure under the classification, as Race.jsx places
           // it - the drawing, its note and its table open beneath it.
           gridFlagShown(flag)
-            ? `<section class="section"><h2>${esc(GRID_FLAG_HEADING)}</h2><figure class="figure"><figcaption><b>${esc(
-                GRID_FLAG_TITLE,
-              )}</b><span>${esc(gridFlagNote(flag, undrawnOf(entryRows)))}</span></figcaption><div class="figure-body">${gridFlagSvg(
-                gridFlagLayout(entryRows),
-                gridFlagLabel(flag),
-              )}</div>${fromColumns(
-                GRID_FLAG_COLUMNS,
-                flag.map((r) => r.entry),
-              )}</figure></section>`
+            ? `<section class="section"><h2>${esc(GRID_FLAG_HEADING)}</h2>${figure(
+                GRID_FLAG_HEADING,
+                gridFlagNote(flag),
+                fromColumns(
+                  GRID_FLAG_COLUMNS,
+                  flag.map((r) => r.entry),
+                ),
+                { plot: gridFlagSvg(gridFlagLayout(entryRows), gridFlagLabel(flag)), footer: gridFlagUndrawn(undrawnOf(entryRows)) },
+              )}</section>`
             : ''
         }
         </div></div></section>
@@ -3570,18 +3573,17 @@ page({
       })
       .join('')}</ul>`
   const driverLink = { full_name: (name, row) => link(`drivers/${row.driver_id}`, name) }
-  // Each table named for its figure, as the app's Figure names it, rather
-  // than for the section heading two of them share (AX-28).
-  const leaders = (spec, columns, rows, links) => {
+  // Each figure named for its heading, as the app's Figure is: the section's
+  // h2 for the constructors, and for the two drivers' figures that share one
+  // section an h3 each, FigurePart's, which nameTables() then names each
+  // table for rather than for the h2 the two share (AX-28).
+  const leaders = (spec, columns, rows, links, name) => {
     const drawn = leadersDrawn(rows, spec.key)
     const body = fromColumns(columns, drawn, links)
     if (body.split('<table>').length !== 2) die(`prerender: the ${spec.title} figure is not one table`)
-    return figure(
-      spec.title,
-      `${spec.note} ${leadersDrawnLine(drawn.length)}`,
-      body.replace('<table>', `<table><caption class="sr-only">${esc(spec.title)}</caption>`),
-    )
+    return figure(name, `${spec.note} ${leadersDrawnLine(drawn.length)}`, body)
   }
+  const part = (title, body) => `<div class="figure-part"><h3>${esc(title)}</h3>${body}</div>`
   const recordTable = (rows) =>
     fromColumns(recordColumns(records), rows, {
       record: (value, row) => link(recordPath(row), value),
@@ -3614,16 +3616,21 @@ page({
           : ''
       }
       ${heading(LEADERBOARDS)}
-      <div class="split">${leaders(DRIVER_WINS_FIGURE, DRIVER_WINS_COLUMNS, all(DRIVER_WINS), driverLink)}${leaders(
-        DRIVER_POLES_FIGURE,
-        DRIVER_POLES_COLUMNS,
-        all(DRIVER_POLES),
-        driverLink,
+      <div class="split">${part(
+        DRIVER_WINS_FIGURE.title,
+        leaders(DRIVER_WINS_FIGURE, DRIVER_WINS_COLUMNS, all(DRIVER_WINS), driverLink, DRIVER_WINS_FIGURE.title),
+      )}${part(
+        DRIVER_POLES_FIGURE.title,
+        leaders(DRIVER_POLES_FIGURE, DRIVER_POLES_COLUMNS, all(DRIVER_POLES), driverLink, DRIVER_POLES_FIGURE.title),
       )}</div>
       ${heading(CONSTRUCTORS_HEADING)}
-      ${leaders(CONSTRUCTOR_WINS_FIGURE, CONSTRUCTOR_WINS_COLUMNS, all(CONSTRUCTOR_WINS), {
-        name: (name, row) => link(`constructors/${row.id}`, name),
-      })}
+      ${leaders(
+        CONSTRUCTOR_WINS_FIGURE,
+        CONSTRUCTOR_WINS_COLUMNS,
+        all(CONSTRUCTOR_WINS),
+        { name: (name, row) => link(`constructors/${row.id}`, name) },
+        CONSTRUCTORS_HEADING,
+      )}
       ${families
         .map(
           (f) =>
@@ -3928,7 +3935,11 @@ page({
       <p class="note">${esc(RECONCILIATION_NOTE)}</p>
       ${fromColumns(RECONCILIATION_COLUMNS, all(RECONCILIATION))}
       <h2>Coverage</h2>
-      ${figure(CHASSIS_TITLE, CHASSIS_NOTE, fromColumns(CHASSIS_COVERAGE_COLUMNS, all(CHASSIS_COVERAGE)))}
+      <div class="figure-part"><h3>${esc(CHASSIS_TITLE)}</h3>${figure(
+        CHASSIS_TITLE,
+        CHASSIS_NOTE,
+        fromColumns(CHASSIS_COVERAGE_COLUMNS, all(CHASSIS_COVERAGE)),
+      )}</div>
       <h2>Circuit geometry</h2>
       ${fromColumns(GEOMETRY_COLUMNS, coverage)}
       ${note(GEOMETRY_FOOTER)}

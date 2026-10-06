@@ -16,7 +16,6 @@ import {
   BOARD_HEADING,
   BOARD_NOTE,
   CHART_HEADING,
-  CHART_TITLE,
   CLASSIFICATION_LINK,
   LAST_RACE,
   LEDE,
@@ -197,7 +196,6 @@ export default function Home() {
 
               <Section title={CHART_HEADING}>
                 <Figure
-                  title={CHART_TITLE}
                   note={chartNote(seasons)}
                   table={{
                     rows: seasons,

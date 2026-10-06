@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Confidence, Note, Onward, Page, Section } from '../components/Page.jsx'
+import { Confidence, FigurePart, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips } from '../components/Filters.jsx'
@@ -38,6 +38,7 @@ import {
   asOfLine,
   asOfOf,
   cardExtras,
+  constructorWinsNote,
   familiesLead,
   headlineRecords,
   holderPath,
@@ -273,53 +274,42 @@ function Body({ data }) {
           (WK-08 review). The static half now carries these two sections too,
           each figure's table open where the chart is drawn here. */}
       <Section title={LEADERBOARDS}>
+        {/* Two figures in one section: each is named by an h3 of its own,
+            which names its table too (AX-28), rather than by a second title. */}
         <div className="split">
-          <Figure
-            title={DRIVER_WINS_FIGURE.title}
-            note={DRIVER_WINS_FIGURE.note}
-            table={{
-              caption: DRIVER_WINS_FIGURE.title,
-              rows: driverWins,
-              columns: withApp(DRIVER_WINS_COLUMNS, { full_name: driverLink }),
-            }}
-          >
-            <BarChart
-              data={winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
-              label={DRIVER_WINS_FIGURE.label(winBars.length)}
-            />
-          </Figure>
+          <FigurePart title={DRIVER_WINS_FIGURE.title}>
+            <Figure
+              note={DRIVER_WINS_FIGURE.note}
+              table={{ rows: driverWins, columns: withApp(DRIVER_WINS_COLUMNS, { full_name: driverLink }) }}
+            >
+              <BarChart
+                data={winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+                label={DRIVER_WINS_FIGURE.label(winBars.length)}
+              />
+            </Figure>
+          </FigurePart>
 
-          <Figure
-            title={DRIVER_POLES_FIGURE.title}
-            note={DRIVER_POLES_FIGURE.note}
-            table={{
-              caption: DRIVER_POLES_FIGURE.title,
-              rows: driverPoles,
-              columns: withApp(DRIVER_POLES_COLUMNS, { full_name: driverLink }),
-            }}
-          >
-            <BarChart
-              data={poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
-              label={DRIVER_POLES_FIGURE.label(poleBars.length)}
-            />
-          </Figure>
+          <FigurePart title={DRIVER_POLES_FIGURE.title}>
+            <Figure
+              note={DRIVER_POLES_FIGURE.note}
+              table={{ rows: driverPoles, columns: withApp(DRIVER_POLES_COLUMNS, { full_name: driverLink }) }}
+            >
+              <BarChart
+                data={poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
+                label={DRIVER_POLES_FIGURE.label(poleBars.length)}
+              />
+            </Figure>
+          </FigurePart>
         </div>
       </Section>
 
       <Section title={CONSTRUCTORS_HEADING}>
         <Figure
-          title={CONSTRUCTOR_WINS_FIGURE.title}
-          note={`${CONSTRUCTOR_WINS_FIGURE.note}${
-            constructorBars.some((bar) => bar.colour)
-              ? ` Each bar is coloured for that constructor as of its last win, the year the table gives: ${colourSource(constructorBars.map((bar) => bar.colour))}.${
-                  constructorBars.some((bar) => bar.hollow)
-                    ? ' A hollow bar is a team this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here.'
-                    : ''
-                }`
-              : ''
-          }`}
+          note={constructorWinsNote(
+            constructorBars.some((bar) => bar.colour) ? colourSource(constructorBars.map((bar) => bar.colour)) : null,
+            constructorBars.some((bar) => bar.hollow),
+          )}
           table={{
-            caption: CONSTRUCTOR_WINS_FIGURE.title,
             rows: constructorWins,
             columns: withApp(CONSTRUCTOR_WINS_COLUMNS, {
               // The team's colour mark and a link to its page, as /races
@@ -367,7 +357,6 @@ function Body({ data }) {
           />
         </div>
         <Figure
-          title={`Most wins, the ${decade}s`}
           note="A decade is the ten seasons whose year begins with it; the 2020s are still running."
           table={{
             rows: decadeRows,
@@ -391,7 +380,6 @@ function Body({ data }) {
 
       <Section title="How often pole becomes a win">
         <Figure
-          title="Pole positions converted to victory, by season"
           note="The share of races each season won from the front row's first slot. It says as much about how hard a car was to pass as about who was quickest on Saturday."
           table={{
             rows: poleToWin.map((r) => ({

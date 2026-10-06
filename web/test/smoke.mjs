@@ -2226,12 +2226,13 @@ try {
     } else pass('no season is part-run, so there is no next round to lead the calendar')
   })
 
-  await section('Lead figures  (the plot before its method: VD-67)', async () => {
-    // A figure that leads a page sets one line of title, then the plot, then
-    // its method note. Above the plot, Fangio's note was 217 px over a 210 px
-    // plot at 400, which is a phone's first screen given to prose. Held at
-    // 1440, 400, the 375 phone width and the 320 reflow width: the plot starts
-    // within 40 px of the box top, the title is one line and not clipped, and
+  await section('Lead figures  (the plot before its method: VD-67, VD-80)', async () => {
+    // A figure that leads a page opens on its plot, under the heading that
+    // names it, then its method note. Above the plot, Fangio's note was
+    // 217 px over a 210 px plot at 400, which is a phone's first screen given
+    // to prose; a bold title of its own above that was a second name (VD-80).
+    // Held at 1440, 400, the 375 phone width and the 320 reflow width: the
+    // plot starts within 40 px of the box top, there is no caption title, and
     // the note is still on the page, under the plot and named as the figure's
     // description.
     const readFigure = (heading) => {
@@ -2241,13 +2242,11 @@ try {
       if (!figure) return null
       const box = figure.getBoundingClientRect()
       const plot = figure.querySelector('.figure-body svg[role="img"]')?.getBoundingClientRect()
-      const title = figure.querySelector(':scope > figcaption b')
       const note = figure.querySelector(':scope > p.figure-note')
       return {
         gap: plot ? plot.top - box.top : null,
-        lines: title ? Math.round(title.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(title).lineHeight)) : 0,
-        clipped: title ? title.scrollWidth > title.clientWidth : true,
         caption: figure.querySelector('figcaption')?.textContent.trim() ?? '',
+        name: figure.getAttribute('aria-label') ?? '',
         note: note ? clean(note) : '',
         below: plot && note ? note.getBoundingClientRect().top >= plot.bottom : false,
         described: !!note && figure.getAttribute('aria-describedby') === note.id,
@@ -2274,11 +2273,85 @@ try {
           got.gap !== null && got.gap <= 40,
           `${route} at ${width}: the plot starts ${Math.round(got.gap)} px into its box, within 40`,
         )
-        truthy(got.lines === 1 && !got.clipped, `${route} at ${width}: the title “${got.caption}” is one line, not clipped`)
+        truthy(got.caption === '' && got.name === heading, `${route} at ${width}: no caption title, and the figure is named “${got.name}” for its heading`)
         truthy(got.note.length > 0 && got.below && got.described, `${route} at ${width}: the method note is under the plot and describes the figure`)
       }
       await page.setViewportSize({ width: 1280, height: 900 })
     }
+  })
+
+  /*
+   * docs/design-system.md section 8, test 6: one figure grammar (VD-80). On
+   * every route here, in both halves, each figure is named for the heading
+   * above it and carries no caption title of its own; its note follows the
+   * plot, is 50 words at most, and is the figure's description in the app.
+   * conventions.mjs holds the source and every note builder at its longest;
+   * this holds what reaches the page, including the notes written inline.
+   */
+  await section('One figure grammar  (the heading names it; the note under the plot, 50 words at most: VD-80)', async () => {
+    const readFigures = (root) => {
+      const main = typeof root === 'string' ? document.querySelector(root) : root
+      const name = (h) => {
+        const copy = h.cloneNode(true)
+        for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
+        return copy.textContent.replace(/\s+/g, ' ').trim()
+      }
+      const headings = [...(main?.querySelectorAll('h2, h3') ?? [])]
+      return [...(main?.querySelectorAll('figure.figure') ?? [])].map((figure) => {
+        // The heading nearest above the figure in the document.
+        const above = headings.filter((h) => h.compareDocumentPosition(figure) & Node.DOCUMENT_POSITION_FOLLOWING).pop()
+        const note = figure.querySelector(':scope > p.figure-note')
+        const body = figure.querySelector(':scope > .figure-body')
+        return {
+          heading: above ? name(above) : '',
+          label: figure.getAttribute('aria-label') ?? '',
+          caption: figure.querySelectorAll(':scope > figcaption, :scope > b, :scope > strong').length,
+          note: note ? note.textContent.replace(/\s+/g, ' ').trim() : '',
+          after: !body || !note || Boolean(body.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING),
+          described: !note || !figure.hasAttribute('aria-describedby') || figure.getAttribute('aria-describedby') === note.id,
+        }
+      })
+    }
+    const ROUTES = [
+      '/',
+      '/drivers/hamilton',
+      '/drivers/g-hill',
+      '/constructors/ferrari',
+      '/seasons/1976',
+      '/races/1955/1',
+      '/races/1994/5',
+      '/races/2024/21',
+      '/records',
+      '/data/quality',
+    ]
+    const wrong = []
+    let figures = 0
+    for (const route of ROUTES) {
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      await go(route)
+      await page.waitForSelector('#root main figure.figure', { timeout: 5000 }).catch(() => null)
+      const app = await page.evaluate(readFigures, '#root main')
+      const served = await page.evaluate(
+        `(${readFigures.toString()})(new DOMParser().parseFromString(${JSON.stringify(html)}, 'text/html').querySelector('#prerendered main'))`,
+      )
+      for (const [half, list] of [['app', app], ['static', served]]) {
+        for (const f of list) {
+          figures += 1
+          const words = f.note ? f.note.split(' ').length : 0
+          const at = `${route} (${half}) under “${f.heading}”`
+          if (f.caption) wrong.push(`${at}: a caption title`)
+          if (f.label !== f.heading) wrong.push(`${at}: named “${f.label}”, not for its heading`)
+          if (!f.note) wrong.push(`${at}: no note`)
+          else if (words > 50) wrong.push(`${at}: a note of ${words} words`)
+          if (!f.after) wrong.push(`${at}: the note is above the plot`)
+          if (!f.described) wrong.push(`${at}: the note is not the figure's description`)
+        }
+      }
+      if (app.length === 0) wrong.push(`${route}: the app draws no figure`)
+    }
+    if (wrong.length === 0) pass(`all ${figures} figures on ${ROUTES.length} routes, both halves, follow the one grammar`)
+    for (const message of wrong.slice(0, 8)) fail(message)
+    if (wrong.length > 8) fail(`…and ${wrong.length - 8} more`)
   })
 
   await section('Lead figures  (beside the heading from 1180 px, after the tiles below: VD-53, VD-78)', async () => {
@@ -2632,7 +2705,10 @@ try {
       const cars = [...svg.querySelectorAll('g.flag-car')]
       return {
         label: svg.getAttribute('aria-label') ?? '',
-        note: figure.querySelector('figcaption span')?.textContent.trim() ?? '',
+        note: figure.querySelector(':scope > p.figure-note')?.textContent.trim() ?? '',
+        // What the figure's table holds that the drawing does not is said
+        // under that table (VD-80), so it is read from the whole figure.
+        text: figure.textContent.replace(/\s+/g, ' '),
         results: cars.map((g) => g.querySelector('.flag-result')?.textContent.trim()),
         grids: cars.map((g) => g.querySelector('text')?.textContent.trim()),
         out: cars.map((g) => g.classList.contains('flag-out')),
@@ -2703,9 +2779,10 @@ try {
     for (const [half, got] of [['the app', argentina.app], ['the static page', argentina.served]]) {
       truthy(/shared a car/.test(got?.note ?? ''), `/races/1955/1, ${half}: the shared car is explained`)
       truthy(
-        (got?.note ?? '').includes(`${undrawn} ${undrawn === 1 ? 'entry' : 'entries'} with no recorded grid slot`),
-        `/races/1955/1, ${half}: and the ${undrawn} undrawn entries counted`,
+        (got?.text ?? '').includes(`${undrawn} ${undrawn === 1 ? 'entry' : 'entries'} with no recorded grid slot`),
+        `/races/1955/1, ${half}: and the ${undrawn} undrawn entries counted, under the figure's table`,
       )
+      is((got?.note ?? '').includes('with no recorded grid slot'), false, `/races/1955/1, ${half}: and not in the note, which is held to 50 words`)
     }
     await noJs.close()
 
@@ -2827,7 +2904,7 @@ try {
       is(got.results[0], '1', `${half}: the winner's bar is at the top`)
       is(got.rows, cars + unbarred, `${half}: the figure's table carries every bar, and the ${unbarred} driver with stops and no bar`)
       truthy(/in the table and not drawn/.test(got.text), `${half}: and the note says so`)
-      truthy(/not what a stop gained or lost/.test(got.text), `${half}: the note says the bars measure nothing`)
+      truthy(/not a stop’s length, tyres or gain/.test(got.text), `${half}: the note says the bars measure nothing`)
       is(/undercut|overcut/i.test(got.text), false, `${half}: and nothing on the section talks of an undercut`)
       is(got.orderRows.length, pairs, `${half}: one pit-order row per pair of classified neighbours, on the grid or at the flag`)
       is(got.orderCaption, PIT_ORDER_HEADING, `${half}: the pit-order table is named for its own heading, not the figure's`)
@@ -2848,13 +2925,13 @@ try {
     for (const [half, got] of [['the app', france.app], ['the static page', france.served]]) {
       truthy((got?.tableRows ?? []).some((row) => row.includes('None recorded')), `/races/1995/7, ${half}: a driver with no stop recorded reads “None recorded”`)
       is(/\bNo stop\b|did not stop\./.test(got?.text ?? ''), false, `/races/1995/7, ${half}: and nothing says they did not stop`)
-      truthy(/no stop recorded, which is not always a driver who did not stop/.test(got?.text ?? ''), `/races/1995/7, ${half}: the note says the record has gaps`)
+      truthy(/An unticked bar may hide a stop: F1DB’s record has gaps/.test(got?.text ?? ''), `/races/1995/7, ${half}: the note says the record has gaps`)
     }
 
     // A stop on the lap a car went out on is drawn at the end of its bar.
     const spain = await both('/races/1994/5')
     for (const [half, got] of [['the app', spain.app], ['the static page', spain.served]]) {
-      truthy(/stopped on the lap they went out on/.test(got?.text ?? ''), `/races/1994/5, ${half}: the stop on the last lap is explained`)
+      truthy(/stopped on their final lap/.test(got?.text ?? ''), `/races/1994/5, ${half}: the stop on the last lap is explained`)
       is(got?.beyond, 0, `/races/1994/5, ${half}: and no tick is drawn past the end of its bar`)
     }
 

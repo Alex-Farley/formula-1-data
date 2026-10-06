@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Confidence, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, FigurePart, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
@@ -160,7 +160,6 @@ function Body({ data }) {
 
       <Section title="How the database is distributed across it">
         <Figure
-          title="Rows by confidence"
           note="Across races, race entries, drivers, constructors, chassis, circuits and seasons. Most of it sits at “reference” because most of it is the F1DB race record, which a second source can check."
           table={{
             rows: ordered.map((row) => ({
@@ -233,11 +232,8 @@ function Body({ data }) {
 
       <Section title="Coverage">
         <div className="split">
-          <Figure
-            title={CHASSIS_TITLE}
-            note={CHASSIS_NOTE}
-            table={{ rows: chassisCoverage, columns: CHASSIS_COVERAGE_COLUMNS }}
-          >
+          <FigurePart title={CHASSIS_TITLE}>
+          <Figure note={CHASSIS_NOTE} table={{ rows: chassisCoverage, columns: CHASSIS_COVERAGE_COLUMNS }}>
             <ColumnChart
               data={chassisCoverage.map((row) => ({
                 key: row.decade,
@@ -249,6 +245,7 @@ function Body({ data }) {
               label="Percentage of race entries naming a chassis, by decade"
             />
           </Figure>
+          </FigurePart>
 
           <div>
             <Section title="Circuit geometry">

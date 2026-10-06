@@ -1438,12 +1438,11 @@ export function nationalEntry(country) {
 export function colourSource(colours) {
   const livery = colours.some((c) => c?.kind === 'livery')
   const national = colours.some((c) => c?.kind === 'national')
-  if (livery && national) {
-    return "a livery of the team's own from 2010, and before 1968 the international racing colour of the country that entered the car rather than one of the team's"
-  }
-  if (national) {
-    return "the international racing colour of the country that entered the car, the convention that painted it for its country and not a livery of the team's own"
-  }
+  // Short, because it is a clause in a figure's note, which the figure
+  // grammar holds to 50 words (VD-80); the national colour is still named as
+  // the entrant's country's and still disclaimed as the team's.
+  if (livery && national) return "the team's livery from 2010; before 1968 the entrant's national racing colour, not the team's"
+  if (national) return "the entrant's national racing colour, not the team's"
   return "the team's own livery"
 }
 

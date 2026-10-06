@@ -1490,19 +1490,20 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     // chart never drew.
     assert.equal(colourSource([livery, livery]), "the team's own livery")
     // National only: never "the team's", and it says whose it is.
-    assert.match(colourSource([national]), /country that entered the car/)
+    assert.match(colourSource([national]), /the entrant's national racing colour/)
     assert.doesNotMatch(colourSource([national]), /the team's own livery$/)
     // Both: both named, and the national one still disclaimed.
     const both = colourSource([livery, national])
-    assert.match(both, /livery of the team's own from 2010/)
-    assert.match(both, /rather than one of the team's$/)
+    assert.match(both, /the team's livery from 2010/)
+    assert.match(both, /before 1968 the entrant's national racing colour, not the team's$/)
     // A hollow mark is a null in the list and changes none of the three
     // answers - the note describes it in a clause of its own.
     assert.equal(colourSource([livery, gap]), colourSource([livery]))
     assert.equal(colourSource([national, gap]), colourSource([national]))
     // No colour at all is the one case the sentence must never be printed
     // for, and both callers guard it: Driver.jsx on finishesInColour and
-    // Records.jsx on bars.some(colour), each of which is false here.
+    // Records.jsx on bars.some(colour), each of which is false here. The
+    // clause is short because a figure's note is held to 50 words (VD-80).
     assert.equal([gap, gap].some((c) => c), false)
   })
   it('a livery is a primary and its accents, and the pair renders the mark\'s lead (AF-15, AF-57)', () => {

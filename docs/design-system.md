@@ -43,10 +43,9 @@ it is, so that nobody holds new work to a rule that has not landed:
   until it is promoted to core or dropped.
 
 §1's principles bind from adoption. The steps: VD-78 (#865, the grid, the
-measure and the design-system tests) and VD-79 (#866, tiles, one page
-header and the handover) are built. Pending are VD-80 (#867, one figure
-grammar), VD-81 (#868,
-one vocabulary), VD-82 (#869, one reveal control, with sort and fold in the
+measure and the design-system tests), VD-79 (#866, tiles, one page
+header and the handover) and VD-80 (#867, one figure grammar) are built.
+Pending are VD-81 (#868, one vocabulary), VD-82 (#869, one reveal control, with sort and fold in the
 address), VD-83 (#870, one section order per page type) and VD-84 (#871, the
 opening slot and the middle type register); VD-86 (#884) holds the core
 rules none of the seven named. **A step's pull request moves
@@ -210,8 +209,8 @@ Every text block is one of five kinds. Its kind sets its width.
    line, the "same on every row" line) is drawn **inside the box's frame**:
    a footer band with a hairline as wide as the box. Its lines stop at the
    measure. The band matches the table, and the text stays legible.
-   *Pending:* the figure's band is VD-80's; a table's source line still sits
-   under its box at `--measure-small` until VD-86 (#884).
+   The figure's band is built (VD-80). *Pending:* a table's source line
+   still sits under its box at `--measure-small` until VD-86 (#884).
 3. **A framed note** (disagreement, citation, *Where this comes from*) is a
    box: **the box spans its column**, and its lines stop at the measure (the
    citation's at `--measure-small`). A note box has one edge, its left rule,
@@ -316,14 +315,21 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   either as an `aria-label` or as a visually hidden h2 (**aim**). *Pending
   (VD-88 #887).*
 
-### Figure, and its `lead` variant (core) — pending (VD-80)
+### Figure, and its `lead` variant (core) — built (VD-80)
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold
-  title. Then the plot. Then the **method note under the plot, on every
-  figure**, not only the lead variant VD-67 reached. The note is cut to what
-  stops a misreading, 50 words at most (content C1). Last, *The numbers behind
-  this chart*, worded the same everywhere.
+  title: `Figure` takes no `title`, and reads the heading as its accessible
+  name, as a table reads its caption. Then the plot, then its legend. Then
+  the **method note under the plot, on every figure**, in a band inside the
+  frame (the text-width rule, kind 2), and named as the figure's
+  description. The note is cut to what stops a misreading, 50 words at most
+  (content C1). Last, *The numbers behind this chart*, worded the same
+  everywhere; what the table holds and the plot does not draw (an entry
+  with no line) is said under the table, not in the note.
+- **Two figures in one section** (the Records leaderboards, the chassis
+  chart on `/data/quality`): each sits in a `FigurePart`, whose h3 names it
+  and its table.
 - **Widths:** the slot (5 columns) for the lead figure, the full width
   otherwise.
 - **States:** a figure with nothing to draw says so in one sentence in its
@@ -331,6 +337,10 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
 - **Accessibility:**
   - Series are never colour alone; a second cue (shape, ring, label) carries
     the meaning (**floor** for 1.4.1).
+  - A ring that flags a mark (a title on a driver's chart) is drawn at full
+    strength and at least 2 px wide, so the series colour's 3:1 is what
+    reaches the screen (**floor** for 1.4.11; DP-33, held by
+    `conventions.mjs`).
   - The hover box also opens on focus (**aim**; IX-44 #844 is the
     containment half).
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
@@ -600,8 +610,8 @@ The system is held by tests, not by memory.
 - `smoke.mjs` comparing every static table with the app's.
 
 **The system's own tests, one each, so a drift fails the build.** Built in
-VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Pending: 6 (VD-80)
-and 7 (VD-81).
+VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
+Pending: 7 (VD-81).
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -622,7 +632,11 @@ and 7 (VD-81).
    remove it, and a declared difference that has gone fails too, so the
    list cannot outlive its cause.
 6. **One figure grammar.** `Figure` takes its note as a prop and renders it
-   under the plot, and no page passes a second title.
+   under the plot, and no page passes a second title; every note builder is
+   50 words at its longest (`conventions.mjs`), and on the smoke routes, in
+   both halves, every figure is named for the heading above it, with its
+   note under the plot in 50 words or fewer (`smoke.mjs`, *One figure
+   grammar*).
 7. **One vocabulary.** Tile labels and provenance headings come from one
    list in `lib/site.js`, and a test refuses a synonym.
 8. **Tokens are used.** Every token defined in `tokens.css` is referenced
