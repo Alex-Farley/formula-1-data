@@ -291,7 +291,8 @@ unsettled, and the choice of route under *A CC BY 4.0 facts edition,
 counted* — the race rows stored as they are, or rebuilt from F1DB — turns on
 it. Which of the other Wikipedia-touched sets counted there the artefact may
 carry (`claims` and `driver_note_sources` among them) is open too. Both are
-measured first, under `PD-53` (#741). **Nothing is offered under CC BY 4.0
+measured under *For decision: the rest of what cites Wikipedia, and the
+route*, below, for the maintainer to rule on. **Nothing is offered under CC BY 4.0
 yet.** The artefact does not exist until `PD-53` (#741), `PD-54` (#742) and
 `PD-55` (#743) ship; until then every row in `f1.db` ships under CC BY-SA 4.0
 as before, and `LICENSE-DATA` is unchanged.
@@ -492,6 +493,105 @@ qualifying maker; whether F1DB's own compilation drew on Wikipedia, which is
 F1DB's to represent and is represented by its licence; and anything outside
 UK and EU law — in the United States there is no database right, and the
 copyright reading above is the whole question.
+
+---
+
+## For decision: the rest of what cites Wikipedia, and the route
+
+Written under `PD-53` (#741), on the maintainer's ruling of 2026-10-03 that
+the facts artefact is not built until two things are measured: the `claims`
+and `driver_note_sources` rows that cite Wikipedia, classified into bare facts
+and expression, and whether the artefact keeps the race rows as stored or
+rebuilds them from F1DB. **It decides nothing.** The three questions at its
+end are on `PD-53` for the maintainer, and the artefact's table and column set
+waits on the answers. Like the reading above, it is an analysis, not legal
+advice.
+
+### The claims: bare facts, held as a check
+
+<!-- fig:wp_claims -->2,449<!-- /fig --> claims cite Wikipedia. Each is a value as an article publishes it, and
+each `claims` row is the field-grain record of a column of another table,
+which `verify.py` holds exactly to its claims:
+
+| Claims | Column | The value | Reading |
+|---:|---|---|---|
+| <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> | `chassis.published_races`, `published_wins`, `published_poles` | a car's race, win and pole totals from the infobox of <!-- fig:wp_claim_car_articles -->655<!-- /fig --> per-car articles, on <!-- fig:wp_claim_cars -->793<!-- /fig --> chassis rows | bare fact: a count |
+| <!-- fig:wp_claim_circuit_articles -->79<!-- /fig --> | `circuits.article` | the title of the article the *List of Formula One circuits* links for a circuit | bare fact: a title names a work, it is not one |
+| <!-- fig:wp_claim_circuit_sections -->3<!-- /fig --> | `circuits.article_section` | the heading of the section that link points to | the same: a heading of a few words |
+| <!-- fig:wp_claim_driver_totals -->5<!-- /fig --> | `drivers.fastest_laps_external`, `poles_external` | a career total as the driver's article publishes it | bare fact: a count |
+
+None carries prose, selection or arrangement, so on copyright they are bare
+facts on the reading the race rows were given. The database-right reading is
+the race rows' too, unchanged: whether a right subsists turns on the maker
+question, and whether the infoboxes count as one database or as many does not
+settle it.
+
+**Nothing depends on them.** No row is keyed to a claim. The car totals are,
+in `schema.sql`'s words, "the numbers the database derives from its own race
+records", kept so that comparing the two proves a linkage; the database's own
+figures are `chassis.races` and `chassis.wins`, derived from `race_entries`,
+and they stay whatever is decided. The circuit articles are links out, and the
+driver totals sit beside the counts `race_entries` gives. Leaving the claims
+out of the artefact — with the seven columns they mirror left NULL — orphans
+nothing and costs the comparison and the links. Carrying them is consistent
+with the ruling on the race rows.
+
+### The note sources: citations backing this project's notes
+
+<!-- fig:wp_note_sources -->53<!-- /fig --> rows of `driver_note_sources` cite Wikipedia. Each is the URL of the
+driver article a Friday driver's note was checked against (LV-08): a
+citation, which takes nothing from the article. The notes they back are this
+project's writing, and the prose pass labels all <!-- fig:wp_notes_original -->53<!-- /fig --> of them original
+(`docs/prose_pass.tsv`). They are bare facts, and with nothing extracted
+there is no database-right question to ask of them. The only question they
+raise is not their own: a note source belongs in the artefact where the note
+it backs does, and whether `drivers.notes` goes in is the prose question,
+settled field by field.
+
+### The route: keep the race rows, or rebuild them from F1DB
+
+The race rows, column by column, against the F1DB snapshot `harvest/` holds:
+
+| Column | Against F1DB | What a rebuild needs |
+|---|---|---|
+| `races.year`, `round`, `date_iso`, `f1db_layout_id`, `sprint` | F1DB's own on all <!-- fig:wp_races -->1,125<!-- /fig --> | nothing |
+| `races.circuit_id` | the circuit of F1DB's layout for the race on all <!-- fig:wp_races_circuit_f1db -->1,125<!-- /fig --> | nothing |
+| `races.name_used`, `gp_id` | not measurable: `tools/f1db_fetch.py` does not fetch F1DB's race names or grand-prix ids | both fetched, and F1DB's grand prix mapped onto `grands_prix` |
+| `race_entries.driver_id`, `constructor_id`, `finish_position` | F1DB's on all <!-- fig:wp_race_entries -->1,128<!-- /fig -->: the winner cross-check refuses a race where the two differ | nothing |
+| `race_entries.entrant` | Wikipedia's house style, constructor and engine; F1DB holds both as ids on every row, and the snapshot names its constructors but not its engine makers. F1DB names the car of the 1957 and 1958 Indianapolis winners Epperly where the article says Salih | the engine makers' names and a rule for the string — or the column left out |
+| `race_entries.pole` | <!-- fig:pole_credits -->1,165<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->682<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,162<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
+| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,164<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->774<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,155<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->8<!-- /fig -->, and names another driver in <!-- fig:fl_f1db_other -->1<!-- /fig -->, open in `discrepancies` | a choice for the races where F1DB differs |
+
+**What it shows.** Every race-row fact a rebuild needs is one F1DB states,
+except three things: the race names and grand-prix keys, which the snapshot
+does not carry and so could not be compared; the `entrant` string, whose form
+is Wikipedia's; and the fastest-lap credits where F1DB differs. The pole and
+fastest-lap credits reach past the race rows the ruling counted: they come
+from the season harvest on every row, so keeping the rows as stored also keeps
+the credits on rows that cite F1DB, and a rebuild replaces those too.
+
+- **Rebuilding** takes the database-right question off the race rows
+  altogether: nothing Wikipedia made is in the file. Its costs are two fetched
+  columns and a mapping, the pole rule as code, a decision on `entrant`, and,
+  where F1DB credits a fastest lap differently, an artefact that disagrees
+  with `f1.db` beside it — each file sourced, but not the same.
+- **Keeping** costs nothing to build, and rests on the maker question, the
+  least certain step in the reading above.
+
+The two answers on the claims follow the route. A rebuild that keeps
+Wikipedia's values out of the race rows and then carries <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> of its
+infobox figures has put the question back; keeping the rows as stored has
+already accepted it.
+
+### For decision
+
+1. **The route.** Rebuild the race rows from F1DB for the artefact, at the
+   costs above, or keep them as stored on the reading that no database right
+   reaches them.
+2. **The claims.** Carry the <!-- fig:wp_claims -->2,449<!-- /fig --> as bare facts, or leave them out with the
+   seven columns they mirror. Nothing in the artefact depends on them either way.
+3. **The note sources.** Carry the <!-- fig:wp_note_sources -->53<!-- /fig --> wherever the notes they back are
+   carried, or leave them out.
 
 ---
 

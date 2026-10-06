@@ -30,6 +30,7 @@ Numbers are formatted the way the README already writes them - thousands
 separated with a comma, percentages as a whole number. Nothing here writes to
 a database.
 """
+import csv
 import os
 import re
 import sqlite3
@@ -800,6 +801,142 @@ class Figures:
                 f"{', '.join(tables) or 'no table'}; docs/COMMERCIAL-READINESS.md "
                 f"reads circuit_layouts alone")
         return n(self.count("circuit_layouts"))
+
+    # -- the rest of what cites Wikipedia, and the route, measured (PD-53) --
+    #
+    # The 2026-10-03 ruling on PD-53 (#741) asks for the claims and the note
+    # sources that cite Wikipedia to be classified, and for the two routes to
+    # the race rows to be measured, before the facts artefact is built. The
+    # note states each kind of claim by name, so a Wikipedia claim of a kind
+    # it does not name stops the writer, as WIKI_ITEMISED does for tables.
+    WIKI_CLAIMS = {("chassis", "published_races"): "car", ("chassis", "published_wins"): "car",
+                   ("chassis", "published_poles"): "car", ("circuits", "article"): "circuit",
+                   ("circuits", "article_section"): "section",
+                   ("drivers", "fastest_laps_external"): "driver",
+                   ("drivers", "poles_external"): "driver"}
+
+    def _wp_claims(self):
+        if hasattr(self, "_wpc"):
+            return self._wpc
+        kinds = {}
+        for t, f, k in self.con.execute(f"""SELECT tbl, field, COUNT(*) FROM claims
+                WHERE source LIKE 'https://{self.WIKI}/%' GROUP BY tbl, field"""):
+            kind = self.WIKI_CLAIMS.get((t, f))
+            if kind is None:
+                raise SystemExit(
+                    f"{k} claims of {t}.{f} cite Wikipedia, a kind "
+                    f"docs/COMMERCIAL-READINESS.md does not classify: read them "
+                    f"and add them to the note and to Figures.WIKI_CLAIMS")
+            kinds[kind] = kinds.get(kind, 0) + k
+        if sum(kinds.values()) != self._wp("claims"):
+            raise SystemExit("the Wikipedia claims counted by URL and by registry "
+                             "domain differ: docs/COMMERCIAL-READINESS.md counts both")
+        self._wpc = kinds
+        return kinds
+
+    def wp_claim_car_totals(self):      return n(self._wp_claims().get("car", 0))
+    def wp_claim_circuit_articles(self): return n(self._wp_claims().get("circuit", 0))
+    def wp_claim_circuit_sections(self): return n(self._wp_claims().get("section", 0))
+    def wp_claim_driver_totals(self):   return n(self._wp_claims().get("driver", 0))
+
+    def wp_claim_cars(self):
+        return n(self.one(f"""SELECT COUNT(DISTINCT row_key) FROM claims WHERE tbl = 'chassis'
+            AND source LIKE 'https://{self.WIKI}/%'"""))
+
+    def wp_claim_car_articles(self):
+        return n(self.one(f"""SELECT COUNT(DISTINCT source) FROM claims WHERE tbl = 'chassis'
+            AND source LIKE 'https://{self.WIKI}/%'"""))
+
+    def wp_notes_original(self):
+        # The prose pass's reading of the notes the Wikipedia note sources
+        # back (docs/prose_pass.tsv, PM-17). The note says all of them are
+        # labelled original, so one that is not stops the writer.
+        cited = {r[0] for r in self.con.execute(f"""SELECT driver_id FROM driver_note_sources
+            WHERE source LIKE 'https://{self.WIKI}/%'""")}
+        path = os.path.join(ROOT, "docs", "prose_pass.tsv")
+        with open(path, encoding="utf-8") as f:
+            rows = csv.DictReader((x for x in f if not x.startswith("#")), delimiter="\t")
+            labels = {r["key"]: r["label"] for r in rows
+                      if r["table"] == "drivers" and r["column"] == "notes"}
+        unread = sorted(cited - set(labels))
+        other = sorted(d for d in cited & set(labels) if labels[d] != "original")
+        if unread or other:
+            raise SystemExit(
+                f"of the notes Wikipedia note sources back, {len(unread)} are not in "
+                f"docs/prose_pass.tsv and {len(other)} are not labelled original: "
+                f"docs/COMMERCIAL-READINESS.md says every one is")
+        return n(len(cited))
+
+    def wp_races_circuit_f1db(self):
+        # Wikipedia-cited races whose circuit is the one F1DB's layout for the
+        # race belongs to. The note says every one, so a shortfall stops it.
+        agree = self._wp_race_one(f"""SELECT COUNT(*) FROM races r
+            JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+            WHERE r.{self._WP_RACE} AND o.circuit_id = r.circuit_id""")
+        if agree != self._wp("races"):
+            raise SystemExit(
+                f"{agree} of {self._wp('races')} Wikipedia-cited races have the circuit "
+                f"of F1DB's layout: docs/COMMERCIAL-READINESS.md says every one")
+        return n(agree)
+
+    # The pole and fastest-lap credits, every one, against what F1DB states:
+    # the credits come from the season harvest on every row, whatever the
+    # row's own source, so the route question reaches all of them.
+    def pole_credits(self):
+        return n(self.count("race_entries", "pole = 1"))
+
+    def pole_credits_elsewhere(self):
+        return n(self.count("race_entries", f"pole = 1 AND NOT {self._WP_RACE}"))
+
+    def pole_grid_one(self):
+        return n(self.count("race_entries", "pole = 1 AND grid = 1"))
+
+    def pole_not_grid_one(self):
+        # A credited pole that is not F1DB's grid slot 1. The note says each
+        # is F1DB's fastest qualifier, so one that is not stops the writer.
+        rows = self.con.execute("""SELECT e.race_id, e.driver_id,
+                EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = e.race_id
+                        AND q.driver_id = e.driver_id AND q.position = 1
+                        AND q.source = 'https://github.com/f1db/f1db')
+            FROM race_entries e WHERE e.pole = 1 AND e.grid IS NOT 1""").fetchall()
+        if not all(r[2] for r in rows):
+            raise SystemExit(
+                "a credited pole is neither F1DB's grid slot 1 nor its fastest "
+                "qualifier: docs/COMMERCIAL-READINESS.md says each is one or the other")
+        return n(len(rows))
+
+    def _fl(self):
+        """(races with a credit, the same set as F1DB's, F1DB naming one of a
+        shared credit, F1DB naming someone else), against F1DB's fastest lap
+        of the race as tools/f1db_fetch.py wrote it."""
+        if hasattr(self, "_flc"):
+            return self._flc
+        f1db_id = dict(self.con.execute(
+            "SELECT f1db_id, id FROM drivers WHERE f1db_id IS NOT NULL").fetchall())
+        theirs = {}
+        with open(os.path.join(ROOT, "harvest", "fastest_laps.txt"), encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("#") or not line.strip():
+                    continue
+                y, r, d = line.split("|")[:3]
+                theirs.setdefault((int(y), int(r)), set()).add(f1db_id.get(d, d))
+        ours = {}
+        for y, r, d in self.con.execute("""SELECT r.year, r.round, e.driver_id
+                FROM race_entries e JOIN races r ON r.id = e.race_id
+                WHERE e.fastest_lap = 1"""):
+            ours.setdefault((y, r), set()).add(d)
+        same = sum(1 for k, v in ours.items() if theirs.get(k) == v)
+        one = sum(1 for k, v in ours.items() if theirs.get(k, v) != v and theirs[k] < v)
+        self._flc = (len(ours), same, one, len(ours) - same - one)
+        return self._flc
+
+    def fl_credit_races(self):    return n(self._fl()[0])
+    def fl_f1db_same(self):       return n(self._fl()[1])
+    def fl_f1db_names_one(self):  return n(self._fl()[2])
+    def fl_f1db_other(self):      return n(self._fl()[3])
+
+    def fl_credits_elsewhere(self):
+        return n(self.count("race_entries", f"fastest_lap = 1 AND NOT {self._WP_RACE}"))
 
     # The registry entry for F1DB owns both of these domains, so a row
     # resolving to either is F1DB's by the same rule `./f1 licences` applies.
