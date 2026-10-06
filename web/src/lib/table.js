@@ -235,6 +235,14 @@ export const FOLD_NOUN = {
   wins: 'wins',
 }
 
+/**
+ * Is this a noun a fold may declare? The conventions scan reads the forms the
+ * source uses; this holds whatever form a fold is written in, at the point
+ * it is drawn - prerender.js refuses to build, DataTable logs an error the
+ * smoke suite fails on.
+ */
+export const isFoldNoun = (fold) => Object.values(FOLD_NOUN).includes(fold)
+
 /** The disclosure's two faces, closed and open, as both halves print them. */
 export const foldMore = (count, noun) =>
   `Show all ${count.toLocaleString('en-GB')}${typeof noun === 'string' ? ` ${noun}` : ''}`

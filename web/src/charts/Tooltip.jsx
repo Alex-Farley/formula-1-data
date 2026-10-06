@@ -61,7 +61,9 @@ export default function Tooltip({ x, y, place = 'above', gap = GAP, onDismiss, c
   useEffect(() => {
     if (!onDismiss) return undefined
     const press = (event) => {
-      if (event.key === 'Escape') onDismiss()
+      // Not an Escape something else already answered - the search palette,
+      // the Columns popover - which was meant for that and not for this.
+      if (event.key === 'Escape' && !event.defaultPrevented) onDismiss()
     }
     document.addEventListener('keydown', press)
     return () => document.removeEventListener('keydown', press)

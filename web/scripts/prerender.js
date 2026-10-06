@@ -61,6 +61,7 @@ import {
   defaultColumns,
   foldMore,
   folds,
+  isFoldNoun,
   glossaryKey,
   onPhone,
   shared,
@@ -701,6 +702,7 @@ const FOLD_NAME = '<span class="sr-only fold-name"></span>'
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
   const { aligns = [], hidden = [], rowHeaders = [], fold = false } = options
+  if (fold && !isFoldNoun(fold)) throw new Error(`prerender: fold ${String(fold)} is not a FOLD_NOUN value (CD-52)`)
   const folded = fold && folds(rows.length)
   const cls = (i, extra) => {
     const names = [aligns[i], extra].filter(Boolean).join(' ')

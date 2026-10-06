@@ -12,6 +12,7 @@ import {
   foldMore,
   folds,
   glossaryKey,
+  isFoldNoun,
   onPhone,
   shared,
   sharedLine,
@@ -455,6 +456,7 @@ function Table({
   // The fold is the expansion on a table that declares one, so the button
   // below is not drawn beside it: opening it shows every row.
   const folded = fold && folds(ordered.length)
+  if (fold && !isFoldNoun(fold)) console.error(`DataTable: fold ${String(fold)} is not a FOLD_NOUN value (CD-52)`)
   const expand = (next) => {
     collapsed.current = !next
     if (onShowAll) onShowAll(next)
