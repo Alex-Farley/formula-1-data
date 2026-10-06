@@ -380,7 +380,7 @@ function DriverBody({ driver, data }) {
       )}
 
       {standings.length > 1 && (
-        <Section title="Where each championship finished">
+        <Section lead title="Where each championship finished">
           <Figure
             lead
             title="Final standing by season"

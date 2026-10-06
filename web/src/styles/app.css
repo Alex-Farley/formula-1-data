@@ -1956,6 +1956,71 @@ figure.photo figcaption a {
   }
 }
 
+/* The lead figure (VD-53): the chart that answers why a reader came to a
+   driver's, a team's or a season's page - the championship finishes, wins
+   by season, the title race - in the column the 525 px lede leaves empty.
+   In the document it follows the tile strip, which is where it stays below
+   1024 px; above that the page is two columns for its opening, the heading
+   and the tiles in the first and the figure in the second, so the eye reads
+   the left column then the right in the order the markup and the Tab key
+   take. The row the tiles sit in takes any height the figure has over the
+   heading and the tiles together, as the circuit photograph's last row does
+   above, so neither is pushed apart from the other. Every block after the
+   opening spans both columns. A page without a lead section is untouched,
+   and so is the static page, which draws none of these charts. */
+@media (min-width: 1024px) {
+  .page:has(> .section-lead) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--space-9);
+    align-items: start;
+  }
+
+  .page:has(> .section-lead) > * {
+    grid-column: 1 / -1;
+  }
+
+  /* A grid item holds its own margins, where a block let a margin under the
+     header, a disagreement or a section's last paragraph collapse into the
+     40 px above the next section. These keep every gap the one it was. */
+  .page:has(> .section-lead) > :has(+ .section),
+  .page:has(> .section-lead) > .section > :last-child {
+    margin-bottom: 0;
+  }
+
+  .page:has(> .section-lead) > header,
+  .page:has(> .section-lead) > header + .section {
+    grid-column: 1;
+  }
+
+  .page > .section-lead {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+    margin-top: 0;
+  }
+
+  /* The first block after the opening is clear of it. A section brings its
+     own 40 px; a disagreement has none above it, and set straight under the
+     tile strip at nearly its width it read as one more row of tiles. */
+  .page:has(> .section-lead) > .section-lead + * {
+    margin-top: var(--space-9);
+  }
+
+  /* Half the width, so a strip of eight or nine wraps - and flex-grow would
+     spread the tile left alone on the last row across all of it, ranking a
+     figure by accident (the rule .stats > div gives above). The blank, in
+     the tile's own ground, grows as one more tile on the last row and takes
+     its share of what that row leaves: a lone tile gets half, not all, and
+     still has room for its note. It has no width of its own, so it never
+     wraps onto a row by itself. */
+  .page:has(> .section-lead) > header + .section .stats::after {
+    content: '';
+    flex: 1 1 0;
+    background: var(--panel);
+  }
+}
+
 /* ------------------------------------------------------- circuit outlines */
 
 /* F1DB's drawing of a layout (lib/outline.js): the current ink at a constant

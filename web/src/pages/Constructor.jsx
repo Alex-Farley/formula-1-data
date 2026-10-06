@@ -175,7 +175,7 @@ function ConstructorBody({ constructor, data }) {
           disagreement, which say how to read it. The photographs and the
           exhaustive lists follow; scripts/prerender.js keeps the order. */}
       {winsBySeason.length > 1 && (
-        <Section title="Wins by season">
+        <Section lead title="Wins by season">
           <Figure
             lead
             title="Race wins by season"

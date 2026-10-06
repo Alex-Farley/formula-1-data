@@ -1963,12 +1963,12 @@ try {
    * PD-58: a season or constructor page leads with its chart. VD-33 put the
    * photograph strip straight after the tiles on every one of them, 680 px
    * of it at 1440, and that is what pushed *Wins by season* and the title
-   * race off the first screen. The chart's heading and its drawing now start
-   * under the tiles and inside 900 px at 1440, and both halves put the rest
+   * race off the first screen. The chart is now drawn inside 900 px at 1440,
+   * under the tiles or - since VD-53 - beside them, and both halves put the rest
    * in one order: the main table, then the photographs, then the long lists.
    * A season with a round still to run reads its next round and calendar
    * before standings that are not final; a concluded one, who won first. The
-   * static page draws neither chart (VD-53 is where that goes), so it is
+   * static page draws neither chart (VD-73, #822), so it is
    * held to the order alone.
    */
   await section('/seasons and /constructors  (the chart leads, the photographs follow)', async () => {
@@ -1985,6 +1985,8 @@ try {
         // come first and are svgs too, aria-hidden and 8 px tall.
         drawing: top(heading?.closest('section')?.querySelector('svg[role="img"][aria-label]')),
         tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
+        // In the column right of the heading and the tiles (VD-53).
+        beside: !!heading && !!tiles && heading.closest('section').getBoundingClientRect().left >= tiles.getBoundingClientRect().right,
       }
     }
     // Every block named is on the page, in this order, except the optional
@@ -2007,16 +2009,13 @@ try {
       await noJs.close()
       return { app, served }
     }
-    // `drawn`: the drawing itself, not only its heading, is inside the
-    // first screen. The season being run carries two sentences under its
-    // tiles (who can still win, and the grid) that the others do not, so
-    // there it is the heading that is held to 900 px: its plot started at
-    // 906 when this was written, and setting that sentence where it can
-    // share the first screen is VD-53's layout work, not this order's.
-    const leads = (route, chart, got, drawn = true) =>
+    // The drawing itself, not only its heading, is inside the first screen -
+    // on the season being run as well, whose two sentences under the tiles
+    // put its plot at 906 until VD-53 moved the chart beside them.
+    const leads = (route, chart, got) =>
       truthy(
-        got.heading !== null && got.drawing !== null && got.heading > got.tilesEnd && (drawn ? got.drawing : got.heading) < 900,
-        `${route}: “${chart}” starts under the tiles and ${drawn ? 'is drawn' : 'is headed'} inside the first 900 px at 1440 — heading at ${Math.round(got.heading)}, drawing at ${Math.round(got.drawing)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+        got.heading !== null && got.drawing !== null && (got.heading > got.tilesEnd || got.beside) && got.drawing < 900,
+        `${route}: “${chart}” is under or beside the tiles and drawn inside the first 900 px at 1440 — heading at ${Math.round(got.heading)}, drawing at ${Math.round(got.drawing)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
       )
     const checkOrder = (route, got, order, optional) => {
       truthy(inOrder(got.app.blocks, order, optional), `${route}, the app: ${order.join(' → ')} — ${got.app.blocks.join(' · ')}`)
@@ -2079,7 +2078,7 @@ try {
     if (live) {
       const route = `/seasons/${live}`
       const got = await bothHalves(route, String(live), titleHeading(true))
-      leads(route, titleHeading(true), got.app, false)
+      leads(route, titleHeading(true), got.app)
       checkOrder(
         route,
         got,
@@ -2152,6 +2151,109 @@ try {
       }
       await page.setViewportSize({ width: 1280, height: 900 })
     }
+  })
+
+  await section('Lead figures  (beside the heading from 1024 px, after the tiles below: VD-53)', async () => {
+    // The chart a driver's, a team's or a season's page is for sits in the
+    // column the 525 px lede leaves empty from 1024 px: level with the
+    // heading, right of the lede and the tiles, drawn inside the first 900 px,
+    // and clear of everything after the opening. Below 1024 it follows the
+    // tiles in one column. The markup is one order at every width - sentence,
+    // tiles, figure - so a screen reader and the Tab key take the order the
+    // eye does, left column then right. A page with no lead figure is left
+    // as it was, its tiles the width of the page.
+    const readOpening = () => {
+      const article = document.querySelector('#root main .page')
+      const box = (node) => {
+        if (!node) return null
+        const b = node.getBoundingClientRect()
+        return { top: b.top + window.scrollY, bottom: b.bottom + window.scrollY, left: b.left, right: b.right, width: b.width }
+      }
+      const lead = article.querySelector(':scope > section.section-lead')
+      const tiles = article.querySelector(':scope > header + section.section')
+      // The strip's last row of tiles, and the blank after its last tile.
+      const strip = tiles?.querySelector('.stats')
+      const cells = [...(strip?.querySelectorAll(':scope > div') ?? [])].map((tile) => tile.getBoundingClientRect())
+      const lastTop = cells.length ? Math.max(...cells.map((b) => Math.round(b.top))) : null
+      const lastRow = cells.filter((b) => Math.round(b.top) === lastTop)
+      return {
+        lead: box(lead),
+        tileSection: box(tiles),
+        lastRow: lastRow.map((b) => b.width),
+        blank: strip && lastRow.length ? strip.getBoundingClientRect().right - Math.max(...lastRow.map((b) => b.right)) : 0,
+        plot: box(lead?.querySelector('svg[role="img"][aria-label]')),
+        heading: box(article.querySelector(':scope > header h1')),
+        lede: box(article.querySelector(':scope > header .lede')),
+        tiles: box(tiles?.querySelector('.stats')),
+        follows: !!lead && lead.previousElementSibling === tiles,
+        next: box(lead?.nextElementSibling),
+        // Placed across both columns (a disagreement is narrower than the
+        // page by its own max-width, so it is the placement that is read).
+        spans: !!lead?.nextElementSibling && getComputedStyle(lead.nextElementSibling).gridColumn === '1 / -1',
+        page: box(article),
+      }
+    }
+    const live = db
+      .prepare(
+        `SELECT s.year FROM seasons s
+          WHERE s.year = ${CURRENT_SEASON_SQL}
+            AND (SELECT COUNT(*) FROM races r WHERE r.year = s.year AND r.status = 'completed') > 1`,
+      )
+      .get()?.year
+    const cases = [
+      ['/drivers/fangio', db.prepare("SELECT full_name FROM drivers WHERE id = 'fangio'").get().full_name],
+      ['/constructors/ferrari', db.prepare("SELECT name FROM constructors WHERE id = 'ferrari'").get().name],
+      // A recorded disagreement is the block straight after the chart.
+      ['/constructors/mclaren', db.prepare("SELECT name FROM constructors WHERE id = 'mclaren'").get().name],
+      ['/seasons/1976', '1976'],
+      ...(live ? [[`/seasons/${live}`, String(live)]] : []),
+    ]
+    for (const [route, wait] of cases) {
+      await go(route, wait)
+      for (const width of [1440, 1024, 1000, 400]) {
+        await page.setViewportSize({ width, height: 900 })
+        await settle()
+        const got = await page.evaluate(readOpening)
+        if (!got.lead || !got.tiles || !got.plot) {
+          fail(`${route} at ${width}: no lead figure after a tile strip`)
+          continue
+        }
+        truthy(got.follows, `${route} at ${width}: the figure follows the tiles in the document`)
+        if (width >= 1024) {
+          truthy(
+            got.lead.left >= got.lede.right && got.lead.left >= got.tiles.right && got.lead.top <= got.heading.bottom,
+            `${route} at ${width}: the figure is level with the heading and right of the lede and the tiles — its box at ${Math.round(got.lead.left)}, ${Math.round(got.lead.top)}; the lede ending at ${Math.round(got.lede.right)}, the tiles at ${Math.round(got.tiles.right)}`,
+          )
+          truthy(got.plot.bottom <= 900, `${route} at ${width}: the plot is drawn inside the first 900 px, ending at ${Math.round(got.plot.bottom)}`)
+          truthy(
+            !!got.next && got.spans && got.next.top >= Math.max(got.lead.bottom, got.tileSection.bottom) + 24,
+            `${route} at ${width}: the block after the opening spans both columns and starts clear under them — at ${got.next ? Math.round(got.next.top) : 'none'}, the opening ending at ${Math.round(Math.max(got.lead.bottom, got.tileSection.bottom))}`,
+          )
+          // The strip wraps at half the page. The blank closing its last row
+          // takes no more than a tile's share of that row, so the tiles there
+          // keep room for their notes, and no tile spreads across the strip.
+          truthy(
+            got.lastRow.length > 0 && got.lastRow.every((w) => w >= got.blank && w <= 0.8 * got.tiles.width),
+            `${route} at ${width}: the strip's last row (${got.lastRow.map(Math.round).join(', ')} px) is wider tile by tile than the blank after it (${Math.round(got.blank)}) and spans no row alone (${Math.round(got.tiles.width)})`,
+          )
+        } else {
+          truthy(
+            got.lead.top > got.tiles.bottom && got.lead.left === got.tiles.left,
+            `${route} at ${width}: the figure follows the tiles in one column — at ${Math.round(got.lead.top)}, the tiles ending at ${Math.round(got.tiles.bottom)}`,
+          )
+        }
+      }
+    }
+    // Brawn raced one season, so it has no wins-by-season chart to lead with.
+    await go('/constructors/brawn', db.prepare("SELECT name FROM constructors WHERE id = 'brawn'").get().name)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await settle()
+    const plain = await page.evaluate(readOpening)
+    truthy(
+      !plain.lead && !!plain.tiles && plain.tiles.width === plain.page.width,
+      `/constructors/brawn, with no lead figure, keeps its tiles the width of the page (${plain.tiles ? Math.round(plain.tiles.width) : 'none'} of ${Math.round(plain.page.width)})`,
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
   })
 
   await section('/races  (the race photographs lead, and say so)', async () => {

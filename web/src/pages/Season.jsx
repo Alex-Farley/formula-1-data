@@ -513,7 +513,7 @@ function SeasonBody({ year, season, data }) {
       </Section>
 
       {progression.length > 1 && (
-        <Section title={titleHeading(live)}>
+        <Section lead title={titleHeading(live)}>
           <Figure
             lead
             title={`Points after each round, ${year}`}
