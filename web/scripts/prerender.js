@@ -3309,9 +3309,9 @@ page({
     const photos = photographs(at)
     const photoFirst = leadsWithPhotograph(variants, SEASON_NOW_YEAR)
     // Where the car is one chassis, its figures are the ones Car.jsx prints,
-    // resolved by the same precedence (IA-28): the chassis's where it has
-    // one, the curated row's where it does not. Every other curated page
-    // still prints its curated row.
+    // resolved by the same precedence (IA-28, IA-29): the chassis's where it
+    // has one, the curated row's where it does not. Every other curated page
+    // - a design of several variants - still prints its curated row.
     const row = one(CAR_ROW, c.id, c.id)
     const whole = wholeOfOneChassis(row)
     const facts = whole ? carFacts(variants[0], row) : c

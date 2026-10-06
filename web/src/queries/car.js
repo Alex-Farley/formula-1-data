@@ -34,9 +34,9 @@ export const VARIANTS = `
 `
 
 /**
- * The curated car behind a page, with the two facts carAddress() needs:
- * `family`, how many chassis name it as their design, and `owned`, whether a
- * chassis shares its id.
+ * The curated car behind a page, with the two facts carAddress() and
+ * carFacts() need: `family`, how many chassis name it as their design, and
+ * `owned`, whether a chassis shares its id.
  */
 export const CAR = `
   SELECT c.*,
@@ -69,11 +69,17 @@ export const CAR = `
  */
 export const carAddress = (id, car) => `/cars/${wholeOfOneChassis(car) && car.id !== id ? car.id : id}`
 
-/** Whether the curated car is the whole of one chassis registered under another id: one object, two rows. */
-export const wholeOfOneChassis = (car) => Boolean(car && !car.owned && car.family === 1)
+/**
+ * Whether the curated car is the whole of one chassis: one object, two rows.
+ * Four are registered under another id (`mercedes-w11` is `mercedes-f1-w11`),
+ * and only those have a second address, which carAddress() sends to the
+ * car's; the rest share the car's id (`mclaren-mp4-4`), so their one address
+ * is already the car's (IA-06, IA-29).
+ */
+export const wholeOfOneChassis = (car) => Boolean(car && car.family === 1)
 
 /**
- * ONE PRECEDENCE, BOTH HALVES (IA-28).
+ * ONE PRECEDENCE, BOTH HALVES (IA-28, IA-29).
  *
  * Every field the page shows about what the car is, resolved from the two
  * rows it may have: `chassis`, the register's row the page is about, and
@@ -81,20 +87,29 @@ export const wholeOfOneChassis = (car) => Boolean(car && !car.owned && car.famil
  * scripts/prerender.js both read the page's figures from here, so the two
  * halves of one address cannot print different engines again.
  *
- * Where the car is the whole of one chassis (`mercedes-w11`, which is
- * `mercedes-f1-w11`), the two rows are one object, and every field is the
- * chassis's where it holds a value and the car's only where it does not -
- * the maintainer's ruling on IA-28. A figure the two give differently is
- * shown from the chassis and is on the record beside it: build.py files it
- * in `discrepancies` and the page shows both readings. The power note goes
- * with the power figure, so a figure is never captioned by the other row's
- * description of a different number. The curated row's one `suspension`
- * stands in only where the chassis has neither end's.
+ * Where the car is the whole of one chassis - under another id
+ * (`mercedes-w11`, which is `mercedes-f1-w11`) or its own (`mclaren-mp4-4`)
+ * - the two rows are one object, and every field is the chassis's where it
+ * holds a value and the car's only where it does not: the maintainer's
+ * ruling on IA-28, extended to every car of one chassis on IA-29. A figure
+ * the two give differently is shown from the chassis and is on the record
+ * beside it: build.py files it in `discrepancies` and the page shows both
+ * readings. The power note goes with the power figure, so a figure is never
+ * captioned by the other row's description of a different number. The
+ * curated row's one `suspension` stands in only where the chassis has
+ * neither end's.
  *
- * Every other page keeps the precedence it had: the curated designers first,
- * the engine, brakes and tyres the chassis's before the design's, and the
- * rest the chassis's alone, because a variant of a design of several is its
- * own machine and the family's weight is not its weight.
+ * The designers are not a figure, and a car that shares its id with its
+ * chassis keeps its curated list first, as it always has: the register's
+ * list for `red-bull-rb19` is Honda's power-unit engineer alone, where the
+ * car's article names a dozen people from Newey down, so chassis first
+ * would put the wrong person on the page.
+ *
+ * Every other page - a design of several variants, or one of those variants
+ * - keeps the precedence it had: the curated designers first, the engine,
+ * brakes and tyres the chassis's before the design's, and the rest the
+ * chassis's alone, because a variant of a design of several is its own
+ * machine and the family's weight is not its weight.
  */
 export function carFacts(chassis, car) {
   const whole = wholeOfOneChassis(car)
@@ -102,7 +117,7 @@ export function carFacts(chassis, car) {
   const own = (field) => (whole ? either(field) : (chassis?.[field] ?? null))
   const powered = whole && missing(chassis?.power_bhp) ? car : chassis
   return {
-    designers: whole ? either('designers') : (car?.designers ?? chassis?.designers ?? null),
+    designers: whole && !car.owned ? either('designers') : (car?.designers ?? chassis?.designers ?? null),
     chassis_type: own('chassis_type'),
     susp_front: chassis?.susp_front ?? null,
     susp_rear: chassis?.susp_rear ?? null,

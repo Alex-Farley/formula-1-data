@@ -2936,16 +2936,15 @@ def the_chassis_register():
           f"no longer late: {_fmt_late(_late_declared - _late_cars)}")
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
 
-    # A car that is the whole of one chassis under another id shows each
-    # figure from the chassis where it has one (IA-28), so every figure the
+    # A car that is the whole of one chassis shows each figure from the
+    # chassis where it has one (IA-28, IA-29), so every figure the
     # two rows give differently must be an open disagreement carrying both,
     # and every such row must still be one: the car's figure stored, the
     # chassis's derived, read here from the two tables, not from the build.
     import build
     _copies = con.execute("""SELECT c.id, ch.id FROM cars c
         JOIN chassis ch ON ch.car_id = c.id
-        WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
-          AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1""").fetchall()
+        WHERE (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1""").fetchall()
     _differ = {}
     for car_id, ch_id in _copies:
         for field in build.CAR_CHASSIS_FIGURES:
@@ -2963,6 +2962,14 @@ def the_chassis_register():
              for c, f in sorted(set(_filed) - set(_differ))]
     check("every figure a car and its one chassis give differently is an open disagreement carrying both",
           not _bad, "; ".join(_bad))
+    # The set above, build.py's and wholeOfOneChassis() in queries/car.js all
+    # count only the chassis that name a car, so they describe the page only
+    # while a chassis that shares a car's id names that car: otherwise
+    # /cars/<id> would show one chassis and be compared against another.
+    _astray = [r[0] for r in con.execute("""SELECT ch.id FROM chassis ch
+        JOIN cars c ON c.id = ch.id WHERE ch.car_id IS NOT c.id ORDER BY ch.id""")]
+    check("a chassis that shares a car's id names that car as its design",
+          not _astray, ", ".join(_astray))
 
     bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
         AND NOT EXISTS (SELECT 1 FROM cars x WHERE x.id = c.car_id)""").fetchone()[0]

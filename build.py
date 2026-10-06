@@ -2584,12 +2584,13 @@ CAR_CHASSIS_FIGURES = ("capacity_cc", "power_bhp", "weight_kg", "wheelbase_mm",
 
 
 def _file_car_chassis_disagreements(cur):
-    """File every figure a car and its one chassis give differently (IA-28).
+    """File every figure a car and its one chassis give differently (IA-28,
+    IA-29).
 
-    A car that is the whole of one chassis under another id - no chassis owns
-    the car's id, and exactly one names it as its design - is one object with
-    two rows, the same test web/src/queries/car.js makes to give it one
-    address. Its page shows the chassis's figure where there is one, so a
+    A car that is the whole of one chassis - exactly one names it as its
+    design, under another id or the car's own - is one object with two rows,
+    the same test wholeOfOneChassis() in web/src/queries/car.js makes. Its
+    page shows the chassis's figure where there is one, so a
     figure the two rows disagree on is shown from one of them, and it is on
     the record here rather than picked silently. Each must be declared in
     CHASSIS_DISAGREEMENTS with its assessment: an undeclared one stops the
@@ -2605,8 +2606,7 @@ def _file_car_chassis_disagreements(cur):
     found = {}
     for car_id, ch_id in cur.execute("""SELECT c.id, ch.id FROM cars c
             JOIN chassis ch ON ch.car_id = c.id
-            WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
-              AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
+            WHERE (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
             ORDER BY c.id""").fetchall():
         for field in CAR_CHASSIS_FIGURES:
             ours = cur.execute(f"SELECT {field} FROM cars WHERE id=?", (car_id,)).fetchone()[0]
