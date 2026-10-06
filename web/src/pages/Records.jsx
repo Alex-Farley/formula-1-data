@@ -240,7 +240,7 @@ function Body({ data }) {
             authored rows that could disagree with the leaderboards below, and
             sat 1,900 px under them; the rows are now derived from the same
             tables, so the sentence says that instead. */}
-        <p className="note" style={{ marginTop: -4 }}>
+        <p className="note">
           {RECORDS_LEDE}
           {asOf && ` ${asOfLine(asOf)}`}
           {tiers.length === 1 && (

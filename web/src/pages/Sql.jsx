@@ -78,7 +78,7 @@ function SchemaEntry({ entry }) {
         </div>
       )}
       {empty && (
-        <p className="small faint" style={{ margin: '0 0 8px', paddingLeft: 14 }}>
+        <p className="small faint ddl-empty">
           {timingEmpty(entry.name)} <Link to="/data">Why this is so</Link>.
         </p>
       )}
@@ -220,7 +220,7 @@ export default function Sql() {
             onKeyDown={onKeyDown}
             aria-label="SQL to run"
           />
-          <div className="filters" style={{ marginTop: 10 }}>
+          <div className="filters run-bar">
             <button type="button" className="button" onClick={() => run()} disabled={state.status === 'running'}>
               Run
             </button>
@@ -239,7 +239,7 @@ export default function Sql() {
             )}
           </div>
           {(replaced || arrived) && (
-            <p className="small faint" style={{ margin: '8px 0 0', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <p className="small faint run-notes">
               {arrived && (
                 <span className="permalink">
                   {text === arrived

@@ -230,7 +230,7 @@ function CircuitBody({ circuit, data }) {
             </Section>
           )}
 
-      <div className="split" style={{ marginTop: 34 }}>
+      <div className="split">
         {winners.length > 0 && (
           <Section title="Most wins here" count={`${winners.length} drivers`}>
             <DataTable

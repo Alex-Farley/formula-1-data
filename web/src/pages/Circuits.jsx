@@ -279,7 +279,7 @@ function Register({ rows, traces, shapes }) {
         {/* One credit for the set, from the rows themselves: every row of
             circuit_geometry states the same licence today, and a circuit's
             own page prints its own row's. */}
-        <p className="note" style={{ marginTop: 0 }}>
+        <p className="note">
           {overlay ? traceRegisterNote(traces[0]?.licence) : TRACE_NOT_LOADED}
         </p>
         {overlay &&

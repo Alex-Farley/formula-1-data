@@ -32,7 +32,8 @@
  * And three scales, so that a new component picks a step rather than a
  * number (VD-03): --size-* for type, --weight-* for weight and --space-* for
  * padding, margin and gap. app.css uses nothing else for those properties,
- * and test/conventions.mjs refuses a literal that creeps back.
+ * and test/conventions.mjs refuses a literal that creeps back. The grid
+ * below does the same for widths and breakpoints (VD-78).
  *
  * Dark is not an inversion of light: it is a second instrument, stepped
  * against its own ground. Light is paper under a pit-lane strip light; dark
@@ -129,7 +130,6 @@
   --good-wash: #e6f3ea;
   --warn: #8a5a00;
   --warn-wash: #fbf1dd;
-  --neutral-wash: #eceef2;
 
   /* type */
   --disp: 'Saira Condensed', 'Arial Narrow', Arial, sans-serif;
@@ -210,29 +210,84 @@
   --space-10: 64px;
 
   /*
-   * rhythm
+   * The grid (VD-78, DP-01; docs/design-system.md section 2). Five layout
+   * rules each picked their own columns and gutter - 1fr/1fr at 40 px,
+   * 5fr/7fr at 24, 1fr/200px at 16, 1fr/20rem at 40 - and seven text widths
+   * fell out of `ch` at five type sizes, so no two blocks on a page shared an
+   * edge. Now there is one grid: 12 columns from --bp-desktop, 8 from
+   * --bp-tablet and 4 below, each a --gutter apart, and a block is either a
+   * span of them, the measure, or the full width. smoke.mjs measures the
+   * driver, race and circuit pages at 1440 and 1024 and fails an edge that is
+   * none of those.
    *
-   * --measure is a line length, and `ch` is not a character: it is the
-   * advance of the digit zero, which in Saira is 10.74px against an average
-   * character advance of 7.36px at 16px - 46% wider. So 68ch did not set 68
-   * characters, it set 730px, and the rendered ledes measured 89-105
-   * characters per line, well past the 45-75 a measure is for.
-   *
-   * 46ch was chosen by counting characters on the rendered line rather than
-   * by dividing, across the ledes on /, /data/quality, /reference/eras and
-   * /records and the notes on /data/quality: median 65, longest 76. The
-   * arithmetic route says 50ch, and it overshoots - 50ch measures a median
-   * 71 and a longest 83.
-   *
-   * The token is in `ch` and not `px` because it is applied at five type
-   * sizes (--size-6 ledes down to --size-3 source notes), and `ch` scales with
-   * them, holding the character count roughly constant where a px value
-   * would not.
+   * A span is counted off `main`'s content box, which is a size container
+   * (app.css), so 100cqi there is the 1,232 px between the margins at 1440
+   * and 976 at 1024, whatever column a block sits in. A span is a width
+   * across the page's grid, not a fraction of its parent: a block inside a
+   * half-width column that asks for --span-4 still gets four page columns.
+   * The values are tokens, unregistered, so they are resolved where they are
+   * used rather than here.
    */
-  --measure: 46ch;
   --page: 1280px;
+  --gutter: var(--space-8);
+  --columns: 4;
+  --col: calc((100cqi - (var(--columns) - 1) * var(--gutter)) / var(--columns));
+  --span-2: calc(2 * var(--col) + var(--gutter));
+  --span-3: calc(3 * var(--col) + 2 * var(--gutter));
+  --span-4: calc(4 * var(--col) + 3 * var(--gutter));
+  --span-5: calc(5 * var(--col) + 4 * var(--gutter));
+  --span-8: calc(8 * var(--col) + 7 * var(--gutter));
+
+  /*
+   * The breakpoints: three bands and no more, where there were seven widths
+   * (480, 560, 600, 720, 760, 860, 1024) and a masthead that wrapped at 1099
+   * of its own accord. A custom property cannot stand in a media query, so
+   * app.css writes these two numbers as literals, `(width >= 768px)` and
+   * `(width < 1180px)`, and test/conventions.mjs refuses any other. 1180,
+   * not 1024, for the side-by-side switch: between the two a side column
+   * cost more than it gave - the race classification lost two columns to a
+   * scroll and a lead chart's bars were 3.7 px wide (interaction I3). The
+   * third width the design system names, 1280, is --page: from there the
+   * content stops at 1,232 px and only the margins grow, so no rule needs a
+   * query of its own for it.
+   */
+  --bp-tablet: 768px;
+  --bp-desktop: 1180px;
+
+  /*
+   * The measure: one rule, two lengths, both on the grid from --bp-desktop.
+   *
+   * It used to be 46ch, and `ch` scales with the type, so one token drew
+   * seven right edges - 525 px under a lede, 417 under a note, 370 under a
+   * source line - none of them a column line, and the framed boxes that
+   * inherited it lined up with nothing. Now --measure is five columns (499
+   * px at 1440, about 60-75 characters of 15-17 px text) and --measure-small
+   * four (395 px, the same count at 12-13.5 px), capped in rem between the
+   * breakpoints and the full column on a phone. Free prose takes the
+   * first, credits and source lines the second (the text-width rule,
+   * docs/design-system.md section 3), and neither is ever wider than the
+   * block it sits in.
+   */
+  --measure: 100%;
+  --measure-small: 100%;
   --radius: 3px;
   --radius-sm: 2px;
+}
+
+@media (width >= 768px) {
+  :root {
+    --columns: 8;
+    --measure: min(100%, 28rem);
+    --measure-small: min(100%, 22rem);
+  }
+}
+
+@media (width >= 1180px) {
+  :root {
+    --columns: 12;
+    --measure: min(100%, var(--span-5));
+    --measure-small: min(100%, var(--span-4));
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -284,7 +339,6 @@
     --good-wash: #14261b;
     --warn: #e3b465;
     --warn-wash: #2b2415;
-    --neutral-wash: #1b1e25;
   }
 }
 
@@ -335,5 +389,4 @@
   --good-wash: #14261b;
   --warn: #e3b465;
   --warn-wash: #2b2415;
-  --neutral-wash: #1b1e25;
 }

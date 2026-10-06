@@ -2175,11 +2175,11 @@ try {
     }
   })
 
-  await section('Lead figures  (beside the heading from 1024 px, after the tiles below: VD-53)', async () => {
+  await section('Lead figures  (beside the heading from 1180 px, after the tiles below: VD-53, VD-78)', async () => {
     // The chart a driver's, a team's or a season's page is for sits in the
-    // column the 525 px lede leaves empty from 1024 px: level with the
+    // column the lede leaves empty from 1180 px (--bp-desktop): level with the
     // heading, right of the lede and the tiles, drawn inside the first 900 px,
-    // and clear of everything after the opening. Below 1024 it follows the
+    // and clear of everything after the opening. Below 1180 it follows the
     // tiles in one column. The markup is one order at every width - sentence,
     // tiles, figure - so a screen reader and the Tab key take the order the
     // eye does, left column then right. A page with no lead figure is left
@@ -2232,7 +2232,7 @@ try {
     ]
     for (const [route, wait] of cases) {
       await go(route, wait)
-      for (const width of [1440, 1024, 1000, 400]) {
+      for (const width of [1440, 1180, 1179, 1024, 400]) {
         await page.setViewportSize({ width, height: 900 })
         await settle()
         const got = await page.evaluate(readOpening)
@@ -2241,7 +2241,7 @@ try {
           continue
         }
         truthy(got.follows, `${route} at ${width}: the figure follows the tiles in the document`)
-        if (width >= 1024) {
+        if (width >= 1180) {
           truthy(
             got.lead.left >= got.lede.right && got.lead.left >= got.tiles.right && got.lead.top <= got.heading.bottom,
             `${route} at ${width}: the figure is level with the heading and right of the lede and the tiles — its box at ${Math.round(got.lead.left)}, ${Math.round(got.lead.top)}; the lede ending at ${Math.round(got.lede.right)}, the tiles at ${Math.round(got.tiles.right)}`,
@@ -2274,6 +2274,147 @@ try {
     truthy(
       !plain.lead && !!plain.tiles && plain.tiles.width === plain.page.width,
       `/constructors/brawn, with no lead figure, keeps its tiles the width of the page (${plain.tiles ? Math.round(plain.tiles.width) : 'none'} of ${Math.round(plain.page.width)})`,
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  await section('The grid  (every edge a column line, the measure or the full width, in both halves: VD-78)', async () => {
+    /*
+     * DP-08's edge test, the one that would have caught 5-6 October: thirteen
+     * layout changes, each sound alone, left the driver, race and circuit
+     * pages with seven text widths and five column systems, and nothing could
+     * fail on it. Every block of a page - its children, its header's and its
+     * sections', and the columns of the grids inside them - starts on a
+     * column line of the grid tokens.css names, and ends on one, at the
+     * measure or at the full width. Measured at 1440 (12 columns) and 1024
+     * (8), in the app and in the static page, which share the stylesheet.
+     */
+    const readEdges = (scope) => {
+      const main = document.querySelector(scope)
+      const page = main.querySelector('.page')
+      const style = getComputedStyle(main)
+      const box = main.getBoundingClientRect()
+      const L = box.left + parseFloat(style.paddingLeft)
+      const R = box.right - parseFloat(style.paddingRight)
+      const probe = (token) => {
+        const div = document.createElement('div')
+        div.style.cssText = `max-width: var(${token}); width: 100000px; height: 0`
+        page.append(div)
+        const width = div.getBoundingClientRect().width
+        div.remove()
+        return width
+      }
+      const OPEN = 'header, section, .split, .with-outline, .outline-set, .lead'
+      const name = (n) => n.tagName.toLowerCase() + [...n.classList].map((c) => `.${c}`).join('')
+      const blocks = []
+      const walk = (node, trail) => {
+        for (const child of node.children) {
+          const s = getComputedStyle(child)
+          const b = child.getBoundingClientRect()
+          const shown = b.width > 0 && b.height > 0 && !/^(inline|contents|none)$/.test(s.display) && !/absolute|fixed/.test(s.position)
+          if (!shown || child.matches('.sr-only')) continue
+          const path = trail ? `${trail} > ${name(child)}` : name(child)
+          blocks.push({ path, left: b.left - L, right: b.right - L })
+          if (child.matches(OPEN)) walk(child, path)
+        }
+      }
+      walk(page, '')
+      return {
+        width: R - L,
+        columns: Number(style.getPropertyValue('--columns')),
+        gutter: parseFloat(style.getPropertyValue('--gutter')),
+        measure: probe('--measure'),
+        small: probe('--measure-small'),
+        blocks,
+      }
+    }
+    const COLUMNS = { 1440: 12, 1024: 8 }
+    const off = (got) => {
+      const col = (got.width - (got.columns - 1) * got.gutter) / got.columns
+      const starts = Array.from({ length: got.columns }, (_, k) => k * (col + got.gutter))
+      const ends = starts.map((x) => x + col)
+      const near = (x, list) => list.some((y) => Math.abs(x - y) <= 1)
+      return got.blocks
+        .filter((b) => !near(b.left, starts) || !near(b.right, [...ends, b.left + got.measure, b.left + got.small]))
+        .map((b) => `${b.path} ${Math.round(b.left)}-${Math.round(b.right)}`)
+    }
+    const race = db
+      .prepare("SELECT year, round, name_used FROM races WHERE status = 'completed' ORDER BY year DESC, round DESC LIMIT 1")
+      .get()
+    const cases = [
+      ['/drivers/hamilton', db.prepare("SELECT full_name FROM drivers WHERE id = 'hamilton'").get().full_name],
+      [`/races/${race.year}/${race.round}`, race.name_used],
+      ['/circuits/silverstone', db.prepare("SELECT name FROM circuits WHERE id = 'silverstone'").get().name],
+    ]
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const [route, wait] of cases) {
+      await go(route, wait)
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      for (const width of [1440, 1024]) {
+        await page.setViewportSize({ width, height: 900 })
+        await plain.setViewportSize({ width, height: 900 })
+        await settle()
+        for (const [half, got] of [
+          ['the app', await page.evaluate(readEdges, '#root main')],
+          ['the static page', await plain.evaluate(readEdges, '#prerendered main')],
+        ]) {
+          is(got.columns, COLUMNS[width], `${route} at ${width}, ${half}: the grid has ${COLUMNS[width]} columns`)
+          atLeast(got.blocks.length, 8, `${route} at ${width}, ${half}: blocks measured`)
+          is(off(got).join(' · '), '', `${route} at ${width}, ${half}: every block starts on a column line and ends on one, at the measure or at the full width`)
+        }
+      }
+    }
+    await noJs.close()
+
+    // VD-76: one row of masthead at every width above the phone layout. The
+    // links wrapped from 1,099 px down - a second row at 1024 that moved every
+    // heading 24 px, a third at 768.
+    const masthead = () =>
+      page.evaluate(() => {
+        const tops = [...document.querySelectorAll('#root .masthead nav a')].map((a) => Math.round(a.getBoundingClientRect().top))
+        return { height: document.querySelector('#root .masthead').getBoundingClientRect().height, rows: new Set(tops).size }
+      })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const full = await masthead()
+    for (const width of [1440, 1180, 1179, 1024, 900, 768]) {
+      await page.setViewportSize({ width, height: 900 })
+      const got = await masthead()
+      truthy(got.rows === 1 && got.height <= full.height, `at ${width} the masthead is one row, ${Math.round(got.height)} px against ${Math.round(full.height)} at 1440 (${got.rows} rows of links)`)
+    }
+
+    // VD-77: a disagreement placed between two sections takes the section gap.
+    // On the RB19's page it sat a pixel from Specification's source line.
+    await go('/cars/red-bull-rb19', db.prepare("SELECT full_name FROM cars WHERE id = 'red-bull-rb19'").get().full_name)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await settle()
+    const gap = await page.evaluate(() => {
+      const box = document.querySelector('#root main .page > .disagreement')
+      const before = box?.previousElementSibling
+      return box && before ? box.getBoundingClientRect().top - before.getBoundingClientRect().bottom : null
+    })
+    truthy(gap !== null && gap >= 24, `/cars/red-bull-rb19: the disagreement stands clear of the section above it (${gap === null ? 'none found' : `${Math.round(gap)} px`})`)
+
+    // IX-47: opening one record card's derivation moves nothing beside it.
+    await go('/records', 'Records')
+    await settle()
+    const cards = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('#root main ul.record-cards')[0].children].map((li) => {
+          const summary = li.querySelector('details.record-card-how > summary')
+          return { top: Math.round(li.getBoundingClientRect().top), summary: summary ? Math.round(summary.getBoundingClientRect().top) : null }
+        }),
+      )
+    const closed = await cards()
+    await page.click('#root main ul.record-cards > li:first-child details.record-card-how > summary')
+    const opened = await cards()
+    await page.click('#root main ul.record-cards > li:first-child details.record-card-how > summary')
+    const row = closed.flatMap((card, i) => (i > 0 && card.top === closed[0].top ? [i] : []))
+    truthy(row.length > 0, `/records at 1440: the first row holds more than one card (${row.length + 1})`)
+    is(
+      row.map((i) => opened[i].summary - closed[i].summary).join(' '),
+      row.map(() => 0).join(' '),
+      '/records: opening the first card’s derivation leaves its neighbours’ disclosures where they were',
     )
     await page.setViewportSize({ width: 1280, height: 900 })
   })

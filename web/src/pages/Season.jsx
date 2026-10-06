@@ -442,7 +442,7 @@ function SeasonBody({ year, season, data }) {
     </Section>
   )
   const standingsSection = (
-    <div className="split" style={{ marginTop: 34 }}>
+    <div className="split">
       <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
         <DataTable
           rows={driversFinal}
@@ -497,14 +497,14 @@ function SeasonBody({ year, season, data }) {
             too (VD-49); the next session's tile is the browser's alone. */}
         <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
         {permutations && (
-          <p className="note" style={{ marginTop: 10 }}>
+          <p className="note follows">
             {permutations}
           </p>
         )}
         {/* v_season_grid returns NULL, not 0, for a season nobody has entered
             yet - so the sentence is absent rather than counting nobody. */}
         {grid && grid.drivers !== null && (
-          <p className="note" style={{ marginTop: 10 }}>
+          <p className="note follows">
             The grid: {number(grid.drivers)} drivers, {number(grid.constructors)} constructors and{' '}
             {number(grid.engine_manufacturers)} engine makers, counted from the entries — a driver
             entered for one race counts once, whether or not they started.

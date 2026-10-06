@@ -147,8 +147,12 @@ export const glossaryKey = (column) =>
       }
     : null
 
-/** The width the phone default applies below. app.css says the same number. */
-export const PHONE = '(max-width: 560px)'
+/**
+ * The width the phone default applies below: the tablet breakpoint, under
+ * which the grid is four columns (tokens.css --bp-tablet). app.css says the
+ * same query, and test/conventions.mjs holds both to the breakpoint tokens.
+ */
+export const PHONE = '(width < 768px)'
 
 /** The class on a column the phone default leaves out. */
 export const WIDE_ONLY = 'wide-only'
