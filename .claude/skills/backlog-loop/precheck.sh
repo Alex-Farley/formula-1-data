@@ -54,9 +54,9 @@ pyfiles=""
 for f in $(git diff --name-only origin/main...HEAD -- '*.py' f1 2>/dev/null); do
   [ -f "$f" ] && pyfiles="$pyfiles $f"
 done
-# Which Ruff: $RUFF if set, as `make lint RUFF=...` takes it; else a binary on
-# PATH; else the module, which is how `make lint` runs it by default and how a
-# pip install that is not on PATH is reached. $PYTHON names the interpreter
+# Which Ruff, in the order `make lint` resolves it: $RUFF if set; else a
+# binary on PATH, where pipx and brew put it; else the module, which is how a
+# pip install that never reached PATH is found. $PYTHON names the interpreter
 # for that last probe, as the Makefile's PYTHON does.
 ruff="${RUFF:-}"
 if [ -z "$ruff" ]; then
