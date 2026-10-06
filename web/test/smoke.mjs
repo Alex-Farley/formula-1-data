@@ -3166,10 +3166,15 @@ try {
     )
     const leadLabel = await page.$eval('#root main .outline-set > .outline-card svg.outline', (n) => n.getAttribute('aria-label'))
     truthy(leadLabel.endsWith(`F1DB layout ${latestHere}`), `the latest layout, ${latestHere}, leads`)
-    const [leadWidth, cardWidth] = await page.$eval('#root main', (n) => [
-      n.querySelector('.outline-set > .outline-card svg').getBoundingClientRect().width,
-      n.querySelector('.layout-timeline .outline-card svg').getBoundingClientRect().width,
-    ])
+    // PD-60: the timeline's cards are behind a disclosure, closed, so it is
+    // opened to measure one.
+    const [leadWidth, cardWidth] = await page.$eval('#root main', (n) => {
+      n.querySelector('details.layout-cards').open = true
+      return [
+        n.querySelector('.outline-set > .outline-card svg').getBoundingClientRect().width,
+        n.querySelector('.layout-timeline .outline-card svg').getBoundingClientRect().width,
+      ]
+    })
     truthy(leadWidth > 2 * cardWidth, `the lead is drawn large (${Math.round(leadWidth)} px against ${Math.round(cardWidth)} px)`)
     truthy(
       staticCircuit.includes(`<div class="outline-set"><figure class="outline-card"><svg class="outline"`) &&
@@ -3199,7 +3204,8 @@ try {
     {
       const monzaStatic = await (await fetch(`${BASE}/circuits/monza`)).text()
       await go('/circuits/monza', 'Monza')
-      await page.waitForSelector('#root main .layout-timeline > article', { timeout: 20000 })
+      // Attached, not visible: PD-60 puts the rows behind a closed disclosure.
+      await page.waitForSelector('#root main .layout-timeline > article', { state: 'attached', timeout: 20000 })
       const undrawn = count("SELECT COUNT(*) FROM circuit_layouts WHERE circuit_id = 'monza' AND f1db_layout_id IS NULL")
       const unnamed = count(
         `SELECT COUNT(*) FROM circuit_outlines o WHERE o.circuit_id = 'monza'
@@ -3217,6 +3223,46 @@ try {
           monzaStatic.split(`<h3>${NO_TIMELINE_ROW.replace(/'/g, '&#39;')}`).length - 1 === unnamed,
         'the static page shows the same two gaps',
       )
+
+      // PD-60: who wins here comes before the layout history, which is a
+      // strip of its rows with the cards closed behind it, then every race,
+      // and the trace - method - last. "Most wins here" was 4,600 px down at
+      // 1440, behind nine cards; it is inside 1,600 now, in both halves.
+      const readOrder = (root) => {
+        const main = document.querySelector(root)
+        const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+        const headings = [...main.querySelectorAll('h2')]
+        const wins = headings.find((h) => clean(h).startsWith('Most wins here'))
+        const cards = main.querySelector('details.layout-cards')
+        return {
+          blocks: headings.map(clean),
+          wins: wins ? wins.getBoundingClientRect().top + window.scrollY : null,
+          closed: !!cards && !cards.open,
+          strip: [...main.querySelectorAll('.layout-strip > li')].map(clean),
+          rows: [...main.querySelectorAll('.layout-timeline > article h3')].length,
+        }
+      }
+      const order = ['Most wins here', 'Constructors here', 'Every layout raced here', 'Every race held here']
+      const inOrder = (blocks, names) => {
+        const at = names.map((name) => blocks.findIndex((b) => b.startsWith(name)))
+        return at.every((i, k) => i >= 0 && (k === 0 || i > at[k - 1]))
+      }
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.evaluate(() => window.scrollTo(0, 0))
+      const app = await page.evaluate(readOrder, '#root main')
+      await page.setViewportSize({ width: 1280, height: 900 })
+      const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+      const plain = await noJs.newPage()
+      await plain.goto(`${BASE}/circuits/monza`, { waitUntil: 'load' })
+      const served = await plain.evaluate(readOrder, '#prerendered')
+      await noJs.close()
+      for (const [half, got] of [['the app', app], ['the static page', served]]) {
+        truthy(inOrder(got.blocks, order), `/circuits/monza, ${half}: ${order.join(' → ')} — ${got.blocks.join(' · ')}`)
+        truthy(got.wins !== null && got.wins < 1600, `/circuits/monza, ${half}: “Most wins here” at ${Math.round(got.wins)}, inside 1,600 px at 1440`)
+        truthy(got.closed, `/circuits/monza, ${half}: the layout cards are closed until opened`)
+        is(got.strip.length, got.rows, `/circuits/monza, ${half}: the strip names every row of the timeline`)
+      }
+      is(JSON.stringify(served.strip), JSON.stringify(app.strip), 'the static strip is the app’s, in the same words and order')
     }
 
     // Skipped rather than failed when the overlay is absent: a build without
@@ -3244,8 +3290,10 @@ try {
       truthy(!(await page.$('svg.lapfigure')), 'the trace is stated, not drawn again')
       const headings = await page.$$eval('#root main h2', (n) => n.map((h) => h.textContent))
       const outlineAt = headings.findIndex((h) => h.startsWith('Every layout raced here'))
+      const racesAt = headings.findIndex((h) => h.startsWith('Every race held here'))
       const traceAt = headings.findIndex((h) => h.startsWith('Traced and measured'))
-      truthy(outlineAt >= 0 && traceAt > outlineAt, 'the outlines lead and the trace follows them')
+      // PD-60: the trace is method, so it follows the races as well.
+      truthy(outlineAt >= 0 && racesAt > outlineAt && traceAt > racesAt, 'the outlines and the races lead and the trace follows them')
       pass(`the overlay merged in the browser — ${traced} read its figures from f1-geometry.db`)
     }
 

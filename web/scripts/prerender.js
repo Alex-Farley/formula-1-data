@@ -361,8 +361,8 @@ import {
   OUTLINE_RULE,
   OUTLINE_VIEWBOX,
   OUTLINES_NOTE,
+  LAYOUT_CARDS,
   NO_DRAWING,
-  NO_TIMELINE_ROW,
   STATE_WORDS,
   circuitOutlinesNote,
   layoutTimeline,
@@ -373,6 +373,9 @@ import {
   roundShortName,
   roundStates,
   stripLabel,
+  timelineName,
+  timelineStripName,
+  timelineYears,
 } from '../src/lib/outline.js'
 import {
   CONSEQUENCES,
@@ -974,22 +977,25 @@ const confidencePill = (value) =>
 // A circuit's layouts as one list, as Circuit.jsx draws it (IX-32): each
 // timeline row beside the drawing it names, from the same layoutTimeline, so
 // the static page carries the register's history (AF-08) in the app's shape
-// rather than the two lists the app used to draw.
+// rather than the two lists the app used to draw. PD-60: a strip of the rows
+// first, and the cards behind a disclosure, closed, as the app has them.
 const layoutRows = (circuit, entries) =>
-  `<div class="timeline layout-timeline">${entries
+  `<ol class="layout-strip">${entries
+    .map((entry) => `<li><span class="years">${esc(timelineYears(entry))}</span> ${esc(timelineStripName(entry))}</li>`)
+    .join('')}</ol><details class="layout-cards"><summary>${esc(LAYOUT_CARDS)}</summary><div class="timeline layout-timeline">${entries
     .map(
-      ({ layout, outline }) =>
+      (entry) =>
         `<article>${
-          outline
-            ? outlineCard(outline.path, circuit, outline.f1db_layout_id, outlineCaption(outline))
+          entry.outline
+            ? outlineCard(entry.outline.path, circuit, entry.outline.f1db_layout_id, outlineCaption(entry.outline))
             : `<p class="outline-none">${esc(NO_DRAWING)}</p>`
-        }<div><h3>${esc(layout ? layout.layout_name : NO_TIMELINE_ROW)}<span class="years">${esc(
-          layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year),
-        )}</span>${layout?.length_km ? `<span class="years">${esc(layout.length_km)} km</span>` : ''}${
-          layout ? confidencePill(layout.confidence) : ''
-        }</h3>${layout?.change_reason ? `<p>${esc(layout.change_reason)}</p>` : ''}</div></article>`,
+        }<div><h3>${esc(timelineName(entry))}<span class="years">${esc(timelineYears(entry))}</span>${
+          entry.layout?.length_km ? `<span class="years">${esc(entry.layout.length_km)} km</span>` : ''
+        }${entry.layout ? confidencePill(entry.layout.confidence) : ''}</h3>${
+          entry.layout?.change_reason ? `<p>${esc(entry.layout.change_reason)}</p>` : ''
+        }</div></article>`,
     )
-    .join('')}</div>`
+    .join('')}</div></details>`
 // The winner's colour bar under a run round, as components/Outline.jsx draws
 // it: the same properties on the same element, so the static strip and the
 // app's agree (AF-04). One value, both themes, since AF-16 stopped moving a
@@ -2869,19 +2875,25 @@ page({
         ${prose(c.characteristics)}
         ${prose(c.notes)}
         ${
-          outlinesHere.length || layoutsHere.length
-            ? `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
-                circuitOutlinesNote(outlinesHere.length, layoutsHere.length > 0),
-              )}${
-                outlineSplit.lead
-                  ? `<div class="outline-set">${card(outlineSplit.lead)}${
-                      !layoutsHere.length && outlineSplit.rest.length
-                        ? `<div class="outline-grid">${outlineSplit.rest.map(card).join('')}</div>`
-                        : ''
-                    }</div>`
-                  : ''
-              }${layoutsHere.length ? layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere)) : ''}`
-            : ''
+          // PD-60, as Circuit.jsx: with a timeline, the lead alone here,
+          // carrying the rule, and the history after the winners.
+          layoutsHere.length
+            ? outlineSplit.lead
+              ? `<div class="outline-set">${outlineCard(
+                  outlineSplit.lead.path,
+                  c.name,
+                  outlineSplit.lead.f1db_layout_id,
+                  outlineCaption(outlineSplit.lead),
+                  true,
+                )}</div>`
+              : ''
+            : outlinesHere.length
+              ? `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
+                  circuitOutlinesNote(outlinesHere.length),
+                )}<div class="outline-set">${card(outlineSplit.lead)}${
+                  outlineSplit.rest.length ? `<div class="outline-grid">${outlineSplit.rest.map(card).join('')}</div>` : ''
+                }</div>`
+              : ''
         }
         ${
           winnersHere.length
@@ -2895,6 +2907,13 @@ page({
             ? `<h2>Constructors here</h2>${fromColumns(TEAM_COLUMNS, teamsHere, {
                 constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
               })}`
+            : ''
+        }
+        ${
+          layoutsHere.length
+            ? `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
+                circuitOutlinesNote(outlinesHere.length, true),
+              )}${layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere))}`
             : ''
         }
         <h2>Every race held here</h2>

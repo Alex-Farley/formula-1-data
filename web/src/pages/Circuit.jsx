@@ -7,17 +7,20 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
-import { number, span } from '../lib/format.js'
+import { number } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { canShow } from '../lib/commons.js'
 import {
+  LAYOUT_CARDS,
   NO_DRAWING,
-  NO_TIMELINE_ROW,
   circuitOutlinesNote,
   layoutTimeline,
   layoutsCount,
   leadOutline,
   outlineCaption,
+  timelineName,
+  timelineStripName,
+  timelineYears,
 } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
 
@@ -140,6 +143,7 @@ function CircuitBody({ circuit, data }) {
   const layouts = rows(data, 'layouts')
   const outlines = rows(data, 'outlines')
   const { lead, rest } = leadOutline(outlines)
+  const timeline = layouts.length > 0 ? layoutTimeline(layouts, outlines) : []
   const races = rows(data, 'races')
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
@@ -179,89 +183,49 @@ function CircuitBody({ circuit, data }) {
           sixth of the row, and Silverstone's current layout was the eighth
           card, alone under a row of seven.
 
-          IX-32: where the register has a timeline, it is this list rather
-          than a second one further down joined by a "drawn as monza-5" the
-          reader matched by eye. Each row sits beside the drawing it names; a
-          row that names none and a drawing no row names are both shown as
-          what they are (lib/outline.js, layoutTimeline). */}
-      {(outlines.length > 0 || layouts.length > 0) && (
-        <Section
-          title="Every layout raced here"
-          count={layoutsCount(layouts, outlines)}
-          note={circuitOutlinesNote(outlines.length, layouts.length > 0)}
-        >
-          {lead && (
-            <div className="outline-set">
-              <OutlineCard path={lead.path} circuit={circuit.name} layoutId={lead.f1db_layout_id} caption={outlineCaption(lead)} />
-              {layouts.length === 0 && rest.length > 0 && (
-                <div className="outline-grid">
-                  {rest.map((row) => (
-                    <OutlineCard
-                      key={row.f1db_layout_id}
-                      path={row.path}
-                      circuit={circuit.name}
-                      layoutId={row.f1db_layout_id}
-                      caption={outlineCaption(row)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {layouts.length > 0 && (
-            <div className="timeline layout-timeline">
-              {layoutTimeline(layouts, outlines).map(({ key, layout, outline }) => (
-                <article key={key}>
-                  {outline ? (
-                    <OutlineCard
-                      path={outline.path}
-                      circuit={circuit.name}
-                      layoutId={outline.f1db_layout_id}
-                      caption={outlineCaption(outline)}
-                    />
-                  ) : (
-                    <p className="outline-none">{NO_DRAWING}</p>
-                  )}
-                  <div>
-                    <h3>
-                      {layout ? layout.layout_name : NO_TIMELINE_ROW}
-                      <span className="years">
-                        {layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year)}
-                      </span>
-                      {layout?.length_km && <span className="years">{layout.length_km} km</span>}
-                      {layout && <Confidence value={layout.confidence} />}
-                    </h3>
-                    {layout?.change_reason && <p>{layout.change_reason}</p>}
+          PD-60: where the register has a timeline, the lead stays here, under
+          the tiles, and the history moves below the winners - a reader before
+          a race weekend wants who wins here, and at Monza nine cards stood in
+          the way. With no section of its own up here, the lead card carries
+          the outline rule in its caption. */}
+      {layouts.length > 0
+        ? lead && (
+            <Section>
+              <div className="outline-set">
+                <OutlineCard
+                  path={lead.path}
+                  circuit={circuit.name}
+                  layoutId={lead.f1db_layout_id}
+                  caption={outlineCaption(lead)}
+                  rule
+                />
+              </div>
+            </Section>
+          )
+        : outlines.length > 0 && (
+            <Section
+              title="Every layout raced here"
+              count={layoutsCount(layouts, outlines)}
+              note={circuitOutlinesNote(outlines.length)}
+            >
+              <div className="outline-set">
+                <OutlineCard path={lead.path} circuit={circuit.name} layoutId={lead.f1db_layout_id} caption={outlineCaption(lead)} />
+                {rest.length > 0 && (
+                  <div className="outline-grid">
+                    {rest.map((row) => (
+                      <OutlineCard
+                        key={row.f1db_layout_id}
+                        path={row.path}
+                        circuit={circuit.name}
+                        layoutId={row.f1db_layout_id}
+                        caption={outlineCaption(row)}
+                      />
+                    ))}
                   </div>
-                </article>
-              ))}
-            </div>
+                )}
+              </div>
+            </Section>
           )}
-        </Section>
-      )}
-
-      {geometry.length > 0 ? (
-        <Section title="Traced and measured" note={TRACE_RULE}>
-          {geometry.map((row) => (
-            <CircuitTrace key={`${row.circuit_id}-${row.layout_key}`} geometry={row} circuit={circuit} />
-          ))}
-        </Section>
-      ) : (
-        // IX-31: a circuit with no trace and a trace that did not arrive were
-        // the same silent page. Which of the two this is cannot be told from
-        // this circuit's rows — without the overlay every circuit has none —
-        // so it is told from whether the overlay merged at all.
-        <Section note={overlay ? noTrace(coverage?.traced, coverage?.circuits) : TRACE_NOT_LOADED} />
-      )}
-
-      {layouts.length === 0 && circuit.races > 1 && (
-        <Note>
-          <strong>No layout timeline for this circuit.</strong> Only thirteen of the eighty have
-          one, so an early race here is reported at the length the circuit is today. The outlines
-          above are the shapes F1DB distinguishes; nothing here dates a change or says why — see
-          the <Link to="/data/quality">known gaps</Link>.
-        </Note>
-      )}
 
       <div className="split" style={{ marginTop: 34 }}>
         {winners.length > 0 && (
@@ -293,6 +257,62 @@ function CircuitBody({ circuit, data }) {
         )}
       </div>
 
+      {/* IX-32: where the register has a timeline, it is one list with the
+          drawings rather than a second one joined by a "drawn as monza-5" the
+          reader matched by eye. Each row sits beside the drawing it names; a
+          row that names none and a drawing no row names are both shown as
+          what they are (lib/outline.js, layoutTimeline).
+
+          PD-60: after the winners, as a strip of the rows with the cards
+          behind a disclosure, closed - the history is this page's own
+          content, and nine drawings of it are not what a reader came for. */}
+      {timeline.length > 0 && (
+        <Section
+          title="Every layout raced here"
+          count={layoutsCount(layouts, outlines)}
+          note={circuitOutlinesNote(outlines.length, true)}
+        >
+          <ol className="layout-strip">
+            {timeline.map((entry) => (
+              <li key={entry.key}>
+                <span className="years">{timelineYears(entry)}</span> {timelineStripName(entry)}
+              </li>
+            ))}
+          </ol>
+          <details className="layout-cards">
+            <summary>{LAYOUT_CARDS}</summary>
+            <div className="timeline layout-timeline">
+              {timeline.map((entry) => {
+                const { key, layout, outline } = entry
+                return (
+                  <article key={key}>
+                    {outline ? (
+                      <OutlineCard
+                        path={outline.path}
+                        circuit={circuit.name}
+                        layoutId={outline.f1db_layout_id}
+                        caption={outlineCaption(outline)}
+                      />
+                    ) : (
+                      <p className="outline-none">{NO_DRAWING}</p>
+                    )}
+                    <div>
+                      <h3>
+                        {timelineName(entry)}
+                        <span className="years">{timelineYears(entry)}</span>
+                        {layout?.length_km && <span className="years">{layout.length_km} km</span>}
+                        {layout && <Confidence value={layout.confidence} />}
+                      </h3>
+                      {layout?.change_reason && <p>{layout.change_reason}</p>}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </details>
+        </Section>
+      )}
+
       <Section title="Every race held here" count={`${races.length}`}>
         {/* IA-01: the way from a venue to every other place its Grand Prix
             has been run. The words are queries/circuit.js's, which
@@ -320,6 +340,31 @@ function CircuitBody({ circuit, data }) {
           columns={withRenders(RACE_COLUMNS, RACE_APP)}
         />
       </Section>
+
+      {/* PD-60: after the races, whose lengths it qualifies. */}
+      {layouts.length === 0 && circuit.races > 1 && (
+        <Note>
+          <strong>No layout timeline for this circuit.</strong> Only thirteen of the eighty have
+          one, so an early race here is reported at the length the circuit is today. The outlines
+          above are the shapes F1DB distinguishes; nothing here dates a change or says why — see
+          the <Link to="/data/quality">known gaps</Link>.
+        </Note>
+      )}
+
+      {/* PD-60: the trace is method rather than content, so it comes last. */}
+      {geometry.length > 0 ? (
+        <Section title="Traced and measured" note={TRACE_RULE}>
+          {geometry.map((row) => (
+            <CircuitTrace key={`${row.circuit_id}-${row.layout_key}`} geometry={row} circuit={circuit} />
+          ))}
+        </Section>
+      ) : (
+        // IX-31: a circuit with no trace and a trace that did not arrive were
+        // the same silent page. Which of the two this is cannot be told from
+        // this circuit's rows — without the overlay every circuit has none —
+        // so it is told from whether the overlay merged at all.
+        <Section note={overlay ? noTrace(coverage?.traced, coverage?.circuits) : TRACE_NOT_LOADED} />
+      )}
 
       <Section title="On the record">
         <Fields
