@@ -25,7 +25,7 @@ import {
 } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
 
-import { NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
+import { EYEBROWS, NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import {
   CIRCUIT,
   GEOMETRY,
@@ -157,7 +157,7 @@ function CircuitBody({ circuit, data }) {
   const photograph = rows(data, 'photograph').find(canShow) ?? null
   return (
     <Page
-      eyebrow={[circuit.locality, circuit.country].filter(Boolean).join(', ')}
+      eyebrow={EYEBROWS.circuit(circuit.locality, circuit.country)}
       title={NAMES.circuit(circuit.name).headline}
       trail={TRAIL.circuit(circuit.id, circuit.name)}
       lede={circuit.notes}

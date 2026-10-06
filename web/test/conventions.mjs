@@ -666,8 +666,17 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
         failing.push(`${where}: the tooltip says whose name it is wrongly`)
     }
     assert.deepEqual(failing, [])
-    for (const page of ['Constructor.jsx', 'Driver.jsx'])
-      assert.match(read(join(web, 'src', 'pages', page)), /raced in \$?\{/, `${page}: the band no longer says what the car raced in`)
+    // The band sentences are driverBandNote() and constructorBandNote() in
+    // liveries.js since VD-79, which the two pages and the static page read.
+    const liveries = read(join(web, 'src', 'lib', 'liveries.js'))
+    for (const [note, page] of [
+      ['constructorBandNote', 'Constructor.jsx'],
+      ['driverBandNote', 'Driver.jsx'],
+    ]) {
+      const from = liveries.slice(liveries.indexOf(`export function ${note}`))
+      assert.match(from.slice(0, from.indexOf('\n}\n')), /raced in \$\{/, `${note}: the band no longer says what the car raced in`)
+      assert.match(read(join(web, 'src', 'pages', page)), new RegExp(`\\b${note}\\(`), `${page}: the band no longer reads ${note}()`)
+    }
   })
 
   it('a band draws every colour of its scheme, primary first, and a scheme of one draws no gradient (AF-17)', () => {
@@ -769,12 +778,18 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     // draft printed a colour this project chose under a sentence saying the
     // sources describe it. The bypass is slicing the scheme directly, so this
     // refuses that outside liveries.js itself.
-    const band = read(join(web, 'src', 'components', 'LiveryScheme.jsx'))
-    assert.ok(/accentsBySource/.test(band), 'LiveryScheme no longer reads accentsBySource')
-    assert.ok(
-      /no page cited here states/.test(band),
-      'LiveryScheme names a colour this site chose without the clause saying so',
-    )
+    //
+    // The band's words are bandWords() in liveries.js since VD-79, so that
+    // the static page draws the same band: that function reads the split and
+    // carries the clause, and the two renderers draw the band from it.
+    const liveries = read(join(web, 'src', 'lib', 'liveries.js'))
+    const words = liveries.slice(liveries.indexOf('export function bandWords'))
+    const body = words.slice(0, words.indexOf('\n}\n'))
+    assert.ok(/accentsBySource/.test(body), 'bandWords() no longer reads accentsBySource')
+    assert.ok(/no page cited here states/.test(body), 'bandWords() names a colour this site chose without the clause saying so')
+    for (const surface of [join(web, 'src', 'components', 'LiveryScheme.jsx'), join(web, 'scripts', 'prerender.js')]) {
+      assert.ok(/\bbandWords\(/.test(read(surface)), `${rel(surface)} draws the livery band without bandWords()`)
+    }
     // Both ways round: slicing the scheme, and liveryAccents(), which returns
     // the same list unsplit. It is the right export for a test reading the
     // raw data - test/units.mjs does - and the wrong one for a surface that

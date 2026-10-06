@@ -5,7 +5,7 @@ import SearchKey from '../components/SearchKey.jsx'
 import { number } from '../lib/format.js'
 import { NAMES } from '../lib/site.js'
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
-import { DERIVATION, RECORD, holderPath } from '../queries/records.js'
+import { DERIVATION, RECORD, holderPath, recordStrip } from '../queries/records.js'
 import { useQueries } from '../data/useQuery.js'
 
 /**
@@ -50,12 +50,8 @@ function RecordBody({ record }) {
   return (
     <Page title={NAMES.record(record.record).headline} trail={TRAIL.record(record.key, record.record)}>
       <Section>
-        <Stats
-          items={[
-            { label: 'Value', value: record.value, lead: true },
-            { label: 'Holder', value: holder ? <Link to={`/${holder}`}>{record.holder}</Link> : record.holder },
-          ]}
-        />
+        {/* queries/records.js's strip, which the static page draws too (VD-71). */}
+        <Stats items={recordStrip(record)} />
       </Section>
 
       <Section title={DERIVATION}>

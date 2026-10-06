@@ -3,6 +3,7 @@ import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
 import { TILE_JOIN, tileSegments } from '../lib/tiles.js'
+import { arrived } from '../lib/handover.js'
 import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
 
 /**
@@ -144,7 +145,9 @@ function Crumbs({ trail }) {
  * eleven stops before the content, on every hop of a driver -> team -> car
  * journey. Focusing the new page's h1 is what a page load would have done.
  * Not on the arrival: that is the handover from the prerendered page, where
- * main.jsx focuses this same heading itself once the static page is gone.
+ * main.jsx focuses this same heading itself once the static page is gone -
+ * unless the heading arrives after that, when it was given nothing to focus
+ * and this does it instead (lib/handover.js arrived(), VD-79).
  *
  * The flag is module-scoped because the guard has to outlive the component,
  * and a useRef does not. Two routes are two different component types, so
@@ -166,6 +169,7 @@ function useFocusOnNavigation() {
   useEffect(() => {
     if (!landed) {
       landed = true
+      if (!document.getElementById('prerendered')) arrived(ref.current)
       return
     }
     // Not out of a modal that is staying. The search palette is open on top of
@@ -283,8 +287,10 @@ export function Stats({ items }) {
   // that named a lead figure and no others - the alternative was shrinking
   // every figure on nine pages to make two of them larger by comparison.
   const ranked = shown.some((item) => item.lead)
+  // The count, for app.css to choose the columns from (VD-79): one row where
+  // the strip fits, rows of equal count where it does not.
   return (
-    <dl className="stats" data-ranked={ranked ? '' : undefined}>
+    <dl className="stats" data-ranked={ranked ? '' : undefined} style={{ '--tiles': shown.length }}>
       {shown.map((item) => {
         const { label, note, lead, kind } = item
         // `kind="name"` is a value that is a person, a team or a place rather

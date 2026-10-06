@@ -113,6 +113,7 @@ import {
   SHARED,
   SITE,
   NAMES,
+  EYEBROWS,
   SO_FAR,
   SPRINT,
   GUNZIP_NOTE,
@@ -149,13 +150,23 @@ import {
 import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRaces } from '../src/lib/refresh.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE, UNRESULTED } from '../src/queries/changes.js'
 import { SHAPE as DATA_SHAPE, fileStrip, trustStrip } from '../src/queries/data.js'
-import { colourForEntry, markStyleAttr, winnerColour } from '../src/lib/liveries.js'
+import {
+  LIVERY_ERA,
+  bandWords,
+  colourForEntry,
+  constructorBandNote,
+  driverBandNote,
+  liveryFor,
+  markStyleAttr,
+  nationalEntry,
+  winnerColour,
+} from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these.
-import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER, registerCount } from '../src/queries/drivers.js'
-import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../src/queries/seasons.js'
+import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER, registerCount, DRIVERS_LEDE } from '../src/queries/drivers.js'
+import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER, SEASONS_LEDE } from '../src/queries/seasons.js'
 import {
   CALENDAR,
   CALENDAR_COLUMNS,
@@ -193,7 +204,7 @@ import {
   titleStrip,
   wonHereNote,
 } from '../src/queries/season.js'
-import { LATEST as LATEST_RUN, RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
+import { LATEST as LATEST_RUN, RACES, RACE_COLUMNS, RACES_FOOTER, RACES_LEDE } from '../src/queries/races.js'
 import {
   BOARD,
   BOARD_HEADING,
@@ -227,7 +238,7 @@ import {
   strip as homeStrip,
 } from '../src/queries/home.js'
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
-import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
+import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER, CONSTRUCTORS_LEDE } from '../src/queries/constructors.js'
 import {
   CIRCUITS,
   CIRCUIT_COLUMNS,
@@ -236,8 +247,9 @@ import {
   REGISTER_OUTLINES,
   SHAPES,
   TRACED,
+  CIRCUITS_LEDE,
 } from '../src/queries/circuits.js'
-import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS } from '../src/queries/cars.js'
+import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS, CARS_LEDE } from '../src/queries/cars.js'
 import {
   CLASSIFICATION_COLUMNS,
   ENTRIES,
@@ -328,6 +340,7 @@ import {
   WINNERS as GP_WINNERS,
   WINNER_COLUMNS as GP_WINNER_COLUMNS,
   editionCar,
+  grandPrixStrip,
 } from '../src/queries/grandprix.js'
 import {
   AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
@@ -372,8 +385,9 @@ import {
   SAFETY,
   TYRES,
   TYRE_COLUMNS,
+  ERAS_LEDE,
 } from '../src/queries/eras.js'
-import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../src/queries/glossary.js'
+import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS, GLOSSARY_LEDE } from '../src/queries/glossary.js'
 import {
   OUTLINE_BY,
   OUTLINE_CREDIT,
@@ -407,6 +421,7 @@ import {
   SOURCES,
   SOURCES_FOOTER,
   SOURCE_COLUMNS,
+  SOURCES_LEDE,
 } from '../src/queries/sources.js'
 import {
   AMBIGUOUS as UNATTRIBUTED,
@@ -438,6 +453,7 @@ import {
   UNVERIFIED_COLUMNS,
   UNVERIFIED_FOOTER,
   photographsCatalogued,
+  QUALITY_LEDE,
 } from '../src/queries/quality.js'
 import {
   BY_SEASON,
@@ -509,12 +525,14 @@ import {
   recordPath,
   tierBefore,
   tiersOf,
+  RECORDS_STANDFIRST,
+  recordStrip,
 } from '../src/queries/records.js'
 // Where a page sits and where it leads, from the module the app reads (IA-03,
 // IA-22). The trails were written out here and the onward bands existed only
 // in the app, so the half a crawler and a cold arrival are given had no
 // relational layer at all; both now come from one place.
-import { ONWARD, TRAIL, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
+import { ONWARD, TRAIL, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
 import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
 import {
@@ -846,7 +864,8 @@ const stats = (items) => {
   )
   if (!shown.length) return ''
   const ranked = shown.some((item) => item.lead)
-  return `<dl class="stats"${ranked ? ' data-ranked=""' : ''}>${shown
+  // The count app.css chooses the columns from, as <Stats> writes it (VD-79).
+  return `<dl class="stats"${ranked ? ' data-ranked=""' : ''} style="--tiles: ${shown.length}">${shown
     .map(
       ({ label, value, note, lead, kind }) =>
         `<div${lead ? ' data-lead=""' : ''}${kind ? ` data-kind="${esc(kind)}"` : ''}>` +
@@ -1147,6 +1166,23 @@ const liveryMark = (colour) =>
     ? `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
     : ''
 const winnerMark = (round, year) => liveryMark(winnerColour(round, year))
+
+// A driver's or a constructor's livery band, as components/LiveryScheme.jsx
+// draws it and from the same words (lib/liveries.js bandWords, VD-79): the
+// header's aside, which the static page left out, so the app's header was
+// one band taller than the page it replaced.
+const liveryBand = (colour, note) => {
+  const words = bandWords(colour)
+  if (!words) return ''
+  // The band draws the scheme, `style`, where a mark draws its pair, `mark`
+  // (lib/liveries.js colourForEntry says which reader takes which).
+  const style = Object.entries(colour.style ?? {})
+    .map(([property, value]) => `${property}:${value}`)
+    .join(';')
+  return `<p class="livery-band"><i class="livery" style="${esc(style)}" aria-hidden="true"></i>${esc(
+    words.name,
+  )}${words.sourced ? `<em>${esc(words.sourced)}</em>` : ''}<span>${esc(note ?? '')}${esc(words.chosen)}</span></p>`
+}
 const outlineStrip = (year, calendar) => {
   if (!calendar.some((round) => round.outline)) return ''
   const states = roundStates(calendar)
@@ -1853,6 +1889,19 @@ const sectioned = (html) => {
   ].join('')
 }
 
+/**
+ * The page header's opening, as components/Page.jsx's <Page> draws it: the
+ * eyebrow, the h1 and the lede, in that order and in its classes (VD-79,
+ * DP-03). The aside - a stepper, a circuit's photograph, a livery band -
+ * follows in the body, and structure() lifts the whole run into <header>.
+ * The static page used to write no eyebrow at all, so on 1,196 race pages,
+ * 862 driver pages and every constructor, circuit, car and Grand Prix page
+ * a line appeared above the heading at the handover and moved it down
+ * (VD-56).
+ */
+const opening = ({ eyebrow = null, title, lede = null }) =>
+  `${eyebrow ? `<p class="eyebrow">${esc(eyebrow)}</p>` : ''}<h1>${esc(title)}</h1>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}`
+
 const structure = (body, tail = '') => {
   // The stepper belongs to the header, because <Page aside> renders it there:
   // a nav left in the body would be swept into the first section instead, and
@@ -1860,12 +1909,14 @@ const structure = (body, tail = '') => {
   // The circuit's photograph is the header's too (VD-62), for the same
   // reason: Circuit.jsx passes it as <Page aside>. Its wrapper closes on the
   // figure's own </figure>, which a photograph holds exactly one of.
-  const opening = body.match(
-    /^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?/,
+  // The eyebrow and the livery band are the header's as well (VD-79): Page
+  // draws the one above the h1 and takes the other as its aside.
+  const head = body.match(
+    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
   )
-  if (!opening) die('prerender: a page body that does not open on an h1')
-  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}${opening[3] ?? ''}${opening[4] ?? ''}</header>${sectioned(
-    body.slice(opening[0].length),
+  if (!head) die('prerender: a page body that does not open on an h1')
+  return `<article class="page"><header>${head.slice(1).map((part) => part?.trim() ?? '').join('')}</header>${sectioned(
+    body.slice(head[0].length),
   )}${tail}</article>`
 }
 
@@ -2052,8 +2103,7 @@ const page = ({
     trail: TRAIL.seasons(),
     onward: ONWARD.seasons(),
     body: `
-      <h1>${esc(NAMES.seasons().headline)}</h1>
-      <p class="lede">Every FIA Formula One World Championship season from 1950.</p>
+      ${opening({ title: NAMES.seasons().headline, lede: SEASONS_LEDE })}
       ${fromColumns(SEASONS_COLUMNS, seasons, {
         year: (year) => link(`seasons/${year}`, year),
         champion: marked('drivers', 'champion_id'),
@@ -2209,11 +2259,10 @@ const page = ({
         url: `${ORIGIN}${href(`seasons/${year}`)}`,
       },
       body: `
-        <h1>${esc(NAMES.season(year).headline)}</h1>
+        ${opening({ title: NAMES.season(year).headline, lede: s.notes })}
         ${stepperNav(seasonSteps(neighbours))}
         ${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}
         ${permutations ? note(permutations) : ''}
-        ${prose(s.notes)}
         ${nextSection}
         ${live ? seasonCalendar + seasonStandings : seasonStandings + seasonCalendar}
         ${
@@ -2228,13 +2277,17 @@ const page = ({
             : ''
         }
         ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
+        <h2>Who entered</h2>
         ${
+          // On every season, as Season.jsx draws it: a season nobody has
+          // entered yet says so under the heading rather than losing it, so
+          // the two halves have the same sections in the same order (VD-79).
           entrants.length
-            ? `<h2>Who entered</h2>${fromColumns(ENTRANT_COLUMNS, entrants, {
+            ? `${fromColumns(ENTRANT_COLUMNS, entrants, {
                 constructor: (name, row) =>
                   row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name ?? row.entrant_id),
               })}${note(ENTRANTS_FOOTER)}`
-            : ''
+            : EMPTY_STATE
         }
         <h2>The season on the record</h2>
         ${fields([
@@ -2287,7 +2340,8 @@ const page = ({
     onward: ONWARD.races(),
     body: `
       <h1>${esc(NAMES.races().headline)}</h1>
-      <p class="lede">${races.length.toLocaleString()} championship Grands Prix. The 200 most recently run
+      <p class="lede">${esc(RACES_LEDE)}</p>
+      <p class="note">${races.length.toLocaleString()} championship Grands Prix. The 200 most recently run
         are listed here; every one of them is reachable from ${link('seasons', 'its season')}.</p>
       ${fromColumns(RACE_COLUMNS, all(RACES).slice(0, 200), {
         year: (year) => link(`seasons/${year}`, year),
@@ -2435,8 +2489,7 @@ const page = ({
         eventStatus: 'https://schema.org/EventScheduled',
       },
       body: `
-        <h1>${esc(headline)}</h1>
-        <p class="lede">${esc(standfirst)}</p>
+        ${opening({ eyebrow: EYEBROWS.race(r.round, r.year), title: headline, lede: standfirst })}
         ${stepperNav(raceSteps(neighbours))}
         <section class="section"><div${r.outline ? ' class="with-outline with-lead"' : ''}>${tiles(raceStrip(r, entryRows, qualifying))}
         ${outlineCard(
@@ -2595,10 +2648,7 @@ const page = ({
     trail: TRAIL.drivers(),
     onward: ONWARD.drivers(),
     body: `
-      <h1>${esc(NAMES.drivers().headline)}</h1>
-      <p class="lede">${registerCount(register).raced} drivers who entered a championship race, and
-        ${registerCount(register).practice} who drove in practice and never started one. Career totals are counted from the race records
-        wherever the records support it; an em dash means nobody has established that figure.</p>
+      ${opening({ title: NAMES.drivers().headline, lede: DRIVERS_LEDE })}
       ${fromColumns(DRIVER_COLUMNS, register, {
         full_name: (name, d) =>
           link(`drivers/${d.id}`, name) +
@@ -2658,6 +2708,18 @@ const page = ({
     // Driver.jsx: the sentence, the notice and the table are the app's.
     const practiceOnly = d.practice_only === 1
     const practice = practiceOnly ? all(DRIVER_PRACTICE, id) : []
+    // The stripe in the header, from the team raced for last, as Driver.jsx
+    // picks it (AF-04).
+    const results = resultsOf.all(d.id)
+    const lastTeam = lastTeamOf(results)
+    const teamColour = lastTeam
+      ? colourForEntry({
+          constructorId: lastTeam.constructor_id,
+          country: lastTeam.constructor_country,
+          year: lastTeam.year,
+          team: lastTeam.constructor,
+        })
+      : null
     const career = practiceOnly ? practiceSentence(practice) : careerSentence(derived, constructors, d.titles)
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
@@ -2671,7 +2733,7 @@ const page = ({
       title: NAMES.driver(d.full_name).title,
       description: withNotes.endsWith('…') ? lead : withNotes,
       trail: TRAIL.driver(d.id, d.full_name),
-      onward: ONWARD.driver({ results: resultsOf.all(d.id), bySeason }),
+      onward: ONWARD.driver({ results, bySeason }),
       sources: all(DRIVER_SOURCES, d.id),
       jsonld: {
         '@context': 'https://schema.org',
@@ -2684,8 +2746,8 @@ const page = ({
         jobTitle: 'Formula One driver',
       },
       body: `
-        <h1>${esc(NAMES.driver(d.full_name).headline)}</h1>
-        <p class="lede">${esc(lede(d, derived, constructors, practice))}</p>
+        ${opening({ eyebrow: EYEBROWS.driver(), title: NAMES.driver(d.full_name).headline, lede: lede(d, derived, constructors, practice) })}
+        ${liveryBand(teamColour, driverBandNote(lastTeam, teamColour))}
         ${practiceOnly ? noteBox(PRACTICE_ONLY_NOTICE.head, PRACTICE_ONLY_NOTICE.body) : ''}
         ${
           practiceOnly
@@ -2784,8 +2846,7 @@ page({
     trail: TRAIL.constructors(),
     onward: ONWARD.constructors(),
     body: `
-      <h1>${esc(NAMES.constructors().headline)}</h1>
-      <p class="lede">${constructors.length} constructors that have entered a championship Grand Prix.</p>
+      ${opening({ title: NAMES.constructors().headline, lede: CONSTRUCTORS_LEDE })}
       ${fromColumns(CONSTRUCTOR_COLUMNS, all(CONSTRUCTORS), {
         name: (name, row) => link(`constructors/${row.id}`, name),
         seasons_raced: (value, row) =>
@@ -2819,6 +2880,13 @@ page({
     const teamBySeason = all(TEAM_BY_SEASON, c.id)
     const seasons = constructorSeasons(teamBySeason, teamStandings)
     const engineSplit = teamStandings.some((s) => s.engine_id)
+    // The band in the header, as Constructor.jsx reads it: the livery of the
+    // last season raced from 2010, the national convention otherwise.
+    const lastSeason = lastSeasonOf(teamBySeason)
+    const livery = lastSeason && lastSeason.year >= LIVERY_ERA ? liveryFor(c.id, lastSeason.year) : null
+    const identity = livery
+      ? colourForEntry({ constructorId: c.id, country: c.country, year: lastSeason.year, team: c.name })
+      : nationalEntry(c.country)
     const wins = all(TEAM_WINS, c.id)
     const designs = all(DESIGNS, c.id)
     // The description's figures. Wins are the derived count, as the Stats
@@ -2853,9 +2921,9 @@ page({
         ...(c.country ? { location: { '@type': 'Place', name: c.country } } : {}),
       },
       body: `
-        <h1>${esc(NAMES.constructor(c.name).headline)}</h1>
+        ${opening({ eyebrow: EYEBROWS.constructor(), title: NAMES.constructor(c.name).headline, lede: c.notes })}
+        ${liveryBand(identity, constructorBandNote(c, lastSeason, livery, identity))}
         ${tiles(teamStrip(c, teamDerived))}
-        ${prose(c.notes)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>
         ${
@@ -2937,8 +3005,7 @@ page({
     trail: TRAIL.circuits(),
     onward: ONWARD.circuits(),
     body: `
-      <h1>${esc(NAMES.circuits().headline)}</h1>
-      <p class="lede">${circuits.length} circuits that have held a championship Grand Prix.</p>
+      ${opening({ title: NAMES.circuits().headline, lede: CIRCUITS_LEDE })}
       ${heading(SHAPES, `${shapes.length} of ${register.length}`)}
       ${note(OUTLINE_REGISTER_NOTE)}
       ${
@@ -3013,11 +3080,10 @@ page({
           : {}),
       },
       body: `
-        <h1>${esc(NAMES.circuit(c.name).headline)}</h1>
+        ${opening({ eyebrow: EYEBROWS.circuit(c.locality, c.country), title: NAMES.circuit(c.name).headline, lede: c.notes })}
         ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
         ${tiles(circuitStrip(cv))}
         ${prose(c.characteristics)}
-        ${prose(c.notes)}
         ${
           // PD-60, as Circuit.jsx: with a timeline, the lead alone here,
           // carrying the rule, and the history after the winners.
@@ -3139,14 +3205,8 @@ page({
       trail: TRAIL.grandPrix(id, gp.name),
       onward: ONWARD.grandPrix({ editions, winners }),
       body: `
-        <h1>${esc(NAMES.grandPrix(gp.name).headline)}</h1>
-        ${gp.notes ? `<p class="lede">${esc(gp.notes)}</p>` : ''}
-        ${stats([
-          { label: 'Times held', value: esc(number(gp.held)) },
-          { label: 'Span', value: esc(span(gp.first_held, gp.last_held)) },
-          { label: 'Circuits', value: esc(number(gp.circuits)) },
-          gp.scheduled ? { label: 'Still to come', value: esc(number(gp.scheduled)) } : null,
-        ])}
+        ${opening({ eyebrow: EYEBROWS.grandPrix(gp.country), title: NAMES.grandPrix(gp.name).headline, lede: gp.notes })}
+        ${tiles(grandPrixStrip(gp))}
         <h2>Where it has been held</h2>
         ${fromColumns(GP_CIRCUIT_COLUMNS, circuitsHere, {
           circuit: venue,
@@ -3278,11 +3338,7 @@ page({
     trail: TRAIL.cars(),
     onward: ONWARD.cars(),
     body: `
-      <h1>${esc(NAMES.cars().headline)}</h1>
-      <p class="lede">${cars.length} landmark chassis, specified and sourced, and behind them
-        every chassis with a championship entry — ${num(chassis.length)} of them, most raced by a
-        privateer for a single weekend. A blank is a figure nobody published, not a car
-        with no wheelbase.</p>
+      ${opening({ title: NAMES.cars().headline, lede: CARS_LEDE })}
       <h2>The cars with a page of their own</h2>
       ${fromColumns(GALLERY_COLUMNS, all(GALLERY), { car: (name, row) => link(`cars/${row.id}`, name) })}
       <h2>The chassis register</h2>
@@ -3350,14 +3406,13 @@ page({
       trail: TRAIL.car(at, name),
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
-        <h1>${esc(NAMES.car(name).headline)}</h1>
+        ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor), title: NAMES.car(name).headline, lede: c.story })}
         ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${tiles(carStrip(variants, row, carEntries))}
         ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
         ${photoFirst ? '' : photos.html}
         ${prose(c.concept)}
         ${prose(c.innovations)}
-        ${prose(c.story)}
         ${prose(c.outcome)}
         ${carTables(c.id, variants, carEntries)}
         <h2>On the record</h2>
@@ -3432,7 +3487,14 @@ page({
       trail: TRAIL.car(ch.id, name),
       onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
-        <h1>${esc(NAMES.car(name).headline)}</h1>
+        ${opening({
+          eyebrow: EYEBROWS.car(variants[0]?.constructor),
+          title: NAMES.car(name).headline,
+          // The design's story, where the chassis is one of a curated family:
+          // Car.jsx reads the car behind a chassis as well as the car of its
+          // own id (CAR in queries/car.js).
+          lede: (ch.car_id && byId.get(ch.car_id)?.story) || null,
+        })}
         ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${tiles(carStrip(variants, carRow, carEntries))}
         ${photoFirst ? '' : photos.html}
@@ -3536,13 +3598,13 @@ page({
     trail: TRAIL.records(),
     onward: ONWARD.records({ driverWins: all(DRIVER_WINS) }),
     body: `
-      <h1>${esc(NAMES.records().headline)}</h1>
-      <p class="lede">${esc(RECORDS_LEDE)}${asOf ? ` ${esc(asOfLine(asOf))}` : ''}${
+      ${opening({ title: NAMES.records().headline, lede: RECORDS_STANDFIRST })}
+      <h2>${esc(HEADLINE)} <span class="count">${headline.length}</span></h2>
+      <p class="note">${esc(RECORDS_LEDE)}${asOf ? ` ${esc(asOfLine(asOf))}` : ''}${
           tiers.length === 1
             ? ` ${esc(tierBefore(records.length))}${link('data/quality', tiers[0])}${esc(TIER_AFTER)}`
             : ''
         }</p>
-      <h2>${esc(HEADLINE)} <span class="count">${headline.length}</span></h2>
       ${recordCards(headline)}
       ${
         families.length
@@ -3586,10 +3648,7 @@ page({
       onward: ONWARD.record({ record, holder }),
       body: `
         <h1>${esc(NAMES.record(record.record).headline)}</h1>
-        ${stats([
-          { label: 'Value', value: esc(record.value), lead: true },
-          { label: 'Holder', value: holder ? link(holder, record.holder) : esc(record.holder) },
-        ])}
+        ${tiles(recordStrip(record))}
         <h2>${esc(DERIVATION)}</h2>
         ${prose(record.detail)}
         <h2>On the record</h2>
@@ -3613,7 +3672,7 @@ page({
     trail: TRAIL.eras(),
     onward: ONWARD.eras(),
     body: `
-      <h1>${esc(NAMES.eras().headline)}</h1>
+      ${opening({ title: NAMES.eras().headline, lede: ERAS_LEDE })}
       ${eras
         .map(
           (e) => `<section class="section">
@@ -3656,7 +3715,7 @@ page({
     trail: TRAIL.glossary(),
     onward: ONWARD.glossary(),
     body: `
-      <h1>${esc(NAMES.glossary().headline)}</h1>
+      ${opening({ title: NAMES.glossary().headline, lede: GLOSSARY_LEDE })}
       <h2>Glossary</h2>
       ${fromColumns(GLOSSARY_COLUMNS, glossary)}
       <h2>People</h2>
@@ -3672,8 +3731,7 @@ page({
     trail: TRAIL.sources(),
     onward: ONWARD.sources(),
     body: `
-      <h1>${esc(NAMES.sources().headline)}</h1>
-      <p class="lede">What each source is trusted for, under what licence, and what constrains it.</p>
+      ${opening({ title: NAMES.sources().headline, lede: SOURCES_LEDE })}
       <h2>What a licence cost, or bought</h2>
       <p class="note">${esc(CONSEQUENCES_NOTE)}</p>
       ${fromColumns(CONSEQUENCE_COLUMNS, CONSEQUENCES)}
@@ -3856,8 +3914,8 @@ page({
     trail: TRAIL.quality(),
     onward: ONWARD.quality(),
     body: `
-      <h1>${esc(NAMES.quality().headline)}</h1>
-      <p class="lede">A blank in this database is an unestablished fact, never a zero. These are
+      ${opening({ title: NAMES.quality().headline, lede: QUALITY_LEDE })}
+      <p class="measure">A blank in this database is an unestablished fact, never a zero. These are
         the gaps that are known and stated.</p>
       ${GAP_GROUPS.map(gapGroup).join('')}
       <h2>The confidence ladder</h2>

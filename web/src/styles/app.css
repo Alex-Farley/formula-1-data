@@ -615,21 +615,44 @@ main {
 
 /* ----------------------------------------------------------- stat blocks */
 
-/* Flex rather than grid, because the hairlines here are the container showing
-   through a 1px gap: a grid leaves a grey void wherever the last row is short
-   of a tile, whereas flex items grow to fill the line they land on. The basis
-   is 150px because several of these tiles hold a name rather than a figure,
-   and a narrower one forced "Spa-Francorchamps" to break mid-word on a
-   phone. */
+/* The tile strip (docs/design-system.md section 3, VD-79, DP-02). A grid,
+   not a flex row, and every tile draws its own hairline.
+
+   It was a flex row whose hairlines were the container's ground showing
+   through 1 px gaps, so a short last row would have ended in a grey band;
+   flex-grow existed to stop that, and spread a lone last tile across the
+   whole row instead - one figure ranked by accident on /data/quality, /
+   at 768 and /drivers/verstappen at 1024 (VD-46). The ghost tile that
+   halved it beside a lead figure was a patch on the patch. A tile that draws
+   its own edge can end a row short against the page, so neither is needed.
+
+   The columns, from the count each renderer writes as --tiles:
+     - one row, where the strip fits at --tile a tile (nine do at 1440);
+     - otherwise rows of equal count: half the tiles a row, then a third;
+     - two to a row in a strip narrower than --tile-pair.
+   A custom property cannot stand in a query, so the choice is made in the
+   track size: each candidate is the strip's width over a column count, and
+   the first that is at least --tile wins, falling back to half (or the
+   whole, for a strip of one, which has no half to fall back to). For a
+   candidate `a` and the fallback `b`, `(--tile - a) * 1e5` is at most zero
+   when `a` fits and enormous when it does not, so min(b, max(a, that)) is
+   `a` or `b`; --pick-3, --pick-2 and --tiles-fit chain three of them. The
+   --tile-pair rule is the same switch on the strip's own width. Half a pixel off
+   the winner, so that auto-fill's floor() lands on the count and not one
+   under it. */
 .stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1px;
+  --tiles-1: calc(100% / var(--tiles, 4));
+  --tiles-2: calc(100% / round(up, var(--tiles, 4) / 2));
+  --tiles-3: calc(100% / round(up, var(--tiles, 4) / 3));
+  --pick-3: min(max(50%, var(--tiles-1)), max(var(--tiles-3), (var(--tile) - var(--tiles-3)) * 100000));
+  --pick-2: min(var(--pick-3), max(var(--tiles-2), (var(--tile) - var(--tiles-2)) * 100000));
+  --tiles-fit: min(var(--pick-2), max(var(--tiles-1), (var(--tile) - var(--tiles-1)) * 100000));
+  --tile-track: calc(max(var(--tiles-fit), min(50%, (var(--tile-pair) - 100%) * 100000)) - 0.5px);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-track), 1fr)); /* the strip's own columns, from its count and width: see above */
   margin: 0;
-  background: var(--rule);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  overflow: hidden;
+  /* The right and bottom edges the tiles' negative margins reach into. */
+  padding: 0 1px 1px 0;
 }
 
 /* No lit edge on the tile. The mockups drew a 22x2 accent bar on each one to
@@ -637,45 +660,44 @@ main {
    for the accent: eight red marks on a driver page where the mark carries no
    action, and on a Ferrari page indistinguishable from rosso corsa (1.002:1
    in light; 1.76:1 in dark). The hairline grid and the mono label already say
-   what the bar said (VD-26). */
-/* min-content, not 0: with a label that may not wrap (below), the tile has
-   to be allowed to be as wide as its label, or it would overflow its own
-   hairline.
+   what the bar said (VD-26).
 
-   The basis comes down from 150px to 130px to pay for that. A tile held at
-   its label's width takes room from the row, and eight tiles at 150px plus
-   "Constructors' titles" at the 190px its label needs came to 11px more than
-   /constructors/ferrari has: the eighth tile wrapped, and flex-grow spread it
-   alone across the full 1234px, which ranks a figure by accident far harder
-   than the two ranks below rank one on purpose. At 130px the basis no longer
-   decides the row - the labels do - and the tiles settle at their own widths
-   with the wide one wide. It is a floor, not a width: flex-grow still fills
-   the row, so a strip of five is laid out exactly as before. */
+   Each tile's border is its hairline, and the margin pulls it 1 px over its
+   right and lower neighbours, so two tiles share one line rather than
+   drawing two. A tile is two rows of the strip - label, then figure - shared
+   with every tile in its row through subgrid, so a label that wraps to two
+   lines moves every figure in the row down together rather than its own
+   alone. VD-28 forbade a wrapping label for exactly that reason, which made
+   a tile as wide as its label and the strip wrap wherever the labels did. */
 .stats > div {
-  flex: 1 1 130px;
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  min-width: 0;
   background: var(--panel);
+  border: 1px solid var(--rule);
+  margin: 0 -1px -1px 0;
   padding: var(--space-6) var(--space-7) var(--space-7);
-  min-width: min-content;
 }
 
-/* VD-28: a label never wraps. It is not a cosmetic rule - the tiles are a
-   flex row and each one lays its own contents out from the top, so a label
-   that takes two lines pushes its own figure a line below every figure
-   beside it. On /constructors/ferrari "Constructors' titles" did exactly
-   that, 22px below the row. Nothing here truncates: the tile grows to its
-   label instead, and the row wraps. */
+/* A label sits on its figure, at the foot of the row's label track. */
 .stats dt {
+  align-self: end;
   font-family: var(--mono);
-  font-size: var(--size-1);
+  font-size: var(--size-2);
   font-weight: var(--weight-medium);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ink-faint);
   margin-bottom: var(--space-3);
-  white-space: nowrap;
 }
 
+/* Every figure in a row on one baseline, the lead figures and the rest
+   alike: two ranks set top-aligned sat 10 px apart (VD-55, folded into
+   VD-46). */
 .stats dd {
+  align-self: baseline;
   margin: 0;
   font-family: var(--disp);
   font-size: var(--size-8);
@@ -1973,6 +1995,20 @@ tbody th.strong {
   font-variant-numeric: tabular-nums;
 }
 
+/* The handover (main.jsx, VD-79). Once the database is open the app renders
+   its first page out of sight, laid over the static page in the same box -
+   so a chart measures the width it will have - and the two change places in
+   one task once the app's page has its h1. Painting the app's empty first
+   frame instead pushed the footer off the screen: a layout shift of 0.57 on
+   every race and driver page. Hidden, not removed: visibility keeps the
+   layout and takes the app out of the tab order and the accessibility tree
+   until it is the page. */
+:root[data-handover] #root {
+  position: absolute;
+  inset: 0 0 auto;
+  visibility: hidden;
+}
+
 /* The boot state as a strip, in front of the prerendered page. Pinned to the
    foot of the viewport rather than under the masthead so it covers no
    content; z-index below the palette (60) and above the masthead (30). */
@@ -2309,19 +2345,6 @@ figure.photo figcaption a {
      tile strip at nearly its width it read as one more row of tiles. */
   .page:has(> .section-lead) > .section-lead + * {
     margin-top: var(--space-9);
-  }
-
-  /* Half the width, so a strip of eight or nine wraps - and flex-grow would
-     spread the tile left alone on the last row across all of it, ranking a
-     figure by accident (the rule .stats > div gives above). The blank, in
-     the tile's own ground, grows as one more tile on the last row and takes
-     its share of what that row leaves: a lone tile gets half, not all, and
-     still has room for its note. It has no width of its own, so it never
-     wraps onto a row by itself. */
-  .page:has(> .section-lead) > header + .section .stats::after {
-    content: '';
-    flex: 1 1 0;
-    background: var(--panel);
   }
 }
 

@@ -101,3 +101,11 @@ export const LICENCE_COLUMNS = [
 
 export const LICENCES_NOTE =
   'Commons files do not share one licence, so each photograph carries its own — which is why the credit always travels with the picture.'
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Sources.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const SOURCES_LEDE =
+  'Where every figure on this site comes from, and what you may do with it if you take it. Sources are ranked on whether anything independent can check them, not on how much data they hold.'

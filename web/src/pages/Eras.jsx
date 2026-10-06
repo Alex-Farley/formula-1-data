@@ -26,6 +26,7 @@ import {
   SAFETY,
   TYRES,
   TYRE_COLUMNS,
+  ERAS_LEDE,
 } from '../queries/eras.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -69,7 +70,7 @@ export default function Eras() {
       title={NAMES.eras().headline}
       documentName={NAMES.eras().title}
       trail={TRAIL.eras()}
-      lede="Formula One is a rule set that keeps being rewritten, and most of what changed about the cars follows from that. Here is the chronology: what the rules were, what someone invented to get round them, and what was banned afterwards."
+      lede={ERAS_LEDE}
     >
       <SportNav />
       <Result state={state}>{(data) => <Body data={data} />}</Result>

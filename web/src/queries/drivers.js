@@ -99,3 +99,11 @@ export const DRIVER_COLUMNS = [
   { key: 'fastest_laps', label: 'Fastest laps', align: 'num' },
   { key: 'titles', label: 'Titles', align: 'num', phone: true },
 ]
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Drivers.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const DRIVERS_LEDE =
+  'Every driver the championship has recorded an entry for, from 1950 to now, and the Friday drivers who ran in practice and never started a race. Filter by nationality, narrow to champions or race winners, then open anyone for their record.'

@@ -255,6 +255,17 @@
   --bp-desktop: 1180px;
 
   /*
+   * The tile strip's two widths (VD-79; docs/design-system.md section 3,
+   * *Tile strip*): the narrowest a tile may be before the strip breaks into
+   * rows of equal count - nine fit in a row at 1440 - and the strip width
+   * below which it is two to a row. Widths of the strip itself, not of the
+   * viewport, so they are not breakpoints: the strip beside a lead figure
+   * and the strip across the page each count their own.
+   */
+  --tile: 125px;
+  --tile-pair: 560px;
+
+  /*
    * The measure: one rule, two lengths, both on the grid from --bp-desktop.
    *
    * It used to be 46ch, and `ch` scales with the type, so one token drew

@@ -43,8 +43,9 @@ it is, so that nobody holds new work to a rule that has not landed:
   until it is promoted to core or dropped.
 
 §1's principles bind from adoption. The steps: VD-78 (#865, the grid, the
-measure and the design-system tests) is built. Pending are VD-79 (#866,
-tiles and one page header), VD-80 (#867, one figure grammar), VD-81 (#868,
+measure and the design-system tests) and VD-79 (#866, tiles, one page
+header and the handover) are built. Pending are VD-80 (#867, one figure
+grammar), VD-81 (#868,
 one vocabulary), VD-82 (#869, one reveal control, with sort and fold in the
 address), VD-83 (#870, one section order per page type) and VD-84 (#871, the
 opening slot and the middle type register); VD-86 (#884) holds the core
@@ -225,28 +226,45 @@ column in the opening band.
 The result: **two text edges per page, both grid lines**, where there were
 seven.
 
-### Page header (core) — pending (VD-79)
+### Page header (core) — built (VD-79), but for the eyebrow's rule and the stepper's names (VD-81)
 
 - **Job:** say what this page is, and how to move along a sequence.
 - **Parts:** eyebrow, h1, lede, stepper.
   - The **eyebrow** follows one rule: the page type, then the one fact that
     identifies the entity, for example *Driver · United Kingdom · born 7
     January 1985* or *Race · Round 12 of 24 · 6 July 2025*. This settles
-    IA-09 (#253).
+    IA-09 (#253). *Pending (VD-81):* each page still carries the eyebrow it
+    had, now from one place, `EYEBROWS` in `web/src/lib/site.js`, where the
+    rule will be applied.
   - The **stepper** names its neighbours: *← 2025 Austrian Grand Prix*.
-- **One component drawn by both renderers** (VD-56 #550, VD-71 #819 and
-  VD-73 #822 close into it).
+    *Pending (VD-81).*
+- **One component drawn by both renderers.** `Page` in
+  `components/Page.jsx` draws it in the app, and `opening()` with
+  `structure()` in `scripts/prerender.js` draws the same markup, class for
+  class, from the same strings: `NAMES` and `EYEBROWS` in `lib/site.js`,
+  each register's lede in its `queries/*.js` module, and the livery band's
+  words from `bandWords()` in `lib/liveries.js`. VD-56 (#550) and VD-71
+  (#819) closed into it. VD-73 (#822), the static page's missing lead
+  charts, is the figure's and the slot's, not the header's: §8's test 5
+  declares its headings until it lands.
+  - One declared difference: `/data/sql`'s static page keeps its own lede,
+    because it is not the console and has no examples or schema for the
+    app's lede to point at.
 - **Widths:** the header column: 7 columns from 1180 beside the slot, the
   full width where the slot is empty or below 1180. The lede is at the
   measure.
 - **Accessibility:**
   - One h1 per page (**floor**).
   - Focus lands on the h1 after navigation *and after the handover from the
-    static page* (**floor**). Today it falls to `<body>` on driver,
-    constructor and season pages in 6 of 6 cold loads, because the h1 node
-    is replaced when the page's query resolves.
+    static page* (**floor**). It used to fall to `<body>` on driver,
+    constructor and season pages in 6 of 6 cold loads, because `main.jsx`
+    focused an h1 the page had not drawn yet. The app now renders out of
+    sight and takes the static page's place once its page is drawn, and the
+    h1 takes focus then (`lib/handover.js` `arrived()`). Held by §8's
+    test 10.
   - A status region stays mounted and says when the page has changed
-    (**aim**).
+    (**aim**): `#page-status` in `index.html`, outside both halves, says
+    *"…: the page has finished loading."* at the handover.
   - The page reads h1 → lede → the tile strip → a first h2 that is the
     page's lead answer, on every page type (**aim**; the accessibility
     critic's rule for predictability).
@@ -266,24 +284,37 @@ An empty slot gives its width to the header. The band is as tall as the
 taller of the two, and the tiles start under both, so nothing below is
 ragged. VD-53's interim side-by-side opening holds the place until then.
 
-### Tile strip (core) — pending (VD-79; labels VD-81)
+### Tile strip (core) — built (VD-79), but for its labels (VD-81), its em dash and its name (VD-88 #887)
 
 - **Job:** the handful of figures the page is about.
 - **Parts:** label (`--size-2` mono), figure (`--size-8`, or `--size-6` for a
-  name), qualifier (`--size-3`).
+  name), qualifier (`--size-3`). Every figure in a row sits on one baseline,
+  the lead figures and the rest alike.
 - **Widths:** a grid, not a flex row. Every tile draws its own hairline (the
   option VD-46 #414 proposed), so a short last row ends against the page.
-  There is **no ghost tile** (today's `.stats::after`) and no stretched lone
-  tile.
-  - One row where the strip fits at 125 px a tile. Nine tiles fit at 1440.
-  - Otherwise, rows of equal count.
-  - Two to a row below 560.
+  There is **no ghost tile** and no stretched lone tile. Each renderer
+  writes the strip's count as `--tiles`, and `.stats` in `app.css` picks
+  the columns from it and from the strip's own width, with `--tile` and
+  `--tile-pair` from `tokens.css`:
+  - one row where the strip fits at `--tile` a tile (nine fit at 1440);
+  - otherwise rows of equal count, half the tiles a row, then a third;
+  - two to a row in a strip narrower than `--tile-pair`.
+  A label may wrap: each tile is two rows of the strip's grid, shared
+  through `subgrid`, so a two-line label moves every figure in its row
+  together rather than its own alone.
+- **One strip drawn by both renderers:** every strip is data in its page's
+  `queries/*.js` module (VD-49, and VD-71 #819 for the Grand Prix and record
+  pages), drawn by `Stats` and by `prerender.js`'s `tiles()`. The one tile
+  only the app draws is the season's *Next session*, because only a browser
+  knows how long until it starts; §8's test 5 declares it.
 - **Labels from one vocabulary:** *Seasons* for every year span, and
-  *Entries* everywhere (CD-12 #258).
+  *Entries* everywhere (CD-12 #258). *Pending (VD-81).*
 - **States:** a value not established is an em dash (**floor**: the NULL
-  rule).
+  rule). *Pending (VD-88 #887):* both renderers still drop a tile whose
+  value is null.
 - **Accessibility:** the strip is a `<dl>` with a name ("At a glance"),
-  either as an `aria-label` or as a visually hidden h2 (**aim**).
+  either as an `aria-label` or as a visually hidden h2 (**aim**). *Pending
+  (VD-88 #887).*
 
 ### Figure, and its `lead` variant (core) — pending (VD-80)
 
@@ -469,9 +500,9 @@ puts the classification before the outline (visual defect 7).
 ## 6. Interaction rules (core) — built in part
 
 Built: the keyboard floor, but for the two rings §7 declares, and reading
-order, a floor no test holds yet (VD-86 #884). Pending: state in the address
-and the one reveal control (VD-82), and nothing moving at the handover
-(VD-79).
+order, a floor no test holds yet (VD-86 #884); and nothing moving at the
+handover (VD-79). Pending: state in the address and the one reveal control
+(VD-82).
 
 - **Keyboard (floor):**
   - every control is reachable;
@@ -487,7 +518,11 @@ and the one reveal control (VD-82), and nothing moving at the handover
 - **One reveal control:** the fold.
 - **Nothing moves under the reader:**
   - the static page and the app share the page header, slot or rail, and
-    order;
+    order (§8's test 5 holds the header, the tiles and the section order);
+  - the app takes the static page's place only once its page is drawn,
+    never on an empty frame: it renders out of sight until then
+    (`main.jsx`, `data-handover` in `app.css`). The handover's layout shift
+    was 0.57 on every race and driver page, and is under 0.01;
   - opening a disclosure never moves a sibling's control.
 - **The service touchpoints** are part of the system:
   - the `/changes` page;
@@ -504,7 +539,7 @@ and the one reveal control (VD-82), and nothing moving at the handover
 | WCAG A/AA on the ten smoke routes | **floor** | axe-core in `web/test/smoke.mjs` (and 0 violations on 104 runs across 26 routes on 2026-10-06) |
 | Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); the table sort buttons and `/data/sql`'s examples are declared there until VD-82 |
 | DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor**, not yet enforced | pending (VD-86 #884): the edge test also checks order |
-| Focus on the h1 after the handover, on every page type | **floor**, not yet enforced | pending: a smoke check on a held cold load (VD-79) |
+| Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
 | Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27) |
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |
 | No meaning by colour alone | **floor** (1.4.1) | review, `frontend-reviewer` item 7 |
@@ -536,7 +571,10 @@ and the one reveal control (VD-82), and nothing moving at the handover
     anyone reading during a ~17 s cold boot.
   - What keeps both: the static page draws or reserves the same opening.
     The prerenderer already draws three charts on the static race page, and
-    VD-79 draws one page header in both renderers.
+    VD-79 draws one page header and one tile strip in both renderers, and
+    swaps the two halves only once the app's page is drawn. The lead charts
+    the static driver, constructor and season pages still lack are VD-73
+    (#822).
 - **Small type on tiles and eyebrows (10–11 px mono, tracked).**
   - What the design gains: the instrument-panel identity.
   - What accessibility gives up: legibility at low DPI.
@@ -562,8 +600,8 @@ The system is held by tests, not by memory.
 - `smoke.mjs` comparing every static table with the app's.
 
 **The system's own tests, one each, so a drift fails the build.** Built in
-VD-78: 1, 2, 3, 4, 8 and 9. Pending: 5 and 10 (VD-79), 6 (VD-80) and 7
-(VD-81).
+VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Pending: 6 (VD-80)
+and 7 (VD-81).
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -578,7 +616,11 @@ VD-78: 1, 2, 3, 4, 8 and 9. Pending: 5 and 10 (VD-79), 6 (VD-80) and 7
    on a left or right edge that is not a grid line, the measure or the full
    width. This is the test that would have caught 5–6 October.
 5. **One page, two renderers.** On every smoke route, the static page's
-   section headings and their order equal the app's.
+   section headings and their order equal the app's, and so do its header,
+   child for child, and its tile strips (`smoke.mjs`, *Both renderers draw
+   one page*). A known difference is declared there with the item that will
+   remove it, and a declared difference that has gone fails too, so the
+   list cannot outlive its cause.
 6. **One figure grammar.** `Figure` takes its note as a prop and renders it
    under the plot, and no page passes a second title.
 7. **One vocabulary.** Tile labels and provenance headings come from one
@@ -589,7 +631,8 @@ VD-78: 1, 2, 3, 4, 8 and 9. Pending: 5 and 10 (VD-79), 6 (VD-80) and 7
    `outline: none`) selector that has no `:focus-visible` rule beside it.
 10. **Focus survives the handover.** On a held cold load, `smoke.mjs`
     checks that focus is on the h1 after the app takes over, on every page
-    type.
+    type, that the status region says so, and that the handover's layout
+    shift stays under 0.05 (*The handover*).
 
 ### How a change to the system is made
 
