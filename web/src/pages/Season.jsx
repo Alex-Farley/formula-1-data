@@ -517,7 +517,7 @@ function SeasonBody({ year, season, data }) {
           <Figure
             lead
             title={`Points after each round, ${year}`}
-            note={progressionNote(live)}
+            note={progressionNote(live, data.remaining.rows[0]?.dropped_scores)}
             legend={progression.map((s) => ({ name: s.name, colour: inColour ? s.colour : null }))}
             marks="line"
             table={{

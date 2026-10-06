@@ -465,7 +465,7 @@ import {
   seasonRows,
   thisSeasonFooter,
   thisSeasonHeading,
-  thisSeasonNote,
+  thisSeasonLine,
   teamMatesFooter,
 } from '../src/queries/driver.js'
 import {
@@ -2635,8 +2635,9 @@ const page = ({
       if (!thisSeason.length) return ''
       const standing = standings.find((row) => row.year === thisSeason[0].season) ?? null
       const footer = thisSeasonFooter(thisSeason, standing)
+      const line = thisSeasonLine(thisSeason, standings)
       return `<h2>${esc(thisSeasonHeading(thisSeason))}</h2>
-        <p class="note">${esc(thisSeasonNote(thisSeason, standing))}</p>
+        ${line ? `<p class="note">${esc(line)}</p>` : ''}
         ${fromColumns(THIS_SEASON_COLUMNS, roundsRun(thisSeason), {
           name_used: (name, row) => link(`races/${row.season}/${row.round}`, name),
           constructor: (name, row) =>

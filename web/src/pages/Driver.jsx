@@ -43,7 +43,7 @@ import {
   roundsRun,
   thisSeasonFooter,
   thisSeasonHeading,
-  thisSeasonNote,
+  thisSeasonLine,
   teamMateCount,
   teamMatesFooter,
 } from '../queries/driver.js'
@@ -170,9 +170,9 @@ function ThisSeason({ name, rows: calendar, standings }) {
   const mixed = inColour && !placed.every((d) => d.colour)
 
   return (
-    <Section title={thisSeasonHeading(calendar)} note={thisSeasonNote(calendar, standing)}>
+    <Section title={thisSeasonHeading(calendar)} note={thisSeasonLine(calendar, standings)}>
       <Figure
-        title={`${name}'s finishes, round by round`}
+        title={`${name}'s finishes in ${season}`}
         note={`Where ${name} finished in each round of ${season}, P1 at the top. A round with no dot is one ${name} was not classified in or not entered for, and the table says which${toCome ? '; the space to the right is the rounds still to run' : ''}. A win is ringed. ${
           inColour
             ? `Each dot is in the colour of the team raced that weekend: ${colourSource(placed.map((d) => d.colour))}.${
@@ -389,7 +389,7 @@ function DriverBody({ driver, data }) {
               finishesInColour
                 ? `Each dot is coloured for the team that season finished with, named in the table: ${colourSource(plotted.map((s) => s.colour))}.${
                     finishesMixed
-                      ? ' A hollow dot is a season this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here, so the dot names its team on hover rather than wearing one.'
+                      ? ' A hollow dot is a season this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here, so the dot names its team on hover or keyboard focus rather than wearing one.'
                       : ''
                   }`
                 : 'The dots are not in team colours: no season on this record has one.'

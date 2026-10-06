@@ -34,7 +34,28 @@ const M = { top: 16, right: 14, bottom: 30, left: 40 }
  * simply be withheld because the mark is the datum. Mixing a hollow point
  * with coloured ones is the caller's decision; a chart no point of which has
  * a colour has nothing to be misread against and stays plainly neutral.
+ *
+ * WHICH POINT IS READ, AND HOW (CR-74). The marks themselves take no pointer
+ * events. A hollow dot is `fill: none`, so it answered the pointer on its
+ * 1.6 px outline alone: moving onto Hamilton's 2008 showed the box on the
+ * ring and dropped it at the centre, and the dot grew on hover, carrying its
+ * outline away from the pointer and back. Instead the plot reads the point
+ * nearest the pointer, within HIT px, so a point is held for as long as the
+ * pointer stays near it whatever is drawn there. The box takes no pointer
+ * events either (.tooltip), and it sits above the point, clear of the
+ * pointer, turned inward at either end so it does not run off the plot.
+ *
+ * The plot is one tab stop: on keyboard focus it reads the first point, the
+ * arrow keys step along, Home and End jump, and Escape lets go. What is read
+ * goes to a status region that is always in the document, which is what lets
+ * a screen reader announce each step; the visible box is the same words,
+ * hidden from it, so they are not read twice.
  */
+const HIT = 14
+// How far the box stands off the point, clear of the grown dot and its ring,
+// and the height above a point it needs to open upward rather than down.
+const GAP = 16
+const ROOM = 80
 export default function DotPlot({
   data,
   height = 220,
@@ -47,10 +68,13 @@ export default function DotPlot({
   colour = null,
 }) {
   const [ref, width] = useMeasure()
-  const [hover, setHover] = useState(null)
+  // An index into `plotted`, not the point: the caller builds `data` afresh
+  // on every render, and an object held from the last one would match none.
+  const [active, setActive] = useState(null)
   const own = ownColour(colour)
   const plotted = data.filter((d) => typeof d.y === 'number' && Number.isFinite(d.y))
   if (plotted.length === 0) return null
+  const hover = active !== null && active < plotted.length ? plotted[active] : null
 
   const xs = data.map((d) => d.x)
   const top = yMax ?? Math.max(...plotted.map((d) => d.y))
@@ -65,9 +89,61 @@ export default function DotPlot({
   const ownOf = (d) => (d.colour ? ownColour(d.colour) : own)
   const paintOf = (d) => ownOf(d).paint ?? seriesColour(0)
 
+  // The point nearest the pointer, in the plot's own units, or none past HIT.
+  const onPointerMove = (event) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    if (!box.width || !box.height) return
+    const px = ((event.clientX - box.left) / box.width) * width
+    const py = ((event.clientY - box.top) / box.height) * height
+    let best = null
+    plotted.forEach((d, i) => {
+      const distance = Math.hypot(x(d.x) - px, y(d.y) - py)
+      if (distance <= HIT && (!best || distance < best.distance)) best = { i, distance }
+    })
+    const next = best ? best.i : null
+    if (next !== active) setActive(next)
+  }
+  const onKeyDown = (event) => {
+    const last = plotted.length - 1
+    // No point read yet: the arrows start from the first.
+    const at = active === null ? 0 : active
+    const step = { ArrowRight: at + 1, ArrowDown: at + 1, ArrowLeft: at - 1, ArrowUp: at - 1, Home: 0, End: last }
+    if (event.key === 'Escape') {
+      setActive(null)
+      return
+    }
+    if (!(event.key in step)) return
+    event.preventDefault()
+    setActive(Math.max(0, Math.min(last, step[event.key])))
+  }
+  // A click focuses the plot too; only a keyboard arrival picks a point for
+  // the reader, or every click would open the box on the first season.
+  const onFocus = (event) => {
+    if (active === null && event.currentTarget.matches(':focus-visible')) setActive(0)
+  }
+
+  // Which way the box opens: from the point's own side near either end, and
+  // below a point too near the top for it to fit above - figure.figure clips
+  // what overflows it, which cut the box off every title year's dot.
+  const side = hover ? x(hover.x) / width : 0.5
+  const shift = side < 0.25 ? '0%' : side > 0.75 ? '-100%' : '-50%'
+  const rise = hover && y(hover.y) < ROOM ? `${GAP}px` : `calc(-100% - ${GAP}px)`
+  const said = hover ? `${hover.label ?? formatX(hover.x)}: ${hover.note ?? format(hover.y)}` : ''
+
   return (
     <div className={`plot-holder${own.className ? ` ${own.className}` : ''}`} style={own.style} ref={ref}>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={label}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: one tab stop that reaches every point by the arrow keys, a keyboard's way to what hover shows (CR-74)
+        tabIndex={0}
+        onPointerMove={onPointerMove}
+        onPointerLeave={() => setActive(null)}
+        onKeyDown={onKeyDown}
+        onFocus={onFocus}
+        onBlur={() => setActive(null)}
+      >
         {/* P1 is the one value this chart exists to show, and a step of 2 from
             1 ticked 2, 4, 6... so the title-winning seasons sat above the top
             gridline with nothing naming their value. Force 1 in, and drop a 2
@@ -110,6 +186,7 @@ export default function DotPlot({
                 r={hover === d ? 10 : 8.5}
                 fill="none"
                 stroke={d.hollow ? undefined : paintOf(d)}
+                pointerEvents="none"
               />
             </g>
           ))}
@@ -121,18 +198,20 @@ export default function DotPlot({
               cy={y(d.y)}
               r={hover === d ? 6 : 4.5}
               fill={d.hollow ? 'none' : paintOf(d)}
-              onMouseEnter={() => setHover(d)}
-              onMouseLeave={() => setHover(null)}
+              pointerEvents="none"
             />
           </g>
         ))}
       </svg>
 
+      <p className="sr-only" role="status">
+        {said}
+      </p>
       {hover && (
         <div
           className="tooltip"
-          style={{ left: `${(x(hover.x) / width) * 100}%`, top: y(hover.y) }}
-          role="status"
+          style={{ left: `${(x(hover.x) / width) * 100}%`, top: y(hover.y), '--tooltip-shift': shift, '--tooltip-rise': rise }}
+          aria-hidden="true"
         >
           <b>{hover.label ?? formatX(hover.x)}</b>
           <span className={hover.colour ? `row ${ownOf(hover).className}` : 'row'} style={hover.colour ? ownOf(hover).style : undefined}>

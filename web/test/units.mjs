@@ -73,11 +73,14 @@ import {
   seasonTile,
   seasonsNote,
   strip,
+  thisSeasonHeading,
+  thisSeasonLine,
 } from '../src/queries/driver.js'
 import {
   constructorsFooter,
   latestRound,
   noConstructorsNote,
+  progressionNote,
   roundName,
   roundResult,
   roundWinner,
@@ -774,10 +777,11 @@ describe('the queries a page and the prerenderer share', () => {
       { year: 2025, position: 2, points: 300 },
       { year: 2026, position: 6, points: 163 },
     ]
-    assert.deepEqual(seasonTile(calendar, standings), { label: '2026 so far', value: '6th', note: '163 points, 2 of 3 rounds run' })
+    // P6, as the strip's Best finish and Best grid write a position (CD-51).
+    assert.deepEqual(seasonTile(calendar, standings), { label: '2026 so far', value: 'P6', note: '163 points, 2 of 3 rounds run' })
     // Once every round is run the label is the season and the note the total.
     const done = calendar.map((row) => ({ ...row, status: 'completed' }))
-    assert.deepEqual(seasonTile(done, standings), { label: '2026', value: '6th', note: '163 points' })
+    assert.deepEqual(seasonTile(done, standings), { label: '2026', value: 'P6', note: '163 points' })
     assert.equal(seasonTile(done, [{ year: 2026, position: 1, points: 1 }]).note, '1 point')
     // No points figure: the place alone, no "— points".
     assert.equal(seasonTile(done, [{ year: 2026, position: 21, points: null }]).note, undefined)
@@ -786,6 +790,23 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(seasonTile(done, [{ year: 2025, position: 2, points: 300 }]), null)
     // A driver of another season has no rows and so no tile.
     assert.equal(seasonTile([], standings), null)
+  })
+
+  it('says the season being run once on the first screen: the tile, or the line where there is no tile (CD-51)', () => {
+    const calendar = [
+      { season: 2026, round: 1, status: 'completed', entry_id: 1, constructor: 'Ferrari' },
+      { season: 2026, round: 2, status: 'scheduled', entry_id: null, constructor: null },
+    ]
+    assert.equal(thisSeasonHeading(calendar), '2026, round by round')
+    assert.equal(thisSeasonHeading(calendar.map((row) => ({ ...row, status: 'completed' }))), '2026, round by round')
+    // Placed: the tile says it, and the section says nothing more.
+    assert.equal(thisSeasonLine(calendar, [{ year: 2026, position: 3, points: 214 }]), null)
+    // Not placed: no tile, so the line is the one place that says it.
+    assert.equal(
+      thisSeasonLine(calendar, [{ year: 2026, position: null, points: 0 }]),
+      "0 points in the drivers' championship, driving for Ferrari, with 1 of the 2 rounds run.",
+    )
+    assert.equal(thisSeasonLine(calendar, []), 'Driving for Ferrari, with 1 of the 2 rounds run.')
   })
 
   it('labels the stored figures as published, and shows a row only where there is a figure or a fact', () => {
@@ -949,6 +970,12 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(latestRound([]), null)
     assert.equal(titleHeading(true), 'The title race')
     assert.equal(titleHeading(false), 'How the title was decided')
+    // The dropped-scores sentence only where the rule dropped results (CD-50).
+    assert.match(progressionNote(false, 'Best 6 of 10'), /^The three drivers who finished highest, .*best few results counted/)
+    assert.match(progressionNote(true, 'Best 6 of 10'), /^The three drivers placed highest so far, /)
+    assert.equal(progressionNote(false, 'Every result counts'), 'Points after each round for the three drivers who finished highest.')
+    assert.equal(progressionNote(true, 'Every result counts'), 'Points after each round for the three drivers placed highest so far.')
+    assert.equal(progressionNote(false, null), 'Points after each round for the three drivers who finished highest.')
     assert.equal(standingsHeading("Drivers'", true, 13), "Drivers' standings after round 13")
     assert.equal(standingsHeading("Drivers'", true, null), "Drivers' standings")
     assert.equal(standingsHeading("Constructors'", false, 23), "Final constructors' standings")

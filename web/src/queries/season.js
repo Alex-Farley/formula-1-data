@@ -399,8 +399,18 @@ export const latestRound = (standings) => {
 /** "The title race" while rounds remain; "How the title was decided" once none do. */
 export const titleHeading = (live) => (live ? 'The title race' : 'How the title was decided')
 
-export const progressionNote = (live) =>
-  `${live ? 'The three drivers placed highest so far' : 'The three drivers who finished highest'}, tracked from the opening round. Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend.`
+/**
+ * The title-race chart's note. The dropped-scores sentence is said only of a
+ * season whose scoring rule dropped results (CD-50): it sat on all 36 charts
+ * from 1991 on, where it is false, and since PD-58 and VD-53 beside the h1.
+ * `dropped` is the season's `points_systems.dropped_scores`, REMAINING's
+ * column; a season with no rule on record makes no claim either way.
+ */
+export const progressionNote = (live, dropped) => {
+  const who = live ? 'the three drivers placed highest so far' : 'the three drivers who finished highest'
+  if (missing(dropped) || dropped === EVERY_RESULT_COUNTS) return `Points after each round for ${who}.`
+  return `${who.charAt(0).toUpperCase()}${who.slice(1)}, tracked from the opening round. Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend.`
+}
 
 /**
  * "Drivers' standings after round 13" while rounds remain; "Final drivers'

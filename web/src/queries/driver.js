@@ -260,9 +260,12 @@ export const THIS_SEASON = `
    ORDER BY r.round, e.id
 `
 
-/** "The 2026 season so far" while a round is still to run; "The 2026 season" once none is. */
-export const thisSeasonHeading = (rows) =>
-  rows.some((row) => row.status !== 'completed') ? `The ${rows[0]?.season} season so far` : `The ${rows[0]?.season} season`
+/**
+ * "2026, round by round" (CD-51). It was "The 2026 season so far", which
+ * restated the strip's last tile 100 px above it; the tile says where the
+ * season stands, and this section is the rounds, so its heading says that.
+ */
+export const thisSeasonHeading = (rows) => `${rows[0]?.season}, round by round`
 
 /** The rounds run, which are the table's rows: a round still to come has no result to state. */
 export const roundsRun = (rows) => rows.filter((row) => row.status === 'completed')
@@ -294,9 +297,11 @@ export const seasonTile = (rows, standings) => {
   const ran = new Set(roundsRun(rows).map((row) => row.round)).size
   const total = missing(standing.points) ? null : `${points(standing.points)} ${standing.points === 1 ? 'point' : 'points'}`
   const note = [total, running ? `${number(ran)} of ${plural(rounds, 'round')} run` : null].filter(Boolean).join(', ')
+  // P3, not 3rd: the strip's other positions - Best finish, Best grid - are
+  // P-numbers, and one strip reads one form (CD-51).
   return {
     label: running ? `${season} so far` : String(season),
-    value: ordinal(standing.position),
+    value: `P${standing.position}`,
     note: note || undefined,
   }
 }
@@ -326,8 +331,19 @@ export const THIS_SEASON_COLUMNS = [
 ]
 
 /**
- * The line under the heading: where the drivers' championship has this
- * driver, for whom, and how much of the season that is.
+ * The line under the heading, where the strip has no tile for the season
+ * (CD-51). The tile says where the championship has the driver and how much
+ * of the season is run, and this line said it again 100 px below, so it is
+ * drawn only for a driver the standings do not place - where seasonTile()
+ * returns null, and the section would otherwise be the only place that says
+ * who the driver is driving for and how far the season has gone.
+ */
+export const thisSeasonLine = (rows, standings) =>
+  seasonTile(rows, standings) ? null : thisSeasonNote(rows, standings.find((row) => row.year === rows[0]?.season) ?? null)
+
+/**
+ * The sentence itself: where the drivers' championship has this driver, for
+ * whom, and how much of the season that is.
  *
  * The position and the total are the standings' own row for the season -
  * v_standings_final, which the championship chart below already reads -
