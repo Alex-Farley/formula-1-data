@@ -88,7 +88,7 @@ here is a number the build checked.
 | `docs/MEASUREMENT.md` | How arrivals and search impressions are counted, what that cost the footer's promise, and the two numbers to read. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. Served at `lapledger.org/ATTRIBUTION.md`, beside the data it covers. |
-| `LICENSE-DATA`, `LICENSE` | The terms the data is offered under (CC BY-SA 4.0, and CC BY 4.0 for the five columns this project wrote itself) and the terms the code is. `LICENSE-DATA` is served at `lapledger.org/LICENSE-DATA`. |
+| `LICENSE-DATA`, `LICENSE` | The terms the data is offered under (CC BY-SA 4.0, and CC BY 4.0 for the columns this project wrote itself and has granted) and the terms the code is. `LICENSE-DATA` is served at `lapledger.org/LICENSE-DATA`. |
 | `CITATION.cff` | The citation for the database, in Citation File Format. GitHub renders a *Cite this repository* button from it; its `version` is checked against `build.py` by `tests/test_conventions.py`, which also refuses the licence and the release date the file deliberately does not state. Both refusals are argued in it. |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
 | `requirements.txt` | Empty for the database itself; `fastf1` only for the loader. |
