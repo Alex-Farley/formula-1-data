@@ -63,6 +63,16 @@ Read the token or variable definitions for the intended system, then check
 whether components use the tokens or have drifted to literal values. A system
 that lives only in a token file is a system in name only.
 
+**This project's design system is the baseline.** Read
+`docs/design-system.md` (version A, adopted on #843) before you start, and
+judge the type, colour, spacing, grid and components against it first. A page that drifts from a rule the
+document marks **built** is filed against that rule, by name, as its §8
+asks; a rule marked **pending** is a build step still to land, not a
+drift. Where the system itself is wrong for the reader, say so as a
+finding against the system, kept apart from drift. List its
+**provisional** components and say whether each should be promoted,
+merged or dropped.
+
 ## Calibration
 
 - **Label taste as taste.** A legibility failure at a stated size is a defect;

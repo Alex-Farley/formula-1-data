@@ -71,6 +71,7 @@ say roughly what a recommendation costs.
 | `README.md` | the database: what is in it, how it is checked, what it deliberately lacks. Also the version log. **Broadly stale — treat no number in it as current.** Some figures are wrong by more than 10×. Read it for intent and check every count against `f1.db` |
 | `web/README.md` | the front end: the loading design, the pages, the voice, the Pit Wall look, the charts, traced circuit geometry, the testing |
 | `CLAUDE.md` | the conventions, and the *measured and rejected* list |
+| `docs/design-system.md` | the adopted design system, the baseline a design critique judges against; each section says whether it is built yet |
 | `docs/` | build notes by version, the commercial-readiness reading, the confidence model and its backlog, the timing architecture decision |
 | `schema.sql` | 41 tables, with comments |
 | `web/src/pages/` | 21 page components |

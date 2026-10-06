@@ -139,6 +139,15 @@ Do not pick one silently. Record the disagreement in
 `data/harvest.py: DECLARED_DISCREPANCIES`, and if you resolve it, record the
 resolution in `CORRECTIONS` with the reasoning. `./f1 gaps` prints both.
 
+## The front end's design system
+
+A change under `web/` follows `docs/design-system.md`: its values live in
+`web/src/styles/tokens.css`, and `web/test/conventions.mjs` and `smoke.mjs`
+hold its rules. A feature that needs something the system lacks adds it in
+the same pull request, marked provisional; changing or reversing a rule
+needs a `docs/DECISIONS.md` entry and the maintainer's ruling. Its §8 says
+how.
+
 ## Before opening a pull request
 
 ```bash
