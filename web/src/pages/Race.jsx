@@ -274,7 +274,9 @@ function RaceBody({ race, data, year, round }) {
   // SD-37: late by the reader's own date, and only with no result held - the
   // rule lib/refresh.js keeps for /changes too.
   const late = entries.length === 0 ? lateDays(race, readerDay(now)) : null
-  const pending = scheduled ? scheduledNote(race, stage, late) : null
+  // Late is shown whatever `status` says: a round authored `completed` by
+  // hand with no result held is late on /changes, so it is late here too.
+  const pending = scheduled || late !== null ? scheduledNote(race, stage, late) : null
 
   const timetable = sessions.length > 0 && (
     <Section title="Timetable" count={`${sessions.length} sessions`}>

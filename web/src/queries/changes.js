@@ -41,7 +41,7 @@ export const SHAPE = `
  * result.
  */
 export const UNRESULTED = `
-  SELECT r.year, r.round, r.name_used, r.date_iso, r.on_f1db_calendar
+  SELECT r.year, r.round, r.name_used, r.date_iso, r.date_to, r.on_f1db_calendar
     FROM races r
    WHERE NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
    ORDER BY r.date_iso, r.year, r.round

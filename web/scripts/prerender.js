@@ -2351,7 +2351,8 @@ const page = ({
     const day = eventDay(sessions, r.date_iso)
     // SD-37: late at the build's own date, as /changes reads it here.
     const late = entryRows.length === 0 ? lateDays(r, BUILT) : null
-    const pending = scheduled ? scheduledNote(r, stage, late) : null
+    // Whatever `status` says, as Race.jsx shows it.
+    const pending = scheduled || late !== null ? scheduledNote(r, stage, late) : null
     const headline = NAMES.race(r.year, r.name_used).headline
     // CD-03: the standfirst the page opens on and the description a search
     // result shows are one expression, queries/race.js's, so they cannot come
@@ -2443,7 +2444,7 @@ const page = ({
           true,
         )}
         <div class="lead">
-        ${scheduled ? noteBox(pending.head, pending.body) : ''}
+        ${pending ? noteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
         ${ownSection(disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race'))}
         ${

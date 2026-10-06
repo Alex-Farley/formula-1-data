@@ -143,7 +143,7 @@ import {
   roundStates,
 } from '../src/lib/outline.js'
 import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
-import { GRACE_DAYS, LATE_NOTE, lateDays, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
+import { GRACE_DAYS, LATE_NOTE, lateDays, lateLine, lateNotice, lateRaces, raceDay, readerDay } from '../src/lib/refresh.js'
 import { UNRESULTED } from '../src/queries/changes.js'
 import {
   LEADERS_DRAWN,
@@ -2626,13 +2626,22 @@ describe('late results', () => {
 
   it('says it once for /changes, and the race page says it in the same words', () => {
     assert.equal(lateNotice([]), null)
-    const late = lateRaces([{ year: 2026, round: 17, name_used: 'Singapore Grand Prix', date_iso: '2026-10-11', on_f1db_calendar: 1 }], '2026-10-16')
+    const late = lateRaces([{ year: 2026, round: 17, name_used: 'Singapore Grand Prix', date_iso: '2026-10-11', date_to: null, on_f1db_calendar: 1 }], '2026-10-16')
     const notice = lateNotice(late)
     assert.equal(notice.head, 'Results are late.')
-    assert.equal(notice.body, `The 2026 Singapore Grand Prix was run on 2026-10-11, 5 days ago, and its result is not here yet. ${LATE_NOTE}`)
+    assert.equal(notice.body, `The 2026 Singapore Grand Prix was run on 2026-10-11, and its result is not here yet. ${LATE_NOTE}`)
     const note = scheduledNote({ year: 2026, date_iso: '2026-10-11' }, 'run', 5)
     assert.equal(note.head, 'This race’s result is late.')
-    assert.ok(note.body.endsWith(LATE_NOTE))
+    assert.equal(note.body, `It was run on 2026-10-11. ${LATE_NOTE}`)
+  })
+
+  it('names the circuit\'s day, not F1DB\'s UTC one, and counts on the UTC one', () => {
+    // Las Vegas: a Saturday-night race that is Sunday in UTC.
+    const vegas = { year: 2026, round: 21, name_used: 'Las Vegas Grand Prix', date_iso: '2026-11-22', date_to: '2026-11-21', on_f1db_calendar: 1 }
+    assert.equal(raceDay(vegas), '2026-11-21')
+    assert.equal(lateDays(vegas, '2026-11-25'), null, 'three days after the UTC day is not late')
+    assert.ok(lateLine({ ...vegas, days: 4 }).includes('run on 2026-11-21,'))
+    assert.ok(scheduledNote(vegas, 'run', 4).body.startsWith('It was run on 2026-11-21.'))
   })
 
   it('finds the late rounds in the database the site serves', () => {

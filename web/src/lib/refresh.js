@@ -129,9 +129,19 @@ export const LATE_NOTE =
   + 'without one means F1DB has not published it yet or the refresh is failing; if the check '
   + 'date at the foot of the page is several days old, it is the refresh.'
 
+/**
+ * The day a reader is told the race was run: the circuit's own day. date_to
+ * is the race's local day wherever a weekend is stated, and date_iso is
+ * F1DB's UTC day, which for Las Vegas is the Sunday after a Saturday-night
+ * race - the page around the sentence says 19-21 Nov, so it must not say the
+ * 22nd. The count of days stays on date_iso, as refresh_health.py's does,
+ * which is why no count is printed beside this day.
+ */
+export const raceDay = (r) => r.date_to ?? r.date_iso
+
 /** The sentence for one late round. */
 export const lateLine = (r) =>
-  `The ${r.year} ${r.name_used} was run on ${r.date_iso}, ${r.days} days ago, and its result is not here yet.`
+  `The ${r.year} ${r.name_used} was run on ${raceDay(r)}, and its result is not here yet.`
 
 /** /changes' notice, as both renderers draw it, or null when nothing is late. */
 export const lateNotice = (late) =>

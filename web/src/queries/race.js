@@ -16,7 +16,7 @@
 import { classificationOrder, finished, missing, number, points, raceDates, result, text } from '../lib/format.js'
 import { linked } from '../lib/tiles.js'
 import { SHARED } from '../lib/site.js'
-import { LATE_NOTE } from '../lib/refresh.js'
+import { LATE_NOTE, raceDay } from '../lib/refresh.js'
 
 export const RACE = `
   SELECT r.*, c.name AS circuit, c.locality, c.country,
@@ -609,7 +609,7 @@ export const scheduledNote = (race, stage = 'awaited', late = null) => {
   if (late !== null) {
     return {
       head: 'This race’s result is late.',
-      body: `It was run on ${race.date_iso}, ${late} days ago. ${LATE_NOTE}`,
+      body: `It was run on ${raceDay(race)}. ${LATE_NOTE}`,
     }
   }
   if (stage === 'awaited') {
