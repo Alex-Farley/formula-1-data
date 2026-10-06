@@ -2419,7 +2419,7 @@ try {
       )
       truthy(/not an overtake/.test(got.note), `${half}: the note says the lines claim nothing between start and end`)
       is(/shared a car/.test(got.note), false, `${half}: and says nothing of a shared car where there is none`)
-      truthy(got.label.includes(`${cars} cars`), `${half}: the drawing is named for a screen reader — “${got.label}”`)
+      truthy(got.label.includes(`${cars} drivers`), `${half}: the drawing is named for a screen reader — “${got.label}”`)
     }
     if (served && app) {
       is(served.results.join(' '), app.results.join(' '), 'both halves end the cars in the same order')
@@ -2450,6 +2450,29 @@ try {
       )
     }
     await noJs.close()
+
+    // Every label inside the drawing at a phone's width: the abbreviations,
+    // and the full name a shared abbreviation falls back to (Pesenti-Rossi
+    // shares PES with Pescarolo at /races/1976/11), cut with an ellipsis
+    // where it cannot fit whole rather than cropped by the figure's edge.
+    for (const [route, width] of [['/races/1976/11', 320], ['/races/1953/7', 375]]) {
+      await page.setViewportSize({ width, height: 900 })
+      await go(route)
+      await page.waitForSelector('#root main svg.grid-flag', { timeout: 5000 }).catch(() => null)
+      const over = await page.evaluate(() => {
+        const svg = document.querySelector('#root main svg.grid-flag')
+        if (!svg) return ['no figure']
+        const edge = Number(svg.getAttribute('viewBox').split(' ')[2])
+        return [...svg.querySelectorAll('text')]
+          .map((t) => {
+            const box = t.getBBox()
+            return box.x + box.width > edge + 0.5 ? `${t.textContent} ends at ${Math.round(box.x + box.width)} of ${edge}` : null
+          })
+          .filter(Boolean)
+      })
+      is(over.join(' · '), '', `${route} at ${width} px: every label ends inside the drawing`)
+    }
+    await page.setViewportSize({ width: 1280, height: 900 })
   })
 
   await section('/races/1950/3  (a winner whose car is not a constructor)', async () => {

@@ -400,13 +400,13 @@ export const GRID_FLAG_COLUMNS = [
  */
 export const gridFlagNote = (rows, undrawn) =>
   [
-    'Each line runs from the slot a car started in to its place in the result, ending at the last lap it completed.',
+    'Each line runs from the slot a driver started in to their place in the result, ending at the last lap they completed.',
     rows.some((r) => r.out)
-      ? 'A dashed line ending in a cross is a car the result does not classify, so a retirement stops where it went out.'
+      ? 'A dashed line ending in a cross is a driver the result does not classify, so a retirement stops where it went out.'
       : '',
-    'The record holds where each car started and where it ended, not where it ran in between, so the lines are straight and a crossing is not an overtake at that lap.',
+    'The record holds where each driver started and where they ended, not where they ran in between, so the lines are straight and a crossing is not an overtake at that lap.',
     rows.some((r) => r.entry.shared_drive === 1)
-      ? 'Where drivers shared a car, each has a line of their own, ending at the laps that driver completed.'
+      ? 'Where drivers shared a car, each has a line of their own: from the slot they started in to the shared place, ending at the laps they completed.'
       : '',
     undrawn.length
       ? `${number(undrawn.length)} ${undrawn.length === 1 ? 'entry' : 'entries'} with no recorded grid slot or lap count ${
@@ -420,7 +420,7 @@ export const gridFlagNote = (rows, undrawn) =>
 /** The figure's name for a screen reader, which hears the table and the note with it. */
 export const gridFlagLabel = (rows) => {
   const out = rows.filter((r) => r.out).length
-  return `Grid to flag: ${rows.length} cars from their grid slots to the result, ${rows.length - out} classified and ${out} not.`
+  return `Grid to flag: ${rows.length} drivers from their grid slots to the result, ${rows.length - out} classified and ${out} not.`
 }
 
 export const PIT_COLUMNS = [

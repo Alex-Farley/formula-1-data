@@ -7,7 +7,7 @@
  * could draw no chart until the layout was a function of the rows alone.
  *
  * WHAT IT DRAWS
- *     One line per car that started: from its grid slot on the left, at lap
+ *     One line per driver who started: from their grid slot on the left, at lap
  *     0, to its place in the result on the right, at the lap it last
  *     completed. A finisher's line runs to the flag (a lapped one stops a lap
  *     or two short of it); a car that was not classified stops at the lap it
@@ -52,11 +52,34 @@ const TOP = 26
 const BOTTOM = 38
 const LEFT = 34
 const GAP = 8
-// An average character of the axis face at its size, for laying out a label
-// column without a DOM to measure it in. Generous rather than tight: a label
-// set too narrow runs off the figure, one set too wide costs a few pixels of
-// plot.
-const CHAR = 6.4
+// The width of a label without a DOM to measure it in: per character, a
+// capital or a figure, and anything else, at the axis face's 11 px. Measured
+// in Chromium on the built site (PD-30's review): capitals ran to 8.6 px -
+// HAW, a tabular DNF - and mixed-case names to 6.3 px a character on
+// average, so these are the widest of each rounded up. Generous rather than
+// tight: a label set too narrow runs off the figure, one set too wide costs
+// a few pixels of plot. M and W are wider than the rest (DOW ran a pixel past
+// 375 px at 8.8 each), so they have their own.
+const WIDE = 10.6
+const CAPITAL = 8.8
+const LOWER = 6.2
+// Between a result and its name.
+const SPACE = 6
+// The most of the width the labels may take, whatever the names: past it a
+// name is shortened, with an ellipsis, rather than left to run off the
+// figure. The table under the figure carries every name whole.
+const MOST = 0.6
+
+const textWidth = (value) =>
+  [...String(value)].reduce((sum, c) => sum + (/[MW]/.test(c) ? WIDE : /[A-Z0-9]/.test(c) ? CAPITAL : LOWER), 0)
+
+/** A name cut to `room`, with an ellipsis, where it would not fit whole. */
+const fit = (name, room) => {
+  if (textWidth(name) <= room) return name
+  let cut = name
+  while (cut.length > 1 && textWidth(`${cut}…`) > room) cut = cut.slice(0, -1)
+  return `${cut.trimEnd()}…`
+}
 
 const round = (value) => Math.round(value * 10) / 10
 
@@ -96,7 +119,11 @@ const gridText = (entry) => text(entry.grid_text ?? entry.grid)
  * Names are the drivers' own where the label column can carry them in
  * two-fifths of the width, and their three-letter abbreviations where it
  * cannot - except an abbreviation two drivers in the race share, which would
- * name neither, and keeps the full name.
+ * name neither, and keeps the full name. That name is the one that can be too
+ * long for a phone (Alessandro Pesenti-Rossi, who shares PES with
+ * Pescarolo), so the column stops at MOST of the width and a name past it is
+ * shortened to fit: a cut name with an ellipsis says it was cut, where a
+ * cropped one does not.
  */
 export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
   const rows = gridFlagRows(entries)
@@ -107,18 +134,20 @@ export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
   const codes = new Map()
   for (const { entry } of rows) if (entry.abbreviation) codes.set(entry.abbreviation, (codes.get(entry.abbreviation) ?? 0) + 1)
   const short = (entry) => (entry.abbreviation && codes.get(entry.abbreviation) === 1 ? entry.abbreviation : full(entry))
-  const resultChars = Math.max(...rows.map((r) => result(r.entry).length))
-  const column = (names) => (resultChars + 1 + Math.max(...names.map((n) => n.length))) * CHAR
+  const resultWidth = Math.max(...rows.map((r) => textWidth(result(r.entry))))
+  const column = (names) => GAP + resultWidth + SPACE + Math.max(...names.map(textWidth))
   let names = rows.map((r) => full(r.entry))
   if (column(names) > width * 0.4) names = rows.map((r) => short(r.entry))
+  const room = width * MOST - GAP - resultWidth - SPACE
+  names = names.map((name) => fit(name, room))
 
-  const right = Math.min(width * 0.55, GAP + column(names))
+  const right = column(names)
   const x = linear([0, laps], [LEFT, width - right])
   const y = (slot) => TOP + slot * ROW + ROW / 2
   const height = TOP + rows.length * ROW + BOTTOM
   const plotBottom = TOP + rows.length * ROW
   const labelX = x(laps) + GAP
-  const nameX = labelX + (resultChars + 1) * CHAR
+  const nameX = labelX + resultWidth + SPACE
 
   return {
     width,
