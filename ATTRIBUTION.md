@@ -119,10 +119,12 @@ In practice that means one of:
    licence separately — see below.
 2. **Rewrite the prose fields in your own words** (`cars.story`,
    `cars.concept`, `cars.outcome`, `circuits.notes`, `circuits.characteristics`,
-   `regulation_changes.detail`, and the notes elsewhere — `docs/prose_pass.tsv`
-   labels, field by field, which follow an article) — note that the harvested `chassis` specification fields are short factual
-   values copied verbatim from an infobox ("Aluminium monocoque", "5-speed
-   manual"), which is much closer to fact than to expression, but they were
+   `regulation_changes.detail`, `technical_innovations.description`, and the
+   notes elsewhere — `docs/prose_pass.tsv` labels, field by field, which
+   follow an article) — note that the harvested `chassis` specification
+   fields are short factual values copied verbatim from an infobox
+   ("Aluminium monocoque", "5-speed manual"), which is much closer to fact
+   than to expression, but they were
    still taken from a CC BY-SA source
    and then license the remaining factual data however you like. This is real
    work but it is not enormous — it is a few hundred fields.

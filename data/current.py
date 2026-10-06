@@ -601,8 +601,12 @@ SOURCE_REGISTRY = [
      "notes. Twelve tables; the records list left it in v2.23, derived from "
      "the race records instead of written.",
      "authored",
-     "Original to this repository, and the only content here under no "
-     "external obligation at all.",
+     "Original to this repository, with no upstream to owe anything to. The "
+     "prose of ten of its twelve tables is offered under CC BY 4.0 "
+     "(meta.project_prose_columns, PM-49). The glossary and "
+     "technical_innovations stay under the release's CC BY-SA 4.0: one "
+     "technical_innovations description follows a Wikipedia article's "
+     "wording, and the glossary's grant is an open question.",
      "Whenever somebody edits it. There is no upstream to track and no "
      "version to pin.",
      "NOTHING, and that is the entire point of giving it a name. It has no "

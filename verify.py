@@ -5076,8 +5076,10 @@ def project_prose():
     # columns the pass measures in it, and every field in them must be the
     # text the pass labelled original - by its hash, with the label the
     # screen's own figures and the pass's declared readings give, so neither
-    # a field rewritten since nor a hand edit to docs/prose_pass.tsv stands
-    # as evidence. A field that fails here is read again by the pass, or
+    # a field rewritten since nor a careless edit to docs/prose_pass.tsv
+    # stands as evidence. (A hash retyped by hand to match new text would
+    # pass offline; only rerunning the pass catches that, and the file's
+    # header forbids editing it.) A field that fails here is read again by the pass, or
     # comes off the grant by a person's decision; the grant is never kept by
     # loosening this.
     pp = _tool("prose_pass")
