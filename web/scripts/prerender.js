@@ -986,12 +986,12 @@ const gridFlagSvg = (layout, label) => {
 /*
  * The registers' small multiples (VD-54), drawn: charts/Spark.jsx's elements
  * and classes, from the layouts charts/spark.js gives both renderers. `label`
- * is the column's text for the row - the picture's name and its <title> - and
+ * is the column's text for the row - the picture's <title>, which names it - and
  * the cell is that text alone where there is nothing to draw, as the app's is.
  */
 const sparkSvg = (layout, label, marks) =>
   layout
-    ? `<svg class="spark" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${esc(label)}"><title>${esc(label)}</title>${marks(layout)}</svg>`
+    ? `<svg class="spark" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img"><title>${esc(label)}</title>${marks(layout)}</svg>`
     : esc(label)
 
 const titleRaceSvg = (value, label) =>

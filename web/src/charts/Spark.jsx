@@ -5,15 +5,16 @@ import { seasonsRacedLayout, titleRaceLayout } from './spark.js'
  * scripts/prerender.js's sparkSvg() draws the same elements with the same
  * classes from the same layout, and a change to one is a change to both.
  *
- * `label` is the column's `text` for the row: the picture's accessible name
- * and its <title>, so a screen reader hears the sentence once, a pointer gets
- * it on hover, and the cell's text is the static page's.
+ * `label` is the column's `text` for the row, as the picture's <title>: its
+ * accessible name and its hover text at once. Not an aria-label as well -
+ * with both, SVG-AAM can make the <title> the description too, and the
+ * sentence is read twice. And it is the cell's text, as the static page's is.
  */
 export function TitleRaceSpark({ value, label }) {
   const layout = titleRaceLayout(value)
   if (!layout) return label
   return (
-    <svg className="spark" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label={label}>
+    <svg className="spark" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img">
       <title>{label}</title>
       <line className="spark-zero" x1="0" x2={layout.width} y1={layout.zero} y2={layout.zero} />
       <path className="spark-line" d={layout.line} />
@@ -26,7 +27,7 @@ export function SeasonsRacedSpark({ value, first, last, label }) {
   const layout = seasonsRacedLayout(value, first, last)
   if (!layout) return label
   return (
-    <svg className="spark" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label={label}>
+    <svg className="spark" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img">
       <title>{label}</title>
       <line className="spark-track" x1="0" x2={layout.width} y1={layout.track} y2={layout.track} />
       {layout.runs.map((run) => (

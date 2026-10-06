@@ -2561,7 +2561,8 @@ describe('the registers\' small multiples (VD-54)', () => {
     assert.equal(titleRaceText('1:9:6 2:9:12 3:18:12', done), 'Ahead of the runner-up from round 3 of 3')
     assert.equal(titleRaceText('1:9:9', done), 'Level with the runner-up after the last round')
     assert.equal(titleRaceText('1:6:9', done), 'Behind the runner-up after the last round')
-    assert.equal(titleRaceText('1:9:6', { undecided: 1, not_started: 0 }), 'Ahead of second place after every round')
+    assert.equal(titleRaceText('1:9:6', { undecided: 1, not_started: 0 }), 'Ahead of second place after every round so far')
+    assert.equal(titleRaceText('1:6:9 2:15:12', { undecided: 1, not_started: 0 }), 'Ahead of second place from round 2 of 2 run')
   })
 
   it('draws from nought at the start, with the line at nought inside the box', () => {

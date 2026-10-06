@@ -103,8 +103,9 @@ export function titleRaceText(value, row) {
   if (last.gap < 0) return `Behind ${other} after the last round`
   let from = series.length - 1
   while (from > 0 && series[from - 1].gap > 0) from -= 1
-  if (from === 0) return `Ahead of ${other} after every round`
-  return `Ahead of ${other} from round ${series[from].round} of ${last.round}`
+  // "of 16 run" while the season is: of 16 alone would read as its length.
+  if (from === 0) return `Ahead of ${other} after every round${row.undecided ? ' so far' : ''}`
+  return `Ahead of ${other} from round ${series[from].round} of ${last.round}${row.undecided ? ' run' : ''}`
 }
 
 /**
