@@ -464,7 +464,6 @@ import {
   HEADLINE,
   KEY_SHAPE,
   LEADERBOARDS,
-  LEADERS_DRAWN,
   RECORD,
   RECORDS,
   RECORDS_LEDE,
@@ -475,6 +474,7 @@ import {
   familiesLead,
   headlineRecords,
   holderPath,
+  leadersDrawn,
   leadersDrawnLine,
   recordColumns,
   recordFamilies,
@@ -1568,7 +1568,9 @@ const SITE_CARD = {
  */
 const nameTables = (body) => {
   let heading = ''
-  const named = body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>/g, (match, text) => {
+  // A table that already names itself - a figure's, named for the figure as
+  // the app's is - keeps its caption.
+  const named = body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>(?!<caption)/g, (match, text) => {
     if (text === undefined) {
       return heading ? `<table><caption class="sr-only">${heading}</caption>` : match
     }
@@ -3272,8 +3274,18 @@ page({
       })
       .join('')}</ul>`
   const driverLink = { full_name: (name, row) => link(`drivers/${row.driver_id}`, name) }
-  const leaders = (spec, columns, rows, links) =>
-    figure(spec.title, `${spec.note} ${leadersDrawnLine}`, fromColumns(columns, rows.slice(0, LEADERS_DRAWN), links))
+  // Each table named for its figure, as the app's Figure names it, rather
+  // than for the section heading two of them share (AX-28).
+  const leaders = (spec, columns, rows, links) => {
+    const drawn = leadersDrawn(rows, spec.key)
+    const body = fromColumns(columns, drawn, links)
+    if (body.split('<table>').length !== 2) die(`prerender: the ${spec.title} figure is not one table`)
+    return figure(
+      spec.title,
+      `${spec.note} ${leadersDrawnLine(drawn.length)}`,
+      body.replace('<table>', `<table><caption class="sr-only">${esc(spec.title)}</caption>`),
+    )
+  }
   const recordTable = (rows) =>
     fromColumns(recordColumns(records), rows, {
       record: (value, row) => link(recordPath(row), value),

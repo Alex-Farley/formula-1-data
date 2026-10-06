@@ -94,8 +94,10 @@ export const DRIVER_POLES = `
    LIMIT 40
 `
 
+// The view orders by wins alone, so teams level on wins came back in
+// whatever order SQLite chose; the name settles them, as the drivers' do.
 export const CONSTRUCTOR_WINS = `
-  SELECT * FROM v_wins_by_constructor LIMIT 40
+  SELECT * FROM v_wins_by_constructor ORDER BY wins DESC, name, id LIMIT 40
 `
 
 export const TITLES = `SELECT * FROM v_title_count`
@@ -163,9 +165,9 @@ export const cardExtras = (records) =>
 /**
  * The leaderboards that follow the headline records (VD-68), in both halves.
  *
- * The app draws each as a bar chart of its first LEADERS_DRAWN rows with a
- * table of the same numbers under it; the static half has no chart and
- * carries that table open, of the rows the chart draws. They come before the
+ * The app draws each as a bar chart of its leading rows with a table of the
+ * same numbers under it; the static half has no chart and carries that table
+ * open, of the rows the chart draws. They come before the
  * families in both, so the families stand in the same place either side of
  * the handover (WK-08 review): a static page that left them out put
  * /records#wins a screen or more above where the app then drew it.
@@ -173,22 +175,47 @@ export const cardExtras = (records) =>
 export const LEADERBOARDS = 'Counted from the race records'
 export const CONSTRUCTORS_HEADING = 'Constructors'
 export const LEADERS_DRAWN = 15
-export const leadersDrawnLine = 'The fifteen with the most.'
+
+/**
+ * The rows a leaderboard draws: the first LEADERS_DRAWN, and every row level
+ * with the last of them on `key`. A cut through a tie keeps some of the teams
+ * on nine wins and drops the others, and calls what is left the ones with the
+ * most (VD-68 review); a tie at the cut is kept whole instead.
+ */
+export function leadersDrawn(rows, key) {
+  if (rows.length <= LEADERS_DRAWN) return rows
+  const last = rows[LEADERS_DRAWN - 1][key]
+  let n = LEADERS_DRAWN
+  while (n < rows.length && rows[n][key] === last) n += 1
+  return rows.slice(0, n)
+}
+
+// "fifteen" where the cut is clean, the count where a tie has lengthened it.
+const howMany = (n) => (n === LEADERS_DRAWN ? 'fifteen' : String(n))
+
+/** What the static half says of a table that is the chart's rows. */
+export const leadersDrawnLine = (n) =>
+  n > LEADERS_DRAWN
+    ? `The ${n} with the most: those level with the fifteenth are all here.`
+    : `The ${howMany(n)} with the most.`
 
 export const DRIVER_WINS_FIGURE = {
   title: 'Most Grand Prix wins',
   note: 'One win per driver classified first, so a shared drive counts for both of them.',
-  label: 'The fifteen drivers with the most Grand Prix wins',
+  key: 'wins',
+  label: (n) => `The ${howMany(n)} drivers with the most Grand Prix wins`,
 }
 export const DRIVER_POLES_FIGURE = {
   title: 'Most pole positions',
   note: 'The driver the season record credits with pole. Not always the car at grid 1: a penalty or a sprint-set grid can part them, and each race page says so where they differ.',
-  label: 'The fifteen drivers with the most pole positions',
+  key: 'poles',
+  label: (n) => `The ${howMany(n)} drivers with the most pole positions`,
 }
 export const CONSTRUCTOR_WINS_FIGURE = {
   title: 'Most wins by constructor',
   note: "A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables.",
-  label: 'The fifteen constructors with the most Grand Prix wins',
+  key: 'wins',
+  label: (n) => `The ${howMany(n)} constructors with the most Grand Prix wins`,
 }
 
 const year = (value) => String(value)

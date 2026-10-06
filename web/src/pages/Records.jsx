@@ -29,7 +29,6 @@ import {
   GRAND_SLAMS,
   HEADLINE,
   LEADERBOARDS,
-  LEADERS_DRAWN,
   POLE_TO_WIN,
   RECORDS,
   RECORDS_LEDE,
@@ -42,6 +41,7 @@ import {
   familiesLead,
   headlineRecords,
   holderPath,
+  leadersDrawn,
   recordColumns,
   recordFamilies,
   recordPath,
@@ -218,7 +218,7 @@ function Body({ data }) {
   const constructorBars = useMemo(() => {
     // Keyed on the id, not the name: the view groups on constructors.id, so
     // every row has one and no row needs a fallback.
-    const bars = constructorWins.slice(0, LEADERS_DRAWN).map((c) => ({
+    const bars = leadersDrawn(constructorWins, CONSTRUCTOR_WINS_FIGURE.key).map((c) => ({
       key: c.id,
       label: c.name,
       value: c.wins,
@@ -227,6 +227,9 @@ function Body({ data }) {
     if (bars.some((bar) => bar.colour)) return bars.map((bar) => ({ ...bar, hollow: !bar.colour }))
     return bars.map((bar) => ({ key: bar.key, label: bar.label, value: bar.value }))
   }, [constructorWins])
+
+  const winBars = leadersDrawn(driverWins, DRIVER_WINS_FIGURE.key)
+  const poleBars = leadersDrawn(driverPoles, DRIVER_POLES_FIGURE.key)
 
   const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
 
@@ -280,8 +283,8 @@ function Body({ data }) {
             }}
           >
             <BarChart
-              data={driverWins.slice(0, LEADERS_DRAWN).map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
-              label={DRIVER_WINS_FIGURE.label}
+              data={winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+              label={DRIVER_WINS_FIGURE.label(winBars.length)}
             />
           </Figure>
 
@@ -295,8 +298,8 @@ function Body({ data }) {
             }}
           >
             <BarChart
-              data={driverPoles.slice(0, LEADERS_DRAWN).map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
-              label={DRIVER_POLES_FIGURE.label}
+              data={poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
+              label={DRIVER_POLES_FIGURE.label(poleBars.length)}
             />
           </Figure>
         </div>
@@ -332,7 +335,7 @@ function Body({ data }) {
             }),
           }}
         >
-          <BarChart data={constructorBars} label={CONSTRUCTOR_WINS_FIGURE.label} />
+          <BarChart data={constructorBars} label={CONSTRUCTOR_WINS_FIGURE.label(constructorBars.length)} />
         </Figure>
       </Section>
 

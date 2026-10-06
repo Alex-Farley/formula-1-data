@@ -70,7 +70,17 @@ import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
 import { EXAMPLES } from '../src/lib/questions.js'
-import { CONSTRUCTORS_HEADING, HEADLINE, LEADERBOARDS, RECORDS as RECORDS_SQL, recordFamilies } from '../src/queries/records.js'
+import {
+  CONSTRUCTOR_WINS,
+  CONSTRUCTORS_HEADING,
+  DRIVER_POLES,
+  DRIVER_WINS,
+  HEADLINE,
+  LEADERBOARDS,
+  RECORDS as RECORDS_SQL,
+  leadersDrawn,
+  recordFamilies,
+} from '../src/queries/records.js'
 import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -3501,12 +3511,13 @@ try {
             li.querySelector('.record-card-holder a')?.getAttribute('href') ?? '',
             t('details.record-card-how > p'),
             li.querySelector('details.record-card-how')?.open ? 'open' : 'closed',
+            [...li.querySelectorAll('.record-card-extra')].map((p) => p.textContent.replace(/\s+/g, ' ').trim()).join(' / '),
           ].join(' | ')
         })
       const app = await page.$eval('#root main', read)
       is(app.length, headlines.length, 'the page leads with the headline records, a card each')
       truthy(
-        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].endsWith(`| ${r.detail} | closed`)),
+        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].includes(`| ${r.detail} | closed |`)),
         'each card names its record and links its page, then the value, the holder and the derivation, folded',
       )
       const html = await (await fetch(`${BASE}/records`)).text()
@@ -3516,6 +3527,30 @@ try {
         `(${read.toString()})(new DOMParser().parseFromString(${JSON.stringify(html)}, 'text/html').getElementById('prerendered'))`,
       )
       is(served.join(' || '), app.join(' || '), 'and the static page draws the same cards')
+
+      // The leaderboards in the static half: each table named for its figure,
+      // as the app's is, and holding the rows the app's chart draws - a tie at
+      // the fifteenth row kept whole, never cut through.
+      const figures = (root) =>
+        [...root.querySelectorAll('figure.figure')].slice(0, 3).map((f) => ({
+          caption: f.querySelector('table caption')?.textContent.trim() ?? '',
+          names: [...f.querySelectorAll('table tbody tr')].map((tr) => tr.children[0].textContent.replace(/\s+/g, ' ').trim()),
+        }))
+      const appFigures = await page.$eval('#root main', figures)
+      const staticFigures = await page.evaluate(
+        `(${figures.toString()})(new DOMParser().parseFromString(${JSON.stringify(html)}, 'text/html').getElementById('prerendered'))`,
+      )
+      is(staticFigures.map((f) => f.caption).join(' | '), appFigures.map((f) => f.caption).join(' | '), 'the static leaderboards are named as the app names them')
+      const drawn = [
+        [DRIVER_WINS, 'wins'],
+        [DRIVER_POLES, 'poles'],
+        [CONSTRUCTOR_WINS, 'wins'],
+      ].map(([sql, key]) => leadersDrawn(db.prepare(sql).all(), key).length)
+      truthy(
+        staticFigures.length === 3 &&
+          staticFigures.every((f, i) => f.names.length === drawn[i] && f.names.join('|') === appFigures[i].names.slice(0, drawn[i]).join('|')),
+        `and each holds the app's leading rows, a tie at the cut kept whole — ${staticFigures.map((f) => f.names.length).join(', ')} of ${drawn.join(', ')}`,
+      )
       const order = await page.$$eval('#root main h2', (nodes) => nodes.map((h) => h.textContent.replace(/\s+/g, ' ').trim()))
       const at = (prefix) => order.findIndex((h) => h.startsWith(prefix))
       truthy(
