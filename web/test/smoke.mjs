@@ -43,7 +43,8 @@ import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join, relative } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { CHASSIS_NOTE, OUT_NOTE, PRACTICE_SESSIONS, RACE_SOURCES } from '../src/queries/race.js'
+import { CHASSIS_NOTE, GRID_FLAG_HEADING, OUT_NOTE, PRACTICE_SESSIONS, RACE_SOURCES } from '../src/queries/race.js'
+import { GRID_FLAG_WIDTH } from '../src/charts/gridFlag.js'
 import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
@@ -2351,6 +2352,104 @@ try {
      * names the quickest driver too. There are thirteen such races and
      * verify.py pins the count.
      */
+  })
+
+  /*
+   * PD-30: grid to flag. One line per car that started, from its slot to its
+   * place in the result at the last lap it completed, drawn by both halves
+   * from charts/gridFlag.js. The counts come out of f1.db by a rule written
+   * here in SQL rather than read from the layout, so a layout that drew a
+   * DNQ, or dropped a pit-lane start, disagrees with it. The retirements
+   * stop short of the flag in the order the classification lists them -
+   * the staircase the figure exists to show - and the two halves draw the
+   * same cars in the same order with the same labels.
+   */
+  await section('/races/1976/9  (grid to flag: PD-30)', async () => {
+    const readFlag = ([root, heading]) => {
+      const main = document.querySelector(root)
+      const h2 = [...main.querySelectorAll('h2')].find((h) => h.textContent.trim().startsWith(heading))
+      const figure = h2?.closest('section')?.querySelector('figure.figure')
+      const svg = figure?.querySelector('svg.grid-flag[role="img"]')
+      if (!svg) return null
+      const cars = [...svg.querySelectorAll('g.flag-car')]
+      return {
+        label: svg.getAttribute('aria-label') ?? '',
+        note: figure.querySelector('figcaption span')?.textContent.trim() ?? '',
+        results: cars.map((g) => g.querySelector('.flag-result')?.textContent.trim()),
+        grids: cars.map((g) => g.querySelector('text')?.textContent.trim()),
+        out: cars.map((g) => g.classList.contains('flag-out')),
+        crosses: svg.querySelectorAll('g.flag-out path.flag-cross').length,
+        ends: cars.map((g) => Number(g.querySelector('line.flag-line')?.getAttribute('x2'))),
+        rows: figure.querySelectorAll('table tbody tr').length,
+        width: Number(svg.getAttribute('viewBox')?.split(' ')[2]),
+      }
+    }
+    const drawn = `race_id = ? AND (grid IS NOT NULL OR grid_text = 'PL') AND laps_completed IS NOT NULL
+                   AND COALESCE(position_text, '') NOT IN ('DNS', 'DNQ', 'DNPQ', 'DNP', 'EX')`
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    const both = async (route) => {
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const served = await plain.evaluate(readFlag, ['#prerendered', GRID_FLAG_HEADING])
+      await go(route)
+      await page.waitForSelector('#root main svg.grid-flag', { timeout: 5000 }).catch(() => null)
+      const app = await page.evaluate(readFlag, ['#root main', GRID_FLAG_HEADING])
+      return { served, app }
+    }
+
+    const raceId = one('SELECT id FROM races WHERE year = 1976 AND round = 9')
+    const cars = count(`SELECT COUNT(*) FROM race_entries WHERE ${drawn}`, raceId)
+    const out = count(`SELECT COUNT(*) FROM race_entries WHERE ${drawn} AND finish_position IS NULL`, raceId)
+    truthy(out > 0, `/races/1976/9 has ${out} cars the result does not classify, to read the staircase on`)
+    const { served, app } = await both('/races/1976/9')
+    for (const [half, got] of [['the app', app], ['the static page', served]]) {
+      truthy(got, `${half} draws the figure under “${GRID_FLAG_HEADING}”`)
+      if (!got) continue
+      is(got.results.length, cars, `${half}: one line per car that started and has its laps recorded`)
+      is(got.out.filter(Boolean).length, out, `${half}: a car the result does not classify is drawn dashed`)
+      is(got.crosses, out, `${half}: and ends on a cross`)
+      is(got.rows, cars, `${half}: the figure's table carries every car it draws`)
+      is(got.results[0], '1', `${half}: the winner ends at the top`)
+      const outEnds = got.ends.filter((_, i) => got.out[i])
+      const flag = Math.max(...got.ends)
+      truthy(Math.min(...outEnds) < flag, `${half}: a retirement stops short of the flag`)
+      truthy(
+        outEnds.every((x, i) => i === 0 || x <= outEnds[i - 1]),
+        `${half}: the retirements stop in the order the classification lists them — ${outEnds.join(', ')}`,
+      )
+      truthy(/not an overtake/.test(got.note), `${half}: the note says the lines claim nothing between start and end`)
+      is(/shared a car/.test(got.note), false, `${half}: and says nothing of a shared car where there is none`)
+      truthy(got.label.includes(`${cars} cars`), `${half}: the drawing is named for a screen reader — “${got.label}”`)
+    }
+    if (served && app) {
+      is(served.results.join(' '), app.results.join(' '), 'both halves end the cars in the same order')
+      is(served.grids.join(' '), app.grids.join(' '), 'from the same grid slots')
+      is(served.width, GRID_FLAG_WIDTH, `the static page draws at ${GRID_FLAG_WIDTH}, the width the app starts at`)
+    }
+
+    // A race no car failed to finish says nothing about dashed lines, and a
+    // shared drive whose second driver has no slot is counted, not guessed.
+    const clean = one('SELECT id FROM races WHERE year = 2024 AND round = 1')
+    const allIn = count(`SELECT COUNT(*) FROM race_entries WHERE ${drawn} AND finish_position IS NULL`, clean) === 0
+    const bahrain = await both('/races/2024/1')
+    for (const [half, got] of [['the app', bahrain.app], ['the static page', bahrain.served]]) {
+      if (allIn) is(/dashed/.test(got?.note ?? 'dashed'), false, `/races/2024/1, ${half}: no dashed line, so no sentence about one`)
+    }
+    const shared = one('SELECT id FROM races WHERE year = 1955 AND round = 1')
+    const undrawn = count(
+      `SELECT COUNT(*) FROM race_entries WHERE race_id = ? AND COALESCE(position_text, '') NOT IN ('DNS', 'DNQ', 'DNPQ', 'DNP', 'EX')
+          AND NOT ((grid IS NOT NULL OR grid_text = 'PL') AND laps_completed IS NOT NULL)`,
+      shared,
+    )
+    const argentina = await both('/races/1955/1')
+    for (const [half, got] of [['the app', argentina.app], ['the static page', argentina.served]]) {
+      truthy(/shared a car/.test(got?.note ?? ''), `/races/1955/1, ${half}: the shared car is explained`)
+      truthy(
+        (got?.note ?? '').includes(`${undrawn} ${undrawn === 1 ? 'entry' : 'entries'} with no recorded grid slot`),
+        `/races/1955/1, ${half}: and the ${undrawn} undrawn entries counted`,
+      )
+    }
+    await noJs.close()
   })
 
   await section('/races/1950/3  (a winner whose car is not a constructor)', async () => {

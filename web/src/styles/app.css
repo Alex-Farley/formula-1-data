@@ -2670,6 +2670,55 @@ figure.figure-lead > .legend {
   stroke-width: 1.5;
 }
 
+/* Grid to flag (PD-30): a car that finished in the first series colour,
+   one that was not classified in ink, dashed, ending on a cross - three
+   channels, so the colour is never the only one. The names are ink at the
+   axis size; the leader is the gridline's own faint rule, dotted. */
+.figure .flag-line {
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.figure .flag-start,
+.figure .flag-end {
+  fill: var(--series-1);
+}
+
+.figure .flag-out .flag-line {
+  stroke: var(--ink-soft);
+  stroke-dasharray: 4 3;
+}
+
+.figure .flag-out .flag-start {
+  fill: var(--ink-soft);
+}
+
+.figure .flag-cross {
+  stroke: var(--ink-soft);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.figure .flag-leader {
+  stroke: var(--grid);
+  stroke-dasharray: 1 3;
+}
+
+.figure .flag-name {
+  fill: var(--ink);
+  font-size: var(--size-2);
+}
+
+/* The static page's drawing is laid out at one width and cannot re-measure,
+   so it keeps that width where the column is wider - stretched to fill it,
+   its text would grow with it - and still shrinks to fit a narrower one. */
+.figure svg.grid-flag-static {
+  width: auto;
+  max-width: 100%;
+}
+
 /* The tooltip swatch beside a hollow dot's note: the same outline, at the
    size the filled swatch occupies, so the rows stay aligned. */
 .tooltip .row i.swatch-hollow {
