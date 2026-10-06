@@ -3112,7 +3112,52 @@ try {
       const tip = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
       truthy(tip, `at ${width}, and the page does not scroll sideways`)
     }
+    // Every dot of a career with long team names, at 400, keeps its box
+    // inside the figure: the middle of the plot is where a centred box of
+    // "British American Racing" ran out of it at either side.
+    await page.setViewportSize({ width: 400, height: 900 })
+    for (const id of ['button', 'verstappen']) {
+      await go(`/drivers/${id}`, one('SELECT full_name FROM drivers WHERE id = ?', id))
+      const svg = await chart().elementHandle()
+      await svg.scrollIntoViewIfNeeded()
+      const outside = []
+      const dots = await svg.$$('circle.mark-ring, circle.mark-hollow')
+      for (const dot of dots) {
+        const box = await dot.boundingBox()
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+        const at = await page
+          .$eval('#root main .tooltip', (tip) => {
+            const t = tip.getBoundingClientRect()
+            const f = tip.closest('figure.figure').getBoundingClientRect()
+            return { year: tip.querySelector('b').textContent, inside: t.top >= f.top && t.bottom <= f.bottom && t.left >= f.left && t.right <= f.right }
+          })
+          .catch(() => ({ year: null, inside: false }))
+        if (!at.inside) outside.push(at.year ?? 'a dot with no box')
+      }
+      await page.mouse.move(0, 0)
+      truthy(outside.length === 0, `at 400, each of ${id}'s ${dots.length} dots opens its box inside the figure${outside.length ? `; not ${outside.join(', ')}` : ''}`)
+    }
     await page.setViewportSize({ width: 1280, height: 900 })
+
+    // A tap on a touch screen opens the box too, and it stays when the
+    // finger lifts: a tap sends no pointermove, and a pointerleave follows it.
+    {
+      const touch = await browser.newContext({ viewport: { width: 400, height: 900 }, hasTouch: true, isMobile: true })
+      const phone = await touch.newPage()
+      await phone.goto(`${BASE}/drivers/hamilton`)
+      const plot = phone
+        .locator('#root main section', { has: phone.locator('h2', { hasText: CHART }) })
+        .locator('figure.figure svg[role="img"]')
+        .first()
+      await plot.locator('circle.mark-hollow').nth(1).waitFor({ timeout: 30000 })
+      await plot.scrollIntoViewIfNeeded()
+      const box = await plot.locator('circle.mark-hollow').nth(1).boundingBox()
+      await phone.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+      await phone.waitForTimeout(250)
+      const tapped = await phone.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+      is(tapped, '2008', "a tap on Hamilton's hollow 2008 dot opens its box, and it is still open after the finger lifts")
+      await touch.close()
+    }
 
     // The keyboard reaches the same points: focus the plot, and its first
     // season is read; the arrows step along; Escape lets go.

@@ -973,9 +973,9 @@ describe('the queries a page and the prerenderer share', () => {
     // The dropped-scores sentence only where the rule dropped results (CD-50).
     assert.match(progressionNote(false, 'Best 6 of 10'), /^The three drivers who finished highest, .*best few results counted/)
     assert.match(progressionNote(true, 'Best 6 of 10'), /^The three drivers placed highest so far, /)
-    assert.equal(progressionNote(false, 'Every result counts'), 'Points after each round for the three drivers who finished highest.')
-    assert.equal(progressionNote(true, 'Every result counts'), 'Points after each round for the three drivers placed highest so far.')
-    assert.equal(progressionNote(false, null), 'Points after each round for the three drivers who finished highest.')
+    assert.equal(progressionNote(false, 'Every result counts'), 'The three drivers who finished highest, tracked from the opening round.')
+    assert.equal(progressionNote(true, 'Every result counts'), 'The three drivers placed highest so far, tracked from the opening round.')
+    assert.equal(progressionNote(false, null), 'The three drivers who finished highest, tracked from the opening round.')
     assert.equal(standingsHeading("Drivers'", true, 13), "Drivers' standings after round 13")
     assert.equal(standingsHeading("Drivers'", true, null), "Drivers' standings")
     assert.equal(standingsHeading("Constructors'", false, 23), "Final constructors' standings")

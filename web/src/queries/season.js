@@ -407,9 +407,9 @@ export const titleHeading = (live) => (live ? 'The title race' : 'How the title 
  * column; a season with no rule on record makes no claim either way.
  */
 export const progressionNote = (live, dropped) => {
-  const who = live ? 'the three drivers placed highest so far' : 'the three drivers who finished highest'
-  if (missing(dropped) || dropped === EVERY_RESULT_COUNTS) return `Points after each round for ${who}.`
-  return `${who.charAt(0).toUpperCase()}${who.slice(1)}, tracked from the opening round. Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend.`
+  const who = `${live ? 'The three drivers placed highest so far' : 'The three drivers who finished highest'}, tracked from the opening round.`
+  if (missing(dropped) || dropped === EVERY_RESULT_COUNTS) return who
+  return `${who} Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend.`
 }
 
 /**

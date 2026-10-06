@@ -2924,9 +2924,9 @@ figure.figure-lead > .legend {
   padding: var(--space-3) var(--space-5);
   font-size: var(--size-3);
   white-space: nowrap;
-  /* Centred above the point by default. A chart may turn it inward near
-     either end, or drop it below a point too near the top of a figure, which
-     clips what overflows it (DotPlot, CR-74). Either way it is clear of the
+  /* Centred above the point by default. A chart may place it itself, held
+     inside the plot, and drop it below a point too near the top of a figure,
+     which clips what overflows it (DotPlot, CR-74). Either way it is clear of the
      pointer and takes no pointer events, so it cannot take the hover from
      the mark it describes. */
   transform: translate(var(--tooltip-shift, -50%), var(--tooltip-rise, calc(-100% - 10px)));

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { linear, ticks } from './scales.js'
 import { ownColour } from './own.js'
 import { seriesColour } from './palette.js'
@@ -43,7 +43,10 @@ const M = { top: 16, right: 14, bottom: 30, left: 40 }
  * nearest the pointer, within HIT px, so a point is held for as long as the
  * pointer stays near it whatever is drawn there. The box takes no pointer
  * events either (.tooltip), and it sits above the point, clear of the
- * pointer, turned inward at either end so it does not run off the plot.
+ * pointer - below it near the top - and is held inside the plot at either
+ * side, because figure.figure clips what overflows it. A tap reads the point
+ * on pointerdown, since a tap sends no pointermove, and its box stays when
+ * the finger lifts.
  *
  * The plot is one tab stop: on keyboard focus it reads the first point, the
  * arrow keys step along, Home and End jump, and Escape lets go. What is read
@@ -71,6 +74,15 @@ export default function DotPlot({
   // An index into `plotted`, not the point: the caller builds `data` afresh
   // on every render, and an object held from the last one would match none.
   const [active, setActive] = useState(null)
+  // The box's own width, read after it renders and before it paints, so it
+  // can be held inside the plot whatever its text: a long team name at 400 px
+  // ran it out of a figure that clips what overflows it.
+  const tip = useRef(null)
+  const [tipWidth, setTipWidth] = useState(0)
+  useLayoutEffect(() => {
+    const measured = tip.current ? tip.current.offsetWidth : 0
+    if (measured !== tipWidth) setTipWidth(measured)
+  })
   const own = ownColour(colour)
   const plotted = data.filter((d) => typeof d.y === 'number' && Number.isFinite(d.y))
   if (plotted.length === 0) return null
@@ -90,7 +102,8 @@ export default function DotPlot({
   const paintOf = (d) => ownOf(d).paint ?? seriesColour(0)
 
   // The point nearest the pointer, in the plot's own units, or none past HIT.
-  const onPointerMove = (event) => {
+  // A tap sends no pointermove, so a pointerdown reads the point as well.
+  const onPointer = (event) => {
     const box = event.currentTarget.getBoundingClientRect()
     if (!box.width || !box.height) return
     const px = ((event.clientX - box.left) / box.width) * width
@@ -122,11 +135,11 @@ export default function DotPlot({
     if (active === null && event.currentTarget.matches(':focus-visible')) setActive(0)
   }
 
-  // Which way the box opens: from the point's own side near either end, and
-  // below a point too near the top for it to fit above - figure.figure clips
-  // what overflows it, which cut the box off every title year's dot.
-  const side = hover ? x(hover.x) / width : 0.5
-  const shift = side < 0.25 ? '0%' : side > 0.75 ? '-100%' : '-50%'
+  // Where the box opens: centred over the point, but held inside the plot
+  // at either side, and below a point too near the top for it to fit above -
+  // figure.figure clips what overflows it, which cut the box off every title
+  // year's dot.
+  const left = hover ? Math.max(0, Math.min(width - tipWidth, x(hover.x) - tipWidth / 2)) : 0
   const rise = hover && y(hover.y) < ROOM ? `${GAP}px` : `calc(-100% - ${GAP}px)`
   const said = hover ? `${hover.label ?? formatX(hover.x)}: ${hover.note ?? format(hover.y)}` : ''
 
@@ -138,8 +151,11 @@ export default function DotPlot({
         aria-label={label}
         // biome-ignore lint/a11y/noNoninteractiveTabindex: one tab stop that reaches every point by the arrow keys, a keyboard's way to what hover shows (CR-74)
         tabIndex={0}
-        onPointerMove={onPointerMove}
-        onPointerLeave={() => setActive(null)}
+        onPointerMove={onPointer}
+        onPointerDown={onPointer}
+        // A finger lifting is a pointerleave; the box it opened stays until
+        // the next tap, or until focus leaves the plot.
+        onPointerLeave={(event) => event.pointerType !== 'touch' && setActive(null)}
         onKeyDown={onKeyDown}
         onFocus={onFocus}
         onBlur={() => setActive(null)}
@@ -210,7 +226,8 @@ export default function DotPlot({
       {hover && (
         <div
           className="tooltip"
-          style={{ left: `${(x(hover.x) / width) * 100}%`, top: y(hover.y), '--tooltip-shift': shift, '--tooltip-rise': rise }}
+          ref={tip}
+          style={{ left: `${left}px`, top: y(hover.y), '--tooltip-shift': '0px', '--tooltip-rise': rise }}
           aria-hidden="true"
         >
           <b>{hover.label ?? formatX(hover.x)}</b>
