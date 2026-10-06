@@ -4552,6 +4552,25 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
         cur.execute("UPDATE races SET date_iso=? WHERE id=?", (h["date"], rid))
         iso += cur.rowcount
 
+    # --- whether F1DB's calendar lists the round (SD-37)
+    #
+    # The site has to say when a race's result is late, at the reader's date
+    # rather than a deploy's, and the rule decided on #786 has a half f1.db
+    # did not carry: within a season F1DB's calendar holds, a round F1DB no
+    # longer lists on its day is taken as cancelled or moved and is never
+    # late. date_iso alone cannot say that - it is F1DB's day where F1DB
+    # holds the round and the typed one otherwise, and nothing said which.
+    # Read off the final date_iso, so it is the same test
+    # .github/scripts/refresh_health.py makes against this database and the
+    # harvest; schema.sql says what each value means.
+    calendar = {(int(h["year"]), h["date"]) for h in HV.load_race_dates()}
+    held_seasons = {year for year, _ in calendar}
+    for rid, year, day in cur.execute(
+            "SELECT id, year, date_iso FROM races").fetchall():
+        listed = int((year, day) in calendar) if year in held_seasons else None
+        cur.execute("UPDATE races SET on_f1db_calendar=? WHERE id=?",
+                    (listed, rid))
+
     # --- the fastest lap, where the pole harvest has none
     #
     # Mirrors how grid 1 is handled above, and for the same reason.

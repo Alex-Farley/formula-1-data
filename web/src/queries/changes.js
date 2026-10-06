@@ -31,6 +31,22 @@ export const SHAPE = `
     (SELECT COUNT(*) FROM v_open_gaps)                              AS open_gaps
 `
 
+/**
+ * Every round this database holds no result for, oldest first (SD-37).
+ *
+ * Which of them are late is the reader's date's to decide, so it is
+ * lib/refresh.js's lateRaces and not a WHERE clause here. "No result" is no
+ * race_entries row, as refresh_health.py asks it, and not `status`:
+ * data/current.py can author a round `completed` by hand, and that is not a
+ * result.
+ */
+export const UNRESULTED = `
+  SELECT r.year, r.round, r.name_used, r.date_iso, r.on_f1db_calendar
+    FROM races r
+   WHERE NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
+   ORDER BY r.date_iso, r.year, r.round
+`
+
 /** The most recent race this database holds the classification of. */
 export const LATEST = `
   SELECT r.year, r.round, r.name_used, r.date_iso

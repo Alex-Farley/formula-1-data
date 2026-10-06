@@ -29,6 +29,12 @@ THE RULE (decided 2026-10-05, on #786)
     on its date in `races`. Nothing typed in data/ can mark a round
     cancelled and so switch this check off.
 
+    build.py carries that half into f1.db as `races.on_f1db_calendar`, and
+    verify.py holds it to the harvest, so that lapledger.org says a race is
+    late by this same rule and these same GRACE_DAYS at the reader's own
+    date (SD-37, web/src/lib/refresh.js). A change to the rule is a change
+    to both.
+
     Separately, and lighter: from 1 February a season with no calendar at all
     in `races` is flagged, since by then the season's calendar has long been
     announced and its first race is weeks away.

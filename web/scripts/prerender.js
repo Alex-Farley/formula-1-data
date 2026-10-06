@@ -144,8 +144,8 @@ import {
   feedEntries,
   feedRights,
 } from '../src/lib/changes.js'
-import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED } from '../src/lib/refresh.js'
-import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
+import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRaces } from '../src/lib/refresh.js'
+import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE, UNRESULTED } from '../src/queries/changes.js'
 import { SHAPE as DATA_SHAPE, fileStrip, trustStrip } from '../src/queries/data.js'
 import { colourForEntry, markStyleAttr, winnerColour } from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
@@ -2257,7 +2257,7 @@ const page = ({
 
   const races = all(
     `SELECT r.id, r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to, r.status, r.sprint, r.note,
-            r.gp_id, g.name AS gp_full,
+            r.on_f1db_calendar, r.gp_id, g.name AS gp_full,
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
@@ -2349,7 +2349,9 @@ const page = ({
     const sessions = all(RACE_SESSIONS, r.year, r.round)
     const stage = raceStage(r, sessions, STATIC_NOW)
     const day = eventDay(sessions, r.date_iso)
-    const pending = scheduled ? scheduledNote(r, stage) : null
+    // SD-37: late at the build's own date, as /changes reads it here.
+    const late = entryRows.length === 0 ? lateDays(r, BUILT) : null
+    const pending = scheduled ? scheduledNote(r, stage, late) : null
     const headline = NAMES.race(r.year, r.name_used).headline
     // CD-03: the standfirst the page opens on and the description a search
     // result shows are one expression, queries/race.js's, so they cannot come
@@ -3969,6 +3971,9 @@ page({
 {
   const figures = one(CHANGES_SHAPE)
   const latest = one(CHANGES_LATEST)
+  // SD-37: late at the build's own date, the static half's clock (STATIC_NOW
+  // is this day's midnight); the app reads the reader's date instead.
+  const late = lateNotice(lateRaces(all(UNRESULTED), BUILT))
   const now = currentBuild({ version: META.version, built: META.built, figures })
   // The feed's entries and the table's rows are deliberately not the same
   // list. The table is the release history - every tagged release, including
@@ -3990,6 +3995,7 @@ page({
       <h1>${esc(CHANGES_TITLE)}</h1>
       <p class="lede">${esc(CHANGES_LEDE)}</p>
       <h2>${esc(CURRENT_HEADING)}</h2>
+      ${late ? noteBox(late.head, late.body) : ''}
       ${fields([
         ['Version', `v${esc(META.version)}`],
         ['Built', esc(META.built)],

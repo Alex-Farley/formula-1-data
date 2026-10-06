@@ -70,7 +70,8 @@ import {
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
-import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
+import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
+import { UNRESULTED } from '../src/queries/changes.js'
 import { EXAMPLES } from '../src/lib/questions.js'
 import {
   CONSTRUCTOR_WINS,
@@ -4315,6 +4316,26 @@ try {
       (await (await fetch(`${BASE}/changes`)).text())
         .includes(`<dt>${CHECKED_LABEL}</dt><dd>${LAST_CHECKED}</dd>`),
       'and the prerendered page says the same, in its own markup',
+    )
+
+    // SD-37: a late result is said here, at the reader's date in the app and
+    // at the build's in the static page - one rule and one set of words, so
+    // each half is held to what lib/refresh.js computes for its own date.
+    // On most days neither says anything, and that is asserted too.
+    const unresulted = db.prepare(UNRESULTED).all()
+    const appLate = lateNotice(lateRaces(unresulted, readerDay()))
+    is(
+      shown.includes('Results are late.'),
+      appLate !== null,
+      appLate ? 'the app says a result is late at the reader\'s date' : 'the app says no result is late, and none is',
+    )
+    if (appLate) truthy(shown.includes(appLate.body), 'and names the rounds in the words lib/refresh.js gives')
+    const staticLate = lateNotice(lateRaces(unresulted, meta('built')))
+    const changesHtml = unescaped(await (await fetch(`${BASE}/changes`)).text())
+    is(
+      changesHtml.includes('Results are late.'),
+      staticLate !== null,
+      staticLate ? 'and the static page says so at the build\'s date' : 'and neither does the static page, at the build\'s date',
     )
 
     const run = count(

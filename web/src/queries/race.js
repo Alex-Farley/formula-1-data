@@ -16,6 +16,7 @@
 import { classificationOrder, finished, missing, number, points, raceDates, result, text } from '../lib/format.js'
 import { linked } from '../lib/tiles.js'
 import { SHARED } from '../lib/site.js'
+import { LATE_NOTE } from '../lib/refresh.js'
 
 export const RACE = `
   SELECT r.*, c.name AS circuit, c.locality, c.country,
@@ -598,8 +599,19 @@ export const raceLede = (race, winners, stage = 'awaited') =>
  * `stage` is raceStage() in queries/sessions.js. Only the headline changes
  * with it: what the reader does next — wait for the classification — is the
  * same in all three states, and the body says so once.
+ *
+ * `late` is lib/refresh.js's lateDays() for the round, or null (SD-37). A
+ * late result is the one state where waiting is not the whole answer - the
+ * reader is owed whether anything is wrong - so it replaces the body too,
+ * with the words /changes uses.
  */
-export const scheduledNote = (race, stage = 'awaited') => {
+export const scheduledNote = (race, stage = 'awaited', late = null) => {
+  if (late !== null) {
+    return {
+      head: 'This race’s result is late.',
+      body: `It was run on ${race.date_iso}, ${late} days ago. ${LATE_NOTE}`,
+    }
+  }
   if (stage === 'awaited') {
     return {
       head: 'This race has not been run.',
