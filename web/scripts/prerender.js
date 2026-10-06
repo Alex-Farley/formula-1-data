@@ -235,8 +235,11 @@ import {
   GRID_FLAG_HEADING,
   GRID_FLAG_TITLE,
   PITS,
-  PITS_FOOTER,
-  PIT_COLUMNS,
+  PITS_FROM,
+  PITS_HEADING,
+  PIT_ORDER_COLUMNS,
+  PIT_ORDER_HEADING,
+  PIT_ORDER_NOTE,
   PRACTICE,
   PRACTICE_COLUMNS,
   PRACTICE_ONLY_MARK,
@@ -254,8 +257,13 @@ import {
   SPRINT as SPRINT_RESULTS,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
+  STINTS_TITLE,
+  STINT_COLUMNS,
   carName,
   classificationFooter,
+  stintsEmpty,
+  stintsLabel,
+  stintsNote,
   gridFlagLabel,
   gridFlagNote,
   inClassificationOrder,
@@ -496,6 +504,16 @@ import {
 // relational layer at all; both now come from one place.
 import { ONWARD, TRAIL, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
+import {
+  STINT_HEADS,
+  lateStops,
+  pitPairs,
+  stintLayout,
+  stintRows,
+  stintTableRows,
+  stintsShown,
+  unbarredOf,
+} from '../src/charts/stints.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -939,6 +957,64 @@ const gridFlagSvg = (layout, label) => {
         `${t('axis-text flag-result', layout.labelX, car.y2, car.result, mid)}${t('flag-name', layout.nameX, car.y2, car.name, mid)}</g>`,
     )
     .join('')}</svg></div>`
+}
+
+/*
+ * Stint windows (PD-56), drawn: charts/Stints.jsx's elements and classes,
+ * from the layout charts/stints.js gives both renderers, at the width the
+ * app draws at before it has measured - grid to flag's arrangement above,
+ * and `.grid-flag-static`'s sizing (app.css) for the same reason.
+ */
+const stintsSvg = (layout, label) => {
+  if (!layout) return ''
+  const t = (cls, x, y, value, extra = '') =>
+    `<text class="${cls}" x="${x}" y="${y}"${extra}>${esc(value)}</text>`
+  const mid = ' dominant-baseline="middle"'
+  return `<div class="plot-holder"><svg class="stints grid-flag-static" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${esc(label)}">${layout.ticks
+    .map(
+      (tick) =>
+        `<g><line class="grid-line" x1="${tick.x}" x2="${tick.x}" y1="${layout.top}" y2="${layout.bottom}"/>${t(
+          'axis-text',
+          tick.x,
+          layout.tickY,
+          tick.value,
+          ' text-anchor="middle"',
+        )}</g>`,
+    )
+    .join('')}${t('axis-text', (layout.start + layout.finish) / 2, layout.axisY, STINT_HEADS.axis, ' text-anchor="middle"')}${layout.cars
+    .map(
+      (car) =>
+        `<g class="${car.out ? 'stint-car stint-out' : 'stint-car'}">` +
+        t('axis-text stint-result', layout.resultX, car.y, car.result, ` text-anchor="end"${mid}`) +
+        t('stint-name', layout.nameX, car.y, car.name, mid) +
+        car.stints.map((s) => `<rect class="stint" x="${s.x}" y="${car.barY}" width="${s.width}" height="${layout.bar}"/>`).join('') +
+        car.stops
+          .map((x) => `<line class="stint-stop" x1="${x}" x2="${x}" y1="${car.barY - 3}" y2="${car.barY + layout.bar + 3}"/>`)
+          .join('') +
+        (car.cross ? `<path class="stint-cross" d="${car.cross}"/>` : '') +
+        '</g>',
+    )
+    .join('')}</svg></div>`
+}
+
+/*
+ * The pit-stop section (PD-56), as Race.jsx renders it: the stint figure with
+ * its note and its table open beneath it, then who stopped first between
+ * neighbours under a heading of its own, which names its table; or, for a
+ * race run with no figure, the sentence saying why.
+ */
+const pitSection = (race, entryRows, pits, from) => {
+  const rows = stintRows(entryRows, pits)
+  if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, from))}</p>`
+  const pairs = pitPairs(entryRows, pits)
+  return `<h2>${esc(PITS_HEADING)}</h2><figure class="figure"><figcaption><b>${esc(STINTS_TITLE)}</b><span>${esc(
+    stintsNote(rows, lateStops(rows), unbarredOf(entryRows, pits)),
+  )}</span></figcaption><div class="figure-body">${stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows))}</div>${fromColumns(
+    STINT_COLUMNS,
+    stintTableRows(entryRows, pits),
+  )}</figure>${
+    pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs)}${note(PIT_ORDER_NOTE)}` : ''
+  }`
 }
 
 // The circuit outlines (AF-03), as components/Outline.jsx draws them: F1DB's
@@ -2196,6 +2272,9 @@ const page = ({
   // the grid in half.
   const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
 
+  // The first season with a stop recorded, which every earlier race's
+  // pit-stop section names (PD-56).
+  const pitsFrom = one(PITS_FROM)?.year
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
     // The rows as the query returns them, which is the order the strip lists
@@ -2371,11 +2450,9 @@ const page = ({
             : ''
         }
         ${
-          pits.length
-            ? `<h2>Pit stops</h2>${fromColumns(PIT_COLUMNS, pits, {
-                driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name ?? row.driver_key)),
-              })}${note(PITS_FOOTER)}`
-            : ''
+          // PD-56: the stints, the pit order and their tables, or why there
+          // are none, on every race run with a classification.
+          !scheduled && entries.length ? pitSection(r, entryRows, pits, pitsFrom) : ''
         }
         ${
           // PD-57: the session sheets closed, after the result and the

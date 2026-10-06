@@ -95,6 +95,16 @@ export const PITS = `
    ORDER BY p.lap_number, p.stop_number, p.id
 `
 
+/**
+ * The first season any stop is recorded for (1994 today), which the stint
+ * figure's empty state names on the races before it. Read rather than
+ * written, so that a source that reached further back would move the
+ * sentence with it.
+ */
+export const PITS_FROM = `
+  SELECT MIN(r.year) AS year FROM pit_stops p JOIN races r ON r.id = p.race_id
+`
+
 export const NEIGHBOURS = `
   SELECT
     (SELECT year || '/' || round FROM races
@@ -423,21 +433,97 @@ export const gridFlagLabel = (rows) => {
   return `Grid to flag: ${rows.length} drivers from their grid slots to the result, ${rows.length - out} classified and ${out} not.`
 }
 
-export const PIT_COLUMNS = [
-  { key: 'lap_number', label: 'Lap', align: 'num' },
-  { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_key) },
-  { key: 'stop_number', rowHeader: true, label: 'Stop', align: 'num' },
-  { key: 'stationary_seconds', label: 'Stationary (s)', align: 'num' },
-  { key: 'pit_lane_seconds', label: 'Pit lane (s)', align: 'num' },
-  // Every stop on a page usually comes from the one source, and the column
-  // says so twenty times (VD-29). Not the two durations above it: they are
-  // NULL because F1DB publishes no duration, which PITS_FOOTER and schema.sql
-  // explain and "not established" would contradict.
-  { key: 'source', label: 'Source', collapse: true },
+/*
+ * Pit stops (PD-56): the stint figure charts/stints.js lays out, the pit
+ * order between neighbours under it, and the words, tables and empty states
+ * of both, here so the two renderers print the same ones.
+ *
+ * It replaced a table of stops - lap, driver, stop number and two duration
+ * columns that were empty on every row, F1DB publishing no duration. The
+ * figure's table carries every lap that table did, driver by driver, and
+ * the note says in words what the empty columns said by being empty.
+ */
+export const PITS_HEADING = 'Pit stops'
+export const STINTS_TITLE = 'Each driver’s race, split where they stopped'
+
+export const STINT_COLUMNS = [
+  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
+  { key: 'position_text', label: 'Result', align: 'num', text: position, glossary: 'results' },
+  { key: 'laps_completed', label: 'Laps', align: 'num' },
+  { key: 'stops', label: 'Stops recorded', align: 'num' },
+  // A driver with no stop recorded is not always a driver who did not stop:
+  // F1DB's record has gaps (/races/1995/7 holds stops for 5 of its 16
+  // finishers), so the cell says what the record holds and no more.
+  { key: 'stop_laps', label: 'Stopped on lap', text: (value, row) => (row.stops === 0 ? 'None recorded' : text(value)) },
 ]
 
-export const PITS_FOOTER =
-  'Stationary time is the car standing still; pit-lane time is the whole detour. Where two sources record the same stop, both are kept so you can compare them.'
+/**
+ * What the bars mean and what they cannot, and - only where the page has
+ * one - a car out, a stop on the lap a driver went out, and the entries in
+ * the table and not drawn. The sentence on what the record holds is the one
+ * that must never be lost: the lap of each stop, and no duration, tyre or
+ * lap time, so nothing here measures what a stop gained.
+ */
+export const stintsNote = (rows, late, unbarred) =>
+  [
+    'Each bar is one driver’s race, from the start to the last lap they completed, broken with a tick at the end of each lap they stopped on. The drivers are in finishing order.',
+    rows.some((r) => r.stops.length === 0)
+      ? 'A bar with no break is a driver with no stop recorded, which is not always a driver who did not stop: F1DB’s record of stops has gaps.'
+      : '',
+    rows.some((r) => r.out) ? 'A bar ending in a cross is a driver the result does not classify, so a retirement stops where it went out.' : '',
+    late.length
+      ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on the lap they went out on, which ${
+          late.length === 1 ? 'is' : 'are'
+        } marked at the end of the bar.`
+      : '',
+    'The record holds the lap of each stop and nothing else: not how long it took, the tyres fitted or a lap time either side of it. So the bars show when each driver stopped, not what a stop gained or lost.',
+    unbarred.length
+      ? `${number(unbarred.length)} ${unbarred.length === 1 ? 'driver' : 'drivers'} with stops recorded and no lap count ${
+          unbarred.length === 1 ? 'is' : 'are'
+        } in the table and not drawn.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+/** The figure's name for a screen reader, which hears the table and the note with it. */
+export const stintsLabel = (rows) => {
+  const stops = rows.reduce((sum, r) => sum + r.stops.length, 0)
+  return `Pit stops: ${rows.length} drivers’ races in finishing order, split at ${number(stops)} recorded ${stops === 1 ? 'stop' : 'stops'}.`
+}
+
+/**
+ * Where a race run has no figure, the section says why rather than
+ * vanishing: before the first season any stop is recorded, that no source
+ * here holds them; after it, that this race has none recorded.
+ */
+export const stintsEmpty = (race, from) =>
+  from && race.year < from
+    ? `Pit stops are recorded from ${from}. F1DB, the source of every stop here, holds none before then, so this race has no stints to draw.`
+    : 'F1DB records no pit stop for this race, so there are no stints to draw.'
+
+/* Who stopped first between neighbours: charts/stints.js's pitPairs. */
+export const PIT_ORDER_HEADING = 'Who stopped first, between neighbours'
+
+const pairName = (entry) => text(entry.driver ?? entry.driver_id)
+const both = (pair, read) => `${read(pair.ahead)} · ${read(pair.behind)}`
+
+export const PIT_ORDER_COLUMNS = [
+  { key: 'pair', rowHeader: true, label: 'Drivers, in grid order', text: (_, row) => both(row, pairName) },
+  { key: 'grid', label: 'Grid', align: 'num', text: (_, row) => both(row, (e) => text(e.grid)) },
+  { key: 'result', label: 'Result', align: 'num', text: (_, row) => both(row, (e) => result(e)) },
+  {
+    key: 'laps',
+    label: 'First recorded stop, lap',
+    align: 'num',
+    text: (_, row) => `${text(row.firstAhead)} · ${text(row.firstBehind)}`,
+  },
+  { key: 'first', label: 'Stopped first', text: (_, row) => (row.first ? pairName(row.first) : 'Same lap') },
+  { key: 'swapped', label: 'Grid to flag', text: (_, row) => (row.swapped ? 'Swapped places' : 'Kept their order') },
+]
+
+export const PIT_ORDER_NOTE =
+  'Pairs of classified drivers who started or finished next to each other, each with a stop recorded; the two names in a row are in grid order. Both are read from the stops F1DB records, which has gaps. It is the order things happened in and no more: with no stop duration and no lap times, the record cannot say whether stopping first won or lost a place.'
 
 /**
  * What happened, in one sentence, counted from the race records rather than

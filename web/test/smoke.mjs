@@ -43,8 +43,9 @@ import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join, relative } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { CHASSIS_NOTE, GRID_FLAG_HEADING, OUT_NOTE, PRACTICE_SESSIONS, RACE_SOURCES } from '../src/queries/race.js'
+import { CHASSIS_NOTE, GRID_FLAG_HEADING, OUT_NOTE, PITS_HEADING, PIT_ORDER_HEADING, PRACTICE_SESSIONS, RACE_SOURCES } from '../src/queries/race.js'
 import { GRID_FLAG_WIDTH } from '../src/charts/gridFlag.js'
+import { STINTS_WIDTH } from '../src/charts/stints.js'
 import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
@@ -2472,6 +2473,165 @@ try {
       })
       is(over.join(' · '), '', `${route} at ${width} px: every label ends inside the drawing`)
     }
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
+   * PD-56: stint windows. One bar per driver who started with a lap count,
+   * split at each recorded stop, in finishing order, drawn by both halves
+   * from charts/stints.js; then who stopped first between neighbours. The
+   * counts come out of f1.db by rules written here in SQL, so a layout that
+   * drew a DNS, dropped a stop or lost the disqualified car's stops from the
+   * table disagrees with them. 2024/21 has retirements and a car
+   * disqualified with three stops and no lap count; 1994/5 a stop on the
+   * lap a car went out on. Nothing on the section may talk of an undercut:
+   * the record holds the lap of each stop and no timing.
+   */
+  await section('/races/2024/21  (stint windows: PD-56)', async () => {
+    const readStints = ([root, heading, orderHeading]) => {
+      const main = document.querySelector(root)
+      const h2 = [...main.querySelectorAll('h2')].find((h) => h.textContent.trim().startsWith(heading))
+      const scope = h2?.closest('section')
+      if (!scope) return null
+      const figure = scope.querySelector('figure.figure')
+      const svg = figure?.querySelector('svg.stints[role="img"]')
+      const h3 = [...scope.querySelectorAll('h3')].find((h) => h.textContent.trim() === orderHeading)
+      const order = h3 ? [...scope.querySelectorAll('table')].find((t) => !t.closest('figure')) : null
+      const cars = svg ? [...svg.querySelectorAll('g.stint-car')] : []
+      return {
+        text: scope.textContent.replace(/\s+/g, ' '),
+        drawn: Boolean(svg),
+        label: svg?.getAttribute('aria-label') ?? '',
+        cars: cars.length,
+        results: cars.map((g) => g.querySelector('.stint-result')?.textContent.trim()),
+        out: cars.filter((g) => g.classList.contains('stint-out')).length,
+        crosses: svg ? svg.querySelectorAll('g.stint-out path.stint-cross').length : 0,
+        stops: svg ? svg.querySelectorAll('line.stint-stop').length : 0,
+        beyond: cars.filter((g) => {
+          const ends = [...g.querySelectorAll('rect.stint')].map((r) => Number(r.getAttribute('x')) + Number(r.getAttribute('width')))
+          const last = ends.length ? Math.max(...ends) : -Infinity
+          return [...g.querySelectorAll('line.stint-stop')].some((l) => Number(l.getAttribute('x1')) > last + 0.5 && ends.length)
+        }).length,
+        rows: figure ? figure.querySelectorAll('table tbody tr').length : 0,
+        tableRows: figure ? [...figure.querySelectorAll('table tbody tr')].map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()) : [],
+        heads: [...scope.querySelectorAll('table thead')].map((t) => t.textContent.replace(/[▲▼]/g, '').replace(/\s+/g, ' ').trim()),
+        orderRows: order ? [...order.querySelectorAll('tbody tr')].map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()) : [],
+        orderCaption: order?.querySelector('caption')?.textContent.trim() ?? '',
+        width: svg ? Number(svg.getAttribute('viewBox')?.split(' ')[2]) : 0,
+      }
+    }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    const both = async (route) => {
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const served = await plain.evaluate(readStints, ['#prerendered', PITS_HEADING, PIT_ORDER_HEADING])
+      await go(route)
+      await page.waitForSelector('#root main h2', { timeout: 5000 }).catch(() => null)
+      await page.waitForSelector('#root main svg.stints', { timeout: 3000 }).catch(() => null)
+      const app = await page.evaluate(readStints, ['#root main', PITS_HEADING, PIT_ORDER_HEADING])
+      return { served, app }
+    }
+    const started = `COALESCE(e.position_text, '') NOT IN ('DNS', 'DNQ', 'DNPQ', 'DNP', 'EX')`
+
+    const raceId = one('SELECT id FROM races WHERE year = 2024 AND round = 21')
+    const cars = count(`SELECT COUNT(*) FROM race_entries e WHERE e.race_id = ? AND e.laps_completed IS NOT NULL AND ${started}`, raceId)
+    const out = count(
+      `SELECT COUNT(*) FROM race_entries e WHERE e.race_id = ? AND e.laps_completed IS NOT NULL AND e.finish_position IS NULL AND ${started}`,
+      raceId,
+    )
+    const stops = count(
+      `SELECT COUNT(*) FROM pit_stops p JOIN race_entries e ON e.race_id = p.race_id AND e.driver_id = p.driver_id
+        WHERE p.race_id = ? AND e.laps_completed IS NOT NULL AND ${started}`,
+      raceId,
+    )
+    const unbarred = count(
+      `SELECT COUNT(*) FROM race_entries e WHERE e.race_id = ? AND e.laps_completed IS NULL AND ${started}
+          AND EXISTS (SELECT 1 FROM pit_stops p WHERE p.race_id = e.race_id AND p.driver_id = e.driver_id)`,
+      raceId,
+    )
+    const pairs = count(
+      `WITH f AS (
+         SELECT e.id, e.grid, e.finish_position FROM race_entries e
+          WHERE e.race_id = ?1 AND e.finish_position IS NOT NULL AND e.grid IS NOT NULL
+            AND EXISTS (SELECT 1 FROM pit_stops p WHERE p.race_id = e.race_id AND p.driver_id = e.driver_id))
+       SELECT COUNT(*) FROM f a JOIN f b ON a.grid < b.grid
+        WHERE b.grid - a.grid = 1 OR ABS(a.finish_position - b.finish_position) = 1`,
+      raceId,
+    )
+    truthy(out > 0 && unbarred > 0, `/races/2024/21 has ${out} cars not classified and ${unbarred} with stops and no lap count`)
+    const { served, app } = await both('/races/2024/21')
+    for (const [half, got] of [['the app', app], ['the static page', served]]) {
+      truthy(got?.drawn, `${half} draws the stints under “${PITS_HEADING}”`)
+      if (!got?.drawn) continue
+      is(got.cars, cars, `${half}: one bar per driver who started and has their laps recorded`)
+      is(got.stops, stops, `${half}: a tick for every stop those drivers made`)
+      is(got.out, out, `${half}: a car the result does not classify is marked`)
+      is(got.crosses, out, `${half}: and ends on a cross`)
+      is(got.results[0], '1', `${half}: the winner's bar is at the top`)
+      is(got.rows, cars + unbarred, `${half}: the figure's table carries every bar, and the ${unbarred} driver with stops and no bar`)
+      truthy(/in the table and not drawn/.test(got.text), `${half}: and the note says so`)
+      truthy(/not what a stop gained or lost/.test(got.text), `${half}: the note says the bars measure nothing`)
+      is(/undercut|overcut/i.test(got.text), false, `${half}: and nothing on the section talks of an undercut`)
+      is(got.orderRows.length, pairs, `${half}: one pit-order row per pair of classified neighbours, on the grid or at the flag`)
+      is(got.orderCaption, PIT_ORDER_HEADING, `${half}: the pit-order table is named for its own heading, not the figure's`)
+      truthy(got.label.includes(`${cars} drivers`), `${half}: the drawing is named for a screen reader — “${got.label}”`)
+    }
+    if (served?.drawn && app?.drawn) {
+      is(served.results.join(' '), app.results.join(' '), 'both halves draw the bars in the same order')
+      is(served.orderRows.join(' / '), app.orderRows.join(' / '), 'and print the same pit order, row for row')
+      is(served.tableRows.join(' / '), app.tableRows.join(' / '), 'and the same figure table, row for row')
+      is(served.heads.join(' / '), app.heads.join(' / '), 'under the same headers')
+      is(served.width, STINTS_WIDTH, `the static page draws at ${STINTS_WIDTH}, the width the app starts at`)
+    }
+
+    // A driver with no stop recorded is not said not to have stopped: F1DB
+    // holds stops for a third of the finishers at /races/1995/7, the winner
+    // not among them.
+    const france = await both('/races/1995/7')
+    for (const [half, got] of [['the app', france.app], ['the static page', france.served]]) {
+      truthy((got?.tableRows ?? []).some((row) => row.includes('None recorded')), `/races/1995/7, ${half}: a driver with no stop recorded reads “None recorded”`)
+      is(/\bNo stop\b|did not stop\./.test(got?.text ?? ''), false, `/races/1995/7, ${half}: and nothing says they did not stop`)
+      truthy(/no stop recorded, which is not always a driver who did not stop/.test(got?.text ?? ''), `/races/1995/7, ${half}: the note says the record has gaps`)
+    }
+
+    // A stop on the lap a car went out on is drawn at the end of its bar.
+    const spain = await both('/races/1994/5')
+    for (const [half, got] of [['the app', spain.app], ['the static page', spain.served]]) {
+      truthy(/stopped on the lap they went out on/.test(got?.text ?? ''), `/races/1994/5, ${half}: the stop on the last lap is explained`)
+      is(got?.beyond, 0, `/races/1994/5, ${half}: and no tick is drawn past the end of its bar`)
+    }
+
+    // A race run with no figure says why, in both halves: before the first
+    // season with a stop recorded, and after it with none recorded.
+    const from = one('SELECT MIN(r.year) FROM pit_stops p JOIN races r ON r.id = p.race_id')
+    for (const [route, words] of [
+      ['/races/1976/9', `recorded from ${from}`],
+      ['/races/2021/12', 'records no pit stop for this race'],
+    ]) {
+      const got = await both(route)
+      for (const [half, read] of [['the app', got.app], ['the static page', got.served]]) {
+        is(read?.drawn, false, `${route}, ${half}: no stint figure`)
+        truthy((read?.text ?? '').includes(words), `${route}, ${half}: and the section says why — “${words}”`)
+      }
+    }
+    await noJs.close()
+
+    // Every label inside the drawing at a phone's width.
+    await page.setViewportSize({ width: 320, height: 900 })
+    await go('/races/2024/21')
+    await page.waitForSelector('#root main svg.stints', { timeout: 5000 }).catch(() => null)
+    const over = await page.evaluate(() => {
+      const svg = document.querySelector('#root main svg.stints')
+      if (!svg) return ['no figure']
+      const edge = Number(svg.getAttribute('viewBox').split(' ')[2])
+      return [...svg.querySelectorAll('text')]
+        .map((t) => {
+          const box = t.getBBox()
+          return box.x < -0.5 || box.x + box.width > edge + 0.5 ? `${t.textContent} spans ${Math.round(box.x)}–${Math.round(box.x + box.width)} of ${edge}` : null
+        })
+        .filter(Boolean)
+    })
+    is(over.join(' · '), '', '/races/2024/21 at 320 px: every label is inside the drawing')
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 
@@ -6578,13 +6738,17 @@ try {
         }
       }
       await same('/cars', 'Cars', 'The chassis register')
-      // Rung four: a race page's four tables - a sprint weekend with pit stops
-      // and knock-out qualifying, a pre-2006 race with one time per driver, and
-      // the shared drive whose "shared" mark both renderers must carry.
+      // Rung four: a race page's tables - a sprint weekend with knock-out
+      // qualifying, a pre-2006 race with one time per driver, and the shared
+      // drive whose "shared" mark both renderers must carry. The pit-stop
+      // section's two tables, the stint figure's and the pit order under an
+      // h3, are compared row for row by its own section (PD-56), since this
+      // helper reads the first table under an h2 and the app's first that is
+      // not a figure's, which there are two different tables.
       const gp = (year, round) => one('SELECT name_used FROM races WHERE year = ? AND round = ?', year, round)
       const sprintRound = one("SELECT MIN(r.round) FROM races r WHERE r.year = 2026 AND r.sprint = 1 AND r.status = 'completed'")
       if (sprintRound) {
-        for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Sprint qualifying', 'Practice 1', 'Pit stops']) {
+        for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Sprint qualifying', 'Practice 1']) {
           await same(`/races/2026/${sprintRound}`, gp(2026, sprintRound), heading)
         }
       } else fail('no completed 2026 sprint weekend to compare the race tables on')

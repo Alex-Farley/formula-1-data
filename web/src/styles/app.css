@@ -2711,6 +2711,38 @@ figure.figure-lead > .legend {
   font-size: var(--size-2);
 }
 
+/* Stint windows (PD-56): every stint in the first series colour, one hue for
+   all of them, because a second would read as a tyre compound and the record
+   holds none. A stop is a break in the bar and an ink tick across it - shape,
+   not colour - and a car not classified ends on the grid-to-flag cross. */
+.figure .stint {
+  fill: var(--series-1);
+}
+
+.figure .stint-stop {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.figure .stint-cross {
+  stroke: var(--ink-soft);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.figure .stint-name {
+  fill: var(--ink);
+  font-size: var(--size-2);
+}
+
+/* The pit order's heading, under the stint figure in the same section: clear
+   of the figure's frame, and a step down from the section's own h2. */
+.figure + h3 {
+  margin: var(--space-8) 0 var(--space-4);
+  font-size: var(--size-7);
+}
+
 /* The static page's drawing is laid out at one width and cannot re-measure,
    so it keeps that width where the column is wider - stretched to fill it,
    its text would grow with it - and still shrinks to fit a narrower one. */
