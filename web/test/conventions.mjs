@@ -1054,7 +1054,14 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
     // ring inherits this width, and DotPlot.jsx sets none of its own.
     const halo = /stroke-width\s*:\s*([\d.]+)/.exec(rule('.figure .mark-halo'))
     assert.ok(halo && Number(halo[1]) >= 2, `.figure .mark-halo is ${halo?.[1] ?? 'unset'} px wide; a title ring is at least 2 px (DP-33)`)
-    assert.doesNotMatch(read(join(web, 'src', 'charts', 'DotPlot.jsx')), /mark-halo[^>]*strokeWidth/, 'DotPlot.jsx sets the ring\'s width inline, where this test cannot see it')
+    // Each <circle ... /> in DotPlot.jsx, whole, so a strokeWidth written
+    // before the className is caught as well as one after it.
+    const circles = read(join(web, 'src', 'charts', 'DotPlot.jsx')).match(/<circle\b[\s\S]*?\/>/g) ?? []
+    assert.ok(circles.some((c) => c.includes('mark-halo')), 'DotPlot.jsx draws no mark-halo circle')
+    assert.ok(
+      circles.filter((c) => c.includes('mark-halo')).every((c) => !/strokeWidth/.test(c)),
+      'DotPlot.jsx sets the ring\'s width inline, where this test cannot see it',
+    )
     assert.match(rule('.figure .mark-halo-hollow'), /stroke:\s*var\(--ink-soft\)/)
     for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
       const t = tokens(block)

@@ -3573,10 +3573,11 @@ page({
       })
       .join('')}</ul>`
   const driverLink = { full_name: (name, row) => link(`drivers/${row.driver_id}`, name) }
-  // Each figure named for its heading, as the app's Figure is: the section's
-  // h2 for the constructors, and for the two drivers' figures that share one
-  // section an h3 each, FigurePart's, which nameTables() then names each
-  // table for rather than for the h2 the two share (AX-28).
+  // Each figure named for its heading, as the app's Figure is: an h3 each,
+  // FigurePart's, which nameTables() then names each table for rather than
+  // for the h2 above it - the two drivers' figures share one, and the
+  // constructors' would be named "Constructors", which says nothing of wins
+  // (AX-28).
   const leaders = (spec, columns, rows, links, name) => {
     const drawn = leadersDrawn(rows, spec.key)
     const body = fromColumns(columns, drawn, links)
@@ -3624,12 +3625,15 @@ page({
         leaders(DRIVER_POLES_FIGURE, DRIVER_POLES_COLUMNS, all(DRIVER_POLES), driverLink, DRIVER_POLES_FIGURE.title),
       )}</div>
       ${heading(CONSTRUCTORS_HEADING)}
-      ${leaders(
-        CONSTRUCTOR_WINS_FIGURE,
-        CONSTRUCTOR_WINS_COLUMNS,
-        all(CONSTRUCTOR_WINS),
-        { name: (name, row) => link(`constructors/${row.id}`, name) },
-        CONSTRUCTORS_HEADING,
+      ${part(
+        CONSTRUCTOR_WINS_FIGURE.title,
+        leaders(
+          CONSTRUCTOR_WINS_FIGURE,
+          CONSTRUCTOR_WINS_COLUMNS,
+          all(CONSTRUCTOR_WINS),
+          { name: (name, row) => link(`constructors/${row.id}`, name) },
+          CONSTRUCTOR_WINS_FIGURE.title,
+        ),
       )}
       ${families
         .map(

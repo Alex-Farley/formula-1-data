@@ -2812,7 +2812,7 @@ figure.figure > .figure-note:first-child {
    below the section's h2 and clear of the frame. */
 .figure-part > h3 {
   margin: var(--space-6) 0 var(--space-4);
-  font-size: var(--size-6);
+  font-size: var(--size-7);
 }
 
 .figure svg {

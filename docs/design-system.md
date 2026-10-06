@@ -327,9 +327,11 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   (content C1). Last, *The numbers behind this chart*, worded the same
   everywhere; what the table holds and the plot does not draw (an entry
   with no line) is said under the table, not in the note.
-- **Two figures in one section** (the Records leaderboards, the chassis
-  chart on `/data/quality`): each sits in a `FigurePart`, whose h3 names it
-  and its table.
+- **A figure its section's h2 cannot name** (two in one section, as the
+  Records leaderboards and the chassis chart on `/data/quality`; one whose
+  h2 names its section rather than what it measures, as the constructors'
+  wins and the decade the chips chose on `/records`) sits in a
+  `FigurePart`, whose h3 names it and its table.
 - **Widths:** the slot (5 columns) for the lead figure, the full width
   otherwise.
 - **States:** a figure with nothing to draw says so in one sentence in its

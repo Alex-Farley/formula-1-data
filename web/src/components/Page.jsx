@@ -262,13 +262,15 @@ export function Section({ title, count, note, children, id, lead = false }) {
 }
 
 /**
- * One of two figures that share a section (VD-80): the h3 that names it,
- * and the figure. A figure is named by its heading and passes no title of
- * its own (charts/Figure.jsx), so where one Section holds two figures side
- * by side - the Records leaderboards, the chassis chart beside the coverage
- * tables on /data/quality - each takes a heading a step below the section's,
- * and that heading is what the figure and its table are named for, read
- * from SectionTitle exactly as a Section's h2 is.
+ * A figure its section's h2 cannot name (VD-80): the h3 that names it, and
+ * the figure. A figure is named by its heading and passes no title of its
+ * own (charts/Figure.jsx), so where one Section holds two figures side by
+ * side - the Records leaderboards, the chassis chart beside the coverage
+ * tables on /data/quality - or its h2 names the section rather than what
+ * the figure measures - the constructors' wins, the decade the chips chose -
+ * it takes a heading a step below the section's, and that heading is what
+ * the figure and its table are named for, read from SectionTitle exactly as
+ * a Section's h2 is.
  */
 export function FigurePart({ title, children }) {
   return (

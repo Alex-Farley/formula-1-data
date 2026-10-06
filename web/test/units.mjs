@@ -1488,14 +1488,14 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
 
     // Liveries only: the team's own, and nothing about a convention the
     // chart never drew.
-    assert.equal(colourSource([livery, livery]), "the team's own livery")
+    assert.equal(colourSource([livery, livery]), 'the team’s own livery')
     // National only: never "the team's", and it says whose it is.
-    assert.match(colourSource([national]), /the entrant's national racing colour/)
-    assert.doesNotMatch(colourSource([national]), /the team's own livery$/)
+    assert.match(colourSource([national]), /the entrant’s national racing colour/)
+    assert.doesNotMatch(colourSource([national]), /the team’s own livery$/)
     // Both: both named, and the national one still disclaimed.
     const both = colourSource([livery, national])
-    assert.match(both, /the team's livery from 2010/)
-    assert.match(both, /before 1968 the entrant's national racing colour, not the team's$/)
+    assert.match(both, /the team’s livery from 2010/)
+    assert.match(both, /before 1968 the entrant’s national racing colour, not the team’s$/)
     // A hollow mark is a null in the list and changes none of the three
     // answers - the note describes it in a clause of its own.
     assert.equal(colourSource([livery, gap]), colourSource([livery]))

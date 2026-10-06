@@ -304,30 +304,35 @@ function Body({ data }) {
       </Section>
 
       <Section title={CONSTRUCTORS_HEADING}>
-        <Figure
-          note={constructorWinsNote(
-            constructorBars.some((bar) => bar.colour) ? colourSource(constructorBars.map((bar) => bar.colour)) : null,
-            constructorBars.some((bar) => bar.hollow),
-          )}
-          table={{
-            rows: constructorWins,
-            columns: withApp(CONSTRUCTOR_WINS_COLUMNS, {
-              // The team's colour mark and a link to its page, as /races
-              // draws the same constructor (AF-47). The view carries c.id so
-              // both can be keyed to the constructor rather than its name.
-              name: {
-                render: (name, row) => (
-                  <>
-                    <LiveryMark colour={constructorColour(row)} year={row.last_win} />
-                    <Link to={`/constructors/${row.id}`}>{name}</Link>
-                  </>
-                ),
-              },
-            }),
-          }}
-        >
-          <BarChart data={constructorBars} label={CONSTRUCTOR_WINS_FIGURE.label(constructorBars.length)} />
-        </Figure>
+        {/* Named for what it measures, as the drivers' two are, rather than
+            for the section: a table list that read only "Constructors"
+            beside the record families said nothing of wins. */}
+        <FigurePart title={CONSTRUCTOR_WINS_FIGURE.title}>
+          <Figure
+            note={constructorWinsNote(
+              constructorBars.some((bar) => bar.colour) ? colourSource(constructorBars.map((bar) => bar.colour)) : null,
+              constructorBars.some((bar) => bar.hollow),
+            )}
+            table={{
+              rows: constructorWins,
+              columns: withApp(CONSTRUCTOR_WINS_COLUMNS, {
+                // The team's colour mark and a link to its page, as /races
+                // draws the same constructor (AF-47). The view carries c.id so
+                // both can be keyed to the constructor rather than its name.
+                name: {
+                  render: (name, row) => (
+                    <>
+                      <LiveryMark colour={constructorColour(row)} year={row.last_win} />
+                      <Link to={`/constructors/${row.id}`}>{name}</Link>
+                    </>
+                  ),
+                },
+              }),
+            }}
+          >
+            <BarChart data={constructorBars} label={CONSTRUCTOR_WINS_FIGURE.label(constructorBars.length)} />
+          </Figure>
+        </FigurePart>
       </Section>
 
       {/* Every record not in the headline cards, once, under its family. */}
@@ -356,26 +361,29 @@ function Body({ data }) {
             options={decadeOptions.map((d) => [String(d), `${d}s`])}
           />
         </div>
-        <Figure
-          note="A decade is the ten seasons whose year begins with it; the 2020s are still running."
-          table={{
-            rows: decadeRows,
-            columns: [
-              {
-                key: 'full_name',
-                label: 'Driver',
-                rowHeader: true,
-                render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link>,
-              },
-              { key: 'wins', label: 'Wins', align: 'num' },
-            ],
-          }}
-        >
-          <BarChart
-            data={decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
-            label={`Drivers with the most wins in the ${decade}s`}
-          />
-        </Figure>
+        {/* The decade the chips chose, named over its figure. */}
+        <FigurePart title={`Most wins, the ${decade}s`}>
+          <Figure
+            note="A decade is the ten seasons whose year begins with it; the 2020s are still running."
+            table={{
+              rows: decadeRows,
+              columns: [
+                {
+                  key: 'full_name',
+                  label: 'Driver',
+                  rowHeader: true,
+                  render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link>,
+                },
+                { key: 'wins', label: 'Wins', align: 'num' },
+              ],
+            }}
+          >
+            <BarChart
+              data={decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+              label={`Drivers with the most wins in the ${decade}s`}
+            />
+          </Figure>
+        </FigurePart>
       </Section>
 
       <Section title="How often pole becomes a win">
