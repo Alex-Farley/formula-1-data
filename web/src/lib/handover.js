@@ -73,7 +73,6 @@ export function captureStaticTables() {
     // Two tables under one heading cannot be told apart by it, and seeding
     // the wrong one is worse than seeding neither.
     drawn.set(name, drawn.has(name) ? null : table.querySelectorAll('tbody tr').length)
-    if (table.closest('.table-wrap')?.querySelector(':scope > details.table-fold')?.open) opened.add(name)
   }
 }
 
@@ -99,6 +98,26 @@ export function staticRows(name) {
   // Before `location` is touched at all, so this is inert under Node.
   if (at === undefined || location.pathname !== at) return 0
   return drawn.get(key(name)) ?? 0
+}
+
+/**
+ * Which of the static page's folds (VD-69) the reader has opened, by table
+ * name. Call this at the last moment the static page is in the document -
+ * handOver() in main.jsx does, just before it removes it - and not at boot
+ * with captureStaticTables(): every fold is written closed, and a reader opens
+ * one while the database is still arriving, so a count taken at boot would
+ * always find them shut. DataTable reads it on its first render, which comes
+ * after the handover, because a table has no rows until the database is open.
+ */
+export function captureOpenFolds() {
+  if (typeof document === 'undefined') return
+  opened.clear()
+  const pre = document.getElementById('prerendered')
+  if (!pre) return
+  for (const table of pre.querySelectorAll('table')) {
+    const name = key(table.querySelector('caption')?.textContent)
+    if (name && table.closest('.table-wrap')?.querySelector(':scope > details.table-fold')?.open) opened.add(name)
+  }
 }
 
 /**

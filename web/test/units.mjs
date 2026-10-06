@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
 
 import { MIN_ROWS, cellText, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
-import { captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
+import { captureOpenFolds, captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
 
 import {
   fieldText,
@@ -2015,10 +2015,17 @@ describe('the rows the static page drew (IX-19)', () => {
   })
 
   // VD-69. A fold the reader opened before the database did stays open:
-  // closing it at the handover would take away rows they were reading.
-  it('remembers a fold the reader opened, on that route and under one name only', () => {
-    stand('/constructors/ferrari', [fakeTable('Every win', 251, true), fakeTable('Cars built', 90)], () => {
+  // closing it at the handover would take away rows they were reading. The
+  // page is counted at boot, when every fold is closed, and the reader opens
+  // one afterwards - which is the order a real page has, and the one the
+  // first version of this read only at boot and so never saw.
+  it('remembers a fold the reader opened after boot, on that route and under one name only', () => {
+    const wins = fakeTable('Every win', 251)
+    stand('/constructors/ferrari', [wins, fakeTable('Cars built', 90)], () => {
       captureStaticTables()
+      assert.equal(staticOpen('Every win'), false)
+      wins.closest = () => ({ querySelector: () => ({ open: true }) })
+      captureOpenFolds()
       assert.equal(staticOpen('Every win'), true)
       assert.equal(staticOpen('Cars built'), false)
       assert.equal(staticOpen('Season by season'), false)
@@ -2027,6 +2034,7 @@ describe('the rows the static page drew (IX-19)', () => {
     })
     stand('/somewhere', [fakeTable('Every entry', 40, true), fakeTable('Every entry', 900)], () => {
       captureStaticTables()
+      captureOpenFolds()
       assert.equal(staticOpen('Every entry'), false)
     })
   })

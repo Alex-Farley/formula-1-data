@@ -3225,6 +3225,44 @@ try {
     } finally {
       await noJs.close()
     }
+
+    // A fold opened on the static page while the database is still arriving
+    // stays open when the app takes over, or the page shortens under a reader
+    // reading past the tenth row (IX-19). The database is held back until the
+    // fold is open, so this cannot pass by the handover winning the race.
+    const waiting = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+    try {
+      let release
+      const gate = new Promise((resolve) => {
+        release = resolve
+      })
+      await waiting.route('**/f1.db.gz', async (route) => {
+        await gate
+        await route.continue()
+      })
+      const early = await waiting.newPage()
+      await early.goto(`${BASE}/constructors/ferrari`, { waitUntil: 'domcontentloaded' })
+      await under(early, '#prerendered').locator('details.table-fold > summary').click()
+      const before = await early.evaluate(fold, { root: '#prerendered', heading: 'Every win' })
+      is(before?.open, true, 'the static fold is opened before the database arrives')
+      release()
+      await early.waitForFunction(
+        () =>
+          !document.getElementById('prerendered') &&
+          [...document.querySelectorAll('#root main h2')].some(
+            (h) => h.textContent.trim().startsWith('Every win') && h.closest('section')?.querySelector('.table-wrap'),
+          ),
+        null,
+        { timeout: 60000 },
+      )
+      const after = await early.evaluate(fold, { root: '#root main', heading: 'Every win' })
+      is(after?.open, true, 'and the app opens the same table with its fold still open')
+      is(after?.shown, wins, `showing all ${wins} rows`)
+      const shut = await early.evaluate(fold, { root: '#root main', heading: 'Cars built' })
+      is(shut?.open, false, 'while a fold the reader left closed stays closed')
+    } finally {
+      await waiting.close()
+    }
   })
 
   // -------------------------------------------------------------- circuits

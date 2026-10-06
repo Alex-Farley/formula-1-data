@@ -194,6 +194,11 @@ export function chosenColumns(columns, param) {
  * as one with it does, from the keyboard, and a screen reader hears its
  * state. Sorting reorders the full set and the fold shows its first ten.
  *
+ * The price: the browser's find-in-page does not reach a row the fold is
+ * hiding, as it reached every row of the static page before. That is the
+ * trade the item chose - a row is one press away and the page is a third of
+ * its height - and the copy and download buttons still take every row.
+ *
  * FOLD_TO IS IN app.css AS WELL, as `nth-child(n + 11)`: a selector cannot read
  * a constant, and web/test/conventions.mjs holds the two to one number.
  *
