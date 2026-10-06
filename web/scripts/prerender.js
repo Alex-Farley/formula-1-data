@@ -279,8 +279,6 @@ import {
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
-  raceNote,
-  raceSentence,
   raceStrip,
   railOf,
   scheduledNote,
@@ -1056,9 +1054,9 @@ const stintsSvg = (layout, label) => {
  * neighbours under a heading of its own, which names its table; or, for a
  * race run with no figure, the sentence saying why.
  */
-const pitSection = (race, entryRows, pits, from) => {
+const pitSection = (race, entryRows, pits, span) => {
   const rows = stintRows(entryRows, pits)
-  if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, from))}</p>`
+  if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
   const pairs = pitPairs(entryRows, pits)
   return `<h2>${esc(PITS_HEADING)}</h2><figure class="figure"><figcaption><b>${esc(STINTS_TITLE)}</b><span>${esc(
     stintsNote(rows, lateStops(rows), unbarredOf(entryRows, pits)),
@@ -2329,9 +2327,9 @@ const page = ({
   // the grid in half.
   const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
 
-  // The first season with a stop recorded, which every earlier race's
-  // pit-stop section names (PD-56).
-  const pitsFrom = one(PITS_FROM)?.year
+  // The span of rounds with a stop recorded, which a race's empty pit-stop
+  // section reads (PD-56, SD-40).
+  const pitsFrom = one(PITS_FROM)
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
     // The rows as the query returns them, which is the order the strip lists
@@ -2362,23 +2360,17 @@ const page = ({
     // the view over it, so the sentence and the table below agree by
     // construction on a shared drive.
     const raceWinners = entries.filter((e) => e.finish_position === 1)
+    // The derived sentence and then the note, where one is written (SD-39),
+    // and the description is the same words: the note explains a round and
+    // never replaces what the page says it is. The note is printed once, in
+    // the lede, and nowhere else on the page.
     const standfirst = raceLede(r, raceWinners, stage)
-    // The description carries the derived sentence AND the note, where the
-    // lede shows the note alone: read out of context a description has to
-    // say what the page is, and the note explains rather than replaces it.
-    // driver.js's lede and its description split the same way.
-    //
-    // The note used to be a bare paragraph below the timetable here and the
-    // lede in the app, which was already two placements for one sentence;
-    // now that the lede is the note in both halves, that paragraph would be
-    // the same words twice on the page, so it has gone.
-    const written = raceNote(r)
     // PD-57: the timetable leads a round not yet run and follows the
     // photographs once a result is held, as Race.jsx places it.
     const timetable = sessions.length
       ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
       : ''
-    const description = `${headline}. ${raceSentence(r, raceWinners, stage)}${written ? ` ${written}` : ''}${
+    const description = `${headline}. ${standfirst}${
       scheduled ? '' : ' Full classification, grid, pole and fastest lap.'
     }`
 
