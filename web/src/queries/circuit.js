@@ -145,7 +145,6 @@ export const GRANDS_PRIX = `
    ORDER BY races DESC, g.name
 `
 
-/** The winner, or "not yet run" for a race still on the calendar. */
 /**
  * The race list's heading and count, as both renderers write them (SD-38).
  * The list holds every race at the venue, the ones still to run among them,
@@ -164,6 +163,7 @@ export const racesCount = (races) => {
   return ahead ? `${number(run)} · ${number(ahead)} to come` : number(run)
 }
 
+/** The winner, or "not yet run" for a race still on the calendar. */
 export const raceWinnerHere = (name, row) => (row.status !== 'completed' ? NOT_YET_RUN : text(name))
 
 export const RACE_COLUMNS = [
