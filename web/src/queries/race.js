@@ -31,7 +31,7 @@ export const RACE = `
 `
 
 export const ENTRIES = `
-  SELECT e.*, d.full_name AS driver, d.nationality, k.name AS constructor,
+  SELECT e.*, d.full_name AS driver, d.abbreviation, d.nationality, k.name AS constructor,
          k.country AS constructor_country, ch.name AS chassis
     FROM race_entries e
     JOIN races r         ON r.id = e.race_id
@@ -374,6 +374,54 @@ export const SPRINT_COLUMNS = [
 
 export const SPRINT_FOOTER =
   'A sprint is a separate, shorter race held on the grand prix weekend, with its own grid and its own points — and those points count towards the championship. The grid column is the sprint grid, not the grand prix one.'
+
+/*
+ * Grid to flag (PD-30): the figure charts/gridFlag.js lays out, under the
+ * classification, with its words and its table here so both renderers print
+ * the same ones. The table is the figure's numbers - the cars it draws, in
+ * the order it ends them - and not a second classification: an entry with
+ * no line is not in it, and the note says how many.
+ */
+export const GRID_FLAG_HEADING = 'Grid to flag'
+export const GRID_FLAG_TITLE = 'Where each car started, and where it ended'
+
+export const GRID_FLAG_COLUMNS = [
+  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
+  { key: 'grid_text', label: 'Grid', align: 'num', text: (value, row) => text(value ?? row.grid) },
+  { key: 'position_text', label: 'Result', align: 'num', text: position, glossary: 'results' },
+  { key: 'laps_completed', label: 'Laps', align: 'num' },
+]
+
+/**
+ * What the lines mean and what they cannot, and - only where the page has
+ * one - a car out, a shared car and the entries left undrawn. The sentence
+ * on what the record holds is the one that must never be lost: the database holds no position between
+ * the start and the end, so a crossing is not an overtake at that lap.
+ */
+export const gridFlagNote = (rows, undrawn) =>
+  [
+    'Each line runs from the slot a driver started in to their place in the result, ending at the last lap they completed.',
+    rows.some((r) => r.out)
+      ? 'A dashed line ending in a cross is a driver the result does not classify, so a retirement stops where it went out.'
+      : '',
+    'The record holds where each driver started and where they ended, not where they ran in between, so the lines are straight and a crossing is not an overtake at that lap.',
+    rows.some((r) => r.entry.shared_drive === 1)
+      ? 'Where drivers shared a car, each has a line of their own: from the slot they started in to the shared place, ending at the laps they completed.'
+      : '',
+    undrawn.length
+      ? `${number(undrawn.length)} ${undrawn.length === 1 ? 'entry' : 'entries'} with no recorded grid slot or lap count ${
+          undrawn.length === 1 ? 'is' : 'are'
+        } in the classification and not drawn.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+/** The figure's name for a screen reader, which hears the table and the note with it. */
+export const gridFlagLabel = (rows) => {
+  const out = rows.filter((r) => r.out).length
+  return `Grid to flag: ${rows.length} drivers from their grid slots to the result, ${rows.length - out} classified and ${out} not.`
+}
 
 export const PIT_COLUMNS = [
   { key: 'lap_number', label: 'Lap', align: 'num' },

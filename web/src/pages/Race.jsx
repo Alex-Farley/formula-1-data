@@ -26,6 +26,9 @@ import {
   CLASSIFICATION_COLUMNS,
   ENTRIES,
   FASTEST_LAP,
+  GRID_FLAG_COLUMNS,
+  GRID_FLAG_HEADING,
+  GRID_FLAG_TITLE,
   NEIGHBOURS,
   PITS,
   PITS_FOOTER,
@@ -40,6 +43,8 @@ import {
   SPRINT_FOOTER,
   carName,
   classificationFooter,
+  gridFlagLabel,
+  gridFlagNote,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -59,6 +64,9 @@ import {
 } from '../queries/race.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
+import Figure from '../charts/Figure.jsx'
+import GridFlag from '../charts/GridFlag.jsx'
+import { gridFlagRows, gridFlagShown, undrawnOf } from '../charts/gridFlag.js'
 
 import { ONWARD, TRAIL, raceSteps } from '../lib/wayfinding.js'
 /*
@@ -247,6 +255,8 @@ function RaceBody({ race, data, year, round }) {
 
   // In the order a classification is printed; queries/race.js says why.
   const classified = useMemo(() => inClassificationOrder(entries), [entries])
+  // PD-30: the cars the grid-to-flag figure draws, in the order it ends them.
+  const flag = useMemo(() => gridFlagRows(entries), [entries])
 
   const winners = classified.filter((e) => e.finish_position === 1)
   // The pole, the car that started first, the fastest qualifier and the
@@ -343,6 +353,21 @@ function RaceBody({ race, data, year, round }) {
                   columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
                   footer={classificationFooter(classified)}
                 />
+              </Section>
+            )}
+
+            {/* PD-30: the result as a picture, under the table it draws -
+                charts/gridFlag.js says what the lines can and cannot claim,
+                and scripts/prerender.js draws the same figure. */}
+            {gridFlagShown(flag) && (
+              <Section title={GRID_FLAG_HEADING}>
+                <Figure
+                  title={GRID_FLAG_TITLE}
+                  note={gridFlagNote(flag, undrawnOf(entries))}
+                  table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS }}
+                >
+                  <GridFlag entries={entries} label={gridFlagLabel(flag)} />
+                </Figure>
               </Section>
             )}
           </div>

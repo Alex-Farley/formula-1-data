@@ -190,6 +190,10 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     ['src/queries/compare.js', [1, 'derived career counts, as queries/driver.js']],
     ['src/data/worker.js', [3, 'download progress in bytes']],
     ['src/lib/search.js', [1, 'a ranking weight']],
+    // PD-30: how many of the cars one grid-to-flag figure draws carry each
+    // three-letter abbreviation, counted as they are read; one not yet seen
+    // has been seen by none.
+    ['src/charts/gridFlag.js', [1, 'drivers in one figure sharing an abbreviation']],
     // IX-19: how many rows the static page drew for a table of this name.
     // A name the static half does not hold - a table it never drew, or one
     // heading over two tables, which is dropped rather than guessed at -

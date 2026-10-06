@@ -231,6 +231,9 @@ import {
   ENTRIES,
   NEIGHBOURS as RACE_NEIGHBOURS,
   FASTEST_LAP,
+  GRID_FLAG_COLUMNS,
+  GRID_FLAG_HEADING,
+  GRID_FLAG_TITLE,
   PITS,
   PITS_FOOTER,
   PIT_COLUMNS,
@@ -253,6 +256,8 @@ import {
   SPRINT_FOOTER,
   carName,
   classificationFooter,
+  gridFlagLabel,
+  gridFlagNote,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -487,6 +492,7 @@ import {
 // in the app, so the half a crawler and a cold arrival are given had no
 // relational layer at all; both now come from one place.
 import { ONWARD, TRAIL, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
+import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -880,6 +886,57 @@ const timeline = (milestones) =>
  */
 const figure = (title, caption, body) =>
   `<figure class="figure"><figcaption><b>${esc(title)}</b><span>${esc(caption)}</span></figcaption>${body}</figure>`
+
+/*
+ * Grid to flag (PD-30), drawn: charts/GridFlag.jsx's elements and classes,
+ * from the layout charts/gridFlag.js gives both renderers, at the width the
+ * app draws at before it has measured. The first chart this half draws
+ * rather than tabulates, which it can only because the layout is a function
+ * of the rows and not of a DOM. Every string in it is escaped; the numbers
+ * are numbers the layout rounded.
+ *
+ * The static drawing does not re-measure. It keeps the size it was laid out
+ * at rather than stretching, which would set its text half as large again
+ * in a 1,000 px column (`.grid-flag-static` in app.css); below 640 px it
+ * scales down, text with it, until the app replaces it at the width it
+ * occupies. The table under it is the same at every width.
+ */
+const gridFlagSvg = (layout, label) => {
+  if (!layout) return ''
+  const t = (cls, x, y, value, extra = '') =>
+    `<text class="${cls}" x="${x}" y="${y}"${extra}>${esc(value)}</text>`
+  const mid = ' dominant-baseline="middle"'
+  return `<div class="plot-holder"><svg class="grid-flag grid-flag-static" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${esc(label)}">${layout.ticks
+    .map(
+      (tick) =>
+        `<g><line class="grid-line" x1="${tick.x}" x2="${tick.x}" y1="${layout.top}" y2="${layout.bottom}"/>${t(
+          'axis-text',
+          tick.x,
+          layout.tickY,
+          tick.value,
+          ' text-anchor="middle"',
+        )}</g>`,
+    )
+    .join('')}${t('axis-text', (layout.start + layout.finish) / 2, layout.axisY, GRID_FLAG_HEADS.axis, ' text-anchor="middle"')}${t(
+    'axis-text',
+    layout.gridX,
+    layout.headY,
+    GRID_FLAG_HEADS.grid,
+    ' text-anchor="end"',
+  )}${t('axis-text', layout.labelX, layout.headY, GRID_FLAG_HEADS.result)}${layout.cars
+    .map(
+      (car) =>
+        `<g class="${car.out ? 'flag-car flag-out' : 'flag-car'}">${t('axis-text', layout.gridX, car.y1, car.grid, ` text-anchor="end"${mid}`)}` +
+        `<line class="flag-line" x1="${car.x1}" y1="${car.y1}" x2="${car.x2}" y2="${car.y2}"/>` +
+        `<circle class="flag-start" cx="${car.x1}" cy="${car.y1}" r="2.5"/>` +
+        (car.leader ? `<line class="flag-leader" x1="${car.leader.from}" y1="${car.y2}" x2="${car.leader.to}" y2="${car.y2}"/>` : '') +
+        (car.out
+          ? `<path class="flag-cross" d="${crossPath(car.x2, car.y2)}"/>`
+          : `<circle class="flag-end" cx="${car.x2}" cy="${car.y2}" r="2.5"/>`) +
+        `${t('axis-text flag-result', layout.labelX, car.y2, car.result, mid)}${t('flag-name', layout.nameX, car.y2, car.name, mid)}</g>`,
+    )
+    .join('')}</svg></div>`
+}
 
 // The circuit outlines (AF-03), as components/Outline.jsx draws them: F1DB's
 // path in its 500-unit box, the current ink, a constant stroke. The path is
@@ -2140,6 +2197,7 @@ const page = ({
     // take the classification's order.
     const entryRows = all(ENTRIES, r.year, r.round)
     const entries = inClassificationOrder(entryRows)
+    const flag = gridFlagRows(entryRows)
     const qualifying = all(QUALIFYING, r.year, r.round)
     const practice = practiceBySession(all(PRACTICE, r.year, r.round))
     const sprintQualifying = all(SPRINT_QUALIFYING, r.year, r.round)
@@ -2262,6 +2320,21 @@ const page = ({
                 fastest_lap: (value) =>
                   value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
               })}${note(classificationFooter(entries))}</section>`
+            : ''
+        }
+        ${
+          // PD-30: the figure under the classification, as Race.jsx places
+          // it - the drawing, its note and its table open beneath it.
+          gridFlagShown(flag)
+            ? `<section class="section"><h2>${esc(GRID_FLAG_HEADING)}</h2><figure class="figure"><figcaption><b>${esc(
+                GRID_FLAG_TITLE,
+              )}</b><span>${esc(gridFlagNote(flag, undrawnOf(entryRows)))}</span></figcaption><div class="figure-body">${gridFlagSvg(
+                gridFlagLayout(entryRows),
+                gridFlagLabel(flag),
+              )}</div>${fromColumns(
+                GRID_FLAG_COLUMNS,
+                flag.map((r) => r.entry),
+              )}</figure></section>`
             : ''
         }
         </div></div></section>
