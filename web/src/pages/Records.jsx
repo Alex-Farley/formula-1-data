@@ -14,27 +14,40 @@ import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { colourForEntry, colourSource } from '../lib/liveries.js'
 import {
   CONSTRUCTOR_WINS,
+  CONSTRUCTOR_WINS_COLUMNS,
+  CONSTRUCTOR_WINS_FIGURE,
+  CONSTRUCTORS_HEADING,
   DECADES,
+  DERIVATION,
   DRIVER_POLES,
+  DRIVER_POLES_COLUMNS,
+  DRIVER_POLES_FIGURE,
   DRIVER_WINS,
+  DRIVER_WINS_COLUMNS,
+  DRIVER_WINS_FIGURE,
   GRAND_SLAM_COLUMNS,
   GRAND_SLAMS,
   HEADLINE,
+  LEADERBOARDS,
   POLE_TO_WIN,
   RECORDS,
+  RECORDS_LEDE,
   TIER_AFTER,
   TITLE_COLUMNS,
   TITLES,
   asOfLine,
   asOfOf,
+  cardExtras,
   familiesLead,
   headlineRecords,
+  holderPath,
+  leadersDrawn,
   recordColumns,
   recordFamilies,
   recordPath,
-  holderPath,
   tierBefore,
-  tiersOf, RECORDS_LEDE } from '../queries/records.js'
+  tiersOf,
+} from '../queries/records.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
@@ -59,6 +72,47 @@ const RECORD_APP = {
 // The champions, linked by the id v_title_count now carries (PD-27).
 const TITLE_APP = {
   full_name: { render: (name, row) => <Link to={`/drivers/${row.id}`}>{name}</Link> },
+}
+
+// The leaderboards' column lists are queries/records.js's, which the static
+// half draws too; the app adds the links and the constructor's colour mark.
+const driverLink = { render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> }
+const withApp = (columns, app) => columns.map((column) => ({ ...column, ...app[column.key] }))
+
+/**
+ * The headline records as cards (VD-68): the name, the value at display size,
+ * the holder, and the derivation folded away under its heading. The table
+ * these replace gave the derivation a quarter of the width and wrapped it to
+ * six lines, so a row stood 94-132 px tall at 1440 and the page showed two of
+ * its twelve records on the first screen. Each record's own page carries the
+ * derivation in full. scripts/prerender.js writes the same markup.
+ */
+function RecordCards({ rows, extras }) {
+  return (
+    <ul className="record-cards">
+      {rows.map((row) => {
+        const path = holderPath(row)
+        return (
+          <li key={row.id} className="record-card">
+            <h3 className="record-card-name">
+              <Link to={`/${recordPath(row)}`}>{row.record}</Link>
+            </h3>
+            <p className="record-card-value">{row.value}</p>
+            <p className="record-card-holder">{path ? <Link to={`/${path}`}>{row.holder}</Link> : row.holder}</p>
+            {extras.map((column) => (
+              <p key={column.key} className="record-card-extra">
+                {column.label}: {column.key === 'confidence' ? <Confidence value={row.confidence} /> : row[column.key]}
+              </p>
+            ))}
+            <details className="record-card-how">
+              <summary>{DERIVATION}</summary>
+              <p>{row.detail}</p>
+            </details>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 const GRAND_SLAM_APP = {
@@ -141,9 +195,10 @@ function Body({ data }) {
   const asOf = useMemo(() => asOfOf(records), [records])
   const headline = useMemo(() => headlineRecords(records), [records])
   const families = useMemo(() => recordFamilies(records), [records])
-  // One column list for every record table on the page, from all of them, so
-  // the headline table and each family's read alike.
+  // One column list for every family's table, from all the records, so the
+  // families read alike; the cards say what those columns say (cardExtras).
   const columns = recordColumns(records).map((column) => ({ ...column, ...RECORD_APP[column.key] }))
+  const extras = useMemo(() => cardExtras(records), [records])
   const below = records.length - headline.length
 
   // The fifteen bars of the constructor chart, in their teams' colours where
@@ -163,7 +218,7 @@ function Body({ data }) {
   const constructorBars = useMemo(() => {
     // Keyed on the id, not the name: the view groups on constructors.id, so
     // every row has one and no row needs a fallback.
-    const bars = constructorWins.slice(0, 15).map((c) => ({
+    const bars = leadersDrawn(constructorWins, CONSTRUCTOR_WINS_FIGURE.key).map((c) => ({
       key: c.id,
       label: c.name,
       value: c.wins,
@@ -172,6 +227,9 @@ function Body({ data }) {
     if (bars.some((bar) => bar.colour)) return bars.map((bar) => ({ ...bar, hollow: !bar.colour }))
     return bars.map((bar) => ({ key: bar.key, label: bar.label, value: bar.value }))
   }, [constructorWins])
+
+  const winBars = leadersDrawn(driverWins, DRIVER_WINS_FIGURE.key)
+  const poleBars = leadersDrawn(driverPoles, DRIVER_POLES_FIGURE.key)
 
   const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
 
@@ -191,7 +249,7 @@ function Body({ data }) {
             </>
           )}
         </p>
-        <DataTable rows={headline} rowKey={(row) => row.id} sortable={false} columns={columns} />
+        <RecordCards rows={headline} extras={extras} />
         {families.length > 0 && (
           <nav className="note" aria-label="Records by family">
             {familiesLead(below)}{' '}
@@ -205,66 +263,52 @@ function Body({ data }) {
         )}
       </Section>
 
-      {/* Every record not in the headline table, once, under its family, and
-          straight after the headline table rather than after the leaderboards.
-          The static half has no leaderboards, so this is the order it has too,
-          and the two halves have to agree on it: handOver() puts back the
-          reader's scroll offset, and when the families came last here, a
-          reader who arrived at /records#wins, or scrolled into the families
-          before the database opened, was put down 7,000 px away in the
-          decade chart (WK-08 review). */}
-      {families.map((f) => (
-        <Section key={f.anchor} id={f.anchor} title={f.family} count={`${f.rows.length}`}>
-          <DataTable rows={f.rows} rowKey={(row) => row.id} sortable={false} columns={columns} />
-        </Section>
-      ))}
-
-      <Section title="Counted from the race records">
+      {/* The leaderboards straight after the headline records (VD-68), and
+          the families after them. The two halves have to agree on that order:
+          handOver() puts back the reader's scroll offset, and when the
+          families stood elsewhere here than on the static page, a reader who
+          arrived at /records#wins, or scrolled into the families before the
+          database opened, was put down 7,000 px away in the decade chart
+          (WK-08 review). The static half now carries these two sections too,
+          each figure's table open where the chart is drawn here. */}
+      <Section title={LEADERBOARDS}>
         <div className="split">
           <Figure
-            title="Most Grand Prix wins"
-            note="One win per driver classified first, so a shared drive counts for both of them."
+            title={DRIVER_WINS_FIGURE.title}
+            note={DRIVER_WINS_FIGURE.note}
             table={{
-              caption: 'Most Grand Prix wins',
+              caption: DRIVER_WINS_FIGURE.title,
               rows: driverWins,
-              columns: [
-                { key: 'full_name', label: 'Driver', rowHeader: true, render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
-                { key: 'wins', label: 'Wins', align: 'num' },
-                { key: 'first_win', label: 'First', align: 'num', text: (year) => String(year) },
-                { key: 'last_win', label: 'Last', align: 'num', text: (year) => String(year) },
-              ],
+              columns: withApp(DRIVER_WINS_COLUMNS, { full_name: driverLink }),
             }}
           >
             <BarChart
-              data={driverWins.slice(0, 15).map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
-              label="The fifteen drivers with the most Grand Prix wins"
+              data={winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+              label={DRIVER_WINS_FIGURE.label(winBars.length)}
             />
           </Figure>
 
           <Figure
-            title="Most pole positions"
-            note="The driver the season record credits with pole. Not always the car at grid 1: a penalty or a sprint-set grid can part them, and each race page says so where they differ."
+            title={DRIVER_POLES_FIGURE.title}
+            note={DRIVER_POLES_FIGURE.note}
             table={{
-              caption: 'Most pole positions',
+              caption: DRIVER_POLES_FIGURE.title,
               rows: driverPoles,
-              columns: [
-                { key: 'full_name', label: 'Driver', rowHeader: true, render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
-                { key: 'poles', label: 'Poles', align: 'num' },
-              ],
+              columns: withApp(DRIVER_POLES_COLUMNS, { full_name: driverLink }),
             }}
           >
             <BarChart
-              data={driverPoles.slice(0, 15).map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
-              label="The fifteen drivers with the most pole positions"
+              data={poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
+              label={DRIVER_POLES_FIGURE.label(poleBars.length)}
             />
           </Figure>
         </div>
       </Section>
 
-      <Section title="Constructors">
+      <Section title={CONSTRUCTORS_HEADING}>
         <Figure
-          title="Most wins by constructor"
-          note={`A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables.${
+          title={CONSTRUCTOR_WINS_FIGURE.title}
+          note={`${CONSTRUCTOR_WINS_FIGURE.note}${
             constructorBars.some((bar) => bar.colour)
               ? ` Each bar is coloured for that constructor as of its last win, the year the table gives: ${colourSource(constructorBars.map((bar) => bar.colour))}.${
                   constructorBars.some((bar) => bar.hollow)
@@ -274,16 +318,13 @@ function Body({ data }) {
               : ''
           }`}
           table={{
-            caption: 'Most wins by constructor',
+            caption: CONSTRUCTOR_WINS_FIGURE.title,
             rows: constructorWins,
-            columns: [
+            columns: withApp(CONSTRUCTOR_WINS_COLUMNS, {
               // The team's colour mark and a link to its page, as /races
               // draws the same constructor (AF-47). The view carries c.id so
               // both can be keyed to the constructor rather than its name.
-              {
-                key: 'name',
-                label: 'Constructor',
-                rowHeader: true,
+              name: {
                 render: (name, row) => (
                   <>
                     <LiveryMark colour={constructorColour(row)} year={row.last_win} />
@@ -291,20 +332,19 @@ function Body({ data }) {
                   </>
                 ),
               },
-              { key: 'country', label: 'Country' },
-              { key: 'wins', label: 'Wins', align: 'num' },
-              { key: 'first_win', label: 'First', align: 'num', text: (year) => String(year) },
-              { key: 'last_win', label: 'Last', align: 'num', text: (year) => String(year) },
-              { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
-            ],
+            }),
           }}
         >
-          <BarChart
-            data={constructorBars}
-            label="The fifteen constructors with the most Grand Prix wins"
-          />
+          <BarChart data={constructorBars} label={CONSTRUCTOR_WINS_FIGURE.label(constructorBars.length)} />
         </Figure>
       </Section>
+
+      {/* Every record not in the headline cards, once, under its family. */}
+      {families.map((f) => (
+        <Section key={f.anchor} id={f.anchor} title={f.family} count={`${f.rows.length}`}>
+          <DataTable rows={f.rows} rowKey={(row) => row.id} sortable={false} columns={columns} />
+        </Section>
+      ))}
 
       <Section title="Champions" count={`${titles.length}`}>
         <DataTable

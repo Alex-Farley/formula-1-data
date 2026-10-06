@@ -70,7 +70,17 @@ import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
 import { EXAMPLES } from '../src/lib/questions.js'
-import { HEADLINE, RECORDS as RECORDS_SQL, recordFamilies } from '../src/queries/records.js'
+import {
+  CONSTRUCTOR_WINS,
+  CONSTRUCTORS_HEADING,
+  DRIVER_POLES,
+  DRIVER_WINS,
+  HEADLINE,
+  LEADERBOARDS,
+  RECORDS as RECORDS_SQL,
+  leadersDrawn,
+  recordFamilies,
+} from '../src/queries/records.js'
 import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -3482,8 +3492,78 @@ try {
 
   await section('/records', async () => {
     await go('/records', 'Records')
-    is((await tableRows())[0], count('SELECT COUNT(*) FROM records WHERE headline = 1'), 'the page leads with the headline records')
+    const headlines = db.prepare('SELECT * FROM records WHERE headline = 1 ORDER BY id').all()
     atLeast(await page.$$eval('#root main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
+
+    // VD-68: the headline records are cards, not a table - the name, the
+    // value, the holder and the derivation folded under its heading - the
+    // same cards in both halves, and the leaderboards follow them before the
+    // families do.
+    {
+      const read = (root) =>
+        [...root.querySelectorAll('ul.record-cards > li.record-card')].map((li) => {
+          const t = (sel) => li.querySelector(sel)?.textContent.replace(/\s+/g, ' ').trim() ?? ''
+          return [
+            t('h3.record-card-name'),
+            li.querySelector('h3.record-card-name a')?.getAttribute('href') ?? '',
+            t('.record-card-value'),
+            t('.record-card-holder'),
+            li.querySelector('.record-card-holder a')?.getAttribute('href') ?? '',
+            t('details.record-card-how > p'),
+            li.querySelector('details.record-card-how')?.open ? 'open' : 'closed',
+            [...li.querySelectorAll('.record-card-extra')].map((p) => p.textContent.replace(/\s+/g, ' ').trim()).join(' / '),
+          ].join(' | ')
+        })
+      const app = await page.$eval('#root main', read)
+      is(app.length, headlines.length, 'the page leads with the headline records, a card each')
+      truthy(
+        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].includes(`| ${r.detail} | closed |`)),
+        'each card names its record and links its page, then the value, the holder and the derivation, folded',
+      )
+      const html = await (await fetch(`${BASE}/records`)).text()
+      // The same reader over the served markup, parsed in the page: an
+      // expression evaluated by the driver, so the site's CSP has no say.
+      const served = await page.evaluate(
+        `(${read.toString()})(new DOMParser().parseFromString(${JSON.stringify(html)}, 'text/html').getElementById('prerendered'))`,
+      )
+      is(served.join(' || '), app.join(' || '), 'and the static page draws the same cards')
+
+      // The leaderboards in the static half: each table named for its figure,
+      // as the app's is, and holding the rows the app's chart draws - a tie at
+      // the fifteenth row kept whole, never cut through.
+      const figures = (root) =>
+        [...root.querySelectorAll('figure.figure')].slice(0, 3).map((f) => ({
+          caption: f.querySelector('table caption')?.textContent.trim() ?? '',
+          names: [...f.querySelectorAll('table tbody tr')].map((tr) => tr.children[0].textContent.replace(/\s+/g, ' ').trim()),
+        }))
+      const appFigures = await page.$eval('#root main', figures)
+      const staticFigures = await page.evaluate(
+        `(${figures.toString()})(new DOMParser().parseFromString(${JSON.stringify(html)}, 'text/html').getElementById('prerendered'))`,
+      )
+      is(staticFigures.map((f) => f.caption).join(' | '), appFigures.map((f) => f.caption).join(' | '), 'the static leaderboards are named as the app names them')
+      const drawn = [
+        [DRIVER_WINS, 'wins'],
+        [DRIVER_POLES, 'poles'],
+        [CONSTRUCTOR_WINS, 'wins'],
+      ].map(([sql, key]) => leadersDrawn(db.prepare(sql).all(), key).length)
+      truthy(
+        staticFigures.length === 3 &&
+          staticFigures.every((f, i) => f.names.length === drawn[i] && f.names.join('|') === appFigures[i].names.slice(0, drawn[i]).join('|')),
+        `and each holds the app's leading rows, a tie at the cut kept whole — ${staticFigures.map((f) => f.names.length).join(', ')} of ${drawn.join(', ')}`,
+      )
+      const order = await page.$$eval('#root main h2', (nodes) => nodes.map((h) => h.textContent.replace(/\s+/g, ' ').trim()))
+      const at = (prefix) => order.findIndex((h) => h.startsWith(prefix))
+      truthy(
+        at(HEADLINE) === 0 && at(LEADERBOARDS) === 1 && at(CONSTRUCTORS_HEADING) === 2 && at(recordFamilies(db.prepare(RECORDS_SQL).all())[0].family) === 3,
+        `the cards, then the leaderboards, then the families — ${order.slice(0, 4).join(' / ')}`,
+      )
+      const staticOrder = [HEADLINE, LEADERBOARDS, CONSTRUCTORS_HEADING].map((h) => html.indexOf(`<h2>${h}`))
+      const firstFamily = html.indexOf(`<h2 id="${recordFamilies(db.prepare(RECORDS_SQL).all())[0].anchor}">`)
+      truthy(
+        staticOrder.every((n, i) => n > 0 && (i === 0 || n > staticOrder[i - 1])) && firstFamily > staticOrder[2],
+        'and the static page puts them in the same order',
+      )
+    }
 
     // WK-08: every other record once, under its family, in a section of its
     // own that the line under the headline table links, in both halves.
@@ -3539,7 +3619,10 @@ try {
 
     // PD-27: every record's name is its own page, and every champion and
     // decade leader a driver's, by the id the two views now carry.
-    const recordLinks = await page.$$eval('#root main table tbody th a[href^="/records/"]', (n) => n.length)
+    const recordLinks = await page.$$eval(
+      '#root main table tbody th a[href^="/records/"], #root main .record-card-name a[href^="/records/"]',
+      (n) => n.length,
+    )
     is(recordLinks, count('SELECT COUNT(*) FROM records'), 'every record links its own page')
     const championLinks = await page.$$eval('#root main h2', (nodes) =>
       [...(nodes.find((h) => /^Champions\b/.test(h.textContent.trim()))?.closest('section')?.querySelectorAll('tbody a[href^="/drivers/"]') ?? [])].length,
@@ -4368,7 +4451,12 @@ try {
       truthy(html.includes(`href="/drivers/${held.holder_id}"`), 'the static page links the same holder')
       // A positive test: the shared holder's text is in a plain cell, not inside a link.
       const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-      truthy(shared && html.includes(`<td class="prose">${esc(shared.holder)}</td>`), `a shared record (${shared?.holder}) is text in its own cell, not a link`)
+      truthy(
+        shared &&
+          (html.includes(`<td class="prose">${esc(shared.holder)}</td>`) ||
+            html.includes(`<p class="record-card-holder">${esc(shared.holder)}</p>`)),
+        `a shared record (${shared?.holder}) is text in its own cell or card, not a link`,
+      )
       // A driver on the wins leaderboard who holds no record: his only link on
       // the page is the leaderboard's.
       const leader = db
@@ -6240,7 +6328,7 @@ try {
       // LV-03: a practice-only driver across several seasons, whose sessions
       // the static page must list in the order the app sorts them.
       await same('/drivers/felipe-drugovich', 'Felipe Drugovich', 'Practice sessions')
-      await same('/records', 'Records')
+      await same('/records', 'Records', 'Championships')
       await same('/records', 'Records', 'Wins')
 
       // Rung two: the seasons list, a season's calendar and its two standings

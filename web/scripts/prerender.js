@@ -450,24 +450,37 @@ import {
   compareWith,
 } from '../src/queries/compare.js'
 import {
+  CONSTRUCTOR_WINS,
+  CONSTRUCTOR_WINS_COLUMNS,
+  CONSTRUCTOR_WINS_FIGURE,
+  CONSTRUCTORS_HEADING,
   DERIVATION,
+  DRIVER_POLES,
+  DRIVER_POLES_COLUMNS,
+  DRIVER_POLES_FIGURE,
   DRIVER_WINS,
+  DRIVER_WINS_COLUMNS,
+  DRIVER_WINS_FIGURE,
   HEADLINE,
   KEY_SHAPE,
+  LEADERBOARDS,
   RECORD,
   RECORDS,
+  RECORDS_LEDE,
   TIER_AFTER,
   asOfLine,
   asOfOf,
+  cardExtras,
   familiesLead,
   headlineRecords,
   holderPath,
+  leadersDrawn,
+  leadersDrawnLine,
+  recordColumns,
   recordFamilies,
   recordPath,
-  recordColumns,
   tierBefore,
   tiersOf,
-  RECORDS_LEDE,
 } from '../src/queries/records.js'
 // Where a page sits and where it leads, from the module the app reads (IA-03,
 // IA-22). The trails were written out here and the onward bands existed only
@@ -1555,7 +1568,9 @@ const SITE_CARD = {
  */
 const nameTables = (body) => {
   let heading = ''
-  const named = body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>/g, (match, text) => {
+  // A table that already names itself - a figure's, named for the figure as
+  // the app's is - keeps its caption.
+  const named = body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>(?!<caption)/g, (match, text) => {
     if (text === undefined) {
       return heading ? `<table><caption class="sr-only">${heading}</caption>` : match
     }
@@ -3229,16 +3244,48 @@ page({
   //
   // WK-08: the headline records, then every other record once under its
   // family, from the same helpers the app groups them with, and in the app's
-  // order: the families follow the headline table directly in both halves,
-  // and the app's leaderboards come after them, so the offset handOver() puts
-  // back lands on the same section. Each family's heading
-  // carries its section's address, which the line under the headline table
-  // links, as the app's does.
+  // order: the headline cards, the two leaderboard sections, then the
+  // families (VD-68), so the offset handOver() puts back lands on the same
+  // section. The app draws each leaderboard as a chart of its first
+  // LEADERS_DRAWN rows; this half has no chart and carries those rows as the
+  // figure's table, open, which stands about as tall as the chart does - all
+  // forty rows would put the families a screen or two lower here than in the
+  // app. Each family's heading carries its section's address, which the line
+  // under the headline cards links, as the app's does.
   const records = all(RECORDS)
   const tiers = tiersOf(records)
   const asOf = asOfOf(records)
   const headline = headlineRecords(records)
   const families = recordFamilies(records)
+  const extras = cardExtras(records)
+  // The cards, as Records.jsx's RecordCards draws them.
+  const recordCards = (rows) =>
+    `<ul class="record-cards">${rows
+      .map((row) => {
+        const path = holderPath(row)
+        return `<li class="record-card"><h3 class="record-card-name">${link(recordPath(row), row.record)}</h3><p class="record-card-value">${esc(
+          row.value,
+        )}</p><p class="record-card-holder">${path ? link(path, row.holder) : esc(row.holder)}</p>${extras
+          .map(
+            (c) =>
+              `<p class="record-card-extra">${esc(c.label)}: ${c.key === 'confidence' ? confidencePill(row.confidence) : esc(row[c.key])}</p>`,
+          )
+          .join('')}<details class="record-card-how"><summary>${esc(DERIVATION)}</summary><p>${esc(row.detail)}</p></details></li>`
+      })
+      .join('')}</ul>`
+  const driverLink = { full_name: (name, row) => link(`drivers/${row.driver_id}`, name) }
+  // Each table named for its figure, as the app's Figure names it, rather
+  // than for the section heading two of them share (AX-28).
+  const leaders = (spec, columns, rows, links) => {
+    const drawn = leadersDrawn(rows, spec.key)
+    const body = fromColumns(columns, drawn, links)
+    if (body.split('<table>').length !== 2) die(`prerender: the ${spec.title} figure is not one table`)
+    return figure(
+      spec.title,
+      `${spec.note} ${leadersDrawnLine(drawn.length)}`,
+      body.replace('<table>', `<table><caption class="sr-only">${esc(spec.title)}</caption>`),
+    )
+  }
   const recordTable = (rows) =>
     fromColumns(recordColumns(records), rows, {
       record: (value, row) => link(recordPath(row), value),
@@ -3262,7 +3309,7 @@ page({
             : ''
         }</p>
       <h2>${esc(HEADLINE)} <span class="count">${headline.length}</span></h2>
-      ${recordTable(headline)}
+      ${recordCards(headline)}
       ${
         families.length
           ? `<nav class="note" aria-label="Records by family">${esc(familiesLead(records.length - headline.length))} ${families
@@ -3270,6 +3317,17 @@ page({
               .join(' · ')}</nav>`
           : ''
       }
+      ${heading(LEADERBOARDS)}
+      <div class="split">${leaders(DRIVER_WINS_FIGURE, DRIVER_WINS_COLUMNS, all(DRIVER_WINS), driverLink)}${leaders(
+        DRIVER_POLES_FIGURE,
+        DRIVER_POLES_COLUMNS,
+        all(DRIVER_POLES),
+        driverLink,
+      )}</div>
+      ${heading(CONSTRUCTORS_HEADING)}
+      ${leaders(CONSTRUCTOR_WINS_FIGURE, CONSTRUCTOR_WINS_COLUMNS, all(CONSTRUCTOR_WINS), {
+        name: (name, row) => link(`constructors/${row.id}`, name),
+      })}
       ${families
         .map(
           (f) =>

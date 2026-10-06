@@ -131,9 +131,13 @@ import {
 } from '../src/lib/outline.js'
 import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import {
+  LEADERS_DRAWN,
   asOfOf,
+  cardExtras,
   familyAnchor,
   headlineRecords,
+  leadersDrawn,
+  leadersDrawnLine,
   recordColumns,
   recordFamilies,
   tiersOf,
@@ -1106,6 +1110,21 @@ describe('the queries a page and the prerenderer share', () => {
     const apart = [{ ...shared[0] }, { ...shared[1], as_of: '2026-09-07' }]
     assert.equal(asOfOf(apart), null)
     assert.equal(recordColumns(apart).at(-1).key, 'as_of')
+    // The headline cards carry the same two, on the same condition (VD-68).
+    assert.deepEqual(cardExtras(shared), [])
+    assert.deepEqual(cardExtras([{ ...apart[0], confidence: 'high' }, apart[1]]).map((c) => c.key), ['as_of', 'confidence'])
+  })
+
+  it('draws a leaderboard to fifteen, and keeps a tie at the cut whole (VD-68)', () => {
+    const board = (wins) => wins.map((w, i) => ({ id: i, wins: w }))
+    const clean = board([30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14])
+    assert.equal(leadersDrawn(clean, 'wins').length, LEADERS_DRAWN)
+    assert.equal(leadersDrawnLine(LEADERS_DRAWN), 'The fifteen with the most.')
+    // Fourteenth to seventeenth level, as the constructors on nine wins are.
+    const tied = board([30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 9, 9, 9, 9, 8])
+    assert.deepEqual(leadersDrawn(tied, 'wins').map((r) => r.id), [...Array(17).keys()])
+    assert.match(leadersDrawnLine(17), /^The 17 with the most/)
+    assert.equal(leadersDrawn(board([3, 2, 1]), 'wins').length, 3)
   })
 
   it('leads with the headline records and shows every other one once, under its family (WK-08)', () => {

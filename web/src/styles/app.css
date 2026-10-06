@@ -1063,6 +1063,121 @@ tbody th.record-derivation {
 }
 
 /*
+ * The headline records as cards (VD-68). As a table, the derivation column
+ * wrapped to six lines and set every row 94-132 px tall at 1440 and 151-228
+ * px at 400, so the page a reader quotes from showed two of its twelve
+ * records on the first screen at 1440 and none at 400. A card leads with the
+ * name, as a tile leads with its label, then the value at the tile's display
+ * size and the holder; the derivation is folded away under its heading and
+ * printed in full on the record's own page.
+ *
+ * Four to a row at 1440 and two at a phone's width, never one: one card to a
+ * row at 400 put the second value below the first screen. The cards of a row
+ * share its height, so the disclosure is pushed to each card's foot and the
+ * summaries line up across the row.
+ */
+.record-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-6);
+  margin: 0 0 var(--space-7);
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 600px) {
+  .record-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+.record-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-6) var(--space-7) var(--space-6);
+}
+
+.record-card p {
+  margin: 0;
+}
+
+.record-card-name {
+  margin: 0 0 var(--space-3);
+  font-family: var(--sans);
+  font-size: var(--size-4);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.record-card-name a,
+.record-card-holder a {
+  color: inherit;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+
+.record-card-value {
+  font-family: var(--disp);
+  font-size: var(--size-8);
+  font-weight: var(--weight-bold);
+  line-height: 1.12;
+  letter-spacing: -0.005em;
+  overflow-wrap: break-word;
+}
+
+.record-card-holder {
+  margin-top: var(--space-2);
+  font-size: var(--size-4);
+  color: var(--ink-soft);
+}
+
+.record-card-name a:hover,
+.record-card-name a:focus-visible,
+.record-card-holder a:hover,
+.record-card-holder a:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+.record-card-extra {
+  margin-top: var(--space-2);
+  font-size: var(--size-3);
+  color: var(--ink-faint);
+}
+
+.record-card-how {
+  margin-top: auto;
+  padding-top: var(--space-4);
+  font-size: var(--size-3);
+  color: var(--ink-faint);
+}
+
+.record-card-how summary {
+  cursor: pointer;
+}
+
+.record-card-how p {
+  margin-top: var(--space-3);
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .record-card {
+    padding: var(--space-5) var(--space-5) var(--space-5);
+  }
+
+  .record-card-value {
+    font-size: var(--size-7);
+  }
+}
+
+/*
  * Links inside a table and inside a stat tile.
  *
  * A classification is forty links in a row. Painting all of them accent turns
