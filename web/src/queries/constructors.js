@@ -10,6 +10,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
+import { seasonsRacedText } from '../charts/spark.js'
 import { span } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 
@@ -29,6 +30,14 @@ import { CURRENT_SEASON_SQL } from '../lib/season.js'
  * Entries and designs are counted from the race records and the chassis
  * register rather than read from a column; `on_grid` is the season's entry
  * list, the anchor lib/season.js explains.
+ *
+ * `seasons_raced` is every season with a race entry under this constructor,
+ * comma-separated in no promised order, for the bar charts/spark.js draws
+ * (VD-54) on an axis from `first_season` to `grid_season`. It is the race
+ * records' account, the one Race entries counts, and not first_entry and
+ * last_entry: those date a team from its first entry of any kind, so Williams
+ * is "1977–" for the March it ran that year and its bar starts in 1978, and
+ * Rob Walker, who only ever raced other makers' cars, has a span and no bar.
  */
 export const CONSTRUCTORS = `
   SELECT k.id, k.name, k.country, k.base, k.first_entry, k.last_entry,
@@ -36,6 +45,9 @@ export const CONSTRUCTORS = `
          k.lineage_chain, k.active,
          (SELECT COUNT(*) FROM race_entries e WHERE e.constructor_id = k.id) AS entries,
          (SELECT COUNT(DISTINCT ch.id) FROM chassis ch WHERE ch.constructor_id = k.id) AS designs,
+         (SELECT group_concat(DISTINCT r.year) FROM race_entries e JOIN races r ON r.id = e.race_id
+           WHERE e.constructor_id = k.id) AS seasons_raced,
+         (SELECT MIN(year) FROM seasons) AS first_season,
          ${CURRENT_SEASON_SQL} AS grid_season,
          EXISTS (SELECT 1 FROM season_entries se
                   WHERE se.constructor_id = k.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid
@@ -51,6 +63,9 @@ export const CONSTRUCTOR_COLUMNS = [
   { key: 'country', label: 'Country' },
   { key: 'base', label: 'Base', optional: true },
   { key: 'first_entry', label: 'Entered', align: 'num', text: entered },
+  // Every season it raced in, as bars on one axis (VD-54), drawn by
+  // charts/spark.js in both renderers; the cell's words are the runs.
+  { key: 'seasons_raced', label: 'Seasons raced', align: 'spark', sortable: false, text: seasonsRacedText },
   { key: 'entries', label: 'Race entries', align: 'num', phone: true },
   { key: 'designs', label: 'Designs', align: 'num' },
   { key: 'wins', label: 'Wins', align: 'num', phone: true },
@@ -60,4 +75,4 @@ export const CONSTRUCTOR_COLUMNS = [
 ]
 
 export const CONSTRUCTORS_FOOTER =
-  '“Race entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started.'
+  '“Race entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started. “Seasons raced” marks each season with a race entry under the constructor’s own name, from the first championship season at the left to this one at the right, so it can start later or stop sooner than “Entered” where a team raced under another name or in another maker’s car.'

@@ -3,10 +3,12 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
+import { TitleRaceSpark } from '../charts/Spark.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { NAMES, NOT_YET_RUN, SO_FAR } from '../lib/site.js'
 import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../queries/seasons.js'
+import { titleRaceText } from '../charts/spark.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
@@ -91,6 +93,10 @@ const APP = {
         {championConstructor(name, row)}
       </>
     ),
+  },
+  // VD-54: the line, named by the words the column's `text` gives the row.
+  title_race: {
+    render: (value, row) => <TitleRaceSpark value={value} label={titleRaceText(value, row)} />,
   },
 }
 

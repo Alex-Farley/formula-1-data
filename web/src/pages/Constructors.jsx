@@ -9,6 +9,8 @@ import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { colourFor } from '../lib/racingColours.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../queries/constructors.js'
+import { SeasonsRacedSpark } from '../charts/Spark.jsx'
+import { seasonsRacedText } from '../charts/spark.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
@@ -36,6 +38,12 @@ const APP = {
     },
   },
   first_entry: { sort: (row) => row.first_entry },
+  // VD-54: the bars, named by the words the column's `text` gives the row.
+  seasons_raced: {
+    render: (value, row) => (
+      <SeasonsRacedSpark value={value} first={row.first_season} last={row.grid_season} label={seasonsRacedText(value)} />
+    ),
+  },
   drivers_titles: {
     render: (value, row) => (value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value)),
   },
