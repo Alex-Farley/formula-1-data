@@ -2936,16 +2936,15 @@ def the_chassis_register():
           f"no longer late: {_fmt_late(_late_declared - _late_cars)}")
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
 
-    # A car that is the whole of one chassis under another id shows each
-    # figure from the chassis where it has one (IA-28), so every figure the
+    # A car that is the whole of one chassis shows each figure from the
+    # chassis where it has one (IA-28, IA-29), so every figure the
     # two rows give differently must be an open disagreement carrying both,
     # and every such row must still be one: the car's figure stored, the
     # chassis's derived, read here from the two tables, not from the build.
     import build
     _copies = con.execute("""SELECT c.id, ch.id FROM cars c
         JOIN chassis ch ON ch.car_id = c.id
-        WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
-          AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1""").fetchall()
+        WHERE (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1""").fetchall()
     _differ = {}
     for car_id, ch_id in _copies:
         for field in build.CAR_CHASSIS_FIGURES:

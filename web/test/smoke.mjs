@@ -3812,8 +3812,9 @@ try {
   })
 
   /*
-   * IA-28. Where a curated car is one chassis, both halves of both addresses
-   * print its figures by the one precedence in queries/car.js - the chassis's
+   * IA-28, IA-29. Where a curated car is one chassis - under another id or
+   * its own - both halves of every address it has print its figures by the
+   * one precedence in queries/car.js - the chassis's
    * where it has one, the curated row's where it does not - so the static
    * page and the app agree field for field, and a figure the two rows give
    * differently is shown with both readings beside it.
@@ -3823,12 +3824,12 @@ try {
       .prepare(
         `SELECT ch.id AS chassis, c.id AS car
            FROM cars c JOIN chassis ch ON ch.car_id = c.id
-          WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
-            AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
+          WHERE (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
           ORDER BY c.id`,
       )
       .all()
-    atLeast(copies.length, 1, 'some curated car is a single chassis under another id')
+    atLeast(copies.filter((c) => c.chassis !== c.car).length, 1, 'some curated car is a single chassis under another id')
+    atLeast(copies.filter((c) => c.chassis === c.car).length, 1, 'and some is a single chassis under its own')
     const SPEC = ['Designers', 'Chassis', 'Suspension', 'Front suspension', 'Rear suspension', 'Brakes', 'Gearbox',
       'Gears', 'Tyres', 'Fuel', 'Engine', 'Configuration', 'Capacity', 'Aspiration', 'Power', 'Power note', 'Weight',
       'Wheelbase', 'Track, front', 'Track, rear']
@@ -3855,12 +3856,13 @@ try {
         .all(car)
         .map((r) => r.pair)
       const own = await (await fetch(`${BASE}/cars/${car}`)).text()
-      const copy = await (await fetch(`${BASE}/cars/${chassis}`)).text()
+      // A car that shares its id with its chassis has the one address.
+      const copy = chassis === car ? null : await (await fetch(`${BASE}/cars/${chassis}`)).text()
       const served = servedFields(own)
-      if (JSON.stringify(servedFields(copy)) !== JSON.stringify(served)) {
+      if (copy !== null && JSON.stringify(servedFields(copy)) !== JSON.stringify(served)) {
         wrong.push(`/cars/${chassis}: the static copy prints other figures than /cars/${car}`)
       }
-      for (const [where, html] of [[car, own], [chassis, copy]]) {
+      for (const [where, html] of copy === null ? [[car, own]] : [[car, own], [chassis, copy]]) {
         if (pairs(html).join(',') !== want.join(',')) wrong.push(`/cars/${where}: static readings ${pairs(html)}, recorded ${want}`)
       }
       await go(`/cars/${car}`)
