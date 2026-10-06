@@ -2959,6 +2959,45 @@ figure.figure-lead > .legend {
   margin-top: var(--space-8);
 }
 
+/* PD-60: over the cards, the timeline's rows as a strip that wraps, years
+   first; the cards open from the disclosure under it. */
+.layout-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.layout-strip > li {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-size: var(--size-3);
+  color: var(--ink-soft);
+}
+
+.layout-strip .years {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.layout-cards {
+  margin-top: var(--space-6);
+}
+
+.layout-cards > summary {
+  cursor: pointer;
+  font-size: var(--size-4);
+  color: var(--ink-soft);
+}
+
+.layout-cards > summary:hover {
+  color: var(--ink);
+}
+
 .layout-timeline > article {
   display: grid;
   gap: var(--space-7);

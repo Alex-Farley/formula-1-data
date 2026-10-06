@@ -103,6 +103,25 @@ export const NO_DRAWING = 'This row names no F1DB outline'
  */
 export const NO_TIMELINE_ROW = 'No timeline row names this drawing'
 
+/**
+ * One entry of layoutTimeline() in words: the register's name for the layout
+ * and its years, or, for a drawing no row names, the words saying so and the
+ * years it was raced. The row's heading and the strip over the rows (PD-60)
+ * both print these, in both renderers.
+ */
+export const timelineName = ({ layout }) => (layout ? layout.layout_name : NO_TIMELINE_ROW)
+export const timelineYears = ({ layout, outline }) =>
+  layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year)
+
+/**
+ * PD-60: the circuit page's layout history comes after its winners, as a
+ * strip of the timeline's rows with the cards - each drawing, its figures
+ * and the reason the layout changed - behind this disclosure. Nine cards at
+ * Monza put "Most wins here" 4,600 px down a page a reader opens before a
+ * race weekend to find out who wins there.
+ */
+export const LAYOUT_CARDS = 'Each layout with its drawing, and what changed'
+
 /** The count beside a circuit's layouts: the timeline's rows and the drawings, which need not agree. */
 export const layoutsCount = (layouts, outlines) =>
   layouts.length ? `${layouts.length} in the timeline, ${outlines.length} drawn` : `${outlines.length}`
