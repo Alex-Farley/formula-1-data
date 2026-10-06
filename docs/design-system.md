@@ -309,9 +309,10 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   only the app draws is the season's *Next session*, because only a browser
   knows how long until it starts; §8's test 5 declares it.
 - **Labels from one vocabulary:** *Seasons* for every year span, and
-  *Entries* everywhere (CD-12 #258); a record's strip is *Record* and
-  *Held by*. The words are `LABELS` in `lib/site.js`, which every strip
-  reads (VD-81); §8's test 7 refuses a synonym.
+  *Entries* everywhere (CD-12 #258); a record's strip is *Value* and
+  *Held by*, as /records' tables are. The words are `LABELS` in
+  `lib/site.js`, which every strip reads (VD-81); §8's test 7 refuses a
+  synonym.
 - **States:** a value not established is an em dash (**floor**: the NULL
   rule). *Pending (VD-88 #887):* both renderers still drop a tile whose
   value is null.
@@ -486,7 +487,7 @@ puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81)
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -494,11 +495,14 @@ puts the classification before the outline (visual defect 7).
   - year span: *Seasons*;
   - entries: *Entries*;
   - provenance: *Where this comes from*;
-  - a record tile: *Held by*, not *HOLDER*.
+  - a record: its *Value*, *Held by*, not *HOLDER*, on its tiles and in
+    /records' tables.
 
   These are CD-12's vocabulary, applied: `LABELS` in `lib/site.js`, and
   `REPLACED` beside it lists the words they replaced, which the tests
-  refuse.
+  refuse. *Pending (CD-58 #893):* the `/constructors` and `/cars` register
+  columns still say *Entered*, *Raced* and *Race entries*, declared in the
+  test until that item moves them.
 - **A disclosure or a link says what it opens.** A disclosure that repeats
   on a page carries what it belongs to for a screen reader, as a fold
   carries its table's name: *How it is derived, Most Grand Prix wins*. A
@@ -653,8 +657,10 @@ Built in VD-81: 7.
    grammar*).
 7. **One vocabulary.** Tile labels and provenance headings come from one
    list, `LABELS` in `lib/site.js`, and a test refuses a synonym: in the
-   source (`conventions.mjs`, *one vocabulary*), where a strip that writes
-   a word of the list as a literal fails too, and on the smoke routes in
+   source (`conventions.mjs`, *one vocabulary*), in any tile or column of
+   `queries/*.js` but the register columns declared until CD-58 (#893),
+   where a strip that writes a word of the list as a literal fails too, and
+   on the smoke routes in
    both halves (`smoke.mjs`), which also hold every entity page's eyebrow
    to its type and its provenance section to *Where this comes from*.
 8. **Tokens are used.** Every token defined in `tokens.css` is referenced

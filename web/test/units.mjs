@@ -1172,7 +1172,7 @@ describe('the queries a page and the prerenderer share', () => {
       recordColumns(shared).map((c) => c.label),
       // The value is second: the record and its figure are the pair the
       // page is for, and the holder answers the question after that (VD-51).
-      ['Record', 'Value', 'Holder', 'How it is derived'],
+      ['Record', 'Value', 'Held by', 'How it is derived'],
     )
     assert.equal(recordColumns([{ confidence: 'reference' }, { confidence: 'high' }]).at(-1).key, 'confidence')
     const apart = [{ ...shared[0] }, { ...shared[1], as_of: '2026-09-07' }]

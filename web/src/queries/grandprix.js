@@ -112,7 +112,7 @@ export const CIRCUIT_COLUMNS = [
   { key: 'circuit', rowHeader: true, label: 'Circuit' },
   { key: 'country', label: 'Country' },
   { key: 'races', label: 'Races', align: 'num' },
-  { key: 'first_year', label: 'Span', align: 'num', text: circuitYears },
+  { key: 'first_year', label: LABELS.seasons, align: 'num', text: circuitYears },
 ]
 
 export const EDITION_COLUMNS = [

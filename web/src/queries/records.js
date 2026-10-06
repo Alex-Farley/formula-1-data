@@ -270,8 +270,8 @@ export function recordColumns(records) {
     // is as much as a figure-led phrase can honestly claim; `num` would line up
     // the ends of sentences instead. The comparable number is value_num, with
     // its unit, for a query.
-    { key: 'value', label: 'Value', align: 'prose', cellClass: 'record-value' },
-    { key: 'holder', label: 'Holder', align: 'prose' },
+    { key: 'value', label: LABELS.value, align: 'prose', cellClass: 'record-value' },
+    { key: 'holder', label: LABELS.heldBy, align: 'prose' },
     // The derivation is what CR-22's claim rests on, so it stays in the table
     // and stays legible; it is the footnote to the figure, not its equal, and
     // it was set in the same ink at the same size (VD-51).
@@ -334,6 +334,6 @@ export const RECORDS_STANDFIRST =
  * links to their page where holderPath() finds one.
  */
 export const recordStrip = (record) => [
-  { label: LABELS.record, value: record.value, lead: true },
+  { label: LABELS.value, value: record.value, lead: true },
   { label: LABELS.heldBy, value: record.holder, href: holderPath(record) },
 ]

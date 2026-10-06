@@ -139,14 +139,17 @@ export const EYEBROWS = {
  * words for one thing teach a reader they are two things (CD-12).
  *
  * So the words are here, once, and every strip in queries/*.js and every
- * provenance heading in both renderers reads them. web/test/conventions.mjs
- * (*one vocabulary*) refuses a strip that writes one of these words as a
- * literal, and refuses the synonyms they replaced.
+ * provenance heading in both renderers reads them, as do the /records tables
+ * a record's tiles sit one click from: a record is its *Value* and who it is
+ * *Held by* in both, where the tiles once said *Value / Holder* and *Record*
+ * already named the record itself. web/test/conventions.mjs (*one
+ * vocabulary*) refuses a strip that writes one of these words as a literal,
+ * and a synonym they replaced in any column or tile of queries/*.js.
  */
 export const LABELS = {
   seasons: 'Seasons',
   entries: 'Entries',
-  record: 'Record',
+  value: 'Value',
   heldBy: 'Held by',
   provenance: 'Where this comes from',
 }
@@ -164,7 +167,6 @@ export const REPLACED = {
   Span: LABELS.seasons,
   'Race entries': LABELS.entries,
   'Recorded entries': LABELS.entries,
-  Value: LABELS.record,
   Holder: LABELS.heldBy,
   'On the record': LABELS.provenance,
   'The season on the record': LABELS.provenance,

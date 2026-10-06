@@ -276,7 +276,7 @@ function CarBody({ id, chassis, variants, data }) {
         <Fields
           items={[
             // The builder's colour mark (AF-51), for the last season this
-            // PAGE covers - `raced[1]`, the same figure the "Raced" stat
+            // PAGE covers - `raced[1]`, the same figure the "Seasons" tile
             // prints. `chassis` is variants[0], so reading its `last_year`
             // would take the first variant's last season and contradict the
             // span shown above it. No `year` is passed:

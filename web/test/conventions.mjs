@@ -2072,16 +2072,17 @@ describe('one vocabulary: tile labels and provenance headings come from one list
   // holds the drawn pages to the same list.
   const SYNONYMS = REPLACED
   const WORDS = new Set(Object.values(LABELS))
+  const queries = sourceFiles(join(web, 'src', 'queries'), /\.js$/)
 
   // Every tile strip is data in a queries/*.js module (VD-49), an exported
-  // function whose name ends in Strip, or `strip` itself: its body runs to
-  // the next top-level declaration.
-  const strips = sourceFiles(join(web, 'src', 'queries'), /\.js$/).flatMap((file) => {
+  // function whose name ends in Strip, or `strip` itself, written as a const
+  // or as a function: its body runs to the next top-level declaration.
+  const strips = queries.flatMap((file) => {
     const source = read(file)
-    return [...source.matchAll(/^export const (\w*[sS]trip) = /gm)].map((match) => {
+    return [...source.matchAll(/^export (?:const (\w*[sS]trip) = |function (\w*[sS]trip)\b)/gm)].map((match) => {
       const rest = source.slice(match.index + match[0].length)
       const end = rest.search(/^(export |const |function |\/\*\*)/m)
-      return { file, name: match[1], body: end === -1 ? rest : rest.slice(0, end) }
+      return { file, name: match[1] ?? match[2], body: end === -1 ? rest : rest.slice(0, end) }
     })
   })
 
@@ -2094,11 +2095,51 @@ describe('one vocabulary: tile labels and provenance headings come from one list
       }
     }
     assert.deepEqual(offenders, [], 'a tile label off the one vocabulary')
-    assert.ok(strips.length >= 12, `the scan found the strips it is guarding, ${strips.length} of them`)
+    assert.ok(strips.length >= 13, `the scan found the strips it is guarding, ${strips.length} of them`)
+    assert.ok(
+      strips.some(({ file, name }) => rel(file).endsWith('queries/driver.js') && name === 'strip'),
+      "and the driver's, which is a function",
+    )
     assert.ok(
       strips.filter(({ body }) => /\bLABELS\.\w+/.test(body)).length >= 7,
       'and the entity strips read the list',
     )
+  })
+
+  // A table's column is held to the list too, so a page and the register or
+  // table one click away do not name one figure two ways: the record tiles
+  // said *Holder* while /records' tables said it too, and both now say *Held
+  // by*; a Grand Prix's tile said *Span* and so did /grands-prix. Declared,
+  // with the reason: the /constructors and /cars register columns, outside
+  // VD-81's step until CD-58 (#893) moves them, and the winners tables'
+  // *Span*, which is the years from a first win to a last, not a span of
+  // seasons raced. A declaration no longer needed fails, so the list cannot
+  // outlive its cause.
+  const WIN_SPAN = 'the years from a first win to a last, not the seasons raced'
+  const DECLARED = {
+    'src/queries/constructors.js': { Entered: '#893', 'Race entries': '#893' },
+    'src/queries/cars.js': { Raced: '#893' },
+    'src/queries/car.js': { Raced: '#893' },
+    'src/queries/circuit.js': { Span: WIN_SPAN },
+    'src/queries/grandprix.js': { Span: WIN_SPAN },
+  }
+  it('no column or tile in queries/*.js writes a word LABELS replaced, but those declared', () => {
+    const offenders = []
+    const used = new Set()
+    for (const file of queries) {
+      const declared = DECLARED[rel(file)] ?? {}
+      for (const [, , literal] of read(file).matchAll(/\blabel:\s*(['"`])((?:(?!\1).)*)\1/g)) {
+        if (!(literal in SYNONYMS)) continue
+        if (literal in declared) used.add(`${rel(file)} ${literal}`)
+        else offenders.push(`${rel(file)}: '${literal}' is '${SYNONYMS[literal]}'`)
+      }
+    }
+    for (const [file, words] of Object.entries(DECLARED)) {
+      for (const word of Object.keys(words)) {
+        if (!used.has(`${file} ${word}`)) offenders.push(`${file}: '${word}' is declared and no longer written - delete it from DECLARED`)
+      }
+    }
+    assert.deepEqual(offenders, [], 'a column or tile off the one vocabulary')
   })
 
   it('every provenance heading is LABELS.provenance, in both renderers', () => {
