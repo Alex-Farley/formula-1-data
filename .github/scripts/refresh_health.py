@@ -29,6 +29,13 @@ THE RULE (decided 2026-10-05, on #786)
     on its date in `races`. Nothing typed in data/ can mark a round
     cancelled and so switch this check off.
 
+    build.py carries that half into f1.db as `races.on_f1db_calendar`, and
+    verify.py holds it to the harvest, so that lapledger.org says a race is
+    late by this same rule and these same GRACE_DAYS at the reader's own
+    date (SD-37, web/src/lib/refresh.js). on_calendar() below is the
+    definition: tests/test_refresh_health.py holds the column to it, and
+    web/test/units.mjs holds the site's GRACE_DAYS to this one.
+
     Separately, and lighter: from 1 February a season with no calendar at all
     in `races` is flagged, since by then the season's calendar has long been
     announced and its first race is weeks away.
@@ -59,6 +66,17 @@ def f1db_calendar(path):
     return days
 
 
+def on_calendar(calendar, year, day):
+    """1 when F1DB's calendar lists a race in `year` on `day`, 0 when it
+    holds that season and lists none that day (cancelled or moved), None when
+    it holds no calendar for the season. build.py writes exactly this into
+    races.on_f1db_calendar, and tests/test_refresh_health.py holds the
+    committed database to it."""
+    if not any(y == year for y, _ in calendar):
+        return None
+    return int((year, day) in calendar)
+
+
 def unresulted(con, today):
     """Rounds dated before `today` with no row in race_entries, oldest
     first: [(year, round, name, date)]. Not `status`: data/current.py can
@@ -74,14 +92,13 @@ def late_races(con, calendar, today):
     """(late, unlisted). `late` is every round more than GRACE_DAYS past its
     date with no result, unless F1DB's calendar holds that season and lists
     no race that day; that is `unlisted`, which raises nothing."""
-    seasons = {year for year, _ in calendar}
     late, unlisted = [], []
     for year, rnd, name, day in unresulted(con, today):
         days = (today - dt.date.fromisoformat(day)).days
         if days <= GRACE_DAYS:
             continue
         row = dict(year=year, round=rnd, name=name, date=day, days=days)
-        cancelled = year in seasons and (year, day) not in calendar
+        cancelled = on_calendar(calendar, year, day) == 0
         (unlisted if cancelled else late).append(row)
     return late, unlisted
 

@@ -122,6 +122,35 @@ class ARaceIsLateAfterThreeDays(Fixture):
         self.assertNotIn((2031, 1), self.late("2031-03-12")[0])
 
 
+class TheSiteReadsTheSameCalendar(unittest.TestCase):
+    """SD-37: build.py carries the cancellation half of the rule into f1.db
+    as races.on_f1db_calendar, for the site to apply at the reader's date.
+    Held here to this script's own on_calendar() and its own reading of the
+    harvest, so the two Python halves of the rule cannot drift apart behind
+    a docstring. Both sides come out of the same rebuild - refresh.yml
+    rebuilds before it runs this suite - so it holds on any harvest, which
+    is what the note above asks of a test that reads the committed files."""
+
+    def test_every_race_says_what_this_script_would(self):
+        calendar = health.f1db_calendar(CALENDAR)
+        con = sqlite3.connect(DB)
+        try:
+            rows = con.execute("SELECT year, round, date_iso, on_f1db_calendar FROM races").fetchall()
+        finally:
+            con.close()
+        self.assertTrue(rows)
+        wrong = [(year, rnd, got, health.on_calendar(calendar, year, day))
+                 for year, rnd, day, got in rows
+                 if got != health.on_calendar(calendar, year, day)]
+        self.assertEqual(wrong, [])
+
+    def test_the_three_answers(self):
+        calendar = {(2030, "2030-03-10")}
+        self.assertEqual(health.on_calendar(calendar, 2030, "2030-03-10"), 1)
+        self.assertEqual(health.on_calendar(calendar, 2030, "2030-03-17"), 0)
+        self.assertIsNone(health.on_calendar(calendar, 2031, "2031-03-09"))
+
+
 class ASeasonNeedsACalendarByFebruary(Fixture):
     def test_on_the_first_of_february(self):
         self.assertEqual(health.season_without_calendar(self.con, day("2032-02-01")), 2032)

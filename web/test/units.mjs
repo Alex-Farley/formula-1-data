@@ -17,6 +17,7 @@
  */
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
@@ -142,6 +143,8 @@ import {
   roundStates,
 } from '../src/lib/outline.js'
 import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
+import { GRACE_DAYS, LATE_NOTE, lateDays, lateLine, lateNotice, lateRaces, raceDay, readerDay } from '../src/lib/refresh.js'
+import { UNRESULTED } from '../src/queries/changes.js'
 import {
   LEADERS_DRAWN,
   asOfOf,
@@ -2594,5 +2597,67 @@ describe('the registers\' small multiples (VD-54)', () => {
     assert.ok(one.runs[0].x + one.runs[0].width <= SEASONS_RACED_WIDTH + 0.1)
     assert.deepEqual(seasonsRacedLayout(null, 1950, 2026).runs, [])
     assert.equal(seasonsRacedLayout('1950', null, 2026), null)
+  })
+})
+
+// SD-37: the late-results notice is refresh_health.py's rule, at the reader's
+// date. These hold the two to the same days and the same cancellation half.
+describe('late results', () => {
+  it('waits the same days the health check does', () => {
+    const python = readFileSync(join(web, '..', '.github', 'scripts', 'refresh_health.py'), 'utf8')
+    assert.equal(Number(python.match(/^GRACE_DAYS = (\d+)$/m)?.[1]), GRACE_DAYS)
+  })
+
+  it('is late only past the grace days, and never when F1DB dropped the round', () => {
+    const round = { year: 2026, round: 17, name_used: 'Singapore Grand Prix', date_iso: '2026-10-11', on_f1db_calendar: 1 }
+    assert.equal(lateDays(round, '2026-10-14'), null, 'three days is not late')
+    assert.equal(lateDays(round, '2026-10-15'), 4, 'four is')
+    assert.equal(lateDays({ ...round, on_f1db_calendar: null }, '2026-10-15'), 4, 'a season F1DB has not reached still counts')
+    assert.equal(lateDays({ ...round, on_f1db_calendar: 0 }, '2026-10-15'), null, 'a round F1DB no longer lists does not')
+    assert.equal(lateDays({ ...round, date_iso: null }, '2026-10-15'), null, 'an unreadable date is not evidence of anything')
+    assert.equal(lateDays(round, '2026-10-09'), null, 'nor is a race still to come')
+  })
+
+  it('reads the reader\'s own calendar day', () => {
+    assert.match(readerDay(), /^\d{4}-\d{2}-\d{2}$/)
+    const d = new Date(2026, 9, 6, 23, 30)
+    assert.equal(readerDay(d.getTime()), '2026-10-06')
+  })
+
+  it('says it once for /changes, and the race page says it in the same words', () => {
+    assert.equal(lateNotice([]), null)
+    const late = lateRaces([{ year: 2026, round: 17, name_used: 'Singapore Grand Prix', date_iso: '2026-10-11', date_to: null, on_f1db_calendar: 1 }], '2026-10-16')
+    const notice = lateNotice(late)
+    assert.equal(notice.head, 'Results are late.')
+    assert.equal(notice.body, `The 2026 Singapore Grand Prix was run on 2026-10-11, and its result is not here yet. ${LATE_NOTE}`)
+    const note = scheduledNote({ year: 2026, date_iso: '2026-10-11' }, 'run', 5)
+    assert.equal(note.head, 'This race’s result is late.')
+    assert.equal(note.body, `It was run on 2026-10-11. ${LATE_NOTE}`)
+  })
+
+  it('names the circuit\'s day, not F1DB\'s UTC one, and counts on the UTC one', () => {
+    // Las Vegas: a Saturday-night race that is Sunday in UTC.
+    const vegas = { year: 2026, round: 21, name_used: 'Las Vegas Grand Prix', date_iso: '2026-11-22', date_to: '2026-11-21', on_f1db_calendar: 1 }
+    assert.equal(raceDay(vegas), '2026-11-21')
+    assert.equal(lateDays(vegas, '2026-11-25'), null, 'three days after the UTC day is not late')
+    assert.ok(lateLine({ ...vegas, days: 4 }).includes('run on 2026-11-21,'))
+    assert.ok(scheduledNote(vegas, 'run', 4).body.startsWith('It was run on 2026-11-21.'))
+  })
+
+  it('finds the late rounds in the database the site serves', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const rounds = db.prepare(UNRESULTED).all()
+      assert.ok(rounds.length > 0, 'the calendar holds rounds still to be run')
+      assert.ok(rounds.every((r) => r.on_f1db_calendar !== undefined), 'and each says whether F1DB lists it')
+      // Every round still unresulted is late on a day long after the last of
+      // them, unless F1DB dropped it; none is late on the first of them.
+      const last = rounds.at(-1).date_iso
+      const after = `${Number(last.slice(0, 4)) + 1}${last.slice(4)}`
+      assert.equal(lateRaces(rounds, after).length, rounds.filter((r) => r.on_f1db_calendar !== 0).length)
+      assert.equal(lateRaces(rounds, rounds[0].date_iso).length, 0)
+    } finally {
+      db.close()
+    }
   })
 })

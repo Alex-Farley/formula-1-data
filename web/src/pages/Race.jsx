@@ -7,6 +7,7 @@ import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
+import { lateDays, readerDay } from '../lib/refresh.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, raceDates, result } from '../lib/format.js'
 import {
@@ -270,7 +271,12 @@ function RaceBody({ race, data, year, round }) {
   // fastest lap are the strip's, and queries/race.js's raceStrip says which.
   const shared = entries.some((e) => e.shared_drive === 1)
   const scheduled = race.status === 'scheduled'
-  const pending = scheduled ? scheduledNote(race, stage) : null
+  // SD-37: late by the reader's own date, and only with no result held - the
+  // rule lib/refresh.js keeps for /changes too.
+  const late = entries.length === 0 ? lateDays(race, readerDay(now)) : null
+  // Late is shown whatever `status` says: a round authored `completed` by
+  // hand with no result held is late on /changes, so it is late here too.
+  const pending = scheduled || late !== null ? scheduledNote(race, stage, late) : null
 
   const timetable = sessions.length > 0 && (
     <Section title="Timetable" count={`${sessions.length} sessions`}>

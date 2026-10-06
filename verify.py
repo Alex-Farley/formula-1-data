@@ -1854,6 +1854,25 @@ def calendar():
     check("every ISO race date is a well-formed day", badiso == 0,
           f"{badiso} malformed")
 
+    # Whether F1DB's calendar lists a round (SD-37) is the half of the
+    # late-results rule that refresh_health.py reads from the harvest and the
+    # site reads from races.on_f1db_calendar, so it is recomputed from the
+    # harvest here and compared row for row. A column drifted from
+    # harvest/race_dates.txt would tell a reader that a cancelled round was
+    # late, or say nothing about a late one.
+    _calendar = {(int(h["year"]), h["date"])
+                 for h in harvest_module().load_race_dates()}
+    _held = {year for year, _ in _calendar}
+    _listed = []
+    for year, rnd, day, got in con.execute(
+            "SELECT year, round, date_iso, on_f1db_calendar FROM races "
+            "ORDER BY year, round"):
+        want = int((year, day) in _calendar) if year in _held else None
+        if got != want:
+            _listed.append(f"{year} r{rnd}: {got}, the harvest says {want}")
+    check("every race says whether F1DB's calendar lists it, as the harvest does",
+          not _listed, "; ".join(_listed[:4]))
+
     # The weekend (DA-15). date_from and date_to were one display string,
     # `dates`, that held an ISO day on 98% of rows and a range on the rest,
     # and no check could read the range - which is how Las Vegas 2026 stood

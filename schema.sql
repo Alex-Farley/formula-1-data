@@ -1124,6 +1124,19 @@ CREATE TABLE races (
     -- front end knows only these two. A third state fails loudly here first.
     status          TEXT NOT NULL DEFAULT 'completed'
                     CHECK (status IN ('completed', 'scheduled')),
+    -- WHETHER F1DB'S CALENDAR LISTS THE ROUND (SD-37). 1 where F1DB lists a
+    -- race in this season on date_iso; 0 where F1DB holds the season's
+    -- calendar and lists no race that day - a round cancelled or moved after
+    -- it was typed into data/current.py; NULL where F1DB holds no calendar
+    -- for the season at all (2027, today), which is a season the harvest has
+    -- not reached rather than one of cancellations. Matched on the day and
+    -- not the round number, because F1DB renumbers the rounds after one it
+    -- drops. It is the half of the late-results rule (decided on #786) that
+    -- refresh.yml's health check reads from harvest/race_dates.txt, carried
+    -- here so the site can apply the rule with the reader's own date: a
+    -- round is late when it is more than three days past date_iso, holds no
+    -- result, and this is not 0. verify.py recomputes it from the harvest.
+    on_f1db_calendar INTEGER CHECK (on_f1db_calendar IN (0, 1)),
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT,

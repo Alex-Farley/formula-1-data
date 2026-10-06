@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
-import { Onward, Page, Section } from '../components/Page.jsx'
+import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED } from '../lib/refresh.js'
+import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../lib/refresh.js'
 import {
   CHANGES_LEDE,
   CHANGES_TITLE,
@@ -18,7 +18,7 @@ import {
   RELEASES,
   RELEASE_COLUMNS,
 } from '../lib/changes.js'
-import { LATEST, SHAPE } from '../queries/changes.js'
+import { LATEST, SHAPE, UNRESULTED } from '../queries/changes.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /*
@@ -36,6 +36,7 @@ import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 const SPEC = {
   shape: [SHAPE],
   latest: [LATEST],
+  unresulted: [UNRESULTED],
   meta: ['SELECT key, value FROM meta'],
 }
 
@@ -49,10 +50,21 @@ function Current({ data }) {
   // the footer's and the data page's do, so this page can never describe a
   // build other than the one it is running on.
   const meta = Object.fromEntries(rows(data, 'meta').map((r) => [r.key, r.value]))
+  // SD-37: read at the reader's own date, which the static page cannot know;
+  // lib/refresh.js says why that is the point.
+  const late = lateNotice(lateRaces(rows(data, 'unresulted'), readerDay()))
 
   return (
     <>
-      <dl className="facts">
+      {late && (
+        <Note>
+          <strong>{late.head}</strong> {late.body}
+        </Note>
+      )}
+      {/* `fields`, the class prerender.js's fields() writes and app.css draws
+          (CR-42): this was `facts`, styled nowhere, so the list changed shape
+          when the database opened. */}
+      <dl className="fields">
         <dt>Version</dt>
         <dd>{meta.version ? `v${meta.version}` : '—'}</dd>
         <dt>Built</dt>
