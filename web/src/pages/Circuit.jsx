@@ -232,6 +232,7 @@ function CircuitBody({ circuit, data }) {
           <Section title="Most wins here" count={`${winners.length} drivers`}>
             <DataTable
               rows={winners}
+              fold
               rowKey={(row) => row.driver_id}
               sortable
               sort="wins"
@@ -246,6 +247,7 @@ function CircuitBody({ circuit, data }) {
           <Section title="Constructors here" count={`${teams.length}`}>
             <DataTable
               rows={teams}
+              fold
               rowKey={(row) => row.constructor_id ?? row.constructor}
               sortable
               sort="wins"
@@ -332,6 +334,7 @@ function CircuitBody({ circuit, data }) {
         )}
         <DataTable
           rows={races}
+          fold
           rowKey={(row) => `${row.year}-${row.round}`}
           sortable
           sort="year"

@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
 
 import { MIN_ROWS, cellText, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
-import { captureStaticTables, staticRows } from '../src/lib/handover.js'
+import { captureOpenFolds, captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
 
 import {
   fieldText,
@@ -1940,9 +1940,14 @@ describe('a table as a file (IX-26)', () => {
  * case is the only thing that can hold it.
  */
 describe('the rows the static page drew (IX-19)', () => {
-  const fakeTable = (caption, rows) => ({
+  // `open`: whether the reader has opened the table's fold (VD-69).
+  const fakeTable = (caption, rows, open = false) => ({
     querySelector: (selector) => (selector === 'caption' && caption !== null ? { textContent: caption } : null),
     querySelectorAll: () => ({ length: rows }),
+    closest: (selector) =>
+      selector === '.table-wrap'
+        ? { querySelector: (inner) => (inner === ':scope > details.table-fold' ? { open } : null) }
+        : null,
   })
   const stand = (pathname, tables, run) => {
     const hadDocument = 'document' in globalThis
@@ -2006,6 +2011,31 @@ describe('the rows the static page drew (IX-19)', () => {
       assert.equal(staticRows('Drivers'), 862)
       globalThis.location = { pathname: '/drivers/senna' }
       assert.equal(staticRows('Drivers'), 0)
+    })
+  })
+
+  // VD-69. A fold the reader opened before the database did stays open:
+  // closing it at the handover would take away rows they were reading. The
+  // page is counted at boot, when every fold is closed, and the reader opens
+  // one afterwards - which is the order a real page has, and the one the
+  // first version of this read only at boot and so never saw.
+  it('remembers a fold the reader opened after boot, on that route and under one name only', () => {
+    const wins = fakeTable('Every win', 251)
+    stand('/constructors/ferrari', [wins, fakeTable('Cars built', 90)], () => {
+      captureStaticTables()
+      assert.equal(staticOpen('Every win'), false)
+      wins.closest = () => ({ querySelector: () => ({ open: true }) })
+      captureOpenFolds()
+      assert.equal(staticOpen('Every win'), true)
+      assert.equal(staticOpen('Cars built'), false)
+      assert.equal(staticOpen('Season by season'), false)
+      globalThis.location = { pathname: '/constructors/mclaren' }
+      assert.equal(staticOpen('Every win'), false)
+    })
+    stand('/somewhere', [fakeTable('Every entry', 40, true), fakeTable('Every entry', 900)], () => {
+      captureStaticTables()
+      captureOpenFolds()
+      assert.equal(staticOpen('Every entry'), false)
     })
   })
 

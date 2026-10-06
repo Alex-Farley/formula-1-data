@@ -54,7 +54,17 @@ import { fileURLToPath } from 'node:url'
 // that are drawn from a page's column list.
 import { finished, missing, number, raceDates, result, span, text as formatted, yearList } from '../src/lib/format.js'
 import { TILE_JOIN, tileSegments } from '../src/lib/tiles.js'
-import { WIDE_ONLY, defaultColumns, glossaryKey, onPhone, shared, sharedLine } from '../src/lib/table.js'
+import {
+  FOLD_LESS,
+  WIDE_ONLY,
+  defaultColumns,
+  foldMore,
+  folds,
+  glossaryKey,
+  onPhone,
+  shared,
+  sharedLine,
+} from '../src/lib/table.js'
 // The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
 // This script cannot import CommonsImage - that is a React component and this
 // file emits HTML - but the question it answers, "who is credited and may this
@@ -673,16 +683,24 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // `rowHeaders` marks the columns whose cells are `<th scope="row">`, the ones
 // that say which row this is (a column's `rowHeader`, AX-21), as DataTable's
 // are; the smoke suite holds the two halves to the same positions.
+//
+// `fold` is DataTable's (VD-69): over FOLD_OVER rows the wrapper takes
+// `is-folded` and the same <details> follows the table, every row still in
+// the markup. Its summary carries an empty sr-only span that nameTables()
+// fills with the heading above, as it fills the caption, which is the name
+// the app puts there.
+const FOLD_NAME = '<span class="sr-only fold-name"></span>'
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { aligns = [], hidden = [], rowHeaders = [] } = options
+  const { aligns = [], hidden = [], rowHeaders = [], fold = false } = options
+  const folded = fold && folds(rows.length)
   const cls = (i, extra) => {
     const names = [aligns[i], extra].filter(Boolean).join(' ')
     return (names ? ` class="${esc(names)}"` : '') + (hidden[i] ? ' aria-hidden="true"' : '')
   }
   const cell = (c, i) => (rowHeaders[i] ? `<th scope="row"${cls(i)}>${c}</th>` : `<td${cls(i)}>${c}</td>`)
   return [
-    '<div class="table-wrap"><div class="table-scroll"><table>',
+    `<div class="table-wrap${folded ? ' is-folded' : ''}"><div class="table-scroll"><table>`,
     `<thead><tr>${headers
       .map((h, i) => {
         // A keyed header adds its class to the column's own, and names
@@ -694,7 +712,11 @@ const table = (headers, rows, options = {}) => {
       .join('')}</tr></thead>`,
     '<tbody>',
     rows.map((cells) => `<tr>${cells.map(cell).join('')}</tr>`).join(''),
-    '</tbody></table></div></div>',
+    '</tbody></table></div>',
+    folded
+      ? `<details class="table-fold"><summary><span class="fold-more">${esc(foldMore(rows.length))}</span><span class="fold-less">${esc(FOLD_LESS)}</span>${FOLD_NAME}</summary></details>`
+      : '',
+    '</div>',
   ].join('')
 }
 
@@ -709,7 +731,7 @@ const table = (headers, rows, options = {}) => {
 // A column with a React-only `render` and no `text` falls back to the
 // formatted raw value here; a render that changes the text must come with a
 // matching `text`, or the two renderers part.
-const fromColumns = (declared, rows, links = {}) => {
+const fromColumns = (declared, rows, links = {}, { fold = false } = {}) => {
   // The default set, never the full one: a column declared `optional` waits
   // for a reader to ask for it, in the app, through `?cols=` (IA-23). The
   // phone default is the same table with the columns it leaves out marked
@@ -766,6 +788,7 @@ const fromColumns = (declared, rows, links = {}) => {
         ),
         hidden: kept.map((c) => c.ariaHidden === true),
         rowHeaders: kept.map((c) => c.rowHeader === true),
+        fold,
       },
     )
   )
@@ -1709,8 +1732,11 @@ const nameTables = (body) => {
   let heading = ''
   // A table that already names itself - a figure's, named for the figure as
   // the app's is - keeps its caption.
-  const named = body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>(?!<caption)/g, (match, text) => {
+  // A fold's summary (VD-69) follows its table, so the heading it is named
+  // for is the same one; the app's reads `, ${name}`.
+  const named = body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>(?!<caption)|<span class="sr-only fold-name"><\/span>/g, (match, text) => {
     if (text === undefined) {
+      if (match !== '<table>') return heading ? `<span class="sr-only">, ${heading}</span>` : ''
       return heading ? `<table><caption class="sr-only">${heading}</caption>` : match
     }
     // The heading's own markup - a faint span of years, a link - is not part
@@ -2635,7 +2661,7 @@ const page = ({
                 year: (year) => link(`seasons/${year}`, year),
                 name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
                 constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
-              })}`
+              }, { fold: true })}`
             : ''
         }
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
@@ -2649,7 +2675,8 @@ const page = ({
                   w.constructor_id ? link(`constructors/${w.constructor_id}`, teams[w.constructor_id] ?? w.constructor) : text(w.constructor),
                 ]),
                 // The race is its season and its Grand Prix, as on every race list.
-                { rowHeaders: [true, true] },
+                // An exhaustive list, folded as the app's are (VD-69).
+                { rowHeaders: [true, true], fold: true },
               )}`
             : ''
         }
@@ -2657,7 +2684,7 @@ const page = ({
           seasons.length
             ? `<h2>Season by season</h2>${fromColumns(SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
-              })}<p class="faint">${esc(SEASONS_FOOTER)}</p>`
+              }, { fold: true })}<p class="faint">${esc(SEASONS_FOOTER)}</p>`
             : ''
         }
         ${
@@ -2666,7 +2693,7 @@ const page = ({
                 year: (year) => link(`seasons/${year}`, year),
                 mate: (name, row) => link(`drivers/${row.mate_id}`, name),
                 constructor: (name, row) => link(`constructors/${row.constructor_id}`, name),
-              })}<p class="faint">${esc(teamMatesFooter(d.full_name))}</p>
+              }, { fold: true })}<p class="faint">${esc(teamMatesFooter(d.full_name))}</p>
               <p>${link(comparePath(d.id), compareWith(d.full_name))}</p>`
             : ''
         }
@@ -2795,7 +2822,7 @@ page({
           seasons.length
             ? `${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
-              })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
+              }, { fold: true })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
             : EMPTY_STATE
         }
         ${photographSection(all(CONSTRUCTOR_IMAGES, c.id), { subjects: true })}
@@ -2807,14 +2834,14 @@ page({
                 circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name) : text(name)),
                 driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
                 chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
-              })}${note(TEAM_WINS_FOOTER)}`
+              }, { fold: true })}${note(TEAM_WINS_FOOTER)}`
             : ''
         }
         ${
           designs.length
             ? `<h2>Cars built</h2>${fromColumns(DESIGN_COLUMNS, designs, {
                 name: (name, row) => link(`cars/${row.id}`, name),
-              })}`
+              }, { fold: true })}`
             : ''
         }
         <h2>On the record</h2>
@@ -2976,14 +3003,14 @@ page({
           winnersHere.length
             ? `<h2>Most wins here</h2>${fromColumns(WINNER_COLUMNS, winnersHere, {
                 driver: (name, row) => link(`drivers/${row.driver_id}`, name),
-              })}`
+              }, { fold: true })}`
             : ''
         }
         ${
           teamsHere.length
             ? `<h2>Constructors here</h2>${fromColumns(TEAM_COLUMNS, teamsHere, {
                 constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
-              })}`
+              }, { fold: true })}`
             : ''
         }
         ${
@@ -3006,7 +3033,7 @@ page({
                     : row.winner_id && !String(name ?? '').includes(' / ')
                       ? link(`drivers/${row.winner_id}`, name)
                       : text(name),
-              })}`
+              }, { fold: true })}`
             : EMPTY_STATE
         }
         <h2>On the record</h2>

@@ -84,6 +84,7 @@ import {
   recordFamilies,
 } from '../src/queries/records.js'
 import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
+import { FOLD_LESS, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
@@ -3110,6 +3111,157 @@ try {
       pass(`all ${team.length} photograph(s) carry their licence and their credit`)
     } else {
       for (const figure of teamUncredited) fail(`photograph shown without full credit: ${figure.file}`)
+    }
+  })
+
+  /*
+   * VD-69. The maintainer's "table heavy" was page depth: at 1440 *Every win*
+   * was 9,844 px of Ferrari's 20,089. An exhaustive list over FOLD_OVER rows
+   * now opens on its first FOLD_TO, every row still in the document in both
+   * halves, behind a <details> the reader opens from the keyboard. What this
+   * holds: the page's height, that the rows past the fold are hidden and not
+   * gone, that the disclosure works by keyboard and says its state, that a
+   * sort acts on the full set, and that the static page does the same with
+   * no script at all.
+   */
+  await section('An exhaustive list opens on its first ten', async () => {
+    const wins = count("SELECT COUNT(*) FROM race_entries WHERE constructor_id = 'ferrari' AND finish_position = 1")
+    const firstWin = one(
+      `SELECT r.year FROM race_entries e JOIN races r ON r.id = e.race_id
+       WHERE e.constructor_id = 'ferrari' AND e.finish_position = 1 ORDER BY r.year, r.round LIMIT 1`,
+    )
+    // The table under a heading, in either half: what is drawn, what shows,
+    // and what its disclosure says and is called.
+    const fold = ({ root, heading }) => {
+      const main = document.querySelector(root)
+      const h2 = [...main.querySelectorAll('h2')].find((h) => h.textContent.trim().startsWith(heading))
+      const scope = h2?.closest('section') ?? h2?.parentElement
+      const wrap = scope?.querySelector('.table-wrap')
+      if (!wrap) return null
+      const rows = [...wrap.querySelectorAll('tbody tr')]
+      const details = wrap.querySelector(':scope > details.table-fold')
+      const summary = details?.querySelector('summary')
+      const seen = (node) => node.getClientRects().length > 0
+      return {
+        folded: wrap.classList.contains('is-folded'),
+        drawn: rows.length,
+        shown: rows.filter(seen).length,
+        firstShown: rows.find(seen)?.querySelector('th, td')?.textContent.trim() ?? null,
+        open: details?.open ?? null,
+        // What a sighted reader reads, and the name a screen reader hears:
+        // the visible face plus the table's name, sr-only.
+        face: summary ? [...summary.children].filter((n) => seen(n) && !n.classList.contains('sr-only')).map((n) => n.textContent).join('') : null,
+        name: summary ? [...summary.children].filter((n) => seen(n) || n.classList.contains('sr-only')).map((n) => n.textContent).join('') : null,
+        focused: document.activeElement === summary,
+      }
+    }
+    const height = () => document.documentElement.scrollHeight
+    // The Section under the heading, in either half: both draw a <section>
+    // per h2-led block (VD-01).
+    const under = (on, root) => on.locator(`${root} section`).filter({ has: on.locator('h2', { hasText: 'Every win' }) })
+
+    await go('/constructors/ferrari', 'Ferrari')
+    await page.setViewportSize({ width: 1440, height: 900 })
+    try {
+      const tall = await page.evaluate(height)
+      truthy(tall < 9000, `/constructors/ferrari is ${tall.toLocaleString('en-GB')} px at 1440, under 9,000`)
+      const app = { root: '#root main', heading: 'Every win' }
+      let got = await page.evaluate(fold, app)
+      truthy(got?.folded, 'Every win is folded')
+      is(got?.shown, FOLD_TO, `and shows its first ${FOLD_TO}`)
+      truthy(got && got.drawn > FOLD_TO, `with the rest still in the document — ${got?.drawn} drawn`)
+      is(got?.face, foldMore(wins), 'the disclosure names the whole count')
+      is(got?.name, `${foldMore(wins)}, Every win`, 'and its accessible name says which table')
+      is(got?.open, false, 'and starts closed')
+
+      // A sort acts on every row, and the fold shows the new first ten: the
+      // table opens newest first, and one press on Season puts the first win
+      // of all at the top, which was row 250-odd and behind the fold.
+      await under(page, '#root main').locator('thead th').first().locator('button').click()
+      got = await page.evaluate(fold, app)
+      is(got?.firstShown, String(firstWin), `sorted by season, the fold opens on Ferrari’s first win, ${firstWin}`)
+      is(got?.shown, FOLD_TO, `and still shows ${FOLD_TO}`)
+
+      // By keyboard: focus, Enter, every row; Enter again, ten, focus kept.
+      await under(page, '#root main').locator('details.table-fold > summary').focus()
+      await page.keyboard.press('Enter')
+      await page.waitForFunction(
+        (n) => [...document.querySelectorAll('#root main .table-wrap.is-folded')].some((w) => w.querySelector('details[open]') && w.querySelectorAll('tbody tr').length === n),
+        wins,
+        { timeout: 10000 },
+      )
+      got = await page.evaluate(fold, app)
+      is(got?.shown, wins, `Enter on the disclosure shows all ${wins}`)
+      is(got?.face, FOLD_LESS, `and it then offers “${FOLD_LESS}”`)
+      await page.keyboard.press('Enter')
+      await page.waitForFunction(() => !document.querySelector('#root main details.table-fold[open]'), null, { timeout: 10000 })
+      got = await page.evaluate(fold, app)
+      is(got?.shown, FOLD_TO, `Enter again folds it back to ${FOLD_TO}`)
+      truthy(got?.focused, 'with focus still on the disclosure')
+
+      // Every folded table on the page is one over the threshold.
+      const wrongly = await page.$$eval('#root main .table-wrap.is-folded', (wraps, over) => wraps.filter((w) => Number(w.dataset.rows) <= over).length, FOLD_OVER)
+      is(wrongly, 0, `no table of ${FOLD_OVER} rows or fewer is folded`)
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 900 })
+    }
+
+    // The static page, with no script: the same fold, every row in the
+    // markup, and a disclosure that opens without the app.
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    try {
+      const plain = await noJs.newPage()
+      await plain.goto(`${BASE}/constructors/ferrari`, { waitUntil: 'load' })
+      const tall = await plain.evaluate(height)
+      truthy(tall < 9000, `the static /constructors/ferrari is ${tall.toLocaleString('en-GB')} px at 1440, under 9,000`)
+      const served = { root: '#prerendered', heading: 'Every win' }
+      let got = await plain.evaluate(fold, served)
+      is(got?.drawn, wins, `the static Every win holds all ${wins} rows`)
+      is(got?.shown, FOLD_TO, `and shows ${FOLD_TO} of them`)
+      is(got?.name, `${foldMore(wins)}, Every win`, 'behind the same disclosure, named the same way')
+      await under(plain, '#prerendered').locator('details.table-fold > summary').click()
+      got = await plain.evaluate(fold, served)
+      is(got?.shown, got?.drawn, 'which opens with no script, showing every row')
+    } finally {
+      await noJs.close()
+    }
+
+    // A fold opened on the static page while the database is still arriving
+    // stays open when the app takes over, or the page shortens under a reader
+    // reading past the tenth row (IX-19). The database is held back until the
+    // fold is open, so this cannot pass by the handover winning the race.
+    const waiting = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+    try {
+      let release
+      const gate = new Promise((resolve) => {
+        release = resolve
+      })
+      await waiting.route('**/f1.db.gz', async (route) => {
+        await gate
+        await route.continue()
+      })
+      const early = await waiting.newPage()
+      await early.goto(`${BASE}/constructors/ferrari`, { waitUntil: 'domcontentloaded' })
+      await under(early, '#prerendered').locator('details.table-fold > summary').click()
+      const before = await early.evaluate(fold, { root: '#prerendered', heading: 'Every win' })
+      is(before?.open, true, 'the static fold is opened before the database arrives')
+      release()
+      await early.waitForFunction(
+        () =>
+          !document.getElementById('prerendered') &&
+          [...document.querySelectorAll('#root main h2')].some(
+            (h) => h.textContent.trim().startsWith('Every win') && h.closest('section')?.querySelector('.table-wrap'),
+          ),
+        null,
+        { timeout: 60000 },
+      )
+      const after = await early.evaluate(fold, { root: '#root main', heading: 'Every win' })
+      is(after?.open, true, 'and the app opens the same table with its fold still open')
+      is(after?.shown, wins, `showing all ${wins} rows`)
+      const shut = await early.evaluate(fold, { root: '#root main', heading: 'Cars built' })
+      is(shut?.open, false, 'while a fold the reader left closed stays closed')
+    } finally {
+      await waiting.close()
     }
   })
 

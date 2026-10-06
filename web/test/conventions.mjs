@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url'
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
 import { DOCUMENTS, IN_THIS_TAB } from '../src/lib/site.js'
+import { FOLD_TO } from '../src/lib/table.js'
 import { measurement } from '../scripts/measurement.js'
 import {
   ACCENT_APART,
@@ -1711,5 +1712,15 @@ describe('a season is printed as written, never as a quantity (PD-63)', () => {
       }
     }
     assert.deepEqual(bare, [], 'a year column with no text or render prints 1,950')
+  })
+})
+
+describe('an exhaustive list folds at the number lib/table.js names (VD-69)', () => {
+  // The rows past the fold are hidden by a selector, which cannot read a
+  // constant, so the number is written twice: here is where the two meet.
+  it('app.css hides the rows after FOLD_TO, and only those', () => {
+    const app = read(join(web, 'src', 'styles', 'app.css'))
+    const rules = [...app.matchAll(/\.table-wrap\.is-folded[^{]*nth-child\(n \+ (\d+)\)/g)].map((m) => Number(m[1]))
+    assert.deepEqual(rules, [FOLD_TO + 1])
   })
 })

@@ -176,3 +176,42 @@ export function chosenColumns(columns, param) {
   if (known.length === 0) return null
   return columns.filter((column) => column.rowHeader === true || known.includes(column))
 }
+
+/**
+ * AN EXHAUSTIVE LIST OPENS ON ITS FIRST TEN (VD-69).
+ *
+ * At 1440 none of an entity page's first screen was table and 53-85% of its
+ * height was: *Every win* was 9,844 px of Ferrari's 20,089, *Every entry*
+ * 4,022 px of Verstappen's page. So a table that declares `fold` and holds
+ * more than FOLD_OVER rows draws its first FOLD_TO and a disclosure for the
+ * rest.
+ *
+ * Every row stays in the document, in both halves - the static page for the
+ * reader and the crawler who never run the app, the app because the smoke
+ * suite compares the two row for row - and the stylesheet hides the ones past
+ * the fold while the disclosure is closed. The disclosure is a <details>,
+ * which both halves write identically, so a reader without JavaScript opens it
+ * as one with it does, from the keyboard, and a screen reader hears its
+ * state. Sorting reorders the full set and the fold shows its first ten.
+ *
+ * The price: the browser's find-in-page does not reach a row the fold is
+ * hiding, as it reached every row of the static page before. That is the
+ * trade the item chose - a row is one press away and the page is a third of
+ * its height - and the copy and download buttons still take every row.
+ *
+ * FOLD_TO IS IN app.css AS WELL, as `nth-child(n + 11)`: a selector cannot read
+ * a constant, and web/test/conventions.mjs holds the two to one number.
+ *
+ * The threshold is a preference, not a measurement: a table of 25 is about two
+ * screens at 1440, and a fold that hid five rows would cost a click to save
+ * nothing.
+ */
+export const FOLD_OVER = 25
+export const FOLD_TO = 10
+
+/** Does a folding table of this many rows fold? */
+export const folds = (count) => count > FOLD_OVER
+
+/** The disclosure's two faces, closed and open, as both halves print them. */
+export const foldMore = (count) => `Show all ${count.toLocaleString('en-GB')}`
+export const FOLD_LESS = `Show the first ${FOLD_TO}`

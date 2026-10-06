@@ -230,6 +230,7 @@ function ConstructorBody({ constructor, data }) {
       <Section title="Season by season" count={`${bySeason.length} seasons`}>
         <DataTable
           rows={constructorSeasons(bySeason, standings)}
+          fold
           rowKey={(row) => row.year}
           sort="year"
           direction="desc"
@@ -250,6 +251,7 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Every win" count={`${wins.length}`}>
           <DataTable
             rows={wins}
+            fold
             rowKey={(row) => `${row.year}-${row.round}-${row.driver_id}`}
             sort="year"
             direction="desc"
@@ -264,6 +266,7 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Cars built" count={`${designs.length} designs`}>
           <DataTable
             rows={designs}
+            fold
             rowKey={(row) => row.id}
             sort="first_year"
             direction="asc"

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { currentProgress, onProgress } from './data/client.js'
 import { setPending } from './data/pending.js'
-import { captureStaticTables, staticArrival } from './lib/handover.js'
+import { captureOpenFolds, captureStaticTables, staticArrival } from './lib/handover.js'
 import './styles/app.css'
 
 /**
@@ -41,6 +41,9 @@ function handOver() {
     // staticArrival() is the route of the static page ACTUALLY on screen,
     // which a held click now replaces rather than leaves behind (IX-37).
     const y = location.pathname === staticArrival() ? window.scrollY : 0
+    // The folds the reader opened while they waited (VD-69), read now because
+    // now is the last moment they are there to read: opened at boot, none was.
+    captureOpenFolds()
     document.getElementById('prerendered')?.remove()
     stop()
 

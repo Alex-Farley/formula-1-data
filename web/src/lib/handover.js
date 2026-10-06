@@ -51,6 +51,9 @@ const key = (name) => String(name ?? '').replace(/\s+/g, ' ').trim()
  */
 const ARRIVAL = Symbol('the route the static page was written for')
 const drawn = new Map()
+// The tables whose fold (VD-69) the reader had opened on the static page, by
+// name. A Set mutated in place, for the reason above.
+const opened = new Set()
 
 /**
  * Count the static page's tables. Call this while it is still in the document
@@ -62,6 +65,7 @@ export function captureStaticTables() {
   const pre = document.getElementById('prerendered')
   if (!pre) return
   drawn.clear()
+  opened.clear()
   drawn.set(ARRIVAL, location.pathname)
   for (const table of pre.querySelectorAll('table')) {
     const name = key(table.querySelector('caption')?.textContent)
@@ -94,4 +98,38 @@ export function staticRows(name) {
   // Before `location` is touched at all, so this is inert under Node.
   if (at === undefined || location.pathname !== at) return 0
   return drawn.get(key(name)) ?? 0
+}
+
+/**
+ * Which of the static page's folds (VD-69) the reader has opened, by table
+ * name. Call this at the last moment the static page is in the document -
+ * handOver() in main.jsx does, just before it removes it - and not at boot
+ * with captureStaticTables(): every fold is written closed, and a reader opens
+ * one while the database is still arriving, so a count taken at boot would
+ * always find them shut. DataTable reads it on its first render, which comes
+ * after the handover, because a table has no rows until the database is open.
+ */
+export function captureOpenFolds() {
+  if (typeof document === 'undefined') return
+  opened.clear()
+  const pre = document.getElementById('prerendered')
+  if (!pre) return
+  for (const table of pre.querySelectorAll('table')) {
+    const name = key(table.querySelector('caption')?.textContent)
+    if (name && table.closest('.table-wrap')?.querySelector(':scope > details.table-fold')?.open) opened.add(name)
+  }
+}
+
+/**
+ * Whether the reader opened this table's fold (VD-69) on the static page,
+ * under the same rule as staticRows(): only on the route it was written for,
+ * and never for a name that named two tables. A static page whose fold the
+ * reader opened was showing every row, and the app does not close it on them
+ * at the handover.
+ */
+export function staticOpen(name) {
+  const at = drawn.get(ARRIVAL)
+  if (at === undefined || location.pathname !== at) return false
+  const named = key(name)
+  return opened.has(named) && drawn.get(named) !== null
 }
