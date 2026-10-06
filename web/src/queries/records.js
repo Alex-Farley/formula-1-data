@@ -148,8 +148,68 @@ export function recordFamilies(records) {
     .map(([family, rows]) => ({ family, anchor: familyAnchor(family), rows }))
 }
 
-/** The line that leads from the headline table to the families. */
+/** The line that leads from the headline records to the families. */
 export const familiesLead = (count) => `The other ${count}, by family:`
+
+/**
+ * What a headline record's card carries beside its name, value, holder and
+ * derivation (VD-68): the date and the tier, but only where the records
+ * differ on them, which is when recordColumns() gives each its own column.
+ * Where they agree they are said once above the cards, as above a table.
+ */
+export const cardExtras = (records) =>
+  recordColumns(records).filter((c) => c.key === 'as_of' || c.key === 'confidence')
+
+/**
+ * The leaderboards that follow the headline records (VD-68), in both halves.
+ *
+ * The app draws each as a bar chart of its first LEADERS_DRAWN rows with a
+ * table of the same numbers under it; the static half has no chart and
+ * carries that table open, of the rows the chart draws. They come before the
+ * families in both, so the families stand in the same place either side of
+ * the handover (WK-08 review): a static page that left them out put
+ * /records#wins a screen or more above where the app then drew it.
+ */
+export const LEADERBOARDS = 'Counted from the race records'
+export const CONSTRUCTORS_HEADING = 'Constructors'
+export const LEADERS_DRAWN = 15
+export const leadersDrawnLine = 'The fifteen with the most.'
+
+export const DRIVER_WINS_FIGURE = {
+  title: 'Most Grand Prix wins',
+  note: 'One win per driver classified first, so a shared drive counts for both of them.',
+  label: 'The fifteen drivers with the most Grand Prix wins',
+}
+export const DRIVER_POLES_FIGURE = {
+  title: 'Most pole positions',
+  note: 'The driver the season record credits with pole. Not always the car at grid 1: a penalty or a sprint-set grid can part them, and each race page says so where they differ.',
+  label: 'The fifteen drivers with the most pole positions',
+}
+export const CONSTRUCTOR_WINS_FIGURE = {
+  title: 'Most wins by constructor',
+  note: "A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables.",
+  label: 'The fifteen constructors with the most Grand Prix wins',
+}
+
+const year = (value) => String(value)
+export const DRIVER_WINS_COLUMNS = [
+  { key: 'full_name', label: 'Driver', rowHeader: true },
+  { key: 'wins', label: 'Wins', align: 'num' },
+  { key: 'first_win', label: 'First', align: 'num', text: year },
+  { key: 'last_win', label: 'Last', align: 'num', text: year },
+]
+export const DRIVER_POLES_COLUMNS = [
+  { key: 'full_name', label: 'Driver', rowHeader: true },
+  { key: 'poles', label: 'Poles', align: 'num' },
+]
+export const CONSTRUCTOR_WINS_COLUMNS = [
+  { key: 'name', label: 'Constructor', rowHeader: true },
+  { key: 'country', label: 'Country' },
+  { key: 'wins', label: 'Wins', align: 'num' },
+  { key: 'first_win', label: 'First', align: 'num', text: year },
+  { key: 'last_win', label: 'Last', align: 'num', text: year },
+  { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
+]
 
 /**
  * The records table. Thirty identical badges in a column mean nothing, so
@@ -219,4 +279,4 @@ export const GRAND_SLAM_COLUMNS = [
 
 /** The sentence both renderers open the records with; CR-22's claim rests on it. */
 export const RECORDS_LEDE =
-  'Every record here is derived from the same tables as the leaderboards on every build, as of the last completed race the database holds, and each row says how.'
+  'Every record here is derived from the same tables as the leaderboards on every build, as of the last completed race the database holds, and each one says how.'
