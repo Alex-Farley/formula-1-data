@@ -204,10 +204,12 @@ critics judge against it and file drift against the rule it breaks;
 `CLAUDE.md`, `CONTRIBUTING.md` and the backlog-item skill point at it and
 restate none of it.
 
-Two things keep adoption from freezing the site. **Only what is built
-binds:** each section says built or pending, because a reviewer holding a
-page to a rule whose step has not landed would fail every page for a
-component that does not exist yet. **A feature extends the system in its
+Two things keep adoption from freezing the site. **Only what is built is
+held against a page:** each section says built or pending, because a
+reviewer holding a page to a rule whose step has not landed would fail every
+page for a component that does not exist yet. A pending section asks one
+thing of new work, that it builds no rival to what the step will build; the
+principles bind from adoption. **A feature extends the system in its
 own pull request**, adding what it needs marked provisional, built from the
 tokens and tested where a test applies; the reviewer judges the extension's
 coherence, not whether the system already had it. A provisional component

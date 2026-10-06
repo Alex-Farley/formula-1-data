@@ -119,8 +119,9 @@ already caught one real regression.
 ## One design system
 
 Web work follows `docs/design-system.md` (version A, adopted on #843): its
-tokens in `web/src/styles/tokens.css`, its components, and the sections it
-marks **built**; a section marked pending binds nobody yet. A feature that
+principles, its tokens in `web/src/styles/tokens.css`, and the sections it
+marks **built**. A section marked pending is not yet held against a page,
+but nothing new is built as a rival to it. A feature that
 needs what the system lacks extends it in the same pull request, under its
 §8, because a system nobody can extend gets routed around, which is the
 drift it exists to stop `[D-53]`.

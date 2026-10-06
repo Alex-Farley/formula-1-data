@@ -138,8 +138,10 @@ every `npm test` and in CI's `web` job:
   token is used; every unset outline has a `:focus-visible` ring beside it
   (`conventions.mjs`, *the design system holds its grid*). The smoke test's
   *The grid* section measures every top-level edge on the driver, race and
-  circuit pages at 1440 and 1024. Whether a new component belongs to the
-  system, extends it coherently or duplicates a core one is still yours.
+  circuit pages at 1440 and 1024. Whether a reason comment beside a width,
+  or a new `NO_RING` or `UNUSED` entry in `conventions.mjs`, is justified is
+  still yours, and so is whether a new component belongs to the system,
+  extends it coherently or duplicates a core one.
 
 **Item 7**, the accessibility floor, is checked as rendered: the smoke test's
 *Accessibility* section runs axe-core's WCAG 2.0/2.1/2.2 A and AA rules on ten

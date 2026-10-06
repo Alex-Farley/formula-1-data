@@ -47,7 +47,7 @@ measure and the design-system tests) is built. Pending are VD-79 (#866,
 tiles and one page header), VD-80 (#867, one figure grammar), VD-81 (#868,
 one vocabulary), VD-82 (#869, one reveal control, with sort and fold in the
 address), VD-83 (#870, one section order per page type) and VD-84 (#871, the
-opening slot and the middle type register); VD-86 (#884) holds four core
+opening slot and the middle type register); VD-86 (#884) holds the core
 rules none of the seven named. **A step's pull request moves
 the sections it builds from pending to built**, in this file, in the same
 change.
@@ -211,9 +211,10 @@ Every text block is one of five kinds. Its kind sets its width.
    measure. The band matches the table, and the text stays legible.
    *Pending:* the figure's band is VD-80's; a table's source line still sits
    under its box at `--measure-small` until VD-86 (#884).
-3. **A framed note** (disagreement, note box, citation, *Where this comes
-   from*) is a box: **the box spans its column**, and its lines stop at the
-   measure.
+3. **A framed note** (disagreement, citation, *Where this comes from*) is a
+   box: **the box spans its column**, and its lines stop at the measure (the
+   citation's at `--measure-small`). A note box has one edge, its left rule,
+   so the box and its lines end together at the measure.
 4. **Structured or short text** (field lists, tiles, one-line notes,
    buttons) has no cap.
 5. **Below 768 px**, every kind runs the full column.
@@ -337,7 +338,7 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
 |---|---|---|
 | Section intro | free prose | none |
 | Source line, "same on every row" | belongs to a box | footer band of its table or figure |
-| Note box | framed | 3 px left edge, spans the column |
+| Note box | framed | 3 px left edge; the box and its lines end together at the measure |
 | Disagreement ("Two sources disagree") | framed | 1 px frame, 3 px left edge, spans the column; placed directly above the table it explains, as the shared-drive box already is |
 
 ### Photo strip (core) — pending (place: VD-83; columns: VD-86 #884)
@@ -373,14 +374,14 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   page's sections, under the tiles. It costs about 40 px of the first screen.
   A page may add it; none is held to it.
 
-### States (core) — built: *Not established*; the other rows pending, no step yet
+### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-86 #884)
 
 | State | Rule |
 |---|---|
 | Loading | Skeleton rows in the component's own shape; the static page's content stays until the app replaces it in place |
 | Not established | An em dash, never 0 (**floor**: `conventions.mjs` "a NULL is not established") |
 | Empty | One sentence saying what is absent and whether it is expected to arrive |
-| Late | A round whose results F1DB has not published yet says so (SD-37). A fresh race's pit stops say they usually arrive after the classification, not "F1DB records no pit stop" |
+| Late | A round whose results F1DB has not published yet says so (SD-37). A fresh race's pit stops say they usually arrive after the classification, not "F1DB records no pit stop" (SD-40) |
 | Error | Says what failed and what still works |
 
 ---
@@ -467,9 +468,10 @@ puts the classification before the outline (visual defect 7).
 
 ## 6. Interaction rules (core) — built in part
 
-Built: the keyboard floor, but for the two rings §7 declares. Pending: state
-in the address and the one reveal control (VD-82), and nothing moving at the
-handover (VD-79).
+Built: the keyboard floor, but for the two rings §7 declares, and reading
+order, a floor no test holds yet (VD-86 #884). Pending: state in the address
+and the one reveal control (VD-82), and nothing moving at the handover
+(VD-79).
 
 - **Keyboard (floor):**
   - every control is reachable;
@@ -568,7 +570,7 @@ VD-78: 1, 2, 3, 4, 8 and 9. Pending: 5 and 10 (VD-79), 6 (VD-80) and 7
    `100%` or `auto`, or carries a reason comment. This is the width
    equivalent of VD-03's scale test.
 2. **Breakpoints are tokens.** Every `@media` width in `app.css` is one of
-   the three breakpoints.
+   the two breakpoint tokens.
 3. **No inline sizes in JSX.** No `style={{…}}` with a length literal in
    `web/src/pages` or `components` (VD-60 #615).
 4. **Edges land on the grid.** `smoke.mjs` measures each top-level block of
