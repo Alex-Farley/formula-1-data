@@ -97,13 +97,18 @@ export const PITS = `
 `
 
 /**
- * The first season any stop is recorded for (1994 today), which the stint
- * figure's empty state names on the races before it. Read rather than
- * written, so that a source that reached further back would move the
- * sentence with it.
+ * The span of races any stop is recorded for, which the stint figure's empty
+ * state reads (stintsEmpty() below): `year` is the first season (1994 today),
+ * named on the races before it, and `latest_year`/`latest_round` the last
+ * round holding a stop, after which an empty section is stops not yet
+ * published rather than none (SD-40). Read rather than written, so that a
+ * source reaching further back, or a refresh adding a round, moves the
+ * sentence with it. No row where no stop is held at all.
  */
 export const PITS_FROM = `
-  SELECT MIN(r.year) AS year FROM pit_stops p JOIN races r ON r.id = p.race_id
+  WITH held AS (SELECT DISTINCT r.year, r.round FROM pit_stops p JOIN races r ON r.id = p.race_id)
+  SELECT (SELECT MIN(year) FROM held) AS year, l.year AS latest_year, l.round AS latest_round
+    FROM (SELECT year, round FROM held ORDER BY year DESC, round DESC LIMIT 1) l
 `
 
 export const NEIGHBOURS = `
@@ -495,13 +500,26 @@ export const stintsLabel = (rows) => {
 
 /**
  * Where a race run has no figure, the section says why rather than
- * vanishing: before the first season any stop is recorded, that no source
- * here holds them; after it, that this race has none recorded.
+ * vanishing. `span` is PITS_FROM's row. Before the first season any stop is
+ * recorded, that no source here holds them. After the last round holding a
+ * stop, that they have not arrived yet (SD-40): F1DB adds a race's stops
+ * after its classification, so the newest round is the one that reads as
+ * empty, and "records no pit stop" said of it what is true only of a race
+ * like Spa 2021, which later rounds' stops show was genuinely without one.
+ * That needs no clock, so both renderers say the same at any date. Between
+ * the two, that this race has none recorded.
  */
-export const stintsEmpty = (race, from) =>
-  from && race.year < from
-    ? `Pit stops are recorded from ${from}. F1DB, the source of every stop here, holds none before then, so this race has no stints to draw.`
+export const stintsEmpty = (race, span) => {
+  if (span?.year && race.year < span.year) {
+    return `Pit stops are recorded from ${span.year}. F1DB, the source of every stop here, holds none before then, so this race has no stints to draw.`
+  }
+  const after =
+    span?.latest_year != null &&
+    (race.year > span.latest_year || (race.year === span.latest_year && race.round > span.latest_round))
+  return after
+    ? 'No pit stop is recorded for this race yet. F1DB adds a race’s stops after its classification, and this site checks F1DB every morning.'
     : 'F1DB records no pit stop for this race, so there are no stints to draw.'
+}
 
 /* Who stopped first between neighbours: charts/stints.js's pitPairs. */
 export const PIT_ORDER_HEADING = 'Who stopped first, between neighbours'
@@ -570,23 +588,28 @@ export const raceSentence = (race, winners, stage = 'awaited') => {
 }
 
 /**
- * The opening sentence of a race's page, in both renderers (CD-03).
+ * The opening of a race's page, in both renderers (CD-03): raceSentence()
+ * above, then the note where a person wrote one.
  *
- * `note` is the override and stays the lede wherever a person wrote one - 2
- * of the 1,196 rows, each a scheduled round whose venue or status needs
- * explaining. The other 1,194 pages opened straight onto the strip of tiles
- * with nothing to say what the reader was looking at, while
- * scripts/prerender.js had already composed a serviceable sentence for the
- * meta description and kept it off the page. raceSentence() above is that
- * sentence, written once and read by both, so the description and the
- * standfirst cannot come to disagree.
+ * The pages used to open straight onto the strip of tiles with nothing to say
+ * what the reader was looking at, while scripts/prerender.js had already
+ * composed a serviceable sentence for the meta description and kept it off
+ * the page. raceSentence() is that sentence, written once and read by both,
+ * so the description and the standfirst cannot come to disagree.
  *
- * What counts as a note is raceNote() below, so the static page can ask the
- * same question before deciding whether it has already printed one. lede() in
- * queries/driver.js is the same rule for the same reason.
+ * The note follows the sentence rather than replacing it (SD-39). A race's
+ * note explains its venue or its status - "hosted at Sepang", "subject to
+ * homologation" - and says nothing of the result, so as the override it made
+ * /races/2026/16, a round two days old, the one race page that never said
+ * who won. lede() in queries/driver.js keeps its note as the override, and
+ * can: a driver's note is a career written by hand, not an aside about one
+ * of its facts.
  */
-export const raceLede = (race, winners, stage = 'awaited') =>
-  raceNote(race) || raceSentence(race, winners, stage)
+export const raceLede = (race, winners, stage = 'awaited') => {
+  const sentence = raceSentence(race, winners, stage)
+  const note = raceNote(race)
+  return note ? `${sentence} ${note}` : sentence
+}
 
 /**
  * The block a scheduled round carries where its classification would be, in
@@ -631,12 +654,9 @@ export const scheduledNote = (race, stage = 'awaited', late = null) => {
  * The note a person wrote on this round, or '' where nobody did.
  *
  * A blank note is not a note: `note` has no NOT NULL or length constraint, so
- * an empty string would otherwise render an empty lede rather than falling
- * through to the sentence. Read here rather than decided twice - the static
- * page also has to know whether the lede it is printing is the note, and two
- * copies of this rule are how the two would come to disagree.
+ * an empty string would otherwise leave a trailing space on the lede.
  */
-export const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
+const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
 
 /**
  * The race's tiles, as both renderers draw them (VD-49).

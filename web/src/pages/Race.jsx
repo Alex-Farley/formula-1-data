@@ -457,7 +457,7 @@ function RaceBody({ race, data, year, round }) {
               )}
             </>
           ) : (
-            <p className="muted">{stintsEmpty(race, data.pitsFrom.rows[0]?.year)}</p>
+            <p className="muted">{stintsEmpty(race, data.pitsFrom.rows[0])}</p>
           )}
         </Section>
       )}

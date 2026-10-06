@@ -1427,33 +1427,33 @@ try {
      * A declared oddity reaches the reader. The 2026 calendar says "Bahrain
      * (hosted at Sepang, Malaysia)" and the page showed a Bahrain Grand Prix at a
      * Malaysian circuit with no note, because that field was the one nothing
-     * read. It is the race's note now, and the note is the lede.
+     * read. It is the race's note now, and the lede carries it after the
+     * sentence saying who won (SD-39).
      */
   })
 
   await section('/races/2026/16  (the Sepang note reaches the page)', async () => {
     await go('/races/2026/16', 'Bahrain Grand Prix')
-    truthy(((await text('#root main .lede')) ?? '').includes('Sepang'), 'the calendar\'s explanation is the lede')
-    // CD-03: and the static half opens on the note too, rather than on the
-    // derived sentence that would say only where the round is scheduled.
+    // SD-39: the lede says who won and then carries the note, in both
+    // halves; the note used to replace the sentence, so the newest round was
+    // the one race page that never named its winner.
     const written = one('SELECT note FROM races WHERE year = 2026 AND round = 16')
-    const staticNote = (await (await fetch(`${BASE}/races/2026/16`)).text())
-      .match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1]
-      ?.replace(/&#39;/g, "'")
-      .replace(/&quot;/g, '"')
-      .replace(/&amp;/g, '&')
-    is(staticNote, written, 'the static page does not overwrite the note with the derived sentence')
-    // And says it once. The note was a bare paragraph below the timetable in
-    // the static half and the lede in the app; the lede is the note in both
-    // now, so a second copy would be the same words twice on one page.
-    // As element text, so the meta description - which carries the note as
-    // well as the derived sentence, on purpose - is not counted.
-    const staticRaceHtml = await (await fetch(`${BASE}/races/2026/16`)).text()
-    is(
-      staticRaceHtml.split(`>${written}<`).length - 1,
-      1,
-      'and prints it once, not once as the lede and again below',
+    const winner = one(
+      `SELECT (SELECT d.full_name FROM race_entries e JOIN races r ON r.id = e.race_id LEFT JOIN drivers d ON d.id = e.driver_id
+        WHERE r.year = 2026 AND r.round = 16 AND e.finish_position = 1)`,
     )
+    const appLede = (await text('#root main .lede')) ?? ''
+    truthy(appLede.endsWith(written), `the calendar\'s explanation is in the lede — "${appLede}"`)
+    truthy(Boolean(winner) && appLede.startsWith(`${winner} won`), `after the sentence saying who won (${winner})`)
+    const staticRaceHtml = await (await fetch(`${BASE}/races/2026/16`)).text()
+    const staticLede = unescaped(staticRaceHtml.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
+    is(staticLede, appLede, 'the static page opens on the same lede')
+    // And says it once. The note was a bare paragraph below the timetable in
+    // the static half; a second copy would be the same words twice on one
+    // page. The body only, so the meta description, which is the lede's own
+    // words on purpose, is not counted.
+    const staticBody = unescaped(staticRaceHtml.split('<div id="prerendered">')[1] ?? '')
+    is(staticBody.split(written).length - 1, 1, 'and prints the note once, in the lede and not again below')
     // AF-03: the race page draws the F1DB layout the round runs, named in
     // the drawing's accessible name, and the static page carries the same.
     const layout = one('SELECT f1db_layout_id FROM races WHERE year = 2026 AND round = 16')
@@ -2612,11 +2612,21 @@ try {
     }
 
     // A race run with no figure says why, in both halves: before the first
-    // season with a stop recorded, and after it with none recorded.
+    // season with a stop recorded, after it with none recorded, and (SD-40)
+    // after the last round holding a stop, where they have not arrived yet -
+    // the newest round with a result and no stop, while there is one.
     const from = one('SELECT MIN(r.year) FROM pit_stops p JOIN races r ON r.id = p.race_id')
+    const awaiting = one(
+      `SELECT (SELECT r.year || '/' || r.round FROM races r
+        WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
+          AND NOT EXISTS (SELECT 1 FROM pit_stops p JOIN races l ON l.id = p.race_id
+                           WHERE l.year > r.year OR (l.year = r.year AND l.round >= r.round))
+        ORDER BY r.year DESC, r.round DESC LIMIT 1)`,
+    )
     for (const [route, words] of [
       ['/races/1976/9', `recorded from ${from}`],
       ['/races/2021/12', 'records no pit stop for this race'],
+      ...(awaiting ? [[`/races/${awaiting}`, 'No pit stop is recorded for this race yet']] : []),
     ]) {
       const got = await both(route)
       for (const [half, read] of [['the app', got.app], ['the static page', got.served]]) {

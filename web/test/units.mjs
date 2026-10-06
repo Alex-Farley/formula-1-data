@@ -97,7 +97,7 @@ import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
-import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
+import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { pitPairs, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
 import {
@@ -1109,10 +1109,15 @@ describe('the queries a page and the prerenderer share', () => {
     // would be, and a thrown lede is worse than a plain sentence.
     assert.equal(raceSentence(monza, []), 'No winner is recorded for this round.')
 
-    // The override, and what counts as one. Whitespace is not a note.
+    // SD-39: the note follows who won and never replaces it. Whitespace is
+    // not a note.
     const won = [{ driver: 'Gerhard Berger', constructor_id: 'ferrari', constructor: 'Ferrari' }]
-    assert.equal(raceLede({ ...monza, note: 'Held on a Sunday in June.' }, won), 'Held on a Sunday in June.')
-    assert.equal(raceLede({ ...monza, note: '  Held on a Sunday in June.  ' }, won), 'Held on a Sunday in June.')
+    assert.equal(raceLede({ ...monza, note: 'Held on a Sunday in June.' }, won), 'Gerhard Berger won for Ferrari at Monza. Held on a Sunday in June.')
+    assert.equal(raceLede({ ...monza, note: '  Held on a Sunday in June.  ' }, won), 'Gerhard Berger won for Ferrari at Monza. Held on a Sunday in June.')
+    assert.equal(
+      raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: 'Subject to homologation.' }, []),
+      'Scheduled for 01-03 Oct 2027 at Istanbul Park; not yet run. Subject to homologation.',
+    )
     for (const note of [null, undefined, '', '   ']) {
       assert.equal(
         raceLede({ ...monza, note }, won),
@@ -1120,6 +1125,20 @@ describe('the queries a page and the prerenderer share', () => {
         `a ${JSON.stringify(note)} note falls through to the records`,
       )
     }
+
+    // SD-40: an empty pit-stop section before the first season with a stop,
+    // between, and after the last round holding one - the last on either
+    // side of a season's turn as well as within one.
+    const span = { year: 1994, latest_year: 2026, latest_round: 15 }
+    assert.match(stintsEmpty({ year: 1976, round: 9 }, span), /^Pit stops are recorded from 1994\./)
+    for (const race of [{ year: 2021, round: 12 }, { year: 2026, round: 15 }, { year: 2026, round: 3 }]) {
+      assert.match(stintsEmpty(race, span), /^F1DB records no pit stop for this race/, `${race.year}/${race.round} is a race without a stop`)
+    }
+    for (const race of [{ year: 2026, round: 16 }, { year: 2027, round: 1 }]) {
+      assert.match(stintsEmpty(race, span), /^No pit stop is recorded for this race yet\./, `${race.year}/${race.round} is awaiting its stops`)
+    }
+    // No stop held anywhere: nothing to be before or after.
+    assert.match(stintsEmpty({ year: 2026, round: 16 }, undefined), /^F1DB records no pit stop for this race/)
   })
 
   it('joins a constructor’s seasons to their championship position, newest first', () => {
