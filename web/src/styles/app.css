@@ -2923,13 +2923,14 @@ figure.figure-lead > .legend {
   box-shadow: var(--shadow-sm);
   padding: var(--space-3) var(--space-5);
   font-size: var(--size-3);
-  white-space: nowrap;
-  /* Centred above the point by default. A chart may place it itself, held
-     inside the plot, and drop it below a point too near the top of a figure,
-     which clips what overflows it (DotPlot, CR-74). Either way it is clear of the
-     pointer and takes no pointer events, so it cannot take the hover from
-     the mark it describes. */
-  transform: translate(var(--tooltip-shift, -50%), var(--tooltip-rise, calc(-100% - 10px)));
+  /* One line where it fits, and wrapped where it would be wider than the
+     plot, rather than running out of it. Placed by charts/Tooltip.jsx, which
+     holds the whole box inside the plot - figure.figure clips what overflows
+     it (CR-74, IX-44) - clear of the pointer; it takes no pointer events, so
+     it cannot take the hover from the mark it describes. */
+  width: max-content;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .tooltip b {

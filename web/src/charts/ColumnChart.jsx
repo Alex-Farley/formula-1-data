@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { band, linear, niceDomain, ticks } from './scales.js'
 import { ownColour } from './own.js'
 import { seriesColour } from './palette.js'
+import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
 
 const M = { top: 16, right: 10, bottom: 30, left: 44 }
@@ -109,12 +110,11 @@ export default function ColumnChart({
         })}
       </svg>
 
+      {/* Over the column's top, and held inside the plot (charts/Tooltip.jsx):
+          centred, the box over the first or last column ran out of the
+          figure, which clips it (IX-44). */}
       {hover && (
-        <div
-          className="tooltip"
-          style={{ left: `${(x.centre(hover.key) / width) * 100}%`, top: y(hover.value) }}
-          role="status"
-        >
+        <Tooltip x={x.centre(hover.key)} y={y(Math.max(0, hover.value))} onDismiss={() => setHover(null)} role="status">
           {/* `||`, not `??`: an empty label is how a caller suppresses an axis
               tick it does not want drawn, and the tooltip still needs a
               heading. On the home page that is nine columns in ten. */}
@@ -124,7 +124,7 @@ export default function ColumnChart({
             {format(hover.value)}
             {hover.note ? ` · ${hover.note}` : ''}
           </span>
-        </div>
+        </Tooltip>
       )}
     </div>
   )

@@ -56,10 +56,12 @@ import { finished, missing, number, raceDates, result, span, text as formatted, 
 import { TILE_JOIN, tileSegments } from '../src/lib/tiles.js'
 import {
   FOLD_LESS,
+  FOLD_NOUN,
   WIDE_ONLY,
   defaultColumns,
   foldMore,
   folds,
+  isFoldNoun,
   glossaryKey,
   onPhone,
   shared,
@@ -691,15 +693,16 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // that say which row this is (a column's `rowHeader`, AX-21), as DataTable's
 // are; the smoke suite holds the two halves to the same positions.
 //
-// `fold` is DataTable's (VD-69): over FOLD_OVER rows the wrapper takes
-// `is-folded` and the same <details> follows the table, every row still in
-// the markup. Its summary carries an empty sr-only span that nameTables()
+// `fold` is DataTable's (VD-69), the rows' noun from FOLD_NOUN (CD-52): over
+// FOLD_OVER rows the wrapper takes `is-folded` and the same <details> follows
+// the table, every row still in the markup. Its summary carries an empty sr-only span that nameTables()
 // fills with the heading above, as it fills the caption, which is the name
 // the app puts there.
 const FOLD_NAME = '<span class="sr-only fold-name"></span>'
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
   const { aligns = [], hidden = [], rowHeaders = [], fold = false } = options
+  if (fold && !isFoldNoun(fold)) throw new Error(`prerender: fold ${String(fold)} is not a FOLD_NOUN value (CD-52)`)
   const folded = fold && folds(rows.length)
   const cls = (i, extra) => {
     const names = [aligns[i], extra].filter(Boolean).join(' ')
@@ -721,7 +724,7 @@ const table = (headers, rows, options = {}) => {
     rows.map((cells) => `<tr>${cells.map(cell).join('')}</tr>`).join(''),
     '</tbody></table></div>',
     folded
-      ? `<details class="table-fold"><summary><span class="fold-more">${esc(foldMore(rows.length))}</span><span class="fold-less">${esc(FOLD_LESS)}</span>${FOLD_NAME}</summary></details>`
+      ? `<details class="table-fold"><summary><span class="fold-more">${esc(foldMore(rows.length, fold))}</span><span class="fold-less">${esc(FOLD_LESS)}</span>${FOLD_NAME}</summary></details>`
       : '',
     '</div>',
   ].join('')
@@ -2696,7 +2699,7 @@ const page = ({
                 year: (year) => link(`seasons/${year}`, year),
                 name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
                 constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
-              }, { fold: true })}`
+              }, { fold: FOLD_NOUN.practice })}`
             : ''
         }
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
@@ -2711,7 +2714,7 @@ const page = ({
                 ]),
                 // The race is its season and its Grand Prix, as on every race list.
                 // An exhaustive list, folded as the app's are (VD-69).
-                { rowHeaders: [true, true], fold: true },
+                { rowHeaders: [true, true], fold: FOLD_NOUN.wins },
               )}`
             : ''
         }
@@ -2719,7 +2722,7 @@ const page = ({
           seasons.length
             ? `<h2>Season by season</h2>${fromColumns(SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
-              }, { fold: true })}<p class="faint">${esc(SEASONS_FOOTER)}</p>`
+              }, { fold: FOLD_NOUN.seasons })}<p class="faint">${esc(SEASONS_FOOTER)}</p>`
             : ''
         }
         ${
@@ -2728,7 +2731,7 @@ const page = ({
                 year: (year) => link(`seasons/${year}`, year),
                 mate: (name, row) => link(`drivers/${row.mate_id}`, name),
                 constructor: (name, row) => link(`constructors/${row.constructor_id}`, name),
-              }, { fold: true })}<p class="faint">${esc(teamMatesFooter(d.full_name))}</p>
+              }, { fold: FOLD_NOUN.teamMates })}<p class="faint">${esc(teamMatesFooter(d.full_name))}</p>
               <p>${link(comparePath(d.id), compareWith(d.full_name))}</p>`
             : ''
         }
@@ -2859,7 +2862,7 @@ page({
           seasons.length
             ? `${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
-              }, { fold: true })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
+              }, { fold: FOLD_NOUN.seasons })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
             : EMPTY_STATE
         }
         ${photographSection(all(CONSTRUCTOR_IMAGES, c.id), { subjects: true })}
@@ -2871,14 +2874,14 @@ page({
                 circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name) : text(name)),
                 driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
                 chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
-              }, { fold: true })}${note(TEAM_WINS_FOOTER)}`
+              }, { fold: FOLD_NOUN.wins })}${note(TEAM_WINS_FOOTER)}`
             : ''
         }
         ${
           designs.length
             ? `<h2>Cars built</h2>${fromColumns(DESIGN_COLUMNS, designs, {
                 name: (name, row) => link(`cars/${row.id}`, name),
-              }, { fold: true })}`
+              }, { fold: FOLD_NOUN.designs })}`
             : ''
         }
         <h2>On the record</h2>
@@ -3040,14 +3043,14 @@ page({
           winnersHere.length
             ? `<h2>Most wins here</h2>${fromColumns(WINNER_COLUMNS, winnersHere, {
                 driver: (name, row) => link(`drivers/${row.driver_id}`, name),
-              }, { fold: true })}`
+              }, { fold: FOLD_NOUN.winners })}`
             : ''
         }
         ${
           teamsHere.length
             ? `<h2>Constructors here</h2>${fromColumns(TEAM_COLUMNS, teamsHere, {
                 constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
-              }, { fold: true })}`
+              }, { fold: FOLD_NOUN.constructors })}`
             : ''
         }
         ${
@@ -3070,7 +3073,7 @@ page({
                     : row.winner_id && !String(name ?? '').includes(' / ')
                       ? link(`drivers/${row.winner_id}`, name)
                       : text(name),
-              }, { fold: true })}`
+              }, { fold: FOLD_NOUN.races })}`
             : EMPTY_STATE
         }
         <h2>On the record</h2>

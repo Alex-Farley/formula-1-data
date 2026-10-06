@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
 import { DOCUMENTS, IN_THIS_TAB } from '../src/lib/site.js'
-import { FOLD_TO } from '../src/lib/table.js'
+import { FOLD_NOUN, FOLD_TO } from '../src/lib/table.js'
 import { measurement } from '../scripts/measurement.js'
 import {
   ACCENT_APART,
@@ -1747,5 +1747,27 @@ describe('an exhaustive list folds at the number lib/table.js names (VD-69)', ()
     const app = read(join(web, 'src', 'styles', 'app.css'))
     const rules = [...app.matchAll(/\.table-wrap\.is-folded[^{]*nth-child\(n \+ (\d+)\)/g)].map((m) => Number(m[1]))
     assert.deepEqual(rules, [FOLD_TO + 1])
+  })
+
+  // "Show all 74" under a heading counting 46 could not be squared (CD-52).
+  // Every fold, in the app's pages and in the static half, names its rows
+  // from the one map, so the two halves print the same words.
+  it('every fold names its rows from FOLD_NOUN, in both halves (CD-52)', () => {
+    const files = [...sourceFiles(join(web, 'src', 'pages'), /\.jsx$/), join(web, 'scripts', 'prerender.js')]
+    const unnamed = []
+    let named = 0
+    for (const file of files) {
+      const source = read(file)
+      const line = (index) => source.slice(0, index).split('\n').length
+      // A JSX `fold` prop, bare or given anything else, and an options `fold:`.
+      for (const match of source.matchAll(/^\s+fold(=\{[^}\n]*\})?\s*$|[{,]\s*fold:\s*([^,}\s]+)/gm)) {
+        const value = match[1]?.slice(2, -1) ?? match[2] ?? 'true'
+        const key = /^FOLD_NOUN\.(\w+)$/.exec(value)?.[1]
+        if (key && key in FOLD_NOUN) named += 1
+        else unnamed.push(`${rel(file)}:${line(match.index)} fold ${value}`)
+      }
+    }
+    assert.deepEqual(unnamed, [], 'a fold whose button counts rows without saying what they are')
+    assert.ok(named >= 20, `the scan found the folds it is guarding, ${named} of them`)
   })
 })

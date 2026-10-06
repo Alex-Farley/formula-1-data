@@ -12,6 +12,7 @@ import {
   foldMore,
   folds,
   glossaryKey,
+  isFoldNoun,
   onPhone,
   shared,
   sharedLine,
@@ -92,7 +93,8 @@ import TakeAway from './TakeAway.jsx'
  *     one thing on screen that says what it is (VD-31, folded into IX-27).
  *
  * `fold` is for the exhaustive lists on an entity page - every win, every
- * entry, every race held (VD-69). Over FOLD_OVER rows the table opens on its
+ * entry, every race held (VD-69) - and is the rows' noun from FOLD_NOUN, which
+ * the disclosure names with the count (CD-52). Over FOLD_OVER rows the table opens on its
  * first FOLD_TO behind a <details> that names the whole count; every row is
  * still drawn, and the stylesheet hides the ones past the fold while it is
  * closed, so a sort reorders the full set and the fold shows its new first
@@ -454,6 +456,7 @@ function Table({
   // The fold is the expansion on a table that declares one, so the button
   // below is not drawn beside it: opening it shows every row.
   const folded = fold && folds(ordered.length)
+  if (fold && !isFoldNoun(fold)) console.error(`DataTable: fold ${String(fold)} is not a FOLD_NOUN value (CD-52)`)
   const expand = (next) => {
     collapsed.current = !next
     if (onShowAll) onShowAll(next)
@@ -648,7 +651,7 @@ function Table({
                 table's name is for a screen reader's list of controls, where
                 three folds on one page would otherwise read alike. */}
             <summary ref={more}>
-              <span className="fold-more">{foldMore(ordered.length)}</span>
+              <span className="fold-more">{foldMore(ordered.length, fold)}</span>
               <span className="fold-less">{FOLD_LESS}</span>
               {name && <span className="sr-only">, {name}</span>}
             </summary>

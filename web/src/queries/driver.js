@@ -15,6 +15,7 @@
  */
 import { EMPTY, finished, missing, number, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
+import { FOLD_NOUN } from '../lib/table.js'
 import { PRACTICE_SESSIONS } from './race.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
@@ -557,11 +558,15 @@ export const PAIR_COLUMNS = [
   ...HEAD_TO_HEAD_COLUMNS,
 ]
 
-/** How many different drivers the rows pair this one with: the section's count. */
-export const teamMateCount = (rows) => {
-  const n = new Set(rows.map((row) => row.mate_id)).size
-  return `${number(n)} ${n === 1 ? 'team-mate' : 'team-mates'}`
-}
+/**
+ * The section's count: how many different drivers the rows pair this one
+ * with, and how many rows that is. A row is a team-mate in a season, so
+ * Fangio's 46 team-mates are 74 rows, and the fold under the table counts
+ * those (CD-52): the heading names both, in the fold's own words, so the
+ * two figures can be squared.
+ */
+export const teamMateCount = (rows) =>
+  `${plural(new Set(rows.map((row) => row.mate_id)).size, 'team-mate')}, ${plural(rows.length, 'team-mate season', FOLD_NOUN.teamMates)}`
 
 /**
  * Under the table, in both renderers. It says what each figure counts, what

@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { linear, ticks } from './scales.js'
 import { ownColour } from './own.js'
 import { seriesColour } from './palette.js'
+import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
 
 const M = { top: 16, right: 14, bottom: 30, left: 40 }
@@ -44,7 +45,8 @@ const M = { top: 16, right: 14, bottom: 30, left: 40 }
  * pointer stays near it whatever is drawn there. The box takes no pointer
  * events either (.tooltip), and it sits above the point, clear of the
  * pointer - below it near the top - and is held inside the plot at either
- * side, because figure.figure clips what overflows it. A tap reads the point
+ * side, because figure.figure clips what overflows it (charts/Tooltip.jsx,
+ * which every chart's box now shares, IX-44). A tap reads the point
  * on pointerdown, since a tap sends no pointermove, and its box stays when
  * the finger lifts.
  *
@@ -55,10 +57,8 @@ const M = { top: 16, right: 14, bottom: 30, left: 40 }
  * hidden from it, so they are not read twice.
  */
 const HIT = 14
-// How far the box stands off the point, clear of the grown dot and its ring,
-// and the height above a point it needs to open upward rather than down.
+// How far the box stands off the point, clear of the grown dot and its ring.
 const GAP = 16
-const ROOM = 80
 export default function DotPlot({
   data,
   height = 220,
@@ -74,15 +74,6 @@ export default function DotPlot({
   // An index into `plotted`, not the point: the caller builds `data` afresh
   // on every render, and an object held from the last one would match none.
   const [active, setActive] = useState(null)
-  // The box's own width, read after it renders and before it paints, so it
-  // can be held inside the plot whatever its text: a long team name at 400 px
-  // ran it out of a figure that clips what overflows it.
-  const tip = useRef(null)
-  const [tipWidth, setTipWidth] = useState(0)
-  useLayoutEffect(() => {
-    const measured = tip.current ? tip.current.offsetWidth : 0
-    if (measured !== tipWidth) setTipWidth(measured)
-  })
   const own = ownColour(colour)
   const plotted = data.filter((d) => typeof d.y === 'number' && Number.isFinite(d.y))
   if (plotted.length === 0) return null
@@ -135,12 +126,6 @@ export default function DotPlot({
     if (active === null && event.currentTarget.matches(':focus-visible')) setActive(0)
   }
 
-  // Where the box opens: centred over the point, but held inside the plot
-  // at either side, and below a point too near the top for it to fit above -
-  // figure.figure clips what overflows it, which cut the box off every title
-  // year's dot.
-  const left = hover ? Math.max(0, Math.min(width - tipWidth, x(hover.x) - tipWidth / 2)) : 0
-  const rise = hover && y(hover.y) < ROOM ? `${GAP}px` : `calc(-100% - ${GAP}px)`
   const said = hover ? `${hover.label ?? formatX(hover.x)}: ${hover.note ?? format(hover.y)}` : ''
 
   return (
@@ -223,13 +208,12 @@ export default function DotPlot({
       <p className="sr-only" role="status">
         {said}
       </p>
+      {/* Centred over the point, held inside the plot at either side, and
+          below a point too near the top for it to fit above: figure.figure
+          clips what overflows it, which cut the box off every title year's
+          dot, and a long team name at 400 px ran it out at the sides. */}
       {hover && (
-        <div
-          className="tooltip"
-          ref={tip}
-          style={{ left: `${left}px`, top: y(hover.y), '--tooltip-shift': '0px', '--tooltip-rise': rise }}
-          aria-hidden="true"
-        >
+        <Tooltip x={x(hover.x)} y={y(hover.y)} gap={GAP} onDismiss={() => setActive(null)} aria-hidden="true">
           <b>{hover.label ?? formatX(hover.x)}</b>
           <span className={hover.colour ? `row ${ownOf(hover).className}` : 'row'} style={hover.colour ? ownOf(hover).style : undefined}>
             {/* The swatch says what the dot says. A hollow dot's is outlined
@@ -243,7 +227,7 @@ export default function DotPlot({
             />
             {hover.note ?? format(hover.y)}
           </span>
-        </div>
+        </Tooltip>
       )}
     </div>
   )

@@ -8,6 +8,7 @@ import Photographs from '../components/Photographs.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
+import { FOLD_NOUN } from '../lib/table.js'
 import LiveryScheme from '../components/LiveryScheme.jsx'
 import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry, sourceHost } from '../lib/liveries.js'
 
@@ -230,7 +231,7 @@ function ConstructorBody({ constructor, data }) {
       <Section title="Season by season" count={`${bySeason.length} seasons`}>
         <DataTable
           rows={constructorSeasons(bySeason, standings)}
-          fold
+          fold={FOLD_NOUN.seasons}
           rowKey={(row) => row.year}
           sort="year"
           direction="desc"
@@ -251,7 +252,7 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Every win" count={`${wins.length}`}>
           <DataTable
             rows={wins}
-            fold
+            fold={FOLD_NOUN.wins}
             rowKey={(row) => `${row.year}-${row.round}-${row.driver_id}`}
             sort="year"
             direction="desc"
@@ -266,7 +267,7 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Cars built" count={`${designs.length} designs`}>
           <DataTable
             rows={designs}
-            fold
+            fold={FOLD_NOUN.designs}
             rowKey={(row) => row.id}
             sort="first_year"
             direction="asc"
