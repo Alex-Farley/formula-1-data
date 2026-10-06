@@ -75,7 +75,12 @@ const GAP_APP = {
       <>
         <p className="gap-reader">{value}</p>
         <details className="gap-note">
-          <summary>{MAINTAINER_NOTE}</summary>
+          {/* Named for its row as well, for a screen reader's list of
+              controls, where twenty notes read alike out of context (DP-30). */}
+          <summary>
+            {MAINTAINER_NOTE}
+            <span className="sr-only">, {row.area}</span>
+          </summary>
           <p>{row.description}</p>
           {row.resolution && <p>{row.resolution}</p>}
         </details>

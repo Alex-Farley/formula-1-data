@@ -57,11 +57,13 @@ import { handoverWords } from '../src/lib/handover.js'
 import {
   ABOUT,
   DOCUMENTS,
+  LABELS,
   MAINTAINER,
   NOT_YET_RUN,
   PHOTOGRAPHS_SHOWN,
   RACE_CARS_TITLE,
   RACE_PHOTOGRAPHS_TITLE,
+  REPLACED,
   SO_FAR,
   UNCHECKED_MARK,
   licenceTerms,
@@ -3734,7 +3736,7 @@ try {
        FROM article_images WHERE route = 'article'`,
     ).all()
     const teamByTitle = new Map(
-      teamCredits.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+      teamCredits.map((row) => [fileTitle(row.file_name), row]),
     )
     const teamUncredited = team.filter((figure) => {
       const row = teamByTitle.get(figure.file)
@@ -4557,7 +4559,7 @@ try {
        FROM article_images WHERE article = 'McLaren MP4/4'`,
     ).all()
     const byTitle = new Map(
-      credited.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+      credited.map((row) => [fileTitle(row.file_name), row]),
     )
     const uncredited = shown.filter((figure) => {
       const row = byTitle.get(figure.file)
@@ -7433,6 +7435,22 @@ try {
             for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
             return flatten(copy)
           }),
+          // What a screen reader's list of controls reads (DP-30, DP-31):
+          // each disclosure's name - its face and the hidden name a fold
+          // carries, the closed face only, as the open one is hidden while
+          // closed - and each link's name with where it goes. A link in a
+          // table is named by its row as well as by its words (2.4.4, in
+          // context), and a register lists 1,196 races under 52 names, so the
+          // links read are the ones that stand alone.
+          disclosures: [...(main?.querySelectorAll('summary') ?? [])].map((summary) => {
+            const copy = summary.cloneNode(true)
+            for (const face of copy.querySelectorAll('.fold-less')) face.remove()
+            return flatten(copy)
+          }),
+          links: [...(main?.querySelectorAll('a[href]') ?? [])].filter((a) => !a.closest('table')).map((a) => [
+            (a.getAttribute('aria-label') ?? flatten(a)).replace(/\s+/g, ' ').trim(),
+            a.getAttribute('href'),
+          ]),
         }
       }
       const parsed = new DOMParser().parseFromString(html, 'text/html')
@@ -7518,6 +7536,78 @@ try {
     }
     for (const message of sectionsWrong.slice(0, 8)) fail(message)
     if (sectionsWrong.length > 8) fail(`\u2026and ${sectionsWrong.length - 8} more`)
+
+    // ONE VOCABULARY (VD-81, DP-05; docs/design-system.md section 8, test 7),
+    // on the pages as drawn, in both halves: no tile label and no heading is
+    // a word LABELS replaced, every entity page ends on the one provenance
+    // heading, and its eyebrow opens on its type (IA-09). conventions.mjs
+    // holds the source to the same list; this holds what reaches a reader.
+    const TYPES = [
+      [/^\/seasons\/\d+$/, 'Season'],
+      [/^\/races\/\d+\/\d+$/, 'Race'],
+      [/^\/drivers\/[^/]+$/, 'Driver'],
+      [/^\/constructors\/[^/]+$/, 'Constructor'],
+      [/^\/circuits\/[^/]+$/, 'Circuit'],
+      [/^\/cars\/[^/]+$/, 'Car'],
+      [/^\/grands-prix\/[^/]+$/, 'Grand Prix'],
+    ]
+    const vocabularyWrong = []
+    let entityPages = 0
+    for (const { route, fromStatic, fromApp } of drawn) {
+      const type = TYPES.find(([pattern]) => pattern.test(route))?.[1]
+      if (type) entityPages += 1
+      for (const [half, read] of [['app', fromApp], ['static', fromStatic]]) {
+        for (const [label] of read.tiles.flat()) {
+          if (label in REPLACED) vocabularyWrong.push(`${route} (${half}): the tile \u201c${label}\u201d is \u201c${REPLACED[label]}\u201d`)
+        }
+        for (const heading of read.sections) {
+          if (heading in REPLACED || /\bon the record\b/i.test(heading)) {
+            vocabularyWrong.push(`${route} (${half}): the heading \u201c${heading}\u201d is \u201c${LABELS.provenance}\u201d`)
+          }
+        }
+        if (!type || (half === 'static' && HEADER_DIFFERS.has(route))) continue
+        if (!read.sections.includes(LABELS.provenance)) vocabularyWrong.push(`${route} (${half}): no \u201c${LABELS.provenance}\u201d section`)
+        const eyebrow = read.header.find((child) => child.startsWith('p.eyebrow '))?.slice('p.eyebrow '.length)
+        if (!eyebrow || !(eyebrow === type || eyebrow.startsWith(`${type} \u00b7 `))) {
+          vocabularyWrong.push(`${route} (${half}): the eyebrow \u201c${eyebrow ?? '(none)'}\u201d does not open on \u201c${type}\u201d`)
+        }
+      }
+    }
+    if (vocabularyWrong.length === 0) {
+      pass(`all ${drawn.length} routes use one vocabulary in both renderers, and all ${entityPages} entity pages open on their type and end on \u201c${LABELS.provenance}\u201d`)
+    }
+    for (const message of vocabularyWrong.slice(0, 8)) fail(message)
+    if (vocabularyWrong.length > 8) fail(`\u2026and ${vocabularyWrong.length - 8} more`)
+
+    // A DISCLOSURE OR A LINK SAYS WHAT IT OPENS (DP-30, DP-31): no two
+    // disclosures on a page share a name, and no name is given to two links
+    // that go to different places - twelve "How it is derived" on /records,
+    // five "The numbers behind this chart" and twenty "Maintainer's note" on
+    // /data/quality read alike out of context. In both halves.
+    const namesWrong = []
+    for (const { route, fromStatic, fromApp } of drawn) {
+      for (const [half, read] of [['app', fromApp], ['static', fromStatic]]) {
+        const seen = new Set()
+        for (const name of read.disclosures) {
+          if (seen.has(name)) namesWrong.push(`${route} (${half}): two disclosures named \u201c${name}\u201d`)
+          seen.add(name)
+        }
+        const targets = new Map()
+        for (const [name, to] of read.links) {
+          if (!name) continue
+          // One address however it is spelled: the register holds a licence's
+          // deed as http and https, with and without its closing slash.
+          const where = (to ?? '').replace(/^https?:/, '').replace(/\/$/, '')
+          targets.set(name, new Set([...(targets.get(name) ?? []), where]))
+        }
+        for (const [name, where] of targets) {
+          if (where.size > 1) namesWrong.push(`${route} (${half}): \u201c${name}\u201d names ${where.size} links to different places`)
+        }
+      }
+    }
+    if (namesWrong.length === 0) pass(`no two disclosures, and no two links to different places, share a name on any of ${drawn.length} routes in either renderer`)
+    for (const message of namesWrong.slice(0, 8)) fail(message)
+    if (namesWrong.length > 8) fail(`\u2026and ${namesWrong.length - 8} more`)
   })
 
   await section('Static tables are the app’s tables', async () => {

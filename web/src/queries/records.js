@@ -10,6 +10,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
+import { LABELS } from '../lib/site.js'
 
 // A race holder is stored by races.id; the page needs year and round to
 // link it, so they ride along (NULL for every other holder).
@@ -333,6 +334,6 @@ export const RECORDS_STANDFIRST =
  * links to their page where holderPath() finds one.
  */
 export const recordStrip = (record) => [
-  { label: 'Value', value: record.value, lead: true },
-  { label: 'Holder', value: record.holder, href: holderPath(record) },
+  { label: LABELS.record, value: record.value, lead: true },
+  { label: LABELS.heldBy, value: record.holder, href: holderPath(record) },
 ]

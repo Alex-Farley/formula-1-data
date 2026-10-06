@@ -72,7 +72,7 @@ export const RACE_COLUMNS = [
   { key: 'circuit', label: 'Circuit' },
   { key: 'country', label: 'Country', optional: true },
   { key: 'winner', label: 'Winner', text: raceWinner, phone: true },
-  { key: 'constructor', label: 'Car' },
+  { key: 'constructor', label: 'Constructor' },
   { key: 'pole', label: 'Pole' },
   { key: 'fastest_lap', label: 'Fastest lap' },
 ]

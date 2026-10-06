@@ -6,6 +6,8 @@
  * takes over is the same disagreement Page.jsx's own docstring describes —
  * and the reader who bookmarks it gets whichever one happened to be there.
  */
+import { longDate, missing, span } from './format.js'
+
 export const SITE = 'Lap Ledger'
 
 /**
@@ -89,22 +91,83 @@ export const NAMES = {
 }
 
 /**
- * The line above a page's h1, for the six kinds of page that carry one
- * (VD-79, DP-03): read by the page and by scripts/prerender.js, so both
- * renderers draw the same header. The static page wrote none, and the line
- * appeared at the handover on 1,196 race pages, 862 driver pages and every
- * constructor, circuit, car and Grand Prix page, moving the heading down
- * under the reader (VD-56). What an eyebrow should say is VD-81's to settle
- * (docs/design-system.md section 3, *Page header*); these are the words each
- * page already used, in the one place that change will be made.
+ * The line above a page's h1, for the seven kinds of entity page (VD-79,
+ * DP-03): read by the page and by scripts/prerender.js, so both renderers
+ * draw the same header.
+ *
+ * ONE RULE: THE PAGE TYPE, THEN THE FACTS THAT IDENTIFY THE ENTITY (VD-81,
+ * DP-05; docs/design-system.md section 3, *Page header*). The slot used to
+ * carry five kinds of thing - a page type on drivers and constructors, a
+ * place on circuits, a position in a sequence on races, the parent
+ * constructor on cars, a country on Grands Prix, and nothing on seasons - so
+ * a reader landing cold on /cars/ags-jh24 read "AGS" over "JH24" and nothing
+ * on the page said what kind of thing it was (IA-09). Now the type always
+ * leads, and a fact the database does not hold is left out rather than
+ * printed as a dash: "Driver · United States of America" for the 59 drivers
+ * with no date of birth.
  */
+const EYEBROW_JOIN = ' · '
+const eyebrow = (type, ...facts) => [type, ...facts.filter((fact) => !missing(fact))].join(EYEBROW_JOIN)
+
+/** "Maranello, Italy" under a constructor of Italy is "Maranello": the country is already said. */
+const baseIn = (base, country) =>
+  missing(base) ? null : !missing(country) && base.endsWith(`, ${country}`) ? base.slice(0, -(country.length + 2)) : base
+
+const roundsRun = (rounds, run) =>
+  `${rounds} ${rounds === 1 ? 'round' : 'rounds'}, ${run >= rounds ? 'all run' : run === 0 ? 'none run yet' : `${run} run`}`
+
 export const EYEBROWS = {
-  race: (round, year) => `Round ${round} of ${year}`,
-  driver: () => 'Driver',
-  constructor: () => 'Constructor',
-  circuit: (locality, country) => [locality, country].filter(Boolean).join(', ') || null,
-  car: (team) => team ?? 'Chassis',
-  grandPrix: (country) => country ?? null,
+  driver: (nationality, born) => eyebrow('Driver', nationality, longDate(born) && `born ${longDate(born)}`),
+  constructor: (country, base) => eyebrow('Constructor', country, baseIn(base, country)),
+  circuit: (locality, country) => eyebrow('Circuit', [locality, country].filter((part) => !missing(part)).join(', ')),
+  race: (round, rounds, day) => eyebrow('Race', missing(rounds) ? `Round ${round}` : `Round ${round} of ${rounds}`, longDate(day)),
+  season: (rounds, run) => eyebrow('Season', missing(rounds) ? null : roundsRun(Number(rounds), run)),
+  car: (team, from, to) => eyebrow('Car', team, missing(from) && missing(to) ? null : span(from, to)),
+  grandPrix: (country) => eyebrow('Grand Prix', country),
+}
+
+/**
+ * ONE LABEL PER CONCEPT (VD-81, DP-05; docs/design-system.md section 5).
+ *
+ * The tile strips and the provenance heading named one thing several ways: a
+ * year span was *Seasons* on a driver, *Entered* on a constructor, *Grands
+ * Prix* on a circuit, *Raced* on a car and *Span* on a Grand Prix; a row of
+ * race_entries was *Entries*, *Race entries* and *Recorded entries*; the
+ * section that says where a page's facts come from was *On the record*, *The
+ * season on the record* and *Where this comes from* - and "On the record"
+ * collided with /records and with "the race records" in a dozen notes. Two
+ * words for one thing teach a reader they are two things (CD-12).
+ *
+ * So the words are here, once, and every strip in queries/*.js and every
+ * provenance heading in both renderers reads them. web/test/conventions.mjs
+ * (*one vocabulary*) refuses a strip that writes one of these words as a
+ * literal, and refuses the synonyms they replaced.
+ */
+export const LABELS = {
+  seasons: 'Seasons',
+  entries: 'Entries',
+  record: 'Record',
+  heldBy: 'Held by',
+  provenance: 'Where this comes from',
+}
+
+/**
+ * The words LABELS replaced, each with the word that replaced it. Nothing on
+ * the site reads this: web/test/conventions.mjs refuses each one in a strip
+ * or a provenance heading in the source, and web/test/smoke.mjs on every page
+ * it draws in both renderers, so the two tests cannot disagree about what a
+ * synonym is.
+ */
+export const REPLACED = {
+  Entered: LABELS.seasons,
+  Raced: LABELS.seasons,
+  Span: LABELS.seasons,
+  'Race entries': LABELS.entries,
+  'Recorded entries': LABELS.entries,
+  Value: LABELS.record,
+  Holder: LABELS.heldBy,
+  'On the record': LABELS.provenance,
+  'The season on the record': LABELS.provenance,
 }
 
 /**

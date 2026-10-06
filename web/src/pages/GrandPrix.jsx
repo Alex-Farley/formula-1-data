@@ -5,7 +5,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import SearchKey from '../components/SearchKey.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
-import { EYEBROWS, NAMES, NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import {
   CIRCUITS,
@@ -159,7 +159,7 @@ function GrandPrixBody({ gp, data }) {
         />
       </Section>
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             // Dropped rather than dashed where there is none, as the static

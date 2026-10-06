@@ -96,6 +96,24 @@ export function raceDates(race) {
   return `${fd}-${td} ${month(tm)} ${ty}`
 }
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/**
+ * "7 January 1985", from "1985-01-07": a day written out, for prose and for
+ * a page's eyebrow (VD-81), where "1985-01-07" is the schema talking. Null
+ * where the value is not a whole ISO day, so the caller leaves the clause out
+ * rather than printing half a date.
+ */
+export function longDate(iso) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ''))
+  if (!match) return null
+  const [, year, month, day] = match
+  return `${Number(day)} ${MONTH_NAMES[Number(month) - 1]} ${year}`
+}
+
 /** "1950–2026", "1950–", "1950". The dash is an en dash, as a span should be. */
 export function span(from, to) {
   if (missing(from) && missing(to)) return EMPTY

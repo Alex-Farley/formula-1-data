@@ -39,7 +39,7 @@ import {
 } from '../queries/car.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
-import { EYEBROWS, NAMES } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/car.js defines — the links and
@@ -147,7 +147,7 @@ function CarBody({ id, chassis, variants, data }) {
 
   return (
     <Page
-      eyebrow={EYEBROWS.car(chassis.constructor)}
+      eyebrow={EYEBROWS.car(chassis.constructor, raced[0], raced[1])}
       title={NAMES.car(name).headline}
       trail={TRAIL.car(chassis.id, name)}
       canonical={carAddress(id, car)}
@@ -259,7 +259,7 @@ function CarBody({ id, chassis, variants, data }) {
         </Section>
       )}
 
-      <Section title="Every entry" count={`${entries.length} races`}>
+      <Section title="Every entry" count={`${entries.length.toLocaleString('en-GB')} ${entries.length === 1 ? 'entry' : 'entries'}`}>
         <DataTable
           rows={entries}
           rowKey={(row) => `${row.year}-${row.round}-${row.driver_id}`}
@@ -272,7 +272,7 @@ function CarBody({ id, chassis, variants, data }) {
         />
       </Section>
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             // The builder's colour mark (AF-51), for the last season this

@@ -1,4 +1,4 @@
-import { attribution, fileTitle } from '../lib/commons.js'
+import { attribution, fileLinkName, fileTitle } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
 
 /**
@@ -21,7 +21,7 @@ export default function CommonsCredit({ image, className }) {
 
   return (
     <p className={className}>
-      <a href={image.description_url} target="_blank" rel="noreferrer noopener">
+      <a href={image.description_url} target="_blank" rel="noreferrer noopener" aria-label={fileLinkName(image)}>
         {fileTitle(image.file_name)}
       </a>
       {' · '}

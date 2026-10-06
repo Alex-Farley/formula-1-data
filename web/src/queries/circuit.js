@@ -12,7 +12,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { number, span, text } from '../lib/format.js'
-import { NOT_YET_RUN } from '../lib/site.js'
+import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 
 /**
  * The stored row with the derived figures beside it: v_circuits counts the
@@ -175,7 +175,7 @@ export const RACE_COLUMNS = [
   // them (VD-29).
   { key: 'layout_key', label: 'Layout', collapse: true },
   { key: 'winner', label: 'Winner', text: raceWinnerHere },
-  { key: 'constructor', label: 'Car' },
+  { key: 'constructor', label: 'Constructor' },
 ]
 
 export const WINNER_COLUMNS = [
@@ -233,7 +233,7 @@ const seasonCount = (n) => `${n} ${n === 1 ? 'season' : 'seasons'}`
 export const circuitStrip = (circuit) => [
   { label: 'Championship races', value: number(circuit.races) },
   {
-    label: 'Grands Prix',
+    label: LABELS.seasons,
     value: span(circuit.derived_first, circuit.derived_last),
     note: seasonCount(circuit.seasons_used ?? 0),
   },
