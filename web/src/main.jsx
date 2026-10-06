@@ -292,8 +292,13 @@ function holdLinks() {
     'click',
     (event) => {
       const { phase } = currentProgress()
-      // Ready: the app is the page, and owns its own links.
-      if (phase === 'ready') return
+      // Ready and handed over: the app is the page, and owns its own links.
+      // Ready and not yet handed over - the app rendering out of sight
+      // (handOver(), VD-79) - the router is already listening, so a click is
+      // a route change for it rather than a page load, and the new route's
+      // page is what the swap then shows.
+      const rendering = phase === 'ready' && 'handover' in document.documentElement.dataset
+      if (phase === 'ready' && !rendering) return
       // Failed: no router is coming to render the held route, so holding one
       // more click would leave the reader on a page the address bar does not
       // name — URL /records, heading Drivers, for good. The anchors are the
@@ -334,6 +339,7 @@ function holdLinks() {
       const route = url.pathname
       history.pushState({}, '', route + url.search + url.hash)
       dispatchEvent(new PopStateEvent('popstate'))
+      if (rendering) return
       // Said at once, because fetching the page it names takes a moment on the
       // connection this exists for — and withdrawn once the reader is looking
       // at that page rather than waiting for it.

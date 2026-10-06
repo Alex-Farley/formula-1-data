@@ -21,6 +21,10 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
+import { SEASONS_LEDE } from '../src/queries/seasons.js'
+import { CONSTRUCTORS_LEDE } from '../src/queries/constructors.js'
+import { CIRCUITS_LEDE } from '../src/queries/circuits.js'
+import { CARS_LEDE } from '../src/queries/cars.js'
 
 import { MIN_ROWS, cellText, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
 import { captureOpenFolds, captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
@@ -2717,5 +2721,44 @@ describe('late results', () => {
     } finally {
       db.close()
     }
+  })
+})
+
+/*
+ * The counts the register ledes spell out (VD-79). The ledes are written by
+ * hand, and since VD-79 the static page draws them too, in place of the
+ * counts it used to compute at build time - so a season, a venue or a
+ * chassis arriving would leave both halves stating last year's figure, with
+ * nothing to say so. Held against f1.db here instead.
+ */
+describe('the counts the register ledes spell out (VD-79)', () => {
+  const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+  const count = (sql) => Object.values(db.prepare(sql).get())[0]
+  const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
+    'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']
+  const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+  // As the ledes write a number: "seventy-seven", "a hundred and fifty".
+  const spelled = (n) => {
+    const under = (m) => (m < 20 ? ONES[m] : `${TENS[Math.floor(m / 10)]}${m % 10 ? `-${ONES[m % 10]}` : ''}`)
+    if (n < 100) return under(n)
+    const hundreds = Math.floor(n / 100)
+    const rest = n % 100
+    return `${hundreds === 1 ? 'a' : ONES[hundreds]} hundred${rest ? ` and ${under(rest)}` : ''}`
+  }
+  const opens = (lede, n, noun) => assert.ok(lede.toLowerCase().startsWith(`${spelled(n)} ${noun}`), `the lede opens "${lede.slice(0, 40)}…", and f1.db holds ${n}`)
+
+  it('the seasons register counts the championships begun', () => {
+    opens(SEASONS_LEDE, count("SELECT COUNT(DISTINCT year) FROM races WHERE status = 'completed'"), 'championships')
+  })
+  it('the constructors register counts the constructors', () => {
+    opens(CONSTRUCTORS_LEDE, count('SELECT COUNT(*) FROM constructors'), 'constructors')
+  })
+  it('the circuits register counts the venues', () => {
+    opens(CIRCUITS_LEDE, count('SELECT COUNT(*) FROM circuits'), 'venues')
+  })
+  it('the cars register counts the designs with a page, and every chassis', () => {
+    opens(CARS_LEDE, count('SELECT COUNT(*) FROM cars'), 'designs')
+    const chassis = count('SELECT COUNT(*) FROM chassis').toLocaleString('en-GB')
+    assert.ok(CARS_LEDE.includes(`${chassis} of them`), `the lede counts the chassis, and f1.db holds ${chassis}`)
   })
 })

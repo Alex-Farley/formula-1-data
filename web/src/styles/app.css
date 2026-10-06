@@ -632,7 +632,8 @@ main {
      - two to a row in a strip narrower than --tile-pair.
    A custom property cannot stand in a query, so the choice is made in the
    track size: each candidate is the strip's width over a column count, and
-   the first that is at least --tile wins, falling back to half. For a
+   the first that is at least --tile wins, falling back to half (or the
+   whole, for a strip of one, which has no half to fall back to). For a
    candidate `a` and the fallback `b`, `(--tile - a) * 1e5` is at most zero
    when `a` fits and enormous when it does not, so min(b, max(a, that)) is
    `a` or `b`; --pick-3, --pick-2 and --tiles-fit chain three of them. The
@@ -643,7 +644,7 @@ main {
   --tiles-1: calc(100% / var(--tiles, 4));
   --tiles-2: calc(100% / round(up, var(--tiles, 4) / 2));
   --tiles-3: calc(100% / round(up, var(--tiles, 4) / 3));
-  --pick-3: min(50%, max(var(--tiles-3), (var(--tile) - var(--tiles-3)) * 100000));
+  --pick-3: min(max(50%, var(--tiles-1)), max(var(--tiles-3), (var(--tile) - var(--tiles-3)) * 100000));
   --pick-2: min(var(--pick-3), max(var(--tiles-2), (var(--tile) - var(--tiles-2)) * 100000));
   --tiles-fit: min(var(--pick-2), max(var(--tiles-1), (var(--tile) - var(--tiles-1)) * 100000));
   --tile-track: calc(max(var(--tiles-fit), min(50%, (var(--tile-pair) - 100%) * 100000)) - 0.5px);

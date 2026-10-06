@@ -7226,6 +7226,8 @@ try {
       '/',
       '/seasons',
       '/seasons/2026',
+      // A concluded season, whose lead chart is headed differently (VD-79).
+      '/seasons/1976',
       // The two page STATES the kinds above do not reach: a season whose
       // rounds have all still to be run, and a round with no result yet.
       '/seasons/2027',
@@ -7416,7 +7418,9 @@ try {
 
     // The sections, in order (section 8, test 5), but what is declared.
     let declared = 0
-    const sectionsWrong = []
+    const sectionsWrong = Object.keys(SECTIONS)
+      .filter((route) => !ROUTES.includes(route))
+      .map((route) => `${route} is declared in SECTIONS and never visited, so its declaration can never fail \u2014 add it to ROUTES`)
     for (const { route, fromStatic, fromApp } of drawn) {
       const known = SECTIONS[route] ?? {}
       const names = (list) => new Set((list ?? []).map(([name]) => name))
