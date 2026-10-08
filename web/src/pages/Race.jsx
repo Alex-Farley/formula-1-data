@@ -139,8 +139,8 @@ const classificationRenders = (year) => ({
     },
   },
   driver: {
-    // The mark follows the row, not the link: driverName() in queries/race.js
-    // is what this cell says, with or without a driver id.
+    // The marks follow the row, not the link: classifiedName() in
+    // queries/race.js is what this cell says, with or without a driver id.
     render: (name, row) => (
       <>
         {row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name)}

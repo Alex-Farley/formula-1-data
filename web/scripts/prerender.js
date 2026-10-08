@@ -2592,7 +2592,7 @@ const page = ({
                 position_text: (_, row) =>
                   missing(row.finish_position) ? `<span class="tag tag-dnf">${esc(result(row))}</span>` : `<b>${esc(result(row))}</b>`,
                 // The mark where the row carries a note (DA-46), spoken as
-                // where to look - Race.jsx's driver cell, and driverName().
+                // where to look - Race.jsx's driver cell, and classifiedName().
                 driver: (name, row) =>
                   `${driverCell(name, row)}${row.shared_drive === 1 ? ` ${tag(SHARED)}` : ''}${
                     hasEntryNote(row)
