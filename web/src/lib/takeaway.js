@@ -50,6 +50,9 @@ export const headerOf = (column) => column.label ?? humanise(column.key)
  */
 export function fieldText(column, row) {
   const value = row[column.key]
+  // A date column travels as the ISO day it holds (CD-57): a file is data,
+  // and data stays ISO whatever format the reader's page showed it in.
+  if (column.date) return missing(value) ? EMPTY : String(value)
   if (column.text) {
     const written = column.text(value, row)
     return written === null || written === undefined ? '' : String(written)

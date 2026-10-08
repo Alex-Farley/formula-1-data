@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Confidence, FigurePart, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { Dated } from '../components/Dates.jsx'
 import { Chips } from '../components/Filters.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -115,7 +116,9 @@ function RecordCards({ rows, extras }) {
                 {DERIVATION}
                 <span className="sr-only">, {row.record}</span>
               </summary>
-              <p>{row.detail}</p>
+              <p>
+                <Dated>{row.detail}</Dated>
+              </p>
             </details>
           </li>
         )
@@ -251,7 +254,12 @@ function Body({ data }) {
             tables, so the sentence says that instead. */}
         <p className="note">
           {RECORDS_LEDE}
-          {asOf && ` ${asOfLine(asOf)}`}
+          {asOf && (
+            <>
+              {' '}
+              <Dated>{asOfLine(asOf)}</Dated>
+            </>
+          )}
           {tiers.length === 1 && (
             <>
               {' '}{tierBefore(records.length)}<Confidence value={tiers[0]} />{TIER_AFTER}

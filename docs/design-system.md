@@ -487,7 +487,7 @@ puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893)
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893); dates (CD-57), but for a weekend in a sentence (CD-39 #499)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -513,6 +513,35 @@ puts the classification before the outline (visual defect 7).
 - **Numbers:** tabular figures in every column. A season is printed as
   written, never as 1,950 (PD-63). A one-year span is printed once, never as
   *2023–2023*.
+- **Dates** (core, built in CD-57): a date in reading text, a table, a
+  tile or a field is never raw ISO, and never all figures (`03/09/1997` is
+  a different day either side of the Atlantic).
+  - One formatter, `lib/format.js`, writes them: the **house format**, the
+    month a word, `9 Mar 1997` in a table, tile or field and `9 March 1997`
+    in a sentence; a weekend is `27–29 Mar 2026`. The static page is
+    written in it, because it cannot know its reader.
+  - The app rewrites each date in the **reader's format**, through
+    `Intl.DateTimeFormat` in `navigator.language`: `Mar 9, 1997` in en-US,
+    `9. März 1997` in de-DE. The house format is en-GB's, and an en-GB
+    reader keeps it as written, so for them the handover changes nothing.
+  - Every date is a `<time datetime="1997-03-09">`, so a machine keeps the
+    value the database holds. A weekend's `<time>` carries its race day.
+  - How a page asks for one: `date` on a table column (`'short'`,
+    `'long'`, `'race'` for a race row's weekend, `'text'` for sentences
+    with days in them), `date` on a tile, or `<DateText>`, `<RaceDates>`
+    and `<Dated>` in `components/Dates.jsx`; `prerender.js` has a twin of
+    each. A sentence built in a queries module keeps the ISO day and is
+    drawn through `<Dated>`, so the words are shared and the date is each
+    renderer's.
+  - Times show the viewer's time zone and name it, as the timetable does.
+  - Data stays ISO: SQL, the JSON and Parquet exports, `f1.db`, a file or
+    copy taken from a table, and the SQL console.
+  - The one exception is a Commons file's title on its credit link, which
+    is printed as Commons heads the file's page (the attribution rule).
+  - *Pending (CD-39 #499):* a weekend a sentence carries as words, in a
+    scheduled race's standfirst and its Status tile, is in the house format
+    and not yet in a `<time>`; CD-39 rewrites race standfirsts with human
+    dates, from this formatter.
 - **NULL** is an em dash, never zero (**floor**).
 - **Uncertainty and disagreement:**
   - a disagreement is a framed note above the table it concerns, naming both
@@ -629,7 +658,7 @@ The system is held by tests, not by memory.
 
 **The system's own tests, one each, so a drift fails the build.** Built in
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
-Built in VD-81: 7.
+Built in VD-81: 7. Built in CD-57: 11.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -671,6 +700,13 @@ Built in VD-81: 7.
     checks that focus is on the h1 after the app takes over, on every page
     type, that the status region says so, and that the handover's layout
     shift stays under 0.05 (*The handover*).
+11. **Dates are words.** No ISO day is visible text on any prerendered
+    page in `dist/`, outside a `<time datetime>` attribute, `<code>`, the
+    SQL console and a Commons file's title; the app writes the same
+    `<time>` as en-GB, en-US and de-DE readers expect; and the handover is
+    measured in en-US, where the dates change width (`smoke.mjs`, *Dates in
+    the reader's format* and *The handover*; `units.mjs`, *dates are words
+    on the page*).
 
 ### How a change to the system is made
 

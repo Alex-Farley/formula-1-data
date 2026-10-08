@@ -75,6 +75,7 @@ import {
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
+import { dateSegments, houseDate } from '../src/lib/format.js'
 import { UNRESULTED } from '../src/queries/changes.js'
 import { EXAMPLES } from '../src/lib/questions.js'
 import {
@@ -148,6 +149,15 @@ const unescaped = (text) =>
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
+
+/* A sentence holding ISO days, as a reader in the house locale is shown it
+   (CD-57): each day in the long house format, the way <Dated> and the static
+   page's dated() draw it. And the check date as both footers write it. */
+const asShown = (text) =>
+  dateSegments(text)
+    .map((part) => (typeof part === 'string' ? part : houseDate(part.iso, 'long')))
+    .join('')
+const checkedHtml = `<time datetime="${LAST_CHECKED}">${houseDate(LAST_CHECKED)}</time>`
 
 const failures = []
 let passed = 0
@@ -294,9 +304,14 @@ try {
   // table, and the only check worth making of a copy button is what landed on
   // the clipboard. Chromium refuses navigator.clipboard to a page that has
   // never been granted it, headless or not.
+  // en-GB, the house locale (lib/format.js): the app writes dates for its
+  // reader, and in en-GB that is the house format the static page is written
+  // in, so every comparison of the two halves below compares like with like.
+  // The other locales are the business of *Dates in the reader's format*.
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     permissions: ['clipboard-read', 'clipboard-write'],
+    locale: 'en-GB',
   })
   const page = await context.newPage()
 
@@ -964,8 +979,13 @@ try {
       '/records/most-wins',
       '/drivers',
       '/data/quality',
+      // CD-57: a calendar of race days, every one rewritten in the reader's
+      // format at the handover.
+      '/seasons/1997',
     ]
-    const held = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    // en-US, so the handover is measured where the dates change width: the
+    // static page's "9 Mar 1997" becomes the app's "Mar 9, 1997" (CD-57).
+    const held = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'en-US' })
     await held.route(/f1\.db\.gz/, async (request) => {
       await new Promise((resolve) => setTimeout(resolve, 1500))
       await request.continue()
@@ -4646,7 +4666,7 @@ try {
       const app = await page.$eval('#root main', read)
       is(app.length, headlines.length, 'the page leads with the headline records, a card each')
       truthy(
-        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].includes(`| ${r.detail} | closed |`)),
+        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].includes(`| ${asShown(r.detail)} | closed |`)),
         'each card names its record and links its page, then the value, the holder and the derivation, folded',
       )
       const html = await (await fetch(`${BASE}/records`)).text()
@@ -4812,7 +4832,8 @@ try {
     const edition = one(`SELECT value FROM meta WHERE key = 'version'`)
     const dataText = await page.$eval('#root main', (n) => n.textContent)
     truthy(dataText.includes(`v${edition}`), `the data page states the database version — v${edition}`)
-    truthy(dataText.includes(one(`SELECT value FROM meta WHERE key = 'built'`)), 'and the build date')
+    // In the house format, as an en-GB reader is shown it (CD-57).
+    truthy(dataText.includes(houseDate(one(`SELECT value FROM meta WHERE key = 'built'`))), 'and the build date')
     atLeast(await page.$$eval('#root main a[href$="/f1.db.gz"]', (n) => n.length), 1, 'it links the database')
     // D-47: the file as built is the repository's, since the host will not
     // serve it; the link says where it is rather than 404ing.
@@ -4923,7 +4944,7 @@ try {
     const meta = (key) => one('SELECT value FROM meta WHERE key = ?', key)
     const shown = await page.$eval('#root main', (node) => node.textContent.replace(/\s+/g, ' '))
     truthy(shown.includes(`v${meta('version')}`), `the app names the database it is running on (v${meta('version')})`)
-    truthy(shown.includes(meta('built')), `and the date it was built (${meta('built')})`)
+    truthy(shown.includes(houseDate(meta('built'))), `and the date it was built (${houseDate(meta('built'))})`)
     // SD-25. The build date alone cannot tell a quiet week from a dead
     // refresh, so the check date is shown beside it - and it comes from
     // committed source rather than from meta, which is exactly why it needs
@@ -4942,12 +4963,12 @@ try {
     )
     is(
       checkedDd.join(),
-      LAST_CHECKED,
+      houseDate(LAST_CHECKED),
       `and when the sources were last checked, under its own label (${CHECKED_LABEL})`,
     )
     truthy(
       (await (await fetch(`${BASE}/changes`)).text())
-        .includes(`<dt>${CHECKED_LABEL}</dt><dd>${LAST_CHECKED}</dd>`),
+        .includes(`<dt>${CHECKED_LABEL}</dt><dd>${checkedHtml}</dd>`),
       'and the prerendered page says the same, in its own markup',
     )
 
@@ -4962,7 +4983,7 @@ try {
       appLate !== null,
       appLate ? 'the app says a result is late at the reader\'s date' : 'the app says no result is late, and none is',
     )
-    if (appLate) truthy(shown.includes(appLate.body), 'and names the rounds in the words lib/refresh.js gives')
+    if (appLate) truthy(shown.includes(asShown(appLate.body)), 'and names the rounds in the words lib/refresh.js gives')
     const staticLate = lateNotice(lateRaces(unresulted, meta('built')))
     const changesHtml = unescaped(await (await fetch(`${BASE}/changes`)).text())
     is(
@@ -6868,7 +6889,7 @@ try {
       'the static footer carries the version and build date',
     )
     truthy(
-      staticFoot.includes(`<dt>${CHECKED_LABEL}</dt><dd>${LAST_CHECKED}</dd>`),
+      staticFoot.includes(`<dt>${CHECKED_LABEL}</dt><dd>${checkedHtml}</dd>`),
       `and when the sources were last checked (${LAST_CHECKED}), on every page and not only /changes`,
     )
 
@@ -7276,6 +7297,82 @@ try {
       .filter((row) => canShow(row) && circuitPages.includes(row.circuit_id))
     atLeast(circuitRows.length, 1, 'circuit photographs to check')
     is(circuitsReached, circuitRows.length, 'every circuit photograph was reached on its static page')
+  })
+
+  /*
+   * DATES ARE WORDS ON THE PAGE AND ISO IN THE DATA (CD-57; docs/design-system.md
+   * section 5, *Dates*, and section 8, test 11).
+   *
+   * /seasons/1997's calendar printed "1997-03-09" in every row, and CD-39
+   * counted some 5,900 raw ISO dates across dist/; counted again for CD-57,
+   * with the footer's two dates on every page, it was over 15,000. Two
+   * things are held here. The static page writes every date in the house
+   * format inside a <time datetime>, so no ISO day is left as visible text
+   * anywhere in dist/. And the app rewrites them for its reader: the same
+   * <time>, in en-GB, en-US and de-DE, says what that reader expects, and
+   * keeps the ISO day.
+   */
+  await section('Dates in the reader’s format  (CD-57)', async () => {
+    const day = one('SELECT date_iso FROM races WHERE year = 1997 AND round = 1')
+    is(day, '1997-03-09', 'the 1997 season opened on 9 March, the day the expectations below are written for')
+    const served = await (await fetch(`${BASE}/seasons/1997`)).text()
+    truthy(
+      served.includes(`<time datetime="${day}">9 Mar 1997</time>`),
+      'the static calendar writes the day in the house format, in a <time> that keeps the ISO day',
+    )
+    const expected = { 'en-GB': '9 Mar 1997', 'en-US': 'Mar 9, 1997', 'de-DE': '9. März 1997' }
+    for (const [locale, words] of Object.entries(expected)) {
+      const reader = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale })
+      const tab = await reader.newPage()
+      await tab.goto(`${BASE}/seasons/1997`, { waitUntil: 'domcontentloaded' })
+      await tab.waitForFunction(() => !document.getElementById('prerendered') && document.querySelector('#root main table time'), null, {
+        timeout: 60000,
+      })
+      const first = await tab.evaluate(() => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('The calendar'))
+        const time = h2?.closest('section')?.querySelector('table tbody tr time')
+        return time ? { text: time.textContent.trim(), datetime: time.getAttribute('datetime') } : null
+      })
+      is(first?.text ?? null, words, `${locale}: the app writes the calendar's first day as “${words}”`)
+      is(first?.datetime ?? null, day, `${locale}: and keeps the ISO day in its <time>`)
+      await reader.close()
+    }
+
+    // Every prerendered page, as a crawler or a reader without JavaScript has
+    // it: no ISO day as visible text. Not counted: attributes (a <time>'s own
+    // datetime, a link), what is not shown (<head>, <script>, <style>), code
+    // and the SQL console's text (<code>, <pre>, <textarea>), and a Commons
+    // file's title on its credit link, which the one attribution rule says is
+    // printed as Commons heads the file's page, digits and all.
+    const distDir = join(web, 'dist')
+    const pages = (dir) =>
+      readdirSync(dir).flatMap((entry) => {
+        const full = join(dir, entry)
+        if (statSync(full).isDirectory()) return entry === 'api' ? [] : pages(full)
+        return entry.endsWith('.html') ? [full] : []
+      })
+    const isoDay = /(?<![\d-])\d{4}-\d{2}-\d{2}(?!\d)/g
+    const raw = []
+    let read = 0
+    for (const file of pages(distDir)) {
+      read += 1
+      const visible = readFileSync(file, 'utf8')
+        .replace(/<head[\s\S]*?<\/head>/g, '')
+        .replace(/<(script|style|code|pre|textarea)\b[\s\S]*?<\/\1>/g, '')
+        .replace(/<a\b[^>]*aria-label="[^"]*, on Wikimedia Commons"[^>]*>[\s\S]*?<\/a>/g, '')
+        .replace(/<[^>]*>/g, ' ')
+      for (const match of visible.matchAll(isoDay)) {
+        raw.push(`${relative(distDir, file)}: “…${visible.slice(Math.max(0, match.index - 40), match.index + 10).replace(/\s+/g, ' ').trim()}”`)
+      }
+    }
+    atLeast(read, 3000, 'prerendered pages read for raw dates')
+    if (raw.length === 0) pass(`no ISO day is visible text on any of the ${read} prerendered pages`)
+    else {
+      fail(
+        `${raw.length} ISO days are visible text in dist/ — write each through lib/format.js (a column's \`date\`, a tile's \`date\`, <DateText> or <Dated>, and their twins in prerender.js)`,
+      )
+      for (const message of raw.slice(0, 8)) fail(message)
+    }
   })
 
   /*

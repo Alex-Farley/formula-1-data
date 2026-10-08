@@ -2,6 +2,7 @@ import { createContext, Fragment, useEffect, useRef } from 'react'
 import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
+import { DateText, Dated } from './Dates.jsx'
 import { TILE_JOIN, tileSegments } from '../lib/tiles.js'
 import { arrived } from '../lib/handover.js'
 import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
@@ -97,7 +98,11 @@ export function Page({
     <article className="page">
       {trail && <Crumbs trail={trail} />}
       <header>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+        {eyebrow && (
+          <p className="eyebrow">
+            <Dated>{eyebrow}</Dated>
+          </p>
+        )}
         <h1 ref={heading} tabIndex={-1}>
           {title}
         </h1>
@@ -290,6 +295,7 @@ export function FigurePart({ title, children }) {
  * field means. A value that is already an element draws as it is.
  */
 const tileValue = (item) => {
+  if (item.date) return <DateText iso={item.value} />
   const drawn = tileSegments(item).map(({ label, href }, i) => (
     <Fragment key={i}>
       {i > 0 && TILE_JOIN}
@@ -464,9 +470,9 @@ export function Cite({ sources, search = '', canonical }) {
   return (
     <aside className="cite" aria-label="How to cite this page">
       <p>
-        {before}
+        <Dated>{before}</Dated>
         <span className="url">{url}</span>
-        {after}
+        <Dated>{after}</Dated>
       </p>
       {behind && (
         <p>

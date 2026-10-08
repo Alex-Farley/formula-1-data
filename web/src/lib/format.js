@@ -72,46 +72,163 @@ export function yearList(value) {
     .join(', ')
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-/**
- * When a race was run, as a reader is shown it: the weekend where one is
- * stated - "27-29 Mar 2026", "30 Oct-01 Nov 2026" - and the race day where
- * none is, which is every round before the current season. Null where the
- * row has neither, so a caller's em dash or empty clause still decides.
+/*
+ * DATES ARE WORDS ON THE PAGE AND ISO IN THE DATA (CD-57; docs/design-system.md
+ * section 5, *Dates*).
  *
- * `races` holds three dates rather than a display string (DA-15): date_iso,
- * the race day, and date_from / date_to, the weekend. This writes what the
- * old `dates` column held, character for character, and the `calendar` view
- * in schema.sql derives the same string in SQL for f1_compat.json.
+ * Every date in this database is an ISO day, "1997-03-09", and that is how
+ * SQL, the exports, the files a table hands over and the SQL console keep
+ * it. A reader is never shown one: "1997-03-09" is the schema talking, and
+ * "03/09/1997" is a different day on either side of the Atlantic. So a date
+ * is written in one of two ways.
+ *
+ *   The house format, with the month as a word and so unambiguous anywhere:
+ *   "9 Mar 1997" in a table, a tile or a field, "9 March 1997" in a
+ *   sentence. The prerendered page is written in it, because a static file
+ *   cannot know who will read it.
+ *
+ *   The reader's own, once the app has taken over: the same day through
+ *   Intl.DateTimeFormat in `navigator.language`, so a reader in the United
+ *   States sees "Mar 9, 1997" and one in Germany "9. März 1997". The house
+ *   format is en-GB's, and an en-GB reader keeps it as written rather than
+ *   taking ICU's version of it (which abbreviates September "Sept" in one
+ *   release and "Sep" in the next), so for them the handover changes nothing.
+ *
+ * Both are read from the ISO day in a <time datetime>, which the two
+ * renderers draw (components/Dates.jsx and scripts/prerender.js), so a
+ * machine reading either half keeps the value the database holds.
  */
-export function raceDates(race) {
-  const { date_iso: day, date_from: from, date_to: to } = race ?? {}
-  if (missing(from) || missing(to)) return missing(day) ? null : String(day)
-  const [fy, fm, fd] = String(from).split('-')
-  const [ty, tm, td] = String(to).split('-')
-  const month = (m) => MONTHS[Number(m) - 1]
-  if (fy !== ty) return `${fd} ${month(fm)} ${fy}-${td} ${month(tm)} ${ty}`
-  if (fm !== tm) return `${fd} ${month(fm)}-${td} ${month(tm)} ${ty}`
-  return `${fd}-${td} ${month(tm)} ${ty}`
-}
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-/**
- * "7 January 1985", from "1985-01-07": a day written out, for prose and for
- * a page's eyebrow (VD-81), where "1985-01-07" is the schema talking. Null
- * where the value is not a whole ISO day, so the caller leaves the clause out
- * rather than printing half a date.
- */
-export function longDate(iso) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ''))
+/** The locale the house format is, and the one the static page is written for. */
+export const HOUSE_LOCALE = 'en-GB'
+
+/** Whole ISO days, and the same pattern for finding one inside a sentence. */
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+const ISO_IN_TEXT = /(?<![\d-])(\d{4}-\d{2}-\d{2})(?![\d])/
+
+/** The parts of a whole ISO day, or null for anything else - "1911", "1997-02-30". */
+function dayParts(iso) {
+  const match = ISO_DAY.exec(String(iso ?? ''))
   if (!match) return null
-  const [, year, month, day] = match
-  return `${Number(day)} ${MONTH_NAMES[Number(month) - 1]} ${year}`
+  const [year, month, day] = match.slice(1).map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null
+  return { year, month, day, date }
+}
+
+/** Whether a value is a whole ISO day, and so a date this module can write. */
+export const isDay = (value) => dayParts(value) !== null
+
+/**
+ * A day in the house format: "9 Mar 1997", or "9 March 1997" when `length`
+ * is 'long', which is for prose and a page's eyebrow (VD-81). Null where the
+ * value is not a whole ISO day, so the caller leaves the clause out rather
+ * than printing half a date.
+ */
+export function houseDate(iso, length = 'short') {
+  const parts = dayParts(iso)
+  if (!parts) return null
+  const names = length === 'long' ? MONTH_NAMES : MONTHS
+  return `${parts.day} ${names[parts.month - 1]} ${parts.year}`
+}
+
+/** "7 January 1985", from "1985-01-07": houseDate's long form. */
+export const longDate = (iso) => houseDate(iso, 'long')
+
+/**
+ * The reader's locale, in the browser: what the app writes dates in. The
+ * static page never asks - Node has a `navigator` too, and its answer is the
+ * build machine's, not the reader's.
+ */
+export function readerLocale() {
+  try {
+    return globalThis.navigator?.language || HOUSE_LOCALE
+  } catch {
+    return HOUSE_LOCALE
+  }
+}
+
+/** One Intl formatter per locale and length; a bad locale falls back to the house. */
+const formatters = new Map()
+function formatter(locale, length) {
+  const key = `${locale}|${length}`
+  if (!formatters.has(key)) {
+    let made = null
+    try {
+      // UTC both ways: the day is a calendar day, and read in a reader's own
+      // zone midnight UTC is the evening before for everyone west of London.
+      made = new Intl.DateTimeFormat(locale, { day: 'numeric', month: length, year: 'numeric', timeZone: 'UTC' })
+    } catch {
+      made = null
+    }
+    formatters.set(key, made)
+  }
+  return formatters.get(key)
+}
+
+/**
+ * A day as the reader in `locale` writes it: "Mar 9, 1997" in en-US, "9.
+ * März 1997" in de-DE, and the house format itself in en-GB (see above).
+ * Null where houseDate is.
+ */
+export function localDate(iso, length = 'short', locale = readerLocale()) {
+  const house = houseDate(iso, length)
+  if (house === null || locale === HOUSE_LOCALE) return house
+  const format = formatter(locale, length)
+  return format ? format.format(dayParts(iso).date) : house
+}
+
+/**
+ * A sentence cut at the ISO days inside it: strings, and `{ iso }` for each
+ * whole day, so a renderer can draw each one as a <time> and leave the words
+ * alone. A string with no day in it comes back as itself, alone.
+ */
+export function dateSegments(value) {
+  const parts = String(value ?? '').split(new RegExp(ISO_IN_TEXT.source, 'g'))
+  // split() with a capturing group puts each match at an odd index.
+  return parts
+    .map((part, i) => (i % 2 === 1 && isDay(part) ? { iso: part } : part))
+    .filter((part) => part !== '')
+}
+
+/**
+ * When a race was run, as a reader is shown it: the weekend where one is
+ * stated - "27–29 Mar 2026", "30 Oct–1 Nov 2026" - and the race day where
+ * none is, which is every round before the current season: "13 May 1950".
+ * Null where the row has neither, so a caller's em dash or empty clause
+ * still decides.
+ *
+ * `races` holds three dates rather than a display string (DA-15): date_iso,
+ * the race day, and date_from / date_to, the weekend. This is the house
+ * format; localRaceDates is the reader's.
+ */
+export function raceDates(race) {
+  const { date_iso: day, date_from: from, date_to: to } = race ?? {}
+  const a = dayParts(from)
+  const b = dayParts(to)
+  if (!a || !b) return houseDate(day)
+  if (a.year !== b.year) return `${houseDate(from)}–${houseDate(to)}`
+  if (a.month !== b.month) return `${a.day} ${MONTHS[a.month - 1]}–${houseDate(to)}`
+  return `${a.day}–${houseDate(to)}`
+}
+
+/**
+ * raceDates in the reader's locale: a weekend through Intl's own range
+ * format ("Mar 27 – 29, 2026" in en-US), which knows where each language
+ * puts the month; the house format in en-GB, or where formatRange is missing.
+ */
+export function localRaceDates(race, locale = readerLocale()) {
+  const { date_iso: day, date_from: from, date_to: to } = race ?? {}
+  if (!isDay(from) || !isDay(to)) return localDate(day, 'short', locale)
+  const format = locale === HOUSE_LOCALE ? null : formatter(locale, 'short')
+  if (!format || typeof format.formatRange !== 'function') return raceDates(race)
+  return format.formatRange(dayParts(from).date, dayParts(to).date)
 }
 
 /** "1950–2026", "1950–", "1950". The dash is an en dash, as a span should be. */

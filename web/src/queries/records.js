@@ -275,14 +275,14 @@ export function recordColumns(records) {
     // The derivation is what CR-22's claim rests on, so it stays in the table
     // and stays legible; it is the footnote to the figure, not its equal, and
     // it was set in the same ink at the same size (VD-51).
-    { key: 'detail', label: DERIVATION, align: 'prose', cellClass: 'record-derivation' },
+    { key: 'detail', label: DERIVATION, align: 'prose', cellClass: 'record-derivation', date: 'text' },
     // Every record is derived in one pass, so the date is the same on all of
     // them until a figure moves (VD-29). It was a collapsing column, said once
     // above the table; with a table per family it would be said eleven times,
     // and not at all under a family of fewer than five, so it is said once for
     // the page (asOfLine) and is a column only where the records differ on it,
     // as the tier is.
-    ...(asOfOf(records) === null ? [{ key: 'as_of', label: 'As of' }] : []),
+    ...(asOfOf(records) === null ? [{ key: 'as_of', label: 'As of', date: 'short' }] : []),
     ...(tiersOf(records).length === 1 ? [] : [{ key: 'confidence', label: 'Confidence' }]),
   ]
 }
