@@ -487,7 +487,7 @@ puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893); dates (CD-57), but for a weekend in a sentence (CD-39 #499)
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893); dates (CD-57), but for a weekend in a sentence (CD-39 #499) and session times (CD-59 #900)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -513,9 +513,9 @@ puts the classification before the outline (visual defect 7).
 - **Numbers:** tabular figures in every column. A season is printed as
   written, never as 1,950 (PD-63). A one-year span is printed once, never as
   *2023–2023*.
-- **Dates** (core, built in CD-57): a date in reading text, a table, a
-  tile or a field is never raw ISO, and never all figures (`03/09/1997` is
-  a different day either side of the Atlantic).
+- **Dates** (core, built in CD-57): a calendar date in reading text, a
+  table, a tile or a field is never raw ISO, and never all figures
+  (`03/09/1997` is a different day either side of the Atlantic).
   - One formatter, `lib/format.js`, writes them: the **house format**, the
     month a word, `9 Mar 1997` in a table, tile or field and `9 March 1997`
     in a sentence; a weekend is `27–29 Mar 2026`. The static page is
@@ -524,8 +524,9 @@ puts the classification before the outline (visual defect 7).
     `Intl.DateTimeFormat` in `navigator.language`: `Mar 9, 1997` in en-US,
     `9. März 1997` in de-DE. The house format is en-GB's, and an en-GB
     reader keeps it as written, so for them the handover changes nothing.
-  - Every date is a `<time datetime="1997-03-09">`, so a machine keeps the
-    value the database holds. A weekend's `<time>` carries its race day.
+  - Every calendar date is a `<time datetime="1997-03-09">`, so a machine
+    keeps the value the database holds. A weekend's `<time>` carries its
+    race day.
   - How a page asks for one: `date` on a table column (`'short'`,
     `'long'`, `'race'` for a race row's weekend, `'text'` for sentences
     with days in them), `date` on a tile, or `<DateText>`, `<RaceDates>`
@@ -533,9 +534,14 @@ puts the classification before the outline (visual defect 7).
     each. A sentence built in a queries module keeps the ISO day and is
     drawn through `<Dated>`, so the words are shared and the date is each
     renderer's.
-  - Times show the viewer's time zone and name it, as the timetable does.
+  - *Pending (CD-59 #900):* session times. The race timetable writes each
+    start on the circuit's clock and in UTC, each zone named, and the app
+    adds the reader's own zone; all three are in en-GB's form, with no
+    `<time>`, and are not yet localised.
   - Data stays ISO: SQL, the JSON and Parquet exports, `f1.db`, a file or
-    copy taken from a table, and the SQL console.
+    copy taken from a table (a weekend as an interval, `2026-03-27/2026-03-29`),
+    and the SQL console. A day inside a longer token, a file name or a path,
+    is that token's and is left as written.
   - The one exception is a Commons file's title on its credit link, which
     is printed as Commons heads the file's page (the attribution rule).
   - *Pending (CD-39 #499):* a weekend a sentence carries as words, in a

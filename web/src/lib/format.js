@@ -110,7 +110,10 @@ export const HOUSE_LOCALE = 'en-GB'
 
 /** Whole ISO days, and the same pattern for finding one inside a sentence. */
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
-const ISO_IN_TEXT = /(?<![\d-])(\d{4}-\d{2}-\d{2})(?![\d])/
+// Standing alone in a sentence, not inside a longer token: a day in a file
+// name ("Foo 2019-05-26.jpg") or a path ("/2024-01-01/") is part of that
+// name and is left as written. A full stop or a bracket after one is fine.
+const ISO_IN_TEXT = /(?<![\w/.:-])(\d{4}-\d{2}-\d{2})(?![\w/-]|[.:]\w)/
 
 /** The parts of a whole ISO day, or null for anything else - "1911", "1997-02-30". */
 function dayParts(iso) {

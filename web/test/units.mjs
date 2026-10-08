@@ -2838,6 +2838,20 @@ describe('dates are words on the page and ISO in the data (CD-57)', () => {
     // Not a day: an impossible one, and a run of digits that only contains one.
     assert.deepEqual(dateSegments('1997-02-30'), ['1997-02-30'])
     assert.deepEqual(dateSegments('ref 12026-09-041'), ['ref 12026-09-041'])
+    // A day inside a longer token is that token's, and is left as written.
+    assert.deepEqual(dateSegments('File:Foo 2019-05-26.jpg'), ['File:Foo 2019-05-26.jpg'])
+    assert.deepEqual(dateSegments('https://x.org/2024-01-01/y'), ['https://x.org/2024-01-01/y'])
+    // And one ending a sentence, or in brackets, is still a day.
+    assert.deepEqual(dateSegments('(read 2026-10-06).'), ['(read ', { iso: '2026-10-06' }, ').'])
+    assert.deepEqual(dateSegments('built 2026-10-05, digest'), ['built ', { iso: '2026-10-05' }, ', digest'])
+  })
+
+  it('hands a file the ISO value of a date column, and a weekend as an ISO interval', () => {
+    assert.equal(fieldText({ key: 'as_of', date: 'short' }, { as_of: '2026-10-04' }), '2026-10-04')
+    assert.equal(fieldText({ key: 'as_of', date: 'short' }, { as_of: null }), EMPTY)
+    const race = { key: 'date_iso', date: 'race' }
+    assert.equal(fieldText(race, { date_iso: '1997-03-09', date_from: null, date_to: null }), '1997-03-09')
+    assert.equal(fieldText(race, { date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '2026-03-27/2026-03-29')
   })
 })
 
