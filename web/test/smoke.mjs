@@ -2428,6 +2428,11 @@ try {
         heading: box(article.querySelector(':scope > header h1')),
         tileSection: box(tiles),
         tiles: box(strip),
+        // What else the markup put in the tiles' section: only a season's
+        // notes belong there (Season.jsx), and the static page once wrote a
+        // car's story and a circuit's characteristics there, so the picture
+        // fell below them before the handover and above them after it.
+        extra: tiles ? [...tiles.children].filter((n) => n !== strip).length : 0,
         lastRow: lastRow.map((b) => b.width),
         blank: strip && lastRow.length ? strip.getBoundingClientRect().right - Math.max(...lastRow.map((b) => b.right)) : 0,
         plot: box(slot?.querySelector('svg[role="img"][aria-label]')),
@@ -2504,6 +2509,7 @@ try {
             continue
           }
           is(got.after, after, `${at}: the slot follows the ${after === 'tiles' ? 'tiles' : `${after} section`} in the document`)
+          if (fill !== 'chart') is(got.extra, 0, `${at}: the tiles' section holds the strip alone, so the slot follows the strip itself`)
           if (width >= 1180) {
             truthy(
               got.slot.left >= got.header.right + 23 && Math.abs(got.slot.right - got.page.right) <= 1 && got.slot.top <= got.heading.bottom,
@@ -2584,6 +2590,30 @@ try {
         `/constructors/ferrari at ${width}: ${SLOT_MARKS}+ seasons, so no slot; the header keeps the width and the chart follows the tiles at the full width`,
       )
     }
+    // A note the markup puts straight after the tiles - a race not yet run
+    // says so - stands a section's gap clear of the strip, in both halves.
+    const unrun = db.prepare("SELECT year, round, name_used FROM races WHERE status = 'scheduled' ORDER BY year, round LIMIT 1").get()
+    if (unrun) {
+      const route = `/races/${unrun.year}/${unrun.round}`
+      await go(route, unrun.name_used)
+      const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+      const still = await quiet.newPage()
+      await still.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const gapAfterTiles = (root) => {
+        const tiles = document.querySelector(`${root} .page > header + section.section`)
+        const note = tiles?.nextElementSibling
+        return note?.matches('.note-box') ? note.getBoundingClientRect().top - tiles.getBoundingClientRect().bottom : null
+      }
+      for (const width of [1440, 400]) {
+        await page.setViewportSize({ width, height: 900 })
+        await still.setViewportSize({ width, height: 900 })
+        await settle()
+        for (const [half, gap] of [['the app', await page.evaluate(gapAfterTiles, '#root main')], ['the static page', await still.evaluate(gapAfterTiles, '#prerendered main')]]) {
+          truthy(gap !== null && gap >= 24, `${route} at ${width}, ${half}: the note after the tiles stands clear of them (${gap === null ? 'no note there' : `${Math.round(gap)} px`})`)
+        }
+      }
+      await quiet.close()
+    } else pass('no round is scheduled, so no race opens on a note')
     // Brawn raced one season, so it has no wins-by-season chart to lead with.
     await go('/constructors/brawn', name('constructors', 'brawn'))
     await page.setViewportSize({ width: 1440, height: 900 })

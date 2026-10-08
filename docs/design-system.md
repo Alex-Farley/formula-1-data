@@ -134,8 +134,10 @@ role and not a number:
 The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
 nowhere** (visual V7). DP-10 kept them for the one hero figure per page,
-which VD-84 set: the first lead figure of a ranked tile strip (a driver's or
-a team's wins, the rounds a season has run), at `--size-9` on a phone,
+which VD-84 set: the first lead figure of a ranked tile strip (a driver's, a
+team's or a car's wins, a record's value, the rounds run on the home page;
+the season, race and circuit strips rank nothing and have none), at
+`--size-9` on a phone,
 `--size-10` from `--bp-tablet` and `--size-11` from `--bp-desktop`, beside
 the opening band. A second lead keeps `--size-8`, so a page has one hero and
 not two, and a name is never one. `conventions.mjs` now declares no token
@@ -382,7 +384,7 @@ and not yet the three charts (VD-73 #822).
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
-### Table (core) — built (VD-82, AX-21, VD-84), but for sticky heads (VD-89 #901)
+### Table (core) — built (VD-82, AX-21, VD-84), but for sticky heads (VD-89 #901) and the race classification's own width below 1,010 px (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -520,8 +522,10 @@ Race pages follow the entity layout (DP-11): the header beside the outline
 slot; tiles; the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
 photographs. The classification never shares its
-width with a side column (IX-45 #848: it lost Points and FL to a scroll from
-768 to 1,110 px), and a scheduled race leads with its timetable (kept).
+width with a side column (VD-84; beside the outline it lost Points and FL to
+a scroll from 768 to 1,110 px), and a scheduled race leads with its
+timetable (kept). Pending (IX-45 #848): the table is about 960 px wide on its
+own, so below about 1,010 px Points and FL still scroll.
 The slot is written after the classification, so below 1180 the outline
 follows the result.
 

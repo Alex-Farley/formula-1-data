@@ -156,7 +156,8 @@
    *   8  25px    a stat figure
    *
    * 9-11 are the middle register the page had none of: one number per page -
-   * the first lead figure of a ranked strip, a driver's wins - sits there
+   * the first lead figure of a ranked strip, a driver's or a team's wins -
+   * sits there
    * rather than at 25px or at the title's 62px, stepping up with the width
    * (VD-53, set by VD-84). The display sizes are fluid, the page title and
    * the one hero figure, and stay clamps.

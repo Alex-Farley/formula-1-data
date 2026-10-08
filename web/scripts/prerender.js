@@ -3181,17 +3181,19 @@ page({
       body: `
         ${opening({ eyebrow: EYEBROWS.circuit(c.locality, c.country), title: NAMES.circuit(c.name).headline, lede: c.notes })}
         ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
-        <section class="section">${tiles(circuitStrip(cv))}${prose(c.characteristics)}</section>
+        <section class="section">${tiles(circuitStrip(cv))}</section>
         ${
           // The opening slot (VD-84), as Circuit.jsx: the current layout
           // leads every circuit page (VD-74), carrying the rule where no
-          // section below does.
+          // section below does. Straight after the tiles, as the app writes
+          // it, so below 1180 it is where the app puts it.
           slot(
             outlineSplit.lead
               ? outlineCard(outlineSplit.lead.path, c.name, outlineSplit.lead.f1db_layout_id, outlineCaption(outlineSplit.lead), !layoutHistory)
               : '',
           )
         }
+        ${c.characteristics ? `<section class="section">${prose(c.characteristics)}</section>` : ''}
         ${
           winnersHere.length
             ? `<h2>Most wins here</h2>${fromColumns(WINNER_COLUMNS, winnersHere, {
@@ -3494,12 +3496,17 @@ page({
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
         ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced), title: NAMES.car(name).headline, lede: c.story })}
-        <section class="section">${tiles(carStrip(variants, row, carEntries))}
-        ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
-        ${prose(c.concept)}
-        ${prose(c.innovations)}
-        ${prose(c.outcome)}</section>
+        <section class="section">${tiles(carStrip(variants, row, carEntries))}</section>
         ${photos.slot}
+        ${
+          // After the slot, as Car.jsx writes its photograph straight after
+          // the tiles and *Why it mattered* after that (VD-84): a block of
+          // its own, so below 1180 the photograph is where the app puts it.
+          (() => {
+            const why = `${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}${prose(c.concept)}${prose(c.innovations)}${prose(c.outcome)}`
+            return why.trim() ? `<section class="section">${why}</section>` : ''
+          })()
+        }
         ${carTables(c.id, variants, carEntries)}
         ${photos.html}
         <h2>${esc(LABELS.provenance)}</h2>
@@ -3580,13 +3587,14 @@ page({
           // own id (CAR in queries/car.js).
           lede: (ch.car_id && byId.get(ch.car_id)?.story) || null,
         })}
-        <section class="section">${tiles(carStrip(variants, carRow, carEntries))}
-        ${
-          ch.car_id && curated.has(ch.car_id)
-            ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
-            : ''
-        }</section>
+        <section class="section">${tiles(carStrip(variants, carRow, carEntries))}</section>
         ${photos.slot}
+        ${
+          // After the slot, which follows the tiles as Car.jsx writes it.
+          ch.car_id && curated.has(ch.car_id)
+            ? `<section class="section"><p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p></section>`
+            : ''
+        }
         ${carTables(ch.id, variants, carEntries)}
         ${photos.html}
         <h2>${esc(LABELS.provenance)}</h2>

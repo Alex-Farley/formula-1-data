@@ -743,8 +743,9 @@ main {
   letter-spacing: -0.005em;
 }
 
-/* The one hero figure (DP-10, VD-84): the first lead figure on the page -
-   a driver's or a team's wins, the rounds a season has run - set in the
+/* The one hero figure (DP-10, VD-84): the first lead figure of a ranked
+   strip - a driver's, a team's or a car's wins, a record's value, the rounds
+   run on the home page - set in the
    middle register, 32 px on a phone, 40 from --bp-tablet and 50 beside the
    opening band, where the page had nothing between a tile's 25 px and the
    title (visual V7). A second lead keeps the tile's display size, so there
@@ -1823,8 +1824,12 @@ tbody th.strong {
 
 /* One placed between two sections takes the section gap above it, as every
    other block does. It had none: on /cars/red-bull-rb19 its frame sat a
-   pixel from Specification's source line (VD-77). */
-.page > .disagreement {
+   pixel from Specification's source line (VD-77). A note box after a
+   section does the same: a race's "not yet run" or shared-drive note sits
+   straight under the tile strip since VD-84, and touching it read as one
+   more row of tiles. */
+.page > .disagreement,
+.page > .section + .note-box {
   margin-top: var(--space-9);
 }
 
