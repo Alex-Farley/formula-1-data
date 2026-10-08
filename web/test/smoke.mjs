@@ -43,7 +43,17 @@ import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join, relative } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { CHASSIS_NOTE, GRID_FLAG_HEADING, OUT_NOTE, PITS_HEADING, PIT_ORDER_HEADING, PRACTICE_SESSIONS, RACE_SOURCES } from '../src/queries/race.js'
+import {
+  CHASSIS_NOTE,
+  ENTRY_NOTE_SPOKEN,
+  entryNotes,
+  GRID_FLAG_HEADING,
+  OUT_NOTE,
+  PITS_HEADING,
+  PIT_ORDER_HEADING,
+  PRACTICE_SESSIONS,
+  RACE_SOURCES,
+} from '../src/queries/race.js'
 import { GRID_FLAG_WIDTH } from '../src/charts/gridFlag.js'
 import { STINTS_WIDTH } from '../src/charts/stints.js'
 import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
@@ -2852,6 +2862,52 @@ try {
      * names the quickest driver too. There are thirteen such races and
      * verify.py pins the count.
      */
+  })
+
+  /*
+   * DA-46. Pescarolo at P5 and Attwood at P6 drove Formula Two cars in the
+   * same race and read 0, with nothing on the page saying why a paid place
+   * paid nothing. race_entries.note holds the reason, cited in claims to the
+   * race's article: each row carries the mark, spoken as where to look, the
+   * footer under the table names the drivers and gives the reason, and the
+   * citation names the source the note came from - in both halves. A race
+   * with no note carries no mark.
+   */
+  await section('/races/1969/7  (why a paid place paid nothing: DA-46)', async () => {
+    const noted = db
+      .prepare(
+        `SELECT e.driver_id, d.full_name AS driver, e.note FROM race_entries e
+           JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
+          WHERE r.year = 1969 AND r.round = 7 AND e.note IS NOT NULL
+          ORDER BY e.finish_position`,
+      )
+      .all()
+    is(noted.length, 2, 'two entries in the 1969 German Grand Prix carry a note')
+    const lines = entryNotes(noted)
+    is(lines.length, 1, 'and the two share one reason, so one sentence')
+    await go('/races/1969/7', 'German Grand Prix')
+    const app = await page.content()
+    const html = await (await fetch(`${BASE}/races/1969/7`)).text()
+    truthy(lines.every((l) => app.includes(l) && html.includes(l)), `the footer gives the reason in both halves — "${lines[0]}"`)
+    const appMarked = await page.evaluate((spoken) => {
+      const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+      return [...h2.closest('section').querySelectorAll('tbody th .sr-only')].filter((n) => n.textContent === spoken).length
+    }, ENTRY_NOTE_SPOKEN)
+    is(appMarked, 2, 'the app marks both rows')
+    is(html.split(ENTRY_NOTE_SPOKEN).length - 1, 2, 'and so does the static page')
+    const cited = db
+      .prepare(
+        `SELECT DISTINCT s.source FROM claims c JOIN source_registry s ON s.id = c.source_id
+          WHERE c.tbl = 'race_entries' AND c.field = 'note' AND c.row_key IN (${noted.map(() => '?').join(', ')})`,
+      )
+      .all(...noted.map((n) => `${one('SELECT id FROM races WHERE year = 1969 AND round = 7')}|${n.driver_id}`))
+    truthy(cited.length > 0, 'the notes are cited in claims')
+    const behind = new Set(db.prepare(RACE_SOURCES).all(1969, 7).map((s) => s.source))
+    truthy(cited.every((c) => behind.has(c.source)), 'and the source behind them is one this page names')
+    const appCite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
+    truthy(cited.every((c) => appCite.includes(c.source)), 'which the citation prints')
+    const plainRace = await (await fetch(`${BASE}/races/1976/9`)).text()
+    is(plainRace.includes(ENTRY_NOTE_SPOKEN), false, 'a race with no note carries no mark')
   })
 
   /*

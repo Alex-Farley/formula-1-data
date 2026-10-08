@@ -451,6 +451,15 @@ and not yet the three charts (VD-73 #822).
 | Note box | framed | 3 px left edge; the box and its lines end together at the measure |
 | Disagreement ("Two sources disagree") | framed | 1 px frame, 3 px left edge, spans the column; placed directly above the table it explains, as the shared-drive box already is |
 
+**A row mark** (provisional, DA-46 #911). Where one row of a table needs a
+reason the columns cannot give, its row-header cell carries a mark after
+the name (`*` for a classification row's note, `†` for a practice-only
+driver on a session sheet). The mark is `aria-hidden` and spoken by
+`.sr-only` words instead, and the reason is a sentence in the table's own
+footer band, naming the row, so it is text that belongs to a box (kind 2).
+The mark is in the column's `text` too, so both renderers and a copied file
+carry it.
+
 ### Photo strip (core) — built: the place (VD-83); pending: the columns (VD-86 #884)
 
 - **Job:** what something looked like, credited.

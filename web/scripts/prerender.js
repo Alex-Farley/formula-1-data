@@ -264,6 +264,8 @@ import {
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS, CARS_LEDE } from '../src/queries/cars.js'
 import {
   CLASSIFICATION_COLUMNS,
+  ENTRY_NOTE_MARK,
+  ENTRY_NOTE_SPOKEN,
   ENTRIES,
   NEIGHBOURS as RACE_NEIGHBOURS,
   FASTEST_LAP,
@@ -295,6 +297,7 @@ import {
   STINT_COLUMNS,
   carName,
   classificationFooter,
+  hasEntryNote,
   stintsEmpty,
   stintsLabel,
   stintsNote,
@@ -2588,7 +2591,14 @@ const page = ({
                 rail,
                 position_text: (_, row) =>
                   missing(row.finish_position) ? `<span class="tag tag-dnf">${esc(result(row))}</span>` : `<b>${esc(result(row))}</b>`,
-                driver: (name, row) => `${driverCell(name, row)}${row.shared_drive === 1 ? ` ${tag(SHARED)}` : ''}`,
+                // The mark where the row carries a note (DA-46), spoken as
+                // where to look - Race.jsx's driver cell, and driverName().
+                driver: (name, row) =>
+                  `${driverCell(name, row)}${row.shared_drive === 1 ? ` ${tag(SHARED)}` : ''}${
+                    hasEntryNote(row)
+                      ? ` <span aria-hidden="true">${esc(ENTRY_NOTE_MARK)}</span><span class="sr-only">${esc(ENTRY_NOTE_SPOKEN)}</span>`
+                      : ''
+                  }`,
                 constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(carName(row))),
                 chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
                 status: outCell,

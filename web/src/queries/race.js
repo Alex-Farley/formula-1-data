@@ -134,9 +134,12 @@ export const NEIGHBOURS = `
  * race row, and every classification, qualifying, sprint, pit-stop and
  * timetable row of it: each carries `source_id`, which build.py resolves
  * from `source` and verify.py re-resolves, so this is a join and not a
- * reading of URLs. Photographs and the circuit outline are not here: each
- * carries its own credit beside it - per file for a photograph, F1DB's
- * CC BY 4.0 line under the outline - which is the rule for them.
+ * reading of URLs. A classification row's note (DA-46) is cited in `claims`
+ * rather than by the row's own source_id - the row is F1DB's, the reason
+ * under it a race article's - so the claim behind each note printed is read
+ * too. Photographs and the circuit outline are not here: each carries its own
+ * credit beside it - per file for a photograph, F1DB's CC BY 4.0 line under
+ * the outline - which is the rule for them.
  */
 export const RACE_SOURCES = `
   SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
@@ -149,7 +152,11 @@ export const RACE_SOURCES = `
      UNION SELECT y.source_id FROM sprint_qualifying y JOIN races r ON r.id = y.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT x.source_id FROM sprint_results x JOIN races r ON r.id = x.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT p.source_id FROM pit_stops p JOIN races r ON r.id = p.race_id WHERE r.year = ?1 AND r.round = ?2
-     UNION SELECT t.source_id FROM sessions t JOIN races r ON r.id = t.race_id WHERE r.year = ?1 AND r.round = ?2)
+     UNION SELECT t.source_id FROM sessions t JOIN races r ON r.id = t.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT c.source_id FROM claims c
+             JOIN race_entries e ON c.tbl = 'race_entries' AND c.field = 'note' AND c.row_key = e.race_id || '|' || e.driver_id
+             JOIN races r ON r.id = e.race_id
+            WHERE r.year = ?1 AND r.round = ?2 AND e.note IS NOT NULL AND e.note <> '')
    ORDER BY s.priority, s.id
 `
 
@@ -192,8 +199,43 @@ export const position = (_, row) => result(row)
 /** "Finished" for a classified finisher with no status, the status otherwise, the em dash for neither. */
 export const outcome = (value, row) => (finished(value, row.finish_position) ? 'Finished' : text(value))
 
-/** The driver, and "shared" where two drivers took turns in the car. */
-export const driverName = (name, row) => `${text(name ?? row.driver_id)}${row.shared_drive === 1 ? ` ${SHARED}` : ''}`
+/*
+ * DA-46: why a row reads as it does, where the classification alone cannot
+ * say - a Formula Two car in a paid place, a shared drive under the 1958
+ * rule, a push-start penalty - held in race_entries.note and cited in claims.
+ * The row carries the mark in its driver cell, beside "shared" and the
+ * practice sheets' dagger, and the note itself is the first sentence of the
+ * footer under the table, naming the driver, so a 0 inside the paid places is
+ * never left unexplained. The mark is spoken as where to look, because a
+ * screen reader would otherwise read "asterisk".
+ */
+export const ENTRY_NOTE_MARK = '*'
+export const ENTRY_NOTE_SPOKEN = '(see the note under the table)'
+
+/** Whether a classification row carries a note, and so the mark. */
+export const hasEntryNote = (row) => !missing(row.note)
+
+const andList = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`)
+
+/**
+ * The classification's notes, one sentence each in the table's order: the
+ * drivers a note is about, then the note. Two drivers given the same reason
+ * (a pair of Formula Two cars) share one sentence rather than repeating it.
+ */
+export const entryNotes = (entries) => {
+  const groups = new Map()
+  for (const row of entries) {
+    if (!hasEntryNote(row)) continue
+    const names = groups.get(row.note) ?? []
+    names.push(text(row.driver ?? row.driver_id))
+    groups.set(row.note, names)
+  }
+  return [...groups].map(([note, names]) => `${ENTRY_NOTE_MARK} ${andList(names)}: ${note}`)
+}
+
+/** The driver, "shared" where two drivers took turns in the car, and the mark where the row carries a note. */
+export const driverName = (name, row) =>
+  `${text(name ?? row.driver_id)}${row.shared_drive === 1 ? ` ${SHARED}` : ''}${hasEntryNote(row) ? ` ${ENTRY_NOTE_MARK}` : ''}`
 
 /** "●" with the words "fastest lap" for a screen reader; nothing otherwise. */
 export const fastestLapMark = (value) => (value === 1 ? `●${FASTEST_LAP}` : '')
@@ -288,6 +330,7 @@ export const CHASSIS_NOTE =
 
 export const classificationFooter = (entries) =>
   [
+    ...entryNotes(entries),
     entries.some((row) => missing(row.status) && missing(row.finish_position)) ? OUT_NOTE : '',
     entries.some((row) => missing(row.chassis) && missing(row.chassis_id)) ? CHASSIS_NOTE : '',
   ]
