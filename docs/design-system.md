@@ -384,7 +384,7 @@ and not yet the three charts (VD-73 #822).
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
-### Table (core) — built (VD-82, AX-21, VD-84), but for sticky heads (VD-89 #901) and the race classification's own width below 1,010 px (IX-45 #848)
+### Table (core) — built (VD-82, AX-21, VD-84), but for sticky heads (VD-89 #901); provisional: a table that fits its box (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -425,6 +425,22 @@ and not yet the three charts (VD-73 #822).
   the reader's hand, never by the handover.
 - **Widths:** the full content width. A table never sits beside a side
   column that clips it.
+- **A table that fits its box** (provisional, IX-45 #848). A table that is
+  its page's subject, and has to be read whole, fits its content box from
+  `--bp-tablet` rather than scrolling behind the fade. Its columns of words
+  carry `.wraps` (a column's `cellClass`, so both renderers write it), and
+  from 768 to 1,180 px those cells may break at a space and every cell of
+  the table pads `--space-3` a side, not `--space-6`. A figure never wraps,
+  and below `--bp-tablet` the rows keep to one line and the table scrolls,
+  as every other does on a phone. The race classification is the one user:
+  its ten columns are about 960 px at one line, and Points and FL scrolled
+  out from 768 to 1,010 px. When the rule landed it fitted every
+  classification held from 780 px, and all but two at 768: the 1950 and
+  1951 Indianapolis 500, where a car named *Championship Racer* leaves the
+  table 12 px over below 780.
+  What it costs: between the breakpoints a long name takes two lines, so
+  the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024
+  in both halves (*the classification fits its box*).
 
 ### Notes, attached notes and the disagreement box (core) — built (VD-78), but for the source line's band
 
@@ -524,8 +540,9 @@ stops; practice (folded); the timetable, once a result is held;
 photographs. The classification never shares its
 width with a side column (VD-84; beside the outline it lost Points and FL to
 a scroll from 768 to 1,110 px), and a scheduled race leads with its
-timetable (kept). Pending (IX-45 #848): the table is about 960 px wide on its
-own, so below about 1,010 px Points and FL still scroll.
+timetable (kept). From 768 px the classification also fits its own box
+(§3, Table, *a table that fits its box*, IX-45), so Points and FL no longer
+scroll at tablet width.
 The slot is written after the classification, so below 1180 the outline
 follows the result.
 

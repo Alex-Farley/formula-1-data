@@ -2855,6 +2855,71 @@ try {
   })
 
   /*
+   * IX-45. The classification fits its own box from --bp-tablet. Ten columns
+   * at max-content were about 960 px, so from 768 to 1,010 px Points and FL
+   * scrolled out behind the fade (242 px at 768 on /races/2024/21). Between
+   * the breakpoints its columns of words break at a space and its cells close
+   * up (app.css, "A table that fits its box"). Read at the three widths the
+   * band is tested at, on three races that stretch it: a reason that runs to
+   * three words in its tag, a field of shared drives, and the longest reason
+   * held. The app is the binding half - its headers carry the sort buttons
+   * the static table has not - and the static page is read too. A figure
+   * never wraps; and a phone keeps its one-line rows.
+   */
+  await section('/races  (the classification fits its box from 768 px: IX-45)', async () => {
+    const readFit = (root) => {
+      const main = document.querySelector(root)
+      const h2 = [...main.querySelectorAll('section > h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+      const box = h2?.parentElement.querySelector('.table-scroll')
+      if (!box) return null
+      // A figure's cell is as tall as its row, which a wrapped name grows, so
+      // it is the figure's own text that is read: a text node drawn on more
+      // than one line has wrapped.
+      const wraps = (cell) => {
+        const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
+        const range = document.createRange()
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (!node.textContent.trim()) continue
+          range.selectNodeContents(node)
+          if (range.getClientRects().length > 1) return true
+        }
+        return false
+      }
+      return {
+        over: box.scrollWidth - box.clientWidth,
+        wrapped: [...box.querySelectorAll('tbody td.num')].filter(wraps).length,
+      }
+    }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 768, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const [route, heading] of [['/races/2024/21', 'Paulo'], ['/races/1955/1', 'Argentine'], ['/races/1997/16', 'Japanese']]) {
+      for (const width of [768, 900, 1024]) {
+        await page.setViewportSize({ width, height: 900 })
+        await go(route, heading)
+        await plain.setViewportSize({ width, height: 900 })
+        await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        for (const [half, got] of [['app', await page.evaluate(readFit, '#root main')], ['static', await plain.evaluate(readFit, '#prerendered main')]]) {
+          if (!got) {
+            fail(`${route} at ${width} (${half}): no classification`)
+            continue
+          }
+          truthy(got.over <= 0, `${route} at ${width} (${half}): the classification fits its box${got.over > 0 ? `, ${got.over} px over` : ''}`)
+          is(got.wrapped, 0, `${route} at ${width} (${half}): and no figure in it wraps`)
+        }
+      }
+    }
+    await noJs.close()
+    await page.setViewportSize({ width: 400, height: 900 })
+    await go('/races/2024/21', 'Paulo')
+    is(
+      await page.$$eval('#root main td.wraps, #root main th.wraps', (cells) => cells.filter((c) => getComputedStyle(c).whiteSpace !== 'nowrap').length),
+      0,
+      'at 400 the words keep to one line, and the phone scrolls the table as before',
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
    * PD-30: grid to flag. One line per car that started, from its slot to its
    * place in the result at the last lap it completed, drawn by both halves
    * from charts/gridFlag.js. The counts come out of f1.db by a rule written
