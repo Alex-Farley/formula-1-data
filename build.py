@@ -1868,6 +1868,20 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
     # winner already recorded. A mismatch means the row describes a different
     # race and is rejected outright.
     restored = []
+    # A name a restored share adds whose entry the classification has not
+    # created yet waits for it (stage 28), rather than being inserted here.
+    # An insert here takes an id ahead of every row stage 21 writes, and
+    # race_entries is a table whose ids this database undertakes not to
+    # renumber (ID_STABILITY): restoring the 1952 Italian share by insert
+    # moved 1,727 of them (DA-39). The shares in SHARED_FASTEST_LAPS_INSERTED
+    # were inserted here before that, and still are, because deferring them
+    # now would move their own rows and 4,774 in all.
+    stray = sorted(set(HV.SHARED_FASTEST_LAPS_INSERTED) - set(HV.SHARED_FASTEST_LAPS))
+    if stray:
+        raise SystemExit(
+            f"SHARED_FASTEST_LAPS_INSERTED names {stray}, which "
+            f"SHARED_FASTEST_LAPS does not hold")
+    b.deferred_fastest_laps = []
     pole_rows = HV.load_poles()
     for h in pole_rows:
         rid = race_key.get((h["year"], h["round"]))
@@ -1906,8 +1920,15 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
         if pole_names:
             upsert(driver_id(pole_names[0], f"pole {h['year']} r{h['round']}"), pole=1)
         for nm in fl_names:
-            upsert(driver_id(nm, f"fastest lap {h['year']} r{h['round']}"),
-                   source=h["fastest_lap_source"],
+            did_ = driver_id(nm, f"fastest lap {h['year']} r{h['round']}")
+            if h["shared_override"] and (h["year"], h["round"]) not in \
+                    HV.SHARED_FASTEST_LAPS_INSERTED and cur.execute(
+                    "SELECT 1 FROM race_entries WHERE race_id=? AND "
+                    "driver_id=?", (rid, did_)).fetchone() is None:
+                b.deferred_fastest_laps.append(
+                    (h["year"], h["round"], rid, did_, len(fl_names)))
+                continue
+            upsert(did_, source=h["fastest_lap_source"],
                    fastest_lap=1, fastest_lap_shared=len(fl_names))
         if h["shared_override"]:
             restored.append((h["year"], h["round"]))
@@ -4689,6 +4710,18 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
     # F1DB fills the VACANCY only. Where the harvest already names someone,
     # it keeps the slot - it is the older, hand-checked source - and a
     # disagreement is recorded rather than resolved quietly.
+    # The shared-fastest-lap names stage 17 held back until the
+    # classification had created their entries. One that still has none is
+    # refused: the share names a driver this database does not hold in the
+    # race, and an entry is not invented to carry it.
+    for yr_, rnd_, rid, did, n in b.deferred_fastest_laps:
+        if cur.execute("UPDATE race_entries SET fastest_lap=1, "
+                       "fastest_lap_shared=? WHERE race_id=? AND driver_id=?",
+                       (n, rid, did)).rowcount != 1:
+            raise SystemExit(
+                f"shared fastest lap {yr_} r{rnd_}: {did} has no entry in the "
+                f"race after the classification load")
+
     fl_filled = 0
     fl_no_entry = 0
     fl_disagreements = []

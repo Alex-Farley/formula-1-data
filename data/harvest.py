@@ -1047,6 +1047,14 @@ SHARED_FASTEST_LAPS = {
         "Ascari unchanged."),
 }
 
+# The shares above whose added names build.py inserts an entry for when it
+# reads the poles harvest (stage 17), ahead of the classification. That is
+# how these two were built when race_entries ids were promised stable, and
+# their rows keep the ids they were given. Every share added since waits for
+# the classification to create the entry and credits that row, so restoring
+# a share moves no id (DA-39). Nothing is added here.
+SHARED_FASTEST_LAPS_INSERTED = {(1960, 5), (1969, 9)}
+
 # Races where F1DB names a different fastest-lap setter from the harvest and
 # the disagreement has been LOOKED AT. build.py records every such race in
 # `discrepancies`; an entry here replaces the generic open assessment with
