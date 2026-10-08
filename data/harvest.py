@@ -1680,8 +1680,11 @@ SECOND_ENTRIES = {
 # wording of what the article states. Keyed (year, round, our driver id).
 _F2 = ("A Formula Two car, run in the same race as the Formula One field and "
        "not eligible for championship points.")
-_SHARED = ("A shared drive: from 1958 no championship points were awarded for "
-           "a car two drivers shared.")
+_SHARED = "A shared drive, for which no championship points were awarded."
+# The 1960 article states the rule's age; the 1958 one states only the
+# outcome, so each note says what its own article does.
+_SHARED_SINCE_1958 = ("A shared drive: under a rule in place since 1958, no "
+                      "championship points were awarded for it.")
 _SECOND_CAR = ("The team's second car, when the team had entered only one car "
                "for the championship, so not eligible for points.")
 _WP = "https://en.wikipedia.org/wiki/"
@@ -1693,13 +1696,18 @@ UNPAID_INSIDE_THE_PAID_PLACES = {
     (1958, 8, "mclaren-d"): (_F2, _WP + "1958_German_Grand_Prix"),
     (1958, 10, "gregory"): (_SHARED, _WP + "1958_Italian_Grand_Prix"),
     (1958, 10, "carroll-shelby"): (_SHARED, _WP + "1958_Italian_Grand_Prix"),
-    (1960, 1, "moss"): (_SHARED, _WP + "1960_Argentine_Grand_Prix"),
-    (1960, 1, "trintignant"): (_SHARED, _WP + "1960_Argentine_Grand_Prix"),
+    (1960, 1, "moss"): (_SHARED_SINCE_1958, _WP + "1960_Argentine_Grand_Prix"),
+    (1960, 1, "trintignant"): (_SHARED_SINCE_1958, _WP + "1960_Argentine_Grand_Prix"),
     (1963, 4, "g-hill"): (
         "Push-started on the grid, for which the organisers gave a one-minute "
-        "penalty and no championship points for third place.",
+        "penalty; no championship points were awarded for his third place.",
         _WP + "1963_French_Grand_Prix"),
-    (1967, 7, "oliver"): (_F2, _WP + "1967_German_Grand_Prix"),
+    # The 1967 article marks the car Formula Two and pays fifth place's 2
+    # points to Bonnier, sixth on the road; it does not state the rule.
+    (1967, 7, "oliver"): (
+        "A Formula Two car, run in the same race as the Formula One field; "
+        "the 2 points for fifth went to the next Formula One car.",
+        _WP + "1967_German_Grand_Prix"),
     (1969, 7, "pescarolo"): (_F2, _WP + "1969_German_Grand_Prix"),
     (1969, 7, "attwood"): (_F2, _WP + "1969_German_Grand_Prix"),
     (1984, 14, "jo-gartner"): (_SECOND_CAR, _WP + "1984_Italian_Grand_Prix"),

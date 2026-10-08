@@ -640,7 +640,7 @@ SOURCE_PATTERNS = [
     (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_World_Championship",
      "season articles - the results, pole and venue harvests"),
     (8,  r"^https://en\.wikipedia\.org/wiki/List_of_Formula_One", "the list articles"),
-    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio, and why a finisher inside the paid places scored nothing"),
     (10, r"^https://github\.com/f1db/f1db", None),
     (12, r"^https://api\.jolpi\.ca/", None),
     (15, r"^https://commons\.wikimedia\.org/", None),
