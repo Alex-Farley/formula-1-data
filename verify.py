@@ -5258,6 +5258,367 @@ def project_prose():
               not wider, ", ".join(wider))
 
 
+# ---------------------------------------------------------------------------
+# THE FACTS ARTEFACT
+#
+# PD-53 (#741), piece 2 of PD-41 (#481). The CC BY 4.0 facts artefact that
+# PD-54 publishes beside f1.db carries the set tools/facts_artefact.py
+# declares, and the declaration is derived - from source_id, table_provenance,
+# the prose pass's labels and the claims - rather than listed. What this
+# section holds is that the derivation leaves nothing share-alike, nothing
+# unclassified and no prose in the set, and that the race rows the ruling of
+# 2026-10-08 rebuilds from F1DB differ from f1.db only where the rules say
+# they must. A grant of CC BY cannot be taken back from a copy, so every
+# failure here is a row or a column that must not go out, not a style point.
+# ---------------------------------------------------------------------------
+@section("THE FACTS ARTEFACT")
+def facts_artefact():
+    fa = _tool("facts_artefact")
+    decl = fa.declare(con)
+    reg = fa.registry(con)
+    carried = fa.carried_sources(con)
+    grant = fa.granted()
+    cols_of = {t: [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')] for t in decl}
+
+    # Named here as well as there, so that narrowing the declaration fails.
+    fom = [t for t in ("laps", "stints", "race_timing", "race_control_messages")
+           if decl.get(t, {}).get("rows") != "none"]
+    check("the facts artefact leaves out the four FOM timing tables by name", not fom,
+          ", ".join(fom))
+
+    undeclared = sorted(t for t, d in decl.items() if d["rows"] is None)
+    check("every table has a declared place in the facts artefact", not undeclared,
+          ", ".join(undeclared))
+
+    # A declaration naming nothing declares nothing, and a renamed column
+    # would leave it pointing at nothing without a word.
+    stale = [t for t in list(fa.APPARATUS) + list(fa.UNSOURCED) + list(fa.RESOURCED)
+             + list(fa.SPANS) if t not in decl]
+    for name in list(fa.UNGRANTED) + list(fa.KEYED) + [
+            k for k in fa.RECOUNTED if "." in k]:
+        t, _, c = name.partition(".")
+        if c not in cols_of.get(t, ()):
+            stale.append(name)
+    for t, (governs, first, last) in fa.SPANS.items():
+        stale += [f"{t}.{c}" for c in (governs, first, last) if c not in cols_of.get(t, ())]
+    for name in fa.KEYED:
+        t, _, c = name.partition(".")
+        if any(f[3] == c for f in con.execute(f'PRAGMA foreign_key_list("{t}")')):
+            stale.append(f"{name} (the schema keys it already)")
+    for t, spec in fa.UNSOURCED.items():
+        stale += [f"{t}.{c}" for c in spec["own"] + list(spec["about"] or ())
+                  if c not in cols_of.get(t, ())]
+    stale += [f"race_entries.{c}" for c in fa.SHARED_DRIVE_BLANKS
+              if c not in cols_of["race_entries"]]
+    for (d, c) in fa.DRIVER_DIFFERENCES:
+        if c not in cols_of["drivers"] or not con.execute(
+                "SELECT 1 FROM drivers WHERE id = ?", (d,)).fetchone():
+            stale.append(f"drivers.{c} {d}")
+    check("every facts-artefact declaration names a table and column that exist",
+          not stale, ", ".join(stale))
+
+    # Sources. Every row carried as stored cites a source the registry
+    # classifies as redistributable with no share-alike; every table carried
+    # whole has a provenance row saying the same, or is authored and granted.
+    unclassified, barred = [], []
+    tp = dict(con.execute("SELECT tbl, source_id FROM table_provenance").fetchall())
+    for t, d in decl.items():
+        if d["rows"] == "by source":
+            for sid, n in con.execute(f'SELECT source_id, COUNT(*) FROM "{t}" '
+                                      f'GROUP BY source_id'):
+                if sid not in reg or reg[sid]["redistributable"] not in ("yes", "facts-only", "no"):
+                    unclassified.append(f"{t}: {n} rows citing {sid}")
+        elif d["rows"] == "all" and t in tp:
+            s = reg.get(tp[t])
+            if s is None:
+                unclassified.append(f"{t}: provenance {tp[t]}")
+            elif tp[t] not in carried and s["authority"] != "authored":
+                barred.append(f"{t}: provenance {tp[t]}")
+    check("no row the facts artefact carries cites an unclassified source",
+          not unclassified, "; ".join(unclassified[:4]))
+    check("no table the facts artefact carries whole has a share-alike or barred provenance",
+          not barred, "; ".join(barred))
+
+    # The rebuild: every share-alike row of a table it covers is rebuilt, so
+    # none goes out as stored.
+    rebuilt = fa.rebuild(con)
+    ids = ",".join(str(i) for i in sorted(carried))
+    unbuilt = []
+    for t in fa.RESOURCED:
+        for (rid,) in con.execute(f'SELECT id FROM "{t}" WHERE source_id NOT IN ({ids})'):
+            row = rebuilt[t].get(rid)
+            if row is None or row.get("source_id") != fa.f1db_source(con):
+                unbuilt.append(f"{t} {rid}")
+    print(f"  [info] {sum(1 for d in decl.values() if d['rows'] not in (None, 'none'))} of "
+          f"{len(decl)} tables carried; "
+          + ", ".join(f"{len([r for r in rebuilt[t].values() if 'source_id' in r])} {t}"
+                      for t in fa.RESOURCED) + " rows rebuilt from F1DB")
+    barred_ids = {i for i, x in reg.items() if x["redistributable"] not in ("yes", "facts-only")}
+    unfiltered = [t for t in fa.RESOURCED if not decl[t]["where"] or any(
+        str(i) in re.findall(r"\d+", decl[t]["where"]) for i in barred_ids)]
+    check("every table the facts artefact rebuilds selects its rows by source class",
+          not unfiltered, ", ".join(unfiltered))
+    check("every share-alike row of a table the facts artefact rebuilds is rebuilt from F1DB",
+          not unbuilt, f"{len(unbuilt)}: " + ", ".join(unbuilt[:6]) if unbuilt else "")
+
+    # Every column of a rebuilt table is classed, so a column added later
+    # cannot ride out on a rebuilt row as the stored value.
+    unclassed = []
+    for t, spec in fa.RESOURCED.items():
+        for c in decl[t]["columns"]:
+            k = spec["columns"].get(c)
+            if k not in fa.CLASSES:
+                unclassed.append(f"{t}.{c}" + (f" ({k})" if k else ""))
+        unclassed += [f"{t}.{c} (classed and left out)" for c in spec["columns"]
+                      if c not in decl[t]["columns"]]
+    check("every column of a table the facts artefact rebuilds says what it is on a rebuilt row",
+          not unclassed, ", ".join(unclassed))
+
+    # And the class is what rebuild() does: a column classed as rebuilt is
+    # given a value on every rebuilt row, and a column rebuild() replaces is
+    # classed as one it may replace.
+    # A column classed not established is NULL on every rebuilt row, and
+    # one classed as a rule's holds a value on some of them. (F1DB's value
+    # can be NULL throughout: a winner's retirement status is.)
+    replaced = ("f1db", "rule", "null", "cited")
+    misclassed = set()
+    for t, spec in fa.RESOURCED.items():
+        rows = [r for r in rebuilt[t].values() if "source_id" in r]
+        for c, k in spec["columns"].items():
+            if c not in decl[t]["columns"]:
+                continue
+            given = sum(1 for r in rows if c in r)
+            valued = sum(1 for r in rows if r.get(c) is not None)
+            if (k in replaced) != (given == len(rows) and bool(rows)):
+                misclassed.add(f"{t}.{c} ({k}, rebuilt on {given} of {len(rows)})")
+            elif k == "null" and valued:
+                misclassed.add(f"{t}.{c} (null, but given a value on {valued} rows)")
+            elif k == "rule" and not valued:
+                misclassed.add(f"{t}.{c} ({k}, but NULL on every rebuilt row)")
+    check("every class of a rebuilt column is what the rebuild does with it",
+          not misclassed, ", ".join(sorted(misclassed)))
+    unbacked = []
+    for t, spec in fa.RESOURCED.items():
+        for c, k in spec["columns"].items():
+            if k != "claimed":
+                continue
+            for (rid,) in con.execute(
+                    f'SELECT id FROM "{t}" WHERE source_id NOT IN ({ids}) AND "{c}" IS NOT NULL'):
+                if not con.execute(
+                        f"SELECT 1 FROM claims WHERE tbl = ? AND row_key = ? AND field = ? "
+                        f"AND source_id IN ({ids})", (t, str(rid), c)).fetchone():
+                    unbacked.append(f"{t}.{c} {rid}")
+    check("every claimed value on a rebuilt row has a claim citing a source carried",
+          not unbacked, f"{len(unbacked)}: " + ", ".join(unbacked[:6]) if unbacked else "")
+
+    # Prose. The pass's columns go unless granted; an authored table not
+    # granted goes whole; and a screen on everything else carried, because
+    # a written column the pass has never been told about would otherwise
+    # ride out unmeasured.
+    prose, screened = [], []
+    for t, d in decl.items():
+        if d["rows"] in (None, "none"):
+            continue
+        prose += [f"{t}.{c}" for c in d["columns"]
+                  if c in fa.measured(t) and f"{t}.{c}" not in grant]
+        types = {c[1]: c[2] for c in con.execute(f'PRAGMA table_info("{t}")')}
+        for c in d["columns"]:
+            if types.get(c) != "TEXT" or f"{t}.{c}" in grant:
+                continue
+            where = f"WHERE {d['where']}" if d["where"] else ""
+            for (v,) in con.execute(f'SELECT DISTINCT "{c}" FROM "{t}" {where}'):
+                if v and len(re.findall(r"[A-Za-z]{2,}", str(v))) > fa.PROSE_WORDS:
+                    screened.append(f"{t}.{c}")
+                    break
+    check("the facts artefact carries no prose the prose pass measures that is not granted",
+          not prose, ", ".join(prose))
+    check(f"no other text column the facts artefact carries runs past {fa.PROSE_WORDS} words",
+          not screened, ", ".join(screened) + " - declare it in UNGRANTED, or grant it"
+          if screened else "")
+
+    # A Wikipedia value on a row that does not cite Wikipedia: the claims say
+    # where, column by column.
+    claimed = [f"{t}.{c} {k}" for t, k, c in fa.claimed_cells(con)
+               if c in decl.get(t, {}).get("columns", ())
+               and rebuilt.get(t, {}).get(k, {}).get(c, "stored") is not None]
+    check("the facts artefact holds NULL every value a claim cites a share-alike source for",
+          not claimed, ", ".join(sorted(claimed)[:6]))
+    if decl.get("claims", {}).get("rows") == "by source":
+        about = con.execute(
+            f"SELECT COUNT(*) FROM claims WHERE {decl['claims']['where']}").fetchone()[0]
+        stray = [f"{t}.{c}" for t, c in con.execute(
+            f"SELECT DISTINCT tbl, field FROM claims WHERE {decl['claims']['where']}")
+            if c not in decl.get(t, {}).get("columns", ())]
+        print(f"  [info] {about} claims carried")
+        check("every claim the facts artefact carries is about a column it carries",
+              not stray, ", ".join(stray))
+    for t, spec in fa.UNSOURCED.items():
+        if not spec["about"] or decl[t]["rows"] != "all":
+            continue
+        a, b = spec["about"]
+        stray = [f"{x}.{y}" for x, y in con.execute(
+            f'SELECT DISTINCT "{a}", "{b}" FROM "{t}" WHERE {decl[t]["where"]}')
+            if y not in decl.get(x, {}).get("columns", ())]
+        check(f"every {t} row the facts artefact carries is about a column it carries",
+              not stray, ", ".join(stray))
+
+    # The discrepancies go out without the values they compare and only
+    # about a column the artefact carries - named here as well as in the
+    # declaration, so that loosening the declaration fails (PM-74, #933).
+    if decl["discrepancies"]["rows"] not in (None, "none"):
+        leaked = [c for c in ("stored_value", "derived_value", "status_note")
+                  if c in decl["discrepancies"]["columns"]]
+        check("the facts artefact carries no discrepancy's compared values", not leaked,
+              ", ".join(leaked))
+        w = decl["discrepancies"]["where"]
+        loose = [f"{x}.{y}" for x, y in con.execute(
+            "SELECT DISTINCT tbl, field FROM discrepancies" + (f" WHERE {w}" if w else ""))
+            if y not in decl.get(x, {}).get("columns", ())]
+        check("every discrepancy the facts artefact carries is about a column it carries",
+              not loose, ", ".join(loose[:6]))
+
+    # A race whose circuit the rebuild does not take from F1DB's layout is on
+    # a formula1.com calendar, not the venue harvest's.
+    from data import current as _N
+    no_layout = [f"{y} r{r}" for rid, y, r in con.execute(
+        "SELECT id, year, round FROM races ORDER BY year, round")
+        if "circuit_id" not in rebuilt["races"].get(rid, {}) and y not in _N.CALENDARS]
+    check("every race whose circuit is not F1DB's layout's is on a formula1.com calendar",
+          not no_layout, ", ".join(no_layout[:6]))
+    for t, (governs, first, last) in fa.SPANS.items():
+        span = cols_of[t][cols_of[t].index(first):cols_of[t].index(last) + 1]
+        loose = [c for c in span if con.execute(
+            f'SELECT 1 FROM "{t}" WHERE "{governs}" IS NULL AND "{c}" IS NOT NULL').fetchone()]
+        check(f"every column of {t}'s {first}..{last} span is held only where {governs} cites a source",
+              not loose, ", ".join(loose))
+
+    # Keys. A carried value naming a row the artefact does not carry is a
+    # dangling key in the file PD-54 writes.
+    def carried_rows(t):
+        w = decl[t]["where"]
+        return f'(SELECT * FROM "{t}" WHERE {w})' if w else f'"{t}"'
+    dangling = []
+    for t, d in decl.items():
+        if d["rows"] in (None, "none"):
+            continue
+        for f in con.execute(f'PRAGMA foreign_key_list("{t}")'):
+            ref, col, to = f[2], f[3], f[4] or "id"
+            if col not in d["columns"]:
+                continue
+            if decl.get(ref, {}).get("rows") in (None, "none"):
+                dangling.append(f"{t}.{col} -> {ref} (left out)")
+                continue
+            n = con.execute(
+                f'SELECT COUNT(*) FROM {carried_rows(t)} x WHERE x."{col}" IS NOT NULL '
+                f'AND x."{col}" NOT IN (SELECT "{to}" FROM {carried_rows(ref)})').fetchone()[0]
+            if n:
+                dangling.append(f"{t}.{col} -> {ref}: {n}")
+    check("every key the facts artefact carries names a row it carries", not dangling,
+          "; ".join(dangling[:6]))
+    # A key the schema gives no foreign key is found by its name: car_id is
+    # a key into cars. KEYED declares the ones this finds, and the ones its
+    # name does not give away (races.layout_key).
+    named = []
+    for t, d in decl.items():
+        if d["rows"] in (None, "none"):
+            continue
+        fk = {f[3] for f in con.execute(f'PRAGMA foreign_key_list("{t}")')}
+        for c in d["columns"]:
+            if not c.endswith("_id") or c in fk or f"{t}.{c}" in fa.KEYED:
+                continue
+            stem = c[:-3]
+            for ref in (stem + "s", stem):
+                if decl.get(ref, {}).get("rows") == "none":
+                    named.append(f"{t}.{c} -> {ref}")
+    check("no column the facts artefact carries is named for a table it leaves out",
+          not named, ", ".join(named) + " - declare it in KEYED" if named else "")
+
+    # Where the rebuild leaves the artefact unlike f1.db, each difference has
+    # to be one a rule predicts. Anything else is the rebuild being wrong, or
+    # F1DB and f1.db disagreeing where nobody has said so.
+    diffs = fa.differences(con, rebuilt)
+    by = {}
+    for t, rid, c, ours, theirs in diffs:
+        by.setdefault((t, c), []).append((rid, ours, theirs))
+    shared = {rid for (rid,) in con.execute(
+        "SELECT id FROM race_entries WHERE shared_drive = 1")}
+    race_of = dict(con.execute("SELECT id, race_id FROM race_entries").fetchall())
+    open_fl = {int(k) for (k,) in con.execute(
+        "SELECT row_key FROM discrepancies WHERE tbl = 'race_entries' "
+        "AND field = 'fastest_lap' AND kind = 'f1db-fastest-lap' AND status = 'open'")}
+    src = fa.F1DB(con)
+
+    # The fastest lap of every race F1DB gives one for is exactly F1DB's
+    # set, a tie shared as it shares it - read here from F1DB's file, not
+    # from rebuild(), so that an extra or a missing credit fails even in a
+    # race whose difference from f1.db is otherwise allowed.
+    wrong_fl = []
+    entry_of = {}
+    for eid, rid, did in con.execute("SELECT id, race_id, driver_id FROM race_entries"):
+        entry_of.setdefault(rid, {})[did] = eid
+    for rid, (y, r) in {rid: (y, r) for rid, y, r in con.execute(
+            "SELECT id, year, round FROM races")}.items():
+        theirs = {src.ours(x["driver_id"]) for x in src.fastest.get((y, r), [])}
+        if not theirs or rid not in entry_of:
+            continue
+        got = {d for d, eid in entry_of[rid].items()
+               if rebuilt["race_entries"].get(eid, {}).get("fastest_lap") == 1}
+        shares = {rebuilt["race_entries"][entry_of[rid][d]].get("fastest_lap_shared")
+                  for d in got}
+        if got != theirs or shares != {len(theirs)}:
+            wrong_fl.append(f"{y} r{r}")
+    check("every rebuilt fastest lap is F1DB's, a tie shared as F1DB shares it",
+          not wrong_fl, ", ".join(wrong_fl[:6]))
+    key_of = {rid: (y, r) for rid, y, r in con.execute("SELECT id, year, round FROM races")}
+    unexplained, notes = [], Counter()
+    f1db_of = dict(con.execute("SELECT id, f1db_id FROM drivers").fetchall())
+    cells = fa.claimed_cells(con)
+    for (t, c), rows in sorted(by.items()):
+        kind = fa.RESOURCED.get(t, {}).get("columns", {}).get(c)
+        for rid, ours, theirs in rows:
+            if kind == "null" and theirs is None:
+                notes[f"{t}.{c} not established"] += 1
+            elif t == "race_entries" and c in fa.SHARED_DRIVE_BLANKS and theirs is None \
+                    and rid in shared:
+                notes["shared drives' F1DB row blank"] += 1
+            elif t == "race_entries" and c in ("fastest_lap", "fastest_lap_shared") \
+                    and race_of[rid] in open_fl:
+                notes["fastest laps in an open discrepancy with F1DB"] += 1
+            elif t == "race_entries" and c == "pole" and theirs is None \
+                    and key_of[race_of[rid]] not in src.results:
+                notes["poles on races F1DB's release does not yet hold"] += 1
+            elif t == "race_entries" and c in ("fastest_lap", "fastest_lap_shared") \
+                    and theirs is None and key_of[race_of[rid]] not in src.fastest:
+                notes["fastest laps F1DB does not state"] += 1
+            elif theirs is None and c in decl[t]["nulled"] and (t, str(rid), c) in cells:
+                notes["values a claim cites a share-alike source for"] += 1
+            elif t == "drivers" and c in ("born", "died") and ours is None \
+                    and theirs == src.drivers.get(f1db_of.get(rid), [None] * 6)[
+                        4 if c == "born" else 5]:
+                notes["drivers' dates F1DB adds"] += 1
+            elif t == "drivers" and (rid, c) in fa.DRIVER_DIFFERENCES:
+                notes["drivers F1DB describes otherwise (declared)"] += 1
+            else:
+                unexplained.append(f"{t}.{c} {rid}: {ours!r} -> {theirs!r}")
+    print("  [info] the facts artefact differs from f1.db: "
+          + (", ".join(f"{n} {k}" for k, n in sorted(notes.items())) or "nowhere"))
+    check("every difference the F1DB rebuild makes from f1.db is one a rule predicts",
+          not unexplained, f"{len(unexplained)}: " + "; ".join(unexplained[:5])
+          if unexplained else "")
+    unused = [f"{d} {c}" for (d, c) in fa.DRIVER_DIFFERENCES
+              if not any(t == "drivers" and rid == d and col == c
+                         for t, rid, col, _, _ in diffs)]
+    check("every declared driver difference is still one", not unused, ", ".join(unused))
+
+    # The crosswalk covers every grand prix the rebuilt races ran under.
+    walk, bad = fa.crosswalk(con, src)
+    used = {src.gp[(y, r)]["grand_prix_id"] for y, r in con.execute(
+        f"SELECT year, round FROM races WHERE source_id NOT IN ({ids})")
+        if (y, r) in src.gp}
+    check("every F1DB grand prix a rebuilt race ran under is one row of grands_prix",
+          not (used & set(bad)), ", ".join(sorted(used & set(bad))))
+
+
 @section('ILLUSTRATION AND GEOMETRY')
 def illustration_and_geometry():
     # Two tables that hold pointers to things this repository does not contain:

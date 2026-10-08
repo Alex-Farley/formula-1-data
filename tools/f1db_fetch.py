@@ -11,7 +11,7 @@ Writes:  harvest/chassis.txt, harvest/engines.txt, harvest/entrants.txt,
          harvest/entrant_drivers.txt, harvest/f1db_constructors.txt,
          harvest/f1db_drivers.txt, and the results, qualifying, practice,
          sprint qualifying, standings, pit stop, race date, fastest lap,
-         circuit outline and race layout files main() lists
+         circuit outline, race layout and grand prix files main() lists
 
 Why a tool and not a person
 ---------------------------
@@ -626,6 +626,39 @@ def race_layout_rows(data, yaml):
     return rows
 
 
+def race_grand_prix_rows(data, yaml):
+    """The grand prix each race was a round of, and its official title:
+    `grandPrixId` and `officialName` in the round's race.yml.
+
+    Nothing in build.py reads these. They are the facts artefact's route
+    (PD-53, #741): the rebuild of the race rows from F1DB takes races.gp_id
+    and races.name_used from them, where f1.db takes both from the season
+    harvest's Wikipedia. tools/facts_artefact.py does the rebuilding, and
+    tools/readme_figures.py measures it for docs/COMMERCIAL-READINESS.md.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        race = _load(os.path.join(path, "race.yml"), yaml)
+        if not isinstance(race, dict) or not race.get("grandPrixId"):
+            continue
+        rows.append("|".join(_clean(v) for v in
+                             (year, rnd, race["grandPrixId"], race.get("officialName"))))
+    return rows
+
+
+def grand_prix_rows(data, yaml):
+    """F1DB's register of grands prix, for the same measurement as
+    race_grand_prix_rows(): its ids against grands_prix, and its names
+    against races.name_used."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "grands-prix", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in
+                             ("id", "name", "fullName", "shortName", "countryId")))
+    return sorted(rows)
+
+
 def fastest_lap_rows(data, yaml):
     """Who set the fastest lap of each race, on which lap, and in what time.
 
@@ -637,8 +670,13 @@ def fastest_lap_rows(data, yaml):
 
     F1DB shapes fastest-laps.yml as a classification, so the fastest lap of
     the race is the row at position 1; the rest order the field behind it and
-    are not this database's concern. build.py fills only where the harvest is
-    silent, and records a discrepancy where the two disagree.
+    are not this database's concern. A tie is several rows at position 1 -
+    the seven drivers who shared the 1954 British Grand Prix's, timed to the
+    second - and every one of them is written. Until PD-53 this kept the
+    first and stopped, so F1DB looked as though it named one driver of every
+    shared fastest lap, and 1970 round 1 looked like a disagreement over who
+    set it rather than over whether it was shared. build.py fills only where
+    the harvest is silent, and records a discrepancy where the two disagree.
 
     Eleven races have no such file, and all eleven are correct: 2021 Belgium,
     where no racing lap was ever set and the null is declared in known_gaps,
@@ -652,7 +690,6 @@ def fastest_lap_rows(data, yaml):
             rows.append("|".join(_clean(v) for v in (
                 year, rnd, r.get("driverId"), r.get("constructorId"),
                 r.get("lap"), r.get("time"))))
-            break
     return rows
 
 
@@ -917,6 +954,16 @@ def main():
     ok &= write("race_layouts.txt",
                 "year|round|layout_id   (the F1DB circuit layout the race ran)",
                 race_layout_rows(data, yaml), version, commit, args.check)
+    # Read by nothing in the build: the facts artefact's race names and
+    # grand-prix keys, rebuilt from F1DB (tools/facts_artefact.py, PD-53).
+    ok &= write("race_grands_prix.txt",
+                "year|round|grand_prix_id|official_name"
+                "   (the F1DB grand prix the race was a round of, and the title "
+                "F1DB gives the race)",
+                race_grand_prix_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_grands_prix.txt",
+                "grand_prix_id|name|full_name|short_name|country_id",
+                grand_prix_rows(data, yaml), version, commit, args.check)
 
     if args.check and not ok:
         sys.exit("the committed harvest files are out of date with F1DB")

@@ -295,8 +295,9 @@ unchanged by it: whether a right reaching these rows subsists stays
 unsettled, and the choice of route under *A CC BY 4.0 facts edition,
 counted* — the race rows stored as they are, or rebuilt from F1DB — turns on
 it. Which of the other Wikipedia-touched sets counted there the artefact may
-carry (`claims` and `driver_note_sources` among them) is open too. Both are
-measured first, under `PD-53` (#741). **Nothing is offered under CC BY 4.0
+carry (`claims` and `driver_note_sources` among them) was left open too. Both
+were measured, and ruled on 2026-10-08: *Decided: the route, the claims and
+the note sources*, below. **Nothing is offered under CC BY 4.0
 yet.** The artefact does not exist until `PD-53` (#741), `PD-54` (#742) and
 `PD-55` (#743) ship; until then every row in `f1.db` ships under CC BY-SA 4.0
 as before, and `LICENSE-DATA` is unchanged.
@@ -500,6 +501,208 @@ qualifying maker; whether F1DB's own compilation drew on Wikipedia, which is
 F1DB's to represent and is represented by its licence; and anything outside
 UK and EU law — in the United States there is no database right, and the
 copyright reading above is the whole question.
+
+---
+
+## Decided: the route, the claims and the note sources
+
+**Decided by the maintainer on 2026-10-08** (`PD-53`, #741), on the
+measurement below, which was written for that decision and is kept as what
+it rests on:
+
+1. **The route: rebuild.** The facts artefact's race rows are rebuilt from
+   F1DB, CC BY 4.0, so that nothing Wikipedia made is in the file: F1DB's
+   grand-prix ids and names mapped to `races` and `grands_prix`, with the
+   São Paulo split, the accent-only differences and Mexico City's
+   official-title naming handled. The Indianapolis winners with no
+   constructor and the shared drives F1DB leaves blank stay NULL — not
+   established — and are never filled from the stored rows.
+2. **The claims** that cite Wikipedia stay out of the artefact, and
+3. **the note sources** that cite Wikipedia stay out too. Both follow the
+   route, and both remain in `f1.db` under its licence.
+
+How the ruling is carried out is *The declared set*, at the end of this
+section. The rest of the section is the measurement as the maintainer read
+it.
+
+### The measurement
+
+Written under `PD-53` (#741), on two rulings of the maintainer. The first,
+of 2026-10-03: the facts artefact is not built until the `claims` and
+`driver_note_sources` rows that cite Wikipedia are classified into bare facts
+and expression, and the two routes to the race rows — keep them as stored, or
+rebuild them from F1DB — are measured. The second, of 2026-10-06, on the
+first measurement: the route is not ruled until F1DB's race names and
+grand-prix ids are fetched and mapped, and what a rebuild would still not
+establish is stated in figures, with the two routes' costs side by side.
+It decided nothing itself: the three questions at its end were put to the
+maintainer, and the ruling above answers them. Like the reading above, it is
+an analysis, not legal advice.
+
+### The claims: bare facts, held as a check
+
+<!-- fig:wp_claims -->2,462<!-- /fig --> claims cite Wikipedia. Each is a value as an article publishes it, and
+each `claims` row is the field-grain record of a column of another table,
+which `verify.py` holds exactly to its claims:
+
+| Claims | Column | The value | Reading |
+|---:|---|---|---|
+| <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> | `chassis.published_races`, `published_wins`, `published_poles` | a car's race, win and pole totals from the infobox of <!-- fig:wp_claim_car_articles -->656<!-- /fig --> per-car articles, on <!-- fig:wp_claim_cars -->793<!-- /fig --> chassis rows | bare fact: a count |
+| <!-- fig:wp_claim_circuit_articles -->79<!-- /fig --> | `circuits.article` | the title of the article the *List of Formula One circuits* links for a circuit | bare fact: a title names a work, it is not one |
+| <!-- fig:wp_claim_circuit_sections -->3<!-- /fig --> | `circuits.article_section` | the heading of the section that link points to | the same: a heading of a few words |
+| <!-- fig:wp_claim_driver_totals -->5<!-- /fig --> | `drivers.fastest_laps_external`, `poles_external` | a career total as the driver's article publishes it | bare fact: a count |
+| <!-- fig:wp_claim_race_notes -->13<!-- /fig --> | `race_entries.note` | why a finisher inside the paid places scored nothing, in this project's words, citing the race article that states it (DA-37, after the measurement) | this project's sentence on the article's fact; it follows the claims out of the artefact |
+
+The first four carry no prose, selection or arrangement, so on copyright
+they are bare facts on the reading the race rows were given; the race notes
+are this project's sentences and were not part of the measurement. The database-right reading is
+the race rows' too, unchanged: whether a right subsists turns on the maker
+question, and whether the infoboxes count as one database or as many does not
+settle it.
+
+**Nothing depends on them.** No row is keyed to a claim. The car totals are,
+in `schema.sql`'s words, "the numbers the database derives from its own race
+records", kept so that comparing the two proves a linkage; the database's own
+figures are `chassis.races` and `chassis.wins`, derived from `race_entries`,
+and they stay whatever is decided. The circuit articles are links out, and the
+driver totals sit beside the counts `race_entries` gives. Leaving the claims
+out of the artefact — with the columns they mirror left NULL — orphans
+nothing and costs the comparison and the links. Carrying them is consistent
+with the ruling on the race rows.
+
+### The note sources: citations backing this project's notes
+
+<!-- fig:wp_note_sources -->53<!-- /fig --> rows of `driver_note_sources` cite Wikipedia. Each is the URL of the
+driver article a Friday driver's note was checked against (LV-08): a
+citation, which takes nothing from the article. The notes they back are this
+project's writing, and the prose pass labels all <!-- fig:wp_notes_original -->53<!-- /fig --> of them original
+(`docs/prose_pass.tsv`). They are bare facts, and with nothing extracted
+there is no database-right question to ask of them. The only question they
+raise is not their own: a note source belongs in the artefact where the note
+it backs does, and whether `drivers.notes` goes in is the prose question,
+settled field by field.
+
+### The route: keep the race rows, or rebuild them from F1DB
+
+The race rows, column by column, against the F1DB release `harvest/` holds.
+F1DB's grand prix of each race and its official title are
+`harvest/race_grands_prix.txt`, and its register of grands prix
+`harvest/f1db_grands_prix.txt`: `tools/f1db_fetch.py` writes both, and
+`build.py` reads neither — the rebuild in `tools/facts_artefact.py` does.
+
+| Column | Against F1DB | What a rebuild needs |
+|---|---|---|
+| `races.year`, `round`, `date_iso`, `f1db_layout_id`, `sprint` | F1DB's own on all <!-- fig:wp_races -->1,125<!-- /fig --> | nothing |
+| `races.circuit_id` | the circuit of F1DB's layout for the race on all <!-- fig:wp_races_circuit_f1db -->1,125<!-- /fig --> | nothing |
+| `races.gp_id` | F1DB's grand prix of every race falls under one row of `grands_prix`: the <!-- fig:gp_f1db_ids -->53<!-- /fig --> grands prix F1DB gives these races fall under <!-- fig:gp_ids_ours -->52<!-- /fig --> of this database's, <!-- fig:gp_pairs_named -->51<!-- /fig --> of the pairs by the same name. The other <!-- fig:gp_pairs_apart -->2<!-- /fig -->: Emilia Romagna, which `grands_prix` spells with a hyphen, and São Paulo, which F1DB holds as a grand prix of its own and this database as the Brazilian Grand Prix's, on <!-- fig:gp_split_races -->4<!-- /fig --> races | the crosswalk from F1DB's ids to `grands_prix`, written down, with São Paulo ruled one way: kept under the Brazilian Grand Prix as here, or given a `grands_prix` row as F1DB does |
+| `races.name_used` | <!-- fig:name_f1db_same -->1,117<!-- /fig --> are the full name of F1DB's grand prix. <!-- fig:name_f1db_accents -->4<!-- /fig --> differ by an accent alone, F1DB's São Paulo against this database's Sao Paulo. <!-- fig:name_f1db_other -->4<!-- /fig --> are the Mexico City Grand Prix, which F1DB files under its Mexican Grand Prix and names only in the race's official title. That title is no source of the name: it is in the host's language, with the sponsor and the year, and holds `name_used` verbatim on <!-- fig:name_in_official -->444<!-- /fig --> | F1DB's full name, and with it the Mexico City races named the Mexican Grand Prix and São Paulo accented — or a rule, written as code, taking the Mexico City name from the official title |
+| `race_entries.driver_id`, `finish_position` | F1DB's on all <!-- fig:wp_race_entries -->1,128<!-- /fig -->: the winner cross-check refuses a race where the two differ | nothing |
+| `race_entries.constructor_id` | F1DB's on all but <!-- fig:wp_winners_no_constructor -->11<!-- /fig -->, Indianapolis 500 winners whose car F1DB credits to a maker the constructor register does not hold. They are NULL here, and a rebuild leaves them NULL: Wikipedia supplies nothing in them | nothing |
+| `race_entries.grid`, `laps_completed` | F1DB's on all but <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives, where this database holds a grid slot or a lap count for the winner that F1DB's row for him leaves blank | those left NULL, or another source for them |
+| `race_entries.entrant` | Wikipedia's house style, constructor and engine; F1DB holds both as ids on every row, and the snapshot names its constructors but not its engine makers. F1DB names the car of the 1957 and 1958 Indianapolis winners Epperly where the article says Salih | the engine makers' names and a rule for the string — or the column left out |
+| `race_entries.pole` | <!-- fig:pole_credits -->1,165<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->682<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,162<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
+| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,164<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->774<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,161<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->0<!-- /fig -->, names another driver in <!-- fig:fl_f1db_other -->0<!-- /fig -->, and records as shared, timed alike, <!-- fig:fl_f1db_shares -->3<!-- /fig --> this database credits to one driver, each open in `discrepancies` | a choice for the races where F1DB differs |
+
+**A correction, made in review.** The measurement as it was first put to the
+maintainer counted shared fastest laps of which F1DB named one driver, and a
+race where it named another. Both came from the fetch, which kept the first
+row of each race's fastest-lap classification and dropped the rest of a tie.
+Read whole, F1DB shares every credit this database shares, and the races
+where the two differ are the ones the line above counts: a fastest lap F1DB
+records as shared, timed alike, where the season harvest credits one driver.
+The cost of a rebuild was overstated, not understated.
+
+**What it shows.** F1DB states every race-row fact a rebuild needs except
+the ones below. The grand-prix keys are F1DB's under a crosswalk, which has to be
+written down and has one choice in it, São Paulo. The race names are F1DB's
+grand-prix names, which are not names by year, so a rebuild names the Mexico
+City races for Mexico and accents São Paulo unless a rule says otherwise. The
+`entrant` string's form is Wikipedia's. <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives hold a grid slot
+or a lap count F1DB does not. And the fastest-lap credits differ where F1DB
+does. The pole and fastest-lap credits also reach past the race rows the
+ruling counted: they come from the season harvest on every row, so keeping
+the rows as stored keeps the credits on rows that cite F1DB, and a rebuild
+replaces those too.
+
+The two routes side by side:
+
+| | Rebuild from F1DB | Keep as stored |
+|---|---|---|
+| The database-right question on the race rows | gone: nothing Wikipedia made is in the file | stands, resting on the maker question, the least certain step in the reading above |
+| Built for the artefact | the crosswalk, the name rule if one is wanted, the pole rule, a choice on `entrant`; the fetch is done | nothing |
+| Where the artefact differs from `f1.db` beside it | the fastest lap in the <!-- fig:fl_f1db_shares -->3<!-- /fig --> races F1DB records as shared, each an open discrepancy; <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives' grid or laps, and the grid text and status F1DB's row leaves blank on those and one more shared drive; the name of <!-- fig:name_f1db_other -->4<!-- /fig --> Mexico City races and the accent on <!-- fig:name_f1db_accents -->4<!-- /fig --> São Paulo ones, unless a rule keeps them; the key of <!-- fig:gp_split_races -->4<!-- /fig --> São Paulo races, if F1DB's split is taken; `entrant` on every row, if it is left out | nowhere |
+| What stays the same whichever is chosen | `f1.db` itself, under CC BY-SA 4.0; the NULL constructor on <!-- fig:wp_winners_no_constructor -->11<!-- /fig --> Indianapolis winners | |
+
+The two answers on the claims follow the route. A rebuild that keeps
+Wikipedia's values out of the race rows and then carries <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> of its
+infobox figures has put the question back; keeping the rows as stored has
+already accepted it.
+
+### The questions as they were put
+
+1. **The route.** Rebuild the race rows from F1DB for the artefact, at the
+   costs above — and if so, São Paulo's key, the Mexico City name, `entrant`
+   and the fastest laps where F1DB differs, one way each — or keep them as
+   stored on the reading that no database right reaches them.
+2. **The claims.** Carry the <!-- fig:wp_claims -->2,462<!-- /fig --> as bare facts, or leave them out with the
+   seven columns they mirror. Nothing in the artefact depends on them either way.
+3. **The note sources.** Carry the <!-- fig:wp_note_sources -->53<!-- /fig --> wherever the notes they back are
+   carried, or leave them out.
+
+### The declared set
+
+`tools/facts_artefact.py` is the artefact's table and column set, and
+`verify.py`'s *THE FACTS ARTEFACT* section holds it; `PD-54` (#742) builds
+the file from it. Nothing in it lists the tables, or the columns of a table
+carried whole. Each is derived:
+
+- **Rows.** A table with `source_id` carries the rows whose source the
+  registry classes as redistributable and not share-alike — F1DB's, and the
+  facts-only official sources'. A table without one takes its
+  `table_provenance` source for the whole table. An authored table goes in
+  only if `PM-49` granted it, so the glossary and `technical_innovations`
+  stay out. A table every one of whose rows is keyed to a table left out —
+  `car_seasons`, to `cars` — goes with it. A claim goes in only where its
+  source does and the column it is about does.
+- **Columns.** Out go the prose the prose pass measures unless granted; the
+  per-car article's specifications on `chassis`, the span `spec_source`
+  governs; every column keyed to a table left out; and this project's own
+  writing that neither grant reaches — the source registry's account of each
+  source, `drivers.provenance`, `records.detail` and the like, which stay
+  CC BY-SA in `f1.db`. A column a claim cites Wikipedia for goes where every
+  value in it is such a claim (`circuits.article`), and keeps its other
+  values with the claimed cells NULL where it is not (`drivers.poles_external`).
+- **The rebuild.** The race rows, their winners and the drivers they
+  introduced are rebuilt rather than dropped, because every other table of
+  results is keyed to them. Every column of the three tables is classed — the
+  key, F1DB's value, a rule, this project's classification, a count PD-54
+  takes again, or not established — so a column added later cannot ride out
+  on a rebuilt row as the stored value. The grand-prix key is F1DB's grand
+  prix under the register's name or alias for it, accents and hyphens aside,
+  which puts São Paulo under the Brazilian Grand Prix as `f1.db` has it; the
+  name is the register's spelling of F1DB's, and where F1DB's official title
+  names Mexico City, the register's alias for the race held there. Pole is the
+  car F1DB starts from grid 1, except where the record credits the fastest
+  qualifier: a race with no car on grid 1, and a 2022 sprint weekend, when
+  the sprint set the grid. The fastest lap is F1DB's. `entrant` is not
+  carried on the rebuilt rows: it is the season article's house style, and
+  F1DB gives the ids it is made of but not the string.
+
+Where the rebuild leaves the artefact unlike `f1.db`, `verify.py` requires
+each difference to be one a rule predicts: the fastest lap in a race where
+`f1.db` holds an open discrepancy with F1DB over it — the races F1DB records
+as shared and the season harvest credits to one driver; the shared drives'
+cells F1DB leaves blank; a credit F1DB does not state yet, which is NULL, not
+a 0; dates of birth and death F1DB states and `f1.db` does not hold yet
+(`PM-73`, #931); and one declared disagreement, Bertrand Gachot's nationality
+(`PM-72`, #930). The race keys, names, circuits, dates and pole credits agree
+with `f1.db` on every rebuilt row, and the circuit of every race F1DB gives a
+layout for is that layout's, whatever the row cites. A discrepancy is carried
+with its assessment and without the two values it compares, which can be an
+article's, and only where the column it is about is carried; the four FOM
+timing tables are out by name.
+`python3 tools/facts_artefact.py --diff` lists every difference, and the
+command without `--diff` the set, table by table.
 
 ---
 

@@ -30,10 +30,12 @@ Numbers are formatted the way the README already writes them - thousands
 separated with a comma, percentages as a whole number. Nothing here writes to
 a database.
 """
+import csv
 import os
 import re
 import sqlite3
 import sys
+import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB = os.path.join(ROOT, "f1.db")
@@ -52,6 +54,11 @@ DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"),
 # the centreline table is one figure - so DOTALL, and non-greedy so two spans
 # on a line stay two spans.
 SPAN = re.compile(r"<!-- fig:([a-z0-9_]+) -->(.*?)<!-- /fig -->", re.DOTALL)
+
+
+def _folded(text):
+    """A name with its diacritics taken off, so São and Sao compare equal."""
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
 
 
 def n(value):
@@ -811,6 +818,260 @@ class Figures:
                 f"{', '.join(tables) or 'no table'}; docs/COMMERCIAL-READINESS.md "
                 f"reads circuit_layouts alone")
         return n(self.count("circuit_layouts"))
+
+    # -- the rest of what cites Wikipedia, and the route, measured (PD-53) --
+    #
+    # The 2026-10-03 ruling on PD-53 (#741) asks for the claims and the note
+    # sources that cite Wikipedia to be classified, and for the two routes to
+    # the race rows to be measured, before the facts artefact is built. The
+    # note states each kind of claim by name, so a Wikipedia claim of a kind
+    # it does not name stops the writer, as WIKI_ITEMISED does for tables.
+    WIKI_CLAIMS = {("chassis", "published_races"): "car", ("chassis", "published_wins"): "car",
+                   ("chassis", "published_poles"): "car", ("circuits", "article"): "circuit",
+                   ("circuits", "article_section"): "section",
+                   ("drivers", "fastest_laps_external"): "driver",
+                   ("drivers", "poles_external"): "driver",
+                   ("race_entries", "note"): "race note"}
+
+    def _wp_claims(self):
+        if hasattr(self, "_wpc"):
+            return self._wpc
+        kinds = {}
+        for t, f, k in self.con.execute(f"""SELECT tbl, field, COUNT(*) FROM claims
+                WHERE source LIKE 'https://{self.WIKI}/%' GROUP BY tbl, field"""):
+            kind = self.WIKI_CLAIMS.get((t, f))
+            if kind is None:
+                raise SystemExit(
+                    f"{k} claims of {t}.{f} cite Wikipedia, a kind "
+                    f"docs/COMMERCIAL-READINESS.md does not classify: read them "
+                    f"and add them to the note and to Figures.WIKI_CLAIMS")
+            kinds[kind] = kinds.get(kind, 0) + k
+        if sum(kinds.values()) != self._wp("claims"):
+            raise SystemExit("the Wikipedia claims counted by URL and by registry "
+                             "domain differ: docs/COMMERCIAL-READINESS.md counts both")
+        self._wpc = kinds
+        return kinds
+
+    def wp_claim_car_totals(self):      return n(self._wp_claims().get("car", 0))
+    def wp_claim_circuit_articles(self): return n(self._wp_claims().get("circuit", 0))
+    def wp_claim_circuit_sections(self): return n(self._wp_claims().get("section", 0))
+    def wp_claim_driver_totals(self):   return n(self._wp_claims().get("driver", 0))
+    def wp_claim_race_notes(self):      return n(self._wp_claims().get("race note", 0))
+
+    def wp_claim_cars(self):
+        return n(self.one(f"""SELECT COUNT(DISTINCT row_key) FROM claims WHERE tbl = 'chassis'
+            AND source LIKE 'https://{self.WIKI}/%'"""))
+
+    def wp_claim_car_articles(self):
+        return n(self.one(f"""SELECT COUNT(DISTINCT source) FROM claims WHERE tbl = 'chassis'
+            AND source LIKE 'https://{self.WIKI}/%'"""))
+
+    def wp_notes_original(self):
+        # The prose pass's reading of the notes the Wikipedia note sources
+        # back (docs/prose_pass.tsv, PM-17). The note says all of them are
+        # labelled original, so one that is not stops the writer.
+        cited = {r[0] for r in self.con.execute(f"""SELECT driver_id FROM driver_note_sources
+            WHERE source LIKE 'https://{self.WIKI}/%'""")}
+        path = os.path.join(ROOT, "docs", "prose_pass.tsv")
+        with open(path, encoding="utf-8") as f:
+            rows = csv.DictReader((x for x in f if not x.startswith("#")), delimiter="\t")
+            labels = {r["key"]: r["label"] for r in rows
+                      if r["table"] == "drivers" and r["column"] == "notes"}
+        unread = sorted(cited - set(labels))
+        other = sorted(d for d in cited & set(labels) if labels[d] != "original")
+        if unread or other:
+            raise SystemExit(
+                f"of the notes Wikipedia note sources back, {len(unread)} are not in "
+                f"docs/prose_pass.tsv and {len(other)} are not labelled original: "
+                f"docs/COMMERCIAL-READINESS.md says every one is")
+        return n(len(cited))
+
+    def wp_races_circuit_f1db(self):
+        # Wikipedia-cited races whose circuit is the one F1DB's layout for the
+        # race belongs to. The note says every one, so a shortfall stops it.
+        agree = self._wp_race_one(f"""SELECT COUNT(*) FROM races r
+            JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+            WHERE r.{self._WP_RACE} AND o.circuit_id = r.circuit_id""")
+        if agree != self._wp("races"):
+            raise SystemExit(
+                f"{agree} of {self._wp('races')} Wikipedia-cited races have the circuit "
+                f"of F1DB's layout: docs/COMMERCIAL-READINESS.md says every one")
+        return n(agree)
+
+    # The pole and fastest-lap credits, every one, against what F1DB states:
+    # the credits come from the season harvest on every row, whatever the
+    # row's own source, so the route question reaches all of them.
+    def pole_credits(self):
+        return n(self.count("race_entries", "pole = 1"))
+
+    def pole_credits_elsewhere(self):
+        return n(self.count("race_entries", f"pole = 1 AND NOT {self._WP_RACE}"))
+
+    def pole_grid_one(self):
+        return n(self.count("race_entries", "pole = 1 AND grid = 1"))
+
+    def pole_not_grid_one(self):
+        # A credited pole that is not F1DB's grid slot 1. The note says each
+        # is F1DB's fastest qualifier, so one that is not stops the writer.
+        rows = self.con.execute("""SELECT e.race_id, e.driver_id,
+                EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = e.race_id
+                        AND q.driver_id = e.driver_id AND q.position = 1
+                        AND q.source = 'https://github.com/f1db/f1db')
+            FROM race_entries e WHERE e.pole = 1 AND e.grid IS NOT 1""").fetchall()
+        if not all(r[2] for r in rows):
+            raise SystemExit(
+                "a credited pole is neither F1DB's grid slot 1 nor its fastest "
+                "qualifier: docs/COMMERCIAL-READINESS.md says each is one or the other")
+        return n(len(rows))
+
+    def _fl(self):
+        """(races with a credit, the same set as F1DB's, F1DB naming one of a
+        shared credit, F1DB naming someone else, F1DB sharing a credit this
+        database gives one driver), against F1DB's fastest lap of the race as
+        tools/f1db_fetch.py wrote it - every row at position 1, a tie being
+        several."""
+        if hasattr(self, "_flc"):
+            return self._flc
+        f1db_id = dict(self.con.execute(
+            "SELECT f1db_id, id FROM drivers WHERE f1db_id IS NOT NULL").fetchall())
+        theirs = {}
+        with open(os.path.join(ROOT, "harvest", "fastest_laps.txt"), encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("#") or not line.strip():
+                    continue
+                y, r, d = line.split("|")[:3]
+                theirs.setdefault((int(y), int(r)), set()).add(f1db_id.get(d, d))
+        ours = {}
+        for y, r, d in self.con.execute("""SELECT r.year, r.round, e.driver_id
+                FROM race_entries e JOIN races r ON r.id = e.race_id
+                WHERE e.fastest_lap = 1"""):
+            ours.setdefault((y, r), set()).add(d)
+        same = sum(1 for k, v in ours.items() if theirs.get(k) == v)
+        one = sum(1 for k, v in ours.items() if theirs.get(k, v) != v and theirs[k] < v)
+        wider = sum(1 for k, v in ours.items() if theirs.get(k, v) != v and theirs[k] > v)
+        self._flc = (len(ours), same, one, len(ours) - same - one - wider, wider)
+        return self._flc
+
+    def fl_credit_races(self):    return n(self._fl()[0])
+    def fl_f1db_same(self):       return n(self._fl()[1])
+    def fl_f1db_names_one(self):  return n(self._fl()[2])
+    def fl_f1db_other(self):      return n(self._fl()[3])
+    def fl_f1db_shares(self):     return n(self._fl()[4])
+
+    def fl_credits_elsewhere(self):
+        return n(self.count("race_entries", f"fastest_lap = 1 AND NOT {self._WP_RACE}"))
+
+    # The race names and grand-prix keys against F1DB's (PD-53, the ruling of
+    # 2026-10-06): harvest/race_grands_prix.txt and f1db_grands_prix.txt,
+    # which tools/f1db_fetch.py writes and the build does not read; the
+    # rebuild in tools/facts_artefact.py does, and verify.py holds it.
+    def _f1db_file(self, name):
+        with open(os.path.join(ROOT, "harvest", name), encoding="utf-8") as f:
+            return [line.rstrip("\n").split("|") for line in f
+                    if line.strip() and not line.startswith("#")]
+
+    # The crosswalk pairs whose names differ, as the note names them: São
+    # Paulo, which F1DB holds as a grand prix of its own, and Emilia Romagna,
+    # which this database spells with a hyphen.
+    GP_PAIRS_NAMED_APART = {("brazilian", "sao-paulo"), ("emilia-romagna", "emilia-romagna")}
+
+    def _gp(self):
+        """The Wikipedia-cited races against F1DB's grand prix of each: the
+        crosswalk from F1DB's ids to grands_prix, and the name each side gives."""
+        if hasattr(self, "_gpm"):
+            return self._gpm
+        theirs = {(int(y), int(r)): g for y, r, g, _ in self._f1db_file("race_grands_prix.txt")}
+        official = {(int(y), int(r)): o for y, r, _, o in self._f1db_file("race_grands_prix.txt")}
+        full = {g: f for g, _, f, _, _ in self._f1db_file("f1db_grands_prix.txt")}
+        ours = dict(self.con.execute("SELECT id, name FROM grands_prix").fetchall())
+        rows = self.con.execute(f"""SELECT year, round, gp_id, name_used FROM races
+            WHERE {self._WP_RACE}""").fetchall()
+        if len(rows) != self._wp("races") or any((y, r) not in theirs for y, r, _, _ in rows):
+            raise SystemExit("a Wikipedia-cited race has no grand prix in "
+                             "harvest/race_grands_prix.txt: docs/COMMERCIAL-READINESS.md "
+                             "says F1DB holds every one")
+        cross = {}
+        for y, r, g, _ in rows:
+            cross.setdefault(theirs[(y, r)], set()).add(g)
+        if any(len(v) != 1 for v in cross.values()):
+            raise SystemExit("an F1DB grand prix falls under two of grands_prix on the "
+                             "Wikipedia-cited races: docs/COMMERCIAL-READINESS.md says "
+                             "each falls under one")
+        cross = {h: v.pop() for h, v in cross.items()}
+        apart = {(g, h) for h, g in cross.items() if ours[g] != full[h]}
+        if apart != self.GP_PAIRS_NAMED_APART:
+            raise SystemExit(
+                f"the grand-prix pairs named apart are {sorted(apart)}: "
+                f"docs/COMMERCIAL-READINESS.md names São Paulo and Emilia Romagna")
+        split = sum(1 for y, r, g, _ in rows
+                    if (g, theirs[(y, r)]) in apart
+                    and sum(1 for x in cross.values() if x == g) > 1)
+        same = accents = in_official = 0
+        other = set()
+        for y, r, g, name in rows:
+            theirs_name = full[theirs[(y, r)]]
+            in_official += name in official[(y, r)]
+            if name == theirs_name:
+                same += 1
+            elif _folded(name) == _folded(theirs_name):
+                accents += 1
+            else:
+                other.add(name)
+        if other != {"Mexico City Grand Prix"}:
+            raise SystemExit(
+                f"race names F1DB's grand prix does not give: {sorted(other)}: "
+                f"docs/COMMERCIAL-READINESS.md names the Mexico City Grand Prix alone")
+        self._gpm = {"f1db": len(cross), "ours": len(set(cross.values())),
+                     "named": len(cross) - len(apart), "apart": len(apart),
+                     "split": split, "same": same, "accents": accents,
+                     "other": len(rows) - same - accents, "official": in_official}
+        return self._gpm
+
+    def _wp_winners(self):
+        """(winner rows with no constructor id, winner rows holding a grid slot
+        or a lap count F1DB's row for the driver leaves blank), on the
+        Wikipedia-cited race rows, against harvest/race_results.txt."""
+        if hasattr(self, "_wpw"):
+            return self._wpw
+        f1db_id = dict(self.con.execute(
+            "SELECT f1db_id, id FROM drivers WHERE f1db_id IS NOT NULL").fetchall())
+        theirs = {}
+        for f in self._f1db_file("race_results.txt"):
+            if f[2] == "1":
+                theirs[(int(f[0]), int(f[1]), f1db_id.get(f[4], f[4]))] = f
+        no_cons = beyond = 0
+        for y, r, d, cons, grid, laps in self.con.execute(f"""SELECT r.year, r.round,
+                e.driver_id, e.constructor_id, e.grid, e.laps_completed
+                FROM race_entries e JOIN races r ON r.id = e.race_id
+                WHERE e.{self._WP_RACE}"""):
+            f = theirs.get((y, r, d))
+            if f is None:
+                raise SystemExit(f"{y} round {r}: a Wikipedia-cited winner F1DB does not "
+                                 f"classify first: docs/COMMERCIAL-READINESS.md says it "
+                                 f"classifies every one")
+            if cons is None:
+                if not f[5]:
+                    raise SystemExit(f"{y} round {r}: a winner neither side gives a "
+                                     f"constructor: docs/COMMERCIAL-READINESS.md says "
+                                     f"F1DB names one on each")
+                no_cons += 1
+            if (grid is not None and not f[16]) or (laps is not None and not f[9]):
+                beyond += 1
+        self._wpw = (no_cons, beyond)
+        return self._wpw
+
+    def wp_winners_no_constructor(self): return n(self._wp_winners()[0])
+    def wp_winners_beyond_f1db(self):    return n(self._wp_winners()[1])
+
+    def gp_f1db_ids(self):        return n(self._gp()["f1db"])
+    def gp_ids_ours(self):        return n(self._gp()["ours"])
+    def gp_pairs_named(self):     return n(self._gp()["named"])
+    def gp_pairs_apart(self):     return n(self._gp()["apart"])
+    def gp_split_races(self):     return n(self._gp()["split"])
+    def name_f1db_same(self):     return n(self._gp()["same"])
+    def name_f1db_accents(self):  return n(self._gp()["accents"])
+    def name_f1db_other(self):    return n(self._gp()["other"])
+    def name_in_official(self):   return n(self._gp()["official"])
 
     # The registry entry for F1DB owns both of these domains, so a row
     # resolving to either is F1DB's by the same rule `./f1 licences` applies.

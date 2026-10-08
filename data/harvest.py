@@ -1047,7 +1047,9 @@ FASTEST_LAP_DISAGREEMENTS = {
     (1970, 1): (
         "open", "sources differ, reference record favours the stored value",
         "The harvest credits Brabham alone with the 1:20.8; F1DB credits "
-        "Surtees. The race article credits Brabham and footnotes that some "
+        "Surtees and Brabham both, as a shared fastest lap (until PD-53 the "
+        "fetch kept only the first row of a tie, so this read as Surtees "
+        "alone). The race article credits Brabham and footnotes that some "
         "sources credit both, so this is a real disagreement between sources "
         "and stays open. The single-name reading is kept because the reference "
         "record sides with it: Surtees's total is 10 on formula1.com and in "
