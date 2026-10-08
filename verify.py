@@ -4803,9 +4803,12 @@ def the_full_classification():
         # VD-61's two, at the counts they arrived with: `circuit_id` is filled
         # only on the circuit route, and `circuits.article` from the mapping.
         ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
-        # PD-64's, at the count it arrived with: `race_id` is filled only on
-        # the race route.
-        ("article_images", "race_id", 3911, "harvest/race_images.txt"),
+        # PD-64's: `race_id` is filled only on the race route. 3911 -> 3910
+        # (LV-09): 2026 round 7 is the Barcelona-Catalunya Grand Prix, and its
+        # one row came from Category:2026 Spanish Grand Prix - Madrid's race,
+        # and a photograph of Madrid's countdown to it - so the build drops
+        # it as filed under another race's name until the next harvest.
+        ("article_images", "race_id", 3910, "harvest/race_images.txt"),
         ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:

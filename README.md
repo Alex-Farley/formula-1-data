@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,229<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,228<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -867,8 +867,8 @@ run took the 1995 winner's trophy photographed in a private collection in
 2019 — so a file whose name says trophy, ticket, museum, collection or map,
 or names a season other than the race's, is passed over too. That narrows;
 it does not prove the rest were taken at the race.
-<!-- fig:images_race -->3,911<!-- /fig --> photographs of
-<!-- fig:races_with_images -->513<!-- /fig --> races come from it, keyed on the
+<!-- fig:images_race -->3,910<!-- /fig --> photographs of
+<!-- fig:races_with_images -->512<!-- /fig --> races come from it, keyed on the
 race. The claim is the category route's — a Commons editor filed the file
 there — and so is the rung, `catalogued`. The race page shows them first,
 under a heading that says they are of that race, and the cars after them
@@ -1277,7 +1277,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   one only from a Commons category, held a rung lower at `catalogued` and not
   shown. `./f1 images` lists the
   <!-- fig:images_unnamed -->346<!-- /fig --> whose file name does not even
-  name the car. The <!-- fig:races_with_images -->513<!-- /fig --> races with
+  name the car. The <!-- fig:races_with_images -->512<!-- /fig --> races with
   photographs of their own have them because a Commons editor filed them
   under the race's category, also at `catalogued`; that one was taken at
   the race is the editor's word, narrowed by the file's name and checked by

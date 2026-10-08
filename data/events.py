@@ -87,7 +87,8 @@ GRANDS_PRIX = [
      "Imola's return under a new name. Both spellings appear in the record; "
      "they are the same event."),
     ("las-vegas", "Las Vegas Grand Prix", "United States", [], ""),
-    ("madrid", "Madrid Grand Prix", "Spain", [], "New for 2026."),
+    ("barcelona-catalunya", "Barcelona-Catalunya Grand Prix", "Spain", [],
+     "Montmelo's round in 2026, renamed once Madrid took over the Spanish title."),
     ("styrian", "Styrian Grand Prix", "Austria", [],
      "A second Red Bull Ring race, in 2020 and 2021."),
     ("70th-anniversary", "70th Anniversary Grand Prix", "United Kingdom", [],
@@ -109,7 +110,7 @@ SINGLE_CIRCUIT = {
     "abu-dhabi": "yas-marina", "korean": "yeongam", "indian": "buddh",
     "russian": "sochi", "azerbaijan": "baku", "saudi": "jeddah",
     "qatar": "lusail", "miami": "miami", "las-vegas": "las-vegas",
-    "madrid": "madring", "pacific": "aida", "luxembourg": "nurburgring-gp",
+    "barcelona-catalunya": "catalunya", "pacific": "aida", "luxembourg": "nurburgring-gp",
     "pescara": "pescara", "moroccan": "ain-diab", "dallas": "dallas",
     "detroit": "detroit", "caesars-palace": "caesars-palace",
     "us-west": "long-beach", "styrian": "red-bull-ring",
