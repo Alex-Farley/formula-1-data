@@ -35,6 +35,7 @@ import os
 import re
 import sqlite3
 import sys
+import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB = os.path.join(ROOT, "f1.db")
@@ -53,6 +54,11 @@ DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"),
 # the centreline table is one figure - so DOTALL, and non-greedy so two spans
 # on a line stay two spans.
 SPAN = re.compile(r"<!-- fig:([a-z0-9_]+) -->(.*?)<!-- /fig -->", re.DOTALL)
+
+
+def _folded(text):
+    """A name with its diacritics taken off, so São and Sao compare equal."""
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
 
 
 def n(value):
@@ -947,6 +953,117 @@ class Figures:
 
     def fl_credits_elsewhere(self):
         return n(self.count("race_entries", f"fastest_lap = 1 AND NOT {self._WP_RACE}"))
+
+    # The race names and grand-prix keys against F1DB's (PD-53, the ruling of
+    # 2026-10-06): harvest/race_grands_prix.txt and f1db_grands_prix.txt,
+    # which tools/f1db_fetch.py writes for this and nothing else reads.
+    def _f1db_file(self, name):
+        with open(os.path.join(ROOT, "harvest", name), encoding="utf-8") as f:
+            return [line.rstrip("\n").split("|") for line in f
+                    if line.strip() and not line.startswith("#")]
+
+    # The crosswalk pairs whose names differ, as the note names them: São
+    # Paulo, which F1DB holds as a grand prix of its own, and Emilia Romagna,
+    # which this database spells with a hyphen.
+    GP_PAIRS_NAMED_APART = {("brazilian", "sao-paulo"), ("emilia-romagna", "emilia-romagna")}
+
+    def _gp(self):
+        """The Wikipedia-cited races against F1DB's grand prix of each: the
+        crosswalk from F1DB's ids to grands_prix, and the name each side gives."""
+        if hasattr(self, "_gpm"):
+            return self._gpm
+        theirs = {(int(y), int(r)): g for y, r, g, _ in self._f1db_file("race_grands_prix.txt")}
+        official = {(int(y), int(r)): o for y, r, _, o in self._f1db_file("race_grands_prix.txt")}
+        full = {g: f for g, _, f, _, _ in self._f1db_file("f1db_grands_prix.txt")}
+        ours = dict(self.con.execute("SELECT id, name FROM grands_prix").fetchall())
+        rows = self.con.execute(f"""SELECT year, round, gp_id, name_used FROM races
+            WHERE {self._WP_RACE}""").fetchall()
+        if len(rows) != self._wp("races") or any((y, r) not in theirs for y, r, _, _ in rows):
+            raise SystemExit("a Wikipedia-cited race has no grand prix in "
+                             "harvest/race_grands_prix.txt: docs/COMMERCIAL-READINESS.md "
+                             "says F1DB holds every one")
+        cross = {}
+        for y, r, g, _ in rows:
+            cross.setdefault(theirs[(y, r)], set()).add(g)
+        if any(len(v) != 1 for v in cross.values()):
+            raise SystemExit("an F1DB grand prix falls under two of grands_prix on the "
+                             "Wikipedia-cited races: docs/COMMERCIAL-READINESS.md says "
+                             "each falls under one")
+        cross = {h: v.pop() for h, v in cross.items()}
+        apart = {(g, h) for h, g in cross.items() if ours[g] != full[h]}
+        if apart != self.GP_PAIRS_NAMED_APART:
+            raise SystemExit(
+                f"the grand-prix pairs named apart are {sorted(apart)}: "
+                f"docs/COMMERCIAL-READINESS.md names São Paulo and Emilia Romagna")
+        split = sum(1 for y, r, g, _ in rows
+                    if (g, theirs[(y, r)]) in apart
+                    and sum(1 for x in cross.values() if x == g) > 1)
+        same = accents = in_official = 0
+        other = set()
+        for y, r, g, name in rows:
+            theirs_name = full[theirs[(y, r)]]
+            in_official += name in official[(y, r)]
+            if name == theirs_name:
+                same += 1
+            elif _folded(name) == _folded(theirs_name):
+                accents += 1
+            else:
+                other.add(name)
+        if other != {"Mexico City Grand Prix"}:
+            raise SystemExit(
+                f"race names F1DB's grand prix does not give: {sorted(other)}: "
+                f"docs/COMMERCIAL-READINESS.md names the Mexico City Grand Prix alone")
+        self._gpm = {"f1db": len(cross), "ours": len(set(cross.values())),
+                     "named": len(cross) - len(apart), "apart": len(apart),
+                     "split": split, "same": same, "accents": accents,
+                     "other": len(rows) - same - accents, "official": in_official}
+        return self._gpm
+
+    def _wp_winners(self):
+        """(winner rows with no constructor id, winner rows holding a grid slot
+        or a lap count F1DB's row for the driver leaves blank), on the
+        Wikipedia-cited race rows, against harvest/race_results.txt."""
+        if hasattr(self, "_wpw"):
+            return self._wpw
+        f1db_id = dict(self.con.execute(
+            "SELECT f1db_id, id FROM drivers WHERE f1db_id IS NOT NULL").fetchall())
+        theirs = {}
+        for f in self._f1db_file("race_results.txt"):
+            if f[2] == "1":
+                theirs[(int(f[0]), int(f[1]), f1db_id.get(f[4], f[4]))] = f
+        no_cons = beyond = 0
+        for y, r, d, cons, grid, laps in self.con.execute(f"""SELECT r.year, r.round,
+                e.driver_id, e.constructor_id, e.grid, e.laps_completed
+                FROM race_entries e JOIN races r ON r.id = e.race_id
+                WHERE e.{self._WP_RACE}"""):
+            f = theirs.get((y, r, d))
+            if f is None:
+                raise SystemExit(f"{y} round {r}: a Wikipedia-cited winner F1DB does not "
+                                 f"classify first: docs/COMMERCIAL-READINESS.md says it "
+                                 f"classifies every one")
+            if cons is None:
+                if not f[5]:
+                    raise SystemExit(f"{y} round {r}: a winner neither side gives a "
+                                     f"constructor: docs/COMMERCIAL-READINESS.md says "
+                                     f"F1DB names one on each")
+                no_cons += 1
+            if (grid is not None and not f[16]) or (laps is not None and not f[9]):
+                beyond += 1
+        self._wpw = (no_cons, beyond)
+        return self._wpw
+
+    def wp_winners_no_constructor(self): return n(self._wp_winners()[0])
+    def wp_winners_beyond_f1db(self):    return n(self._wp_winners()[1])
+
+    def gp_f1db_ids(self):        return n(self._gp()["f1db"])
+    def gp_ids_ours(self):        return n(self._gp()["ours"])
+    def gp_pairs_named(self):     return n(self._gp()["named"])
+    def gp_pairs_apart(self):     return n(self._gp()["apart"])
+    def gp_split_races(self):     return n(self._gp()["split"])
+    def name_f1db_same(self):     return n(self._gp()["same"])
+    def name_f1db_accents(self):  return n(self._gp()["accents"])
+    def name_f1db_other(self):    return n(self._gp()["other"])
+    def name_in_official(self):   return n(self._gp()["official"])
 
     # The registry entry for F1DB owns both of these domains, so a row
     # resolving to either is F1DB's by the same rule `./f1 licences` applies.

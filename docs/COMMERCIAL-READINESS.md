@@ -503,14 +503,17 @@ copyright reading above is the whole question.
 
 ## For decision: the rest of what cites Wikipedia, and the route
 
-Written under `PD-53` (#741), on the maintainer's ruling of 2026-10-03 that
-the facts artefact is not built until two things are measured: the `claims`
-and `driver_note_sources` rows that cite Wikipedia, classified into bare facts
-and expression, and whether the artefact keeps the race rows as stored or
-rebuilds them from F1DB. **It decides nothing.** The three questions at its
-end are on `PD-53` for the maintainer, and the artefact's table and column set
-waits on the answers. Like the reading above, it is an analysis, not legal
-advice.
+Written under `PD-53` (#741), on two rulings of the maintainer. The first,
+of 2026-10-03: the facts artefact is not built until the `claims` and
+`driver_note_sources` rows that cite Wikipedia are classified into bare facts
+and expression, and the two routes to the race rows — keep them as stored, or
+rebuild them from F1DB — are measured. The second, of 2026-10-06, on the
+first measurement: the route is not ruled until F1DB's race names and
+grand-prix ids are fetched and mapped, and what a rebuild would still not
+establish is stated in figures, with the two routes' costs side by side.
+**It decides nothing.** The three questions at its end are on `PD-53` for the
+maintainer, and the artefact's table and column set waits on the answers.
+Like the reading above, it is an analysis, not legal advice.
 
 ### The claims: bare facts, held as a check
 
@@ -555,33 +558,45 @@ settled field by field.
 
 ### The route: keep the race rows, or rebuild them from F1DB
 
-The race rows, column by column, against the F1DB snapshot `harvest/` holds:
+The race rows, column by column, against the F1DB release `harvest/` holds.
+F1DB's grand prix of each race and its official title are
+`harvest/race_grands_prix.txt`, and its register of grands prix
+`harvest/f1db_grands_prix.txt`: `tools/f1db_fetch.py` writes both for this
+measurement, and nothing in the build reads them.
 
 | Column | Against F1DB | What a rebuild needs |
 |---|---|---|
 | `races.year`, `round`, `date_iso`, `f1db_layout_id`, `sprint` | F1DB's own on all <!-- fig:wp_races -->1,125<!-- /fig --> | nothing |
 | `races.circuit_id` | the circuit of F1DB's layout for the race on all <!-- fig:wp_races_circuit_f1db -->1,125<!-- /fig --> | nothing |
-| `races.name_used`, `gp_id` | not measurable: `tools/f1db_fetch.py` does not fetch F1DB's race names or grand-prix ids | both fetched, and F1DB's grand prix mapped onto `grands_prix` |
-| `race_entries.driver_id`, `constructor_id`, `finish_position` | F1DB's on all <!-- fig:wp_race_entries -->1,128<!-- /fig -->: the winner cross-check refuses a race where the two differ | nothing |
+| `races.gp_id` | F1DB's grand prix of every race falls under one row of `grands_prix`: the <!-- fig:gp_f1db_ids -->53<!-- /fig --> grands prix F1DB gives these races fall under <!-- fig:gp_ids_ours -->52<!-- /fig --> of this database's, <!-- fig:gp_pairs_named -->51<!-- /fig --> of the pairs by the same name. The other <!-- fig:gp_pairs_apart -->2<!-- /fig -->: Emilia Romagna, which `grands_prix` spells with a hyphen, and São Paulo, which F1DB holds as a grand prix of its own and this database as the Brazilian Grand Prix's, on <!-- fig:gp_split_races -->4<!-- /fig --> races | the crosswalk from F1DB's ids to `grands_prix`, written down, with São Paulo ruled one way: kept under the Brazilian Grand Prix as here, or given a `grands_prix` row as F1DB does |
+| `races.name_used` | <!-- fig:name_f1db_same -->1,117<!-- /fig --> are the full name of F1DB's grand prix. <!-- fig:name_f1db_accents -->4<!-- /fig --> differ by an accent alone, F1DB's São Paulo against this database's Sao Paulo. <!-- fig:name_f1db_other -->4<!-- /fig --> are the Mexico City Grand Prix, which F1DB files under its Mexican Grand Prix and names only in the race's official title. That title is no source of the name: it is in the host's language, with the sponsor and the year, and holds `name_used` verbatim on <!-- fig:name_in_official -->444<!-- /fig --> | F1DB's full name, and with it the Mexico City races named the Mexican Grand Prix and São Paulo accented — or a rule, written as code, taking the Mexico City name from the official title |
+| `race_entries.driver_id`, `finish_position` | F1DB's on all <!-- fig:wp_race_entries -->1,128<!-- /fig -->: the winner cross-check refuses a race where the two differ | nothing |
+| `race_entries.constructor_id` | F1DB's on all but <!-- fig:wp_winners_no_constructor -->11<!-- /fig -->, Indianapolis 500 winners whose car F1DB credits to a maker the constructor register does not hold. They are NULL here, and a rebuild leaves them NULL: Wikipedia supplies nothing in them | nothing |
+| `race_entries.grid`, `laps_completed` | F1DB's on all but <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives, where this database holds a grid slot or a lap count for the winner that F1DB's row for him leaves blank | those left NULL, or another source for them |
 | `race_entries.entrant` | Wikipedia's house style, constructor and engine; F1DB holds both as ids on every row, and the snapshot names its constructors but not its engine makers. F1DB names the car of the 1957 and 1958 Indianapolis winners Epperly where the article says Salih | the engine makers' names and a rule for the string — or the column left out |
 | `race_entries.pole` | <!-- fig:pole_credits -->1,165<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->682<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,162<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
 | `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,164<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->774<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,155<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->8<!-- /fig -->, and names another driver in <!-- fig:fl_f1db_other -->1<!-- /fig -->, open in `discrepancies` | a choice for the races where F1DB differs |
 
-**What it shows.** Every race-row fact a rebuild needs is one F1DB states,
-except three things: the race names and grand-prix keys, which the snapshot
-does not carry and so could not be compared; the `entrant` string, whose form
-is Wikipedia's; and the fastest-lap credits where F1DB differs. The pole and
-fastest-lap credits reach past the race rows the ruling counted: they come
-from the season harvest on every row, so keeping the rows as stored also keeps
-the credits on rows that cite F1DB, and a rebuild replaces those too.
+**What it shows.** F1DB states every race-row fact a rebuild needs except
+five. The grand-prix keys are F1DB's under a crosswalk, which has to be
+written down and has one choice in it, São Paulo. The race names are F1DB's
+grand-prix names, which are not names by year, so a rebuild names the Mexico
+City races for Mexico and accents São Paulo unless a rule says otherwise. The
+`entrant` string's form is Wikipedia's. Three shared drives hold a grid slot
+or a lap count F1DB does not. And the fastest-lap credits differ where F1DB
+does. The pole and fastest-lap credits also reach past the race rows the
+ruling counted: they come from the season harvest on every row, so keeping
+the rows as stored keeps the credits on rows that cite F1DB, and a rebuild
+replaces those too.
 
-- **Rebuilding** takes the database-right question off the race rows
-  altogether: nothing Wikipedia made is in the file. Its costs are two fetched
-  columns and a mapping, the pole rule as code, a decision on `entrant`, and,
-  where F1DB credits a fastest lap differently, an artefact that disagrees
-  with `f1.db` beside it — each file sourced, but not the same.
-- **Keeping** costs nothing to build, and rests on the maker question, the
-  least certain step in the reading above.
+The two routes side by side:
+
+| | Rebuild from F1DB | Keep as stored |
+|---|---|---|
+| The database-right question on the race rows | gone: nothing Wikipedia made is in the file | stands, resting on the maker question, the least certain step in the reading above |
+| Built for the artefact | the crosswalk, the name rule if one is wanted, the pole rule, a choice on `entrant`; the fetch is done | nothing |
+| Where the artefact differs from `f1.db` beside it | the fastest lap in <!-- fig:fl_f1db_names_one -->8<!-- /fig --> shared credits and <!-- fig:fl_f1db_other -->1<!-- /fig --> open discrepancy; <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives' grid or laps; the name of <!-- fig:name_f1db_other -->4<!-- /fig --> Mexico City races and the accent on <!-- fig:name_f1db_accents -->4<!-- /fig --> São Paulo ones, unless a rule keeps them; the key of <!-- fig:gp_split_races -->4<!-- /fig --> São Paulo races, if F1DB's split is taken; `entrant` on every row, if it is left out | nowhere |
+| What stays the same whichever is chosen | `f1.db` itself, under CC BY-SA 4.0; the NULL constructor on <!-- fig:wp_winners_no_constructor -->11<!-- /fig --> Indianapolis winners | |
 
 The two answers on the claims follow the route. A rebuild that keeps
 Wikipedia's values out of the race rows and then carries <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> of its
@@ -591,8 +606,9 @@ already accepted it.
 ### For decision
 
 1. **The route.** Rebuild the race rows from F1DB for the artefact, at the
-   costs above, or keep them as stored on the reading that no database right
-   reaches them.
+   costs above — and if so, São Paulo's key, the Mexico City name, `entrant`
+   and the fastest laps where F1DB differs, one way each — or keep them as
+   stored on the reading that no database right reaches them.
 2. **The claims.** Carry the <!-- fig:wp_claims -->2,449<!-- /fig --> as bare facts, or leave them out with the
    seven columns they mirror. Nothing in the artefact depends on them either way.
 3. **The note sources.** Carry the <!-- fig:wp_note_sources -->53<!-- /fig --> wherever the notes they back are
