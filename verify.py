@@ -4276,10 +4276,11 @@ def provenance_resolves():
             held += n
             if m.group(1) != str(year):
                 off_season.append(f"{t} {year}: {n} row(s) cite {src}")
+    wrong_season = off_season + yearless
     check("every formula1.com season page is cited by its own season's rows",
-          held > 0 and not off_season and not yearless,
-          "; ".join((off_season + yearless)[:3]) if held
-          else "no row cites a formula1.com season page")
+          held > 0 and not wrong_season,
+          "; ".join(wrong_season[:3]) if wrong_season
+          else "" if held else "no row cites a formula1.com season page")
     print(f"        formula1.com season pages: {held:,} rows held to their year")
 
 
