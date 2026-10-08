@@ -566,7 +566,7 @@ records", kept so that comparing the two proves a linkage; the database's own
 figures are `chassis.races` and `chassis.wins`, derived from `race_entries`,
 and they stay whatever is decided. The circuit articles are links out, and the
 driver totals sit beside the counts `race_entries` gives. Leaving the claims
-out of the artefact — with the seven columns they mirror left NULL — orphans
+out of the artefact — with the columns they mirror left NULL — orphans
 nothing and costs the comparison and the links. Carrying them is consistent
 with the ruling on the race rows.
 
@@ -601,14 +601,23 @@ F1DB's grand prix of each race and its official title are
 | `race_entries.grid`, `laps_completed` | F1DB's on all but <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives, where this database holds a grid slot or a lap count for the winner that F1DB's row for him leaves blank | those left NULL, or another source for them |
 | `race_entries.entrant` | Wikipedia's house style, constructor and engine; F1DB holds both as ids on every row, and the snapshot names its constructors but not its engine makers. F1DB names the car of the 1957 and 1958 Indianapolis winners Epperly where the article says Salih | the engine makers' names and a rule for the string — or the column left out |
 | `race_entries.pole` | <!-- fig:pole_credits -->1,165<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->682<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,162<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
-| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,164<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->774<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,155<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->8<!-- /fig -->, and names another driver in <!-- fig:fl_f1db_other -->1<!-- /fig -->, open in `discrepancies` | a choice for the races where F1DB differs |
+| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,164<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->774<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,161<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->0<!-- /fig -->, names another driver in <!-- fig:fl_f1db_other -->0<!-- /fig -->, and records as shared, timed alike, <!-- fig:fl_f1db_shares -->3<!-- /fig --> this database credits to one driver, each open in `discrepancies` | a choice for the races where F1DB differs |
+
+**A correction, made in review.** The measurement as it was first put to the
+maintainer counted shared fastest laps of which F1DB named one driver, and a
+race where it named another. Both came from the fetch, which kept the first
+row of each race's fastest-lap classification and dropped the rest of a tie.
+Read whole, F1DB shares every credit this database shares, and the races
+where the two differ are the ones the line above counts: a fastest lap F1DB
+records as shared, timed alike, where the season harvest credits one driver.
+The cost of a rebuild was overstated, not understated.
 
 **What it shows.** F1DB states every race-row fact a rebuild needs except
-five. The grand-prix keys are F1DB's under a crosswalk, which has to be
+the ones below. The grand-prix keys are F1DB's under a crosswalk, which has to be
 written down and has one choice in it, São Paulo. The race names are F1DB's
 grand-prix names, which are not names by year, so a rebuild names the Mexico
 City races for Mexico and accents São Paulo unless a rule says otherwise. The
-`entrant` string's form is Wikipedia's. Three shared drives hold a grid slot
+`entrant` string's form is Wikipedia's. <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives hold a grid slot
 or a lap count F1DB does not. And the fastest-lap credits differ where F1DB
 does. The pole and fastest-lap credits also reach past the race rows the
 ruling counted: they come from the season harvest on every row, so keeping
@@ -621,7 +630,7 @@ The two routes side by side:
 |---|---|---|
 | The database-right question on the race rows | gone: nothing Wikipedia made is in the file | stands, resting on the maker question, the least certain step in the reading above |
 | Built for the artefact | the crosswalk, the name rule if one is wanted, the pole rule, a choice on `entrant`; the fetch is done | nothing |
-| Where the artefact differs from `f1.db` beside it | the fastest lap in <!-- fig:fl_f1db_names_one -->8<!-- /fig --> shared credits and <!-- fig:fl_f1db_other -->1<!-- /fig --> open discrepancy; <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives' grid or laps; the name of <!-- fig:name_f1db_other -->4<!-- /fig --> Mexico City races and the accent on <!-- fig:name_f1db_accents -->4<!-- /fig --> São Paulo ones, unless a rule keeps them; the key of <!-- fig:gp_split_races -->4<!-- /fig --> São Paulo races, if F1DB's split is taken; `entrant` on every row, if it is left out | nowhere |
+| Where the artefact differs from `f1.db` beside it | the fastest lap in the <!-- fig:fl_f1db_shares -->3<!-- /fig --> races F1DB records as shared, each an open discrepancy; <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives' grid or laps; the name of <!-- fig:name_f1db_other -->4<!-- /fig --> Mexico City races and the accent on <!-- fig:name_f1db_accents -->4<!-- /fig --> São Paulo ones, unless a rule keeps them; the key of <!-- fig:gp_split_races -->4<!-- /fig --> São Paulo races, if F1DB's split is taken; `entrant` on every row, if it is left out | nowhere |
 | What stays the same whichever is chosen | `f1.db` itself, under CC BY-SA 4.0; the NULL constructor on <!-- fig:wp_winners_no_constructor -->11<!-- /fig --> Indianapolis winners | |
 
 The two answers on the claims follow the route. A rebuild that keeps
@@ -680,12 +689,18 @@ carried whole. Each is derived:
   F1DB gives the ids it is made of but not the string.
 
 Where the rebuild leaves the artefact unlike `f1.db`, `verify.py` requires
-each difference to be one a rule predicts: the fastest lap where `f1.db`
-credits a shared one or holds an open discrepancy with F1DB; the shared
-drives F1DB leaves blank; dates of birth and death F1DB states and `f1.db`
-does not hold yet (`PM-73`, #931); and one declared disagreement, Bertrand
-Gachot's nationality (`PM-72`, #930). The race keys, names, circuits, dates
-and pole credits agree with `f1.db` on every rebuilt row.
+each difference to be one a rule predicts: the fastest lap in a race where
+`f1.db` holds an open discrepancy with F1DB over it — the races F1DB records
+as shared and the season harvest credits to one driver; the shared drives'
+cells F1DB leaves blank; a credit F1DB does not state yet, which is NULL, not
+a 0; dates of birth and death F1DB states and `f1.db` does not hold yet
+(`PM-73`, #931); and one declared disagreement, Bertrand Gachot's nationality
+(`PM-72`, #930). The race keys, names, circuits, dates and pole credits agree
+with `f1.db` on every rebuilt row, and the circuit of every race F1DB gives a
+layout for is that layout's, whatever the row cites. A discrepancy is carried
+with its assessment and without the two values it compares, which can be an
+article's, and only where the column it is about is carried; the four FOM
+timing tables are out by name.
 `python3 tools/facts_artefact.py --diff` lists every difference, and the
 command without `--diff` the set, table by table.
 

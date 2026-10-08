@@ -926,8 +926,10 @@ class Figures:
 
     def _fl(self):
         """(races with a credit, the same set as F1DB's, F1DB naming one of a
-        shared credit, F1DB naming someone else), against F1DB's fastest lap
-        of the race as tools/f1db_fetch.py wrote it."""
+        shared credit, F1DB naming someone else, F1DB sharing a credit this
+        database gives one driver), against F1DB's fastest lap of the race as
+        tools/f1db_fetch.py wrote it - every row at position 1, a tie being
+        several."""
         if hasattr(self, "_flc"):
             return self._flc
         f1db_id = dict(self.con.execute(
@@ -946,13 +948,15 @@ class Figures:
             ours.setdefault((y, r), set()).add(d)
         same = sum(1 for k, v in ours.items() if theirs.get(k) == v)
         one = sum(1 for k, v in ours.items() if theirs.get(k, v) != v and theirs[k] < v)
-        self._flc = (len(ours), same, one, len(ours) - same - one)
+        wider = sum(1 for k, v in ours.items() if theirs.get(k, v) != v and theirs[k] > v)
+        self._flc = (len(ours), same, one, len(ours) - same - one - wider, wider)
         return self._flc
 
     def fl_credit_races(self):    return n(self._fl()[0])
     def fl_f1db_same(self):       return n(self._fl()[1])
     def fl_f1db_names_one(self):  return n(self._fl()[2])
     def fl_f1db_other(self):      return n(self._fl()[3])
+    def fl_f1db_shares(self):     return n(self._fl()[4])
 
     def fl_credits_elsewhere(self):
         return n(self.count("race_entries", f"fastest_lap = 1 AND NOT {self._WP_RACE}"))

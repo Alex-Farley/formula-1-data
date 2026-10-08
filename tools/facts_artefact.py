@@ -181,13 +181,36 @@ APPARATUS = {
     "meta": "none",
 }
 
+# The four tables of FOM-owned timing, which f1.db holds empty (CLAUDE.md,
+# [D-06]). They are out of the artefact by name, whatever a row in them would
+# cite, so a local build with the timing loaders cannot put one in it.
+FOM_TABLES = ("laps", "stints", "race_timing", "race_control_messages")
+
 # The tables with no source column and no table_provenance row.
+# Each names the columns that are this project's own identifiers and states,
+# beside the prose PM-47 granted; any other column goes, so a column added
+# later is out until it is named here. A discrepancy is carried only where
+# the column it is about is carried, as a claim is.
 UNSOURCED = {
-    "discrepancies": "this project's record of where its sources disagree, and its "
-                     "reading of each; the reading is granted CC BY 4.0 (PM-47)",
-    "known_gaps": "this project's record of what it has not established; every "
-                  "written column is granted CC BY 4.0 (PM-47)",
+    "discrepancies": {
+        "why": "this project's record of where its sources disagree, and its reading of "
+               "each; the reading is granted CC BY 4.0 (PM-47)",
+        "own": ["id", "key", "kind", "subject", "tbl", "row_key", "field", "status"],
+        "about": ("tbl", "field"),
+    },
+    "known_gaps": {
+        "why": "this project's record of what it has not established; every written "
+               "column is granted CC BY 4.0 (PM-47)",
+        "own": ["id", "key", "field", "state", "races_affected"],
+        "about": None,
+    },
 }
+
+# Why the rest of an UNSOURCED table goes.
+UNSOURCED_VALUES = (
+    "not this project's own identifier, state or granted prose: the disagreeing values "
+    "come from whichever sources the row compares - often an article - and the table "
+    "holds no field-grain source for them")
 
 # This project's writing that the prose pass does not measure and neither
 # grant reaches. It stays CC BY-SA 4.0 with the rest of f1.db.
@@ -200,8 +223,6 @@ UNGRANTED = {
     "source_patterns.note": "a note on how a source is recognised, this project's prose",
     "table_provenance.note": "a note on a table's provenance, this project's prose",
     "provenance.definition": "what each confidence tier means, this project's prose",
-    "discrepancies.status_note": "a note on a disagreement's status, not granted with "
-                                 "the assessment",
     "drivers.provenance": "build.py's account of how a driver entered the register",
     "drivers.external_source": "names where the external totals came from, two of "
                                "which are Wikipedia's and left out",
@@ -232,7 +253,8 @@ RECOUNTED = {
     "drivers.poles": "race_entries.pole",
     "drivers.fastest_laps": "race_entries.fastest_lap",
     "constructors.poles": "race_entries.pole",
-    "records": "race_entries.pole, race_entries.fastest_lap",
+    "records": "the whole table: build.py's record definitions, run on the artefact's own "
+               "rows (one, the longest circuit, also reads circuit_layouts, which is out)",
 }
 
 # The seasons in which a sprint weekend's pole went to the fastest qualifier
@@ -242,6 +264,12 @@ RECOUNTED = {
 # qualifying sets the grid at a sprint weekend too (qualifying_formats), and
 # pole is the car starting first, as at any other race.
 POLE_TO_FASTEST_QUALIFIER = {2022}
+
+# A shared drive's winner row in f1.db is the driver's F1DB rows merged: the
+# position-1 row and the other car's. F1DB's position-1 row leaves these
+# blank where the other car's filled them, and the ruling leaves them NULL on
+# a rebuilt row rather than filling them from the stored one.
+SHARED_DRIVE_BLANKS = ("grid", "grid_text", "laps_completed", "status")
 
 # The one race name F1DB's grand prix does not give: F1DB files the Mexico
 # City Grand Prix under its Mexican Grand Prix and names the city only in the
@@ -328,7 +356,9 @@ def declare(con):
     out = {}
     for t in _tables(con):
         cols = [c for c, _ in _columns(con, t)]
-        if t in APPARATUS:
+        if t in FOM_TABLES:
+            rows, why = "none", "FOM's timing data, which f1.db holds empty and the artefact never carries"
+        elif t in APPARATUS:
             rows, why = APPARATUS[t], "the database's description of itself"
             if rows == "none":
                 why = "states f1.db's own version and terms; PD-54 writes the artefact's"
@@ -352,7 +382,7 @@ def declare(con):
             else:
                 rows, why = "none", f"table_provenance: source {tp[t]} is share-alike or not redistributable"
         elif t in UNSOURCED:
-            rows, why = "all", UNSOURCED[t]
+            rows, why = "all", UNSOURCED[t]["why"]
         else:
             rows, why = None, "no source column, no provenance row and no declaration"
         out[t] = {"rows": rows, "why": why, "resourced": t in RESOURCED,
@@ -401,6 +431,10 @@ def declare(con):
                     drop[c] = why
                 else:
                     d["nulled"][c] = f"{claimed[(t, c)]} cells: {why}"
+        if t in UNSOURCED:
+            for c in cols:
+                if c not in UNSOURCED[t]["own"] and f"{t}.{c}" not in grant:
+                    drop.setdefault(c, UNSOURCED_VALUES)
         if t in SPANS:
             governs, first, last = SPANS[t]
             span = cols[cols.index(first):cols.index(last) + 1]
@@ -422,10 +456,14 @@ def declare(con):
     # A claim is carried where its source is and the column it is about is
     # carried too; a claim about a column the artefact does not hold is
     # about nothing in it.
+    about = ", ".join(sorted(f"'{t}.{c}'" for t, d in out.items()
+                             if d["rows"] not in (None, "none") for c in d["columns"]))
     if out.get("claims", {}).get("rows") == "by source":
-        about = sorted(f"'{t}.{c}'" for t, d in out.items()
-                       if d["rows"] not in (None, "none") for c in d["columns"])
-        out["claims"]["where"] += f" AND tbl || '.' || field IN ({', '.join(about)})"
+        out["claims"]["where"] += f" AND tbl || '.' || field IN ({about})"
+    for t, spec in UNSOURCED.items():
+        if spec["about"] and out.get(t, {}).get("rows") == "all":
+            a, b = spec["about"]
+            out[t]["where"] = f"{a} || '.' || {b} IN ({about})"
     return out
 
 
@@ -496,7 +534,7 @@ def register_names(con):
     event and each spelling of it the register holds."""
     names = {}
     for gid, name, aliases in con.execute("SELECT id, name, aliases FROM grands_prix"):
-        for n in [name] + [a for a in re.split(r"\s*;\s*", aliases or "") if a]:
+        for n in [name] + [a for a in re.split(r"\s*[;,]\s*", aliases or "") if a]:
             names.setdefault(_fold(n), {}).setdefault(gid, []).append(n)
     return names
 
@@ -529,7 +567,7 @@ def _name_from_title(con, gp_id, official):
     title names by its city, where it holds one."""
     aliases = con.execute("SELECT aliases FROM grands_prix WHERE id = ?",
                           (gp_id,)).fetchone()
-    held = set(re.split(r"\s*;\s*", aliases[0] or "")) if aliases else set()
+    held = set(re.split(r"\s*[;,]\s*", aliases[0] or "")) if aliases else set()
     for phrase, name in OFFICIAL_TITLE_NAMES.items():
         if phrase in (official or "") and name in held:
             return name
@@ -563,6 +601,14 @@ def rebuild(con):
     for rid, y, r, sid in con.execute("SELECT id, year, round, source_id FROM races"):
         race_key[rid] = (y, r)
         if sid in carried:
+            # The venue harvest reads every season's articles, so a race
+            # citing formula1.com can still hold the article's circuit
+            # (2025's do). Wherever F1DB gives the layout, the circuit is the
+            # layout's; a race it gives none is on a formula1.com calendar
+            # (CALENDARS), which verify.py holds.
+            layout = src.layout.get((y, r))
+            if layout:
+                out["races"][rid] = {"circuit_id": layout_circuit.get(layout)}
             continue
         g = src.gp.get((y, r))
         gp_id = name = None
@@ -606,24 +652,36 @@ def rebuild(con):
     # except where the record credits the fastest qualifier: a sprint weekend
     # of a season in POLE_TO_FASTEST_QUALIFIER, and a race with no car on
     # grid 1, where the pole-sitter did not start (schema.sql, WHAT 'POLE'
-    # MEANS HERE). The fastest lap is F1DB's, which names one driver for
-    # each race.
+    # MEANS HERE). The fastest lap is F1DB's: every driver at position 1 of
+    # its fastest-lap classification, so a tie is shared as F1DB shares it.
+    # A race F1DB holds no classification of yet - a round run since its
+    # release - has neither credit established, and its cells are NULL
+    # rather than a 0 saying nobody took pole; so is the fastest lap of a
+    # race F1DB gives none for (2021 Belgium, where no racing lap was set).
     entries = {}
     for eid, rid, did in con.execute("SELECT id, race_id, driver_id FROM race_entries"):
         entries[(rid, did)] = eid
-    credit = {eid: {"pole": 0, "fastest_lap": 0, "fastest_lap_shared": None}
+    credit = {eid: {"pole": None, "fastest_lap": None, "fastest_lap_shared": None}
               for eid in entries.values()}
+    by_race = {}
+    for (rid, _d), eid in entries.items():
+        by_race.setdefault(rid, []).append(eid)
     for rid, (y, r) in race_key.items():
         grid_one = [x["driver_id"] for x in src.results.get((y, r), []) if x["grid"] == "1"]
         quickest = [x["driver_id"] for x in src.qualifying.get((y, r), [])
                     if x["position"] == "1"]
         sprint_sets_grid = y in POLE_TO_FASTEST_QUALIFIER and (y, r) in src.sprints
         poles = grid_one if grid_one and not sprint_sets_grid else quickest
+        fl = [x["driver_id"] for x in src.fastest.get((y, r), [])]
+        for eid in by_race.get(rid, []):
+            if poles:
+                credit[eid]["pole"] = 0
+            if fl:
+                credit[eid]["fastest_lap"] = 0
         for d in poles:
             eid = entries.get((rid, src.ours(d)))
             if eid is not None:
                 credit[eid]["pole"] = 1
-        fl = [x["driver_id"] for x in src.fastest.get((y, r), [])]
         for d in fl:
             eid = entries.get((rid, src.ours(d)))
             if eid is not None:

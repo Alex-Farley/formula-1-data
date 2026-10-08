@@ -4692,38 +4692,49 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
     fl_filled = 0
     fl_no_entry = 0
     fl_disagreements = []
+    # F1DB writes a tie as several rows at position 1, so a race's fastest
+    # lap is the set of its rows, and a share is how many there are.
+    f1db_fl = {}
     for h in HV.load_fastest_laps():
-        rid = b.race_for(h["year"], h["round"], "fastest laps")
+        f1db_fl.setdefault((h["year"], h["round"]), []).append(h)
+    for (yr_, rnd_), hs in f1db_fl.items():
+        rid = b.race_for(yr_, rnd_, "fastest laps")
         if rid is None:
-            continue
-        did = f1db_drivers.get(h["driver_id"])
-        if not did:
             continue
         held = [r[0] for r in cur.execute(
             "SELECT driver_id FROM race_entries WHERE race_id=? AND "
             "fastest_lap=1", (rid,))]
-        if held:
-            if did not in held:
-                fl_disagreements.append(
-                    (h["year"], h["round"], held[0], did))
-            continue
-        row = cur.execute("SELECT id FROM race_entries WHERE race_id=? AND "
-                          "driver_id=?", (rid, did)).fetchone()
-        if row is None:
-            # F1DB names a driver this database has no entry for in that
-            # race. Inventing the entry to hang a fastest lap on it would be
-            # asserting a start nothing here supports, so it is counted and
-            # skipped.
-            fl_no_entry += 1
-            continue
-        cur.execute("UPDATE race_entries SET fastest_lap=1, "
-                    "fastest_lap_shared=1 WHERE id=?", (row[0],))
-        fl_filled += 1
+        for h in hs:
+            did = f1db_drivers.get(h["driver_id"])
+            if not did:
+                continue
+            if held:
+                if did not in held:
+                    fl_disagreements.append(
+                        (h["year"], h["round"], held[0], did, len(hs) > 1))
+                continue
+            row = cur.execute("SELECT id FROM race_entries WHERE race_id=? AND "
+                              "driver_id=?", (rid, did)).fetchone()
+            if row is None:
+                # F1DB names a driver this database has no entry for in that
+                # race. Inventing the entry to hang a fastest lap on it would
+                # be asserting a start nothing here supports, so it is counted
+                # and skipped.
+                fl_no_entry += 1
+                continue
+            cur.execute("UPDATE race_entries SET fastest_lap=1, "
+                        "fastest_lap_shared=? WHERE id=?", (len(hs), row[0]))
+            fl_filled += 1
 
-    for yr_, rnd_, ours_, theirs_ in fl_disagreements:
+    for yr_, rnd_, ours_, theirs_, shared_ in fl_disagreements:
         status_, note_, assessment_ = HV.FASTEST_LAP_DISAGREEMENTS.get(
             (int(yr_), int(rnd_)),
             ("open", None,
+             "F1DB records the fastest lap of the race as shared, timed the "
+             "same to the tenth, and the pole harvest credits one of the "
+             "drivers alone. The harvest keeps the slot because it is "
+             "hand-checked and older; the shared reading is recorded here so "
+             "somebody can look at it." if shared_ else
              "The pole harvest and F1DB name different drivers as setting "
              "the fastest lap of the race. Both are describing the same "
              "thing, so one of them is wrong. The harvest keeps the slot "

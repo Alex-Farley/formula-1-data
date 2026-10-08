@@ -670,8 +670,13 @@ def fastest_lap_rows(data, yaml):
 
     F1DB shapes fastest-laps.yml as a classification, so the fastest lap of
     the race is the row at position 1; the rest order the field behind it and
-    are not this database's concern. build.py fills only where the harvest is
-    silent, and records a discrepancy where the two disagree.
+    are not this database's concern. A tie is several rows at position 1 -
+    the seven drivers who shared the 1954 British Grand Prix's, timed to the
+    second - and every one of them is written. Until PD-53 this kept the
+    first and stopped, so F1DB looked as though it named one driver of every
+    shared fastest lap, and 1970 round 1 looked like a disagreement over who
+    set it rather than over whether it was shared. build.py fills only where
+    the harvest is silent, and records a discrepancy where the two disagree.
 
     Eleven races have no such file, and all eleven are correct: 2021 Belgium,
     where no racing lap was ever set and the null is declared in known_gaps,
@@ -685,7 +690,6 @@ def fastest_lap_rows(data, yaml):
             rows.append("|".join(_clean(v) for v in (
                 year, rnd, r.get("driverId"), r.get("constructorId"),
                 r.get("lap"), r.get("time"))))
-            break
     return rows
 
 

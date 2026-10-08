@@ -5280,6 +5280,12 @@ def facts_artefact():
     grant = fa.granted()
     cols_of = {t: [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')] for t in decl}
 
+    # Named here as well as there, so that narrowing the declaration fails.
+    fom = [t for t in ("laps", "stints", "race_timing", "race_control_messages")
+           if decl.get(t, {}).get("rows") != "none"]
+    check("the facts artefact leaves out the four FOM timing tables by name", not fom,
+          ", ".join(fom))
+
     undeclared = sorted(t for t, d in decl.items() if d["rows"] is None)
     check("every table has a declared place in the facts artefact", not undeclared,
           ", ".join(undeclared))
@@ -5299,6 +5305,11 @@ def facts_artefact():
         t, _, c = name.partition(".")
         if any(f[3] == c for f in con.execute(f'PRAGMA foreign_key_list("{t}")')):
             stale.append(f"{name} (the schema keys it already)")
+    for t, spec in fa.UNSOURCED.items():
+        stale += [f"{t}.{c}" for c in spec["own"] + list(spec["about"] or ())
+                  if c not in cols_of.get(t, ())]
+    stale += [f"race_entries.{c}" for c in fa.SHARED_DRIVE_BLANKS
+              if c not in cols_of["race_entries"]]
     for (d, c) in fa.DRIVER_DIFFERENCES:
         if c not in cols_of["drivers"] or not con.execute(
                 "SELECT 1 FROM drivers WHERE id = ?", (d,)).fetchone():
@@ -5357,6 +5368,22 @@ def facts_artefact():
                       if c not in decl[t]["columns"]]
     check("every column of a table the facts artefact rebuilds says what it is on a rebuilt row",
           not unclassed, ", ".join(unclassed))
+
+    # And the class is what rebuild() does: a column classed as rebuilt is
+    # given a value on every rebuilt row, and a column rebuild() replaces is
+    # classed as one it may replace.
+    replaced = ("f1db", "rule", "null", "cited")
+    misclassed = set()
+    for t, spec in fa.RESOURCED.items():
+        rows = [r for r in rebuilt[t].values() if "source_id" in r]
+        for c, k in spec["columns"].items():
+            if c not in decl[t]["columns"]:
+                continue
+            given = sum(1 for r in rows if c in r)
+            if (k in replaced) != (given == len(rows) and bool(rows)):
+                misclassed.add(f"{t}.{c} ({k}, rebuilt on {given} of {len(rows)})")
+    check("every class of a rebuilt column is what the rebuild does with it",
+          not misclassed, ", ".join(sorted(misclassed)))
     unbacked = []
     for t, spec in fa.RESOURCED.items():
         for c, k in spec["columns"].items():
@@ -5412,6 +5439,24 @@ def facts_artefact():
         print(f"  [info] {about} claims carried")
         check("every claim the facts artefact carries is about a column it carries",
               not stray, ", ".join(stray))
+    for t, spec in fa.UNSOURCED.items():
+        if not spec["about"] or decl[t]["rows"] != "all":
+            continue
+        a, b = spec["about"]
+        stray = [f"{x}.{y}" for x, y in con.execute(
+            f'SELECT DISTINCT "{a}", "{b}" FROM "{t}" WHERE {decl[t]["where"]}')
+            if y not in decl.get(x, {}).get("columns", ())]
+        check(f"every {t} row the facts artefact carries is about a column it carries",
+              not stray, ", ".join(stray))
+
+    # A race whose circuit the rebuild does not take from F1DB's layout is on
+    # a formula1.com calendar, not the venue harvest's.
+    from data import current as _N
+    no_layout = [f"{y} r{r}" for rid, y, r in con.execute(
+        "SELECT id, year, round FROM races ORDER BY year, round")
+        if "circuit_id" not in rebuilt["races"].get(rid, {}) and y not in _N.CALENDARS]
+    check("every race whose circuit is not F1DB's layout's is on a formula1.com calendar",
+          not no_layout, ", ".join(no_layout[:6]))
     for t, (governs, first, last) in fa.SPANS.items():
         span = cols_of[t][cols_of[t].index(first):cols_of[t].index(last) + 1]
         loose = [c for c in span if con.execute(
@@ -5470,14 +5515,11 @@ def facts_artefact():
     shared = {rid for (rid,) in con.execute(
         "SELECT id FROM race_entries WHERE shared_drive = 1")}
     race_of = dict(con.execute("SELECT id, race_id FROM race_entries").fetchall())
-    shared_fl = {r for (r,) in con.execute(
-        "SELECT race_id FROM race_entries WHERE fastest_lap_shared > 1")}
     open_fl = {int(k) for (k,) in con.execute(
         "SELECT row_key FROM discrepancies WHERE tbl = 'race_entries' "
         "AND field = 'fastest_lap' AND status = 'open'")}
     src = fa.F1DB(con)
-    held = {rid for rid, y, r in con.execute("SELECT id, year, round FROM races")
-            if (y, r) in src.results}
+    key_of = {rid: (y, r) for rid, y, r in con.execute("SELECT id, year, round FROM races")}
     unexplained, notes = [], Counter()
     cells = fa.claimed_cells(con)
     for (t, c), rows in sorted(by.items()):
@@ -5485,14 +5527,18 @@ def facts_artefact():
         for rid, ours, theirs in rows:
             if kind == "null" and theirs is None:
                 notes[f"{t}.{c} not established"] += 1
-            elif t == "race_entries" and kind == "f1db" and theirs is None and rid in shared:
+            elif t == "race_entries" and c in fa.SHARED_DRIVE_BLANKS and theirs is None \
+                    and rid in shared:
                 notes["shared drives' F1DB row blank"] += 1
             elif t == "race_entries" and c in ("fastest_lap", "fastest_lap_shared") \
-                    and (race_of[rid] in shared_fl or race_of[rid] in open_fl):
-                notes["fastest laps F1DB credits otherwise"] += 1
-            elif t == "race_entries" and c in ("pole", "fastest_lap", "fastest_lap_shared") \
-                    and race_of[rid] not in held:
-                notes["credits on races F1DB's release does not yet hold"] += 1
+                    and race_of[rid] in open_fl:
+                notes["fastest laps in an open discrepancy with F1DB"] += 1
+            elif t == "race_entries" and c == "pole" and theirs is None \
+                    and key_of[race_of[rid]] not in src.results:
+                notes["poles on races F1DB's release does not yet hold"] += 1
+            elif t == "race_entries" and c in ("fastest_lap", "fastest_lap_shared") \
+                    and theirs is None and key_of[race_of[rid]] not in src.fastest:
+                notes["fastest laps F1DB does not state"] += 1
             elif theirs is None and c in decl[t]["nulled"] and (t, str(rid), c) in cells:
                 notes["values a claim cites a share-alike source for"] += 1
             elif t == "drivers" and c in ("born", "died") and ours is None:
