@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { FOLD_NOUN, UNFOLDED } from '../lib/table.js'
 import { Dated, RaceDates } from '../components/Dates.jsx'
 import { OutlineCard, OutlineStrip } from '../components/Outline.jsx'
 import { outlineCaption } from '../lib/outline.js'
@@ -436,6 +437,7 @@ function SeasonBody({ year, season, data }) {
           the table that carries the facts (AF-03, PD-28). */}
       <OutlineStrip year={year} calendar={calendar} />
       <DataTable
+        unfolded={UNFOLDED.subject}
         rows={calendar}
         rowKey={(row) => row.round}
         sortable={false}
@@ -448,6 +450,7 @@ function SeasonBody({ year, season, data }) {
     <div className="split">
       <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
         <DataTable
+          unfolded={UNFOLDED.subject}
           rows={driversFinal}
           rowKey={(row) => row.driver_id ?? row.entity}
           sortable
@@ -469,6 +472,7 @@ function SeasonBody({ year, season, data }) {
           </Note>
         ) : (
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={constructorsFinal}
             rowKey={(row) => row.id}
             sortable
@@ -580,6 +584,7 @@ function SeasonBody({ year, season, data }) {
               is the order the table opens in, and the static page prints the
               rows as they come. */}
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={currentGrid}
             rowKey={(row) => row.id}
             sortable
@@ -602,6 +607,7 @@ function SeasonBody({ year, season, data }) {
             in, and the static page prints the rows as they come. The header
             says so without re-sorting them. */}
         <DataTable
+          fold={FOLD_NOUN.entrants}
           rows={entrants}
           rowKey={(row) => row.id}
           sortable

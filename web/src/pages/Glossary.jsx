@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import { SportNav } from '../components/SubNav.jsx'
 import { Chips, Filters, NoMatch, SearchField } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -97,6 +98,7 @@ function Body({ glossary, personnel }) {
             the table opens in, and the static page prints the rows as they come.
             The header says so without re-sorting them (CR-28). */}
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={filtered}
           rowKey={(row) => row.term}
           sortable
@@ -109,6 +111,7 @@ function Body({ glossary, personnel }) {
 
       <Section title="People" count={`${personnel.length}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={personnel}
           rowKey={(row) => row.id}
           sortable

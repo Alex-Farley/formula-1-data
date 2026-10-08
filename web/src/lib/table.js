@@ -228,9 +228,13 @@ export const folds = (count) => count > FOLD_OVER
  * fold declared without one.
  */
 export const FOLD_NOUN = {
+  champions: 'champions',
   constructors: 'constructors',
   designs: 'designs',
+  editions: 'editions',
+  entrants: 'entrants',
   entries: 'entries',
+  grandSlams: 'grand slams',
   practice: 'sessions',
   races: 'races',
   seasons: 'seasons',
@@ -246,6 +250,83 @@ export const FOLD_NOUN = {
  * smoke suite fails on.
  */
 export const isFoldNoun = (fold) => Object.values(FOLD_NOUN).includes(fold)
+
+/**
+ * THE FOLD IS THE ONE REVEAL CONTROL, ON ANY TABLE OVER FOLD_OVER (VD-82).
+ *
+ * VD-69 folded the tables a page asked to have folded, and so a car's *Every
+ * entry* (36 rows) showed in full while a driver's (51) folded, and a Grand
+ * Prix's 78 editions paged behind a bordered "Show the remaining" (DP-06,
+ * interaction critique I7). The rule is now the other way round: a table over
+ * FOLD_OVER rows folds, naming its noun, unless it declares why not - one of
+ * the reasons below, in DataTable's `unfolded` or prerender's option of the
+ * same name, so the two halves read one list. A table that does neither is
+ * refused: scripts/prerender.js stops the build, over every prerendered route,
+ * and DataTable logs the error the smoke suite fails on.
+ *
+ * "Show the remaining N" survives only on a table that has opted out, where
+ * the table is the page and opens on a page of rows rather than ten.
+ */
+export const UNFOLDED = {
+  // The four registers, /seasons and the race index: the page IS the table,
+  // and it opens on a page of rows (IA-08). DataTable reads `addressed` as
+  // this reason, since an addressed table is a register by definition.
+  register: 'register',
+  // The table the page is for: a race's classification, its qualifying, its
+  // sprint, its practice sheets and its pit order, and a season's calendar,
+  // standings and grid. The row a reader came for is as often 18th as 1st
+  // (PD-57), and ten of them would be a page that hides its own subject.
+  subject: 'subject',
+  // The reference lists - the glossary, the eras, /data's quality and sources,
+  // /changes - which a reader filters or reads through: the list is the page.
+  reference: 'reference',
+  // A table that stands for a drawing the app makes whole: the numbers behind
+  // a chart, behind a disclosure of their own in the app, and the static
+  // page's table of the /cars gallery, which the app draws as cards.
+  figure: 'figure',
+  // The SQL console's result, which is the reader's own statement's.
+  console: 'console',
+}
+
+/** Is this a reason a table may give for not folding? */
+export const isUnfolded = (reason) => Object.values(UNFOLDED).includes(reason)
+
+/**
+ * A table of this many rows that declares neither a fold nor a reason: the
+ * one both halves refuse. `null` when the table is in order, otherwise what
+ * is wrong with it, for the error.
+ */
+export function foldFault(count, fold, unfolded) {
+  if (fold && !isFoldNoun(fold)) return `fold ${String(fold)} is not a FOLD_NOUN value (CD-52)`
+  if (unfolded && !isUnfolded(unfolded)) return `unfolded ${String(unfolded)} is not an UNFOLDED reason (VD-82)`
+  if (fold && unfolded) return 'declares both a fold and a reason not to fold (VD-82)'
+  if (!fold && !unfolded && folds(count)) {
+    return `${count} rows, over ${FOLD_OVER}, with no fold and no UNFOLDED reason (VD-82)`
+  }
+  return null
+}
+
+/**
+ * A TABLE'S STATE IN THE ADDRESS, KEYED BY ITS NAME (VD-82, IX-46).
+ *
+ * The registers keep their sort and their expansion in the address (IA-08);
+ * an entity page's tables kept neither, so Back after opening *Every entry*
+ * on /drivers/hamilton and following row 200 closed the fold and restored the
+ * scroll against a page a tenth as tall, in the footer. One set of bare
+ * parameters names one table, and a driver's page has seven, so each table
+ * takes its name as a prefix: `?every-entry.all=1&every-entry.sort=year`.
+ *
+ * The name is the one both halves already give the table - the heading above
+ * it, DataTable's `name` - so the key a reader sends is the heading they can
+ * see, spelled the way an address can carry it.
+ */
+export const tableKey = (name) =>
+  String(name ?? '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 
 /** The disclosure's two faces, closed and open, as both halves print them. */
 export const foldMore = (count, noun) =>

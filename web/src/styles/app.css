@@ -958,6 +958,15 @@ th.sortable button {
   color: inherit;
 }
 
+/* AX-31. `all: unset` takes the global ring with everything else and
+   outranks it, so the sort button draws its own - inside the header, like
+   .table-scroll's, because the header cell is flush with its neighbours and
+   .table-wrap clips what overflows it. */
+th.sortable button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 th.num.sortable button {
   justify-content: flex-end;
 }
@@ -2727,6 +2736,12 @@ textarea.sql {
   color: var(--ink-soft);
   border: 1px solid var(--rule);
   margin-bottom: var(--space-3);
+}
+
+/* The same finding as the sort buttons (AX-31): the unset took the ring. */
+.example:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .example:hover {

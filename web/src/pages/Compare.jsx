@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { FOLD_NOUN } from '../lib/table.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { Select } from '../components/Filters.jsx'
 import { row, rows, useQueries, useQuery } from '../data/useQuery.js'
@@ -163,6 +164,7 @@ function Pair({ data }) {
       <Section title="As team-mates" note={summary ?? neverTeamMates(nameA, nameB)}>
         {together.length > 0 && (
           <DataTable
+            fold={FOLD_NOUN.teamMates}
             rows={together}
             rowKey={(entry) => `${entry.year}-${entry.constructor_id}`}
             columns={pairColumns}

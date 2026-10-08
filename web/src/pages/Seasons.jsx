@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { TitleRaceSpark } from '../charts/Spark.jsx'
 import { useQuery } from '../data/useQuery.js'
@@ -114,6 +115,7 @@ export default function Seasons() {
         <Result state={state} skeleton>
           {(data) => (
             <DataTable
+              unfolded={UNFOLDED.register}
               data={data}
               rowKey={(row) => row.year}
               sort="year"

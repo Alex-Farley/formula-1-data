@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
 import { DOCUMENTS, IN_THIS_TAB, LABELS, REPLACED } from '../src/lib/site.js'
-import { FOLD_NOUN, FOLD_TO } from '../src/lib/table.js'
+import { FOLD_NOUN, FOLD_TO, UNFOLDED } from '../src/lib/table.js'
 import { measurement } from '../scripts/measurement.js'
 import {
   ACCENT_APART,
@@ -1861,8 +1861,6 @@ describe('the design system holds its grid: widths, breakpoints and tokens (VD-7
   // their place on every element it matches. axe cannot see this; the sort
   // buttons went without a ring from 5 September to the design pass.
   const NO_RING = {
-    'th.sortable button': 'the column-sort buttons: AX-31 (#863), folded into step 5, the one reveal control (#869)',
-    '.example': "the SQL console's examples: the same finding (#863, #869)",
     '.page h1:focus': 'not a control: the h1 takes focus on navigation so a screen reader announces the page',
     '.app > main:focus': 'not a control: main takes focus from the skip link, for the same reason',
     '.palette input:focus': "the search palette's one field, which holds focus from the moment the dialog opens; its caret is the cue",
@@ -2060,6 +2058,37 @@ describe('an exhaustive list folds at the number lib/table.js names (VD-69)', ()
     }
     assert.deepEqual(unnamed, [], 'a fold whose button counts rows without saying what they are')
     assert.ok(named >= 20, `the scan found the folds it is guarding, ${named} of them`)
+  })
+
+  // VD-82, DP-06: the fold is the one reveal control, on any table over
+  // FOLD_OVER rows, and a table that does not fold says why from one list.
+  // Which tables are over the threshold is the data's to say, so that half
+  // is held where the rows are: prerender.js refuses an unclassified one on
+  // every route it writes, and DataTable logs the error smoke.mjs fails on.
+  // This holds the words: every reason given is one UNFOLDED names, in both
+  // halves, and every reason UNFOLDED names is given somewhere.
+  it('every table that does not fold gives an UNFOLDED reason, in both halves (VD-82)', () => {
+    const files = [
+      ...sourceFiles(join(web, 'src', 'pages'), /\.jsx$/),
+      join(web, 'src', 'charts', 'Figure.jsx'),
+      join(web, 'scripts', 'prerender.js'),
+    ]
+    const wrong = []
+    const given = new Set()
+    for (const file of files) {
+      const source = read(file)
+      const line = (index) => source.slice(0, index).split('\n').length
+      for (const match of source.matchAll(/\bunfolded(?:=\{([^}\n]*)\}|:\s*([^,}\s]+))/g)) {
+        const value = match[1] ?? match[2]
+        const key = /^UNFOLDED\.(\w+)$/.exec(value)?.[1]
+        if (key && key in UNFOLDED) given.add(key)
+        else wrong.push(`${rel(file)}:${line(match.index)} unfolded ${value}`)
+      }
+    }
+    assert.deepEqual(wrong, [], 'a reason not to fold that is not one of UNFOLDED in lib/table.js')
+    // `register` is also DataTable's own default for an addressed table.
+    const unused = Object.keys(UNFOLDED).filter((key) => !given.has(key))
+    assert.deepEqual(unused, [], 'an UNFOLDED reason no table gives: take it out')
   })
 })
 

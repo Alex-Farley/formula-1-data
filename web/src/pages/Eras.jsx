@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Confidence, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import { SportNav } from '../components/SubNav.jsx'
 import { Chips } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -139,6 +140,7 @@ function Body({ data }) {
 
       <Section title="Engine formulae" count={`${engines.length}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={engines}
           rowKey={(row) => row.id}
           sortable={false}
@@ -151,7 +153,7 @@ function Body({ data }) {
         count={`${points.length}`}
         note={POINTS_NOTE}
       >
-        <DataTable rows={points} rowKey={(row) => row.id} sortable={false} columns={POINTS_COLUMNS} />
+        <DataTable unfolded={UNFOLDED.reference} rows={points} rowKey={(row) => row.id} sortable={false} columns={POINTS_COLUMNS} />
       </Section>
 
       <Section title="Regulation changes" count={`${regulations.length}`}>
@@ -164,6 +166,7 @@ function Body({ data }) {
           />
         </div>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={shownRegulations}
           rowKey={(row) => row.id}
           sort="year"
@@ -179,6 +182,7 @@ function Body({ data }) {
         note={LIMITS_NOTE}
       >
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={limits}
           rowKey={(row) => `${row.field}-${row.from_year}`}
           sortable
@@ -190,6 +194,7 @@ function Body({ data }) {
 
       <Section title="Technical innovations" count={`${innovations.length}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={innovations}
           rowKey={(row) => row.id}
           sort="year"
@@ -220,6 +225,7 @@ function Body({ data }) {
 
       <Section title="Governance" count={`${governance.length}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={governance}
           rowKey={(row) => row.id}
           sort="year"
@@ -231,6 +237,7 @@ function Body({ data }) {
 
       <Section title="Tyre suppliers" count={`${tyres.length}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={tyres}
           rowKey={(row) => row.id}
           sort="from_year"

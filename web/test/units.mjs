@@ -26,7 +26,20 @@ import { CONSTRUCTORS_LEDE } from '../src/queries/constructors.js'
 import { CIRCUITS_LEDE } from '../src/queries/circuits.js'
 import { CARS_LEDE } from '../src/queries/cars.js'
 
-import { MIN_ROWS, cellText, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
+import {
+  FOLD_NOUN,
+  FOLD_OVER,
+  MIN_ROWS,
+  UNFOLDED,
+  cellText,
+  chosenColumns,
+  defaultColumns,
+  foldFault,
+  onPhone,
+  shared,
+  sharedLine,
+  tableKey,
+} from '../src/lib/table.js'
 import { captureOpenFolds, captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
 
 import {
@@ -1893,6 +1906,39 @@ describe('a register in the address bar', () => {
     // A register whose default is not the empty one falls back to its own.
     assert.equal(oneOf('1730', ['2020', '2010'], '2020'), '2020')
     assert.equal(oneOf('2010', ['2020', '2010'], '2020'), '2010')
+  })
+})
+
+/*
+ * VD-82, IX-46. Every other table keeps its state in the address too, under
+ * its own name, and folds past FOLD_OVER rows unless it says why not.
+ */
+describe('a table in the address, and the one reveal control (VD-82)', () => {
+  it('keys a table by the heading a reader can see, spelled for an address', () => {
+    assert.equal(tableKey('Every entry'), 'every-entry')
+    assert.equal(tableKey("Final drivers' standings"), 'final-drivers-standings')
+    assert.equal(tableKey('Räikkönen — 2007 '), 'raikkonen-2007')
+    assert.equal(tableKey(''), '')
+    assert.equal(tableKey(null), '')
+  })
+
+  it('writes a keyed table down as a register is written, and leaves the others', () => {
+    const keyed = { 'every-entry.sort': '', 'every-entry.dir': '', 'every-entry.all': false }
+    const next = writeState(new URLSearchParams('every-win.all=1'), { 'every-entry.all': true, 'every-entry.sort': 'year', 'every-entry.dir': 'asc' }, keyed)
+    assert.equal(String(next), 'every-win.all=1&every-entry.all=1&every-entry.sort=year&every-entry.dir=asc')
+    // Back to the table's own order: nothing left behind but the other table.
+    assert.equal(String(writeState(next, { 'every-entry.sort': '', 'every-entry.dir': '', 'every-entry.all': false }, keyed)), 'every-win.all=1')
+  })
+
+  it('refuses a long table that neither folds nor says why', () => {
+    const over = FOLD_OVER + 1
+    assert.equal(foldFault(FOLD_OVER, false, null), null, 'at the threshold, nothing to say')
+    assert.match(foldFault(over, false, null), /no fold and no UNFOLDED reason/)
+    assert.equal(foldFault(over, FOLD_NOUN.entries, null), null)
+    assert.equal(foldFault(over, false, UNFOLDED.register), null)
+    assert.match(foldFault(over, 'rows', null), /not a FOLD_NOUN value/)
+    assert.match(foldFault(3, false, 'because'), /not an UNFOLDED reason/)
+    assert.match(foldFault(over, FOLD_NOUN.entries, UNFOLDED.subject), /both/)
   })
 })
 

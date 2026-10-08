@@ -44,10 +44,10 @@ it is, so that nobody holds new work to a rule that has not landed:
 
 §1's principles bind from adoption. The steps: VD-78 (#865, the grid, the
 measure and the design-system tests), VD-79 (#866, tiles, one page
-header and the handover), VD-80 (#867, one figure grammar) and VD-81 (#868,
-one vocabulary) are built. Pending are VD-82 (#869, one reveal control, with sort and fold in the
-address), VD-83 (#870, one section order per page type) and VD-84 (#871, the
-opening slot and the middle type register); VD-86 (#884) holds the core
+header and the handover), VD-80 (#867, one figure grammar), VD-81 (#868,
+one vocabulary) and VD-82 (#869, one reveal control, with sort and fold in
+the address) are built. Pending are VD-83 (#870, one section order per page
+type) and VD-84 (#871, the opening slot and the middle type register); VD-86 (#884) holds the core
 rules none of the seven named. **A step's pull request moves
 the sections it builds from pending to built**, in this file, in the same
 change.
@@ -353,7 +353,7 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
-### Table (core) — pending (VD-82); its caption is built (AX-21)
+### Table (core) — built (VD-82, AX-21), but for sticky heads (VD-89 #901) and its width beside the race outline (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -363,11 +363,20 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
     on the right;
   - the **fold**.
 - **The fold is the one reveal control.** It applies to any table over 25
-  rows unless the page opts out with a reason. Its button names its noun:
-  *Show all 74 team-mate seasons*. It replaces the paged *Show the remaining
-  144* on `/records`.
-- **Sort buttons show focus** (**floor**, 2.4.7). Until VD-82, the sort
-  buttons are declared ringless in `conventions.mjs`'s focus test, beside
+  rows (`FOLD_OVER`) unless the table opts out with a reason. Its button
+  names its noun from `FOLD_NOUN`: *Show all 74 team-mate seasons*. It
+  replaced the paged *Show the remaining 144* on `/records`.
+  - **The reasons are one list,** `UNFOLDED` in `lib/table.js`, given as
+    DataTable's `unfolded` and prerender's option of the same name: a
+    register (the page is the table, and it opens on a page of rows), the
+    page's subject (a race's results, a season's calendar and standings), a
+    reference list, a table that stands for a drawing (a chart's numbers),
+    and the console's result. *Show the remaining N* survives only on a
+    table that has opted out.
+  - **A table over the threshold that does neither is refused** (§8, test
+    12): `prerender.js` stops the build on any route it writes, and
+    DataTable logs the error the smoke suite fails on.
+- **Sort buttons show focus** (**floor**, 2.4.7), inside the header, as do
   `/data/sql`'s examples (AX-31 #863).
 - **Opening the fold moves focus to the first revealed row** (row 11's row
   header, `tabindex="-1"`), so a keyboard user is not left 13,000 px below
@@ -375,8 +384,14 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
 - **A disclosure's name says what it opens:** *How it is derived: most
   wins*, not the same four words twelve times (**aim**).
 - **Sort and fold live in the address,** keyed by table name, the contract
-  the registers already keep (IA-08). Back restores both, and with them the
-  reader's place (interaction I2).
+  the registers already keep (IA-08): `?every-entry.sort=year&every-entry.dir=desc&every-entry.all=1`,
+  written by replacing the history entry, never pushing one. Back restores
+  both, and with them the reader's place (interaction I2, IX-46 #849). A
+  register keeps its bare `?sort=` and `?all=1`; a chart's numbers and the
+  console's result keep nothing there (`remember={false}`). A fold opened
+  on the static page before the database arrives stays open without being
+  written down, as a seeded register's rows are: the address is written by
+  the reader's hand, never by the handover.
 - **Widths:** the full content width. A table never sits beside a side
   column that clips it.
 
@@ -562,10 +577,9 @@ puts the classification before the outline (visual defect 7).
 
 ## 6. Interaction rules (core) — built in part
 
-Built: the keyboard floor, but for the two rings §7 declares, and reading
-order, a floor no test holds yet (VD-86 #884); and nothing moving at the
-handover (VD-79). Pending: state in the address and the one reveal control
-(VD-82).
+Built: the keyboard floor, but for reading order, a floor no test holds
+yet (VD-86 #884); nothing moving at the handover (VD-79); and state in the
+address and the one reveal control (VD-82).
 
 - **Keyboard (floor):**
   - every control is reachable;
@@ -600,7 +614,7 @@ handover (VD-79). Pending: state in the address and the one reveal control
 | Rule | Class | Held by |
 |---|---|---|
 | WCAG A/AA on the ten smoke routes | **floor** | axe-core in `web/test/smoke.mjs` (and 0 violations on 104 runs across 26 routes on 2026-10-06) |
-| Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); the table sort buttons and `/data/sql`'s examples are declared there until VD-82 |
+| Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); `smoke.mjs` *Sorting* focuses a sort button and a console example from the keyboard and reads the ring (VD-82) |
 | DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor**, not yet enforced | pending (VD-86 #884): the edge test also checks order |
 | Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
 | Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27) |
@@ -608,7 +622,7 @@ handover (VD-79). Pending: state in the address and the one reveal control
 | No meaning by colour alone | **floor** (1.4.1) | review, `frontend-reviewer` item 7 |
 | Reflow at 400 and 320 px with no sideways page scroll | **floor** | smoke at 400 |
 | Hover box opens on focus | **aim** | — |
-| Revealing content moves focus to the first revealed item | **aim** | — |
+| Revealing content moves focus to the first revealed item | **aim** | `smoke.mjs` *An exhaustive list opens on its first ten* (VD-82): opening a fold puts focus on row 11's row header, on screen |
 | A disclosure's name says what it opens | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-81): no two disclosures, and no two stand-alone links to different places, share a name on a smoke route |
 | The tile strip carries a name | **aim** | — |
 | Text 12 px or smaller is not also faint and longer than the small measure | **aim** (33–62 % of entity-page text is ≤12 px; zoom and reflow work, so this is not pressed against the design) | the measure tokens |
@@ -664,7 +678,7 @@ The system is held by tests, not by memory.
 
 **The system's own tests, one each, so a drift fails the build.** Built in
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
-Built in VD-81: 7. Built in CD-57: 11.
+Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -713,6 +727,13 @@ Built in VD-81: 7. Built in CD-57: 11.
     measured in en-US, where the dates change width (`smoke.mjs`, *Dates in
     the reader's format* and *The handover*; `units.mjs`, *dates are words
     on the page*).
+12. **One reveal control.** A table over `FOLD_OVER` rows folds, naming
+    its noun, or gives one of `UNFOLDED`'s reasons: `prerender.js` refuses
+    any other on every route it writes, listing them all, and DataTable
+    logs the error `smoke.mjs` fails on; `conventions.mjs` holds every
+    reason given to the one list, in both halves. `smoke.mjs` *Back
+    restores a table* opens a fold, sorts it, follows row 200 and comes
+    back to the same address, fold, order and row.
 
 ### How a change to the system is made
 

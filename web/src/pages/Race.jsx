@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import { Dated, RaceDates } from '../components/Dates.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
@@ -359,6 +360,7 @@ function RaceBody({ race, data, year, round }) {
             {classified.length > 0 && (
               <Section title="Classification" count={`${classified.length} entries`}>
                 <DataTable
+                  unfolded={UNFOLDED.subject}
                   rows={classified}
                   rowKey={(row) => row.id}
                   sortable
@@ -392,6 +394,7 @@ function RaceBody({ race, data, year, round }) {
       {qualifying.length > 0 && (
         <Section title="Qualifying" count={`${qualifying.length} entries`}>
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={qualifying}
             rowKey={(row) => row.id}
             sortable={false}
@@ -405,6 +408,7 @@ function RaceBody({ race, data, year, round }) {
       {sprint.length > 0 && (
         <Section title="Sprint" count={`${sprint.length} entries`}>
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={sprint}
             rowKey={(row) => row.id}
             sortable={false}
@@ -418,6 +422,7 @@ function RaceBody({ race, data, year, round }) {
       {sprintQualifying.length > 0 && (
         <Section title="Sprint qualifying" count={`${sprintQualifying.length} entries`}>
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={sprintQualifying}
             rowKey={(row) => row.id}
             sortable={false}
@@ -446,6 +451,7 @@ function RaceBody({ race, data, year, round }) {
                 <>
                   <h3>{PIT_ORDER_HEADING}</h3>
                   <DataTable
+                    unfolded={UNFOLDED.subject}
                     rows={pairs}
                     rowKey={(row) => `${row.ahead.id}-${row.behind.id}`}
                     caption={PIT_ORDER_HEADING}
@@ -474,6 +480,7 @@ function RaceBody({ race, data, year, round }) {
             {practice.map(({ session, title, rows: sheet }) => (
               <Section key={session} title={title} count={`${sheet.length} entries`}>
                 <DataTable
+                  unfolded={UNFOLDED.subject}
                   rows={sheet}
                   rowKey={(row) => row.id}
                   sortable={false}

@@ -3834,12 +3834,30 @@ try {
       // table opens newest first, and one press on Season puts the first win
       // of all at the top, which was row 250-odd and behind the fold.
       await under(page, '#root main').locator('thead th').first().locator('button').click()
+      // The sort is written to the address (VD-82) and the table follows it,
+      // a render later than the click.
+      await page
+        .waitForFunction(
+          (first) =>
+            /[?&]every-win\.sort=/.test(location.search) &&
+            [...document.querySelectorAll('#root main h2')]
+              .find((h) => h.textContent.trim().startsWith('Every win'))
+              ?.closest('section')
+              ?.querySelector('tbody tr th, tbody tr td')
+              ?.textContent.trim() === first,
+          String(firstWin),
+          { timeout: 10000 },
+        )
+        .catch(() => null)
       got = await page.evaluate(fold, app)
       is(got?.firstShown, String(firstWin), `sorted by season, the fold opens on Ferrari’s first win, ${firstWin}`)
       is(got?.shown, FOLD_TO, `and still shows ${FOLD_TO}`)
 
-      // By keyboard: focus, Enter, every row; Enter again, ten, focus kept.
-      await under(page, '#root main').locator('details.table-fold > summary').focus()
+      // By keyboard: focus, Enter, every row, and focus on the first row it
+      // revealed (DP-29, VD-82) rather than on a summary now thousands of
+      // pixels below; back to the summary, Enter, ten, focus kept.
+      const summary = under(page, '#root main').locator('details.table-fold > summary')
+      await summary.focus()
       await page.keyboard.press('Enter')
       await page.waitForFunction(
         (n) => [...document.querySelectorAll('#root main .table-wrap.is-folded')].some((w) => w.querySelector('details[open]') && w.querySelectorAll('tbody tr').length === n),
@@ -3849,6 +3867,25 @@ try {
       got = await page.evaluate(fold, app)
       is(got?.shown, wins, `Enter on the disclosure shows all ${wins}`)
       is(got?.face, FOLD_LESS, `and it then offers “${FOLD_LESS}”`)
+      const landed = await page.evaluate(() => {
+        const a = document.activeElement
+        const rows = [...(a?.closest('tbody')?.children ?? [])]
+        const box = a?.getBoundingClientRect()
+        return {
+          cell: a?.matches('tbody th[scope="row"]') ?? false,
+          row: rows.indexOf(a?.closest('tr')) + 1,
+          tabbable: a?.tabIndex,
+          // In the viewport at all: it arrives where the summary was, which
+          // the reader had just scrolled to, so it may sit on the bottom edge.
+          seen: Boolean(box && box.bottom > 0 && box.top < innerHeight),
+        }
+      })
+      truthy(landed.cell, 'and focus moves to a row header, not the summary')
+      is(landed.row, FOLD_TO + 1, `on row ${FOLD_TO + 1}, the first the fold revealed`)
+      is(landed.tabbable, -1, 'focusable for the purpose and kept out of the tab order')
+      truthy(landed.seen, 'and on screen')
+      is(got?.focused, false, 'so the summary no longer holds it')
+      await summary.focus()
       await page.keyboard.press('Enter')
       await page.waitForFunction(() => !document.querySelector('#root main details.table-fold[open]'), null, { timeout: 10000 })
       got = await page.evaluate(fold, app)
@@ -3919,6 +3956,91 @@ try {
     } finally {
       await waiting.close()
     }
+  })
+
+  /*
+   * IX-46, VD-82. An entity page's tables keep their sort and their fold in
+   * the address, under the table's name, as the registers keep theirs
+   * (IA-08). Before, Back from row 200 of an opened *Every entry* closed the
+   * fold and restored the offset against a page a tenth as tall: the reader
+   * landed in the footer.
+   */
+  await section('Back restores a table: its sort, its fold and the reader\u2019s place', async () => {
+    await go('/drivers/hamilton', 'Lewis Hamilton')
+    const table = page.locator('#root main section').filter({ has: page.locator('h2', { hasText: 'Every entry' }) })
+    is(await table.locator('.table-wrap').getAttribute('data-key'), 'every-entry', 'the table is keyed by its name')
+    const opening = await table.locator('thead th[aria-sort]').first().textContent()
+    await table.locator('details.table-fold > summary').click()
+    await page.waitForFunction(() => /[?&]every-entry\.all=1\b/.test(location.search), null, { timeout: 10000 })
+    pass('opening the fold writes every-entry.all=1')
+    await table.locator('thead th button').nth(1).click()
+    await page.waitForFunction(() => /[?&]every-entry\.sort=/.test(location.search), null, { timeout: 10000 })
+    await page.waitForFunction(
+      (was) =>
+        [...document.querySelectorAll('#root main h2')]
+          .find((h) => h.textContent.trim().startsWith('Every entry'))
+          ?.closest('section')
+          ?.querySelector('thead th[aria-sort]')?.textContent !== was,
+      opening,
+      { timeout: 10000 },
+    )
+    const address = await page.evaluate(() => location.search)
+    truthy(/every-entry\.dir=(asc|desc)/.test(address), `and a sort writes its column and direction — ${address}`)
+    const sorted = await table.locator('thead th[aria-sort]').first().textContent()
+    truthy(sorted !== opening, `the sort moved off the opening order — ${opening} to ${sorted}`)
+    // Row 200, as the critique followed it: deep in the opened fold.
+    const row = table.locator('tbody tr').nth(199)
+    const link = row.locator('a').first()
+    await link.scrollIntoViewIfNeeded()
+    const named = (await row.locator('th, td').first().textContent()).trim()
+    const left = await page.evaluate(() => window.scrollY)
+    await link.click()
+    await page.waitForFunction(() => !location.pathname.startsWith('/drivers/hamilton'), null, { timeout: 10000 })
+    await settle()
+    await page.goBack()
+    await page.waitForFunction(() => location.pathname === '/drivers/hamilton', null, { timeout: 10000 })
+    await settle()
+    await page.waitForFunction(
+      () => document.querySelector('#root main details.table-fold[open]') !== null,
+      null,
+      { timeout: 10000 },
+    ).catch(() => null)
+    is(await page.evaluate(() => location.search), address, 'Back returns to the same address')
+    is(await table.locator('details.table-fold').evaluate((d) => d.open), true, 'with the fold still open')
+    is(await table.locator('thead th[aria-sort]').first().textContent(), sorted, 'and the table in the same order')
+    // The place: the row followed is on screen again, rather than the footer.
+    await page.waitForTimeout(500)
+    const returned = await page.evaluate(() => window.scrollY)
+    const seen = await row.evaluate((tr) => {
+      const box = tr.getBoundingClientRect()
+      return box.bottom > 0 && box.top < innerHeight
+    })
+    truthy(seen, `and the row followed, ${named}, back on screen (scrollY ${left} then ${returned})`)
+
+    // A key no header offers is the table's own order, as on a register.
+    await go('/drivers/hamilton?every-entry.sort=nonsense&every-entry.dir=desc', 'Lewis Hamilton')
+    is(await table.locator('thead th[aria-sort]').first().textContent(), opening, 'an unknown sort key falls back to the opening order')
+    is(await table.locator('details.table-fold').evaluate((d) => d.open), false, 'and an unwritten fold is closed')
+
+    // A key names one table: two tables under one heading on one page would
+    // sort and open together from one parameter.
+    const shared = []
+    for (const [route, heading] of [
+      ['/drivers/hamilton', 'Lewis Hamilton'],
+      ['/constructors/ferrari', 'Ferrari'],
+      ['/seasons/1976', '1976'],
+      ['/races/2024/21', null],
+      ['/circuits/monza', null],
+      ['/grands-prix/monaco', 'Monaco Grand Prix'],
+      ['/records', 'Records'],
+      ['/data/quality', 'Data quality'],
+    ]) {
+      await go(route, heading ?? undefined)
+      const keys = await page.$$eval('#root main .table-wrap[data-key]', (wraps) => wraps.map((w) => w.dataset.key))
+      const twice = keys.filter((key, i) => keys.indexOf(key) !== i)
+      if (twice.length) shared.push(`${route}: ${[...new Set(twice)].join(', ')}`)
+    }
+    is(shared.join('; '), '', 'no two tables on a page share an address key')
   })
 
   // -------------------------------------------------------------- circuits
@@ -6017,6 +6139,28 @@ try {
     await go('/reference/glossary', 'Glossary')
     is((await headers('Glossary'))?.[0].sort, 'ascending', 'the glossary names its alphabetical order on Term')
 
+    // AX-31, 2.4.7: a sort button reached by keyboard draws a ring. Its
+    // `all: unset` outranked the global :focus-visible rule from 5 September
+    // to the design pass, and axe cannot see it.
+    const ring = (selector) =>
+      page.evaluate((selector) => {
+        const node = document.querySelector(selector)
+        if (!node) return null
+        // The console's examples sit behind a disclosure.
+        const shut = node.closest('details:not([open])')
+        if (shut) shut.open = true
+        node.focus()
+        const style = getComputedStyle(node)
+        return { visible: node.matches(':focus-visible'), style: style.outlineStyle, width: style.outlineWidth }
+      }, selector)
+    await page.keyboard.press('Shift')
+    const sortRing = await ring('#root main th.sortable button')
+    truthy(sortRing?.visible, 'a sort button focused from the keyboard matches :focus-visible')
+    truthy(sortRing && sortRing.style !== 'none' && sortRing.width !== '0px', `and draws a ring — ${sortRing?.style} ${sortRing?.width}`)
+    await go('/data/sql', 'SQL console')
+    await page.keyboard.press('Shift')
+    const exampleRing = await ring('#root main .example')
+    truthy(exampleRing && exampleRing.style !== 'none' && exampleRing.width !== '0px', `as does a console example — ${exampleRing?.style} ${exampleRing?.width}`)
   })
 
   // ------------------------------------------------------- taking it away
