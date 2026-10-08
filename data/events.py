@@ -88,7 +88,7 @@ GRANDS_PRIX = [
      "they are the same event."),
     ("las-vegas", "Las Vegas Grand Prix", "United States", [], ""),
     ("barcelona-catalunya", "Barcelona-Catalunya Grand Prix", "Spain", [],
-     "Montmelo's round in 2026, renamed once Madrid took over the Spanish title."),
+     "Montmelo's round in 2026, a year in which the Spanish title belonged to Madrid's race."),
     ("styrian", "Styrian Grand Prix", "Austria", [],
      "A second Red Bull Ring race, in 2020 and 2021."),
     ("70th-anniversary", "70th Anniversary Grand Prix", "United Kingdom", [],
