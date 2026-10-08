@@ -3012,11 +3012,17 @@ try {
    * held. The app is the binding half - its headers carry the sort buttons
    * the static table has not - and the static page is read too. A figure
    * never wraps; and a phone keeps its one-line rows.
+   *
+   * IX-48. The qualifying sheets take the same rule: their times, gap and
+   * interval are the right-hand columns, and at 768 on /races/2024/21 both
+   * qualifying and sprint qualifying ran 112 px past their box. Read on the
+   * same races, where they are held: the three-session sheet and the sprint
+   * one in 2024, and the one-time sheet of 1955 and 1997.
    */
-  await section('/races  (the classification fits its box from 768 px: IX-45)', async () => {
-    const readFit = (root) => {
+  await section('/races  (the classification and the qualifying sheets fit their box from 768 px: IX-45, IX-48)', async () => {
+    const readFit = ([root, name]) => {
       const main = document.querySelector(root)
-      const h2 = [...main.querySelectorAll('section > h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+      const h2 = [...main.querySelectorAll('section > h2')].find((h) => h.textContent.trim().startsWith(name))
       const box = h2?.parentElement.querySelector('.table-scroll')
       if (!box) return null
       // A figure's cell is as tall as its row, which a wrapped name grows, so
@@ -3039,19 +3045,29 @@ try {
     }
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 768, height: 900 } })
     const plain = await noJs.newPage()
-    for (const [route, heading] of [['/races/2024/21', 'Paulo'], ['/races/1955/1', 'Argentine'], ['/races/1997/16', 'Japanese']]) {
+    const sheets = ['Classification', 'Qualifying']
+    for (const [route, heading, more] of [
+      ['/races/2024/21', 'Paulo', ['Sprint qualifying']],
+      ['/races/1955/1', 'Argentine', []],
+      ['/races/1997/16', 'Japanese', []],
+    ]) {
       for (const width of [768, 900, 1024]) {
         await page.setViewportSize({ width, height: 900 })
         await go(route, heading)
         await plain.setViewportSize({ width, height: 900 })
         await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
-        for (const [half, got] of [['app', await page.evaluate(readFit, '#root main')], ['static', await plain.evaluate(readFit, '#prerendered main')]]) {
-          if (!got) {
-            fail(`${route} at ${width} (${half}): no classification`)
-            continue
+        for (const name of [...sheets, ...more]) {
+          for (const [half, got] of [
+            ['app', await page.evaluate(readFit, ['#root main', name])],
+            ['static', await plain.evaluate(readFit, ['#prerendered main', name])],
+          ]) {
+            if (!got) {
+              fail(`${route} at ${width} (${half}): no ${name.toLowerCase()} table`)
+              continue
+            }
+            truthy(got.over <= 0, `${route} at ${width} (${half}): ${name} fits its box${got.over > 0 ? `, ${got.over} px over` : ''}`)
+            is(got.wrapped, 0, `${route} at ${width} (${half}): and no figure in ${name} wraps`)
           }
-          truthy(got.over <= 0, `${route} at ${width} (${half}): the classification fits its box${got.over > 0 ? `, ${got.over} px over` : ''}`)
-          is(got.wrapped, 0, `${route} at ${width} (${half}): and no figure in it wraps`)
         }
       }
     }

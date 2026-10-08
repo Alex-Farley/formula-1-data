@@ -432,15 +432,24 @@ and not yet the three charts (VD-73 #822).
   from 768 to 1,180 px those cells may break at a space and every cell of
   the table pads `--space-3` a side, not `--space-6`. A figure never wraps,
   and below `--bp-tablet` the rows keep to one line and the table scrolls,
-  as every other does on a phone. The race classification is the one user:
-  its ten columns are about 960 px at one line, and Points and FL scrolled
-  out from 768 to 1,010 px. When the rule landed it fitted every
+  as every other does on a phone. The race classification was the first
+  user: its ten columns are about 960 px at one line, and Points and FL
+  scrolled out from 768 to 1,010 px. When the rule landed it fitted every
   classification held from 780 px, and all but two at 768: the 1950 and
   1951 Indianapolis 500, where a car named *Championship Racer* leaves the
-  table 12 px over below 780.
+  table 12 px over below 780. The qualifying and sprint qualifying sheets
+  are the second (IX-48 #907): a sheet is read for its times, gap and
+  interval, which are its right-hand columns, and at 768 both ran 112 px
+  past their box on /races/2024/21. Their Driver and Constructor carry
+  `.wraps`. At 768 every sheet then fitted in the static page, read for
+  each season from 2006 and every fourth before it, and in the app on
+  seven races chosen to stretch it. The sprint's classification and the practice
+  sheets are not yet held to it (IX-49 #944). Still provisional: §8
+  promotes on a second *page*, and both users are on the race page.
   What it costs: between the breakpoints a long name takes two lines, so
   the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024
-  in both halves (*the classification fits its box*).
+  in both halves, their classification and qualifying sheets (*the
+  classification and the qualifying sheets fit their box*).
 
 ### Notes, attached notes and the disagreement box (core) — built (VD-78), but for the source line's band
 
