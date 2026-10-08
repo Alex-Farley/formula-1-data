@@ -29,6 +29,8 @@ import { outlineCaption } from '../lib/outline.js'
 import { RACE_IMAGES, RACE_PHOTOGRAPHS } from '../queries/photographs.js'
 import {
   CLASSIFICATION_COLUMNS,
+  ENTRY_NOTE_MARK,
+  ENTRY_NOTE_SPOKEN,
   ENTRIES,
   FASTEST_LAP,
   GRID_FLAG_COLUMNS,
@@ -51,6 +53,7 @@ import {
   STINT_COLUMNS,
   carName,
   classificationFooter,
+  hasEntryNote,
   gridFlagLabel,
   gridFlagNote,
   gridFlagUndrawn,
@@ -136,13 +139,20 @@ const classificationRenders = (year) => ({
     },
   },
   driver: {
-    // The mark follows the row, not the link: driverName() in queries/race.js
-    // is what this cell says, with or without a driver id.
+    // The marks follow the row, not the link: classifiedName() in
+    // queries/race.js is what this cell says, with or without a driver id.
     render: (name, row) => (
       <>
         {row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name)}
         {row.shared_drive === 1 ? ' ' : ''}
         {row.shared_drive === 1 ? <span className="tag">{SHARED}</span> : null}
+        {hasEntryNote(row) && (
+          <>
+            {' '}
+            <span aria-hidden="true">{ENTRY_NOTE_MARK}</span>
+            <span className="sr-only">{ENTRY_NOTE_SPOKEN}</span>
+          </>
+        )}
       </>
     ),
   },
