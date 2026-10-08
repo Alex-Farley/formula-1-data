@@ -221,16 +221,27 @@ export const fastestLapMark = (value) => (value === 1 ? `●${FASTEST_LAP}` : ''
 export const carName = (row) =>
   row?.constructor_id ? row.constructor : (row?.entrant ?? row?.constructor)
 
+/*
+ * The classification fits its own box from --bp-tablet (IX-45): ten columns
+ * at max-content are about 960 px, so from 768 to 1,010 px Points and FL
+ * scrolled out of view. `WRAPS` on its four columns of words lets a name or
+ * a reason break at a space between those widths, and the stylesheet closes
+ * the table's cells up there (app.css, "A table that fits its box"); the
+ * figures never wrap. A class rather than a rule on the page, so the static
+ * table, which prerender.js writes from these same columns, fits too.
+ */
+const WRAPS = 'wraps'
+
 export const CLASSIFICATION_COLUMNS = [
   rail,
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
-  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName, cellClass: WRAPS },
   // The entrant's name where no constructor is resolved: a privateer entry.
-  { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)) },
-  { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
+  { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)), cellClass: WRAPS },
+  { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id), cellClass: WRAPS },
   { key: 'grid_text', label: 'Grid', align: 'num' },
   { key: 'laps_completed', label: 'Laps', align: 'num' },
-  { key: 'status', label: 'Out', text: outcome },
+  { key: 'status', label: 'Out', text: outcome, cellClass: WRAPS },
   { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'fastest_lap', label: 'FL', align: 'num', text: fastestLapMark },
 ]

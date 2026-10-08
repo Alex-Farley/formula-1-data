@@ -1156,6 +1156,31 @@ tbody th:not(.prose) {
 }
 
 /*
+ * A table that fits its box (IX-45, provisional).
+ *
+ * The race classification is the page's subject, and from 768 to 1,010 px its
+ * ten columns at max-content (about 960 px) ran past the content box, so
+ * Points and FL scrolled out of view behind the fade. Between the two
+ * breakpoints its columns of words - those marked `.wraps` in queries/race.js -
+ * may break at a space, and its cells close up from --space-6 to --space-3 a
+ * side, which is what lets the auto layout fit the figures in. A figure never
+ * wraps. From --bp-desktop the table has the width to lay out on one line, and
+ * below --bp-tablet a phone keeps its one-line rows and scrolls (§4, Phone).
+ * The result rail keeps its own zero padding.
+ */
+@media (768px <= width < 1180px) {
+  td.wraps,
+  tbody th.wraps,
+  td.wraps .tag {
+    white-space: normal;
+  }
+
+  table:has(> tbody .wraps) :is(thead th:not(.rail, .sortable), th.sortable button, tbody td:not(.rail), tbody th) {
+    padding-inline: var(--space-3);
+  }
+}
+
+/*
  * The two cells of a record, on /records.
  *
  * The page's superlatives were set in the same soft ink, the same size and the
