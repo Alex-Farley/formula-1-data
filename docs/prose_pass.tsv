@@ -338,7 +338,7 @@ circuits	las-vegas	notes	original	auto	original	2	0.00	Las Vegas Strip Circuit	1
 circuits	le-mans-bugatti	notes	original	auto	original	4	0.14	Formula One	1375827499			b612f818d9a6
 circuits	long-beach	notes	original	auto	original	2	0.00	Formula One	1375827499			fb7f0cba0509
 circuits	lusail	notes	original	auto	original	2	0.00	Qatar Grand Prix	1366311682			0a37ad944f34
-circuits	madring	notes	original	auto	original	3	0.00	Formula One	1375827499			4e62ca2e94a9
+circuits	madring	notes	original	auto	original	4	0.03	Madring	1378508737			7c1229b8e576
 circuits	magny-cours	notes	original	auto	original	3	0.00	Circuit de Nevers Magny-Cours	1374714443			451b018fb8d3
 circuits	marina-bay	notes	original	auto	original	3	0.00	Marina Bay Street Circuit	1357328473			15ee21aec39e
 circuits	miami	notes	original	auto	original	2	0.00	Miami International Autodrome	1374662362			e8ae1194b96a
@@ -1096,6 +1096,7 @@ safety_milestones	25	description	original	auto	original	2	0.00	Formula One	13758
 safety_milestones	26	description	original	auto	original	2	0.00	Formula One sponsorship liveries	1376645124			4e0e17aa3bc3
 grands_prix	70th-anniversary	notes	original	auto	original	3	0.00	70th Anniversary Grand Prix	1362401030			df2b5b5e9136
 grands_prix	bahrain	notes	original	read	paraphrased	4	0.33	Formula One	1375827499		stock: the shared words are a stock phrase of English or of the sport	b31fa2ee081a
+grands_prix	barcelona-catalunya	notes	original	auto	original	3	0.00	History of Formula One	1377718549			417fe62dc0f7
 grands_prix	brazilian	notes	original	auto	original	3	0.00	Brazilian Grand Prix	1376828410			8a02bc7561c9
 grands_prix	british	notes	original	auto	original	2	0.00	British Grand Prix	1377089401			2c1a8ed45532
 grands_prix	caesars-palace	notes	original	auto	original	2	0.00	Caesars Palace Grand Prix	1377091236			d758c6b13811
@@ -1108,7 +1109,6 @@ grands_prix	french	notes	original	auto	original	3	0.00	French Grand Prix	1377087
 grands_prix	hungarian	notes	original	read	paraphrased	4	0.33	Hungarian Grand Prix	1367677485		stock: the shared words are a stock phrase of English or of the sport	775c407ca9f4
 grands_prix	indianapolis-500	notes	original	read	paraphrased	5	0.10	Formula One	1375827499	counted towards the world championship	stock: the shared words are a stock phrase of English or of the sport	4e54c3eb337f
 grands_prix	italian	notes	original	auto	original	3	0.00	History of Formula One	1371272002			e0f3936b20f8
-grands_prix	madrid	notes	original	auto	original	1	0.00	2026 Spanish Grand Prix	1377029647			4f7dfebf433c
 grands_prix	mexican	notes	original	read	paraphrased	5	0.40	Mexican Grand Prix	1370173252	the mexico city grand prix	name: the shared words are a name or a title	9546d24c4a38
 grands_prix	monaco	notes	original	read	paraphrased	5	0.20	Monaco Grand Prix	1373176236	the triple crown of motorsport	name: the shared words are a name or a title	65f56fdde145
 grands_prix	moroccan	notes	original	auto	original	2	0.00	Formula One	1375827499			191ac4ca9b3f

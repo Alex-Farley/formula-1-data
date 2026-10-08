@@ -4803,9 +4803,12 @@ def the_full_classification():
         # VD-61's two, at the counts they arrived with: `circuit_id` is filled
         # only on the circuit route, and `circuits.article` from the mapping.
         ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
-        # PD-64's, at the count it arrived with: `race_id` is filled only on
-        # the race route.
-        ("article_images", "race_id", 3911, "harvest/race_images.txt"),
+        # PD-64's: `race_id` is filled only on the race route. 3911 -> 3916
+        # on LV-09's rerun (2026-10-08): six of 2026 Bahrain, run since, and
+        # one 2000 United States file that Commons now redirects to another
+        # it already held; 2026 round 7's one row moved to round 14 with the
+        # name, its category being Madrid's race.
+        ("article_images", "race_id", 3916, "harvest/race_images.txt"),
         ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:

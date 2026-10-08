@@ -88,8 +88,8 @@ export const RACE_WINDOW_MS = 3 * 60 * 60 * 1000
  *
  * `races.status` says whether a classification is held, which is a different
  * question from whether the race has happened: the harvest lands a day or two
- * after the flag, and for twenty-three hours after the 2026 Madrid Grand Prix
- * the page for it said the race had not been run. The timetable this page
+ * after the flag, and for twenty-three hours after the 2026 Spanish Grand Prix
+ * at Madrid the page for it said the race had not been run. The timetable this page
  * already prints answers it, so nothing new is stored and nothing is guessed.
  *
  *   'awaited'  the race session has not started
