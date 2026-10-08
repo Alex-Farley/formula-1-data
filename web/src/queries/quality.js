@@ -129,7 +129,8 @@ export const DISCREPANCY_COLUMNS = [
   { key: 'field', rowHeader: true, label: 'Field' },
   { key: 'stored_value', label: 'Recorded', align: 'num' },
   { key: 'derived_value', label: 'Derived', align: 'num' },
-  { key: 'assessment', label: 'Assessment', align: 'prose' },
+  // A source's note, which names the day it was read (CD-57).
+  { key: 'assessment', label: 'Assessment', align: 'prose', date: 'text' },
   // One of three words, and the phrase saying how where there is one: the
   // two were one free-text column until DA-09.
   { key: 'status', label: 'Status', text: (value, row) => (row.status_note ? `${value}: ${row.status_note}` : value) },
@@ -185,3 +186,11 @@ export const UNVERIFIED_COLUMNS = [
 
 export const UNVERIFIED_FOOTER =
   'These are not errors — they are rows nobody has yet been able to raise above medium confidence.'
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Quality.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const QUALITY_LEDE =
+  'How far to trust anything on this site. Every row carries a confidence level, every disagreement between sources is kept rather than quietly resolved, and everything known to be missing is listed here.'

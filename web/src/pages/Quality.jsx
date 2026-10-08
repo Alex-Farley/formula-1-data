@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
-import { Confidence, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, FigurePart, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
+import { Dated } from '../components/Dates.jsx'
 import SubNav from '../components/SubNav.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
@@ -42,6 +44,7 @@ import {
   UNVERIFIED_FOOTER,
   disagrees,
   photographsCatalogued,
+  QUALITY_LEDE,
 } from '../queries/quality.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -72,11 +75,24 @@ const GAP_APP = {
   reader: {
     render: (value, row) => (
       <>
-        <p className="gap-reader">{value}</p>
+        <p className="gap-reader">
+          <Dated>{value}</Dated>
+        </p>
         <details className="gap-note">
-          <summary>{MAINTAINER_NOTE}</summary>
-          <p>{row.description}</p>
-          {row.resolution && <p>{row.resolution}</p>}
+          {/* Named for its row as well, for a screen reader's list of
+              controls, where twenty notes read alike out of context (DP-30). */}
+          <summary>
+            {MAINTAINER_NOTE}
+            <span className="sr-only">, {row.area}</span>
+          </summary>
+          <p>
+            <Dated>{row.description}</Dated>
+          </p>
+          {row.resolution && (
+            <p>
+              <Dated>{row.resolution}</Dated>
+            </p>
+          )}
         </details>
       </>
     ),
@@ -93,7 +109,7 @@ export default function Quality() {
       title={NAMES.quality().headline}
       documentName={NAMES.quality().title}
       trail={TRAIL.quality()}
-      lede="How far to trust anything on this site. Every row carries a confidence level, every disagreement between sources is kept rather than quietly resolved, and everything known to be missing is listed here."
+      lede={QUALITY_LEDE}
     >
       <SubNav />
       <Result state={state}>{(data) => <Body data={data} />}</Result>
@@ -112,6 +128,7 @@ function Gaps({ rows: list, title, note }) {
   return (
     <Section title={title} count={`${list.length}`} note={note}>
       <DataTable
+        unfolded={UNFOLDED.reference}
         rows={list}
         rowKey={(row) => row.id}
         sortable={false}
@@ -149,6 +166,7 @@ function Body({ data }) {
     <>
       <Section title="The confidence ladder">
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={provenance}
           rowKey={(row) => row.confidence}
           sortable={false}
@@ -159,7 +177,6 @@ function Body({ data }) {
 
       <Section title="How the database is distributed across it">
         <Figure
-          title="Rows by confidence"
           note="Across races, race entries, drivers, constructors, chassis, circuits and seasons. Most of it sits at “reference” because most of it is the F1DB race record, which a second source can check."
           table={{
             rows: ordered.map((row) => ({
@@ -195,6 +212,7 @@ function Body({ data }) {
             and the static page prints the rows as they come. The header says
             so without re-sorting them (CR-28). */}
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={discrepancies}
           rowKey={(row) => row.id}
           sortable
@@ -219,6 +237,7 @@ function Body({ data }) {
           </Note>
         )}
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={reconciliation}
           rowKey={(row) => row.full_name}
           sortable
@@ -232,11 +251,8 @@ function Body({ data }) {
 
       <Section title="Coverage">
         <div className="split">
-          <Figure
-            title={CHASSIS_TITLE}
-            note={CHASSIS_NOTE}
-            table={{ rows: chassisCoverage, columns: CHASSIS_COVERAGE_COLUMNS }}
-          >
+          <FigurePart title={CHASSIS_TITLE}>
+          <Figure note={CHASSIS_NOTE} table={{ rows: chassisCoverage, columns: CHASSIS_COVERAGE_COLUMNS }}>
             <ColumnChart
               data={chassisCoverage.map((row) => ({
                 key: row.decade,
@@ -248,10 +264,12 @@ function Body({ data }) {
               label="Percentage of race entries naming a chassis, by decade"
             />
           </Figure>
+          </FigurePart>
 
           <div>
             <Section title="Circuit geometry">
               <DataTable
+                unfolded={UNFOLDED.reference}
                 rows={geometryCoverage}
                 rowKey={(row) => row.status}
                 sortable={false}
@@ -277,6 +295,7 @@ function Body({ data }) {
         note={AMBIGUOUS_NOTE}
       >
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={ambiguous}
           rowKey={(row) => `${row.year}-${row.constructor}`}
           sortable
@@ -289,6 +308,7 @@ function Body({ data }) {
 
       <Section title="Rows nobody has checked" count={`${unverified.reduce((n, r) => n + r.n, 0)}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={unverified}
           rowKey={(row) => row.tbl}
           sortable

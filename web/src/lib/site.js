@@ -6,6 +6,8 @@
  * takes over is the same disagreement Page.jsx's own docstring describes —
  * and the reader who bookmarks it gets whichever one happened to be there.
  */
+import { isDay, missing, span } from './format.js'
+
 export const SITE = 'Lap Ledger'
 
 /**
@@ -86,6 +88,92 @@ export const NAMES = {
   comparison: (a, b) => named(`${a} and ${b}`),
   about: () => named('About'),
   notFound: () => named('No such page'),
+}
+
+/**
+ * The line above a page's h1, for the seven kinds of entity page (VD-79,
+ * DP-03): read by the page and by scripts/prerender.js, so both renderers
+ * draw the same header.
+ *
+ * ONE RULE: THE PAGE TYPE, THEN THE FACTS THAT IDENTIFY THE ENTITY (VD-81,
+ * DP-05; docs/design-system.md section 3, *Page header*). The slot used to
+ * carry five kinds of thing - a page type on drivers and constructors, a
+ * place on circuits, a position in a sequence on races, the parent
+ * constructor on cars, a country on Grands Prix, and nothing on seasons - so
+ * a reader landing cold on /cars/ags-jh24 read "AGS" over "JH24" and nothing
+ * on the page said what kind of thing it was (IA-09). Now the type always
+ * leads, and a fact the database does not hold is left out rather than
+ * printed as a dash: "Driver · United States of America" for the 59 drivers
+ * with no date of birth.
+ */
+const EYEBROW_JOIN = ' · '
+const eyebrow = (type, ...facts) => [type, ...facts.filter((fact) => !missing(fact))].join(EYEBROW_JOIN)
+
+/** "Maranello, Italy" under a constructor of Italy is "Maranello": the country is already said. */
+const baseIn = (base, country) =>
+  missing(base) ? null : !missing(country) && base.endsWith(`, ${country}`) ? base.slice(0, -(country.length + 2)) : base
+
+const roundsRun = (rounds, run) =>
+  `${rounds} ${rounds === 1 ? 'round' : 'rounds'}, ${run >= rounds ? 'all run' : run === 0 ? 'none run yet' : `${run} run`}`
+
+// A date in an eyebrow stays the ISO day here, and each renderer draws it as
+// a date in its reader's format (components/Dates.jsx's <Dated>, CD-57); a
+// value that is not a whole day leaves its clause out rather than printing
+// half a date.
+export const EYEBROWS = {
+  driver: (nationality, born) => eyebrow('Driver', nationality, isDay(born) ? `born ${born}` : null),
+  constructor: (country, base) => eyebrow('Constructor', country, baseIn(base, country)),
+  circuit: (locality, country) => eyebrow('Circuit', [locality, country].filter((part) => !missing(part)).join(', ')),
+  race: (round, rounds, day) => eyebrow('Race', missing(rounds) ? `Round ${round}` : `Round ${round} of ${rounds}`, isDay(day) ? day : null),
+  season: (rounds, run) => eyebrow('Season', missing(rounds) ? null : roundsRun(Number(rounds), run)),
+  car: (team, from, to) => eyebrow('Car', team, missing(from) && missing(to) ? null : span(from, to)),
+  grandPrix: (country) => eyebrow('Grand Prix', country),
+}
+
+/**
+ * ONE LABEL PER CONCEPT (VD-81, DP-05; docs/design-system.md section 5).
+ *
+ * The tile strips and the provenance heading named one thing several ways: a
+ * year span was *Seasons* on a driver, *Entered* on a constructor, *Grands
+ * Prix* on a circuit, *Raced* on a car and *Span* on a Grand Prix; a row of
+ * race_entries was *Entries*, *Race entries* and *Recorded entries*; the
+ * section that says where a page's facts come from was *On the record*, *The
+ * season on the record* and *Where this comes from* - and "On the record"
+ * collided with /records and with "the race records" in a dozen notes. Two
+ * words for one thing teach a reader they are two things (CD-12).
+ *
+ * So the words are here, once, and every strip in queries/*.js and every
+ * provenance heading in both renderers reads them, as do the /records tables
+ * a record's tiles sit one click from: a record is its *Value* and who it is
+ * *Held by* in both, where the tiles once said *Value / Holder* and *Record*
+ * already named the record itself. web/test/conventions.mjs (*one
+ * vocabulary*) refuses a strip that writes one of these words as a literal,
+ * and a synonym they replaced in any column or tile of queries/*.js.
+ */
+export const LABELS = {
+  seasons: 'Seasons',
+  entries: 'Entries',
+  value: 'Value',
+  heldBy: 'Held by',
+  provenance: 'Where this comes from',
+}
+
+/**
+ * The words LABELS replaced, each with the word that replaced it. Nothing on
+ * the site reads this: web/test/conventions.mjs refuses each one in a strip
+ * or a provenance heading in the source, and web/test/smoke.mjs on every page
+ * it draws in both renderers, so the two tests cannot disagree about what a
+ * synonym is.
+ */
+export const REPLACED = {
+  Entered: LABELS.seasons,
+  Raced: LABELS.seasons,
+  Span: LABELS.seasons,
+  'Race entries': LABELS.entries,
+  'Recorded entries': LABELS.entries,
+  Holder: LABELS.heldBy,
+  'On the record': LABELS.provenance,
+  'The season on the record': LABELS.provenance,
 }
 
 /**
@@ -394,6 +482,20 @@ export const PHOTOGRAPHS_NOTE =
  */
 export const PHOTOGRAPHS_SHOWN = 6
 export const PHOTOGRAPH_WIDTH = 600
+
+/**
+ * The most columns a lead chart may draw in the opening slot (VD-84).
+ *
+ * The slot is five columns of twelve, 458 px at 1180, its narrowest, and a
+ * column chart's plot inside it 382 px. §7 of the design system holds a
+ * chart's hover target to 6 px at every width, and 382 / 6 is 63: a team
+ * that has entered more seasons than that - Ferrari, 77 - cannot keep its
+ * marks usable beside the header, so its chart leads under the tiles at
+ * the full width instead, and the slot is left empty for the header. The
+ * smoke suite measures every column chart in a slot at 1180, so a change to
+ * the grid or the chart's margins that makes this wrong fails there.
+ */
+export const SLOT_MARKS = 63
 
 /**
  * The rest of a strip, behind a disclosure (PD-64).

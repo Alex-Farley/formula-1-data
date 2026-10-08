@@ -2,7 +2,9 @@ import { createContext, Fragment, useEffect, useRef } from 'react'
 import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
+import { DateText, Dated } from './Dates.jsx'
 import { TILE_JOIN, tileSegments } from '../lib/tiles.js'
+import { arrived } from '../lib/handover.js'
 import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
 
 /**
@@ -96,7 +98,11 @@ export function Page({
     <article className="page">
       {trail && <Crumbs trail={trail} />}
       <header>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+        {eyebrow && (
+          <p className="eyebrow">
+            <Dated>{eyebrow}</Dated>
+          </p>
+        )}
         <h1 ref={heading} tabIndex={-1}>
           {title}
         </h1>
@@ -144,7 +150,9 @@ function Crumbs({ trail }) {
  * eleven stops before the content, on every hop of a driver -> team -> car
  * journey. Focusing the new page's h1 is what a page load would have done.
  * Not on the arrival: that is the handover from the prerendered page, where
- * main.jsx focuses this same heading itself once the static page is gone.
+ * main.jsx focuses this same heading itself once the static page is gone -
+ * unless the heading arrives after that, when it was given nothing to focus
+ * and this does it instead (lib/handover.js arrived(), VD-79).
  *
  * The flag is module-scoped because the guard has to outlive the component,
  * and a useRef does not. Two routes are two different component types, so
@@ -166,6 +174,7 @@ function useFocusOnNavigation() {
   useEffect(() => {
     if (!landed) {
       landed = true
+      if (!document.getElementById('prerendered')) arrived(ref.current)
       return
     }
     // Not out of a modal that is staying. The search palette is open on top of
@@ -225,17 +234,18 @@ export const SectionTitle = createContext(null)
 export const PageTitle = createContext(null)
 
 /**
- * `lead` marks the section whose figure leads its page (VD-53): straight
- * after the tile strip in the document, which is where it reads below
- * 1024 px, and beside the heading and the tiles above that width, in the
- * column the lede leaves empty. app.css places it; the order a screen
- * reader and the Tab key take - sentence, tiles, figure - is the same at
- * every width, because only the grid moves and the markup does not.
+ * `lead` marks the section whose figure leads its page: the opening slot
+ * (version A, VD-84), five columns beside the header from 1180 px and
+ * straight after the tile strip below that. It is written after the tiles,
+ * and app.css lifts it beside the header with the grid, so the order a
+ * screen reader and the Tab key take - sentence, tiles, figure - is the
+ * same at every width; only the grid moves, never the markup. A slot that
+ * holds a picture rather than a figure is <Slot>, below.
  */
 export function Section({ title, count, note, children, id, lead = false }) {
   return (
     <SectionTitle.Provider value={typeof title === 'string' ? title : null}>
-      <section className={lead ? 'section section-lead' : 'section'} id={id}>
+      <section className={lead ? 'section slot' : 'section'} id={id}>
         {title && (
           <h2>
             {title}
@@ -258,12 +268,47 @@ export function Section({ title, count, note, children, id, lead = false }) {
 }
 
 /**
+ * The opening slot when what fills it is a picture, not a figure (VD-84):
+ * a race's outline, a circuit's current layout, a car's photograph. The
+ * markup prerender.js's slot() writes, so one rule in app.css places both
+ * halves. Nothing to put in it, and there is no slot: the header keeps the
+ * width, as an empty slot's rule says.
+ */
+export function Slot({ children }) {
+  if (!children) return null
+  return <div className="slot">{children}</div>
+}
+
+/**
+ * A figure its section's h2 cannot name (VD-80): the h3 that names it, and
+ * the figure. A figure is named by its heading and passes no title of its
+ * own (charts/Figure.jsx), so where one Section holds two figures side by
+ * side - the Records leaderboards, the chassis chart beside the coverage
+ * tables on /data/quality - or its h2 names the section rather than what
+ * the figure measures - the constructors' wins, the decade the chips chose -
+ * it takes a heading a step below the section's, and that heading is what
+ * the figure and its table are named for, read from SectionTitle exactly as
+ * a Section's h2 is.
+ */
+export function FigurePart({ title, children }) {
+  return (
+    <SectionTitle.Provider value={title}>
+      <div className="figure-part">
+        <h3>{title}</h3>
+        {children}
+      </div>
+    </SectionTitle.Provider>
+  )
+}
+
+/**
  * A tile's value. A strip built as data in a queries/*.js module (VD-49)
  * names its links rather than holding <Link> elements, so that
  * scripts/prerender.js can draw the same strip; lib/tiles.js says what each
  * field means. A value that is already an element draws as it is.
  */
 const tileValue = (item) => {
+  if (item.date) return <DateText iso={item.value} />
   const drawn = tileSegments(item).map(({ label, href }, i) => (
     <Fragment key={i}>
       {i > 0 && TILE_JOIN}
@@ -283,8 +328,10 @@ export function Stats({ items }) {
   // that named a lead figure and no others - the alternative was shrinking
   // every figure on nine pages to make two of them larger by comparison.
   const ranked = shown.some((item) => item.lead)
+  // The count, for app.css to choose the columns from (VD-79): one row where
+  // the strip fits, rows of equal count where it does not.
   return (
-    <dl className="stats" data-ranked={ranked ? '' : undefined}>
+    <dl className="stats" data-ranked={ranked ? '' : undefined} style={{ '--tiles': shown.length }}>
       {shown.map((item) => {
         const { label, note, lead, kind } = item
         // `kind="name"` is a value that is a person, a team or a place rather
@@ -436,9 +483,9 @@ export function Cite({ sources, search = '', canonical }) {
   return (
     <aside className="cite" aria-label="How to cite this page">
       <p>
-        {before}
+        <Dated>{before}</Dated>
         <span className="url">{url}</span>
-        {after}
+        <Dated>{after}</Dated>
       </p>
       {behind && (
         <p>

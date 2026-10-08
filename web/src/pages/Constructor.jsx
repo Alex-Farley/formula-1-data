@@ -8,8 +8,9 @@ import Photographs from '../components/Photographs.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
+import { FOLD_NOUN } from '../lib/table.js'
 import LiveryScheme from '../components/LiveryScheme.jsx'
-import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry, sourceHost } from '../lib/liveries.js'
+import { LIVERY_ERA, colourForEntry, constructorBandNote, liveryFor, nationalEntry } from '../lib/liveries.js'
 
 import { CONSTRUCTOR_IMAGES } from '../queries/photographs.js'
 import {
@@ -31,7 +32,7 @@ import {
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
-import { NAMES } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, SLOT_MARKS } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/constructor.js defines — the
@@ -140,29 +141,12 @@ function ConstructorBody({ constructor, data }) {
 
   return (
     <Page
-      eyebrow="Constructor"
+      eyebrow={EYEBROWS.constructor(constructor.country, constructor.base)}
       title={NAMES.constructor(constructor.name).headline}
       trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
       aside={
-        <LiveryScheme
-          colour={identity}
-          note={
-            livery ? (
-              <>
-                The colour {constructor.name} raced in {lastSeason.year}, {identity.claim}. Read from{' '}
-                {[...new Set(livery.source.map(sourceHost))].join(' and ')}; the shades here are this
-                site's rendering of them, not a measurement.
-              </>
-            ) : (
-              <>
-                {constructor.country}'s international racing colour, under the convention that
-                painted a car for the country that entered it until sponsor liveries took over around
-                1968. Not this team's own livery.
-              </>
-            )
-          }
-        />
+        <LiveryScheme colour={identity} note={constructorBandNote(constructor, lastSeason, livery, identity)} />
       }
     >
       <Section>
@@ -172,13 +156,15 @@ function ConstructorBody({ constructor, data }) {
 
       {/* What leads (PD-58): the tiles, then the shape of the team's
           success, then the season table - after the lineage and any
-          disagreement, which say how to read it. The photographs and the
-          exhaustive lists follow; scripts/prerender.js keeps the order. */}
+          disagreement, which say how to read it. The exhaustive lists and
+          then the photographs follow; scripts/prerender.js keeps the order. */}
+      {/* In the opening slot beside the header (VD-84), unless the team has
+          entered more seasons than the slot can draw at a usable width
+          (SLOT_MARKS); then it leads under the tiles at the full width. */}
       {winsBySeason.length > 1 && (
-        <Section lead title="Wins by season">
+        <Section lead={seasonsAsc.length <= SLOT_MARKS} title="Wins by season">
           <Figure
             lead
-            title="Race wins by season"
             note="Every season entered, winless ones included, so a drought is visible as a gap. A shared drive counts once, to the car."
             table={{
               rows: seasonsAsc,
@@ -230,7 +216,7 @@ function ConstructorBody({ constructor, data }) {
       <Section title="Season by season" count={`${bySeason.length} seasons`}>
         <DataTable
           rows={constructorSeasons(bySeason, standings)}
-          fold
+          fold={FOLD_NOUN.seasons}
           rowKey={(row) => row.year}
           sort="year"
           direction="desc"
@@ -239,19 +225,11 @@ function ConstructorBody({ constructor, data }) {
         />
       </Section>
 
-      {/* The cars, oldest first - the order "Cars built" prints them in
-          further down. Six of them: this is a team's page, not a gallery, and
-          the table below it lists every design with a link to its own page.
-          Below the season table, not above the chart (PD-58): the strip
-          used to stand between the tiles and *Wins by season*, and pushed
-          the page's best answer off the first screen. */}
-      <Photographs images={images} subjects />
-
       {wins.length > 0 && (
         <Section title="Every win" count={`${wins.length}`}>
           <DataTable
             rows={wins}
-            fold
+            fold={FOLD_NOUN.wins}
             rowKey={(row) => `${row.year}-${row.round}-${row.driver_id}`}
             sort="year"
             direction="desc"
@@ -266,7 +244,7 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Cars built" count={`${designs.length} designs`}>
           <DataTable
             rows={designs}
-            fold
+            fold={FOLD_NOUN.designs}
             rowKey={(row) => row.id}
             sort="first_year"
             direction="asc"
@@ -276,7 +254,16 @@ function ConstructorBody({ constructor, data }) {
         </Section>
       )}
 
-      <Section title="On the record">
+      {/* The cars, oldest first - the order "Cars built" prints them in
+          above. Six of them: this is a team's page, not a gallery, and that
+          table lists every design with a link to its own page. After the
+          page's own sections and before where they come from, as on every
+          page type (VD-83): the strip used to stand between the tiles and
+          *Wins by season* (PD-58), and then between the season table and
+          the wins. */}
+      <Photographs images={images} subjects />
+
+      <Section title={LABELS.provenance}>
         {constructor.confidence === 'medium' && (
           <Note>
             <strong>Trust the counted figures.</strong> Where this panel gives a figure twice, the

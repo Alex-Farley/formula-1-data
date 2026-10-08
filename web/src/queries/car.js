@@ -13,6 +13,8 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { finished, missing, number, span, text } from '../lib/format.js'
+import { LABELS } from '../lib/site.js'
+import { canShow } from '../lib/commons.js'
 
 /**
  * Every chassis a page covers.
@@ -303,28 +305,6 @@ export const NO_SPECIFICATION =
   'No specification is published for this car: no chassis, engine, weight or dimension figure is ' +
   'on record for it.'
 
-/**
- * THIS YEAR'S CHASSIS LEADS WITH ITS PHOTOGRAPH (PD-49).
- *
- * A car on this season's grid is one a reader has just watched race, and the
- * picture is what they came to match it against; every other car's page
- * leads with its figures and the photographs follow, as before. "This
- * year's" is the last season any variant the page covers raced - the span
- * the Raced tile prints - reaching meta.current_season (lib/season.js), and
- * never the latest season the register holds. Both renderers ask here.
- */
-/**
- * The heading the figures take when the photograph leads: under the
- * Photographs h2 the untitled strip and fields read as the section's own, so
- * they get one of their own there, and nowhere else.
- */
-export const FIGURES_HEADING = 'In figures'
-
-export const leadsWithPhotograph = (variants, season) => {
-  const years = variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))
-  return !missing(season) && years.length > 0 && Math.max(...years) === season
-}
-
 /** Whether any specification field holds a figure, and so whether to draw the fields at all. */
 export const specified = (fields) => fields.some(({ value }) => !missing(value))
 
@@ -335,12 +315,12 @@ export const NO_ENTRIES =
  * What a car page counts from its rows: the seasons its variants raced, and
  * the wins, poles and fastest laps in its entries. One reading for the strip
  * and for the rest of Car.jsx, which prints the same span as the strip's
- * Raced and sets its derived wins against the published figure.
+ * Seasons and sets its derived wins against the published figure.
  *
  * `raced` runs from the first variant's first season to the last season any
  * variant ran, a variant with no last season counting its first; a page
  * whose variants carry no season at all has [null, null], and the strip
- * then has no Raced tile.
+ * then has no Seasons tile.
  */
 export const carRecord = (variants, entries) => {
   const firsts = variants.map((v) => v.first_year).filter((y) => !missing(y))
@@ -362,12 +342,27 @@ export const carRecord = (variants, entries) => {
  * won, and a car page two clicks from a constructor page that ranks should
  * not be the one that does not.
  */
+/**
+ * The photograph that identifies a car, for its opening slot (VD-84), and
+ * the rest for its photo strip. The first that can be shown whose file name
+ * names the car: a file the build could not match to it (`name_matches` 0,
+ * the `unchecked` mark) may be another car of the family, and the picture
+ * of this thing is not the place to guess. None confirmed, and the slot is
+ * empty, so the header keeps the width. The strip leaves out the one the
+ * slot shows rather than drawing it twice. Both renderers call this.
+ */
+export const carPhotographs = (images) => {
+  const shown = images.filter(canShow)
+  const lead = shown.find((image) => image.name_matches === 1) ?? null
+  return { lead, rest: shown.filter((image) => image !== lead) }
+}
+
 export const carStrip = (variants, car, entries) => {
   const { raced, wins, poles, fastest } = carRecord(variants, entries)
   return [
-    { label: 'Raced', value: raced[0] === null ? null : span(raced[0], raced[1]) },
+    { label: LABELS.seasons, value: raced[0] === null ? null : span(raced[0], raced[1]) },
     variants.length > 1 ? { label: 'Variants', value: number(variants.length) } : null,
-    { label: 'Recorded entries', value: number(entries.length) },
+    { label: LABELS.entries, value: number(entries.length) },
     { label: 'Wins', value: number(wins), lead: wins > 0 },
     { label: 'Poles', value: number(poles) },
     { label: 'Fastest laps', value: number(fastest) },

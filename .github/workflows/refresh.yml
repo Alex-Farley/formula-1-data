@@ -243,7 +243,10 @@ jobs:
       # here, after the Python half has passed and before any npm code has
       # run, and uploaded at once. `land` downloads it by the id uploaded
       # here, not by name, so a later upload in this job is not what lands.
-      # On a quiet morning the pack is the one dated line of refresh.js.
+      # On a quiet morning the pack is the one dated line of refresh.js, and
+      # on a later quiet run the same day, once that line is on main, it is
+      # a paths.txt that lists nothing, which `land` applies as nothing and
+      # whose `Commit the check` then finds already stamped (CR-78).
       # The pack refuses a change to any path a refresh does not write, so a
       # refresh that starts writing somewhere new fails here rather than
       # being dropped on the way across; `land` checks it all again.

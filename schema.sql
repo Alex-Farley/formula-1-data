@@ -180,6 +180,13 @@ CREATE TABLE table_provenance (
 --                            car covers. NULL: they name none, which is what
 --                            `corroborated` = 1 means.
 --
+--   race_entries.note        why a classified finisher inside the paid
+--                            places scored nothing - a shared drive, a
+--                            Formula Two car, a second car not entered for
+--                            the championship, a penalty - citing the
+--                            race's own article (DA-37). The note is this
+--                            project's wording of what the article states.
+--
 -- Two of the five encodings docs/DERIVED-CONFIDENCE.md names are NOT here,
 -- on purpose. circuit_geometry's measured_km is OpenStreetMap's, and f1.db
 -- carries no OpenStreetMap data (ATTRIBUTION.md; that table is empty in this
@@ -187,7 +194,10 @@ CREATE TABLE table_provenance (
 -- name against its own chassis, not a second source.
 --
 -- `row_key` is the row's primary key where that is not a bare integer id,
--- its columns joined by '|' in key order: 'fangio', 'mclaren-m23|1976'.
+-- or else the natural key data/current.py ID_STABILITY publishes for the
+-- table, as `discrepancies` spells it: its columns joined by '|' in key
+-- order: 'fangio', 'mclaren-m23|1976', a race entry's '<race_id>|<driver_id>'.
+-- A bare integer id is never one: those are the build's to renumber.
 CREATE TABLE claims (
     tbl             TEXT NOT NULL,
     row_key         TEXT NOT NULL,
@@ -486,7 +496,11 @@ CREATE TABLE standings (
     -- a 0 there put him first in every query that ordered by position.
     position        INTEGER,
     position_text   TEXT,                      -- "2", or DSQ / EX
-    entity          TEXT NOT NULL,             -- driver or constructor display name
+    -- The register's name for the entrant - drivers.full_name or
+    -- constructors.name - on every row of every source, so one id stands
+    -- under one name in a season's tables (DA-29). The name raced under that
+    -- season is the lineage's entity_name, not this.
+    entity          TEXT NOT NULL,
     -- The entrant, in the namespace table_type names: a drivers.id on a
     -- drivers' row and a constructors.id on a constructors' one, exactly one
     -- of the two set. Up to v2.24 one `entity_id` column held both, and four
@@ -1184,9 +1198,10 @@ CREATE TABLE race_entries (
     -- WHAT 'POLE' MEANS HERE, above. Credited from harvest/poles.txt - the
     -- Wikipedia season tables - whatever `source` says: `source` names who
     -- established the row's FINISHING POSITION, and the pole and fastest-lap
-    -- flags are the one thing on a row that can come from elsewhere. Field-grain
-    -- sourcing is what `claims` would carry (docs/DERIVED-CONFIDENCE.md);
-    -- until then this is where the exception is declared.
+    -- flags are the one thing on a row that can come from elsewhere, bar
+    -- `note`, which `claims` cites. Field-grain sourcing is what `claims`
+    -- would carry for the flags too (docs/DERIVED-CONFIDENCE.md); until then
+    -- this is where the exception is declared.
     pole            INTEGER NOT NULL DEFAULT 0,
     -- The grid slot as the source states it. Almost always the same number
     -- as `grid`, but 236 entries started from the PIT LANE, which is not a
@@ -1214,11 +1229,16 @@ CREATE TABLE race_entries (
     -- not classified - retired, disqualified, did not start, did not qualify
     -- - in a race that has a classification (DA-36): the rule paid them
     -- nothing, which is established, so it is not a blank. A point such an
-    -- entry did earn, a 1950s fastest lap, keeps its value. NULL is left
-    -- where that rule does not establish it - the few finishers inside the
-    -- paid places whom the race's own rules did not pay, which verify.py
-    -- names, and every entry in a race nobody has yet been classified in.
+    -- entry did earn, a 1950s fastest lap, keeps its value. A finisher
+    -- inside the paid places whom the race's own rules did not pay - a
+    -- shared drive, a Formula Two car, a second car not entered for the
+    -- championship, a penalty - holds 0 too, and `note` says why, citing the
+    -- race's article in `claims` (DA-37). NULL is left only in a race
+    -- nobody has yet been classified in.
     points          REAL,
+    -- Why the row is not what its place would suggest: today, only why a
+    -- finisher inside the paid places scored nothing (DA-37). Every value
+    -- is a claim (CLAIM_FIELDS), so its source is a lookup.
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT,
@@ -2257,7 +2277,10 @@ GROUP BY g.id ORDER BY editions DESC;
 -- from the three dates it stood for, so a reader of this view and
 -- f1_compat.json sees what it always saw: the weekend where one is stated -
 -- "27-29 Mar 2026", "30 Oct-01 Nov 2026" - and the ISO race day otherwise.
--- web/src/lib/format.js raceDates() writes the same string for the site.
+-- It is kept as it was on purpose, for anyone reading the compat export. It
+-- is no longer the site's string: web/src/lib/format.js raceDates() writes
+-- the house format (CD-57) - "27–29 Mar 2026", "30 Oct–1 Nov 2026", "9 Mar
+-- 1997" - and the two are not meant to agree.
 CREATE VIEW calendar AS
 SELECT r.id, r.year, r.round, r.name_used AS gp_name, r.gp_id,
        g.country, ci.locality AS city, r.circuit_id, ci.name AS circuit_name,

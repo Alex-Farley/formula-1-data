@@ -10,6 +10,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
+import { LABELS } from '../lib/site.js'
 
 // A race holder is stored by races.id; the page needs year and round to
 // link it, so they ride along (NULL for every other holder).
@@ -213,10 +214,21 @@ export const DRIVER_POLES_FIGURE = {
 }
 export const CONSTRUCTOR_WINS_FIGURE = {
   title: 'Most wins by constructor',
-  note: "A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables.",
+  note: 'A win belongs to the car, so a shared drive counts once here and twice in the driver tables.',
   key: 'wins',
   label: (n) => `The ${howMany(n)} constructors with the most Grand Prix wins`,
 }
+
+/**
+ * The constructors' figure's note in the app, where the bars wear colours:
+ * 49 words at the longest, with liveries, national colours and a hollow bar
+ * all drawn, under the 50 the figure grammar allows (VD-80). `source` is
+ * colourSource()'s clause, or null where no bar is coloured.
+ */
+export const constructorWinsNote = (source, hollow) =>
+  `${CONSTRUCTOR_WINS_FIGURE.note}${
+    source ? ` Coloured as of each team’s last win: ${source}.${hollow ? ' A hollow bar has no colour on record.' : ''}` : ''
+  }`
 
 const year = (value) => String(value)
 export const DRIVER_WINS_COLUMNS = [
@@ -258,19 +270,19 @@ export function recordColumns(records) {
     // is as much as a figure-led phrase can honestly claim; `num` would line up
     // the ends of sentences instead. The comparable number is value_num, with
     // its unit, for a query.
-    { key: 'value', label: 'Value', align: 'prose', cellClass: 'record-value' },
-    { key: 'holder', label: 'Holder', align: 'prose' },
+    { key: 'value', label: LABELS.value, align: 'prose', cellClass: 'record-value' },
+    { key: 'holder', label: LABELS.heldBy, align: 'prose' },
     // The derivation is what CR-22's claim rests on, so it stays in the table
     // and stays legible; it is the footnote to the figure, not its equal, and
     // it was set in the same ink at the same size (VD-51).
-    { key: 'detail', label: DERIVATION, align: 'prose', cellClass: 'record-derivation' },
+    { key: 'detail', label: DERIVATION, align: 'prose', cellClass: 'record-derivation', date: 'text' },
     // Every record is derived in one pass, so the date is the same on all of
     // them until a figure moves (VD-29). It was a collapsing column, said once
     // above the table; with a table per family it would be said eleven times,
     // and not at all under a family of fewer than five, so it is said once for
     // the page (asOfLine) and is a column only where the records differ on it,
     // as the tier is.
-    ...(asOfOf(records) === null ? [{ key: 'as_of', label: 'As of' }] : []),
+    ...(asOfOf(records) === null ? [{ key: 'as_of', label: 'As of', date: 'short' }] : []),
     ...(tiersOf(records).length === 1 ? [] : [{ key: 'confidence', label: 'Confidence' }]),
   ]
 }
@@ -304,6 +316,24 @@ export const GRAND_SLAM_COLUMNS = [
   { key: 'constructor', label: 'Constructor' },
 ]
 
-/** The sentence both renderers open the records with; CR-22's claim rests on it. */
+/** The sentence both renderers open the headline records with; CR-22's claim rests on it. */
 export const RECORDS_LEDE =
   'Every record here is derived from the same tables as the leaderboards on every build, as of the last completed race the database holds, and each one says how.'
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Records.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const RECORDS_STANDFIRST =
+  'Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The records at the top are derived from the same tables as the leaderboards below on every build; the leaderboards are counted from the race records as this page loads.'
+
+/**
+ * A record's tile strip, as data (VD-71, after VD-49): read by
+ * pages/Record.jsx and drawn by scripts/prerender.js's tiles(). The holder
+ * links to their page where holderPath() finds one.
+ */
+export const recordStrip = (record) => [
+  { label: LABELS.value, value: record.value, lead: true },
+  { label: LABELS.heldBy, value: record.holder, href: holderPath(record) },
+]

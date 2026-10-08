@@ -19,6 +19,7 @@ import {
   REGISTER_OUTLINES,
   SHAPES,
   TRACED,
+  CIRCUITS_LEDE,
 } from '../queries/circuits.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -80,7 +81,7 @@ export default function Circuits() {
       title={NAMES.circuits().headline}
       documentName={NAMES.circuits().title}
       trail={TRAIL.circuits()}
-      lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Drawn below, then listed by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
+      lede={CIRCUITS_LEDE}
     >
       <Result state={state} skeleton>
         {(data) => (
@@ -279,7 +280,7 @@ function Register({ rows, traces, shapes }) {
         {/* One credit for the set, from the rows themselves: every row of
             circuit_geometry states the same licence today, and a circuit's
             own page prints its own row's. */}
-        <p className="note" style={{ marginTop: 0 }}>
+        <p className="note">
           {overlay ? traceRegisterNote(traces[0]?.licence) : TRACE_NOT_LOADED}
         </p>
         {overlay &&

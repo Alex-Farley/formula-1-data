@@ -28,6 +28,9 @@ or to `frontend-reviewer-quick` where the pace table in
     one change - the file or component they share.>
     Routes to spot-check: <the routes the pace allows - three at fast, ten
     chosen for edge cases at balanced, every touched route at thorough>.
+    <For a web change:> Design system: <the components and tokens the diff
+    touches, and the sections of docs/design-system.md they fall under, each
+    built, pending or provisional>.
     Change: <what was done, file by file, in plain terms; name every claim
     the change makes that a reviewer could check>.
 

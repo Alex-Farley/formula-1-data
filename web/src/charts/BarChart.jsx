@@ -63,13 +63,12 @@ export default function BarChart({ data, format = (v) => v.toLocaleString('en-GB
             >
               <rect x="0" y={4 + i * ROW} width={width} height={ROW} fill="transparent" />
               <text
-                className="axis-text"
+                className="axis-text bar-label"
                 x={LABEL_WIDTH - 10}
                 y={y + THICKNESS / 2}
                 textAnchor="end"
                 dominantBaseline="middle"
                 fill="var(--ink)"
-                style={{ fontSize: 12.5 }}
               >
                 {d.label ?? d.key}
               </text>

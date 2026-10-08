@@ -106,7 +106,7 @@ CHAMPIONS = [
      "'The Iceman'. Took the 2007 title at the last round by one point. Held the record for most race starts (349) until Alonso passed it.", "high"),
     ("hamilton", "Sir Lewis Hamilton", "United Kingdom", "GBR", "1985-01-07", None, 2007, None,
      None, 380, 106, 202, 104, 67, None, 7, "2008,2014,2015,2017,2018,2019,2020", "active",
-     "Record holder for wins (105 at end-2025) and poles (104). Equalled Schumacher's title record in 2020. Moved to Ferrari for 2025 and took his first Ferrari win at Barcelona in 2026. Start/win totals move with the 2026 season.", "medium"),
+     "The record holder for wins and poles, and has shared Schumacher's record for titles since 2020. Moved to Ferrari for 2025 and took his first Grand Prix win for them at Barcelona in 2026.", "medium"),
     ("button", "Jenson Button", "United Kingdom", "GBR", "1980-01-19", None, 2000, 2017,
      309, 306, 15, 50, 8, 8, 1235, 1, "2009", "retired",
      "Won the 2009 title with Brawn GP in the team's only season.", "high"),

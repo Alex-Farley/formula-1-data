@@ -1,12 +1,14 @@
-# The Lap Ledger design system — a proposal in three versions
+# The Lap Ledger design system
 
-**Status: proposal, not built.** Written for VD-75 (#843) on 2026-10-06 from
-the five critiques in
+**Status: adopted, version A (#843).** Written for VD-75 (#843) on 2026-10-06
+from the five critiques in
 [`critiques/2026-10-06-design-pass.md`](critiques/2026-10-06-design-pass.md).
-Nothing in `web/` changes until the maintainer chooses a version. That choice is
-recorded on #843 as a decision. Until then, this file
-describes what the site *should* hold, and says so wherever that differs from
-what it holds today.
+The maintainer chose version A on #843 the same day, with DP-01 to DP-08 and
+DP-28 to DP-33 accepted, to be built in seven reviewed steps (VD-78 to VD-84,
+#865 to #871). VD-85 (#872) made it the rule for web work `[D-53]`: a new
+page, component or critique is held to it, and a feature that needs something
+it lacks extends it in the same pull request (§8). Versions B and C were
+rejected; §10 keeps the record of what they were and what they gave up.
 
 **What it is for.** The thirteen layout changes of 5–6 October each fixed one
 page type well. Together they left five two-column systems, seven text widths
@@ -20,19 +22,35 @@ today's driver, race and circuit pages beside each version at 1440 and 400 px)
 is the page linked from #843. This file is the record; the page is the
 picture.
 
-**How to read it.** Most of the system is the same in every version and is
-marked **core**. The three versions differ in one thing, which is how a page
-opens and how wide its columns run. Where they differ, the text says
-**A**, **B** or **C**:
+**How to read it.** Most of the system was the same in all three proposed
+versions and is marked **core**. What only version A has is marked **A**: a
+12-column grid, and each entity page and the race page opening with its
+heading on the left and one picture slot on the right, from 1180 px.
 
-- **A — one grid, one opening slot.** A 12-column grid. Each entity page
-  opens with its heading on the left and one picture slot on the right, from
-  1180 px.
-- **B — one reading column.** Every block starts at the left edge and ends at
-  one of two right edges: the reading measure or the full width. This is the
-  shape the static page already draws.
-- **C — a reference entry.** A facts rail sits beside a reading column on
-  entity pages, and event pages are single column.
+**Built, pending and provisional.** Each section says after its heading which
+it is, so that nobody holds new work to a rule that has not landed:
+
+- **built**: on `main`, in `web/src/styles/tokens.css` or a component, and
+  held by a test where one applies. A diff is held to it, and a page off it
+  is drift. Where a value written here and `tokens.css` differ, the file is
+  the value.
+- **pending (VD-nn)**: decided, and waiting for the build step named. A page
+  that lacks it is that step's to fix, not a finding against the page, and a
+  reviewer does not fail a diff for not having it. A new feature does not
+  build a rival to it either: it waits for the step, or extends the system
+  under §8.
+- **provisional**: added by a feature under §8's *Extending*, and on trial
+  until it is promoted to core or dropped.
+
+§1's principles bind from adoption. The steps: VD-78 (#865, the grid, the
+measure and the design-system tests), VD-79 (#866, tiles, one page
+header and the handover), VD-80 (#867, one figure grammar), VD-81 (#868,
+one vocabulary), VD-82 (#869, one reveal control, with sort and fold in
+the address), VD-83 (#870, one section order per page type) and VD-84
+(#871, the opening slot and the middle type register) are built: all seven.
+VD-86 (#884) holds the core rules none of the seven named. **A step's pull request moves
+the sections it builds from pending to built**, in this file, in the same
+change.
 
 ---
 
@@ -63,29 +81,30 @@ opens and how wide its columns run. Where they differ, the text says
 
 ## 2. Foundations: the tokens
 
-### Where the tokens live today, and where they should
+### Where the tokens live — built (VD-78)
 
-| Kind | Today | Proposed single source |
-|---|---|---|
-| Colour, type, weight, spacing, measure, page width, radius, fonts | `web/src/styles/tokens.css` | unchanged: `tokens.css` |
-| Grid columns, gutter, spans, breakpoints | **nowhere.** Five rules pick their own (`app.css` `.page:has(.section-lead)`, `.split`, `header:has(.page-photo)`, `.with-outline`, `.outline-set`) | `tokens.css`, new block "grid" |
-| Livery and national racing colours | `lib/liveries.js`, `lib/racingColours.js`, the `--racing-*` pairs in `tokens.css`, `--livery*` set per element in `app.css` | unchanged (they are data, with sources), with the token names listed here |
-| Chart series and grid | `--series-1..3`, `--grid` in `tokens.css`; validator record in `charts/palette.js` | unchanged |
-| Counts that shape a layout | `FOLD_TO = 10` (`lib/table.js`), `PHOTOGRAPHS_SHOWN = 6`, `PHOTOGRAPH_WIDTH = 600` (`lib/site.js`) | stay in JS, but listed in the token table below with one name each |
-| Inline literals in JSX | `Circuit.jsx:230` and `Season.jsx:445` `marginTop: 34`, `Data.jsx` 18, `Records.jsx` −4, `LiveryScheme` 14, `BarChart` `fontSize 12.5` (VD-60, #615) | none. Each becomes a token or a class |
+| Kind | Single source |
+|---|---|
+| Colour, type, weight, spacing, measure, page width, radius, fonts | `web/src/styles/tokens.css` |
+| Grid columns, gutter, spans, breakpoints | `tokens.css`, the grid block. A custom property cannot stand in a media query, so `app.css` writes the two breakpoints as literals and `conventions.mjs` refuses any other |
+| Livery and national racing colours | `lib/liveries.js`, `lib/racingColours.js`, the `--racing-*` pairs in `tokens.css`, `--livery*` set per element in `app.css`. They are data, with sources |
+| Chart series and grid | `--series-1..3`, `--grid` in `tokens.css`; the validator record in `charts/palette.js` |
+| Counts that shape a layout | stay in JS, one name each: `FOLD_TO` (`lib/table.js`), `PHOTOGRAPHS_SHOWN` and `PHOTOGRAPH_WIDTH` (`lib/site.js`) |
+| Inline sizes in JSX | none. `conventions.mjs` refuses a size written as a literal in a `style={{ }}` (VD-60 #615, folded into VD-78) |
 
-### Grid (new)
+### Grid — built (VD-78)
 
-| Token | Value | Notes |
-|---|---|---|
-| `--page` | 1280 px (content 1232 between 24 px margins) | exists |
-| `--margin` | 24 px, 104 px at 1440 (centred) | exists in effect, unnamed |
-| `--columns` | 12 from 1180 px, 8 from 768, 4 below | new |
-| `--gutter` | 24 px (`--space-8`) | new; replaces the 40, 24 and 16 px gutters the five rules use today |
-| `--col` | `(content − 11 × gutter) / 12` | 80.7 px at 1440 |
-| `--span-n` | `n × col + (n − 1) × gutter` | spans 4, 5, 6, 7, 8 and 12 are the ones in use |
-| Breakpoints | `--bp-tablet` 768, `--bp-desktop` 1180, `--bp-wide` 1280 | new; **replaces the seven in use today** (480, 560, 600, 720, 760, 860, 1024) and the masthead's implicit wrap at 1099 |
-| Test widths | 400, 768, 1024, 1440, plus 1180 for the switch | the four the maintainer named |
+The values are in `tokens.css`'s grid block, and this file names them
+without restating them (§9):
+
+| Token | Job |
+|---|---|
+| `--page` | the page's width; from there only the margins grow |
+| `--columns` | 12 from `--bp-desktop`, 8 from `--bp-tablet`, 4 below |
+| `--gutter` | the one gutter, `--space-8` |
+| `--col`, `--span-n` | one column, and n columns with the gutters between them, counted off `main`'s content box |
+| `--bp-tablet`, `--bp-desktop` | the two breakpoints, which replaced seven widths and the masthead's own wrap |
+| Test widths | 400, 768, 1024, 1440, plus 1180 for the switch |
 
 **Why 1180 for the switch, not 1024.** Between 1024 and 1180 a side column
 costs a desktop reader more than it gives. The race classification loses
@@ -93,33 +112,36 @@ Points and FL to a scroll (141 px clipped at 1024). A lead chart's hover bars
 are 3.7 px wide, against 6.0 px at 768 where it stacks. A side-by-side opening
 starts at 1180 (interaction I3).
 
-**A:** every page is the 12-column grid. **B:** the grid exists for spans and
-the measure, but every block is one column. **C:** entity pages are 8 + 4
-columns from 1180.
+Every page is the 12-column grid.
 
-### Spacing — keep the scale, name the roles
+### Spacing — built (VD-03): the scale, with roles named
 
-The ten steps in `tokens.css` (2, 4, 6, 8, 10, 12, 16, 24, 40, 64) hold. The
-visual critic found **no new literal in the thirteen changes**. The
-proposal adds names for the roles the steps already play, so that a component
-picks a role and not a number:
+The ten steps in `tokens.css` hold, and `conventions.mjs` refuses a value off
+them. The visual critic found **no new literal in the thirteen changes**.
+The roles below name what the steps already do, so that a component picks a
+role and not a number:
 
 | Role | Step |
 |---|---|
-| Between sections | `--space-9` (40). Today it is 40 everywhere except two 74 px gaps from the inline `marginTop: 34` |
+| Between sections | `--space-9` (40) |
 | Between blocks in a section; the gutter | `--space-8` (24) |
 | Between a heading and its block | `--space-6` (12) |
 | Inside a tile or frame | `--space-6` / `--space-7` |
-| Between card siblings (photos, onward cards, record cards, outline cards) | `--space-6` (12). Today five gaps are in use: 8, 10, 12, 16 and 12/8 |
+| Between card siblings (photos, onward cards, record cards, outline cards) | `--space-6` (12). Pending: the card grids still use several gaps (VD-86 #884) |
 
-### Type — keep the scale, settle the middle register
+### Type — built: the scale and the middle register (VD-84)
 
 The eight small steps and the two display clamps hold. **`--size-9/10/11`
-(32/40/50 px) are documented as VD-53's "one number per page" and used
-nowhere** (visual V7). The proposal is either to use them for the one hero
-figure per page (A and C: the slot's or the rail's headline number), or to
-delete them and the claim (B). Holding a token the stylesheet never uses is
-the one choice the proposal rules out.
+(32/40/50 px) were documented as VD-53's "one number per page" and used
+nowhere** (visual V7). DP-10 kept them for the one hero figure per page,
+which VD-84 set: the first lead figure of a ranked tile strip (a driver's, a
+team's or a car's wins, a record's value, the rounds run on the home page;
+the season, race and circuit strips rank nothing and have none), at
+`--size-9` on a phone,
+`--size-10` from `--bp-tablet` and `--size-11` from `--bp-desktop`, beside
+the opening band. A second lead keeps `--size-8`, so a page has one hero and
+not two, and a name is never one. `conventions.mjs` now declares no token
+unused.
 
 | Role | Step |
 |---|---|
@@ -131,27 +153,27 @@ the one choice the proposal rules out.
 | Lede, a name in a tile | `--size-6` 17 |
 | Section head (h2) | `--size-7` 20 |
 | A tile figure | `--size-8` 25 |
-| One hero figure per page (A, C) | `--size-9`–`--size-11`, or deleted (B) |
+| One hero figure per page | `--size-9`–`--size-11`, by width (VD-84) |
 | Page title | `--size-display` |
 
-### Measure — one rule, two lengths, both on the grid
+### Measure — built (VD-78): one rule, two lengths, both on the grid
 
-Today `--measure: 46ch` is one token, but `ch` scales with the type size, so
-it draws **seven right edges**: 525 (lede), 515 (figure note), 483 (figure
-caption), 463 (`.measure`), 417 (note), 370 (source note) and 304 (livery
-band). None of them falls on a column line, and the framed boxes that
-inherit it (disagreement 463, note box 417, citation 370) align with
-nothing. The proposal:
+Before VD-78, `--measure: 46ch` was one token, but `ch` scales with the type
+size, so it drew **seven right edges**: 525 (lede), 515 (figure note), 483
+(figure caption), 463 (`.measure`), 417 (note), 370 (source note) and 304
+(livery band). None of them fell on a column line, and the framed boxes that
+inherited it (disagreement 463, note box 417, citation 370) aligned with
+nothing. Now there are two, with their values in `tokens.css`:
 
-| Token | Value | Holds |
-|---|---|---|
-| `--measure` | `max(var(--span-5), min(100%, 28rem))`, which is 499 px at 1440 and 448 px at 1024, so about 60–75 characters at 15–17 px | free prose at 15–17 px |
-| `--measure-small` | `max(var(--span-4), min(100%, 22rem))`, which is 395 px at 1440, so about 60–72 characters at 12–13.5 px | credits and source lines |
+| Token | Holds |
+|---|---|
+| `--measure` | free prose at 15–17 px, about 60–75 characters: five columns from 1180 |
+| `--measure-small` | credits and source lines at 12–13.5 px: four columns from 1180 |
 
-From 1180 px both end on a column line. Below that they keep a floor in rem,
-and below 768 everything runs the full column (at most 352 px at 400).
+From 1180 px both end on a column line. Between the breakpoints they are
+capped in rem, and below 768 everything runs the full column.
 
-### Colour — unchanged, listed with one name each
+### Colour — built: listed with one name each
 
 | Family | Tokens | Job |
 |---|---|---|
@@ -166,12 +188,12 @@ and below 768 everything runs the full column (at most 352 px at 400).
 Both themes keep their measured contrast (the figures are in the
 `tokens.css` header). Dark stays a second instrument, not an inversion.
 
-### Radii, borders, elevation
+### Radii, borders, elevation — built
 
 | Token | Value | Use |
 |---|---|---|
 | `--radius` | 3 px | every framed box |
-| `--radius-sm` | 2 px | pills, chips. **The disagreement box's literal `border-radius: 2px` becomes this** |
+| `--radius-sm` | 2 px | pills, chips, and the disagreement box (VD-78) |
 | Frame | 1 px `--rule` | one frame for tiles, figures, tables and cards (§3) |
 | Emphasis edge | 3 px left border `--rule-strong` | note box and disagreement only |
 | Elevation | `--shadow` | overlays only: the search palette, a table's hover box. Never a page block |
@@ -181,9 +203,9 @@ Both themes keep their measured contrast (the figures are in the
 ## 3. Components
 
 Every recurring block, with its job, its parts, its widths and its states.
-**Core** unless a version is named.
+**Core** unless marked **A**.
 
-### The text-width rule (core, asked for on #843)
+### The text-width rule (core, asked for on #843) — built (VD-78), but for kind 2's band
 
 Every text block is one of five kinds. Its kind sets its width.
 
@@ -193,112 +215,176 @@ Every text block is one of five kinds. Its kind sets its width.
    line, the "same on every row" line) is drawn **inside the box's frame**:
    a footer band with a hairline as wide as the box. Its lines stop at the
    measure. The band matches the table, and the text stays legible.
-3. **A framed note** (disagreement, note box, citation, *Where this comes
-   from*) is a box: **the box spans its column**, and its lines stop at the
-   measure.
+   The figure's band is built (VD-80). *Pending:* a table's source line
+   still sits under its box at `--measure-small` until VD-86 (#884).
+3. **A framed note** (disagreement, citation, *Where this comes from*) is a
+   box: **the box spans its column**, and its lines stop at the measure (the
+   citation's at `--measure-small`). A note box has one edge, its left rule,
+   so the box and its lines end together at the measure.
 4. **Structured or short text** (field lists, tiles, one-line notes,
    buttons) has no cap.
 5. **Below 768 px**, every kind runs the full column.
 
-How the versions apply it:
+"Its column" is the full content width (1,232 px at 1440), or the header
+column in the opening band.
 
-- **A and B:** "its column" is the full content width (1,232 px at 1440), or
-  the header column in A's opening band.
-- **C:** "its column" is the 8-column reading column (808 px). Text in the
-  rail uses `--measure-small`.
+The result: **two text edges per page, both grid lines**, where there were
+seven.
 
-The result: **two text edges per page, both grid lines**, where today there
-are seven.
-
-### Page header (core)
+### Page header (core) — built (VD-79, VD-81)
 
 - **Job:** say what this page is, and how to move along a sequence.
 - **Parts:** eyebrow, h1, lede, stepper.
-  - The **eyebrow** follows one rule: the page type, then the one fact that
-    identifies the entity, for example *Driver · United Kingdom · born 7
-    January 1985* or *Race · Round 12 of 24 · 6 July 2025*. This settles
-    IA-09 (#253).
-  - The **stepper** names its neighbours: *← 2025 Austrian Grand Prix*.
-- **One component drawn by both renderers** (VD-56 #550, VD-71 #819 and
-  VD-73 #822 close into it).
-- **Widths:** the header column (A: 7 columns from 1180; B: full; C: 8
-  columns). The lede is at the measure.
+  - The **eyebrow** follows one rule: the page type, then the facts that
+    identify the entity, for example *Driver · United Kingdom · born 7
+    January 1985* or *Race · Round 12 of 24 · 6 July 2025*. A fact the
+    database does not hold is left out, never printed as a dash. All seven
+    entity types carry one, seasons included (*Season · 23 rounds, 16
+    run*), from `EYEBROWS` in `web/src/lib/site.js`, which both renderers
+    read. This settles IA-09 (#253); smoke's *one vocabulary* check holds
+    each entity page's eyebrow to its type in both halves (VD-81).
+  - The **stepper** names its neighbours: *← 2025 Austrian Grand Prix*, as
+    the race's own h1 names it (`raceSteps` in `lib/wayfinding.js`, VD-81).
+- **One component drawn by both renderers.** `Page` in
+  `components/Page.jsx` draws it in the app, and `opening()` with
+  `structure()` in `scripts/prerender.js` draws the same markup, class for
+  class, from the same strings: `NAMES` and `EYEBROWS` in `lib/site.js`,
+  each register's lede in its `queries/*.js` module, and the livery band's
+  words from `bandWords()` in `lib/liveries.js`. VD-56 (#550) and VD-71
+  (#819) closed into it. VD-73 (#822), the static page's missing lead
+  charts, is the figure's and the slot's, not the header's: §8's test 5
+  declares its headings until it lands.
+  - One declared difference: `/data/sql`'s static page keeps its own lede,
+    because it is not the console and has no examples or schema for the
+    app's lede to point at.
+- **Widths:** the header column: 7 columns from 1180 beside the slot, the
+  full width where the slot is empty or below 1180. The lede is at the
+  measure.
 - **Accessibility:**
   - One h1 per page (**floor**).
   - Focus lands on the h1 after navigation *and after the handover from the
-    static page* (**floor**). Today it falls to `<body>` on driver,
-    constructor and season pages in 6 of 6 cold loads, because the h1 node
-    is replaced when the page's query resolves.
+    static page* (**floor**). It used to fall to `<body>` on driver,
+    constructor and season pages in 6 of 6 cold loads, because `main.jsx`
+    focused an h1 the page had not drawn yet. The app now renders out of
+    sight and takes the static page's place once its page is drawn, and the
+    h1 takes focus then (`lib/handover.js` `arrived()`). Held by §8's
+    test 10.
   - A status region stays mounted and says when the page has changed
-    (**aim**).
+    (**aim**): `#page-status` in `index.html`, outside both halves, says
+    *"…: the page has finished loading."* at the handover.
   - The page reads h1 → lede → the tile strip → a first h2 that is the
     page's lead answer, on every page type (**aim**; the accessibility
     critic's rule for predictability).
 
-### Opening slot (A) · facts rail (C) · none (B)
+### Opening slot (A) — built (VD-84)
 
-- **A, the slot:** "the picture of this thing", 5 columns beside the header
-  from 1180, after the tiles below that. What fills it:
-  - driver, constructor and season: the lead chart;
-  - circuit: the aerial photograph;
-  - race: the outline;
-  - car: its photograph.
+"The picture of this thing", 5 columns beside the header from 1180, after
+the tiles below that. What fills it:
 
-  An empty slot gives its width to the header. The band is as tall as the
-  taller of the two, and the tiles start under both, so nothing below is
-  ragged.
-- **C, the rail:** 4 columns from 1180. Its parts, top to bottom: the
-  picture, then the identifying facts that sit in *On the record* at the
-  foot today (born, nationality, base, length), then the tiles as a
-  two-column list. Blocks run beside it until the first table wider than 7
-  columns, which breaks out to the full width below it. Below 1180 the rail
-  is a block after the header.
-- **B:** no slot. The lead element follows the tiles at full width. On a
-  race page the outline is the last tile of the strip; on a circuit page the
-  outline and the photograph form one drawing section after the tiles.
+- driver, constructor and season: the lead chart, as `<Section lead>`;
+- circuit: the current layout's outline, on every circuit with one. The
+  maintainer's ruling on VD-74 (#823) is that the outline leads every
+  circuit page, since only 19 of the 80 have an aerial photograph; where
+  there is one it stays the header's own (VD-62), in three of the header's
+  seven columns beside the heading, so the photograph and the outline share
+  the band and neither is dropped;
+- race: the outline (DP-11);
+- car: the first photograph whose file name names the car
+  (`carPhotographs` in `queries/car.js`). An unconfirmed file is never the
+  picture of this thing, and the photo strip holds the rest rather than
+  drawing it twice.
 
-### Tile strip (core)
+A picture is `<Slot>` in the app and `slot()` in `prerender.js`, the same
+`div.slot`; the static page draws the race's, the circuit's and the car's,
+and not yet the three charts (VD-73 #822).
+
+- **Order.** The slot is written after the tiles, a race's after its
+  classification, and only the grid lifts it into the band, so a screen
+  reader and the Tab key read heading, tiles, then the picture at every
+  width.
+- **Widths.** Below 1180 a picture is capped at 5 columns from
+  `--bp-tablet`, and a chart keeps the column. An outline in the slot is
+  drawn in a 2:1 box, so the band is little taller than the header beside
+  it.
+- **Empty.** An empty slot gives its width to the header. The band is as
+  tall as the taller of the two, and the tiles start under both, so nothing
+  below is ragged.
+- **Minimum mark width.** A lead chart goes in the slot only where its
+  hover targets keep 6 px at 1180, the slot's narrowest: `SLOT_MARKS` in
+  `lib/site.js`, 63 columns. Ferrari's 77 seasons lead under the tiles at
+  the full width instead, and its header keeps the band. A column chart's
+  hover targets meet, each the full step wide.
+- **Held by** `smoke.mjs`, *The opening slot*: §8, test 14.
+
+### Tile strip (core) — built (VD-79, VD-81), but for its em dash and its name (VD-88 #887)
 
 - **Job:** the handful of figures the page is about.
 - **Parts:** label (`--size-2` mono), figure (`--size-8`, or `--size-6` for a
-  name), qualifier (`--size-3`).
+  name), qualifier (`--size-3`). Every figure in a row sits on one baseline,
+  the lead figures and the rest alike.
 - **Widths:** a grid, not a flex row. Every tile draws its own hairline (the
   option VD-46 #414 proposed), so a short last row ends against the page.
-  There is **no ghost tile** (today's `.stats::after`) and no stretched lone
-  tile.
-  - One row where the strip fits at 125 px a tile. Nine tiles fit at 1440.
-  - Otherwise, rows of equal count.
-  - Two to a row below 560.
+  There is **no ghost tile** and no stretched lone tile. Each renderer
+  writes the strip's count as `--tiles`, and `.stats` in `app.css` picks
+  the columns from it and from the strip's own width, with `--tile` and
+  `--tile-pair` from `tokens.css`:
+  - one row where the strip fits at `--tile` a tile (nine fit at 1440);
+  - otherwise rows of equal count, half the tiles a row, then a third;
+  - two to a row in a strip narrower than `--tile-pair`.
+  A label may wrap: each tile is two rows of the strip's grid, shared
+  through `subgrid`, so a two-line label moves every figure in its row
+  together rather than its own alone.
+- **One strip drawn by both renderers:** every strip is data in its page's
+  `queries/*.js` module (VD-49, and VD-71 #819 for the Grand Prix and record
+  pages), drawn by `Stats` and by `prerender.js`'s `tiles()`. The one tile
+  only the app draws is the season's *Next session*, because only a browser
+  knows how long until it starts; §8's test 5 declares it.
 - **Labels from one vocabulary:** *Seasons* for every year span, and
-  *Entries* everywhere (CD-12 #258).
+  *Entries* everywhere (CD-12 #258); a record's strip is *Value* and
+  *Held by*, as /records' tables are. The words are `LABELS` in
+  `lib/site.js`, which every strip reads (VD-81); §8's test 7 refuses a
+  synonym.
 - **States:** a value not established is an em dash (**floor**: the NULL
-  rule).
+  rule). *Pending (VD-88 #887):* both renderers still drop a tile whose
+  value is null.
 - **Accessibility:** the strip is a `<dl>` with a name ("At a glance"),
-  either as an `aria-label` or as a visually hidden h2 (**aim**).
+  either as an `aria-label` or as a visually hidden h2 (**aim**). *Pending
+  (VD-88 #887).*
 
-### Figure, and its `lead` variant (core)
+### Figure, and its `lead` variant (core) — built (VD-80)
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold
-  title. Then the plot. Then the **method note under the plot, on every
-  figure**, not only the lead variant VD-67 reached. The note is cut to what
-  stops a misreading, 50 words at most (content C1). Last, *The numbers behind
-  this chart*, worded the same everywhere.
-- **Widths:**
-  - A: the slot (5 columns) for the lead figure, the full width otherwise.
-  - B: the full width.
-  - C: the reading column (8 columns).
+  title: `Figure` takes no `title`, and reads the heading as its accessible
+  name, as a table reads its caption. Then the plot, then its legend. Then
+  the **method note under the plot, on every figure**, in a band inside the
+  frame (the text-width rule, kind 2), and named as the figure's
+  description. The note is cut to what stops a misreading, 50 words at most
+  (content C1). Last, *The numbers behind this chart*, worded the same
+  everywhere; what the table holds and the plot does not draw (an entry
+  with no line) is said under the table, not in the note.
+- **A figure its section's h2 cannot name** (two in one section, as the
+  Records leaderboards and the chassis chart on `/data/quality`; one whose
+  h2 names its section rather than what it measures, as the constructors'
+  wins and the decade the chips chose on `/records`) sits in a
+  `FigurePart`, whose h3 names it and its table.
+- **Widths:** the slot (5 columns) for the lead figure, the full width
+  otherwise.
 - **States:** a figure with nothing to draw says so in one sentence in its
   place, and does not leave an empty frame.
 - **Accessibility:**
   - Series are never colour alone; a second cue (shape, ring, label) carries
     the meaning (**floor** for 1.4.1).
+  - A ring that flags a mark (a title on a driver's chart) is drawn at full
+    strength and at least 2 px wide, so the series colour's 3:1 is what
+    reaches the screen (**floor** for 1.4.11; DP-33, held by
+    `conventions.mjs`).
   - The hover box also opens on focus (**aim**; IX-44 #844 is the
     containment half).
-  - A hover target is at least 6 px wide at every width (**aim**; that is
-    what B and the 1180 switch buy).
+  - A hover target is at least 6 px wide at every width (**aim**; the 1180
+    switch and §7's minimum mark width hold it).
 
-### Table (core)
+### Table (core) — built (VD-82, AX-21, VD-84), but for sticky heads (VD-89 #901); provisional: a table that fits its box (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -308,44 +394,75 @@ are seven.
     on the right;
   - the **fold**.
 - **The fold is the one reveal control.** It applies to any table over 25
-  rows unless the page opts out with a reason. Its button names its noun:
-  *Show all 74 team-mate seasons*. It replaces the paged *Show the remaining
-  144* on `/records`.
-- **Sort buttons show focus** (**floor**, 2.4.7). Today
-  `th.sortable button { all: unset }` (`app.css:870`) removes the ring on
-  every table.
+  rows (`FOLD_OVER`) unless the table opts out with a reason. Its button
+  names its noun from `FOLD_NOUN`: *Show all 74 team-mate seasons*. It
+  replaced the paged *Show the remaining 144* on `/records`.
+  - **The reasons are one list,** `UNFOLDED` in `lib/table.js`, given as
+    DataTable's `unfolded` and prerender's option of the same name: a
+    register (the page is the table, and it opens on a page of rows), the
+    page's subject (a race's results, a season's calendar and standings), a
+    reference list, a table that stands for a drawing (a chart's numbers),
+    and the console's result. *Show the remaining N* survives only on a
+    table that has opted out.
+  - **A table over the threshold that does neither is refused** (§8, test
+    12): `prerender.js` stops the build on any route it writes, and
+    DataTable logs the error the smoke suite fails on.
+- **Sort buttons show focus** (**floor**, 2.4.7), inside the header, as do
+  `/data/sql`'s examples (AX-31 #863).
 - **Opening the fold moves focus to the first revealed row** (row 11's row
   header, `tabindex="-1"`), so a keyboard user is not left 13,000 px below
   the rows (**aim**).
 - **A disclosure's name says what it opens:** *How it is derived: most
   wins*, not the same four words twelve times (**aim**).
 - **Sort and fold live in the address,** keyed by table name, the contract
-  the registers already keep (IA-08). Back restores both, and with them the
-  reader's place (interaction I2).
-- **Widths:** the full content width (A, B), or the reading column, breaking
-  out when wider than 7 columns (C). A table never sits beside a side column
-  that clips it.
+  the registers already keep (IA-08): `?every-entry.sort=year&every-entry.dir=desc&every-entry.all=1`,
+  written by replacing the history entry, never pushing one. Back restores
+  both, and with them the reader's place (interaction I2, IX-46 #849). A
+  register keeps its bare `?sort=` and `?all=1`; a chart's numbers and the
+  console's result keep nothing there (`remember={false}`). A fold opened
+  on the static page before the database arrives stays open without being
+  written down, as a seeded register's rows are: the address is written by
+  the reader's hand, never by the handover.
+- **Widths:** the full content width. A table never sits beside a side
+  column that clips it.
+- **A table that fits its box** (provisional, IX-45 #848). A table that is
+  its page's subject, and has to be read whole, fits its content box from
+  `--bp-tablet` rather than scrolling behind the fade. Its columns of words
+  carry `.wraps` (a column's `cellClass`, so both renderers write it), and
+  from 768 to 1,180 px those cells may break at a space and every cell of
+  the table pads `--space-3` a side, not `--space-6`. A figure never wraps,
+  and below `--bp-tablet` the rows keep to one line and the table scrolls,
+  as every other does on a phone. The race classification is the one user:
+  its ten columns are about 960 px at one line, and Points and FL scrolled
+  out from 768 to 1,010 px. When the rule landed it fitted every
+  classification held from 780 px, and all but two at 768: the 1950 and
+  1951 Indianapolis 500, where a car named *Championship Racer* leaves the
+  table 12 px over below 780.
+  What it costs: between the breakpoints a long name takes two lines, so
+  the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024
+  in both halves (*the classification fits its box*).
 
-### Notes, attached notes and the disagreement box (core)
+### Notes, attached notes and the disagreement box (core) — built (VD-78), but for the source line's band
 
 | Block | Kind (text rule) | Frame |
 |---|---|---|
 | Section intro | free prose | none |
 | Source line, "same on every row" | belongs to a box | footer band of its table or figure |
-| Note box | framed | 3 px left edge, spans the column |
+| Note box | framed | 3 px left edge; the box and its lines end together at the measure |
 | Disagreement ("Two sources disagree") | framed | 1 px frame, 3 px left edge, spans the column; placed directly above the table it explains, as the shared-drive box already is |
 
-### Photo strip (core)
+### Photo strip (core) — built: the place (VD-83); pending: the columns (VD-86 #884)
 
 - **Job:** what something looked like, credited.
 - **Parts:** photo cards on column multiples: 4 to a row from 1180, 2 from
   768, 1 below. That removes today's 5 + 1 orphan. Each photograph is
   credited through `CommonsCredit` and **fails closed**: no attribution, no
   image (**floor**, the one attribution rule).
-- **Place:** after the page's own sections and before *Where this comes
-  from*, on every page type. Today photographs sit in five places.
+- **Place:** after the page's own sections and straight before *Where this
+  comes from*, on every page type. They sat in five places until VD-83;
+  `smoke.mjs` holds the place in both halves (§8, test 13).
 
-### Outline card (core)
+### Outline card (core) — pending (AX-26 #509)
 
 - **Parts:** the drawing on `--stage`, then a **heading or caption in words**:
   *Current layout, raced since 2010 · 5.891 km, 18 turns · outline: F1DB (CC
@@ -353,33 +470,35 @@ are seven.
   silverstone-8 · …*, and the OpenStreetMap sentence appears only where a
   trace is drawn (content C10; AX-26 #509).
 
-### Provenance and citation (core)
+### Provenance and citation (core) — built: the name (VD-81); pending: the citation (CD-46 #631)
 
-- **One name, *Where this comes from*,** on every page type. Today it has
-  three names, and "On the record" collides with `/records`.
+- **One name, *Where this comes from*,** on every page type, from
+  `LABELS.provenance` in both renderers. It had three names, and "On the
+  record" collided with `/records` (VD-81).
 - **The citation** carries the *Behind this page* sentence on every page type
   (CD-46 #631). It is a framed note under the text rule.
 
 ### Keep going, and On this page
 
-- ***Keep going* (core):** unchanged. It is the best cross-page structure on
-  the site (service).
-- ***On this page* (B; optional in A and C):** a one-line list of the page's
-  sections, under the tiles. It costs about 40 px of the first screen.
+- ***Keep going* (core) — built:** unchanged. It is the best cross-page
+  structure on the site (service).
+- ***On this page* (optional in A) — not built:** a one-line list of the
+  page's sections, under the tiles. It costs about 40 px of the first screen.
+  A page may add it; none is held to it.
 
-### States (core)
+### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-86 #884)
 
 | State | Rule |
 |---|---|
 | Loading | Skeleton rows in the component's own shape; the static page's content stays until the app replaces it in place |
 | Not established | An em dash, never 0 (**floor**: `conventions.mjs` "a NULL is not established") |
 | Empty | One sentence saying what is absent and whether it is expected to arrive |
-| Late | A round whose results F1DB has not published yet says so (SD-37). A fresh race's pit stops say they usually arrive after the classification, not "F1DB records no pit stop" |
+| Late | A round whose results F1DB has not published yet says so (SD-37). A fresh race's pit stops say they usually arrive after the classification, not "F1DB records no pit stop" (SD-40) |
 | Error | Says what failed and what still works |
 
 ---
 
-## 4. Page templates
+## 4. Page templates — built: the order (VD-83) and the opening (VD-84), but for the season's *Who can still win* (VD-90 #904)
 
 The order is the *What leads* critique's (2026-10-05) unless this pass found
 a reason otherwise. The shared ending, provenance then *Keep going* then the
@@ -387,54 +506,68 @@ citation, is already one system and is kept.
 
 ### Entity pages: driver, constructor, circuit, season, car
 
-| | A | B | C |
-|---|---|---|---|
-| ≥1180 | header (7 columns) beside the slot (5); tiles full width; the type's sections full width | header; tiles (one row); *On this page*; lead element full width; sections | header and sections in 8 columns, beside the rail (4) until the first wide table; then full width |
-| <1180 | header; tiles; slot; sections | the same | header; rail as a block; sections |
+| Width | Layout |
+|---|---|
+| ≥1180 | header (7 columns) beside the slot (5); tiles full width; the type's sections full width |
+| <1180 | header; tiles; slot; sections (a race: header; tiles; classification; slot) |
 
-**Per type (the middle of the page, the same in every version):**
+**Per type (the middle of the page):**
 
 - **Driver:** lead chart (championship finishes) · the current season
   (active drivers only; one statement, not a tile plus a note) · Season by
   season · Team-mates · Every entry.
 - **Constructor:** lead chart (wins by season) · Season by season · Every
   win · Cars built · photographs.
-- **Circuit:** winners first on **all 80**, not only the 13 with a layout
-  timeline (S2) · Constructors here · Every layout raced here (the current
-  outline joins this section in A) · Every race here.
-- **Season:** *Who can still win* takes the lede position · lead chart ·
-  standings · calendar · photographs · Who entered.
+- **Circuit:** the current outline in the slot (VD-74, VD-84) · winners
+  first on **all 80**, not only the 13 with a layout timeline (S2) ·
+  Constructors here · Every layout raced here (the timeline's rows or the
+  other drawings behind one disclosure; absent where there are neither, and
+  the slot's card then carries the rule) · Every race here.
+- **Season:** *Who can still win* takes the lede position (VD-90 #904) ·
+  lead chart · standings · calendar · Who entered · photographs. The
+  photographs follow *Who entered* so that they sit where the photo strip
+  puts them on every type (§3), which this line had the other way round.
 - **Car:** tiles directly under the h1 · Why it mattered · Specification ·
-  Every entry · photographs. Photographs move from first place (I9).
+  Every entry · photographs. This year's chassis opened on its photographs
+  (I9, PD-49) until VD-83; the photograph that identifies a car is the
+  opening slot's (VD-84), and the strip holds the rest.
 
 ### Event pages: race
 
-- **A:** the header beside the outline slot; tiles; the classification at
-  full width; Grid to flag; qualifying; pit stops; practice (folded);
-  photographs.
-- **B and C:** single column. The outline is a tile; the rest follows the
-  same order.
-- **Every version:** the classification never shares its width with a side
-  column, and a scheduled race leads with its timetable (kept).
+Race pages follow the entity layout (DP-11): the header beside the outline
+slot; tiles; the classification at full width; Grid to flag; qualifying; pit
+stops; practice (folded); the timetable, once a result is held;
+photographs. The classification never shares its
+width with a side column (VD-84; beside the outline it lost Points and FL to
+a scroll from 768 to 1,110 px), and a scheduled race leads with its
+timetable (kept). From 768 px the classification also fits its own box
+(§3, Table, *a table that fits its box*, IX-45), so Points and FL no longer
+scroll at tablet width.
+The slot is written after the classification, so below 1180 the outline
+follows the result.
+
+What it costs: the band is as tall as the outline, so at 1440 × 900 the
+classification's heading and its first four rows are on the first screen,
+where PD-57's tiles in the column beside the outline showed eight. The smoke
+suite holds the four.
 
 ### Lookup pages: records, Grand Prix, registers, `/data`
 
-Single column in every version. On these pages a table or a card grid
-leads.
+Single column. On these pages a table or a card grid leads.
 
 - Records cards align to the top of their row, so opening one derivation
   does not move its neighbours (I8).
 - Registers keep their address contract.
 - `/data` keeps its sub-navigation.
 
-### Phone (every version)
+### Phone
 
 One column, two edges. The order is the document order above. The race page
 puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core)
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893); dates (CD-57), but for a weekend in a sentence (CD-39 #499) and session times (CD-59 #900)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -442,14 +575,59 @@ puts the classification before the outline (visual defect 7).
   - year span: *Seasons*;
   - entries: *Entries*;
   - provenance: *Where this comes from*;
-  - a record tile: *Held by*, not *HOLDER*.
+  - a record: its *Value*, *Held by*, not *HOLDER*, on its tiles and in
+    /records' tables.
 
-  These are CD-12's vocabulary, applied.
+  These are CD-12's vocabulary, applied: `LABELS` in `lib/site.js`, and
+  `REPLACED` beside it lists the words they replaced, which the tests
+  refuse. *Pending (CD-58 #893):* the `/constructors` and `/cars` register
+  columns still say *Entered*, *Raced* and *Race entries*, declared in the
+  test until that item moves them.
+- **A disclosure or a link says what it opens.** A disclosure that repeats
+  on a page carries what it belongs to for a screen reader, as a fold
+  carries its table's name: *How it is derived, Most Grand Prix wins*. A
+  photograph's credit link is the file's title as Commons heads its page,
+  with no extension, and is named *…, on Wikimedia Commons* (DP-30, DP-31).
 - **Figures in prose** go stale; a lede carries no count that a tile beside
   it also shows.
 - **Numbers:** tabular figures in every column. A season is printed as
   written, never as 1,950 (PD-63). A one-year span is printed once, never as
   *2023–2023*.
+- **Dates** (core, built in CD-57): a calendar date in reading text, a
+  table, a tile or a field is never raw ISO, and never all figures
+  (`03/09/1997` is a different day either side of the Atlantic).
+  - One formatter, `lib/format.js`, writes them: the **house format**, the
+    month a word, `9 Mar 1997` in a table, tile or field and `9 March 1997`
+    in a sentence; a weekend is `27–29 Mar 2026`. The static page is
+    written in it, because it cannot know its reader.
+  - The app rewrites each date in the **reader's format**, through
+    `Intl.DateTimeFormat` in `navigator.language`: `Mar 9, 1997` in en-US,
+    `9. März 1997` in de-DE. The house format is en-GB's, and an en-GB
+    reader keeps it as written, so for them the handover changes nothing.
+  - Every calendar date is a `<time datetime="1997-03-09">`, so a machine
+    keeps the value the database holds. A weekend's `<time>` carries its
+    race day.
+  - How a page asks for one: `date` on a table column (`'short'`,
+    `'long'`, `'race'` for a race row's weekend, `'text'` for sentences
+    with days in them), `date` on a tile, or `<DateText>`, `<RaceDates>`
+    and `<Dated>` in `components/Dates.jsx`; `prerender.js` has a twin of
+    each. A sentence built in a queries module keeps the ISO day and is
+    drawn through `<Dated>`, so the words are shared and the date is each
+    renderer's.
+  - *Pending (CD-59 #900):* session times. The race timetable writes each
+    start on the circuit's clock and in UTC, each zone named, and the app
+    adds the reader's own zone; all three are in en-GB's form, with no
+    `<time>`, and are not yet localised.
+  - Data stays ISO: SQL, the JSON and Parquet exports, `f1.db`, a file or
+    copy taken from a table (a weekend as an interval, `2026-03-27/2026-03-29`),
+    and the SQL console. A day inside a longer token, a file name or a path,
+    is that token's and is left as written.
+  - The one exception is a Commons file's title on its credit link, which
+    is printed as Commons heads the file's page (the attribution rule).
+  - *Pending (CD-39 #499):* a weekend a sentence carries as words, in a
+    scheduled race's standfirst and its Status tile, is in the house format
+    and not yet in a `<time>`; CD-39 rewrites race standfirsts with human
+    dates, from this formatter.
 - **NULL** is an em dash, never zero (**floor**).
 - **Uncertainty and disagreement:**
   - a disagreement is a framed note above the table it concerns, naming both
@@ -462,7 +640,11 @@ puts the classification before the outline (visual defect 7).
 - **Fold buttons and counts:** count the same unit in the heading and the
   button.
 
-## 6. Interaction rules (core)
+## 6. Interaction rules (core) — built in part
+
+Built: the keyboard floor, but for reading order, a floor no test holds
+yet (VD-86 #884); nothing moving at the handover (VD-79); and state in the
+address and the one reveal control (VD-82).
 
 - **Keyboard (floor):**
   - every control is reachable;
@@ -478,7 +660,11 @@ puts the classification before the outline (visual defect 7).
 - **One reveal control:** the fold.
 - **Nothing moves under the reader:**
   - the static page and the app share the page header, slot or rail, and
-    order;
+    order (§8's test 5 holds the header, the tiles and the section order);
+  - the app takes the static page's place only once its page is drawn,
+    never on an empty frame: it renders out of sight until then
+    (`main.jsx`, `data-handover` in `app.css`). The handover's layout shift
+    was 0.57 on every race and driver page, and is under 0.01;
   - opening a disclosure never moves a sibling's control.
 - **The service touchpoints** are part of the system:
   - the `/changes` page;
@@ -488,21 +674,21 @@ puts the classification before the outline (visual defect 7).
 
   Each says what is true now, in the voice above.
 
-## 7. Accessibility: floor and aim
+## 7. Accessibility: floor and aim — built where the table names a test
 
 | Rule | Class | Held by |
 |---|---|---|
 | WCAG A/AA on the ten smoke routes | **floor** | axe-core in `web/test/smoke.mjs` (and 0 violations on 104 runs across 26 routes on 2026-10-06) |
-| Every focusable element shows a visible change on `:focus-visible` | **floor**, not yet enforced; the table sort buttons and `/data/sql`'s examples fail it today | proposed: `conventions.mjs` refuses an `all: unset` selector with no `:focus-visible` rule |
-| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor**, not yet enforced | proposed: the edge test also checks order |
-| Focus on the h1 after the handover, on every page type | **floor**, not yet enforced | proposed: a smoke check on a held cold load |
+| Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); `smoke.mjs` *Sorting* focuses a sort button and a console example from the keyboard and reads the ring (VD-82) |
+| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor**, not yet enforced | pending (VD-86 #884): the edge test also checks order |
+| Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
 | Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27) |
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |
 | No meaning by colour alone | **floor** (1.4.1) | review, `frontend-reviewer` item 7 |
 | Reflow at 400 and 320 px with no sideways page scroll | **floor** | smoke at 400 |
 | Hover box opens on focus | **aim** | — |
-| Revealing content moves focus to the first revealed item | **aim** | — |
-| A disclosure's name says what it opens | **aim** | — |
+| Revealing content moves focus to the first revealed item | **aim** | `smoke.mjs` *An exhaustive list opens on its first ten* (VD-82): opening a fold puts focus on row 11's row header, on screen |
+| A disclosure's name says what it opens | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-81): no two disclosures, and no two stand-alone links to different places, share a name on a smoke route |
 | The tile strip carries a name | **aim** | — |
 | Text 12 px or smaller is not also faint and longer than the small measure | **aim** (33–62 % of entity-page text is ≤12 px; zoom and reflow work, so this is not pressed against the design) | the measure tokens |
 | Target size of at least 24 px for controls and 6 px for chart marks | **aim** | — |
@@ -520,35 +706,32 @@ puts the classification before the outline (visual defect 7).
   - Who is affected: mouse users with low precision.
   - What keeps both: a minimum mark width (aim), and the switch at 1180, not
     1024.
-- **C's rail.**
-  - What the design gains: the facts sit beside the reading.
-  - What accessibility gives up: the rail comes after the header in the
-    source, so a screen-reader user meets the facts before the lede's
-    sections, which is the same order a sighted reader gets.
-  - What keeps both: the rail is an `aside` with a heading.
 - **The handover.**
-  - What the design gains: VD-53's opening fills the first screen.
+  - What the design gains: the opening band fills the first screen.
   - What it costs: not reading order, which is correct, but the jump when
     the app replaces the static page. It is felt by magnifier users and by
     anyone reading during a ~17 s cold boot.
   - What keeps both: the static page draws or reserves the same opening.
-    The prerenderer already draws three charts on the static race page. B
-    removes the jump by construction.
+    The prerenderer already draws three charts on the static race page, and
+    VD-79 draws one page header and one tile strip in both renderers, and
+    swaps the two halves only once the app's page is drawn. The lead charts
+    the static driver, constructor and season pages still lack are VD-73
+    (#822).
 - **Small type on tiles and eyebrows (10–11 px mono, tracked).**
   - What the design gains: the instrument-panel identity.
   - What accessibility gives up: legibility at low DPI.
   - What keeps both: these are labels, not content, and they pass contrast.
     Raise their weight before their size (aim).
 
-**No version needs a floor check relaxed.** If one ever does, the plan names
+**Version A needs no floor check relaxed.** If a change ever does, it names
 the check, the change and the reason as a separate decision for the
-maintainer, and this pass loosens nothing.
+maintainer (§8), and loosens nothing on its own.
 
 ## 8. How it stays true
 
 The system is held by tests, not by memory.
 
-**Already enforced (keep):**
+**Enforced before the system (keep):**
 
 - type, weight and spacing on the scales (`conventions.mjs`, VD-03);
 - colour contrast for text, buttons and chart series, in both themes;
@@ -558,14 +741,17 @@ The system is held by tests, not by memory.
 - the fold at `FOLD_TO`;
 - `smoke.mjs` comparing every static table with the app's.
 
-**Proposed, one test each, so a drift fails the build:**
+**The system's own tests, one each, so a drift fails the build.** Built in
+VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
+Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12. Built in
+VD-83: 13. Built in VD-84: 14.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
    `100%` or `auto`, or carries a reason comment. This is the width
    equivalent of VD-03's scale test.
 2. **Breakpoints are tokens.** Every `@media` width in `app.css` is one of
-   the three breakpoints.
+   the two breakpoint tokens.
 3. **No inline sizes in JSX.** No `style={{…}}` with a length literal in
    `web/src/pages` or `components` (VD-60 #615).
 4. **Edges land on the grid.** `smoke.mjs` measures each top-level block of
@@ -573,47 +759,137 @@ The system is held by tests, not by memory.
    on a left or right edge that is not a grid line, the measure or the full
    width. This is the test that would have caught 5–6 October.
 5. **One page, two renderers.** On every smoke route, the static page's
-   section headings and their order equal the app's.
+   section headings and their order equal the app's, and so do its header,
+   child for child, and its tile strips (`smoke.mjs`, *Both renderers draw
+   one page*). A known difference is declared there with the item that will
+   remove it, and a declared difference that has gone fails too, so the
+   list cannot outlive its cause.
 6. **One figure grammar.** `Figure` takes its note as a prop and renders it
-   under the plot, and no page passes a second title.
+   under the plot, and no page passes a second title; every note builder is
+   50 words at its longest (`conventions.mjs`), and on the smoke routes, in
+   both halves, every figure is named for the heading above it, with its
+   note under the plot in 50 words or fewer (`smoke.mjs`, *One figure
+   grammar*).
 7. **One vocabulary.** Tile labels and provenance headings come from one
-   list in `lib/site.js`, and a test refuses a synonym.
+   list, `LABELS` in `lib/site.js`, and a test refuses a synonym: in the
+   source (`conventions.mjs`, *one vocabulary*), in any tile or column of
+   `queries/*.js` but the register columns declared until CD-58 (#893),
+   where a strip that writes a word of the list as a literal fails too, and
+   on the smoke routes in
+   both halves (`smoke.mjs`), which also hold every entity page's eyebrow
+   to its type and its provenance section to *Where this comes from*.
 8. **Tokens are used.** Every token defined in `tokens.css` is referenced
    somewhere, so `--size-9/10/11` either earn their place or go.
 9. **Focus is visible.** `conventions.mjs` refuses an `all: unset` (or
    `outline: none`) selector that has no `:focus-visible` rule beside it.
 10. **Focus survives the handover.** On a held cold load, `smoke.mjs`
     checks that focus is on the h1 after the app takes over, on every page
-    type.
+    type, that the status region says so, and that the handover's layout
+    shift stays under 0.05 (*The handover*).
+11. **Dates are words.** No ISO day is visible text on any prerendered
+    page in `dist/`, outside a `<time datetime>` attribute, `<code>`, the
+    SQL console and a Commons file's title; the app writes the same
+    `<time>` as en-GB, en-US and de-DE readers expect; and the handover is
+    measured in en-US, where the dates change width (`smoke.mjs`, *Dates in
+    the reader's format* and *The handover*; `units.mjs`, *dates are words
+    on the page*).
+12. **One reveal control.** A table over `FOLD_OVER` rows folds, naming
+    its noun, or gives one of `UNFOLDED`'s reasons: `prerender.js` refuses
+    any other on every route it writes, listing them all, and DataTable
+    logs the error `smoke.mjs` fails on; `conventions.mjs` holds every
+    reason given to the one list, in both halves. `smoke.mjs` *Back
+    restores a table* opens a fold, sorts it, follows row 200 and comes
+    back to the same address, fold, order and row.
+13. **One section order.** On every smoke route, in each half on its own,
+    the photographs come straight before *Where this comes from*, a
+    circuit's winners come before its layouts, and a car has no heading
+    above its tiles; a car, constructor, season and race route with
+    photographs must be among them (`smoke.mjs`, *Both renderers draw one
+    page*). The orders each type keeps around those are held by the
+    sections that name them: *the result leads*, *the chart leads, the
+    photographs follow*, and Monza's and a circuit with no timeline's.
+14. **One opening.** On a driver, a constructor, two seasons, a race, two
+    circuits and a car, the slot is beside the header from 1180 px, level
+    with the heading and to the page's right edge, the tiles run the full
+    width under both, and below 1180 the slot follows in one column, after
+    the tiles or a race's classification, in the app and, where it draws
+    one, the static page. A column chart in the slot keeps every hover
+    target 6 px wide at 1180, a team over `SLOT_MARKS` has no slot, and a
+    page with nothing for it keeps its header and tiles the page's width
+    (`smoke.mjs`, *The opening slot*).
 
-**How a change to the system is made.** A change to a rule here is a pull
-request that edits this file and the token or test together. A change that
-reverses a rule, or relaxes a floor check, also gets a `docs/DECISIONS.md`
-entry, in the house form `[D-nn]`, because the next session has to know why.
-A critique that finds a page off-system files the drift against the rule it
-breaks, by name.
+### How a change to the system is made
+
+The system is adopted, not finished. New features will need things it does
+not have yet, and the way to get them is to grow it in the open, never to
+work around it. A change to a rule is a pull request that edits this file
+and the token or test together. There are three kinds, and a review holds
+each to a different bar.
+
+- **Extending.** A new component, token or template variant that a feature
+  needs is allowed **in the feature's own pull request**. It is added to
+  this file, in the section it belongs to, marked **provisional** with the
+  item that added it. It is built from the tokens, and it adds or extends a
+  test where one applies. The reviewer checks that the extension is coherent
+  with the system (on the grid, on the scales, in the vocabulary, at the
+  floor), not that the system already had it. Work off the system that does
+  neither, using tokens or extending it, is a finding.
+- **Promoting.** A provisional component becomes **core** when a second page
+  uses it, in the pull request that brings it there, or at the next design
+  pass. Promoting is an edit to its marker, and to its test where the second
+  use shows the test was too narrow.
+- **Changing or reversing.** Changing what an existing rule says, reversing
+  one, or relaxing a floor check needs a `docs/DECISIONS.md` entry in the
+  house form `[D-nn]`, because the next session has to know why, and the
+  maintainer's ruling. A feature's pull request cannot do it on its own: the
+  question is filed on the item for the maintainer, and the feature works
+  within the rule as it stands until it is answered.
+
+**A light review cadence.** The next design pass, and any critique, starts
+from this file. It lists the provisional components and says of each
+whether to promote, merge or drop it. A critique that finds a page
+off-system files the drift against the rule it breaks, by name, and keeps a
+finding against the system itself apart from drift.
 
 ## 9. Where it lives
 
 - **This file** is the record. It versions with the code, and a reviewer
   reads it.
 - **`web/src/styles/tokens.css`** is the single source of every value. This
-  file names tokens and never restates a value that could drift. The values
-  in the tables above are there to support the decision; once a version is
-  built, each table is replaced with a pointer to the token.
+  file names tokens and never restates a value that could drift. Where a
+  table above still carries values, they are the record of the decision; as
+  each step lands, its table is replaced with a pointer to the token, as the
+  grid's and the measure's were when VD-78 landed.
 - **`web/test/conventions.mjs` and `smoke.mjs`** hold the rules.
 - **The comparison page** linked from #843 is the picture for the decision.
   It is not a second source.
+- **`CLAUDE.md`, `CONTRIBUTING.md`, the backlog-item skill and the agents in
+  `.claude/agents/`** point here and restate none of it.
 
-## 10. What the maintainer is asked to decide
+## 10. What was decided, and what was rejected
 
-1. **The version (DP-09):** A, B or C. §4 says what each costs and gives up; the
-   design-pass critique gives the items each one closes.
-2. **The middle type register (DP-10):** use it (A, C) or delete it (B).
-3. **Whether race pages follow the entity template (DP-11, A)** or the event
-   template (B, C).
+The maintainer's ruling on #843, 2026-10-06:
 
-The core sections (§3, §5, §6, §8) are the same under every answer, and can
-be built first once a version is chosen. They are recommendations DP-01 to
-DP-08 in the design-pass critique, which also lists, with ids, the defects
-that exist whichever version is chosen.
+1. **The version (DP-09): A**, one grid with one opening slot.
+2. **The middle type register (DP-10): kept and used**, as A requires.
+3. **Race pages (DP-11): A's entity layout**, with the outline in the slot.
+4. **The core:** DP-01 to DP-08 accepted in full, and DP-28 to DP-33 folded
+   into the matching steps. Staged, one reviewed pull request per step.
+
+**Rejected: version B, one reading column.** Every block would have started
+at the left edge and ended at the measure or the full width, the lead
+element following the tiles. It was the cheapest (mostly deletion), it is
+the shape the static page already drew, so the handover jump would have
+gone by construction, and it gave the largest charts. It gave up the right
+half of the first screen at 1440, which was the *What leads* complaint
+behind VD-52 and VD-53, and the circuit's aerial at the top.
+
+**Rejected: version C, a reference entry.** A 4-column facts rail beside an
+8-column reading column on entity pages, with events single column. It
+brought the biography to the first screen and stopped the tile strip
+wrapping. It gave up one page width (wide tables broke out below the rail,
+so a page had two), it put the rail and the circuit aerial in competition
+for one column, and it cost the most of the three.
+
+The design-pass critique holds the full comparison, and the defects that
+existed whichever version was chosen, with ids.

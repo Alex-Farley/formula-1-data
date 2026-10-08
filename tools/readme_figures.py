@@ -727,6 +727,7 @@ class Figures:
     def wp_regulation_limits(self): return n(self._wp("regulation_limits"))
     def wp_radio(self):             return n(self._wp("team_radio"))
     def wp_note_sources(self):      return n(self._wp("driver_note_sources"))
+    def wp_entry_notes(self):       return n(self.count("claims", "tbl = 'race_entries' AND field = 'note'"))
 
     # The season articles' URL, which is what data/harvest.py cites; a
     # Wikipedia race row citing anything else would be a second harvest the

@@ -9,7 +9,7 @@ import { useQuery } from '../data/useQuery.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { NAMES, NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
-import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../queries/races.js'
+import { RACES, RACE_COLUMNS, RACES_FOOTER, RACES_LEDE } from '../queries/races.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
@@ -81,7 +81,7 @@ export default function Races() {
       title={NAMES.races().headline}
       documentName={NAMES.races().title}
       trail={TRAIL.races()}
-      lede="Every round of every championship, back to Silverstone in May 1950. Search for a Grand Prix, a circuit or a winner, or pick a decade — then open a race for its full classification, qualifying sheet and, from 1994, its pit stops."
+      lede={RACES_LEDE}
     >
       <Section>
         <Result state={state} skeleton>

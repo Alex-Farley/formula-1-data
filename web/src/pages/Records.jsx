@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Confidence, Note, Onward, Page, Section } from '../components/Page.jsx'
+import { Confidence, FigurePart, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { FOLD_NOUN } from '../lib/table.js'
+import { Dated } from '../components/Dates.jsx'
 import { Chips } from '../components/Filters.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -38,6 +40,7 @@ import {
   asOfLine,
   asOfOf,
   cardExtras,
+  constructorWinsNote,
   familiesLead,
   headlineRecords,
   holderPath,
@@ -47,6 +50,7 @@ import {
   recordPath,
   tierBefore,
   tiersOf,
+  RECORDS_STANDFIRST,
 } from '../queries/records.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -104,9 +108,18 @@ function RecordCards({ rows, extras }) {
                 {column.label}: {column.key === 'confidence' ? <Confidence value={row.confidence} /> : row[column.key]}
               </p>
             ))}
+            {/* Named for its record as well as for what it holds: twelve cards
+                saying "How it is derived" read alike in a screen reader's
+                list of controls (DP-30), as the folds' would without the
+                table's name. scripts/prerender.js writes the same words. */}
             <details className="record-card-how">
-              <summary>{DERIVATION}</summary>
-              <p>{row.detail}</p>
+              <summary>
+                {DERIVATION}
+                <span className="sr-only">, {row.record}</span>
+              </summary>
+              <p>
+                <Dated>{row.detail}</Dated>
+              </p>
             </details>
           </li>
         )
@@ -156,7 +169,7 @@ export default function Records() {
       title={NAMES.records().headline}
       documentName={NAMES.records().title}
       trail={TRAIL.records()}
-      lede="Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The records at the top are derived from the same tables as the leaderboards below on every build; the leaderboards are counted from the race records as this page loads."
+      lede={RECORDS_STANDFIRST}
     >
       <Result state={state}>{(data) => <Body data={data} />}</Result>
     </Page>
@@ -240,9 +253,14 @@ function Body({ data }) {
             authored rows that could disagree with the leaderboards below, and
             sat 1,900 px under them; the rows are now derived from the same
             tables, so the sentence says that instead. */}
-        <p className="note" style={{ marginTop: -4 }}>
+        <p className="note">
           {RECORDS_LEDE}
-          {asOf && ` ${asOfLine(asOf)}`}
+          {asOf && (
+            <>
+              {' '}
+              <Dated>{asOfLine(asOf)}</Dated>
+            </>
+          )}
           {tiers.length === 1 && (
             <>
               {' '}{tierBefore(records.length)}<Confidence value={tiers[0]} />{TIER_AFTER}
@@ -272,71 +290,65 @@ function Body({ data }) {
           (WK-08 review). The static half now carries these two sections too,
           each figure's table open where the chart is drawn here. */}
       <Section title={LEADERBOARDS}>
+        {/* Two figures in one section: each is named by an h3 of its own,
+            which names its table too (AX-28), rather than by a second title. */}
         <div className="split">
-          <Figure
-            title={DRIVER_WINS_FIGURE.title}
-            note={DRIVER_WINS_FIGURE.note}
-            table={{
-              caption: DRIVER_WINS_FIGURE.title,
-              rows: driverWins,
-              columns: withApp(DRIVER_WINS_COLUMNS, { full_name: driverLink }),
-            }}
-          >
-            <BarChart
-              data={winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
-              label={DRIVER_WINS_FIGURE.label(winBars.length)}
-            />
-          </Figure>
+          <FigurePart title={DRIVER_WINS_FIGURE.title}>
+            <Figure
+              note={DRIVER_WINS_FIGURE.note}
+              table={{ rows: driverWins, columns: withApp(DRIVER_WINS_COLUMNS, { full_name: driverLink }) }}
+            >
+              <BarChart
+                data={winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+                label={DRIVER_WINS_FIGURE.label(winBars.length)}
+              />
+            </Figure>
+          </FigurePart>
 
-          <Figure
-            title={DRIVER_POLES_FIGURE.title}
-            note={DRIVER_POLES_FIGURE.note}
-            table={{
-              caption: DRIVER_POLES_FIGURE.title,
-              rows: driverPoles,
-              columns: withApp(DRIVER_POLES_COLUMNS, { full_name: driverLink }),
-            }}
-          >
-            <BarChart
-              data={poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
-              label={DRIVER_POLES_FIGURE.label(poleBars.length)}
-            />
-          </Figure>
+          <FigurePart title={DRIVER_POLES_FIGURE.title}>
+            <Figure
+              note={DRIVER_POLES_FIGURE.note}
+              table={{ rows: driverPoles, columns: withApp(DRIVER_POLES_COLUMNS, { full_name: driverLink }) }}
+            >
+              <BarChart
+                data={poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
+                label={DRIVER_POLES_FIGURE.label(poleBars.length)}
+              />
+            </Figure>
+          </FigurePart>
         </div>
       </Section>
 
       <Section title={CONSTRUCTORS_HEADING}>
-        <Figure
-          title={CONSTRUCTOR_WINS_FIGURE.title}
-          note={`${CONSTRUCTOR_WINS_FIGURE.note}${
-            constructorBars.some((bar) => bar.colour)
-              ? ` Each bar is coloured for that constructor as of its last win, the year the table gives: ${colourSource(constructorBars.map((bar) => bar.colour))}.${
-                  constructorBars.some((bar) => bar.hollow)
-                    ? ' A hollow bar is a team this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here.'
-                    : ''
-                }`
-              : ''
-          }`}
-          table={{
-            caption: CONSTRUCTOR_WINS_FIGURE.title,
-            rows: constructorWins,
-            columns: withApp(CONSTRUCTOR_WINS_COLUMNS, {
-              // The team's colour mark and a link to its page, as /races
-              // draws the same constructor (AF-47). The view carries c.id so
-              // both can be keyed to the constructor rather than its name.
-              name: {
-                render: (name, row) => (
-                  <>
-                    <LiveryMark colour={constructorColour(row)} year={row.last_win} />
-                    <Link to={`/constructors/${row.id}`}>{name}</Link>
-                  </>
-                ),
-              },
-            }),
-          }}
-        >
-          <BarChart data={constructorBars} label={CONSTRUCTOR_WINS_FIGURE.label(constructorBars.length)} />
-        </Figure>
+        {/* Named for what it measures, as the drivers' two are, rather than
+            for the section: a table list that read only "Constructors"
+            beside the record families said nothing of wins. */}
+        <FigurePart title={CONSTRUCTOR_WINS_FIGURE.title}>
+          <Figure
+            note={constructorWinsNote(
+              constructorBars.some((bar) => bar.colour) ? colourSource(constructorBars.map((bar) => bar.colour)) : null,
+              constructorBars.some((bar) => bar.hollow),
+            )}
+            table={{
+              rows: constructorWins,
+              columns: withApp(CONSTRUCTOR_WINS_COLUMNS, {
+                // The team's colour mark and a link to its page, as /races
+                // draws the same constructor (AF-47). The view carries c.id so
+                // both can be keyed to the constructor rather than its name.
+                name: {
+                  render: (name, row) => (
+                    <>
+                      <LiveryMark colour={constructorColour(row)} year={row.last_win} />
+                      <Link to={`/constructors/${row.id}`}>{name}</Link>
+                    </>
+                  ),
+                },
+              }),
+            }}
+          >
+            <BarChart data={constructorBars} label={CONSTRUCTOR_WINS_FIGURE.label(constructorBars.length)} />
+          </Figure>
+        </FigurePart>
       </Section>
 
       {/* Every record not in the headline cards, once, under its family. */}
@@ -348,6 +360,7 @@ function Body({ data }) {
 
       <Section title="Champions" count={`${titles.length}`}>
         <DataTable
+          fold={FOLD_NOUN.champions}
           rows={titles}
           rowKey={(row) => row.id}
           sort="titles"
@@ -365,32 +378,33 @@ function Body({ data }) {
             options={decadeOptions.map((d) => [String(d), `${d}s`])}
           />
         </div>
-        <Figure
-          title={`Most wins, the ${decade}s`}
-          note="A decade is the ten seasons whose year begins with it; the 2020s are still running."
-          table={{
-            rows: decadeRows,
-            columns: [
-              {
-                key: 'full_name',
-                label: 'Driver',
-                rowHeader: true,
-                render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link>,
-              },
-              { key: 'wins', label: 'Wins', align: 'num' },
-            ],
-          }}
-        >
-          <BarChart
-            data={decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
-            label={`Drivers with the most wins in the ${decade}s`}
-          />
-        </Figure>
+        {/* The decade the chips chose, named over its figure. */}
+        <FigurePart title={`Most wins, the ${decade}s`}>
+          <Figure
+            note="A decade is the ten seasons whose year begins with it; the 2020s are still running."
+            table={{
+              rows: decadeRows,
+              columns: [
+                {
+                  key: 'full_name',
+                  label: 'Driver',
+                  rowHeader: true,
+                  render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link>,
+                },
+                { key: 'wins', label: 'Wins', align: 'num' },
+              ],
+            }}
+          >
+            <BarChart
+              data={decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+              label={`Drivers with the most wins in the ${decade}s`}
+            />
+          </Figure>
+        </FigurePart>
       </Section>
 
       <Section title="How often pole becomes a win">
         <Figure
-          title="Pole positions converted to victory, by season"
           note="The share of races each season won from the front row's first slot. It says as much about how hard a car was to pass as about who was quickest on Saturday."
           table={{
             rows: poleToWin.map((r) => ({
@@ -429,6 +443,7 @@ function Body({ data }) {
           most of these races — so this is the three-part version.
         </Note>
         <DataTable
+          fold={FOLD_NOUN.grandSlams}
           rows={grandSlams}
           rowKey={(row) => `${row.year}-${row.round}`}
           sort="year"

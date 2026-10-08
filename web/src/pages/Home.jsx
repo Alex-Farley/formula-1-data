@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { RaceDates } from '../components/Dates.jsx'
 import { Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -16,7 +17,6 @@ import {
   BOARD_HEADING,
   BOARD_NOTE,
   CHART_HEADING,
-  CHART_TITLE,
   CLASSIFICATION_LINK,
   LAST_RACE,
   LEDE,
@@ -126,7 +126,9 @@ export default function Home() {
                             </Link>
                           </h3>
                           <p className="muted small">
-                            {[latest.circuit, raceDates(latest)].filter(Boolean).join(' · ')}
+                            {latest.circuit}
+                            {latest.circuit && raceDates(latest) ? ' · ' : null}
+                            {raceDates(latest) ? <RaceDates race={latest} /> : null}
                           </p>
                           <p>
                             {WON_BY}
@@ -164,7 +166,7 @@ export default function Home() {
                             </Link>
                           </h3>
                           <p className="muted small">
-                            {raceDates(next)} · round {next.round}
+                            <RaceDates race={next} /> · round {next.round}
                           </p>
                           <p className="muted">{stillToRunNote(now)}</p>
                           <p>
@@ -197,7 +199,6 @@ export default function Home() {
 
               <Section title={CHART_HEADING}>
                 <Figure
-                  title={CHART_TITLE}
                   note={chartNote(seasons)}
                   table={{
                     rows: seasons,
