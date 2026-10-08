@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,229<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,227<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -639,7 +639,7 @@ article. `chassis.car_id` joins the two.
 <!-- fig:chassis_published_wins -->784<!-- /fig --> chassis carry a published
 career win total. The wins this database derives independently, from its own
 race records through the linkage below, **agree exactly for
-<!-- fig:chassis_wins_match -->634<!-- /fig --> of them and exceed for
+<!-- fig:chassis_wins_match -->635<!-- /fig --> of them and exceed for
 <!-- fig:chassis_wins_exceed -->0<!-- /fig -->**; the rest are lower bounds
 where a season could not be linked.
 
@@ -823,7 +823,7 @@ of their own — Wikipedia covers them on the team's page — so the route above
 never reaches them. For those, `tools/wikimedia_images.py --route category`
 looks for a Wikimedia Commons category named for the chassis, such as
 `Category:Vanwall VW5`, and takes a photograph filed under it.
-<!-- fig:images_catalogued -->119<!-- /fig --> rows come from it. The claim is
+<!-- fig:images_catalogued -->118<!-- /fig --> rows come from it. The claim is
 only that a Commons editor filed the file there, and a category also holds
 replicas and show cars, so these rows sit a rung *below* `unverified`, at
 `catalogued`, and the `route` column keeps them apart. A category is taken
@@ -1237,8 +1237,8 @@ and `known_gaps` says so.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->99<!-- /fig --> rows:
-<!-- fig:discrepancies_open -->28<!-- /fig --> open,
+holds <!-- fig:discrepancies -->98<!-- /fig --> rows:
+<!-- fig:discrepancies_open -->27<!-- /fig --> open,
 <!-- fig:discrepancies_explained -->22<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
 the best-results rule dropped, an entry or a car a source counts that the race
@@ -1273,7 +1273,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   *article* is well constrained; what the picture depicts is not, and there is
   no second source to disagree with it. This is the only part of the database
   with no cross-check available at all. A further
-  <!-- fig:images_catalogued -->119<!-- /fig --> chassis with no article have
+  <!-- fig:images_catalogued -->118<!-- /fig --> chassis with no article have
   one only from a Commons category, held a rung lower at `catalogued` and not
   shown. `./f1 images` lists the
   <!-- fig:images_unnamed -->346<!-- /fig --> whose file name does not even
