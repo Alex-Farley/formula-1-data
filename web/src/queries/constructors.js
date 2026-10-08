@@ -76,3 +76,11 @@ export const CONSTRUCTOR_COLUMNS = [
 
 export const CONSTRUCTORS_FOOTER =
   '“Race entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started. “Seasons raced” marks each season with a race entry under the constructor’s own name, from the first championship season at the left to this one at the right, so it can start later or stop sooner than “Entered” where a team raced under another name or in another maker’s car.'
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Constructors.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const CONSTRUCTORS_LEDE =
+  'A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Sorted by race entries, with alphabetical a click away: filter by country, or narrow to race winners, champions and this season’s grid. Each page carries the team’s record, the cars it built, and the names it raced under before and after.'

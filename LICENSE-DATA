@@ -1,4 +1,4 @@
-Data licence — CC BY-SA 4.0, except this project's own writing (CC BY 4.0)
+Data licence — CC BY-SA 4.0, except the project's own writing named below (CC BY 4.0)
 
 This licence covers the data in this repository and every file it is
 published as: data/, harvest/, f1.db, f1.db.gz (f1.db compressed, as
@@ -15,7 +15,7 @@ it is also available under LICENSE (MIT).
 Copyright (c) 2026 Alex Farley and Wikipedia contributors.
 
 The data is licensed under the Creative Commons Attribution-ShareAlike 4.0
-International License (CC BY-SA 4.0), except for the five columns named under
+International License (CC BY-SA 4.0), except for the columns named under
 *The project's own writing* below, which are CC BY 4.0:
 
     https://creativecommons.org/licenses/by-sa/4.0/
@@ -29,18 +29,18 @@ Full legal code:
 Bare facts — who won a race, how long a circuit is — are not copyrightable,
 and a database of those facts would be free to license under anything. But
 this database also contains prose taken from or closely following Wikipedia
-articles: the car design histories, circuit descriptions, and some notes and
-glossary entries. Wikipedia text is licensed CC BY-SA 4.0, and that prose
+articles: the car design histories, circuit descriptions, and some notes.
+Wikipedia text is licensed CC BY-SA 4.0, and that prose
 carries the same attribution and share-alike requirements with it. Rather
 than draw a line field-by-field, the whole data release is licensed CC BY-SA
 4.0 — with the one exception in the next section, where the line is drawn
-because there was never anything on the other side of it. See ATTRIBUTION.md
+because nothing of Wikipedia's was found on the other side of it. See ATTRIBUTION.md
 for the source of every part of the data and the reasoning in full.
 
 ## The project's own writing — CC BY 4.0
 
-Five columns hold writing that came from nowhere else. They are offered under
-the Creative Commons Attribution 4.0 International License (CC BY 4.0):
+These columns hold writing that came from nowhere else. They are offered
+under the Creative Commons Attribution 4.0 International License (CC BY 4.0):
 
     https://creativecommons.org/licenses/by/4.0/
 
@@ -49,27 +49,40 @@ the Creative Commons Attribution 4.0 International License (CC BY 4.0):
   - `known_gaps.area`, `known_gaps.reader`, `known_gaps.description` and
     `known_gaps.resolution` — what a reader is shown about each gap, the
     maintainer's note on it, and what would close it.
+  - The prose of ten of the twelve reference tables `source_registry` entry
+    18 records as written for this project (PM-49): `eras.summary` and
+    `eras.defining_features`, `engine_eras.notes`, `governance.detail` and
+    `governance.significance`, `safety_milestones.trigger_event` and
+    `safety_milestones.description`, `points_systems.notes`,
+    `tyre_suppliers.notes`, `constructor_lineage.note`, `grands_prix.notes`,
+    `personnel.significance` and `engine_manufacturers.notes`.
 
 Attribute Lap Ledger; there is no share-alike, so
 nothing you build on them takes a licence from them. The share-alike above
-comes from Wikipedia, and none of Wikipedia's text is in these columns: every
-sentence in them was written for this project, about this project's own
-database. The remaining columns of those two tables — the subject and field
-of a disagreement, the two values, the state of a gap, the number of races it
-affects — hold facts and identifiers rather than expression.
+comes from Wikipedia, and none of Wikipedia's text is in these columns. The
+first five were written for this project, about this project's own database.
+The ten tables' prose was measured field by field against the Wikipedia
+articles a writer would have reached for — `docs/prose_pass.tsv`, the prose
+pass — and every field in them reads as this project's own expression. The
+remaining columns of the tables they sit in — the subject and field of a
+disagreement, the two values, the state of a gap, an era's name and dates, a
+points scale, a grand prix's aliases — hold facts, identifiers and headings
+rather than expression.
 
 The grant is stated inside the database too, as `meta.project_prose` and
 `meta.project_prose_columns`, so a copy of `f1.db` carries its own terms; a
 build in which those disagree with this file fails. The Parquet bundle carries
 the same two rows in `meta.parquet`, and a `README.txt` that states them. A CC BY grant cannot be
 withdrawn from a copy already taken, which is why the list is exactly this
-long.
+long, and why a granted field of the ten tables that is rewritten fails the
+build until the prose pass has read it again.
 
-**The rest of the project's own prose is not in it yet.** `source_registry`
-entry 18 — "Written for this project from general knowledge" — names twelve
-further tables, and whether their text is equally free of Wikipedia is read
-one way by ATTRIBUTION.md and another by `docs/critiques/2026-09-21-data-architecture.md`.
-Until somebody reads those fields, they stay CC BY-SA.
+**Two of entry 18's tables are not in it.** `technical_innovations` stays
+CC BY-SA because the prose pass reads one of its descriptions as following a
+Wikipedia article's wording, and it stays so until that field is rewritten.
+The glossary stays CC BY-SA while whether to grant it is an open question
+(PM-67): every definition in it reads as original, and the grant waits on a
+decision rather than on the evidence.
 
 ## Attribution
 

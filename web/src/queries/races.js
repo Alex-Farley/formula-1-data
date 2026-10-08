@@ -72,10 +72,18 @@ export const RACE_COLUMNS = [
   { key: 'circuit', label: 'Circuit' },
   { key: 'country', label: 'Country', optional: true },
   { key: 'winner', label: 'Winner', text: raceWinner, phone: true },
-  { key: 'constructor', label: 'Car' },
+  { key: 'constructor', label: 'Constructor' },
   { key: 'pole', label: 'Pole' },
   { key: 'fastest_lap', label: 'Fastest lap' },
 ]
 
 export const RACES_FOOTER =
   '“Shared” marks a race two drivers are both classified as winning, which was normal before 1958. A row tagged “not yet run” is a calendar entry with no result; those rows follow every race that has been run, the next one to be run first.'
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Races.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const RACES_LEDE =
+  'Every round of every championship, back to Silverstone in May 1950. Search for a Grand Prix, a circuit or a winner, or pick a decade — then open a race for its full classification, qualifying sheet and, from 1994, its pit stops.'

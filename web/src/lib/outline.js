@@ -60,14 +60,14 @@ export const leadOutline = (rows) => {
 
 /**
  * The note over a circuit page's outlines: the rule and the scale caveat,
- * and - where one is drawn larger than the others beside it - why that one.
- * Over a timeline it says why the figures can differ instead: since PD-60
- * the timeline's section sits below the winners, apart from the large lead
- * under the tiles, so "the large one" would point at nothing in view.
+ * where one is drawn larger than the others why that one, and over a
+ * timeline why the figures can differ. The large lead opens the page in its
+ * slot since VD-84, beside the header or straight under the tiles, so the
+ * note points there rather than at a drawing in its own section.
  */
-export const OUTLINE_LEAD_NOTE = 'The large one is the latest layout raced or on the calendar here, not the longest.'
+export const OUTLINE_LEAD_NOTE = 'The drawing that opens the page is the latest layout raced or on the calendar here, not the longest.'
 export const circuitOutlinesNote = (count, timeline = false) =>
-  [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 && !timeline ? OUTLINE_LEAD_NOTE : null, timeline ? OUTLINE_FIGURES_NOTE : null]
+  [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 ? OUTLINE_LEAD_NOTE : null, timeline ? OUTLINE_FIGURES_NOTE : null]
     .filter(Boolean)
     .join(' ')
 
@@ -132,6 +132,14 @@ export const timelineYears = ({ layout, outline }) =>
  * race weekend to find out who wins there.
  */
 export const LAYOUT_CARDS = 'Each layout with its drawing, and what changed'
+
+/**
+ * VD-83 (SD-41): the same disclosure at a circuit with no timeline, where
+ * there is no history to tell, only the other drawings - behind it, closed,
+ * so that winners come first on all 80 circuits and the grid of cards does
+ * not stand between them and the races.
+ */
+export const otherLayouts = (n) => `${n} more layout${n === 1 ? '' : 's'}`
 
 /** The count beside a circuit's layouts: the timeline's rows and the drawings, which need not agree. */
 export const layoutsCount = (layouts, outlines) =>

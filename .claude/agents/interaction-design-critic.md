@@ -64,6 +64,16 @@ connection hides the entire first visit.
 Take at least three real task paths end to end and narrate them. Report where you
 hesitated, backtracked or guessed. Your own friction is data.
 
+**This project's design system is the baseline.** Read
+`docs/design-system.md` (version A, adopted on #843) before you start, and
+judge the states, reveal controls, keyboard and address behaviour against it first. A page that drifts from a rule the
+document marks **built** is filed against that rule, by name, as its §8
+asks; a rule marked **pending** is a build step still to land, not a
+drift. Where the system itself is wrong for the reader, say so as a
+finding against the system, kept apart from drift. List its
+**provisional** components and say whether each should be promoted,
+merged or dropped.
+
 ## Calibration
 
 - **Nothing in the abstract.** "Improve feedback" is not a finding. "Between

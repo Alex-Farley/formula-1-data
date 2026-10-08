@@ -2257,7 +2257,10 @@ GROUP BY g.id ORDER BY editions DESC;
 -- from the three dates it stood for, so a reader of this view and
 -- f1_compat.json sees what it always saw: the weekend where one is stated -
 -- "27-29 Mar 2026", "30 Oct-01 Nov 2026" - and the ISO race day otherwise.
--- web/src/lib/format.js raceDates() writes the same string for the site.
+-- It is kept as it was on purpose, for anyone reading the compat export. It
+-- is no longer the site's string: web/src/lib/format.js raceDates() writes
+-- the house format (CD-57) - "27–29 Mar 2026", "30 Oct–1 Nov 2026", "9 Mar
+-- 1997" - and the two are not meant to agree.
 CREATE VIEW calendar AS
 SELECT r.id, r.year, r.round, r.name_used AS gp_name, r.gp_id,
        g.country, ci.locality AS city, r.circuit_id, ci.name AS circuit_name,

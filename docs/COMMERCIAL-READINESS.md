@@ -237,9 +237,14 @@ its own.
 
 Of the twelve tables `source_registry` entry 18 records as written for this
 project (381 fields), one field is paraphrased and none is close. That is
-the evidence `PM-49` (#573) waited for. Whether any of those tables takes the
-CC BY 4.0 grant is still the maintainer's decision, table by table, and until
-it is taken they stay CC BY-SA.
+the evidence `PM-49` (#573) waited for, and the maintainer ruled on it table
+by table on 2026-09-30: a table takes the CC BY 4.0 grant only if every prose
+field in it reads original. Ten of the twelve took it. `technical_innovations`
+did not, its fan-car description being the one paraphrased field, and stays
+CC BY-SA until that is rewritten (`PM-62`, #692). Nor did the glossary, whose
+definitions all read original but which the ruling expected to stay CC BY-SA;
+`PM-67` (#835) holds that question. `verify.py` now holds every granted field
+to the text the pass labelled, so a rewritten one waits for the pass.
 
 The earlier figure here, 552 fields, was counted on 2026-09-08 against a
 smaller database, and its scope was never written down. The 1,208 above is

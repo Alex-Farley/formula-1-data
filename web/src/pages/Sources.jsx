@@ -1,6 +1,7 @@
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import SubNav from '../components/SubNav.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
@@ -16,6 +17,7 @@ import {
   SOURCES,
   SOURCES_FOOTER,
   SOURCE_COLUMNS,
+  SOURCES_LEDE,
 } from '../queries/sources.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -54,7 +56,7 @@ export default function Sources() {
       title={NAMES.sources().headline}
       documentName={NAMES.sources().title}
       trail={TRAIL.sources()}
-      lede="Where every figure on this site comes from, and what you may do with it if you take it. Sources are ranked on whether anything independent can check them, not on how much data they hold."
+      lede={SOURCES_LEDE}
     >
       <SubNav />
       <Result state={state}>
@@ -69,7 +71,7 @@ export default function Sources() {
                 title="What a licence cost, or bought"
                 note={CONSEQUENCES_NOTE}
               >
-                <DataTable rows={CONSEQUENCES} rowKey={(row) => row.source} sortable={false} columns={CONSEQUENCE_COLUMNS} />
+                <DataTable unfolded={UNFOLDED.reference} rows={CONSEQUENCES} rowKey={(row) => row.source} sortable={false} columns={CONSEQUENCE_COLUMNS} />
               </Section>
 
               <Note>
@@ -85,6 +87,7 @@ export default function Sources() {
 
               <Section title="The source registry" count={`${sources.length}`}>
                 <DataTable
+                  unfolded={UNFOLDED.reference}
                   rows={sources}
                   rowKey={(row) => row.id}
                   sortable
@@ -102,6 +105,7 @@ export default function Sources() {
                 note={LICENCES_NOTE}
               >
                 <DataTable
+                  unfolded={UNFOLDED.reference}
                   rows={licences}
                   rowKey={(row) => row.licence}
                   sortable

@@ -222,6 +222,6 @@ export const FEED_SUBTITLE =
 /** The columns of the release table, shared by the app and the prerenderer. */
 export const RELEASE_COLUMNS = [
   { key: 'version', rowHeader: true, label: 'Version' },
-  { key: 'published', label: 'Published' },
+  { key: 'published', label: 'Published', date: 'short' },
   { key: 'title', label: 'What changed' },
 ]

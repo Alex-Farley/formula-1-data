@@ -79,8 +79,8 @@ not prose, and are not measured.
 
 Out of scope, and why
 ---------------------
-The five columns granted CC BY 4.0 (discrepancies.assessment and four of
-known_gaps) are about this database's own sources and state and were granted
+The five PM-47 columns granted CC BY 4.0 (discrepancies.assessment and four
+of known_gaps) are about this database's own sources and state and were granted
 on that reading (PM-47). `records.detail` is written by build.py, and
 `drivers.provenance` is boilerplate build.py and data/harvest.py write. The
 registry and metadata tables describe this project. `team_radio.transcript` is

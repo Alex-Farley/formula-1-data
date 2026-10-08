@@ -51,15 +51,20 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
-import { DRIVER_SOURCES, STANDINGS, THIS_SEASON, roundsRun, seasonTile, thisSeasonHeading } from '../src/queries/driver.js'
+import { DRIVER_SOURCES, SEASON_TEAMS, STANDINGS, THIS_SEASON, roundsRun, seasonTile, teamsBySeason, thisSeasonHeading } from '../src/queries/driver.js'
+import { lastTeamColour } from '../src/lib/liveries.js'
+import { handoverWords } from '../src/lib/handover.js'
 import {
   ABOUT,
   DOCUMENTS,
+  LABELS,
   MAINTAINER,
   NOT_YET_RUN,
   PHOTOGRAPHS_SHOWN,
   RACE_CARS_TITLE,
   RACE_PHOTOGRAPHS_TITLE,
+  REPLACED,
+  SLOT_MARKS,
   SO_FAR,
   UNCHECKED_MARK,
   licenceTerms,
@@ -69,8 +74,9 @@ import {
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
-import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
+import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
+import { dateSegments, houseDate } from '../src/lib/format.js'
 import { UNRESULTED } from '../src/queries/changes.js'
 import { EXAMPLES } from '../src/lib/questions.js'
 import {
@@ -84,8 +90,8 @@ import {
   leadersDrawn,
   recordFamilies,
 } from '../src/queries/records.js'
-import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
-import { FOLD_LESS, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
+import { NO_DRAWING, NO_TIMELINE_ROW, OUTLINE_RULE } from '../src/lib/outline.js'
+import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
@@ -144,6 +150,15 @@ const unescaped = (text) =>
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
+
+/* A sentence holding ISO days, as a reader in the house locale is shown it
+   (CD-57): each day in the long house format, the way <Dated> and the static
+   page's dated() draw it. And the check date as both footers write it. */
+const asShown = (text) =>
+  dateSegments(text)
+    .map((part) => (typeof part === 'string' ? part : houseDate(part.iso, 'long')))
+    .join('')
+const checkedHtml = `<time datetime="${LAST_CHECKED}">${houseDate(LAST_CHECKED)}</time>`
 
 const failures = []
 let passed = 0
@@ -290,9 +305,14 @@ try {
   // table, and the only check worth making of a copy button is what landed on
   // the clipboard. Chromium refuses navigator.clipboard to a page that has
   // never been granted it, headless or not.
+  // en-GB, the house locale (lib/format.js): the app writes dates for its
+  // reader, and in en-GB that is the house format the static page is written
+  // in, so every comparison of the two halves below compares like with like.
+  // The other locales are the business of *Dates in the reader's format*.
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     permissions: ['clipboard-read', 'clipboard-write'],
+    locale: 'en-GB',
   })
   const page = await context.newPage()
 
@@ -346,8 +366,11 @@ try {
      * navigates in-app instead.
      */
     /**
-     * The stat strip as it is laid out, for VD-28's three rules: a label
-     * never wraps, the figures share a baseline, and one or two lead.
+     * The stat strip as it is laid out, for VD-28's rules as VD-79 left them:
+     * the figures in a row share a baseline, and one or two lead. VD-28 also
+     * forbade a label to wrap, because a two-line label dropped its own
+     * figure below its row; the strip is a grid with a shared label track
+     * now (app.css), so a label may wrap and the baseline is the claim.
      *
      * Read from the rendered box rather than from the stylesheet - the defect
      * was a layout, not a declaration, and a rule that is written but loses to
@@ -365,9 +388,19 @@ try {
             kind: el.dataset.kind ?? null,
             size: parseFloat(style.fontSize),
             family: style.fontFamily,
-            lines: Math.round(dt.getBoundingClientRect().height / parseFloat(getComputedStyle(dt).lineHeight)),
             row: Math.round(el.getBoundingClientRect().top),
-            ddTop: Math.round(dd.getBoundingClientRect().top),
+            // The figure's baseline: the foot of an empty inline box set on
+            // it, which is where the first line's glyphs stand whatever their
+            // size - a lead figure's box starts higher than its neighbours',
+            // and its baseline must not.
+            baseline: (() => {
+              const probe = document.createElement('span')
+              probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'
+              dd.prepend(probe)
+              const at = Math.round(probe.getBoundingClientRect().bottom)
+              probe.remove()
+              return at
+            })(),
           }
         })
         // A strip wide enough for every tile has one row; a narrower one
@@ -376,9 +409,8 @@ try {
         const rows = new Map()
         for (const tile of tiles) rows.set(tile.row, [...(rows.get(tile.row) ?? []), tile])
         return {
-          wrapped: tiles.filter((t) => t.lines > 1).map((t) => t.label),
           misalignedRows: [...rows.values()]
-            .filter((row) => new Set(row.map((t) => t.ddTop)).size > 1)
+            .filter((row) => new Set(row.map((t) => t.baseline)).size > 1)
             .map((row) => row.map((t) => t.label).join(', ')),
           lead: tiles.filter((t) => t.lead),
           rest: tiles.filter((t) => !t.lead),
@@ -918,6 +950,105 @@ try {
   })
 
   /**
+   * The handover, on every page type (VD-79; docs/design-system.md section 8,
+   * test 10).
+   *
+   * Focus fell to <body> at the handover on the driver, constructor and
+   * season pages in six cold loads of six, because main.jsx focused an h1
+   * the page had not drawn yet; the status region's last words were
+   * "Querying the database…"; and the app's empty first frame pushed the
+   * footer off the screen, a layout shift of 0.57 on every race and driver
+   * page. The app now renders out of sight and takes the static page's place
+   * once its h1 is there (main.jsx), the h1 takes focus, and index.html's
+   * status region says the page has finished loading.
+   *
+   * One context, so the first arrival is cold - the database fetched, and
+   * held a moment so the static page is read first, as on the slow line the
+   * critique measured - and the rest open from IndexedDB: the same handover,
+   * faster. The shift is counted from the moment the static page leaves.
+   */
+  await section('The handover  (focus, the status line and nothing moving, on every page type: VD-79)', async () => {
+    const ROUTES = [
+      '/',
+      '/drivers/hamilton',
+      '/constructors/ferrari',
+      '/seasons/2026',
+      '/races/2024/21',
+      '/circuits/monza',
+      '/cars/lotus-72',
+      '/grands-prix/monaco',
+      '/records/most-wins',
+      '/drivers',
+      '/data/quality',
+      // CD-57: a calendar of race days, every one rewritten in the reader's
+      // format at the handover.
+      '/seasons/1997',
+    ]
+    // en-US, so the handover is measured where the dates change width: the
+    // static page's "9 Mar 1997" becomes the app's "Mar 9, 1997" (CD-57).
+    const held = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'en-US' })
+    await held.route(/f1\.db\.gz/, async (request) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await request.continue()
+    })
+    await held.addInitScript(() => {
+      window.__static = false
+      window.__handedAt = null
+      window.__shift = 0
+      new MutationObserver(() => {
+        const there = Boolean(document.getElementById('prerendered'))
+        if (there) window.__static = true
+        else if (window.__static && window.__handedAt === null) window.__handedAt = performance.now()
+      }).observe(document, { childList: true, subtree: true })
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput && window.__handedAt !== null && entry.startTime >= window.__handedAt) {
+            window.__shift += entry.value
+          }
+        }
+      }).observe({ type: 'layout-shift', buffered: true })
+    })
+    const lost = []
+    const unsaid = []
+    const moved = []
+    let handed = 0
+    for (const route of ROUTES) {
+      const target = await held.newPage()
+      await target.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' })
+      await target.waitForFunction(() => window.__handedAt !== null && document.querySelector('#root main h1'), null, {
+        timeout: 60000,
+      })
+      // handOver() focuses two frames after the swap, and Page's own effect
+      // later still where its h1 arrives late; a settled read, not a poll.
+      await target.waitForTimeout(1500)
+      const got = await target.evaluate(() => {
+        const h1 = document.querySelector('#root main h1')
+        const active = document.activeElement
+        return {
+          focused: active === h1,
+          on: active === document.body ? '<body>' : `${active?.tagName.toLowerCase()} “${(active?.textContent ?? '').trim().slice(0, 40)}”`,
+          h1: h1?.textContent ?? '',
+          status: document.getElementById('page-status')?.textContent ?? null,
+          shift: window.__shift,
+        }
+      })
+      handed += 1
+      if (!got.focused) lost.push(`${route}: focus is on ${got.on}`)
+      if (got.status !== handoverWords(got.h1)) unsaid.push(`${route}: the status region says “${got.status ?? '(no region)'}”`)
+      if (got.shift >= 0.05) moved.push(`${route}: ${got.shift.toFixed(3)}`)
+      await target.close()
+    }
+    await held.close()
+    is(handed, ROUTES.length, 'every page type was handed over from its static page')
+    if (lost.length === 0) pass(`focus is on the h1 after the handover on all ${ROUTES.length} page types`)
+    for (const message of lost) fail(message)
+    if (unsaid.length === 0) pass('and the status region, mounted from the first paint, says the page has finished loading')
+    for (const message of unsaid) fail(message)
+    if (moved.length === 0) pass('and nothing moves when the app takes over: a layout shift under 0.05 on every one (it was 0.57)')
+    for (const message of moved) fail(`the handover moved the page — ${message}`)
+  })
+
+  /**
    * The arrival where the database never comes at all.
    *
    * A blocked host, a captive portal, a file the deploy lost: the app cannot
@@ -1426,33 +1557,33 @@ try {
      * A declared oddity reaches the reader. The 2026 calendar says "Bahrain
      * (hosted at Sepang, Malaysia)" and the page showed a Bahrain Grand Prix at a
      * Malaysian circuit with no note, because that field was the one nothing
-     * read. It is the race's note now, and the note is the lede.
+     * read. It is the race's note now, and the lede carries it after the
+     * sentence saying who won (SD-39).
      */
   })
 
   await section('/races/2026/16  (the Sepang note reaches the page)', async () => {
     await go('/races/2026/16', 'Bahrain Grand Prix')
-    truthy(((await text('#root main .lede')) ?? '').includes('Sepang'), 'the calendar\'s explanation is the lede')
-    // CD-03: and the static half opens on the note too, rather than on the
-    // derived sentence that would say only where the round is scheduled.
+    // SD-39: the lede says who won and then carries the note, in both
+    // halves; the note used to replace the sentence, so the newest round was
+    // the one race page that never named its winner.
     const written = one('SELECT note FROM races WHERE year = 2026 AND round = 16')
-    const staticNote = (await (await fetch(`${BASE}/races/2026/16`)).text())
-      .match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1]
-      ?.replace(/&#39;/g, "'")
-      .replace(/&quot;/g, '"')
-      .replace(/&amp;/g, '&')
-    is(staticNote, written, 'the static page does not overwrite the note with the derived sentence')
-    // And says it once. The note was a bare paragraph below the timetable in
-    // the static half and the lede in the app; the lede is the note in both
-    // now, so a second copy would be the same words twice on one page.
-    // As element text, so the meta description - which carries the note as
-    // well as the derived sentence, on purpose - is not counted.
-    const staticRaceHtml = await (await fetch(`${BASE}/races/2026/16`)).text()
-    is(
-      staticRaceHtml.split(`>${written}<`).length - 1,
-      1,
-      'and prints it once, not once as the lede and again below',
+    const winner = one(
+      `SELECT (SELECT d.full_name FROM race_entries e JOIN races r ON r.id = e.race_id LEFT JOIN drivers d ON d.id = e.driver_id
+        WHERE r.year = 2026 AND r.round = 16 AND e.finish_position = 1)`,
     )
+    const appLede = (await text('#root main .lede')) ?? ''
+    truthy(appLede.endsWith(written), `the calendar\'s explanation is in the lede — "${appLede}"`)
+    truthy(Boolean(winner) && appLede.startsWith(`${winner} won`), `after the sentence saying who won (${winner})`)
+    const staticRaceHtml = await (await fetch(`${BASE}/races/2026/16`)).text()
+    const staticLede = unescaped(staticRaceHtml.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
+    is(staticLede, appLede, 'the static page opens on the same lede')
+    // And says it once. The note was a bare paragraph below the timetable in
+    // the static half; a second copy would be the same words twice on one
+    // page. The body only, so the meta description, which is the lede's own
+    // words on purpose, is not counted.
+    const staticBody = unescaped(staticRaceHtml.split('<div id="prerendered">')[1] ?? '')
+    is(staticBody.split(written).length - 1, 1, 'and prints the note once, in the lede and not again below')
     // AF-03: the race page draws the F1DB layout the round runs, named in
     // the drawing's accessible name, and the static page carries the same.
     const layout = one('SELECT f1db_layout_id FROM races WHERE year = 2026 AND round = 16')
@@ -1495,12 +1626,14 @@ try {
   })
 
   /*
-   * PD-49: three pages that open on the season being run where the reader is
-   * in it. The season page carries the next round and who won there before;
-   * a driver of the season opens on a dot per round; this year's chassis
-   * opens on its photograph. Each is checked in both halves, and each against
-   * a page it must NOT appear on, because a section gated on the wrong year
-   * shows up everywhere or nowhere and both read as a working page.
+   * PD-49: pages that open on the season being run where the reader is in
+   * it. The season page carries the next round and who won there before; a
+   * driver of the season opens on a dot per round. Each is checked in both
+   * halves, and each against a page it must NOT appear on, because a section
+   * gated on the wrong year shows up everywhere or nowhere and both read as
+   * a working page. This year's chassis opened on its photograph too, until
+   * VD-83 put the tiles first on every car; that is checked here, on the
+   * page that used to differ.
    */
   await section('/seasons, /drivers and /cars open on the season being run (PD-49)', async () => {
     const season = one("SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season'")
@@ -1644,38 +1777,42 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 })
     await go('/drivers/senna', 'Senna')
     truthy(
-      !(await appHeadings()).some((h) => h.startsWith(`The ${season} season`)) &&
-        !staticHeadings(await served('/drivers/senna')).some((h) => h.startsWith(`The ${season} season`)),
+      !(await appHeadings()).includes(thisSeasonHeading([{ season }])) &&
+        !staticHeadings(await served('/drivers/senna')).includes(thisSeasonHeading([{ season }])),
       `a driver with no ${season} entry has no ${season} section`,
     )
 
-    // This year's chassis opens on its photograph; a car of another year
-    // opens on its figures, the photographs after them.
+    // VD-83: this year's chassis opens on its figures, as every car does -
+    // the tiles under the h1 and no heading above them - and its
+    // photographs are the last section before where it all comes from.
     const pictured = db
       .prepare('SELECT id FROM chassis WHERE COALESCE(last_year, first_year) = ? ORDER BY id')
       .all(season)
       .map((row) => row.id)
-      .find((id) => db.prepare(CAR_IMAGES).all(id, id).some(canShow))
+      // A strip left once the slot has taken the photograph that names the
+      // car (VD-84), so the order has photographs to read.
+      .find((id) => carPhotographs(db.prepare(CAR_IMAGES).all(id, id)).rest.length > 0)
     const firstSection = () =>
       page.$eval('#root main section.section', (node) => node.querySelector('h2')?.textContent.trim() ?? '')
-    const photoFirst = (html) => {
-      const photo = html.indexOf('<h2>Photographs')
-      return photo >= 0 && photo < html.indexOf('<dl class=')
+    const tilesFirst = (html) => {
+      const tilesAt = html.indexOf('<dl class="stats')
+      const h2At = html.indexOf('<h2')
+      return tilesAt >= 0 && (h2At < 0 || tilesAt < h2At)
+    }
+    const photosLast = (headings) => {
+      const at = headings.findIndex((h) => h.startsWith('Photographs'))
+      return at >= 0 && headings[at + 1] === LABELS.provenance
     }
     if (pictured) {
       await go(`/cars/${pictured}`)
-      truthy((await firstSection()).startsWith('Photographs'), `/cars/${pictured}, a ${season} chassis, opens on its photograph`)
+      is(await firstSection(), '', `/cars/${pictured}, a ${season} chassis, opens on its tiles with no heading above them`)
       const carHtml = await served(`/cars/${pictured}`)
-      truthy(photoFirst(carHtml), 'and so does its static page')
+      truthy(tilesFirst(carHtml), 'and so does its static page')
       truthy(
-        (await appHeadings()).includes(FIGURES_HEADING) && staticHeadings(carHtml).includes(FIGURES_HEADING),
-        `and its figures are headed “${FIGURES_HEADING}” in both halves, not read as the photographs' own`,
+        photosLast(await appHeadings()) && photosLast(staticHeadings(carHtml)),
+        `and its photographs come straight before “${LABELS.provenance}” in both halves`,
       )
-    }
-    await go('/cars/lotus-72', 'Lotus 72')
-    truthy(!(await firstSection()).startsWith('Photographs'), 'a car of another year opens on its figures')
-    truthy(!photoFirst(await served('/cars/lotus-72')), 'in both halves')
-    truthy(!(await appHeadings()).includes(FIGURES_HEADING), `and needs no “${FIGURES_HEADING}” heading`)
+    } else fail(`no ${season} chassis has a photograph to read the order on`)
   })
 
   await section('/seasons/1976', async () => {
@@ -1801,7 +1938,6 @@ try {
       '',
       'a figure keeps the display face',
     )
-    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
     is(strip.misalignedRows.join(' · '), '', 'no value sits below the values beside it')
 
     // CD-03: the largest page type opens on a sentence. 1,194 of the 1,196
@@ -1874,10 +2010,10 @@ try {
    * sits under the tiles inside the first 900 px at 1440, with at least eight
    * rows showing in the app, and both halves put the rest in one order:
    * qualifying, the strategy, the practice sheets closed (their tables still
-   * in the page), the photographs, the timetable. The photograph strip and a
-   * run race's timetable used to stand between the tiles and the table, which
-   * put it on the second screen of 1,151 race pages. Before a round is run,
-   * its timetable leads instead.
+   * in the page), the timetable, the photographs (VD-83). The photograph
+   * strip and a run race's timetable used to stand between the tiles and the
+   * table, which put it on the second screen of 1,151 race pages. Before a
+   * round is run, its timetable leads instead.
    */
   await section('/races  (the result leads)', async () => {
     const readLead = (root) => {
@@ -1900,10 +2036,14 @@ try {
           : 0,
         sheetsOpen: sheets ? sheets.open : null,
         sheetTables: sheets ? sheets.querySelectorAll('table').length : 0,
-        // The two halves' blocks are the same shape: the grid and the
-        // disclosure each the child of a section of its own, not folded into
-        // a neighbour's by prerender.js's sectioned().
-        shape: [main.querySelector('.with-lead'), sheets].map((n) => n?.parentElement?.matches('section.section') ?? null),
+        // The two halves' blocks are the same shape: the outline's slot a
+        // block of the page beside the sections (VD-84), and the disclosure
+        // the child of a section of its own, neither folded into a
+        // neighbour's by prerender.js's sectioned().
+        shape: [
+          main.querySelector('.slot')?.parentElement?.matches('.page') ?? null,
+          sheets?.parentElement?.matches('section.section') ?? null,
+        ],
       }
     }
     // Every block named here is on the page, in this order; either strip of
@@ -1933,7 +2073,7 @@ try {
       return
     }
     const route = `/races/${run.year}/${run.round}`
-    const order = ['Classification', 'Qualifying', 'Pit stops', 'Practice sessions', RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE, 'Timetable']
+    const order = ['Classification', 'Qualifying', 'Pit stops', 'Practice sessions', 'Timetable', RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE]
     await go(route, run.name_used)
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.evaluate(() => window.scrollTo(0, 0))
@@ -1955,9 +2095,14 @@ try {
       )
       is(got.sheetsOpen, false, `${half}: the practice sheets are behind a closed disclosure`)
       is(got.sheetTables, run.sheets, `${half}: with all ${run.sheets} of their tables inside it`)
-      is(got.shape.join(' '), 'true true', `${half}: the grid and the disclosure each sit in a section of their own`)
+      is(got.shape.join(' '), 'true true', `${half}: the outline's slot is a block of the page, and the disclosure sits in a section of its own`)
     }
-    atLeast(app.rows, 8, 'the app shows at least eight rows of the classification on a 1440 × 900 screen')
+    // Eight rows while the tiles sat in the column beside the outline
+    // (PD-57). Version A puts the outline beside the header and the tiles
+    // full width under both (DP-11, VD-84), so the band is as tall as the
+    // drawing and the table starts lower: the heading and the podium, at
+    // least, are on the first screen.
+    atLeast(app.rows, 4, 'the app shows at least the first four rows of the classification on a 1440 × 900 screen')
 
     // A round not yet run: the timetable is what there is to lead with.
     const unrun = db
@@ -1986,7 +2131,8 @@ try {
    * of it at 1440, and that is what pushed *Wins by season* and the title
    * race off the first screen. The chart is now drawn inside 900 px at 1440,
    * under the tiles or - since VD-53 - beside them, and both halves put the rest
-   * in one order: the main table, then the photographs, then the long lists.
+   * in one order: the main table, then the long lists, then the photographs
+   * (VD-83).
    * A season with a round still to run reads its next round and calendar
    * before standings that are not final; a concluded one, who won first. The
    * static page draws neither chart (VD-73, #822), so it is
@@ -2006,8 +2152,8 @@ try {
         // come first and are svgs too, aria-hidden and 8 px tall.
         drawing: top(heading?.closest('section')?.querySelector('svg[role="img"][aria-label]')),
         tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
-        // In the column right of the heading and the tiles (VD-53).
-        beside: !!heading && !!tiles && heading.closest('section').getBoundingClientRect().left >= tiles.getBoundingClientRect().right,
+        // In the opening slot beside the header (VD-84).
+        beside: !!heading && heading.closest('section').matches('.page > .slot') && heading.closest('section').getBoundingClientRect().left > main.querySelector('.page > header').getBoundingClientRect().right,
       }
     }
     // Every block named is on the page, in this order, except the optional
@@ -2032,11 +2178,12 @@ try {
     }
     // The drawing itself, not only its heading, is inside the first screen -
     // on the season being run as well, whose two sentences under the tiles
-    // put its plot at 906 until VD-53 moved the chart beside them.
+    // put its plot at 906 until VD-53 moved the chart beside them, and the
+    // opening slot (VD-84) beside the header.
     const leads = (route, chart, got) =>
       truthy(
         got.heading !== null && got.drawing !== null && (got.heading > got.tilesEnd || got.beside) && got.drawing < 900,
-        `${route}: “${chart}” is under or beside the tiles and drawn inside the first 900 px at 1440 — heading at ${Math.round(got.heading)}, drawing at ${Math.round(got.drawing)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+        `${route}: “${chart}” is under the tiles or beside the header, and drawn inside the first 900 px at 1440 — heading at ${Math.round(got.heading)}, drawing at ${Math.round(got.drawing)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
       )
     const checkOrder = (route, got, order, optional) => {
       truthy(inOrder(got.app.blocks, order, optional), `${route}, the app: ${order.join(' → ')} — ${got.app.blocks.join(' · ')}`)
@@ -2053,7 +2200,7 @@ try {
       const route = `/constructors/${team.id}`
       const got = await bothHalves(route, team.name, 'Wins by season')
       leads(route, 'Wins by season', got.app)
-      checkOrder(route, got, ['Wins by season', 'Season by season', 'Photographs', 'Every win', 'Cars built'])
+      checkOrder(route, got, ['Wins by season', 'Season by season', 'Every win', 'Cars built', 'Photographs'])
     } else fail('no constructor with a title has photographs to read the order on')
 
     // A concluded season with photographs: who won, then the calendar.
@@ -2079,8 +2226,8 @@ try {
           standingsHeading("Constructors'", false),
           'The calendar',
           'On the grid',
-          'Photographs',
           'Who entered',
+          'Photographs',
         ],
         new Set(['On the grid']),
       )
@@ -2111,20 +2258,21 @@ try {
           "Drivers' standings",
           "Constructors' standings",
           'On the grid',
-          'Photographs',
           'Who entered',
+          'Photographs',
         ],
         new Set(['On the grid', 'Photographs']),
       )
     } else pass('no season is part-run, so there is no next round to lead the calendar')
   })
 
-  await section('Lead figures  (the plot before its method: VD-67)', async () => {
-    // A figure that leads a page sets one line of title, then the plot, then
-    // its method note. Above the plot, Fangio's note was 217 px over a 210 px
-    // plot at 400, which is a phone's first screen given to prose. Held at
-    // 1440, 400, the 375 phone width and the 320 reflow width: the plot starts
-    // within 40 px of the box top, the title is one line and not clipped, and
+  await section('Lead figures  (the plot before its method: VD-67, VD-80)', async () => {
+    // A figure that leads a page opens on its plot, under the heading that
+    // names it, then its method note. Above the plot, Fangio's note was
+    // 217 px over a 210 px plot at 400, which is a phone's first screen given
+    // to prose; a bold title of its own above that was a second name (VD-80).
+    // Held at 1440, 400, the 375 phone width and the 320 reflow width: the
+    // plot starts within 40 px of the box top, there is no caption title, and
     // the note is still on the page, under the plot and named as the figure's
     // description.
     const readFigure = (heading) => {
@@ -2134,13 +2282,11 @@ try {
       if (!figure) return null
       const box = figure.getBoundingClientRect()
       const plot = figure.querySelector('.figure-body svg[role="img"]')?.getBoundingClientRect()
-      const title = figure.querySelector(':scope > figcaption b')
       const note = figure.querySelector(':scope > p.figure-note')
       return {
         gap: plot ? plot.top - box.top : null,
-        lines: title ? Math.round(title.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(title).lineHeight)) : 0,
-        clipped: title ? title.scrollWidth > title.clientWidth : true,
         caption: figure.querySelector('figcaption')?.textContent.trim() ?? '',
+        name: figure.getAttribute('aria-label') ?? '',
         note: note ? clean(note) : '',
         below: plot && note ? note.getBoundingClientRect().top >= plot.bottom : false,
         described: !!note && figure.getAttribute('aria-describedby') === note.id,
@@ -2167,50 +2313,137 @@ try {
           got.gap !== null && got.gap <= 40,
           `${route} at ${width}: the plot starts ${Math.round(got.gap)} px into its box, within 40`,
         )
-        truthy(got.lines === 1 && !got.clipped, `${route} at ${width}: the title “${got.caption}” is one line, not clipped`)
+        truthy(got.caption === '' && got.name === heading, `${route} at ${width}: no caption title, and the figure is named “${got.name}” for its heading`)
         truthy(got.note.length > 0 && got.below && got.described, `${route} at ${width}: the method note is under the plot and describes the figure`)
       }
       await page.setViewportSize({ width: 1280, height: 900 })
     }
   })
 
-  await section('Lead figures  (beside the heading from 1024 px, after the tiles below: VD-53)', async () => {
-    // The chart a driver's, a team's or a season's page is for sits in the
-    // column the 525 px lede leaves empty from 1024 px: level with the
-    // heading, right of the lede and the tiles, drawn inside the first 900 px,
-    // and clear of everything after the opening. Below 1024 it follows the
-    // tiles in one column. The markup is one order at every width - sentence,
-    // tiles, figure - so a screen reader and the Tab key take the order the
-    // eye does, left column then right. A page with no lead figure is left
-    // as it was, its tiles the width of the page.
-    const readOpening = () => {
-      const article = document.querySelector('#root main .page')
+  /*
+   * docs/design-system.md section 8, test 6: one figure grammar (VD-80). On
+   * every route here, in both halves, each figure is named for the heading
+   * above it and carries no caption title of its own; its note follows the
+   * plot, is 50 words at most, and is the figure's description in the app.
+   * conventions.mjs holds the source and every note builder at its longest;
+   * this holds what reaches the page, including the notes written inline.
+   */
+  await section('One figure grammar  (the heading names it; the note under the plot, 50 words at most: VD-80)', async () => {
+    const readFigures = (root) => {
+      const main = typeof root === 'string' ? document.querySelector(root) : root
+      const name = (h) => {
+        const copy = h.cloneNode(true)
+        for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
+        return copy.textContent.replace(/\s+/g, ' ').trim()
+      }
+      const headings = [...(main?.querySelectorAll('h2, h3') ?? [])]
+      return [...(main?.querySelectorAll('figure.figure') ?? [])].map((figure) => {
+        // The heading nearest above the figure in the document.
+        const above = headings.filter((h) => h.compareDocumentPosition(figure) & Node.DOCUMENT_POSITION_FOLLOWING).pop()
+        const note = figure.querySelector(':scope > p.figure-note')
+        const body = figure.querySelector(':scope > .figure-body')
+        return {
+          heading: above ? name(above) : '',
+          label: figure.getAttribute('aria-label') ?? '',
+          caption: figure.querySelectorAll(':scope > figcaption, :scope > b, :scope > strong').length,
+          note: note ? note.textContent.replace(/\s+/g, ' ').trim() : '',
+          after: !body || !note || Boolean(body.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING),
+          described: !note || !figure.hasAttribute('aria-describedby') || figure.getAttribute('aria-describedby') === note.id,
+        }
+      })
+    }
+    const ROUTES = [
+      '/',
+      '/drivers/hamilton',
+      '/drivers/g-hill',
+      '/constructors/ferrari',
+      '/seasons/1976',
+      '/races/1955/1',
+      '/races/1994/5',
+      '/races/2024/21',
+      '/records',
+      '/data/quality',
+    ]
+    const wrong = []
+    let figures = 0
+    for (const route of ROUTES) {
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      await go(route)
+      await page.waitForSelector('#root main figure.figure', { timeout: 5000 }).catch(() => null)
+      const app = await page.evaluate(readFigures, '#root main')
+      const served = await page.evaluate(
+        `(${readFigures.toString()})(new DOMParser().parseFromString(${JSON.stringify(html)}, 'text/html').querySelector('#prerendered main'))`,
+      )
+      for (const [half, list] of [['app', app], ['static', served]]) {
+        for (const f of list) {
+          figures += 1
+          const words = f.note ? f.note.split(' ').length : 0
+          const at = `${route} (${half}) under “${f.heading}”`
+          if (f.caption) wrong.push(`${at}: a caption title`)
+          if (f.label !== f.heading) wrong.push(`${at}: named “${f.label}”, not for its heading`)
+          if (!f.note) wrong.push(`${at}: no note`)
+          else if (words > 50) wrong.push(`${at}: a note of ${words} words`)
+          if (!f.after) wrong.push(`${at}: the note is above the plot`)
+          if (!f.described) wrong.push(`${at}: the note is not the figure's description`)
+        }
+      }
+      if (app.length === 0) wrong.push(`${route}: the app draws no figure`)
+    }
+    if (wrong.length === 0) pass(`all ${figures} figures on ${ROUTES.length} routes, both halves, follow the one grammar`)
+    for (const message of wrong.slice(0, 8)) fail(message)
+    if (wrong.length > 8) fail(`…and ${wrong.length - 8} more`)
+  })
+
+  await section('The opening slot  (beside the header from 1180 px, after the tiles below: VD-84, DP-09, DP-11)', async () => {
+    // Version A's opening (§3, Opening slot): from 1180 px (--bp-desktop)
+    // the header takes seven columns and one picture of the page's subject
+    // the other five - the lead chart on a driver's, a team's and a season's
+    // page, a circuit's current layout (VD-74), a race's outline (DP-11), a
+    // car's photograph. The band is as tall as the taller side, and the tile
+    // strip runs the full width under both. Below 1180 the slot follows the
+    // tiles in one column; a race writes it after its classification, so the
+    // table never shares its width (IX-45) and a phone reads the result
+    // first. The markup is one order at every width - heading, tiles, the
+    // picture - and only the grid lifts the slot, so a screen reader and the
+    // Tab key keep it. A page with nothing for the slot keeps its tiles the
+    // width of the page.
+    const readOpening = (root) => {
+      const article = document.querySelector(`${root} .page`)
       const box = (node) => {
         if (!node) return null
         const b = node.getBoundingClientRect()
         return { top: b.top + window.scrollY, bottom: b.bottom + window.scrollY, left: b.left, right: b.right, width: b.width }
       }
-      const lead = article.querySelector(':scope > section.section-lead')
+      const slot = article.querySelector(':scope > .slot')
       const tiles = article.querySelector(':scope > header + section.section')
+      const before = slot?.previousElementSibling
       // The strip's last row of tiles, and the blank after its last tile.
       const strip = tiles?.querySelector('.stats')
       const cells = [...(strip?.querySelectorAll(':scope > div') ?? [])].map((tile) => tile.getBoundingClientRect())
       const lastTop = cells.length ? Math.max(...cells.map((b) => Math.round(b.top))) : null
       const lastRow = cells.filter((b) => Math.round(b.top) === lastTop)
       return {
-        lead: box(lead),
+        slot: box(slot),
+        header: box(article.querySelector(':scope > header')),
+        heading: box(article.querySelector(':scope > header h1')),
         tileSection: box(tiles),
+        tiles: box(strip),
+        // What else the markup put in the tiles' section: only a season's
+        // notes belong there (Season.jsx), and the static page once wrote a
+        // car's story and a circuit's characteristics there, so the picture
+        // fell below them before the handover and above them after it.
+        extra: tiles ? [...tiles.children].filter((n) => n !== strip).length : 0,
         lastRow: lastRow.map((b) => b.width),
         blank: strip && lastRow.length ? strip.getBoundingClientRect().right - Math.max(...lastRow.map((b) => b.right)) : 0,
-        plot: box(lead?.querySelector('svg[role="img"][aria-label]')),
-        heading: box(article.querySelector(':scope > header h1')),
-        lede: box(article.querySelector(':scope > header .lede')),
-        tiles: box(tiles?.querySelector('.stats')),
-        follows: !!lead && lead.previousElementSibling === tiles,
-        next: box(lead?.nextElementSibling),
+        plot: box(slot?.querySelector('svg[role="img"][aria-label]')),
+        // What the markup puts the slot after: the tiles, or a race's result.
+        after: before === tiles ? 'tiles' : (before?.querySelector(':scope > h2')?.textContent.trim().split(/\s/)[0] ?? before?.tagName ?? null),
+        before: box(before),
+        // A split is a grid of sections, and its first one is what stands clear.
+        next: box(slot?.nextElementSibling?.matches('.split') ? slot.nextElementSibling.firstElementChild : slot?.nextElementSibling),
         // Placed across both columns (a disagreement is narrower than the
         // page by its own max-width, so it is the placement that is read).
-        spans: !!lead?.nextElementSibling && getComputedStyle(lead.nextElementSibling).gridColumn === '1 / -1',
+        spans: !slot?.nextElementSibling || getComputedStyle(slot.nextElementSibling).gridColumn === '1 / -1',
         page: box(article),
       }
     }
@@ -2221,58 +2454,315 @@ try {
             AND (SELECT COUNT(*) FROM races r WHERE r.year = s.year AND r.status = 'completed') > 1`,
       )
       .get()?.year
+    const race = db
+      .prepare("SELECT year, round, name_used FROM races WHERE status = 'completed' AND f1db_layout_id IS NOT NULL ORDER BY year DESC, round DESC LIMIT 1")
+      .get()
+    const name = (table, id, column = 'name') => db.prepare(`SELECT ${column} FROM ${table} WHERE id = ?`).get(id)[column]
+    const single = db
+      .prepare(
+        `SELECT c.id, c.name FROM circuits c
+          WHERE (SELECT COUNT(*) FROM circuit_outlines o WHERE o.circuit_id = c.id) = 1
+            AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.circuit_id = c.id)
+          ORDER BY c.id`,
+      )
+      .all()
+      .find((c) => !db.prepare(CIRCUIT_PHOTOGRAPH).all(c.id).some(canShow))
+    // [route, the heading to wait for, what fills the slot, what the slot
+    // follows in the markup, whether the static page draws it too]
     const cases = [
-      ['/drivers/fangio', db.prepare("SELECT full_name FROM drivers WHERE id = 'fangio'").get().full_name],
-      ['/constructors/ferrari', db.prepare("SELECT name FROM constructors WHERE id = 'ferrari'").get().name],
-      // A recorded disagreement is the block straight after the chart.
-      ['/constructors/mclaren', db.prepare("SELECT name FROM constructors WHERE id = 'mclaren'").get().name],
-      ['/seasons/1976', '1976'],
-      ...(live ? [[`/seasons/${live}`, String(live)]] : []),
+      ['/drivers/fangio', name('drivers', 'fangio', 'full_name'), 'chart', 'tiles', false],
+      // A recorded disagreement is the block straight after the chart; and
+      // 61 seasons, near the most the slot can draw (SLOT_MARKS).
+      ['/constructors/mclaren', name('constructors', 'mclaren'), 'chart', 'tiles', false],
+      ['/seasons/1976', '1976', 'chart', 'tiles', false],
+      ...(live ? [[`/seasons/${live}`, String(live), 'chart', 'tiles', false]] : []),
+      [`/races/${race.year}/${race.round}`, race.name_used, 'outline', 'Classification', true],
+      // Silverstone keeps its photograph in the header beside the outline.
+      ['/circuits/silverstone', name('circuits', 'silverstone'), 'outline', 'tiles', true],
+      // One drawing, no timeline and no photograph: the slot's card carries
+      // the rule, and there is no layouts section below.
+      [`/circuits/${single.id}`, single.name, 'outline', 'tiles', true],
+      ['/cars/lotus-72', name('cars', 'lotus-72', 'full_name'), 'photograph', 'tiles', true],
     ]
-    for (const [route, wait] of cases) {
+    const FILLS = { chart: 'svg[role="img"]', outline: '.outline-card svg.outline', photograph: 'figure.photo img' }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const [route, wait, fill, after, both] of cases) {
       await go(route, wait)
-      for (const width of [1440, 1024, 1000, 400]) {
+      truthy(
+        await page.$(`#root main .page > .slot ${FILLS[fill]}`),
+        `${route}: the slot holds the ${fill}`,
+      )
+      if (both) await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      for (const width of [1440, 1180, 1179, 1024, 400]) {
         await page.setViewportSize({ width, height: 900 })
         await settle()
-        const got = await page.evaluate(readOpening)
-        if (!got.lead || !got.tiles || !got.plot) {
-          fail(`${route} at ${width}: no lead figure after a tile strip`)
-          continue
+        const halves = [['the app', await page.evaluate(readOpening, '#root main')]]
+        if (both && (width === 1440 || width === 1024)) {
+          await plain.setViewportSize({ width, height: 900 })
+          halves.push(['the static page', await plain.evaluate(readOpening, '#prerendered main')])
         }
-        truthy(got.follows, `${route} at ${width}: the figure follows the tiles in the document`)
-        if (width >= 1024) {
-          truthy(
-            got.lead.left >= got.lede.right && got.lead.left >= got.tiles.right && got.lead.top <= got.heading.bottom,
-            `${route} at ${width}: the figure is level with the heading and right of the lede and the tiles — its box at ${Math.round(got.lead.left)}, ${Math.round(got.lead.top)}; the lede ending at ${Math.round(got.lede.right)}, the tiles at ${Math.round(got.tiles.right)}`,
-          )
-          truthy(got.plot.bottom <= 900, `${route} at ${width}: the plot is drawn inside the first 900 px, ending at ${Math.round(got.plot.bottom)}`)
-          truthy(
-            !!got.next && got.spans && got.next.top >= Math.max(got.lead.bottom, got.tileSection.bottom) + 24,
-            `${route} at ${width}: the block after the opening spans both columns and starts clear under them — at ${got.next ? Math.round(got.next.top) : 'none'}, the opening ending at ${Math.round(Math.max(got.lead.bottom, got.tileSection.bottom))}`,
-          )
-          // The strip wraps at half the page. The blank closing its last row
-          // takes no more than a tile's share of that row, so the tiles there
-          // keep room for their notes, and no tile spreads across the strip.
-          truthy(
-            got.lastRow.length > 0 && got.lastRow.every((w) => w >= got.blank && w <= 0.8 * got.tiles.width),
-            `${route} at ${width}: the strip's last row (${got.lastRow.map(Math.round).join(', ')} px) is wider tile by tile than the blank after it (${Math.round(got.blank)}) and spans no row alone (${Math.round(got.tiles.width)})`,
-          )
-        } else {
-          truthy(
-            got.lead.top > got.tiles.bottom && got.lead.left === got.tiles.left,
-            `${route} at ${width}: the figure follows the tiles in one column — at ${Math.round(got.lead.top)}, the tiles ending at ${Math.round(got.tiles.bottom)}`,
-          )
+        for (const [half, got] of halves) {
+          const at = `${route} at ${width}, ${half}`
+          if (!got.slot || !got.tiles) {
+            fail(`${at}: no slot after a tile strip`)
+            continue
+          }
+          is(got.after, after, `${at}: the slot follows the ${after === 'tiles' ? 'tiles' : `${after} section`} in the document`)
+          if (fill !== 'chart') is(got.extra, 0, `${at}: the tiles' section holds the strip alone, so the slot follows the strip itself`)
+          if (width >= 1180) {
+            truthy(
+              got.slot.left >= got.header.right + 23 && Math.abs(got.slot.right - got.page.right) <= 1 && got.slot.top <= got.heading.bottom,
+              `${at}: the slot is beside the header, level with the heading, to the page's right edge — its box at ${Math.round(got.slot.left)}–${Math.round(got.slot.right)}, ${Math.round(got.slot.top)}; the header ending at ${Math.round(got.header.right)}`,
+            )
+            truthy(
+              got.tileSection.top >= Math.max(got.header.bottom, got.slot.bottom) + 24 && Math.abs(got.tiles.width - got.page.width) <= 1,
+              `${at}: the tiles run the full width under both — at ${Math.round(got.tileSection.top)}, ${Math.round(got.tiles.width)} of ${Math.round(got.page.width)} px; the band ending at ${Math.round(Math.max(got.header.bottom, got.slot.bottom))}`,
+            )
+            if (fill === 'chart') truthy(got.plot && got.plot.bottom <= 900, `${at}: the plot is drawn inside the first 900 px, ending at ${got.plot ? Math.round(got.plot.bottom) : 'nowhere'}`)
+            truthy(
+              !got.next || (got.spans && got.next.top >= got.before.bottom + 24),
+              `${at}: the block after the slot spans the page and starts clear under the block before it — at ${got.next ? Math.round(got.next.top) : 'none'}, that one ending at ${Math.round(got.before.bottom)}`,
+            )
+            // Nine tiles fit a row at 1440. The blank closing its last row
+            // takes no more than a tile's share of that row, so the tiles
+            // there keep room for their notes, and no tile spreads across
+            // the strip.
+            truthy(
+              got.lastRow.length > 0 && got.lastRow.every((w) => w >= got.blank && w <= 0.8 * got.tiles.width),
+              `${at}: the strip's last row (${got.lastRow.map(Math.round).join(', ')} px) is wider tile by tile than the blank after it (${Math.round(got.blank)}) and spans no row alone (${Math.round(got.tiles.width)})`,
+            )
+          } else {
+            truthy(
+              got.slot.top >= got.before.bottom && Math.abs(got.slot.left - got.tiles.left) <= 1,
+              `${at}: the slot follows in one column — at ${Math.round(got.slot.top)}, the block before it ending at ${Math.round(got.before.bottom)}`,
+            )
+          }
         }
       }
     }
+    // The circuit with one drawing and no timeline: the drawing leads in the
+    // slot and is the whole of what there is to draw, so there is no layouts
+    // section under it, and the card says the rule a section's note would.
+    {
+      const route = `/circuits/${single.id}`
+      await go(route, single.name)
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
+        const got = await tab.evaluate(
+          (at) => ({
+            caption: document.querySelector(`${at} .page > .slot figcaption`)?.textContent ?? '',
+            layouts: [...document.querySelectorAll(`${at} h2`)].some((h) => h.textContent.startsWith('Every layout raced here')),
+          }),
+          root,
+        )
+        truthy(got.caption.includes(OUTLINE_RULE) && !got.layouts, `${route}, ${half}: one drawing leads in the slot with the rule on its card, and no layouts section follows`)
+      }
+    }
+    await noJs.close()
+    // §7's minimum mark width: a column chart in the slot keeps every hover
+    // target 6 px wide at 1180, the slot's narrowest. McLaren's 61 seasons
+    // are the case nearest SLOT_MARKS; Ferrari's 77 are over it, so its chart
+    // leads under the tiles at the full width and the header keeps the band.
+    await go('/constructors/mclaren', name('constructors', 'mclaren'))
+    await page.setViewportSize({ width: 1180, height: 900 })
+    await settle()
+    const targets = await page.$$eval('#root main .page > .slot svg[role="img"] g > rect[fill="transparent"]', (n) =>
+      n.map((r) => r.getBoundingClientRect().width),
+    )
+    truthy(
+      targets.length > 0 && targets.length <= SLOT_MARKS && Math.min(...targets) >= 6,
+      `/constructors/mclaren at 1180: ${targets.length} columns in the slot (at most ${SLOT_MARKS}), the narrowest hover target ${targets.length ? Math.min(...targets).toFixed(1) : 'none'} px, at least 6`,
+    )
+    await go('/constructors/ferrari', name('constructors', 'ferrari'))
+    for (const width of [1440, 1180]) {
+      await page.setViewportSize({ width, height: 900 })
+      await settle()
+      const over = await page.evaluate(readOpening, '#root main')
+      const chart = await page.evaluate(() => {
+        const h = [...document.querySelectorAll('#root main h2')].find((n) => n.textContent.startsWith('Wins by season'))
+        const s = h?.closest('section')
+        const tiles = document.querySelector('#root main .page > header + section.section')
+        return s ? { follows: s.previousElementSibling === tiles, full: Math.abs(s.getBoundingClientRect().width - tiles.getBoundingClientRect().width) <= 1 } : null
+      })
+      truthy(
+        !over.slot && over.header.width === over.page.width && chart?.follows && chart?.full,
+        `/constructors/ferrari at ${width}: ${SLOT_MARKS}+ seasons, so no slot; the header keeps the width and the chart follows the tiles at the full width`,
+      )
+    }
+    // A note the markup puts straight after the tiles - a race not yet run
+    // says so - stands a section's gap clear of the strip, in both halves.
+    const unrun = db.prepare("SELECT year, round, name_used FROM races WHERE status = 'scheduled' ORDER BY year, round LIMIT 1").get()
+    if (unrun) {
+      const route = `/races/${unrun.year}/${unrun.round}`
+      await go(route, unrun.name_used)
+      const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+      const still = await quiet.newPage()
+      await still.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const gapAfterTiles = (root) => {
+        const tiles = document.querySelector(`${root} .page > header + section.section`)
+        const note = tiles?.nextElementSibling
+        return note?.matches('.note-box') ? note.getBoundingClientRect().top - tiles.getBoundingClientRect().bottom : null
+      }
+      for (const width of [1440, 400]) {
+        await page.setViewportSize({ width, height: 900 })
+        await still.setViewportSize({ width, height: 900 })
+        await settle()
+        for (const [half, gap] of [['the app', await page.evaluate(gapAfterTiles, '#root main')], ['the static page', await still.evaluate(gapAfterTiles, '#prerendered main')]]) {
+          truthy(gap !== null && gap >= 24, `${route} at ${width}, ${half}: the note after the tiles stands clear of them (${gap === null ? 'no note there' : `${Math.round(gap)} px`})`)
+        }
+      }
+      await quiet.close()
+    } else pass('no round is scheduled, so no race opens on a note')
     // Brawn raced one season, so it has no wins-by-season chart to lead with.
-    await go('/constructors/brawn', db.prepare("SELECT name FROM constructors WHERE id = 'brawn'").get().name)
+    await go('/constructors/brawn', name('constructors', 'brawn'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await settle()
-    const plain = await page.evaluate(readOpening)
+    const bare = await page.evaluate(readOpening, '#root main')
     truthy(
-      !plain.lead && !!plain.tiles && plain.tiles.width === plain.page.width,
-      `/constructors/brawn, with no lead figure, keeps its tiles the width of the page (${plain.tiles ? Math.round(plain.tiles.width) : 'none'} of ${Math.round(plain.page.width)})`,
+      !bare.slot && !!bare.tiles && bare.tiles.width === bare.page.width && bare.header.width === bare.page.width,
+      `/constructors/brawn, with nothing for the slot, keeps its header and its tiles the width of the page (${bare.tiles ? Math.round(bare.tiles.width) : 'none'} of ${Math.round(bare.page.width)})`,
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  await section('The grid  (every edge a column line, the measure or the full width, in both halves: VD-78)', async () => {
+    /*
+     * DP-08's edge test, the one that would have caught 5-6 October: thirteen
+     * layout changes, each sound alone, left the driver, race and circuit
+     * pages with seven text widths and five column systems, and nothing could
+     * fail on it. Every block of a page - its children, its header's and its
+     * sections', and the columns of the grids inside them - starts on a
+     * column line of the grid tokens.css names, and ends on one, at the
+     * measure or at the full width. Measured at 1440 (12 columns) and 1024
+     * (8), in the app and in the static page, which share the stylesheet.
+     */
+    const readEdges = (scope) => {
+      const main = document.querySelector(scope)
+      const page = main.querySelector('.page')
+      const style = getComputedStyle(main)
+      const box = main.getBoundingClientRect()
+      const L = box.left + parseFloat(style.paddingLeft)
+      const R = box.right - parseFloat(style.paddingRight)
+      const probe = (token) => {
+        const div = document.createElement('div')
+        div.style.cssText = `max-width: var(${token}); width: 100000px; height: 0`
+        page.append(div)
+        const width = div.getBoundingClientRect().width
+        div.remove()
+        return width
+      }
+      const OPEN = 'header, section, .split, .with-outline, .slot'
+      const name = (n) => n.tagName.toLowerCase() + [...n.classList].map((c) => `.${c}`).join('')
+      const blocks = []
+      const walk = (node, trail) => {
+        for (const child of node.children) {
+          const s = getComputedStyle(child)
+          const b = child.getBoundingClientRect()
+          const shown = b.width > 0 && b.height > 0 && !/^(inline|contents|none)$/.test(s.display) && !/absolute|fixed/.test(s.position)
+          if (!shown || child.matches('.sr-only')) continue
+          const path = trail ? `${trail} > ${name(child)}` : name(child)
+          blocks.push({ path, left: b.left - L, right: b.right - L })
+          if (child.matches(OPEN)) walk(child, path)
+        }
+      }
+      walk(page, '')
+      return {
+        width: R - L,
+        columns: Number(style.getPropertyValue('--columns')),
+        gutter: parseFloat(style.getPropertyValue('--gutter')),
+        measure: probe('--measure'),
+        small: probe('--measure-small'),
+        blocks,
+      }
+    }
+    const COLUMNS = { 1440: 12, 1024: 8 }
+    const off = (got) => {
+      const col = (got.width - (got.columns - 1) * got.gutter) / got.columns
+      const starts = Array.from({ length: got.columns }, (_, k) => k * (col + got.gutter))
+      const ends = starts.map((x) => x + col)
+      const near = (x, list) => list.some((y) => Math.abs(x - y) <= 1)
+      return got.blocks
+        .filter((b) => !near(b.left, starts) || !near(b.right, [...ends, b.left + got.measure, b.left + got.small]))
+        .map((b) => `${b.path} ${Math.round(b.left)}-${Math.round(b.right)}`)
+    }
+    const race = db
+      .prepare("SELECT year, round, name_used FROM races WHERE status = 'completed' ORDER BY year DESC, round DESC LIMIT 1")
+      .get()
+    const cases = [
+      ['/drivers/hamilton', db.prepare("SELECT full_name FROM drivers WHERE id = 'hamilton'").get().full_name],
+      [`/races/${race.year}/${race.round}`, race.name_used],
+      ['/circuits/silverstone', db.prepare("SELECT name FROM circuits WHERE id = 'silverstone'").get().name],
+    ]
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const [route, wait] of cases) {
+      await go(route, wait)
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      for (const width of [1440, 1024]) {
+        await page.setViewportSize({ width, height: 900 })
+        await plain.setViewportSize({ width, height: 900 })
+        await settle()
+        for (const [half, got] of [
+          ['the app', await page.evaluate(readEdges, '#root main')],
+          ['the static page', await plain.evaluate(readEdges, '#prerendered main')],
+        ]) {
+          is(got.columns, COLUMNS[width], `${route} at ${width}, ${half}: the grid has ${COLUMNS[width]} columns`)
+          atLeast(got.blocks.length, 8, `${route} at ${width}, ${half}: blocks measured`)
+          is(off(got).join(' · '), '', `${route} at ${width}, ${half}: every block starts on a column line and ends on one, at the measure or at the full width`)
+        }
+      }
+    }
+    await noJs.close()
+
+    // VD-76: one row of masthead at every width above the phone layout. The
+    // links wrapped from 1,099 px down - a second row at 1024 that moved every
+    // heading 24 px, a third at 768.
+    const masthead = () =>
+      page.evaluate(() => {
+        const tops = [...document.querySelectorAll('#root .masthead nav a')].map((a) => Math.round(a.getBoundingClientRect().top))
+        return { height: document.querySelector('#root .masthead').getBoundingClientRect().height, rows: new Set(tops).size }
+      })
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const full = await masthead()
+    for (const width of [1440, 1180, 1179, 1024, 900, 768]) {
+      await page.setViewportSize({ width, height: 900 })
+      const got = await masthead()
+      truthy(got.rows === 1 && got.height <= full.height, `at ${width} the masthead is one row, ${Math.round(got.height)} px against ${Math.round(full.height)} at 1440 (${got.rows} rows of links)`)
+    }
+
+    // VD-77: a disagreement placed between two sections takes the section gap.
+    // On the RB19's page it sat a pixel from Specification's source line.
+    await go('/cars/red-bull-rb19', db.prepare("SELECT full_name FROM cars WHERE id = 'red-bull-rb19'").get().full_name)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await settle()
+    const gap = await page.evaluate(() => {
+      const box = document.querySelector('#root main .page > .disagreement')
+      const before = box?.previousElementSibling
+      return box && before ? box.getBoundingClientRect().top - before.getBoundingClientRect().bottom : null
+    })
+    truthy(gap !== null && gap >= 24, `/cars/red-bull-rb19: the disagreement stands clear of the section above it (${gap === null ? 'none found' : `${Math.round(gap)} px`})`)
+
+    // IX-47: opening one record card's derivation moves nothing beside it.
+    await go('/records', 'Records')
+    await settle()
+    const cards = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('#root main ul.record-cards')[0].children].map((li) => {
+          const summary = li.querySelector('details.record-card-how > summary')
+          return { top: Math.round(li.getBoundingClientRect().top), summary: summary ? Math.round(summary.getBoundingClientRect().top) : null }
+        }),
+      )
+    const closed = await cards()
+    await page.click('#root main ul.record-cards > li:first-child details.record-card-how > summary')
+    const opened = await cards()
+    await page.click('#root main ul.record-cards > li:first-child details.record-card-how > summary')
+    const row = closed.flatMap((card, i) => (i > 0 && card.top === closed[0].top ? [i] : []))
+    truthy(row.length > 0, `/records at 1440: the first row holds more than one card (${row.length + 1})`)
+    is(
+      row.map((i) => opened[i].summary - closed[i].summary).join(' '),
+      row.map(() => 0).join(' '),
+      '/records: opening the first card’s derivation leaves its neighbours’ disclosures where they were',
     )
     await page.setViewportSize({ width: 1280, height: 900 })
   })
@@ -2365,6 +2855,71 @@ try {
   })
 
   /*
+   * IX-45. The classification fits its own box from --bp-tablet. Ten columns
+   * at max-content were about 960 px, so from 768 to 1,010 px Points and FL
+   * scrolled out behind the fade (242 px at 768 on /races/2024/21). Between
+   * the breakpoints its columns of words break at a space and its cells close
+   * up (app.css, "A table that fits its box"). Read at the three widths the
+   * band is tested at, on three races that stretch it: a reason that runs to
+   * three words in its tag, a field of shared drives, and the longest reason
+   * held. The app is the binding half - its headers carry the sort buttons
+   * the static table has not - and the static page is read too. A figure
+   * never wraps; and a phone keeps its one-line rows.
+   */
+  await section('/races  (the classification fits its box from 768 px: IX-45)', async () => {
+    const readFit = (root) => {
+      const main = document.querySelector(root)
+      const h2 = [...main.querySelectorAll('section > h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+      const box = h2?.parentElement.querySelector('.table-scroll')
+      if (!box) return null
+      // A figure's cell is as tall as its row, which a wrapped name grows, so
+      // it is the figure's own text that is read: a text node drawn on more
+      // than one line has wrapped.
+      const wraps = (cell) => {
+        const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
+        const range = document.createRange()
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (!node.textContent.trim()) continue
+          range.selectNodeContents(node)
+          if (range.getClientRects().length > 1) return true
+        }
+        return false
+      }
+      return {
+        over: box.scrollWidth - box.clientWidth,
+        wrapped: [...box.querySelectorAll('tbody td.num')].filter(wraps).length,
+      }
+    }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 768, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const [route, heading] of [['/races/2024/21', 'Paulo'], ['/races/1955/1', 'Argentine'], ['/races/1997/16', 'Japanese']]) {
+      for (const width of [768, 900, 1024]) {
+        await page.setViewportSize({ width, height: 900 })
+        await go(route, heading)
+        await plain.setViewportSize({ width, height: 900 })
+        await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        for (const [half, got] of [['app', await page.evaluate(readFit, '#root main')], ['static', await plain.evaluate(readFit, '#prerendered main')]]) {
+          if (!got) {
+            fail(`${route} at ${width} (${half}): no classification`)
+            continue
+          }
+          truthy(got.over <= 0, `${route} at ${width} (${half}): the classification fits its box${got.over > 0 ? `, ${got.over} px over` : ''}`)
+          is(got.wrapped, 0, `${route} at ${width} (${half}): and no figure in it wraps`)
+        }
+      }
+    }
+    await noJs.close()
+    await page.setViewportSize({ width: 400, height: 900 })
+    await go('/races/2024/21', 'Paulo')
+    is(
+      await page.$$eval('#root main td.wraps, #root main th.wraps', (cells) => cells.filter((c) => getComputedStyle(c).whiteSpace !== 'nowrap').length),
+      0,
+      'at 400 the words keep to one line, and the phone scrolls the table as before',
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
    * PD-30: grid to flag. One line per car that started, from its slot to its
    * place in the result at the last lap it completed, drawn by both halves
    * from charts/gridFlag.js. The counts come out of f1.db by a rule written
@@ -2384,7 +2939,10 @@ try {
       const cars = [...svg.querySelectorAll('g.flag-car')]
       return {
         label: svg.getAttribute('aria-label') ?? '',
-        note: figure.querySelector('figcaption span')?.textContent.trim() ?? '',
+        note: figure.querySelector(':scope > p.figure-note')?.textContent.trim() ?? '',
+        // What the figure's table holds that the drawing does not is said
+        // under that table (VD-80), so it is read from the whole figure.
+        text: figure.textContent.replace(/\s+/g, ' '),
         results: cars.map((g) => g.querySelector('.flag-result')?.textContent.trim()),
         grids: cars.map((g) => g.querySelector('text')?.textContent.trim()),
         out: cars.map((g) => g.classList.contains('flag-out')),
@@ -2455,9 +3013,10 @@ try {
     for (const [half, got] of [['the app', argentina.app], ['the static page', argentina.served]]) {
       truthy(/shared a car/.test(got?.note ?? ''), `/races/1955/1, ${half}: the shared car is explained`)
       truthy(
-        (got?.note ?? '').includes(`${undrawn} ${undrawn === 1 ? 'entry' : 'entries'} with no recorded grid slot`),
-        `/races/1955/1, ${half}: and the ${undrawn} undrawn entries counted`,
+        (got?.text ?? '').includes(`${undrawn} ${undrawn === 1 ? 'entry' : 'entries'} with no recorded grid slot`),
+        `/races/1955/1, ${half}: and the ${undrawn} undrawn entries counted, under the figure's table`,
       )
+      is((got?.note ?? '').includes('with no recorded grid slot'), false, `/races/1955/1, ${half}: and not in the note, which is held to 50 words`)
     }
     await noJs.close()
 
@@ -2579,7 +3138,7 @@ try {
       is(got.results[0], '1', `${half}: the winner's bar is at the top`)
       is(got.rows, cars + unbarred, `${half}: the figure's table carries every bar, and the ${unbarred} driver with stops and no bar`)
       truthy(/in the table and not drawn/.test(got.text), `${half}: and the note says so`)
-      truthy(/not what a stop gained or lost/.test(got.text), `${half}: the note says the bars measure nothing`)
+      truthy(/not a stop’s length, tyres or gain/.test(got.text), `${half}: the note says the bars measure nothing`)
       is(/undercut|overcut/i.test(got.text), false, `${half}: and nothing on the section talks of an undercut`)
       is(got.orderRows.length, pairs, `${half}: one pit-order row per pair of classified neighbours, on the grid or at the flag`)
       is(got.orderCaption, PIT_ORDER_HEADING, `${half}: the pit-order table is named for its own heading, not the figure's`)
@@ -2600,22 +3159,32 @@ try {
     for (const [half, got] of [['the app', france.app], ['the static page', france.served]]) {
       truthy((got?.tableRows ?? []).some((row) => row.includes('None recorded')), `/races/1995/7, ${half}: a driver with no stop recorded reads “None recorded”`)
       is(/\bNo stop\b|did not stop\./.test(got?.text ?? ''), false, `/races/1995/7, ${half}: and nothing says they did not stop`)
-      truthy(/no stop recorded, which is not always a driver who did not stop/.test(got?.text ?? ''), `/races/1995/7, ${half}: the note says the record has gaps`)
+      truthy(/An unticked bar may hide a stop: F1DB’s record has gaps/.test(got?.text ?? ''), `/races/1995/7, ${half}: the note says the record has gaps`)
     }
 
     // A stop on the lap a car went out on is drawn at the end of its bar.
     const spain = await both('/races/1994/5')
     for (const [half, got] of [['the app', spain.app], ['the static page', spain.served]]) {
-      truthy(/stopped on the lap they went out on/.test(got?.text ?? ''), `/races/1994/5, ${half}: the stop on the last lap is explained`)
+      truthy(/stopped on their final lap/.test(got?.text ?? ''), `/races/1994/5, ${half}: the stop on the last lap is explained`)
       is(got?.beyond, 0, `/races/1994/5, ${half}: and no tick is drawn past the end of its bar`)
     }
 
     // A race run with no figure says why, in both halves: before the first
-    // season with a stop recorded, and after it with none recorded.
+    // season with a stop recorded, after it with none recorded, and (SD-40)
+    // after the last round holding a stop, where they have not arrived yet -
+    // the newest round with a result and no stop, while there is one.
     const from = one('SELECT MIN(r.year) FROM pit_stops p JOIN races r ON r.id = p.race_id')
+    const awaiting = one(
+      `SELECT (SELECT r.year || '/' || r.round FROM races r
+        WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
+          AND NOT EXISTS (SELECT 1 FROM pit_stops p JOIN races l ON l.id = p.race_id
+                           WHERE l.year > r.year OR (l.year = r.year AND l.round >= r.round))
+        ORDER BY r.year DESC, r.round DESC LIMIT 1)`,
+    )
     for (const [route, words] of [
       ['/races/1976/9', `recorded from ${from}`],
       ['/races/2021/12', 'records no pit stop for this race'],
+      ...(awaiting ? [[`/races/${awaiting}`, 'No pit stop is recorded for this race yet']] : []),
     ]) {
       const got = await both(route)
       for (const [half, read] of [['the app', got.app], ['the static page', got.served]]) {
@@ -2978,6 +3547,291 @@ try {
 
   })
 
+  await section('/drivers/<id>  (the championship dots: colour, hover and focus: CR-74)', async () => {
+    // Each dot is the colour of the team that season finished with, or hollow
+    // where the record holds none (AF-55), in both themes. The drivers are
+    // chosen for the classes a dot comes in: a title inside the 1968-2009
+    // colour gap (Hamilton 2008, Schumacher 1994), a title in a sourced
+    // livery (Hamilton 2014), a position shared with other drivers
+    // (Schumacher 1991, P13 with two others) and a season with no position to
+    // plot (Schumacher 1997), national colours and a title in them (Fangio),
+    // and a career that crosses from national colours into the gap (G. Hill).
+    // The expected colour is lastTeamColour()'s, which the page reads, so
+    // what is checked is that the colour reaches the dot: a class or an
+    // opacity that drops it, or a dot drawn for the wrong season, fails here.
+    // A livery's value is a hex, a national colour's a token; the browser
+    // resolves either in the theme being read, as the dot's own fill does.
+    const resolve = (values) =>
+      page.evaluate((list) => {
+        const probe = document.createElement('i')
+        document.body.append(probe)
+        const out = list.map((value) => {
+          probe.style.color = ''
+          probe.style.color = value
+          return getComputedStyle(probe).color
+        })
+        probe.remove()
+        return out
+      }, values)
+    const CHART = 'Where each championship finished'
+    const dotsOf = () =>
+      page.$$eval(
+        '#root main h2',
+        (nodes, heading) => {
+          const scope = nodes.find((node) => node.textContent.trim() === heading)?.closest('section')
+          const circles = [...(scope?.querySelectorAll('figure.figure svg circle.mark-ring, figure.figure svg circle.mark-hollow') ?? [])]
+          const halos = [...(scope?.querySelectorAll('figure.figure svg circle.mark-halo') ?? [])]
+          return {
+            dots: circles.map((c) => ({ hollow: c.classList.contains('mark-hollow'), fill: getComputedStyle(c).fill })),
+            halos: halos.map((c) => ({ opacity: getComputedStyle(c).opacity, stroke: getComputedStyle(c).stroke })),
+          }
+        },
+        CHART,
+      )
+    const hamilton = one("SELECT full_name FROM drivers WHERE id = 'hamilton'")
+    const chart = () =>
+      page.locator('#root main section', { has: page.locator('h2', { hasText: CHART }) }).locator('figure.figure svg[role="img"]').first()
+    const covered = new Set()
+    for (const id of ['hamilton', 'schumacher', 'fangio', 'g-hill']) {
+      const name = one('SELECT full_name FROM drivers WHERE id = ?', id)
+      const teams = teamsBySeason(db.prepare(SEASON_TEAMS).all(id))
+      const plotted = db
+        .prepare(STANDINGS)
+        .all(id)
+        .filter((s) => typeof s.position === 'number')
+        .map((s) => ({ ...s, colour: lastTeamColour(teams.get(s.year), s.year).colour }))
+      for (const s of plotted) covered.add(s.colour ? (s.position === 1 ? 'title in colour' : 'colour') : s.position === 1 ? 'title in the gap' : 'gap')
+      await go(`/drivers/${id}`, name)
+      for (const scheme of ['light', 'dark']) {
+        await page.emulateMedia({ colorScheme: scheme })
+        const { dots, halos } = await dotsOf()
+        const wants = await resolve(plotted.map((s) => (s.colour ? s.colour[scheme] : 'transparent')))
+        is(dots.length, plotted.length, `${id}, ${scheme}: a dot for each of the ${plotted.length} seasons with a position`)
+        const wrong = plotted
+          .map((s, i) => {
+            const dot = dots[i]
+            if (!dot) return `${s.year} has no dot`
+            if (!s.colour) return dot.hollow && dot.fill === 'none' ? null : `${s.year} should be hollow, is ${dot.fill}`
+            const want = wants[i]
+            return !dot.hollow && dot.fill === want ? null : `${s.year} should be ${want}, is ${dot.hollow ? 'hollow' : dot.fill}`
+          })
+          .filter(Boolean)
+        truthy(wrong.length === 0, `${id}, ${scheme}: every dot is its season's colour, or hollow where there is none${wrong.length ? `; ${wrong.join('; ')}` : ''}`)
+        const titles = plotted.filter((s) => s.position === 1).length
+        is(halos.length, titles, `${id}, ${scheme}: a ring round each of the ${titles} seasons finished first`)
+        truthy(halos.every((h) => h.opacity === '1'), `${id}, ${scheme}: and every ring at full strength, where its colour clears 3:1 (AX-23)`)
+      }
+      await page.emulateMedia({ colorScheme: 'light' })
+    }
+    is([...covered].sort().join(', '), 'colour, gap, title in colour, title in the gap', 'the drivers between them cover every class of dot')
+    truthy(
+      db.prepare(STANDINGS).all('schumacher').some((s) => s.position === null) &&
+        one("SELECT COUNT(*) FROM v_standings_final WHERE table_type = 'drivers' AND year = 1991 AND position = 13") > 1,
+      'and among them a season with no position, and a position shared with other drivers',
+    )
+
+    // Pointed at and held, a dot keeps one box - Hamilton 2008 above all,
+    // which is hollow and answered the pointer only on its outline. Read at
+    // 1440 and at 400, where the dots are 15 px apart.
+    for (const width of [1440, 400]) {
+      await page.setViewportSize({ width, height: 900 })
+      await go('/drivers/hamilton', hamilton)
+      const svg = await chart().elementHandle()
+      await svg.scrollIntoViewIfNeeded()
+      const unstable = []
+      for (const year of [2008, 2014]) {
+        const index = db
+          .prepare(STANDINGS)
+          .all('hamilton')
+          .filter((s) => typeof s.position === 'number')
+          .findIndex((s) => s.year === year)
+        const dot = (await svg.$$('circle.mark-ring, circle.mark-hollow'))[index]
+        const box = await dot.boundingBox()
+        const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2]
+        await page.mouse.move(cx - 30, cy)
+        const seen = []
+        // In from the left across the ring and the outline to the centre,
+        // then a pixel's wander there, then held.
+        for (let step = 22; step >= 0; step -= 2) {
+          await page.mouse.move(cx - step, cy)
+          if (step <= 4) seen.push(await page.$$eval('#root main .tooltip', (n) => n.length))
+        }
+        for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1]]) {
+          await page.mouse.move(cx + dx, cy + dy)
+          seen.push(await page.$$eval('#root main .tooltip', (n) => n.length))
+        }
+        await page.waitForTimeout(250)
+        seen.push(await page.$$eval('#root main .tooltip', (n) => n.length))
+        const said = await page.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+        if (seen.some((n) => n !== 1) || said !== String(year)) unstable.push(`${year}: boxes ${seen.join('')}, reading ${said}`)
+        // And whole: figure.figure clips what overflows it, which cut the
+        // box off a title year's dot at the top of the plot.
+        const inside = await page
+          .$eval('#root main .tooltip', (tip) => {
+            const t = tip.getBoundingClientRect()
+            const f = tip.closest('figure.figure').getBoundingClientRect()
+            return t.top >= f.top && t.bottom <= f.bottom && t.left >= f.left && t.right <= f.right
+          })
+          .catch(() => false)
+        if (!inside) unstable.push(`${year}: the box runs outside the figure, which clips it`)
+        await page.mouse.move(0, 0)
+      }
+      truthy(unstable.length === 0, `at ${width}, a dot pointed at and held keeps one box, for its own season${unstable.length ? `; ${unstable.join('; ')}` : ''}`)
+      const tip = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+      truthy(tip, `at ${width}, and the page does not scroll sideways`)
+    }
+    // Every dot of a career with long team names, at 400, keeps its box
+    // inside the figure: the middle of the plot is where a centred box of
+    // "British American Racing" ran out of it at either side.
+    await page.setViewportSize({ width: 400, height: 900 })
+    for (const id of ['button', 'verstappen']) {
+      await go(`/drivers/${id}`, one('SELECT full_name FROM drivers WHERE id = ?', id))
+      const svg = await chart().elementHandle()
+      await svg.scrollIntoViewIfNeeded()
+      const outside = []
+      const dots = await svg.$$('circle.mark-ring, circle.mark-hollow')
+      for (const dot of dots) {
+        const box = await dot.boundingBox()
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+        const at = await page
+          .$eval('#root main .tooltip', (tip) => {
+            const t = tip.getBoundingClientRect()
+            const f = tip.closest('figure.figure').getBoundingClientRect()
+            return { year: tip.querySelector('b').textContent, inside: t.top >= f.top && t.bottom <= f.bottom && t.left >= f.left && t.right <= f.right }
+          })
+          .catch(() => ({ year: null, inside: false }))
+        if (!at.inside) outside.push(at.year ?? 'a dot with no box')
+      }
+      await page.mouse.move(0, 0)
+      truthy(outside.length === 0, `at 400, each of ${id}'s ${dots.length} dots opens its box inside the figure${outside.length ? `; not ${outside.join(', ')}` : ''}`)
+    }
+    await page.setViewportSize({ width: 1280, height: 900 })
+
+    // A tap on a touch screen opens the box too, and it stays when the
+    // finger lifts: a tap sends no pointermove, and a pointerleave follows it.
+    {
+      const touch = await browser.newContext({ viewport: { width: 400, height: 900 }, hasTouch: true, isMobile: true })
+      const phone = await touch.newPage()
+      await phone.goto(`${BASE}/drivers/hamilton`)
+      const plot = phone
+        .locator('#root main section', { has: phone.locator('h2', { hasText: CHART }) })
+        .locator('figure.figure svg[role="img"]')
+        .first()
+      await plot.locator('circle.mark-hollow').nth(1).waitFor({ timeout: 30000 })
+      await plot.scrollIntoViewIfNeeded()
+      const box = await plot.locator('circle.mark-hollow').nth(1).boundingBox()
+      await phone.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+      await phone.waitForTimeout(250)
+      const tapped = await phone.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+      is(tapped, '2008', "a tap on Hamilton's hollow 2008 dot opens its box, and it is still open after the finger lifts")
+      await touch.close()
+    }
+
+    // The keyboard reaches the same points: focus the plot, and its first
+    // season is read; the arrows step along; Escape lets go.
+    await go('/drivers/hamilton', hamilton)
+    await chart().focus()
+    await page.keyboard.press('End')
+    const first = await page.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+    await page.keyboard.press('Home')
+    await page.keyboard.press('ArrowRight')
+    const second = await page.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+    const status = await chart().locator('xpath=..').locator('[role="status"]').textContent()
+    const years = db
+      .prepare(STANDINGS)
+      .all('hamilton')
+      .filter((s) => typeof s.position === 'number')
+      .map((s) => String(s.year))
+    is(first, years.at(-1), 'End on the focused plot reads its last season')
+    is(second, years[1], 'Home then the right arrow reads its second')
+    truthy(status.startsWith(`${years[1]}: `), `and the status region says it, “${status}”`)
+    await page.keyboard.press('Escape')
+    is(await page.$$eval('#root main .tooltip', (n) => n.length), 0, 'Escape lets go of it')
+  })
+
+  /*
+   * IX-44. A chart's hover box is whole wherever it opens: centred over
+   * Ferrari's 2026 column it ran out of the figure, which clips it, and risen
+   * above the season chart's plot it was cut off at every width and left the
+   * screen at 400. Every column chart and line chart on these pages is read
+   * at its first and last mark - and a column chart at its tallest, whose
+   * box has no room above it - at a phone's width and a desktop's, and the
+   * box must lie inside the window and inside every ancestor that clips.
+   * The dot plot's own boxes are held to the same rule in the section above.
+   */
+  await section('chart hover boxes  (whole at every edge: IX-44)', async () => {
+    const clipped = () =>
+      page
+        .$eval('#root main .tooltip', (tip) => {
+          const t = tip.getBoundingClientRect()
+          const out = []
+          if (t.left < 0 || t.top < 0 || t.right > window.innerWidth || t.bottom > window.innerHeight) out.push('the window')
+          for (let node = tip.parentElement; node; node = node.parentElement) {
+            const style = getComputedStyle(node)
+            if (style.overflowX === 'visible' && style.overflowY === 'visible') continue
+            const r = node.getBoundingClientRect()
+            if (t.left < r.left - 0.5 || t.right > r.right + 0.5 || t.top < r.top - 0.5 || t.bottom > r.bottom + 0.5) {
+              out.push(`${node.tagName.toLowerCase()}.${[...node.classList].join('.')}`)
+            }
+          }
+          return { said: tip.querySelector('b')?.textContent ?? '', out }
+        })
+        .catch(() => null)
+    for (const width of [400, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const [route, heading] of [['/constructors/ferrari', 'Ferrari'], ['/', null], ['/seasons/2024', '2024']]) {
+        await go(route, heading)
+        const wrong = []
+        let read = 0
+        for (const holder of await page.$$('#root main figure.figure .plot-holder')) {
+          await holder.scrollIntoViewIfNeeded()
+          const columns = await holder.$$('svg g > rect[fill="transparent"]')
+          const points = []
+          if (columns.length) {
+            const tops = await Promise.all(columns.map(async (c) => (await c.evaluate((n) => n.nextElementSibling?.getBBox().y ?? 0))))
+            const tallest = tops.indexOf(Math.min(...tops))
+            for (const i of new Set([0, columns.length - 1, tallest])) {
+              const b = await columns[i].boundingBox()
+              points.push([b.x + b.width / 2, b.y + b.height - 4])
+            }
+          } else if (await holder.$('svg[role="img"]:not([tabindex]):not([class])')) {
+            // A line chart reads the round nearest the pointer, so its two
+            // ends are a pointer near either side of the plot.
+            const b = await (await holder.$('svg[role="img"]')).boundingBox()
+            points.push([b.x + b.width * 0.03, b.y + b.height / 2], [b.x + b.width * 0.97, b.y + b.height / 2])
+          }
+          for (const [px, py] of points) {
+            await page.mouse.move(px, py)
+            const got = await clipped()
+            if (!got) wrong.push(`no box at ${Math.round(px)},${Math.round(py)}`)
+            else {
+              read += 1
+              if (got.out.length) wrong.push(`${got.said} cut off by ${got.out.join(', ')}`)
+            }
+          }
+          await page.mouse.move(0, 0)
+        }
+        atLeast(read, 2, `at ${width}, ${route} opens a box at the edges of its charts`)
+        truthy(wrong.length === 0, `at ${width}, every one of them is whole, inside the window and every frame that clips${wrong.length ? `; ${wrong.join('; ')}` : ''}`)
+      }
+      truthy(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        `at ${width}, and the page does not scroll sideways`,
+      )
+    }
+    // Escape closes a box opened by the pointer, without moving it (1.4.13).
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await go('/constructors/ferrari', 'Ferrari')
+    const column = (await page.$$('#root main figure.figure .plot-holder svg g > rect[fill="transparent"]')).at(-1)
+    await column.scrollIntoViewIfNeeded()
+    const b = await column.boundingBox()
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height - 4)
+    is(await page.$$eval('#root main .tooltip', (n) => n.length), 1, 'pointed at, a column opens its box')
+    await page.keyboard.press('Escape')
+    is(await page.$$eval('#root main .tooltip', (n) => n.length), 0, 'and Escape closes it with the pointer still there')
+    await page.mouse.move(0, 0)
+  })
+
   await section('/constructors', async () => {
     await go('/constructors', 'Constructors')
     const everyConstructor = count('SELECT COUNT(*) FROM constructors')
@@ -3055,10 +3909,10 @@ try {
 
     // VD-28, and this page is where it was measured: eight tiles, and
     // "Constructors' titles" took two lines for its label and dropped its own
-    // figure below every figure beside it. A shared top is the whole of the
-    // claim - a strip whose labels all fit on one line has nothing to drop.
+    // figure below every figure beside it. A shared baseline is the whole of
+    // the claim (VD-79): the label may wrap, and the row's figures move down
+    // together.
     const strip = await statStrip()
-    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
     // Per row, not per strip. A strip wide enough to hold every tile on one
     // row proves the claim only while it stays that wide: add a title, or
     // read the page at 1024, and a check on one shared top would fail for
@@ -3114,7 +3968,7 @@ try {
        FROM article_images WHERE route = 'article'`,
     ).all()
     const teamByTitle = new Map(
-      teamCredits.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+      teamCredits.map((row) => [fileTitle(row.file_name), row]),
     )
     const teamUncredited = team.filter((figure) => {
       const row = teamByTitle.get(figure.file)
@@ -3184,20 +4038,38 @@ try {
       truthy(got?.folded, 'Every win is folded')
       is(got?.shown, FOLD_TO, `and shows its first ${FOLD_TO}`)
       truthy(got && got.drawn > FOLD_TO, `with the rest still in the document — ${got?.drawn} drawn`)
-      is(got?.face, foldMore(wins), 'the disclosure names the whole count')
-      is(got?.name, `${foldMore(wins)}, Every win`, 'and its accessible name says which table')
+      is(got?.face, foldMore(wins, FOLD_NOUN.wins), 'the disclosure names the whole count')
+      is(got?.name, `${foldMore(wins, FOLD_NOUN.wins)}, Every win`, 'and its accessible name says which table')
       is(got?.open, false, 'and starts closed')
 
       // A sort acts on every row, and the fold shows the new first ten: the
       // table opens newest first, and one press on Season puts the first win
       // of all at the top, which was row 250-odd and behind the fold.
       await under(page, '#root main').locator('thead th').first().locator('button').click()
+      // The sort is written to the address (VD-82) and the table follows it,
+      // a render later than the click.
+      await page
+        .waitForFunction(
+          (first) =>
+            /[?&]every-win\.sort=/.test(location.search) &&
+            [...document.querySelectorAll('#root main h2')]
+              .find((h) => h.textContent.trim().startsWith('Every win'))
+              ?.closest('section')
+              ?.querySelector('tbody tr th, tbody tr td')
+              ?.textContent.trim() === first,
+          String(firstWin),
+          { timeout: 10000 },
+        )
+        .catch(() => null)
       got = await page.evaluate(fold, app)
       is(got?.firstShown, String(firstWin), `sorted by season, the fold opens on Ferrari’s first win, ${firstWin}`)
       is(got?.shown, FOLD_TO, `and still shows ${FOLD_TO}`)
 
-      // By keyboard: focus, Enter, every row; Enter again, ten, focus kept.
-      await under(page, '#root main').locator('details.table-fold > summary').focus()
+      // By keyboard: focus, Enter, every row, and focus on the first row it
+      // revealed (DP-29, VD-82) rather than on a summary now thousands of
+      // pixels below; back to the summary, Enter, ten, focus kept.
+      const summary = under(page, '#root main').locator('details.table-fold > summary')
+      await summary.focus()
       await page.keyboard.press('Enter')
       await page.waitForFunction(
         (n) => [...document.querySelectorAll('#root main .table-wrap.is-folded')].some((w) => w.querySelector('details[open]') && w.querySelectorAll('tbody tr').length === n),
@@ -3207,6 +4079,25 @@ try {
       got = await page.evaluate(fold, app)
       is(got?.shown, wins, `Enter on the disclosure shows all ${wins}`)
       is(got?.face, FOLD_LESS, `and it then offers “${FOLD_LESS}”`)
+      const landed = await page.evaluate(() => {
+        const a = document.activeElement
+        const rows = [...(a?.closest('tbody')?.children ?? [])]
+        const box = a?.getBoundingClientRect()
+        return {
+          cell: a?.matches('tbody th[scope="row"]') ?? false,
+          row: rows.indexOf(a?.closest('tr')) + 1,
+          tabbable: a?.tabIndex,
+          // In the viewport at all: it arrives where the summary was, which
+          // the reader had just scrolled to, so it may sit on the bottom edge.
+          seen: Boolean(box && box.bottom > 0 && box.top < innerHeight),
+        }
+      })
+      truthy(landed.cell, 'and focus moves to a row header, not the summary')
+      is(landed.row, FOLD_TO + 1, `on row ${FOLD_TO + 1}, the first the fold revealed`)
+      is(landed.tabbable, -1, 'focusable for the purpose and kept out of the tab order')
+      truthy(landed.seen, 'and on screen')
+      is(got?.focused, false, 'so the summary no longer holds it')
+      await summary.focus()
       await page.keyboard.press('Enter')
       await page.waitForFunction(() => !document.querySelector('#root main details.table-fold[open]'), null, { timeout: 10000 })
       got = await page.evaluate(fold, app)
@@ -3232,7 +4123,7 @@ try {
       let got = await plain.evaluate(fold, served)
       is(got?.drawn, wins, `the static Every win holds all ${wins} rows`)
       is(got?.shown, FOLD_TO, `and shows ${FOLD_TO} of them`)
-      is(got?.name, `${foldMore(wins)}, Every win`, 'behind the same disclosure, named the same way')
+      is(got?.name, `${foldMore(wins, FOLD_NOUN.wins)}, Every win`, 'behind the same disclosure, named the same way')
       await under(plain, '#prerendered').locator('details.table-fold > summary').click()
       got = await plain.evaluate(fold, served)
       is(got?.shown, got?.drawn, 'which opens with no script, showing every row')
@@ -3277,6 +4168,91 @@ try {
     } finally {
       await waiting.close()
     }
+  })
+
+  /*
+   * IX-46, VD-82. An entity page's tables keep their sort and their fold in
+   * the address, under the table's name, as the registers keep theirs
+   * (IA-08). Before, Back from row 200 of an opened *Every entry* closed the
+   * fold and restored the offset against a page a tenth as tall: the reader
+   * landed in the footer.
+   */
+  await section('Back restores a table: its sort, its fold and the reader\u2019s place', async () => {
+    await go('/drivers/hamilton', 'Lewis Hamilton')
+    const table = page.locator('#root main section').filter({ has: page.locator('h2', { hasText: 'Every entry' }) })
+    is(await table.locator('.table-wrap').getAttribute('data-key'), 'every-entry', 'the table is keyed by its name')
+    const opening = await table.locator('thead th[aria-sort]').first().textContent()
+    await table.locator('details.table-fold > summary').click()
+    await page.waitForFunction(() => /[?&]every-entry\.all=1\b/.test(location.search), null, { timeout: 10000 })
+    pass('opening the fold writes every-entry.all=1')
+    await table.locator('thead th button').nth(1).click()
+    await page.waitForFunction(() => /[?&]every-entry\.sort=/.test(location.search), null, { timeout: 10000 })
+    await page.waitForFunction(
+      (was) =>
+        [...document.querySelectorAll('#root main h2')]
+          .find((h) => h.textContent.trim().startsWith('Every entry'))
+          ?.closest('section')
+          ?.querySelector('thead th[aria-sort]')?.textContent !== was,
+      opening,
+      { timeout: 10000 },
+    )
+    const address = await page.evaluate(() => location.search)
+    truthy(/every-entry\.dir=(asc|desc)/.test(address), `and a sort writes its column and direction — ${address}`)
+    const sorted = await table.locator('thead th[aria-sort]').first().textContent()
+    truthy(sorted !== opening, `the sort moved off the opening order — ${opening} to ${sorted}`)
+    // Row 200, as the critique followed it: deep in the opened fold.
+    const row = table.locator('tbody tr').nth(199)
+    const link = row.locator('a').first()
+    await link.scrollIntoViewIfNeeded()
+    const named = (await row.locator('th, td').first().textContent()).trim()
+    const left = await page.evaluate(() => window.scrollY)
+    await link.click()
+    await page.waitForFunction(() => !location.pathname.startsWith('/drivers/hamilton'), null, { timeout: 10000 })
+    await settle()
+    await page.goBack()
+    await page.waitForFunction(() => location.pathname === '/drivers/hamilton', null, { timeout: 10000 })
+    await settle()
+    await page.waitForFunction(
+      () => document.querySelector('#root main details.table-fold[open]') !== null,
+      null,
+      { timeout: 10000 },
+    ).catch(() => null)
+    is(await page.evaluate(() => location.search), address, 'Back returns to the same address')
+    is(await table.locator('details.table-fold').evaluate((d) => d.open), true, 'with the fold still open')
+    is(await table.locator('thead th[aria-sort]').first().textContent(), sorted, 'and the table in the same order')
+    // The place: the row followed is on screen again, rather than the footer.
+    await page.waitForTimeout(500)
+    const returned = await page.evaluate(() => window.scrollY)
+    const seen = await row.evaluate((tr) => {
+      const box = tr.getBoundingClientRect()
+      return box.bottom > 0 && box.top < innerHeight
+    })
+    truthy(seen, `and the row followed, ${named}, back on screen (scrollY ${left} then ${returned})`)
+
+    // A key no header offers is the table's own order, as on a register.
+    await go('/drivers/hamilton?every-entry.sort=nonsense&every-entry.dir=desc', 'Lewis Hamilton')
+    is(await table.locator('thead th[aria-sort]').first().textContent(), opening, 'an unknown sort key falls back to the opening order')
+    is(await table.locator('details.table-fold').evaluate((d) => d.open), false, 'and an unwritten fold is closed')
+
+    // A key names one table: two tables under one heading on one page would
+    // sort and open together from one parameter.
+    const shared = []
+    for (const [route, heading] of [
+      ['/drivers/hamilton', 'Lewis Hamilton'],
+      ['/constructors/ferrari', 'Ferrari'],
+      ['/seasons/1976', '1976'],
+      ['/races/2024/21', null],
+      ['/circuits/monza', null],
+      ['/grands-prix/monaco', 'Monaco Grand Prix'],
+      ['/records', 'Records'],
+      ['/data/quality', 'Data quality'],
+    ]) {
+      await go(route, heading ?? undefined)
+      const keys = await page.$$eval('#root main .table-wrap[data-key]', (wraps) => wraps.map((w) => w.dataset.key))
+      const twice = keys.filter((key, i) => keys.indexOf(key) !== i)
+      if (twice.length) shared.push(`${route}: ${[...new Set(twice)].join(', ')}`)
+    }
+    is(shared.join('; '), '', 'no two tables on a page share an address key')
   })
 
   // -------------------------------------------------------------- circuits
@@ -3490,21 +4466,21 @@ try {
     const latestHere = one(
       "SELECT f1db_layout_id FROM races WHERE circuit_id = 'silverstone' AND f1db_layout_id IS NOT NULL ORDER BY year DESC, round DESC LIMIT 1",
     )
-    const leadLabel = await page.$eval('#root main .outline-set > .outline-card svg.outline', (n) => n.getAttribute('aria-label'))
+    // VD-84 (VD-74): it leads the page, in the opening slot.
+    const leadLabel = await page.$eval('#root main .page > .slot .outline-card svg.outline', (n) => n.getAttribute('aria-label'))
     truthy(leadLabel.endsWith(`F1DB layout ${latestHere}`), `the latest layout, ${latestHere}, leads`)
     // PD-60: the timeline's cards are behind a disclosure, closed, so it is
     // opened to measure one.
     const [leadWidth, cardWidth] = await page.$eval('#root main', (n) => {
       n.querySelector('details.layout-cards').open = true
       return [
-        n.querySelector('.outline-set > .outline-card svg').getBoundingClientRect().width,
+        n.querySelector('.page > .slot .outline-card svg').getBoundingClientRect().width,
         n.querySelector('.layout-timeline .outline-card svg').getBoundingClientRect().width,
       ]
     })
     truthy(leadWidth > 2 * cardWidth, `the lead is drawn large (${Math.round(leadWidth)} px against ${Math.round(cardWidth)} px)`)
     truthy(
-      staticCircuit.includes(`<div class="outline-set"><figure class="outline-card"><svg class="outline"`) &&
-        new RegExp(`<div class="outline-set"><figure class="outline-card"><svg[^>]*aria-label="[^"]*F1DB layout ${latestHere}"`).test(staticCircuit),
+      new RegExp(`<div class="slot"><figure class="outline-card"><svg[^>]*aria-label="[^"]*F1DB layout ${latestHere}"`).test(staticCircuit),
       'the static page leads with the same layout',
     )
     // IX-31: Silverstone has no trace, and 55 of the 80 are in the same
@@ -3566,9 +4542,10 @@ try {
           closed: !!cards && !cards.open,
           strip: [...main.querySelectorAll('.layout-strip > li')].map(clean),
           rows: [...main.querySelectorAll('.layout-timeline > article h3')].length,
+          hidden: main.querySelectorAll('details.layout-cards .outline-card').length,
         }
       }
-      const order = ['Most wins here', 'Constructors here', 'Every layout raced here', 'Every race held here']
+      const order = ['Most wins here', 'Constructors here', 'Every layout raced here', 'Every race here']
       const inOrder = (blocks, names) => {
         const at = names.map((name) => blocks.findIndex((b) => b.startsWith(name)))
         return at.every((i, k) => i >= 0 && (k === 0 || i > at[k - 1]))
@@ -3589,6 +4566,47 @@ try {
         is(got.strip.length, got.rows, `/circuits/monza, ${half}: the strip names every row of the timeline`)
       }
       is(JSON.stringify(served.strip), JSON.stringify(app.strip), 'the static strip is the app’s, in the same words and order')
+      // SD-38: the race list's count leads with the tile's figure - v_circuits
+      // counts the races run - and puts the ones still to run apart, where it
+      // used to count both as one figure a race above the tile.
+      const run = one("SELECT races FROM v_circuits WHERE id = 'monza'")
+      const ahead = one("SELECT scheduled FROM v_circuits WHERE id = 'monza'")
+      const racesHeading = `Every race here ${ahead ? `${run} · ${ahead} to come` : run}`
+      for (const [half, got] of [['the app', app], ['the static page', served]]) {
+        truthy(got.blocks.includes(racesHeading), `/circuits/monza, ${half}: “${racesHeading}” — ${got.blocks.join(' · ')}`)
+      }
+
+      // VD-83 (SD-41): the same order where the register holds no timeline -
+      // 67 of the 80 opened on a grid of every layout above the winners. The
+      // one with the most drawings: the lead drawn large, the others behind
+      // a closed disclosure, in both halves.
+      const bare = db
+        .prepare(
+          `SELECT o.circuit_id AS id, COUNT(*) AS drawn FROM circuit_outlines o
+            WHERE NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.circuit_id = o.circuit_id)
+              AND EXISTS (SELECT 1 FROM v_circuit_winners w WHERE w.circuit_id = o.circuit_id)
+            GROUP BY o.circuit_id ORDER BY COUNT(*) DESC, o.circuit_id LIMIT 1`,
+        )
+        .get()
+      if (bare && bare.drawn > 1) {
+        const route = `/circuits/${bare.id}`
+        await go(route)
+        await page.setViewportSize({ width: 1440, height: 900 })
+        await page.evaluate(() => window.scrollTo(0, 0))
+        const bareApp = await page.evaluate(readOrder, '#root main')
+        await page.setViewportSize({ width: 1280, height: 900 })
+        const bareContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+        const barePlain = await bareContext.newPage()
+        await barePlain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        const bareServed = await barePlain.evaluate(readOrder, '#prerendered')
+        await bareContext.close()
+        for (const [half, got] of [['the app', bareApp], ['the static page', bareServed]]) {
+          truthy(inOrder(got.blocks, order), `${route}, no timeline, ${half}: ${order.join(' → ')} — ${got.blocks.join(' · ')}`)
+          truthy(got.wins !== null && got.wins < 1600, `${route}, ${half}: “Most wins here” at ${Math.round(got.wins)}, inside 1,600 px at 1440`)
+          truthy(got.closed, `${route}, ${half}: the other layouts are closed until opened`)
+          is(got.hidden, bare.drawn - 1, `${route}, ${half}: all ${bare.drawn - 1} drawings but the lead are behind the disclosure`)
+        }
+      } else fail('no circuit without a timeline has several drawings and a winner to read the order on')
     }
 
     // Skipped rather than failed when the overlay is absent: a build without
@@ -3616,10 +4634,13 @@ try {
       truthy(!(await page.$('svg.lapfigure')), 'the trace is stated, not drawn again')
       const headings = await page.$$eval('#root main h2', (n) => n.map((h) => h.textContent))
       const outlineAt = headings.findIndex((h) => h.startsWith('Every layout raced here'))
-      const racesAt = headings.findIndex((h) => h.startsWith('Every race held here'))
+      const racesAt = headings.findIndex((h) => h.startsWith('Every race here'))
       const traceAt = headings.findIndex((h) => h.startsWith('Traced and measured'))
-      // PD-60: the trace is method, so it follows the races as well.
-      truthy(outlineAt >= 0 && racesAt > outlineAt && traceAt > racesAt, 'the outlines and the races lead and the trace follows them')
+      // PD-60: the trace is method, so it follows the races as well. The
+      // current outline leads the page in its slot (VD-84); the other
+      // drawings, where there are any, come before the races.
+      const led = !!(await page.$('#root main .page > .slot .outline-card svg.outline'))
+      truthy(led && racesAt > outlineAt && traceAt > racesAt, 'the outlines and the races lead and the trace follows them')
       pass(`the overlay merged in the browser — ${traced} read its figures from f1-geometry.db`)
     }
 
@@ -3812,8 +4833,9 @@ try {
   })
 
   /*
-   * IA-28. Where a curated car is one chassis, both halves of both addresses
-   * print its figures by the one precedence in queries/car.js - the chassis's
+   * IA-28, IA-29. Where a curated car is one chassis - under another id or
+   * its own - both halves of every address it has print its figures by the
+   * one precedence in queries/car.js - the chassis's
    * where it has one, the curated row's where it does not - so the static
    * page and the app agree field for field, and a figure the two rows give
    * differently is shown with both readings beside it.
@@ -3823,12 +4845,12 @@ try {
       .prepare(
         `SELECT ch.id AS chassis, c.id AS car
            FROM cars c JOIN chassis ch ON ch.car_id = c.id
-          WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
-            AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
+          WHERE (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
           ORDER BY c.id`,
       )
       .all()
-    atLeast(copies.length, 1, 'some curated car is a single chassis under another id')
+    atLeast(copies.filter((c) => c.chassis !== c.car).length, 1, 'some curated car is a single chassis under another id')
+    atLeast(copies.filter((c) => c.chassis === c.car).length, 1, 'and some is a single chassis under its own')
     const SPEC = ['Designers', 'Chassis', 'Suspension', 'Front suspension', 'Rear suspension', 'Brakes', 'Gearbox',
       'Gears', 'Tyres', 'Fuel', 'Engine', 'Configuration', 'Capacity', 'Aspiration', 'Power', 'Power note', 'Weight',
       'Wheelbase', 'Track, front', 'Track, rear']
@@ -3855,12 +4877,13 @@ try {
         .all(car)
         .map((r) => r.pair)
       const own = await (await fetch(`${BASE}/cars/${car}`)).text()
-      const copy = await (await fetch(`${BASE}/cars/${chassis}`)).text()
+      // A car that shares its id with its chassis has the one address.
+      const copy = chassis === car ? null : await (await fetch(`${BASE}/cars/${chassis}`)).text()
       const served = servedFields(own)
-      if (JSON.stringify(servedFields(copy)) !== JSON.stringify(served)) {
+      if (copy !== null && JSON.stringify(servedFields(copy)) !== JSON.stringify(served)) {
         wrong.push(`/cars/${chassis}: the static copy prints other figures than /cars/${car}`)
       }
-      for (const [where, html] of [[car, own], [chassis, copy]]) {
+      for (const [where, html] of copy === null ? [[car, own]] : [[car, own], [chassis, copy]]) {
         if (pairs(html).join(',') !== want.join(',')) wrong.push(`/cars/${where}: static readings ${pairs(html)}, recorded ${want}`)
       }
       await go(`/cars/${car}`)
@@ -3926,7 +4949,7 @@ try {
        FROM article_images WHERE article = 'McLaren MP4/4'`,
     ).all()
     const byTitle = new Map(
-      credited.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+      credited.map((row) => [fileTitle(row.file_name), row]),
     )
     const uncredited = shown.filter((figure) => {
       const row = byTitle.get(figure.file)
@@ -4013,7 +5036,7 @@ try {
       const app = await page.$eval('#root main', read)
       is(app.length, headlines.length, 'the page leads with the headline records, a card each')
       truthy(
-        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].includes(`| ${r.detail} | closed |`)),
+        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].includes(`| ${asShown(r.detail)} | closed |`)),
         'each card names its record and links its page, then the value, the holder and the derivation, folded',
       )
       const html = await (await fetch(`${BASE}/records`)).text()
@@ -4179,7 +5202,8 @@ try {
     const edition = one(`SELECT value FROM meta WHERE key = 'version'`)
     const dataText = await page.$eval('#root main', (n) => n.textContent)
     truthy(dataText.includes(`v${edition}`), `the data page states the database version — v${edition}`)
-    truthy(dataText.includes(one(`SELECT value FROM meta WHERE key = 'built'`)), 'and the build date')
+    // In the house format, as an en-GB reader is shown it (CD-57).
+    truthy(dataText.includes(houseDate(one(`SELECT value FROM meta WHERE key = 'built'`))), 'and the build date')
     atLeast(await page.$$eval('#root main a[href$="/f1.db.gz"]', (n) => n.length), 1, 'it links the database')
     // D-47: the file as built is the repository's, since the host will not
     // serve it; the link says where it is rather than 404ing.
@@ -4290,7 +5314,7 @@ try {
     const meta = (key) => one('SELECT value FROM meta WHERE key = ?', key)
     const shown = await page.$eval('#root main', (node) => node.textContent.replace(/\s+/g, ' '))
     truthy(shown.includes(`v${meta('version')}`), `the app names the database it is running on (v${meta('version')})`)
-    truthy(shown.includes(meta('built')), `and the date it was built (${meta('built')})`)
+    truthy(shown.includes(houseDate(meta('built'))), `and the date it was built (${houseDate(meta('built'))})`)
     // SD-25. The build date alone cannot tell a quiet week from a dead
     // refresh, so the check date is shown beside it - and it comes from
     // committed source rather than from meta, which is exactly why it needs
@@ -4309,12 +5333,12 @@ try {
     )
     is(
       checkedDd.join(),
-      LAST_CHECKED,
+      houseDate(LAST_CHECKED),
       `and when the sources were last checked, under its own label (${CHECKED_LABEL})`,
     )
     truthy(
       (await (await fetch(`${BASE}/changes`)).text())
-        .includes(`<dt>${CHECKED_LABEL}</dt><dd>${LAST_CHECKED}</dd>`),
+        .includes(`<dt>${CHECKED_LABEL}</dt><dd>${checkedHtml}</dd>`),
       'and the prerendered page says the same, in its own markup',
     )
 
@@ -4329,7 +5353,7 @@ try {
       appLate !== null,
       appLate ? 'the app says a result is late at the reader\'s date' : 'the app says no result is late, and none is',
     )
-    if (appLate) truthy(shown.includes(appLate.body), 'and names the rounds in the words lib/refresh.js gives')
+    if (appLate) truthy(shown.includes(asShown(appLate.body)), 'and names the rounds in the words lib/refresh.js gives')
     const staticLate = lateNotice(lateRaces(unresulted, meta('built')))
     const changesHtml = unescaped(await (await fetch(`${BASE}/changes`)).text())
     is(
@@ -4605,15 +5629,17 @@ try {
       ['1988', 'Alain Prost', 'McLaren', String(want.races), want.qualifying.join('–'), want.race.join('–'), want.points.join('–')].join(' | '),
       'the 1988 McLaren pairing reads as the races, compared one by one, add up',
     )
-    // The count is team-mates, not rows: Berger is three seasons and one driver.
+    // The count is team-mates, and then rows: Berger is three seasons and one
+    // driver. The fold counts the rows, so the heading names them too (CD-52).
     const mates = count(
       `SELECT COUNT(DISTINCT o.driver_id) FROM race_entries e
          JOIN race_entries o ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id AND o.driver_id <> e.driver_id
         WHERE e.driver_id = 'senna'`,
     )
     truthy(
-      (await text('#root main section:has(h2:text-matches("^Team-mates")) h2 .count')) === `${mates} team-mates`,
-      `the heading counts ${mates} different team-mates`,
+      (await text('#root main section:has(h2:text-matches("^Team-mates")) h2 .count')) ===
+        `${mates} team-mates, ${await rowsUnder('Team-mates')} team-mate seasons`,
+      `the heading counts ${mates} different team-mates, and the team-mate seasons its rows are`,
     )
     truthy(
       await page.$('#root main a[href="/compare?a=senna"]'),
@@ -5361,6 +6387,28 @@ try {
     await go('/reference/glossary', 'Glossary')
     is((await headers('Glossary'))?.[0].sort, 'ascending', 'the glossary names its alphabetical order on Term')
 
+    // AX-31, 2.4.7: a sort button reached by keyboard draws a ring. Its
+    // `all: unset` outranked the global :focus-visible rule from 5 September
+    // to the design pass, and axe cannot see it.
+    const ring = (selector) =>
+      page.evaluate((selector) => {
+        const node = document.querySelector(selector)
+        if (!node) return null
+        // The console's examples sit behind a disclosure.
+        const shut = node.closest('details:not([open])')
+        if (shut) shut.open = true
+        node.focus()
+        const style = getComputedStyle(node)
+        return { visible: node.matches(':focus-visible'), style: style.outlineStyle, width: style.outlineWidth }
+      }, selector)
+    await page.keyboard.press('Shift')
+    const sortRing = await ring('#root main th.sortable button')
+    truthy(sortRing?.visible, 'a sort button focused from the keyboard matches :focus-visible')
+    truthy(sortRing && sortRing.style !== 'none' && sortRing.width !== '0px', `and draws a ring — ${sortRing?.style} ${sortRing?.width}`)
+    await go('/data/sql', 'SQL console')
+    await page.keyboard.press('Shift')
+    const exampleRing = await ring('#root main .example')
+    truthy(exampleRing && exampleRing.style !== 'none' && exampleRing.width !== '0px', `as does a console example — ${exampleRing?.style} ${exampleRing?.width}`)
   })
 
   // ------------------------------------------------------- taking it away
@@ -6233,7 +7281,7 @@ try {
       'the static footer carries the version and build date',
     )
     truthy(
-      staticFoot.includes(`<dt>${CHECKED_LABEL}</dt><dd>${LAST_CHECKED}</dd>`),
+      staticFoot.includes(`<dt>${CHECKED_LABEL}</dt><dd>${checkedHtml}</dd>`),
       `and when the sources were last checked (${LAST_CHECKED}), on every page and not only /changes`,
     )
 
@@ -6501,9 +7549,11 @@ try {
     for (const id of withPhotos) {
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const captions = [...html.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((m) => m[1])
-      // Every one, the strip and its disclosure (PD-64): the static page
-      // writes the rest as the app does, and each owes its credit.
-      const expected = images.all(id, id).filter(canShow)
+      // Every one - the opening slot's, then the strip and its disclosure
+      // (PD-64, VD-84): the static page writes the rest as the app does, and
+      // each owes its credit.
+      const split = carPhotographs(images.all(id, id))
+      const expected = [...(split.lead ? [split.lead] : []), ...split.rest]
       if (captions.length !== expected.length) {
         uncredited.push(`/cars/${id}: ${expected.length} photograph(s), ${captions.length} caption(s)`)
         continue
@@ -6644,6 +7694,82 @@ try {
   })
 
   /*
+   * DATES ARE WORDS ON THE PAGE AND ISO IN THE DATA (CD-57; docs/design-system.md
+   * section 5, *Dates*, and section 8, test 11).
+   *
+   * /seasons/1997's calendar printed "1997-03-09" in every row, and CD-39
+   * counted some 5,900 raw ISO dates across dist/; counted again for CD-57,
+   * with the footer's two dates on every page, it was over 15,000. Two
+   * things are held here. The static page writes every date in the house
+   * format inside a <time datetime>, so no ISO day is left as visible text
+   * anywhere in dist/. And the app rewrites them for its reader: the same
+   * <time>, in en-GB, en-US and de-DE, says what that reader expects, and
+   * keeps the ISO day.
+   */
+  await section('Dates in the reader’s format  (CD-57)', async () => {
+    const day = one('SELECT date_iso FROM races WHERE year = 1997 AND round = 1')
+    is(day, '1997-03-09', 'the 1997 season opened on 9 March, the day the expectations below are written for')
+    const served = await (await fetch(`${BASE}/seasons/1997`)).text()
+    truthy(
+      served.includes(`<time datetime="${day}">9 Mar 1997</time>`),
+      'the static calendar writes the day in the house format, in a <time> that keeps the ISO day',
+    )
+    const expected = { 'en-GB': '9 Mar 1997', 'en-US': 'Mar 9, 1997', 'de-DE': '9. März 1997' }
+    for (const [locale, words] of Object.entries(expected)) {
+      const reader = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale })
+      const tab = await reader.newPage()
+      await tab.goto(`${BASE}/seasons/1997`, { waitUntil: 'domcontentloaded' })
+      await tab.waitForFunction(() => !document.getElementById('prerendered') && document.querySelector('#root main table time'), null, {
+        timeout: 60000,
+      })
+      const first = await tab.evaluate(() => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('The calendar'))
+        const time = h2?.closest('section')?.querySelector('table tbody tr time')
+        return time ? { text: time.textContent.trim(), datetime: time.getAttribute('datetime') } : null
+      })
+      is(first?.text ?? null, words, `${locale}: the app writes the calendar's first day as “${words}”`)
+      is(first?.datetime ?? null, day, `${locale}: and keeps the ISO day in its <time>`)
+      await reader.close()
+    }
+
+    // Every prerendered page, as a crawler or a reader without JavaScript has
+    // it: no ISO day as visible text. Not counted: attributes (a <time>'s own
+    // datetime, a link), what is not shown (<head>, <script>, <style>), code
+    // and the SQL console's text (<code>, <pre>, <textarea>), and a Commons
+    // file's title on its credit link, which the one attribution rule says is
+    // printed as Commons heads the file's page, digits and all.
+    const distDir = join(web, 'dist')
+    const pages = (dir) =>
+      readdirSync(dir).flatMap((entry) => {
+        const full = join(dir, entry)
+        if (statSync(full).isDirectory()) return entry === 'api' ? [] : pages(full)
+        return entry.endsWith('.html') ? [full] : []
+      })
+    const isoDay = /(?<![\d-])\d{4}-\d{2}-\d{2}(?!\d)/g
+    const raw = []
+    let read = 0
+    for (const file of pages(distDir)) {
+      read += 1
+      const visible = readFileSync(file, 'utf8')
+        .replace(/<head[\s\S]*?<\/head>/g, '')
+        .replace(/<(script|style|code|pre|textarea)\b[\s\S]*?<\/\1>/g, '')
+        .replace(/<a\b[^>]*aria-label="[^"]*, on Wikimedia Commons"[^>]*>[\s\S]*?<\/a>/g, '')
+        .replace(/<[^>]*>/g, ' ')
+      for (const match of visible.matchAll(isoDay)) {
+        raw.push(`${relative(distDir, file)}: “…${visible.slice(Math.max(0, match.index - 40), match.index + 10).replace(/\s+/g, ' ').trim()}”`)
+      }
+    }
+    atLeast(read, 3000, 'prerendered pages read for raw dates')
+    if (raw.length === 0) pass(`no ISO day is visible text on any of the ${read} prerendered pages`)
+    else {
+      fail(
+        `${raw.length} ISO days are visible text in dist/ — write each through lib/format.js (a column's \`date\`, a tile's \`date\`, <DateText> or <Dated>, and their twins in prerender.js)`,
+      )
+      for (const message of raw.slice(0, 8)) fail(message)
+    }
+  })
+
+  /*
    * One h1 and one title per route, whichever renderer drew it (PD-40).
    *
    * Nine of eighteen sampled routes disagreed when this was written: the home
@@ -6656,12 +7782,22 @@ try {
    * The static half is read from the server rather than from the app's own
    * DOM, and the app's is read after the handover, so this compares the two
    * documents a reader actually gets.
+   *
+   * ONE PAGE, TWO RENDERERS (VD-79; docs/design-system.md section 8, tests 5
+   * and the header). The same pass reads the rest of what the reader sees
+   * change at the handover: the header - eyebrow, h1, lede and aside, child
+   * for child - the tile strips, label and value, and the section headings in
+   * their order. A difference that is known is declared below with its
+   * reason and the item that will remove it; an undeclared one fails, and so
+   * does a declared one that has gone, so the list cannot outlive its cause.
    */
-  await section('Both renderers name the page the same way', async () => {
+  await section('Both renderers draw one page  (the name, the header, the tiles and the sections: VD-79)', async () => {
     const ROUTES = [
       '/',
       '/seasons',
       '/seasons/2026',
+      // A concluded season, whose lead chart is headed differently (VD-79).
+      '/seasons/1976',
       // The two page STATES the kinds above do not reach: a season whose
       // rounds have all still to be run, and a round with no result yet.
       '/seasons/2027',
@@ -6692,9 +7828,139 @@ try {
       '/data/sql',
       '/about',
       '/changes',
+      // VD-79: a Grand Prix's eyebrow and its strip (VD-71), and a chassis of
+      // a curated family, whose lede is the family's story.
+      '/grands-prix/monaco',
+      '/cars/lotus-72b',
+      // VD-83 (SD-41): a circuit with no layout timeline, which opened on
+      // every layout above its winners where Monza opened on the winners.
+      '/circuits/monaco',
     ]
+    // The console's static page is not the console: it has no examples and
+    // no schema for the app's lede to point at, so it says what the console
+    // is instead.
+    const HEADER_DIFFERS = new Set(['/data/sql'])
+    // Only a browser knows how long until the next session starts, so the
+    // static season page carries no such tile (Season.jsx).
+    const APP_TILES = new Set(['Next session'])
+    // The section headings each half has that the other does not, or has
+    // elsewhere (`moved`), by route. VD-73 (#822) is the lead charts; VD-87
+    // (#886) the rest of the static sections; the trace sections are drawn
+    // by the browser from f1-geometry.db, which the static half never reads
+    // ([D-07]); and the console's static page is not the console.
+    const LEAD = '#822'
+    const DRIFT = '#886'
+    const TRACE = '[D-07]'
+    const CONSOLE = 'the console'
+    const eras = db.prepare('SELECT era_name FROM eras ORDER BY from_year').all().map((e) => e.era_name)
+    const SECTIONS = {
+      '/seasons/2026': { app: [[titleHeading(true), LEAD]] },
+      '/seasons/1976': { app: [[titleHeading(false), LEAD]] },
+      '/drivers/senna': {
+        app: [
+          ['Where each championship finished', LEAD],
+          ['Every entry', DRIFT],
+        ],
+        static: [['Wins', DRIFT]],
+      },
+      '/constructors/ferrari': { app: [['Wins by season', LEAD]] },
+      '/circuits': { app: [['The traced centrelines', TRACE]] },
+      '/circuits/monza': { app: [['Traced and measured', TRACE]] },
+      '/circuits/monaco': { app: [['Traced and measured', TRACE]] },
+      '/cars/lotus-72': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification — 72B', DRIFT],
+        ],
+      },
+      '/cars/mercedes-w11': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification', DRIFT],
+        ],
+        moved: [['Two sources disagree about this car', DRIFT]],
+      },
+      '/cars/brabham-bt46': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification', DRIFT],
+        ],
+      },
+      '/cars/lotus-72b': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification', DRIFT],
+        ],
+      },
+      '/records': {
+        app: ['Champions', 'Who won the decade', 'How often pole becomes a win', 'Grand slams'].map((h) => [h, DRIFT]),
+      },
+      '/reference/eras': {
+        app: [['Ten eras', DRIFT]],
+        static: eras.map((name) => [name, DRIFT]),
+      },
+      '/data/quality': {
+        app: [['How the database is distributed across it', DRIFT]],
+        moved: [['The confidence ladder', DRIFT]],
+      },
+      '/data/sources': { app: [['Using this data', DRIFT]] },
+      '/data/sql': {
+        app: [
+          ['Try one of these', CONSOLE],
+          ['Schema', CONSOLE],
+        ],
+      },
+    }
+    // What a reader sees of each half, read the same way from both, in the
+    // browser: the header's children as text, each strip's tiles, and the
+    // h2s without the count or the faint span beside them, which are figures
+    // rather than the heading's name. The static page is parsed from what the
+    // server sent; the app's is the document after the handover.
+    const readBoth = (html) => {
+      const read = (main) => {
+        const flatten = (node) => (node?.textContent ?? '').replace(/\s+/g, ' ').trim()
+        const header = main?.querySelector('article.page > header')
+        return {
+          header: [...(header?.children ?? [])].map((child) => `${child.tagName.toLowerCase()}.${child.classList[0] ?? ''} ${flatten(child)}`),
+          tiles: [...(main?.querySelectorAll('dl.stats') ?? [])].map((dl) =>
+            [...dl.children].map((tile) => [flatten(tile.querySelector('dt')), flatten(tile.querySelector('dd'))]),
+          ),
+          // How many headings stand above the first tile strip (VD-83).
+          beforeTiles: (() => {
+            const strip = main?.querySelector('dl.stats')
+            return strip
+              ? [...main.querySelectorAll('h2')].filter((h2) => h2.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).length
+              : null
+          })(),
+          sections: [...(main?.querySelectorAll('h2') ?? [])].map((h2) => {
+            const copy = h2.cloneNode(true)
+            for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
+            return flatten(copy)
+          }),
+          // What a screen reader's list of controls reads (DP-30, DP-31):
+          // each disclosure's name - its face and the hidden name a fold
+          // carries, the closed face only, as the open one is hidden while
+          // closed - and each link's name with where it goes. A link in a
+          // table is named by its row as well as by its words (2.4.4, in
+          // context), and a register lists 1,196 races under 52 names, so the
+          // links read are the ones that stand alone.
+          disclosures: [...(main?.querySelectorAll('summary') ?? [])].map((summary) => {
+            const copy = summary.cloneNode(true)
+            for (const face of copy.querySelectorAll('.fold-less')) face.remove()
+            return flatten(copy)
+          }),
+          links: [...(main?.querySelectorAll('a[href]') ?? [])].filter((a) => !a.closest('table')).map((a) => [
+            (a.getAttribute('aria-label') ?? flatten(a)).replace(/\s+/g, ' ').trim(),
+            a.getAttribute('href'),
+          ]),
+        }
+      }
+      const parsed = new DOMParser().parseFromString(html, 'text/html')
+      return [read(parsed.querySelector('#prerendered main')), read(document.querySelector('#root main'))]
+    }
     const flat = (value) => unescaped(value).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
     const wrong = []
+    const drawn = []
     for (const route of ROUTES) {
       const html = await (await fetch(`${BASE}${route}`)).text()
       const served = {
@@ -6713,6 +7979,9 @@ try {
       else if (app.h1 !== served.h1) wrong.push(`${route}: h1 \u2014 app \u201c${app.h1}\u201d, static \u201c${served.h1}\u201d`)
       else if (app.title !== served.title)
         wrong.push(`${route}: title \u2014 app \u201c${app.title}\u201d, static \u201c${served.title}\u201d`)
+
+      const [fromStatic, fromApp] = await page.evaluate(readBoth, html)
+      drawn.push({ route, fromStatic, fromApp })
     }
     if (wrong.length === 0) {
       pass(`all ${ROUTES.length} routes carry one h1 and one document title across both renderers`)
@@ -6720,6 +7989,174 @@ try {
       for (const message of wrong.slice(0, 6)) fail(message)
       if (wrong.length > 6) fail(`\u2026and ${wrong.length - 6} more`)
     }
+
+    // The header, child for child: the eyebrow, the h1, the lede and the
+    // aside - a stepper, a photograph, a livery band - in the same order and
+    // the same words (DP-03). The static page drew no eyebrow and no band,
+    // and on most entity pages put the lede under the tiles.
+    const headers = drawn.filter(({ route }) => !HEADER_DIFFERS.has(route))
+    const headerWrong = headers.filter(({ fromStatic, fromApp }) => fromStatic.header.join(' | ') !== fromApp.header.join(' | '))
+    if (headerWrong.length === 0) pass(`all ${headers.length} routes open on the same header in both renderers, eyebrow to aside`)
+    for (const { route, fromStatic, fromApp } of headerWrong.slice(0, 6)) {
+      const at = fromApp.header.findIndex((child, i) => child !== fromStatic.header[i])
+      fail(`${route}: header child ${at + 1} \u2014 app \u201c${fromApp.header[at] ?? '(none)'}\u201d, static \u201c${fromStatic.header[at] ?? '(none)'}\u201d`)
+    }
+
+    // The tile strips, label and value (DP-02).
+    const tileText = (strips, dropped = new Set()) =>
+      strips.map((strip) => strip.filter(([label]) => !dropped.has(label)).map((tile) => tile.join('=')).join(' | ')).join(' || ')
+    const tilesWrong = drawn.filter(({ fromStatic, fromApp }) => tileText(fromStatic.tiles) !== tileText(fromApp.tiles, APP_TILES))
+    if (tilesWrong.length === 0) {
+      pass(`all ${drawn.length} routes draw the same tile strips in both renderers, but the tile only a browser can fill`)
+    }
+    for (const { route, fromStatic, fromApp } of tilesWrong.slice(0, 6)) {
+      fail(`${route}: tiles \u2014 app \u201c${tileText(fromApp.tiles, APP_TILES)}\u201d, static \u201c${tileText(fromStatic.tiles)}\u201d`)
+    }
+
+    // The sections, in order (section 8, test 5), but what is declared.
+    let declared = 0
+    const sectionsWrong = Object.keys(SECTIONS)
+      .filter((route) => !ROUTES.includes(route))
+      .map((route) => `${route} is declared in SECTIONS and never visited, so its declaration can never fail \u2014 add it to ROUTES`)
+    for (const { route, fromStatic, fromApp } of drawn) {
+      const known = SECTIONS[route] ?? {}
+      const names = (list) => new Set((list ?? []).map(([name]) => name))
+      const appOnly = names([...(known.app ?? []), ...(known.moved ?? [])])
+      const staticOnly = names([...(known.static ?? []), ...(known.moved ?? [])])
+      for (const name of appOnly) if (!fromApp.sections.includes(name)) sectionsWrong.push(`${route}: the app no longer has the declared \u201c${name}\u201d \u2014 delete it from SECTIONS`)
+      for (const name of staticOnly) if (!fromStatic.sections.includes(name)) sectionsWrong.push(`${route}: the static page no longer has the declared \u201c${name}\u201d \u2014 delete it from SECTIONS`)
+      declared += appOnly.size + staticOnly.size
+      const a = fromApp.sections.filter((name) => !appOnly.has(name))
+      const s = fromStatic.sections.filter((name) => !staticOnly.has(name))
+      if (a.join(' | ') !== s.join(' | ')) {
+        const at = a.findIndex((name, i) => name !== s[i])
+        sectionsWrong.push(`${route}: section ${at + 1} \u2014 app \u201c${a[at] ?? '(none)'}\u201d, static \u201c${s[at] ?? '(none)'}\u201d`)
+      }
+    }
+    if (sectionsWrong.length === 0) {
+      pass(`all ${drawn.length} routes have the same sections in the same order in both renderers, but the ${declared} declared`)
+    }
+    for (const message of sectionsWrong.slice(0, 8)) fail(message)
+    if (sectionsWrong.length > 8) fail(`\u2026and ${sectionsWrong.length - 8} more`)
+
+    // One section order per page type (section 4, VD-83), in each half on
+    // its own, so that a page both halves draw the same wrong way still
+    // fails: the photographs, in one place on every type, straight before
+    // where the page comes from - they sat in five; on a circuit the winners
+    // before the layouts, on all 80 rather than the 13 with a timeline; and
+    // on a car the tiles under the h1 with no heading above them, where this
+    // year's chassis opened on its photographs.
+    const PHOTOS = new Set(['Photographs', RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE])
+    // The entity and event pages section 4 sets an order for; /data/quality
+    // has a section of photograph counts, which is not a strip.
+    const TYPED = new Set(['drivers', 'constructors', 'circuits', 'seasons', 'cars', 'races', 'grands-prix'])
+    const orderWrong = []
+    const pictured = new Set()
+    let held = 0
+    for (const { route, fromStatic, fromApp } of drawn) {
+      const type = route.split('/')[1]
+      if (!TYPED.has(type) || route.split('/').length < 3) continue
+      for (const [half, read] of [['the app', fromApp], ['the static page', fromStatic]]) {
+        const names = read.sections
+        const photos = names.flatMap((name, i) => (PHOTOS.has(name) ? [i] : []))
+        if (photos.length) {
+          pictured.add(type)
+          held++
+          const next = names[photos.at(-1) + 1]
+          if (photos.some((at, k) => k > 0 && at !== photos[k - 1] + 1) || next !== LABELS.provenance) {
+            orderWrong.push(`${route}, ${half}: the photographs are followed by \u201c${next ?? '(nothing)'}\u201d, not \u201c${LABELS.provenance}\u201d \u2014 ${names.join(' \u00b7 ')}`)
+          }
+        }
+        if (type === 'circuits') {
+          held++
+          const wins = names.indexOf('Most wins here')
+          const layouts = names.indexOf('Every layout raced here')
+          if (layouts >= 0 && wins >= 0 && layouts < wins) orderWrong.push(`${route}, ${half}: the layouts come before the winners \u2014 ${names.join(' \u00b7 ')}`)
+        }
+        if (type === 'cars') {
+          held++
+          if (read.beforeTiles !== 0) orderWrong.push(`${route}, ${half}: ${read.beforeTiles ?? 'no strip, so no'} heading(s) above the tiles`)
+        }
+      }
+    }
+    for (const type of ['cars', 'constructors', 'seasons', 'races']) {
+      if (!pictured.has(type)) orderWrong.push(`no /${type}/ route here shows a photograph, so their place is never read \u2014 add one to ROUTES`)
+    }
+    if (orderWrong.length === 0) pass(`one section order per page type: ${held} reads of photographs, circuits and cars, in both halves (VD-83)`)
+    for (const message of orderWrong.slice(0, 8)) fail(message)
+    if (orderWrong.length > 8) fail(`\u2026and ${orderWrong.length - 8} more`)
+
+    // ONE VOCABULARY (VD-81, DP-05; docs/design-system.md section 8, test 7),
+    // on the pages as drawn, in both halves: no tile label and no heading is
+    // a word LABELS replaced, every entity page ends on the one provenance
+    // heading, and its eyebrow opens on its type (IA-09). conventions.mjs
+    // holds the source to the same list; this holds what reaches a reader.
+    const TYPES = [
+      [/^\/seasons\/\d+$/, 'Season'],
+      [/^\/races\/\d+\/\d+$/, 'Race'],
+      [/^\/drivers\/[^/]+$/, 'Driver'],
+      [/^\/constructors\/[^/]+$/, 'Constructor'],
+      [/^\/circuits\/[^/]+$/, 'Circuit'],
+      [/^\/cars\/[^/]+$/, 'Car'],
+      [/^\/grands-prix\/[^/]+$/, 'Grand Prix'],
+    ]
+    const vocabularyWrong = []
+    let entityPages = 0
+    for (const { route, fromStatic, fromApp } of drawn) {
+      const type = TYPES.find(([pattern]) => pattern.test(route))?.[1]
+      if (type) entityPages += 1
+      for (const [half, read] of [['app', fromApp], ['static', fromStatic]]) {
+        for (const [label] of read.tiles.flat()) {
+          if (label in REPLACED) vocabularyWrong.push(`${route} (${half}): the tile \u201c${label}\u201d is \u201c${REPLACED[label]}\u201d`)
+        }
+        for (const heading of read.sections) {
+          if (heading in REPLACED || /\bon the record\b/i.test(heading)) {
+            vocabularyWrong.push(`${route} (${half}): the heading \u201c${heading}\u201d is \u201c${LABELS.provenance}\u201d`)
+          }
+        }
+        if (!type || (half === 'static' && HEADER_DIFFERS.has(route))) continue
+        if (!read.sections.includes(LABELS.provenance)) vocabularyWrong.push(`${route} (${half}): no \u201c${LABELS.provenance}\u201d section`)
+        const eyebrow = read.header.find((child) => child.startsWith('p.eyebrow '))?.slice('p.eyebrow '.length)
+        if (!eyebrow || !(eyebrow === type || eyebrow.startsWith(`${type} \u00b7 `))) {
+          vocabularyWrong.push(`${route} (${half}): the eyebrow \u201c${eyebrow ?? '(none)'}\u201d does not open on \u201c${type}\u201d`)
+        }
+      }
+    }
+    if (vocabularyWrong.length === 0) {
+      pass(`all ${drawn.length} routes use one vocabulary in both renderers, and all ${entityPages} entity pages open on their type and end on \u201c${LABELS.provenance}\u201d`)
+    }
+    for (const message of vocabularyWrong.slice(0, 8)) fail(message)
+    if (vocabularyWrong.length > 8) fail(`\u2026and ${vocabularyWrong.length - 8} more`)
+
+    // A DISCLOSURE OR A LINK SAYS WHAT IT OPENS (DP-30, DP-31): no two
+    // disclosures on a page share a name, and no name is given to two links
+    // that go to different places - twelve "How it is derived" on /records,
+    // five "The numbers behind this chart" and twenty "Maintainer's note" on
+    // /data/quality read alike out of context. In both halves.
+    const namesWrong = []
+    for (const { route, fromStatic, fromApp } of drawn) {
+      for (const [half, read] of [['app', fromApp], ['static', fromStatic]]) {
+        const seen = new Set()
+        for (const name of read.disclosures) {
+          if (seen.has(name)) namesWrong.push(`${route} (${half}): two disclosures named \u201c${name}\u201d`)
+          seen.add(name)
+        }
+        const targets = new Map()
+        for (const [name, to] of read.links) {
+          if (!name) continue
+          // One address however it is spelled: the register holds a licence's
+          // deed as http and https, with and without its closing slash.
+          const where = (to ?? '').replace(/^https?:/, '').replace(/\/$/, '')
+          targets.set(name, new Set([...(targets.get(name) ?? []), where]))
+        }
+        for (const [name, where] of targets) {
+          if (where.size > 1) namesWrong.push(`${route} (${half}): \u201c${name}\u201d names ${where.size} links to different places`)
+        }
+      }
+    }
+    if (namesWrong.length === 0) pass(`no two disclosures, and no two links to different places, share a name on any of ${drawn.length} routes in either renderer`)
+    for (const message of namesWrong.slice(0, 8)) fail(message)
+    if (namesWrong.length > 8) fail(`\u2026and ${namesWrong.length - 8} more`)
   })
 
   await section('Static tables are the app’s tables', async () => {
@@ -6962,14 +8399,14 @@ try {
       await same('/races/1955/1', gp(1955, 1), 'Classification')
       // Rung five: a constructor's and a circuit's three tables each.
       for (const heading of ['Season by season', 'Every win', 'Cars built']) await same('/constructors/ferrari', 'Ferrari', heading)
-      for (const heading of ['Most wins here', 'Constructors here', 'Every race held here']) {
+      for (const heading of ['Most wins here', 'Constructors here', 'Every race here']) {
         await same('/circuits/silverstone', 'Silverstone', heading)
       }
       // A venue with a race still to run: its row has a "not yet run" mark and
       // no winning car, which is where a column keyed "constructor" once found
       // Object.prototype.constructor and printed "[object Object]".
       const pending = db.prepare("SELECT c.id, c.name FROM circuits c JOIN races r ON r.circuit_id = c.id WHERE r.status = 'scheduled' ORDER BY r.round LIMIT 1").get()
-      if (pending) await same(`/circuits/${pending.id}`, pending.name, 'Every race held here')
+      if (pending) await same(`/circuits/${pending.id}`, pending.name, 'Every race here')
       // Rung six: the car page - a car whose variants are separate chassis, and
       // a chassis with a page of its own - and the reference and data pages.
       await same('/cars/lotus-72', 'Lotus', 'Variants')

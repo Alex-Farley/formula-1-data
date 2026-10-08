@@ -6,18 +6,22 @@ import {
   FOLD_LESS,
   FOLD_TO,
   PHONE,
+  UNFOLDED,
   WIDE_ONLY,
   chosenColumns,
   defaultColumns,
+  foldFault,
   foldMore,
   folds,
   glossaryKey,
   onPhone,
   shared,
   sharedLine,
+  tableKey,
 } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
 import Columns from './Columns.jsx'
+import { dateCell } from './Dates.jsx'
 import { PageTitle, SectionTitle } from './Page.jsx'
 import TakeAway from './TakeAway.jsx'
 
@@ -40,6 +44,12 @@ import TakeAway from './TakeAway.jsx'
  * `text` is a plain-string formatter from a page's queries module, shared
  * with scripts/prerender.js so the static table prints the same cell; it is
  * used where the page gives no `render`. See queries/drivers.js.
+ *
+ * `date` says the column holds ISO days - 'short', 'long', or 'race' for a
+ * race row's weekend - and each cell is drawn as a <time> in the reader's
+ * format (components/Dates.jsx, CD-57); scripts/prerender.js writes the same
+ * <time> in the house format. The value, and so the sort and a file taken
+ * from the table, stays the ISO day.
  *
  * `ariaHidden` takes a column out of the accessibility tree, header and every
  * cell, and leaves its header empty: a column that only repeats in colour
@@ -91,14 +101,28 @@ import TakeAway from './TakeAway.jsx'
  *     the cells that name the row - so the order a reader asked for is the
  *     one thing on screen that says what it is (VD-31, folded into IX-27).
  *
- * `fold` is for the exhaustive lists on an entity page - every win, every
- * entry, every race held (VD-69). Over FOLD_OVER rows the table opens on its
+ * `fold` is the rows' noun from FOLD_NOUN, which the disclosure names with the
+ * count (CD-52). Over FOLD_OVER rows the table opens on its
  * first FOLD_TO behind a <details> that names the whole count; every row is
  * still drawn, and the stylesheet hides the ones past the fold while it is
  * closed, so a sort reorders the full set and the fold shows its new first
  * ten. Opening it is expanding the table, so it replaces "Show the remaining"
  * rather than sitting beside it. scripts/prerender.js writes the same element
  * (lib/table.js says why it is a <details>).
+ *
+ * THE FOLD IS THE ONE REVEAL CONTROL (VD-82).
+ *     It began on the exhaustive lists of an entity page (VD-69); it is now
+ *     every table over FOLD_OVER rows, and a table that should not fold says
+ *     why in `unfolded`, one of UNFOLDED's reasons in lib/table.js. A table
+ *     over the threshold with neither logs an error, which the smoke suite
+ *     fails on; scripts/prerender.js refuses the same table outright. Opening
+ *     the fold moves focus to the first row it revealed, so a keyboard reader
+ *     is not left on a summary thousands of pixels below the rows (DP-29).
+ *
+ * `remember` keeps the sort and the expansion in the address, keyed by the
+ * table's name (VD-82, IX-46): see Table below. It is on unless a table has
+ * nothing a reader could send - a chart's numbers - or its rows are not the
+ * page's to name, as the console's result is its statement's.
  *
  * NULLS SORT LAST, ALWAYS.
  *     SQLite sorts NULL first, and this database uses NULL for "not
@@ -107,6 +131,9 @@ import TakeAway from './TakeAway.jsx'
  *     either direction, so missing values go to the bottom of both.
  */
 const PAGE = 250
+
+/** No parameters: the address a table that keeps none of its state there reads. */
+const NOTHING = {}
 
 /** Order two values that are both present. Missing ones never reach here. */
 function compare(a, b) {
@@ -156,14 +183,17 @@ function useMatches(query) {
  * written down, so a register nobody has touched keeps a clean address.
  *
  * `addressed` is opt-in, and only a page whose register IS the page takes it
- * — the four registers and the race index. One set of parameters can name
- * one table, and on a page of seven they would fight over it.
+ * — the four registers and the race index. One set of bare parameters can
+ * name one table, and on a page of seven they would fight over it; every
+ * other table keeps its sort and expansion under its own name instead
+ * (`remember`, VD-82), and only a register has a Columns control.
  */
 export default function DataTable({ addressed = false, ...props }) {
   return addressed ? <AddressedTable {...props} /> : <Table {...props} />
 }
 
-function AddressedTable({ sort = null, direction = 'asc', ...props }) {
+// An addressed table is a register, which is its own reason not to fold.
+function AddressedTable({ sort = null, direction = 'asc', unfolded = UNFOLDED.register, ...props }) {
   const [state, set] = useUrlState({ sort: sort ?? '', dir: direction, all: false, cols: '' })
   const declared = (props.columns ?? []).map((column) => (typeof column === 'string' ? { key: column } : column))
   // Read the way the sort is: keys this list does not have are dropped, and
@@ -199,6 +229,7 @@ function AddressedTable({ sort = null, direction = 'asc', ...props }) {
   return (
     <Table
       {...props}
+      unfolded={unfolded}
       sort={asked ? state.sort : sort}
       // A direction is one of two words; anything else typed into the address
       // is not a third option, it is a mistake, and ascending is the default.
@@ -250,6 +281,8 @@ function Table({
   page = PAGE,
   sortable = true,
   fold = false,
+  unfolded = null,
+  remember = true,
   footer,
   // The SQL console shows data as data: 1950, not 1,950.
   raw = false,
@@ -280,10 +313,33 @@ function Table({
   const [ownDirection, setOwnDirection] = useState(givenDirection)
   // A fold the reader opened on the static page stays open at the handover,
   // as the rows it was showing stay drawn (lib/handover.js).
-  const [ownShowAll, setOwnShowAll] = useState(() => fold && staticOpen(name))
-  const sort = onSort ? givenSort : ownSort
-  const direction = onSort ? givenDirection : ownDirection
-  const showAll = onShowAll ? givenShowAll : ownShowAll
+  const [ownShowAll, setOwnShowAll] = useState(() => Boolean(fold) && staticOpen(name))
+
+  /*
+   * THE TABLE'S STATE IN THE ADDRESS, UNDER ITS NAME (VD-82, IX-46).
+   *
+   * A register holds its own in bare `?sort=` and `?all=1` (AddressedTable
+   * above); every other named table holds its sort and its expansion here, as
+   * `?every-entry.sort=year&every-entry.dir=desc&every-entry.all=1`, written
+   * by replacing the entry rather than pushing one (lib/urlstate.js). So Back
+   * from row 200 of an opened *Every entry* returns to the table as the reader
+   * left it, open and in their order, and the page is tall enough to put them
+   * back at row 200; before, the fold closed and the restored offset landed
+   * in the footer. A table the caller holds the state of, one with no name,
+   * and one that opts out keep theirs in the component, as before.
+   *
+   * A seeded fold - opened on the static page before the database arrived -
+   * is not written down, for the reason a seeded register's expansion is not
+   * (below): the address is written by the reader's hand, never by the
+   * handover. It is the component's until the reader next touches it.
+   */
+  const addressKey = remember && !onSort && !onShowAll && name ? tableKey(name) || null : null
+  const [addressState, setAddress] = useUrlState(
+    addressKey
+      ? { [`${addressKey}.sort`]: '', [`${addressKey}.dir`]: '', [`${addressKey}.all`]: false }
+      : NOTHING,
+  )
+  const showAll = onShowAll ? givenShowAll : addressKey ? addressState[`${addressKey}.all`] || ownShowAll : ownShowAll
 
   // Every column the list declares, and the ones this table is showing: the
   // reader's choice, or the default without the optional ones (IA-23).
@@ -297,6 +353,22 @@ function Table({
     const keys = chosen.split(',')
     return all.filter((column) => keys.includes(column.key))
   }, [all, chosen])
+
+  // The sort the address asks for is read as a register's is: a key no header
+  // of this table offers falls back to the table's own order, and stays in
+  // the address, wrong and visible, rather than ordering rows by nothing.
+  const asked = addressKey ? addressState[`${addressKey}.sort`] : ''
+  const fromAddress = Boolean(asked) && sortable && cols.some((c) => c.key === asked && c.sortable !== false)
+  const sort = onSort ? givenSort : addressKey ? (fromAddress ? asked : givenSort) : ownSort
+  const direction = onSort
+    ? givenDirection
+    : addressKey
+      ? fromAddress
+        ? addressState[`${addressKey}.dir`] === 'desc'
+          ? 'desc'
+          : 'asc'
+        : givenDirection
+      : ownDirection
 
   // The columns the header keeps, and the ones every row agreed on, which a
   // column has to have declared itself a candidate for in web/src/queries/*
@@ -400,6 +472,24 @@ function Table({
     }
   }, [showAll])
 
+  // DP-29. Opening a fold used to leave focus on its summary, which the rows
+  // it revealed had just pushed thousands of pixels down the page, so the
+  // next Tab jumped past every one of them. The first revealed row's header
+  // takes focus instead - its <th scope="row">, which names the row, made
+  // focusable for the purpose and kept out of the tab order. Only when the
+  // reader opened it: a fold restored from the address on Back, or seeded
+  // from the static page, moves nothing.
+  const revealing = useRef(false)
+  useEffect(() => {
+    if (!showAll || !revealing.current) return
+    revealing.current = false
+    const row = scroller.current?.querySelectorAll('tbody tr')[FOLD_TO]
+    const cell = row?.querySelector('th[scope="row"]') ?? row?.firstElementChild
+    if (!cell) return
+    cell.setAttribute('tabindex', '-1')
+    cell.focus()
+  }, [showAll])
+
   if (cols.length === 0 || source.length === 0) {
     // "state is-empty", not bare "state". A skeleton and a Loading share that
     // class because they are both the page waiting; this is the page having
@@ -454,10 +544,16 @@ function Table({
   // The fold is the expansion on a table that declares one, so the button
   // below is not drawn beside it: opening it shows every row.
   const folded = fold && folds(ordered.length)
+  const fault = foldFault(ordered.length, fold, unfolded)
+  if (fault) console.error(`DataTable${name ? ` (${name})` : ''}: ${fault}`)
   const expand = (next) => {
     collapsed.current = !next
+    revealing.current = next && Boolean(folded)
     if (onShowAll) onShowAll(next)
-    else setOwnShowAll(next)
+    else if (addressKey) {
+      setOwnShowAll(false)
+      setAddress({ [`${addressKey}.all`]: next })
+    } else setOwnShowAll(next)
   }
 
   /*
@@ -500,7 +596,17 @@ function Table({
           ? 'desc'
           : 'asc'
     if (onSort) onSort(key, next)
-    else {
+    else if (addressKey) {
+      // The order the table opens in is no order at all in the address, so a
+      // reader who sorts their way back to it leaves a clean one.
+      const own = givenSort
+        ? key === givenSort && next === givenDirection
+        : key === openingKey && next === openingDirection
+      setAddress({
+        [`${addressKey}.sort`]: own ? '' : key,
+        [`${addressKey}.dir`]: own ? '' : next,
+      })
+    } else {
       setOwnSort(key)
       setOwnDirection(next)
     }
@@ -526,6 +632,7 @@ function Table({
         className={folded ? 'table-wrap is-folded' : 'table-wrap'}
         data-rows={ordered.length}
         data-shown={visible.length}
+        data-key={addressKey ?? undefined}
         data-clipped={clipped || undefined}
       >
         {/* A scrollable region is keyboard-reachable only while it has something
@@ -621,9 +728,11 @@ function Table({
                       >
                         {column.render
                           ? column.render(row[column.key], row)
-                          : column.text
-                            ? plain(column.text(row[column.key], row))
-                            : cell(row[column.key], { raw })}
+                          : column.date
+                            ? dateCell(column, row)
+                            : column.text
+                              ? plain(column.text(row[column.key], row))
+                              : cell(row[column.key], { raw })}
                       </Cell>
                     )
                   })}
@@ -648,7 +757,7 @@ function Table({
                 table's name is for a screen reader's list of controls, where
                 three folds on one page would otherwise read alike. */}
             <summary ref={more}>
-              <span className="fold-more">{foldMore(ordered.length)}</span>
+              <span className="fold-more">{foldMore(ordered.length, fold)}</span>
               <span className="fold-less">{FOLD_LESS}</span>
               {name && <span className="sr-only">, {name}</span>}
             </summary>

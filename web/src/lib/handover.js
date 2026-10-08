@@ -133,3 +133,33 @@ export function staticOpen(name) {
   const named = key(name)
   return opened.has(named) && drawn.get(named) !== null
 }
+
+/**
+ * The app's page has taken over (VD-79, DP-28): its h1 takes focus, and the
+ * status region index.html keeps mounted says so, once.
+ *
+ * Focus fell to <body> at the handover on the driver, constructor and season
+ * pages in six cold loads of six, because the h1 main.jsx reached for was not
+ * there yet; and the last words a screen reader had were "Querying the
+ * database…", from a region that then left the page. Called by main.jsx when
+ * the two halves change places and by Page when its h1 arrives after that, so
+ * whichever comes second finds the work done. Focus already somewhere in the
+ * app - the reader's own, or this heading - is left where it is.
+ */
+// A Set mutated in place, for the reason `drawn` is a Map (above).
+const announced = new Set()
+
+export function arrived(heading) {
+  if (!heading?.isConnected || typeof document === 'undefined') return
+  const active = document.activeElement
+  if (active && active !== document.body && active.isConnected) return
+  heading.focus({ preventScroll: true })
+  if (announced.size) return
+  announced.add(heading)
+  const status = document.getElementById('page-status')
+  if (status) status.textContent = handoverWords(heading.textContent)
+}
+
+/** The sentence the status region says at the handover. */
+export const handoverWords = (headline) =>
+  `${String(headline ?? '').replace(/\s+/g, ' ').trim()}: the page has finished loading.`

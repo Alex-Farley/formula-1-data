@@ -15,7 +15,7 @@
  */
 import { classificationOrder, finished, missing, number, points, raceDates, result, text } from '../lib/format.js'
 import { linked } from '../lib/tiles.js'
-import { SHARED } from '../lib/site.js'
+import { LABELS, SHARED } from '../lib/site.js'
 import { LATE_NOTE, raceDay } from '../lib/refresh.js'
 
 export const RACE = `
@@ -97,23 +97,35 @@ export const PITS = `
 `
 
 /**
- * The first season any stop is recorded for (1994 today), which the stint
- * figure's empty state names on the races before it. Read rather than
- * written, so that a source that reached further back would move the
- * sentence with it.
+ * The span of races any stop is recorded for, which the stint figure's empty
+ * state reads (stintsEmpty() below): `year` is the first season (1994 today),
+ * named on the races before it, and `latest_year`/`latest_round` the last
+ * round holding a stop, after which an empty section is stops not yet
+ * published rather than none (SD-40). Read rather than written, so that a
+ * source reaching further back, or a refresh adding a round, moves the
+ * sentence with it. No row where no stop is held at all.
  */
 export const PITS_FROM = `
-  SELECT MIN(r.year) AS year FROM pit_stops p JOIN races r ON r.id = p.race_id
+  WITH held AS (SELECT DISTINCT r.year, r.round FROM pit_stops p JOIN races r ON r.id = p.race_id)
+  SELECT (SELECT MIN(year) FROM held) AS year, l.year AS latest_year, l.round AS latest_round
+    FROM (SELECT year, round FROM held ORDER BY year DESC, round DESC LIMIT 1) l
 `
 
 export const NEIGHBOURS = `
+  WITH before AS (
+         SELECT year, round, name_used FROM races
+          WHERE (year < ?1) OR (year = ?1 AND round < ?2)
+          ORDER BY year DESC, round DESC LIMIT 1),
+       after AS (
+         SELECT year, round, name_used FROM races
+          WHERE (year > ?1) OR (year = ?1 AND round > ?2)
+          ORDER BY year, round LIMIT 1)
   SELECT
-    (SELECT year || '/' || round FROM races
-      WHERE (year < ?1) OR (year = ?1 AND round < ?2)
-      ORDER BY year DESC, round DESC LIMIT 1) AS previous,
-    (SELECT year || '/' || round FROM races
-      WHERE (year > ?1) OR (year = ?1 AND round > ?2)
-      ORDER BY year, round LIMIT 1) AS next
+    (SELECT year || '/' || round FROM before)     AS previous,
+    (SELECT year || ' ' || name_used FROM before) AS previous_name,
+    (SELECT year || '/' || round FROM after)      AS next,
+    (SELECT year || ' ' || name_used FROM after)  AS next_name,
+    (SELECT COUNT(*) FROM races WHERE year = ?1)  AS rounds
 `
 
 /**
@@ -209,16 +221,27 @@ export const fastestLapMark = (value) => (value === 1 ? `●${FASTEST_LAP}` : ''
 export const carName = (row) =>
   row?.constructor_id ? row.constructor : (row?.entrant ?? row?.constructor)
 
+/*
+ * The classification fits its own box from --bp-tablet (IX-45): ten columns
+ * at max-content are about 960 px, so from 768 to 1,010 px Points and FL
+ * scrolled out of view. `WRAPS` on its four columns of words lets a name or
+ * a reason break at a space between those widths, and the stylesheet closes
+ * the table's cells up there (app.css, "A table that fits its box"); the
+ * figures never wrap. A class rather than a rule on the page, so the static
+ * table, which prerender.js writes from these same columns, fits too.
+ */
+const WRAPS = 'wraps'
+
 export const CLASSIFICATION_COLUMNS = [
   rail,
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
-  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName, cellClass: WRAPS },
   // The entrant's name where no constructor is resolved: a privateer entry.
-  { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)) },
-  { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
+  { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)), cellClass: WRAPS },
+  { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id), cellClass: WRAPS },
   { key: 'grid_text', label: 'Grid', align: 'num' },
   { key: 'laps_completed', label: 'Laps', align: 'num' },
-  { key: 'status', label: 'Out', text: outcome },
+  { key: 'status', label: 'Out', text: outcome, cellClass: WRAPS },
   { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'fastest_lap', label: 'FL', align: 'num', text: fastestLapMark },
 ]
@@ -394,7 +417,6 @@ export const SPRINT_FOOTER =
  * no line is not in it, and the note says how many.
  */
 export const GRID_FLAG_HEADING = 'Grid to flag'
-export const GRID_FLAG_TITLE = 'Where each car started, and where it ended'
 
 export const GRID_FLAG_COLUMNS = [
   { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
@@ -405,28 +427,34 @@ export const GRID_FLAG_COLUMNS = [
 
 /**
  * What the lines mean and what they cannot, and - only where the page has
- * one - a car out, a shared car and the entries left undrawn. The sentence
- * on what the record holds is the one that must never be lost: the database holds no position between
- * the start and the end, so a crossing is not an overtake at that lap.
+ * one - a car out and a shared car: 48 words at the longest, under the 50
+ * the figure grammar allows (VD-80). The sentence on what the record holds
+ * is the one that must never be lost: the database holds no position
+ * between the start and the end, so a crossing is not an overtake at that
+ * lap.
  */
-export const gridFlagNote = (rows, undrawn) =>
+export const gridFlagNote = (rows) =>
   [
-    'Each line runs from the slot a driver started in to their place in the result, ending at the last lap they completed.',
-    rows.some((r) => r.out)
-      ? 'A dashed line ending in a cross is a driver the result does not classify, so a retirement stops where it went out.'
-      : '',
-    'The record holds where each driver started and where they ended, not where they ran in between, so the lines are straight and a crossing is not an overtake at that lap.',
-    rows.some((r) => r.entry.shared_drive === 1)
-      ? 'Where drivers shared a car, each has a line of their own: from the slot they started in to the shared place, ending at the laps they completed.'
-      : '',
-    undrawn.length
-      ? `${number(undrawn.length)} ${undrawn.length === 1 ? 'entry' : 'entries'} with no recorded grid slot or lap count ${
-          undrawn.length === 1 ? 'is' : 'are'
-        } in the classification and not drawn.`
-      : '',
+    'Lines run from grid slot to result, ending at the last lap completed.',
+    rows.some((r) => r.out) ? 'A dashed line ending in a cross is a driver not classified.' : '',
+    'Nothing between is recorded, so a crossing is not an overtake at that lap.',
+    rows.some((r) => r.entry.shared_drive === 1) ? 'Drivers who shared a car have a line each.' : '',
   ]
     .filter(Boolean)
     .join(' ')
+
+/**
+ * The entries the classification holds and the figure cannot draw, said
+ * under the figure's table, which is short of them by the same count: it is
+ * a fact about the table, and a note that carried it as well ran to 59
+ * words.
+ */
+export const gridFlagUndrawn = (undrawn) =>
+  undrawn.length
+    ? `${number(undrawn.length)} ${undrawn.length === 1 ? 'entry' : 'entries'} with no recorded grid slot or lap count ${
+        undrawn.length === 1 ? 'is' : 'are'
+      } in the classification and not drawn.`
+    : undefined
 
 /** The figure's name for a screen reader, which hears the table and the note with it. */
 export const gridFlagLabel = (rows) => {
@@ -445,7 +473,6 @@ export const gridFlagLabel = (rows) => {
  * the note says in words what the empty columns said by being empty.
  */
 export const PITS_HEADING = 'Pit stops'
-export const STINTS_TITLE = 'Each driver’s race, split where they stopped'
 
 export const STINT_COLUMNS = [
   { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
@@ -460,32 +487,30 @@ export const STINT_COLUMNS = [
 
 /**
  * What the bars mean and what they cannot, and - only where the page has
- * one - a car out, a stop on the lap a driver went out, and the entries in
- * the table and not drawn. The sentence on what the record holds is the one
- * that must never be lost: the lap of each stop, and no duration, tyre or
- * lap time, so nothing here measures what a stop gained.
+ * one - a gap in the record, a car out and a stop on the lap a driver went
+ * out on: 49 words at the longest, under the 50 the figure grammar allows
+ * (VD-80). The sentence on what the record holds is the one that must never
+ * be lost: the lap of each stop, and no duration, tyre or lap time, so
+ * nothing here measures what a stop gained.
  */
-export const stintsNote = (rows, late, unbarred) =>
+export const stintsNote = (rows, late) =>
   [
-    'Each bar is one driver’s race, from the start to the last lap they completed, broken with a tick at the end of each lap they stopped on. The drivers are in finishing order.',
-    rows.some((r) => r.stops.length === 0)
-      ? 'A bar with no break is a driver with no stop recorded, which is not always a driver who did not stop: F1DB’s record of stops has gaps.'
-      : '',
-    rows.some((r) => r.out) ? 'A bar ending in a cross is a driver the result does not classify, so a retirement stops where it went out.' : '',
-    late.length
-      ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on the lap they went out on, which ${
-          late.length === 1 ? 'is' : 'are'
-        } marked at the end of the bar.`
-      : '',
-    'The record holds the lap of each stop and nothing else: not how long it took, the tyres fitted or a lap time either side of it. So the bars show when each driver stopped, not what a stop gained or lost.',
-    unbarred.length
-      ? `${number(unbarred.length)} ${unbarred.length === 1 ? 'driver' : 'drivers'} with stops recorded and no lap count ${
-          unbarred.length === 1 ? 'is' : 'are'
-        } in the table and not drawn.`
-      : '',
+    'Bars run in finishing order, ticked on each lap a driver stopped.',
+    rows.some((r) => r.stops.length === 0) ? 'An unticked bar may hide a stop: F1DB’s record has gaps.' : '',
+    rows.some((r) => r.out) ? 'A cross is a driver not classified.' : '',
+    late.length ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on their final lap.` : '',
+    'Only the lap is recorded: not a stop’s length, tyres or gain.',
   ]
     .filter(Boolean)
     .join(' ')
+
+/** The drivers in the figure's table and not in its drawing, said under that table, as gridFlagUndrawn() is. */
+export const stintsUnbarred = (unbarred) =>
+  unbarred.length
+    ? `${number(unbarred.length)} ${unbarred.length === 1 ? 'driver' : 'drivers'} with stops recorded and no lap count ${
+        unbarred.length === 1 ? 'is' : 'are'
+      } in the table and not drawn.`
+    : undefined
 
 /** The figure's name for a screen reader, which hears the table and the note with it. */
 export const stintsLabel = (rows) => {
@@ -495,13 +520,26 @@ export const stintsLabel = (rows) => {
 
 /**
  * Where a race run has no figure, the section says why rather than
- * vanishing: before the first season any stop is recorded, that no source
- * here holds them; after it, that this race has none recorded.
+ * vanishing. `span` is PITS_FROM's row. Before the first season any stop is
+ * recorded, that no source here holds them. After the last round holding a
+ * stop, that they have not arrived yet (SD-40): F1DB adds a race's stops
+ * after its classification, so the newest round is the one that reads as
+ * empty, and "records no pit stop" said of it what is true only of a race
+ * like Spa 2021, which later rounds' stops show was genuinely without one.
+ * That needs no clock, so both renderers say the same at any date. Between
+ * the two, that this race has none recorded.
  */
-export const stintsEmpty = (race, from) =>
-  from && race.year < from
-    ? `Pit stops are recorded from ${from}. F1DB, the source of every stop here, holds none before then, so this race has no stints to draw.`
+export const stintsEmpty = (race, span) => {
+  if (span?.year && race.year < span.year) {
+    return `Pit stops are recorded from ${span.year}. F1DB, the source of every stop here, holds none before then, so this race has no stints to draw.`
+  }
+  const after =
+    span?.latest_year != null &&
+    (race.year > span.latest_year || (race.year === span.latest_year && race.round > span.latest_round))
+  return after
+    ? 'No pit stop is recorded for this race yet. F1DB adds a race’s stops after its classification, and this site checks F1DB every morning.'
     : 'F1DB records no pit stop for this race, so there are no stints to draw.'
+}
 
 /* Who stopped first between neighbours: charts/stints.js's pitPairs. */
 export const PIT_ORDER_HEADING = 'Who stopped first, between neighbours'
@@ -570,23 +608,28 @@ export const raceSentence = (race, winners, stage = 'awaited') => {
 }
 
 /**
- * The opening sentence of a race's page, in both renderers (CD-03).
+ * The opening of a race's page, in both renderers (CD-03): raceSentence()
+ * above, then the note where a person wrote one.
  *
- * `note` is the override and stays the lede wherever a person wrote one - 2
- * of the 1,196 rows, each a scheduled round whose venue or status needs
- * explaining. The other 1,194 pages opened straight onto the strip of tiles
- * with nothing to say what the reader was looking at, while
- * scripts/prerender.js had already composed a serviceable sentence for the
- * meta description and kept it off the page. raceSentence() above is that
- * sentence, written once and read by both, so the description and the
- * standfirst cannot come to disagree.
+ * The pages used to open straight onto the strip of tiles with nothing to say
+ * what the reader was looking at, while scripts/prerender.js had already
+ * composed a serviceable sentence for the meta description and kept it off
+ * the page. raceSentence() is that sentence, written once and read by both,
+ * so the description and the standfirst cannot come to disagree.
  *
- * What counts as a note is raceNote() below, so the static page can ask the
- * same question before deciding whether it has already printed one. lede() in
- * queries/driver.js is the same rule for the same reason.
+ * The note follows the sentence rather than replacing it (SD-39). A race's
+ * note explains its venue or its status - "hosted at Sepang", "subject to
+ * homologation" - and says nothing of the result, so as the override it made
+ * /races/2026/16, a round two days old, the one race page that never said
+ * who won. lede() in queries/driver.js keeps its note as the override, and
+ * can: a driver's note is a career written by hand, not an aside about one
+ * of its facts.
  */
-export const raceLede = (race, winners, stage = 'awaited') =>
-  raceNote(race) || raceSentence(race, winners, stage)
+export const raceLede = (race, winners, stage = 'awaited') => {
+  const sentence = raceSentence(race, winners, stage)
+  const note = raceNote(race)
+  return note ? `${sentence} ${note}` : sentence
+}
 
 /**
  * The block a scheduled round carries where its classification would be, in
@@ -631,12 +674,9 @@ export const scheduledNote = (race, stage = 'awaited', late = null) => {
  * The note a person wrote on this round, or '' where nobody did.
  *
  * A blank note is not a note: `note` has no NOT NULL or length constraint, so
- * an empty string would otherwise render an empty lede rather than falling
- * through to the sentence. Read here rather than decided twice - the static
- * page also has to know whether the lede it is printing is the note, and two
- * copies of this rule are how the two would come to disagree.
+ * an empty string would otherwise leave a trailing space on the lede.
  */
-export const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
+const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
 
 /**
  * The race's tiles, as both renderers draw them (VD-49).
@@ -716,7 +756,7 @@ export const raceStrip = (race, entries, qualifying) => {
     entries.length === 0
       ? null
       : {
-          label: 'Entries',
+          label: LABELS.entries,
           value: number(entries.length),
           note: scheduled ? undefined : `${finishers} classified`,
         },

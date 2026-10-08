@@ -208,6 +208,11 @@ line could not be written; say so in the stock-take and carry on.
   first and check the log does not say "Reusing the server") → `git add -A &&
   make ci QUIET=1` → commit → push → `gh pr create`. Commit and PR text end
   with the attribution lines the session was given.
+- **Web work follows the design system** `[D-53]`. An item under `web/`
+  reads the sections of `docs/design-system.md` that its components and
+  tokens fall under before building, holds itself to those marked built, and
+  extends the system in the same PR, under its §8, where it needs what the
+  system lacks.
 - **Quiet forms, always** `[D-25]`. While iterating on one page, `npm run
   test:page -- /drivers` runs only the smoke sections whose heading names it
   (`node test/smoke.mjs --list` shows them), then the full `npm test
@@ -283,7 +288,9 @@ satisfies the independent-review rule. A substantive rewrite after a FAIL
 gets a new fresh Opus agent, not a confirmation.
 
 The brief stays inside the diff: name the specific ways the change could be
-wrong; name the routes the pace allows and no more; ask for one isolated
+wrong; name the routes the pace allows and no more; for a front-end
+reviewer, name the components and tokens the diff touches and the sections
+of `docs/design-system.md` they fall under; ask for one isolated
 rebuild only when an artefact changed; never ask for site-wide enumerations
 or live fetches unless the item is about them. Ask for the findings with
 file:line, nothing else.
@@ -347,7 +354,7 @@ reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
   line each `[D-23]`.
 
 Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
-`check (3.12)` and `web` green. **Merging deploys lapledger.org.** In auto
+`check (3.12)`, `web` **and `lint`** green — the four *Never slides* names. **Merging deploys lapledger.org.** In auto
 mode the merge is refused as *Merge Without Review* until a verdict is a
 comment on the PR, which `[D-23]` already puts there; a refusal means the
 record is missing, and the answer is to record it, never to route around it.

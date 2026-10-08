@@ -295,12 +295,18 @@ hr {
   background: var(--panel-sunk);
 }
 
+/* `main` is the size container the grid counts its columns off: 100cqi in
+   tokens.css is this box's content width, the 1,232 px between the margins
+   at 1440, so a --span-* is the same width in any block inside it. Inline
+   size only, which is all a span reads; it adds no layout containment, so a
+   fixed overlay inside still positions against the viewport. */
 main {
   flex: 1;
   max-width: var(--page);
   width: 100%;
   margin: 0 auto;
   padding: var(--space-8) var(--space-8) var(--space-10);
+  container-type: inline-size;
 }
 
 .sitefoot {
@@ -308,25 +314,31 @@ main {
   background: var(--panel-sunk);
 }
 
+/* The footer sits outside `main`, so the page's spans cannot be counted
+   off it: a container query unit resolves against a container above the
+   element, never the element itself, and above this box there is none. So
+   its two columns are its own. It is still a container, so the measure on
+   its paragraphs below is counted off its content box, the same 1,232 px. */
 .sitefoot-inner {
   max-width: var(--page);
   margin: 0 auto;
   padding: var(--space-8) var(--space-8) var(--space-9);
   display: grid;
-  gap: var(--space-7) var(--space-9);
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-7) var(--gutter);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); /* the footer's own columns: it is outside main and the page's grid */
   font-size: var(--size-4);
   color: var(--ink-soft);
+  container-type: inline-size;
 }
 
 .sitefoot p {
-  max-width: 62ch;
+  max-width: var(--measure);
 }
 
 .sitefoot dl {
   margin: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr; /* a label and its value: the list's own columns */
   gap: var(--space-1) var(--space-6);
   font-variant-numeric: tabular-nums;
 }
@@ -339,23 +351,39 @@ main {
   margin: 0;
 }
 
-/* The wordmark's second line is longer than its first, so on a narrow screen
-   it is what pushes the search button onto a row of its own. */
-@media (max-width: 560px) {
+/* VD-76: the masthead is one row at every width above the phone layout.
+   The wordmark, eight links and the search button need 999 px at full size,
+   and from 1,099 px down the links wrapped - a second row at 1024 that moved
+   every page's heading down 24 px, a third at 768. Below --bp-desktop they
+   tighten instead: the wordmark drops its second line, the button its key,
+   and each link four pixels a side, which brings the row to under 700 px and
+   keeps it whole down to 768. */
+@media (width < 1180px) {
   .wordmark span span {
     display: none;
   }
   .search-trigger kbd {
     display: none;
   }
+  .masthead-inner {
+    gap: var(--space-6);
+  }
+  .masthead nav a {
+    padding: var(--space-3) var(--space-2);
+  }
 }
 
-@media (max-width: 720px) {
+@media (width < 768px) {
   .sitefoot-inner {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .masthead-inner {
     flex-wrap: wrap;
+  }
+  /* The phone's links are a row of their own, so they take their full
+     padding back: the room is there, and a wider target is easier to hit. */
+  .masthead nav a {
+    padding: var(--space-3) var(--space-5);
   }
   /* Two rows rather than a strip: the strip hid its scrollbar, and four of
      the eight items were off-screen on an iPhone 13 with nothing to say so.
@@ -454,6 +482,19 @@ main {
   font-size: var(--size-4);
 }
 
+/* A note under a block - a tile strip, a table - rather than under its
+   heading stands a step clear of it. It was an inline marginTop of 10 on
+   three pages, which the stylesheet's scale could not see (VD-60). */
+.section > .note.follows {
+  margin-top: var(--space-5);
+}
+
+/* A sentence under a board of download cards, clear of the cards (VD-60:
+   an inline marginTop of 18, twice, on /data). */
+.board + .measure {
+  margin-top: var(--space-7);
+}
+
 .section > h2 + .table-wrap,
 .section > h2 + .grid,
 .section > h2 + figure {
@@ -499,7 +540,7 @@ main {
 .grid {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 /* The home page's panels: the two rounds either side of today, and the four
@@ -532,26 +573,36 @@ main {
 }
 
 .grid.wide {
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
+/* Two halves a gutter apart, which is two spans of the page's grid at any
+   column count it has: half of 12 columns, or of 8. */
 .split {
   display: grid;
-  gap: var(--space-8);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--gutter);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
 /* The wider-left variant, a class rather than an inline style: an inline
    grid-template-columns outranks the stacking rule below, so the SQL console
-   stayed two columns at 320 px and its example list overflowed the page. */
+   stayed two columns at 320 px and its example list overflowed the page.
+   Eight columns of twelve and five of eight: 2fr/1fr drew an edge 8 px off
+   every column line. */
 .split.uneven {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: var(--span-5) minmax(0, 1fr);
 }
 
-/* This block must stay below .split.uneven: the two rules are the same
+@media (width >= 1180px) {
+  .split.uneven {
+    grid-template-columns: var(--span-8) minmax(0, 1fr);
+  }
+}
+
+/* This block must stay below .split.uneven: the rules are the same
    specificity, so source order is what makes the stack win. */
-@media (max-width: 860px) {
+@media (width < 768px) {
   /* minmax(0, 1fr), never 1fr: a bare 1fr track is floored at its content's
      min-content width, so a wide table inside a .table-wrap pushed the track
      past the viewport and scrolled the whole body sideways instead of
@@ -564,21 +615,44 @@ main {
 
 /* ----------------------------------------------------------- stat blocks */
 
-/* Flex rather than grid, because the hairlines here are the container showing
-   through a 1px gap: a grid leaves a grey void wherever the last row is short
-   of a tile, whereas flex items grow to fill the line they land on. The basis
-   is 150px because several of these tiles hold a name rather than a figure,
-   and a narrower one forced "Spa-Francorchamps" to break mid-word on a
-   phone. */
+/* The tile strip (docs/design-system.md section 3, VD-79, DP-02). A grid,
+   not a flex row, and every tile draws its own hairline.
+
+   It was a flex row whose hairlines were the container's ground showing
+   through 1 px gaps, so a short last row would have ended in a grey band;
+   flex-grow existed to stop that, and spread a lone last tile across the
+   whole row instead - one figure ranked by accident on /data/quality, /
+   at 768 and /drivers/verstappen at 1024 (VD-46). The ghost tile that
+   halved it beside a lead figure was a patch on the patch. A tile that draws
+   its own edge can end a row short against the page, so neither is needed.
+
+   The columns, from the count each renderer writes as --tiles:
+     - one row, where the strip fits at --tile a tile (nine do at 1440);
+     - otherwise rows of equal count: half the tiles a row, then a third;
+     - two to a row in a strip narrower than --tile-pair.
+   A custom property cannot stand in a query, so the choice is made in the
+   track size: each candidate is the strip's width over a column count, and
+   the first that is at least --tile wins, falling back to half (or the
+   whole, for a strip of one, which has no half to fall back to). For a
+   candidate `a` and the fallback `b`, `(--tile - a) * 1e5` is at most zero
+   when `a` fits and enormous when it does not, so min(b, max(a, that)) is
+   `a` or `b`; --pick-3, --pick-2 and --tiles-fit chain three of them. The
+   --tile-pair rule is the same switch on the strip's own width. Half a pixel off
+   the winner, so that auto-fill's floor() lands on the count and not one
+   under it. */
 .stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1px;
+  --tiles-1: calc(100% / var(--tiles, 4));
+  --tiles-2: calc(100% / round(up, var(--tiles, 4) / 2));
+  --tiles-3: calc(100% / round(up, var(--tiles, 4) / 3));
+  --pick-3: min(max(50%, var(--tiles-1)), max(var(--tiles-3), (var(--tile) - var(--tiles-3)) * 100000));
+  --pick-2: min(var(--pick-3), max(var(--tiles-2), (var(--tile) - var(--tiles-2)) * 100000));
+  --tiles-fit: min(var(--pick-2), max(var(--tiles-1), (var(--tile) - var(--tiles-1)) * 100000));
+  --tile-track: calc(max(var(--tiles-fit), min(50%, (var(--tile-pair) - 100%) * 100000)) - 0.5px);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--tile-track), 1fr)); /* the strip's own columns, from its count and width: see above */
   margin: 0;
-  background: var(--rule);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  overflow: hidden;
+  /* The right and bottom edges the tiles' negative margins reach into. */
+  padding: 0 1px 1px 0;
 }
 
 /* No lit edge on the tile. The mockups drew a 22x2 accent bar on each one to
@@ -586,45 +660,44 @@ main {
    for the accent: eight red marks on a driver page where the mark carries no
    action, and on a Ferrari page indistinguishable from rosso corsa (1.002:1
    in light; 1.76:1 in dark). The hairline grid and the mono label already say
-   what the bar said (VD-26). */
-/* min-content, not 0: with a label that may not wrap (below), the tile has
-   to be allowed to be as wide as its label, or it would overflow its own
-   hairline.
+   what the bar said (VD-26).
 
-   The basis comes down from 150px to 130px to pay for that. A tile held at
-   its label's width takes room from the row, and eight tiles at 150px plus
-   "Constructors' titles" at the 190px its label needs came to 11px more than
-   /constructors/ferrari has: the eighth tile wrapped, and flex-grow spread it
-   alone across the full 1234px, which ranks a figure by accident far harder
-   than the two ranks below rank one on purpose. At 130px the basis no longer
-   decides the row - the labels do - and the tiles settle at their own widths
-   with the wide one wide. It is a floor, not a width: flex-grow still fills
-   the row, so a strip of five is laid out exactly as before. */
+   Each tile's border is its hairline, and the margin pulls it 1 px over its
+   right and lower neighbours, so two tiles share one line rather than
+   drawing two. A tile is two rows of the strip - label, then figure - shared
+   with every tile in its row through subgrid, so a label that wraps to two
+   lines moves every figure in the row down together rather than its own
+   alone. VD-28 forbade a wrapping label for exactly that reason, which made
+   a tile as wide as its label and the strip wrap wherever the labels did. */
 .stats > div {
-  flex: 1 1 130px;
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  min-width: 0;
   background: var(--panel);
+  border: 1px solid var(--rule);
+  margin: 0 -1px -1px 0;
   padding: var(--space-6) var(--space-7) var(--space-7);
-  min-width: min-content;
 }
 
-/* VD-28: a label never wraps. It is not a cosmetic rule - the tiles are a
-   flex row and each one lays its own contents out from the top, so a label
-   that takes two lines pushes its own figure a line below every figure
-   beside it. On /constructors/ferrari "Constructors' titles" did exactly
-   that, 22px below the row. Nothing here truncates: the tile grows to its
-   label instead, and the row wraps. */
+/* A label sits on its figure, at the foot of the row's label track. */
 .stats dt {
+  align-self: end;
   font-family: var(--mono);
-  font-size: var(--size-1);
+  font-size: var(--size-2);
   font-weight: var(--weight-medium);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ink-faint);
   margin-bottom: var(--space-3);
-  white-space: nowrap;
 }
 
+/* Every figure in a row on one baseline, the lead figures and the rest
+   alike: two ranks set top-aligned sat 10 px apart (VD-55, folded into
+   VD-46). */
 .stats dd {
+  align-self: baseline;
   margin: 0;
   font-family: var(--disp);
   font-size: var(--size-8);
@@ -670,6 +743,30 @@ main {
   letter-spacing: -0.005em;
 }
 
+/* The one hero figure (DP-10, VD-84): the first lead figure of a ranked
+   strip - a driver's, a team's or a car's wins, a record's value, the rounds
+   run on the home page - set in the
+   middle register, 32 px on a phone, 40 from --bp-tablet and 50 beside the
+   opening band, where the page had nothing between a tile's 25 px and the
+   title (visual V7). A second lead keeps the tile's display size, so there
+   is one hero and not two. A name is not a figure, and stays as it is. */
+.stats[data-ranked] > div[data-lead]:not([data-kind='name'], div[data-lead] ~ div) dd {
+  font-size: var(--size-9);
+  line-height: 1;
+}
+
+@media (width >= 768px) {
+  .stats[data-ranked] > div[data-lead]:not([data-kind='name'], div[data-lead] ~ div) dd {
+    font-size: var(--size-10);
+  }
+}
+
+@media (width >= 1180px) {
+  .stats[data-ranked] > div[data-lead]:not([data-kind='name'], div[data-lead] ~ div) dd {
+    font-size: var(--size-11);
+  }
+}
+
 /* A name is not a figure. The display face is condensed and drawn for
    numerals; a driver's name set in it at 25px reads as a headline and, being
    a link, carries an underline that runs through the descenders. The sans
@@ -706,7 +803,7 @@ main {
 .fields {
   margin: 0;
   display: grid;
-  grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(120px, auto) minmax(0, 1fr); /* a label column, floored at the shortest label's width: the list's own, not the page's */
   gap: 0;
 }
 
@@ -739,10 +836,10 @@ main {
 
 /* PD-57: the static race page opens on up to fourteen facts where the app
    has tiles; one to a line they put the classification below the first
-   screen, so at desktop width they run two to a line. */
-@media (min-width: 1024px) {
+   screen, so from the tablet layout up they run two to a line. */
+@media (width >= 768px) {
   .fields-paired {
-    grid-template-columns: minmax(120px, auto) minmax(0, 1fr) minmax(120px, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(120px, auto) minmax(0, 1fr) minmax(120px, auto) minmax(0, 1fr); /* two label columns, as .fields */
   }
 
   .fields-paired > dt:nth-of-type(even) {
@@ -766,6 +863,10 @@ main {
   overflow: hidden;
 }
 
+.skeleton-table > .skeleton {
+  border-radius: 0;
+}
+
 .table-scroll {
   overflow-x: auto;
   max-width: 100%;
@@ -785,7 +886,7 @@ main {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 44px;
+  width: 44px; /* the fade's own width, over the table's edge */
   background: linear-gradient(90deg, transparent, var(--panel));
   pointer-events: none;
 }
@@ -881,6 +982,15 @@ th.sortable button {
   color: inherit;
 }
 
+/* AX-31. `all: unset` takes the global ring with everything else and
+   outranks it, so the sort button draws its own - inside the header, like
+   .table-scroll's, because the header cell is flush with its neighbours and
+   .table-wrap clips what overflows it. */
+th.sortable button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 th.num.sortable button {
   justify-content: flex-end;
 }
@@ -935,7 +1045,7 @@ th .key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
+  width: 24px; /* a key column's own control */
   height: 24px;
   margin-inline: var(--space-1);
   vertical-align: middle;
@@ -949,7 +1059,7 @@ th .key::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5em;
+  width: 1.5em; /* a glyph, sized to the text it sits in */
   height: 1.5em;
   border: 1px solid currentColor;
   border-radius: 50%;
@@ -1033,9 +1143,9 @@ tbody th.num {
  */
 td.prose,
 tbody th.prose {
-  min-width: 18ch;
-  width: 42ch;
-  max-width: 60ch;
+  min-width: 18ch; /* a prose cell's narrowest, inside its table */
+  width: 42ch; /* a prose cell's preferred measure, inside its table */
+  max-width: 60ch; /* a prose cell's widest, inside its table */
   white-space: normal;
   color: var(--ink-soft);
 }
@@ -1043,6 +1153,31 @@ tbody th.prose {
 td:not(.prose),
 tbody th:not(.prose) {
   white-space: nowrap;
+}
+
+/*
+ * A table that fits its box (IX-45, provisional).
+ *
+ * The race classification is the page's subject, and from 768 to 1,010 px its
+ * ten columns at max-content (about 960 px) ran past the content box, so
+ * Points and FL scrolled out of view behind the fade. Between the two
+ * breakpoints its columns of words - those marked `.wraps` in queries/race.js -
+ * may break at a space, and its cells close up from --space-6 to --space-3 a
+ * side, which is what lets the auto layout fit the figures in. A figure never
+ * wraps. From --bp-desktop the table has the width to lay out on one line, and
+ * below --bp-tablet a phone keeps its one-line rows and scrolls (§4, Phone).
+ * The result rail keeps its own zero padding.
+ */
+@media (768px <= width < 1180px) {
+  td.wraps,
+  tbody th.wraps,
+  td.wraps .tag {
+    white-space: normal;
+  }
+
+  table:has(> tbody .wraps) :is(thead th:not(.rail, .sortable), th.sortable button, tbody td:not(.rail), tbody th) {
+    padding-inline: var(--space-3);
+  }
 }
 
 /*
@@ -1073,7 +1208,7 @@ tbody th:not(.prose) {
 td.record-name,
 tbody th.record-name {
   white-space: normal;
-  min-width: 16ch;
+  min-width: 16ch; /* a record name's narrowest, inside its table */
 }
 
 td.record-value,
@@ -1084,15 +1219,15 @@ tbody th.record-value {
   font-weight: var(--weight-medium);
   line-height: 1.4;
   color: var(--ink);
-  min-width: 9ch;
-  max-width: 30ch;
+  min-width: 9ch; /* a record value's narrowest, inside its table */
+  max-width: 30ch; /* a record cell's own measure, inside its table */
 }
 
 td.record-derivation,
 tbody th.record-derivation {
   font-size: var(--size-3);
   color: var(--ink-faint);
-  max-width: 46ch;
+  max-width: 46ch; /* the derivation's measure, inside its table */
 }
 
 /*
@@ -1105,20 +1240,25 @@ tbody th.record-derivation {
  * printed in full on the record's own page.
  *
  * Four to a row at 1440 and two at a phone's width, never one: one card to a
- * row at 400 put the second value below the first screen. The cards of a row
- * share its height, so the disclosure is pushed to each card's foot and the
- * summaries line up across the row.
+ * row at 400 put the second value below the first screen.
+ *
+ * Each card keeps its own height (IX-47). The cards of a row used to share
+ * it, which lined the closed summaries up, and opening one derivation then
+ * stretched all four cards from 126 to 258 px and dropped the other three
+ * summaries 132 px to their new feet: opening a disclosure moved the
+ * controls beside it. Now a card opens downwards alone.
  */
 .record-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
   gap: var(--space-6);
   margin: 0 0 var(--space-7);
   padding: 0;
   list-style: none;
 }
 
-@media (max-width: 600px) {
+@media (width < 768px) {
   .record-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-4);
@@ -1200,7 +1340,7 @@ tbody th.record-derivation {
   line-height: 1.5;
 }
 
-@media (max-width: 600px) {
+@media (width < 768px) {
   .record-card {
     padding: var(--space-5) var(--space-5) var(--space-5);
   }
@@ -1260,12 +1400,12 @@ td.rail {
   /* The header inherits thead's side padding unless it is told not to,
      which silently turns a 4px rail into a 28px column. */
   padding: 0;
-  width: 4px;
+  width: 4px; /* the result rail: a mark, not a column */
 }
 
 td.rail i {
   display: block;
-  width: 4px;
+  width: 4px; /* the result rail: a mark, not a column */
   height: 100%;
   min-height: 34px;
   background: var(--rail-none, transparent);
@@ -1361,7 +1501,7 @@ tbody th.strong {
  * A reader who has chosen columns gets no marks at all, so nothing here can
  * hide a column somebody asked for.
  */
-@media (max-width: 560px) {
+@media (width < 768px) {
   .table-wrap .wide-only {
     display: none;
   }
@@ -1411,8 +1551,8 @@ tbody th.strong {
   top: 100%;
   z-index: 5;
   margin: var(--space-2) 0 0;
-  min-width: 15rem;
-  max-width: calc(100vw - 32px);
+  min-width: 15rem; /* the Columns overlay's narrowest */
+  max-width: calc(100vw - 32px); /* an overlay, held inside the viewport */
   padding: var(--space-4) var(--space-6) var(--space-5);
   display: grid;
   gap: var(--space-1);
@@ -1501,7 +1641,7 @@ tbody th.strong {
  * is never announced.
  */
 .take-said:not(:empty) {
-  max-width: 34ch;
+  max-width: 34ch; /* a one-line status beside the copy buttons, not a text block */
 }
 
 /* --------------------------------------------------------- filter strip */
@@ -1512,6 +1652,18 @@ tbody th.strong {
   flex-wrap: wrap;
   align-items: center;
   margin: 0 0 var(--space-6);
+}
+
+/* The console's Run row under its editor, and the line under that. */
+.filters.run-bar {
+  margin-top: var(--space-5);
+}
+
+.run-notes {
+  margin: var(--space-4) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
 }
 
 .filters input[type='search'],
@@ -1528,9 +1680,9 @@ tbody th.strong {
 }
 
 .filters input[type='search'] {
-  min-width: 200px;
+  min-width: 200px; /* a search field's narrowest: a control, not a block */
   flex: 1 1 220px;
-  max-width: 340px;
+  max-width: 340px; /* a search field: a control's width, not a block's */
 }
 
 .filters .spacer {
@@ -1563,6 +1715,13 @@ tbody th.strong {
 .chip:hover {
   border-color: var(--ink-faint);
   color: var(--ink);
+}
+
+/* The masthead's theme toggle: a chip with a glyph rather than a word, so a
+   squarer box (VD-60: an inline padding of 4px 9px). */
+.chip.theme-toggle {
+  padding: var(--space-2) var(--space-4);
+  line-height: 1.4;
 }
 
 .chip[aria-pressed='true'] {
@@ -1648,6 +1807,8 @@ tbody th.strong {
 
 /* ------------------------------------------------------------ prose bits */
 
+/* A note box has one edge, its left rule, so the box and its lines end
+   together at the measure: a column line from --bp-desktop. */
 .note-box {
   border-left: 3px solid var(--rule-strong);
   padding: var(--space-1) 0 var(--space-1) var(--space-6);
@@ -1669,14 +1830,32 @@ tbody th.strong {
  * ink rather than accent because accent means "you can act on this" here, and
  * nobody can act on this one - it is open for somebody to settle, which is a
  * different thing from broken.
+ *
+ * It is framed, so under the text-width rule the frame spans its column and
+ * only its lines stop at the measure: a box 463 px wide lined up with
+ * nothing on the page (VD-78).
  */
 .disagreement {
   border: 1px solid var(--rule-strong);
   border-left-width: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   padding: var(--space-6) var(--space-7);
   margin: 0 0 var(--space-7);
+}
+
+.disagreement > * {
   max-width: var(--measure);
+}
+
+/* One placed between two sections takes the section gap above it, as every
+   other block does. It had none: on /cars/red-bull-rb19 its frame sat a
+   pixel from Specification's source line (VD-77). A note box after a
+   section does the same: a race's "not yet run" or shared-drive note sits
+   straight under the tile strip since VD-84, and touching it read as one
+   more row of tiles. */
+.page > .disagreement,
+.page > .section + .note-box {
+  margin-top: var(--space-9);
 }
 
 .disagreement h2 {
@@ -1728,11 +1907,13 @@ tbody th.strong {
   margin: var(--space-3) 0 0;
 }
 
+/* A source line belongs to the table or figure above it, and is set at the
+   small measure: four columns from --bp-desktop. */
 .source-note {
   font-size: var(--size-3);
   color: var(--ink-faint);
   margin: var(--space-5) 0 0;
-  max-width: var(--measure);
+  max-width: var(--measure-small);
 }
 
 .source-note a {
@@ -1824,7 +2005,7 @@ tbody th.strong {
 }
 
 .boot-inner {
-  width: min(440px, 100%);
+  width: min(440px, 100%); /* the boot card, an overlay before the page exists */
   text-align: left;
 }
 
@@ -1855,7 +2036,7 @@ tbody th.strong {
 }
 
 .bar.indeterminate > i {
-  width: 35%;
+  width: 35%; /* the indeterminate bar's moving segment */
   animation: slide 1.2s ease-in-out infinite alternate;
 }
 
@@ -1874,6 +2055,20 @@ tbody th.strong {
   font-size: var(--size-3);
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
+}
+
+/* The handover (main.jsx, VD-79). Once the database is open the app renders
+   its first page out of sight, laid over the static page in the same box -
+   so a chart measures the width it will have - and the two change places in
+   one task once the app's page has its h1. Painting the app's empty first
+   frame instead pushed the footer off the screen: a layout shift of 0.57 on
+   every race and driver page. Hidden, not removed: visibility keeps the
+   layout and takes the app out of the tab order and the accessibility tree
+   until it is the page. */
+:root[data-handover] #root {
+  position: absolute;
+  inset: 0 0 auto;
+  visibility: hidden;
 }
 
 /* The boot state as a strip, in front of the prerendered page. Pinned to the
@@ -1895,7 +2090,7 @@ tbody th.strong {
   max-width: var(--page);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto; /* the boot strip: a message and its control, outside main */
   gap: var(--space-3) var(--space-7);
   align-items: center;
   font-size: var(--size-4);
@@ -1938,7 +2133,7 @@ tbody th.strong {
 }
 
 .palette {
-  width: min(600px, 100%);
+  width: min(600px, 100%); /* the search palette, an overlay */
   background: var(--panel-raised);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius);
@@ -1994,7 +2189,7 @@ tbody th.strong {
   letter-spacing: 0.05em;
   color: var(--ink-faint);
   flex: none;
-  width: 78px;
+  width: 78px; /* a result's kind label in the palette */
 }
 
 .palette .meta {
@@ -2082,7 +2277,7 @@ figure.photo figcaption a {
 .photo-grid {
   display: grid;
   gap: var(--space-6);
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 /* The rest of a strip past its six, behind a disclosure (PD-64). Closed by
@@ -2124,7 +2319,7 @@ figure.photo figcaption a {
    shown under their licence. */
 .page-photo {
   margin-top: var(--space-7);
-  max-width: 22rem;
+  max-width: 22rem; /* a picture under the lede on a phone, capped rather than a hero (VD-62) */
 }
 
 .page-photo figure.photo img {
@@ -2132,12 +2327,13 @@ figure.photo figcaption a {
   object-fit: contain;
 }
 
-@media (min-width: 760px) {
+/* Three columns of eight beside the heading, then four of twelve. */
+@media (width >= 768px) {
   .page > header:has(> .page-photo) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(12rem, 20rem);
+    grid-template-columns: minmax(0, 1fr) var(--span-3);
     grid-template-rows: repeat(3, auto) 1fr;
-    column-gap: var(--space-9);
+    column-gap: var(--gutter);
     align-items: start;
   }
 
@@ -2153,68 +2349,110 @@ figure.photo figcaption a {
   }
 }
 
-/* The lead figure (VD-53): the chart that answers why a reader came to a
-   driver's, a team's or a season's page - the championship finishes, wins
-   by season, the title race - in the column the 525 px lede leaves empty.
-   In the document it follows the tile strip, which is where it stays below
-   1024 px; above that the page is two columns for its opening, the heading
-   and the tiles in the first and the figure in the second, so the eye reads
-   the left column then the right in the order the markup and the Tab key
-   take. The row the tiles sit in takes any height the figure has over the
-   heading and the tiles together, as the circuit photograph's last row does
-   above, so neither is pushed apart from the other. Every block after the
-   opening spans both columns. A page without a lead section is untouched,
-   and so is the static page, which draws none of these charts. */
-@media (min-width: 1024px) {
-  .page:has(> .section-lead) {
+@media (width >= 1180px) {
+  .page > header:has(> .page-photo) {
+    grid-template-columns: minmax(0, 1fr) var(--span-4);
+  }
+}
+
+/* The opening slot (version A, VD-84): "the picture of this thing", five
+   columns of twelve beside the header from --bp-desktop - the lead chart on
+   a driver's, a team's or a season's page, a circuit's current layout, a
+   race's outline, a car's photograph. The band is as tall as the taller of
+   the two, and the tile strip runs the full width under both, so nothing
+   below starts ragged. The slot is written after the tiles (a race writes it
+   after its classification, which never shares its width), and only the grid
+   lifts it into the band, so a screen reader and the Tab key keep the order
+   the markup has at every width: heading, tiles, then the picture. A page
+   with no slot is untouched, and its header keeps the width, which is the
+   empty slot's rule. 1180 and not 1024: between the two a lead chart's bars
+   were 3.7 px wide, against 6.0 stacked (interaction I3).
+
+   Below --bp-desktop the slot is a block in the column like a section. A
+   picture is capped at five columns from --bp-tablet so a drawing is not
+   the width of a tablet; a chart keeps the column, where its marks are
+   widest. */
+.slot {
+  margin-top: var(--space-9);
+}
+
+@media (width >= 768px) {
+  div.slot {
+    max-width: var(--span-5);
+  }
+}
+
+/* A drawing in the slot is twice as wide as it is tall, so it costs the band
+   little more height than the header beside it, and a race's classification
+   starts as near the top as the band allows; the path keeps its proportions
+   inside the box, centred. A photograph is contained, not cropped: it is
+   somebody's work shown under their licence, and a portrait one is capped. */
+.slot .outline {
+  aspect-ratio: 2 / 1;
+}
+
+.slot figure.photo img {
+  max-height: 22rem;
+  object-fit: contain;
+}
+
+@media (width >= 1180px) {
+  .page:has(> .slot) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto auto 1fr;
-    column-gap: var(--space-9);
+    grid-template-columns: minmax(0, 1fr) var(--span-5);
+    column-gap: var(--gutter);
     align-items: start;
   }
 
-  .page:has(> .section-lead) > * {
+  .page:has(> .slot) > * {
     grid-column: 1 / -1;
+  }
+
+  /* The band: the header and the slot on one row. The app writes the trail
+     inside the page and the static page outside it, so the row is the first
+     or the second, and the trail, auto-placed, takes the first. */
+  .page:has(> .slot) > header,
+  .page:has(> .slot) > .slot {
+    grid-row: 1;
+  }
+
+  .page:has(> .crumbs):has(> .slot) > header,
+  .page:has(> .crumbs):has(> .slot) > .slot {
+    grid-row: 2;
+  }
+
+  .page:has(> .slot) > header {
+    grid-column: 1;
+  }
+
+  .page > .slot {
+    grid-column: 2;
+    max-width: none;
+    margin-top: 0;
   }
 
   /* A grid item holds its own margins, where a block let a margin under the
      header, a disagreement or a section's last paragraph collapse into the
      40 px above the next section. These keep every gap the one it was. */
-  .page:has(> .section-lead) > :has(+ .section),
-  .page:has(> .section-lead) > .section > :last-child {
+  .page:has(> .slot) > :has(+ .section),
+  .page:has(> .slot) > .section > :last-child {
     margin-bottom: 0;
   }
 
-  .page:has(> .section-lead) > header,
-  .page:has(> .section-lead) > header + .section {
-    grid-column: 1;
-  }
-
-  .page > .section-lead {
-    grid-column: 2;
-    grid-row: 2 / span 2;
-    margin-top: 0;
-  }
-
-  /* The first block after the opening is clear of it. A section brings its
-     own 40 px; a disagreement has none above it, and set straight under the
-     tile strip at nearly its width it read as one more row of tiles. */
-  .page:has(> .section-lead) > .section-lead + * {
+  /* What the markup puts after the slot is placed straight under the block
+     before it, and stands clear of it. A section brings its own 40 px, and
+     so do the sections in a split; a disagreement has none above it, and set
+     straight under the tile strip at nearly its width it read as one more
+     row of tiles. */
+  .page:has(> .slot) > .slot + :not(.section, .split) {
     margin-top: var(--space-9);
   }
 
-  /* Half the width, so a strip of eight or nine wraps - and flex-grow would
-     spread the tile left alone on the last row across all of it, ranking a
-     figure by accident (the rule .stats > div gives above). The blank, in
-     the tile's own ground, grows as one more tile on the last row and takes
-     its share of what that row leaves: a lone tile gets half, not all, and
-     still has room for its note. It has no width of its own, so it never
-     wraps onto a row by itself. */
-  .page:has(> .section-lead) > header + .section .stats::after {
-    content: '';
-    flex: 1 1 0;
-    background: var(--panel);
+  /* A circuit's photograph stays the header's (VD-62) beside a slot that
+     holds its outline (VD-74): three of the header's seven columns, the
+     heading and the lede in the other four. */
+  .page:has(> .slot) > header:has(> .page-photo) {
+    grid-template-columns: minmax(0, 1fr) var(--span-3);
   }
 }
 
@@ -2253,67 +2491,26 @@ figure.photo figcaption a {
 .outline-grid {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
-/* A circuit page's outlines (VD-37): the latest layout large, the rest in
-   the grid beside it; the lead above the grid on a phone. The lead's column
-   is held whether or not a grid follows, so a venue with one layout draws it
-   at the size Silverstone's lead is drawn, not the width of the row. */
-.outline-set {
-  display: grid;
-  gap: var(--space-8);
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  align-items: start;
-}
-
-@media (max-width: 720px) {
-  .outline-set {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* The race page: the figures with the outline beside them; below them on a
-   phone, where it is capped rather than left to fill the width. */
+/* A season's next round: its figures with the outline beside them in two
+   columns of the grid; below them on a phone, where it is capped rather than
+   left to fill the width. */
 .with-outline {
   display: grid;
-  gap: var(--space-7);
-  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: var(--gutter);
+  grid-template-columns: minmax(0, 1fr) var(--span-2);
   align-items: start;
 }
 
-/* PD-57: a race page's result in the column under the figures, the outline
-   beside both, so the classification starts where the tiles end rather than
-   where the outline's caption does - which put it 250 px further down, past
-   the eighth row of a 900 px screen. */
-.with-lead > .outline-card {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-}
-
-.with-lead > .lead {
-  grid-column: 1;
-  grid-row: 2;
-  min-width: 0;
-}
-
-.lead > .section:first-child {
-  margin-top: var(--space-7);
-}
-
-@media (max-width: 720px) {
+@media (width < 768px) {
   .with-outline {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .with-outline .outline-card {
-    max-width: 220px;
-  }
-
-  .with-lead > .outline-card,
-  .with-lead > .lead {
-    grid-column: auto;
-    grid-row: auto;
+    max-width: 220px; /* a drawing capped on a phone rather than filling the column */
   }
 }
 
@@ -2331,7 +2528,7 @@ figure.photo figcaption a {
   padding: 0;
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 .outline-strip li a {
@@ -2412,7 +2609,8 @@ figure.photo figcaption a {
 }
 
 /* The citation, last on every page: quiet, one sentence, the address in mono
-   so it can be selected as one run. */
+   so it can be selected as one run. Its rule spans the page, as a framed
+   note's frame does, and its lines stop at the small measure. */
 .cite {
   margin-top: var(--space-9);
   padding-top: var(--space-6);
@@ -2420,12 +2618,12 @@ figure.photo figcaption a {
   font-size: var(--size-3);
   line-height: 1.6;
   color: var(--ink-faint);
-  max-width: var(--measure);
 }
 
 .cite p {
   margin: 0;
   color: var(--ink-faint);
+  max-width: var(--measure-small);
 }
 
 /* The sources behind the page (CD-08), a second sentence under the first. */
@@ -2541,6 +2739,12 @@ textarea.sql {
   line-height: 1.7;
 }
 
+/* A timing table's "empty by design" line, under its columns. */
+.schema-list .ddl-empty {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-6);
+}
+
 .schema-list .ddl {
   /* The DDL keeps its own alignment: a comment written beside a column stops
      meaning that column once the line wraps. So it scrolls sideways, and the
@@ -2584,6 +2788,12 @@ textarea.sql {
   margin-bottom: var(--space-3);
 }
 
+/* The same finding as the sort buttons (AX-31): the unset took the ring. */
+.example:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .example:hover {
   border-color: var(--ink-faint);
   color: var(--ink);
@@ -2625,53 +2835,49 @@ figure.figure {
   overflow: hidden;
 }
 
-figure.figure > figcaption {
-  padding: var(--space-6) var(--space-7) 0;
-}
-
-figure.figure > figcaption b {
-  display: block;
-  font-size: var(--size-5);
-  font-weight: var(--weight-semibold);
-}
-
-figure.figure > figcaption span {
-  display: block;
-  font-size: var(--size-3);
-  color: var(--ink-faint);
-  margin-top: var(--space-1);
-  max-width: 60ch;
-}
-
-/* A figure that leads its page (VD-67): one line of title, then the plot,
-   then the legend and the method note beneath it. The plot starts within
-   40 px of the box top at any width: 10 px of padding, a 19.5 px title line
-   and the body's 6 px. That holds for a title of one line, so a lead title
-   is short by construction: it fits one line down to 320 px, the reflow
-   width, and the smoke suite measures it there. It is never clipped - a
-   title too long wraps and is all still read, and the suite fails it. */
-figure.figure-lead > figcaption {
-  padding-top: var(--space-5);
-}
-
-figure.figure-lead > figcaption b {
-  line-height: 1.3;
-}
-
-figure.figure-lead > .legend {
+/* One figure grammar (VD-80, DP-04): the heading above names the figure
+   and there is no caption title, so the box opens on the plot; then the
+   legend, then the method note, then the numbers. The plot starts 12 px
+   into the box, well inside the 40 px the smoke suite holds a lead figure
+   to, so a phone's first screen under the heading is data, not prose. */
+figure.figure > .legend {
   padding-top: var(--space-2);
 }
 
+/* The method note is text that belongs to the box (section 3, the
+   text-width rule, kind 2): a band inside the frame, under a hairline as
+   wide as the box, its lines stopping at the small measure. The band is
+   the paragraph and the measure its one span, so the hairline still runs
+   edge to edge. */
 .figure-note {
   margin: 0;
-  padding: 0 var(--space-7) var(--space-6);
+  border-top: 1px solid var(--rule);
+  padding: var(--space-5) var(--space-7) var(--space-6);
   font-size: var(--size-3);
   color: var(--ink-faint);
-  max-width: calc(60ch + 2 * var(--space-7));
+}
+
+.figure-note > span {
+  display: block;
+  max-width: var(--measure-small);
+}
+
+/* The static half draws no plot for most figures, so its note can open the
+   box, with nothing above it to rule off. */
+figure.figure > .figure-note:first-child {
+  border-top: 0;
+  padding-top: var(--space-6);
 }
 
 .figure-body {
-  padding: var(--space-3) var(--space-5) var(--space-5);
+  padding: var(--space-6) var(--space-5) var(--space-5);
+}
+
+/* One of two figures in one section (FigurePart): its h3 names it, a step
+   below the section's h2 and clear of the frame. */
+.figure-part > h3 {
+  margin: var(--space-6) 0 var(--space-4);
+  font-size: var(--size-7);
 }
 
 .figure svg {
@@ -2692,6 +2898,12 @@ figure.figure-lead > .legend {
   font-variant-numeric: tabular-nums;
 }
 
+/* A bar's name, set a step above the axis because it is the reading, not a
+   tick (VD-60: an inline 12.5, off the scale). */
+.figure .axis-text.bar-label {
+  font-size: var(--size-3);
+}
+
 .figure .value-text {
   fill: var(--ink);
   font-size: var(--size-3);
@@ -2705,12 +2917,22 @@ figure.figure-lead > .legend {
 }
 
 /* The ring round a dot the caller flagged - a season finished first, on a
-   driver's page (VD-34). Set below the mark's own weight so it reads as a
-   surround rather than a second mark, and drawn in the series' own colour,
-   which the element carries as a stroke. */
+   driver's page (VD-34). Drawn in the series' own colour, which the element
+   carries as a stroke, and at full strength: that colour is the pair
+   test/conventions.mjs holds to 3:1 on the panel, and the 0.5 opacity this
+   ring had took it to 2.33:1 in light and 2.69:1 in dark (AX-23), under
+   1.4.11's floor for a mark that is the site's flag for a title.
+
+   And 2 px wide, the dot's own edge (DP-33). The design pass measured the
+   ring at 1.83:1 in light and 2.23:1 in dark on Hamilton's chart while the
+   opacity stood; CR-74 took the opacity off and left a 1 px hairline, which
+   on a radius that falls between pixels is drawn as two half-covered
+   pixels, each a blend of the colour and the panel, so the colour's 3:1 is
+   not what reaches the screen. At 2 px a whole pixel of the colour does.
+   Weight, not a duller palette: conventions.mjs refuses an opacity here and
+   a stroke under 2 px. */
 .figure .mark-halo {
-  stroke-width: 1.5;
-  opacity: 0.5;
+  stroke-width: 2;
 }
 
 /* THE MARK FOR A SEASON OR A TEAM WITH NO RECORDED COLOUR (AF-55).
@@ -2738,8 +2960,8 @@ figure.figure-lead > .legend {
 }
 
 /* The ring round a hollow dot - a title won inside the gap. Ink, like the
-   dot it surrounds, and it keeps .mark-halo's lighter weight and opacity so
-   it still reads as a surround rather than a second mark. */
+   dot it surrounds, at .mark-halo's 2 px, and --ink-soft clears 3:1 on the
+   panel in both themes (conventions.mjs measures it). */
 .figure .mark-halo-hollow {
   stroke: var(--ink-soft);
 }
@@ -2856,7 +3078,7 @@ figure.figure-lead > .legend {
 }
 
 .legend i {
-  width: 11px;
+  width: 11px; /* a legend swatch */
   height: 11px;
   border-radius: 3px;
   flex: none;
@@ -2920,8 +3142,14 @@ figure.figure-lead > .legend {
   box-shadow: var(--shadow-sm);
   padding: var(--space-3) var(--space-5);
   font-size: var(--size-3);
-  white-space: nowrap;
-  transform: translate(-50%, calc(-100% - 10px));
+  /* One line where it fits, and wrapped where it would be wider than the
+     plot, rather than running out of it. Placed by charts/Tooltip.jsx, which
+     holds the whole box inside the plot - figure.figure clips what overflows
+     it (CR-74, IX-44) - clear of the pointer; it takes no pointer events, so
+     it cannot take the hover from the mark it describes. */
+  width: max-content;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .tooltip b {
@@ -2937,7 +3165,7 @@ figure.figure-lead > .legend {
 }
 
 .tooltip .row i {
-  width: 8px;
+  width: 8px; /* a tooltip swatch */
   height: 8px;
   border-radius: 2px;
   flex: none;
@@ -2952,7 +3180,7 @@ figure.figure-lead > .legend {
 .board {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 .board a {
@@ -3020,10 +3248,12 @@ figure.figure-lead > .legend {
   font-weight: var(--weight-semibold);
 }
 
+/* The rail is drawn inside the box, 6 px in, rather than as a border on a
+   box pushed 6 px right: that put the block's edge off the column line
+   (VD-78). The rail, the dots and the entries are where they were. */
 .timeline {
-  border-left: 2px solid var(--rule);
-  padding-left: var(--space-7);
-  margin-left: var(--space-3);
+  padding-left: var(--space-8);
+  background: linear-gradient(var(--rule), var(--rule)) no-repeat var(--space-3) 0 / 2px 100%;
 }
 
 .timeline > article {
@@ -3036,7 +3266,7 @@ figure.figure-lead > .legend {
   position: absolute;
   left: -26px;
   top: 7px;
-  width: 9px;
+  width: 9px; /* a timeline's dot */
   height: 9px;
   border-radius: 50%;
   background: var(--ink-faint);
@@ -3066,7 +3296,8 @@ figure.figure-lead > .legend {
 }
 
 /* A circuit's layouts as one list (IX-32): each timeline row beside the
-   drawing it names, at the grid's card width, below the large lead. A row
+   drawing it names, at the grid's card width; the large lead opens the
+   page in its slot (VD-84). A row
    with no drawing holds the drawing's square with the words that say so,
    so the rows still line up. */
 .layout-timeline {
@@ -3115,7 +3346,7 @@ figure.figure-lead > .legend {
 .layout-timeline > article {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-columns: 150px minmax(0, 1fr); /* a drawing beside its entry: the outline's own size */
   align-items: start;
 }
 
@@ -3134,9 +3365,9 @@ figure.figure-lead > .legend {
   text-align: center;
 }
 
-@media (max-width: 480px) {
+@media (width < 768px) {
   .layout-timeline > article {
-    grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-columns: 104px minmax(0, 1fr); /* the same drawing, smaller on a phone */
     gap: var(--space-6);
   }
 }
@@ -3177,7 +3408,7 @@ figure.figure-lead > .legend {
    to be one - needs no exemption of its own. */
 .livery {
   display: inline-block;
-  width: 7px;
+  width: 7px; /* a livery mark */
   height: 1.05em;
   margin-right: var(--space-4);
   vertical-align: -2px;
@@ -3222,7 +3453,7 @@ figure.figure-lead > .legend {
 .figure svg.line-key {
   display: inline-block;
   flex: none;
-  width: 20px;
+  width: 20px; /* a line key */
   height: 8px;
   overflow: visible;
 }
@@ -3237,7 +3468,7 @@ figure.figure-lead > .legend {
    the other way: every gradient here runs one direction (AF-46). */
 .outline-strip .livery {
   display: block;
-  width: 26px;
+  width: 26px; /* a livery mark on an outline tile */
   height: 3px;
   margin: var(--space-3) 0 0;
   background-image: none;
@@ -3245,6 +3476,7 @@ figure.figure-lead > .legend {
 
 .livery-band {
   display: block;
+  margin-top: var(--space-6);
   max-width: var(--measure);
   font-family: var(--mono);
   font-size: var(--size-2);
@@ -3319,7 +3551,7 @@ figure.figure-lead > .legend {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
   gap: var(--space-7);
 }
 
@@ -3434,7 +3666,7 @@ figure.figure-lead > .legend {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
   gap: var(--space-6);
 }
 
@@ -3507,7 +3739,7 @@ figure.figure-lead > .legend {
 .onward > div {
   display: grid;
   gap: var(--space-5);
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 .onward a {
@@ -3615,7 +3847,7 @@ a.button.secondary:hover {
    it across the full measure. */
 #prerendered .photo-grid {
   margin: 0 0 var(--space-6);
-  grid-template-columns: repeat(auto-fill, minmax(230px, 320px));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 320px)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 #prerendered .photo-grid + .source-note {

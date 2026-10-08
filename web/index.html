@@ -59,6 +59,12 @@
          In dev this is empty and the app renders as it always did. -->
     <div id="prerendered"></div>
     <div id="root"></div>
+    <!-- The one status message that outlives both halves (VD-79, DP-28): the
+         static page and the app each come and go, and a live region inside
+         either is gone at the moment there is something to say. It is here
+         from the first paint, so the sentence lib/handover.js writes into it
+         at the handover is a change a screen reader announces. -->
+    <p id="page-status" class="sr-only" role="status"></p>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

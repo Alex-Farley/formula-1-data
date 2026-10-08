@@ -108,7 +108,7 @@ changed; the licence did.
 long a circuit is — are not copyrightable, and a database of those facts is
 yours to license as you wish. But this database also contains *prose taken
 from or closely following* Wikipedia articles: the car design histories, the
-circuit descriptions, some notes and glossary entries. That is expression, not
+circuit descriptions and some notes. That is expression, not
 fact, and it carries CC BY-SA's attribution and **share-alike** requirements
 with it.
 
@@ -119,29 +119,35 @@ In practice that means one of:
    licence separately — see below.
 2. **Rewrite the prose fields in your own words** (`cars.story`,
    `cars.concept`, `cars.outcome`, `circuits.notes`, `circuits.characteristics`,
-   `regulation_changes.detail`, `glossary.definition`, `technical_innovations.*`)
-   — note that the harvested `chassis` specification fields are short factual
-   values copied verbatim from an infobox ("Aluminium monocoque", "5-speed
-   manual"), which is much closer to fact than to expression, but they were
+   `regulation_changes.detail`, `technical_innovations.description`, and the
+   notes elsewhere — `docs/prose_pass.tsv` labels, field by field, which
+   follow an article) — note that the harvested `chassis` specification
+   fields are short factual values copied verbatim from an infobox
+   ("Aluminium monocoque", "5-speed manual"), which is much closer to fact
+   than to expression, but they were
    still taken from a CC BY-SA source
    and then license the remaining factual data however you like. This is real
    work but it is not enormous — it is a few hundred fields.
 3. **Keep the repository private**, in which case none of this applies.
 
-Two of the fields option 2 lists — `glossary.definition` and
-`technical_innovations.*` — have been classified the opposite way since v2.16:
-`source_registry` entry 18, *"Written for this project from general
-knowledge"*, and the build caps every row in those twelve tables at `medium`
-on exactly that basis. The paragraph above predates that classification and
-the two have never been reconciled. `PM-17` (#249), the prose pass, has since
-measured the written fields against Wikipedia: of the 381 fields in those
-twelve tables, one is paraphrased and none is close to source
+Until `PM-49` option 2 also listed `glossary.definition` and
+`technical_innovations.*`, which `source_registry` entry 18 has classified
+the opposite way since v2.16: *"Written for this project from general
+knowledge"*, the twelve tables the build caps at `medium` on exactly that
+basis. `PM-17` (#249), the prose pass, settled the disagreement by measuring
+the written fields against Wikipedia: of the 381 fields in those twelve
+tables, one is paraphrased and none is close to source
 (`docs/COMMERCIAL-READINESS.md`, *Measured: the prose pass*;
 `docs/prose_pass.tsv` line by line). Across the whole database it found one
 field close to source and ten paraphrased out of 1,208, and one of the ten
-has since been reworded as original (`CR-60`, #693). `PM-49` (#573)
-holds the decision the evidence was for. Until it is taken the twelve tables
-stay CC BY-SA, which is the safe side of a disagreement about share-alike.
+has since been reworded as original (`CR-60`, #693). On that evidence the
+maintainer ruled table by table (`PM-49`, #573): a table takes CC BY 4.0
+only if every prose field in it reads original. Ten of the twelve now do,
+under *What this project wrote* below. `technical_innovations` stays CC BY-SA
+because its fan-car description is paraphrased, until that field is
+rewritten (`PM-62`, #692). The glossary stays CC BY-SA too: all 55 of its
+definitions read original, but the ruling expected it to stay, and a grant
+that cannot be withdrawn waits on that being settled (`PM-67`, #835).
 
 The database also quotes six team radio exchanges verbatim. They are short,
 attributed, and used to document historical events, which is the ordinary
@@ -240,42 +246,63 @@ obligation on anything at all.
 
 ## What this project wrote — CC BY 4.0
 
-Five columns are this project's own writing, offered under
+These columns are this project's own writing, offered under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) rather than under
-the share-alike above:
+the share-alike above. First, its account of its own sources and state:
 
 | Column | What it holds | Chars |
 |---|---|---:|
-| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->29,853<!-- /fig --> |
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->32,098<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,747<!-- /fig --> |
 | `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->14,457<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,531<!-- /fig --> |
 | `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,016<!-- /fig --> |
 
-Every figure in that table is a span this build rewrites from the database
-itself:
-<!-- fig:prose_kb -->55 KB<!-- /fig --> between them.
+Second, the prose of ten of the twelve reference tables `source_registry`
+entry 18 records as written for this project (`PM-49`, #573):
+
+| Columns | What they hold |
+|---|---|
+| `eras.summary`, `eras.defining_features` | each era of the championship, summarised, and what defined it |
+| `engine_eras.notes` | notes on each engine era |
+| `governance.detail`, `governance.significance` | what each turn in the sport's governance was, and what it changed |
+| `safety_milestones.trigger_event`, `safety_milestones.description` | what prompted each safety measure, and what it was |
+| `points_systems.notes` | notes on each points system |
+| `tyre_suppliers.notes` | notes on each tyre supplier |
+| `constructor_lineage.note` | a note on each team in a lineage chain |
+| `grands_prix.notes` | notes on each grand prix |
+| `personnel.significance` | why each person in the register matters |
+| `engine_manufacturers.notes` | notes on each engine manufacturer |
+
+Every figure here is a span this build rewrites from the database itself:
+<!-- fig:prose_kb -->78 KB<!-- /fig --> between all of them, of which
+<!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and
-none of Wikipedia's text is in these columns: a disagreement between two
+none of Wikipedia's text is in these columns. A disagreement between two
 sources is found here, by the build, and written up here; a gap is this
-project's account of what it does not hold. There is no upstream to owe
-anything to, and the whole-file licence covered them by the convenience
-LICENSE-DATA records — *"rather than draw a line field-by-field"* — rather
-than by any obligation.
+project's account of what it does not hold. The ten tables were written here
+from general knowledge, and the prose pass measured every field in them
+against the Wikipedia articles a writer would have reached for and found
+none of their expression. There is no upstream to owe anything to, and the
+whole-file licence covered them by the convenience LICENSE-DATA records —
+*"rather than draw a line field-by-field"* — rather than by any obligation.
 
 So: attribute Lap Ledger, and build what you like on them. The remaining
-columns of those two tables — the subject and field of a disagreement, the
-stored and derived values, a gap's state and the number of races it affects
-— hold facts and identifiers rather than expression.
+columns of the tables they sit in — the subject and field of a disagreement,
+the stored and derived values, a gap's state and the number of races it
+affects, an era's name and dates, a points scale, a grand prix's aliases —
+hold facts, identifiers and headings rather than expression.
 
 The grant is in the database as well as here, as `meta.project_prose` and
 `meta.project_prose_columns`, so a copy of `f1.db` carries its own terms;
 `verify.py` fails a build where the database, `data/current.py`,
-`LICENSE-DATA` and this file do not name the same columns. A CC BY grant
-cannot be withdrawn from a copy already taken, which is why the list is
-exactly this long and why the twelve `authored` tables are not on it yet
-(`PM-49`, #573).
+`LICENSE-DATA` and this file do not name the same columns, and fails one
+where a granted field of the ten tables is not the text the prose pass read
+as original. A CC BY grant cannot be withdrawn from a copy already taken,
+which is why the list is exactly this long, why a rewritten field of the ten
+tables waits for the pass to read it again, and why the glossary and
+`technical_innovations` are not on it.
 
 ## Suggested arrangement
 
@@ -287,7 +314,7 @@ Two licences, which is normal for a data project:
   writes them, so it is offered on the same terms (`PM-64`).
 - **Data** — `data/`, `harvest/`, `f1.db`, `f1.db.gz`, `f1-parquet.zip`,
   `f1_database.json` — under CC BY-SA 4.0, with attribution to Wikipedia
-  contributors, except the five columns under *What this project wrote*,
+  contributors, except the columns under *What this project wrote*,
   which are CC BY 4.0. `views.sql` is also offered under MIT, as above.
 
 Add a `LICENSE` for the code and a `LICENSE-DATA` for the data, and say which

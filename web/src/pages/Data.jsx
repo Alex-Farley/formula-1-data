@@ -147,7 +147,7 @@ function Body({ data }) {
             </p>
           </a>
         </div>
-        <p className="measure" style={{ marginTop: 18 }}>
+        <p className="measure">
           {TWO_FILES}
         </p>
         <p className="measure">{SELF_DESCRIBING}</p>
@@ -207,7 +207,7 @@ function Body({ data }) {
             </a>
           ))}
         </div>
-        <p className="measure" style={{ marginTop: 18 }}>
+        <p className="measure">
           {DOCUMENTS_NOTE} <a href={REPOSITORY}>The repository</a> holds the build, the checks that
           gate it and the source data they read, so the cross-checking claimed above can be read
           rather than taken on trust.
@@ -259,8 +259,9 @@ function Body({ data }) {
         <p className="measure">
           Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0
           and carry share-alike; the centrelines are ODbL and the obligation follows{' '}
-          <code>f1-geometry.db</code> alone. What this project wrote itself — its reading of every
-          disagreement and its account of every gap — is CC BY 4.0 and carries no share-alike;{' '}
+          <code>f1-geometry.db</code> alone. Most of what this project wrote itself — its reading of
+          every disagreement, its account of every gap and the prose of ten of its twelve reference
+          tables — is CC BY 4.0 and carries no share-alike;{' '}
           <code>meta.project_prose_columns</code> names those columns inside the database.{' '}
           <Link to="/data/sources">Every source</Link>, what it is trusted for, and what each
           licence cost or bought.

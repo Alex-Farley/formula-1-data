@@ -179,7 +179,7 @@ CARS = [
      "disc", None, 2565, None, None, None,
      "A deformable-structure chassis built to the new 1973 safety rules, developed for six years without ever being replaced",
      None,
-     "The M23 won titles three years apart with two different drivers and was still scoring points in its sixth season. Hunt's 1976 championship in it - won by a point after Lauda's Nurburgring crash and withdrawal at a flooded Fuji - is the season most people who do not follow the sport have still heard of.",
+     "The M23 won titles three years apart with two different drivers and was still scoring points in its sixth season. Hunt's 1976 championship in it - won by a point after Lauda's Nürburgring crash and withdrawal at a flooded Fuji - is the season most people who do not follow the sport have still heard of.",
      "83 races, 16 wins, 14 poles. Fittipaldi's 1974 title and McLaren's first constructors' championship, then Hunt's 1976 title.",
      2, 1, 1, "high", "high", WIKI + "McLaren_M23"),
 
@@ -192,7 +192,7 @@ CARS = [
      "disc", None, None, None, None, None,
      "Turn the gearbox sideways and put it ahead of the rear axle line: the mass moves forward and the car turns better",
      "The transverse gearbox - the T in the name is trasversale - which concentrated mass within the wheelbase",
-     "The 312T line ran for six seasons and five designations and is the most successful thing Ferrari built before the Schumacher era. The 312T2 is the car Lauda crashed at the Nurburgring in 1976 and the car he was back in six weeks later. By the 312T5 in 1980 the flat-12 was too wide for ground effect and the car was hopeless - Ferrari finished tenth in the championship, and went turbo.",
+     "The 312T line ran for six seasons and five designations and is the most successful thing Ferrari built before the Schumacher era. The 312T2 is the car Lauda crashed at the Nürburgring in 1976 and the car he was back in six weeks later. By the 312T5 in 1980 the flat-12 was too wide for ground effect and the car was hopeless - Ferrari finished tenth in the championship, and went turbo.",
      "89 races, 27 wins, 19 poles. Drivers' titles for Lauda (1975, 1977) and Scheckter (1979); constructors' in 1975, 1976, 1977 and 1979.",
      3, 4, 1, "high", "high", WIKI + "Ferrari_312T"),
 
@@ -626,11 +626,12 @@ WITHDRAWN = [
 # ---------------------------------------------------------------------
 # Where a car and its one chassis give a figure differently.
 #
-# Four cars here are the whole of one chassis registered under another id -
-# `mercedes-w11` is the chassis `mercedes-f1-w11` and nothing else - so the
-# two rows describe one object. The car's page shows each field from the
-# chassis where it holds a value and from this file only where it does not
-# (IA-28, the maintainer's ruling of 2026-09-24). A figure the two rows give
+# A car here that is the whole of one chassis - registered under another id
+# (`mercedes-w11` is the chassis `mercedes-f1-w11` and nothing else) or under
+# its own (`mclaren-mp4-4`) - is one object described by two rows. The car's page shows each figure from the chassis
+# where it holds a value and from this file only where it does not (IA-28,
+# the maintainer's ruling of 2026-09-24, extended to every car of one chassis
+# on IA-29, 2026-09-30). A figure the two rows give
 # differently is not silently picked: it is declared here, with what is known
 # of each reading, and build.py files it in `discrepancies` as open, which
 # puts both readings on the car's page. The build refuses a disagreement that
@@ -646,6 +647,47 @@ CHASSIS_DISAGREEMENTS = [
      "from the car's Wikipedia article. Neither has been checked against a "
      "Mercedes or FIA figure. The page shows the register's, as it does every "
      "figure the register holds for this car."),
+    ("ferrari-500", "capacity_cc",
+     "One measurement, rounded two ways. The car's Wikipedia article gives the "
+     "displacement as 1,984.86 cc in its infobox and as 1985 cm3 in its "
+     "technical table. This car's row rounds it to 1,985; the chassis register, "
+     "read from the same infobox, keeps the whole cubic centimetres, 1,984. The "
+     "page shows the register's, as it does every figure the register holds for "
+     "this car."),
+    ("lotus-78", "track_rear_mm",
+     "This car's row gives a rear track of 1,600 mm, which is what the car's "
+     "Wikipedia article gives (front 1,702 mm, rear 1,600 mm, read 2026-10-06). "
+     "The chassis register gives 1,702 for both ends: its harvest copies the "
+     "front track into the rear, as it does for every chassis with both (PM-68, "
+     "#838). The page shows the register's, as it does every figure the "
+     "register holds for this car, until the harvest reads the rear end."),
+    ("red-bull-rb19", "power_bhp",
+     "This car's row gives 1,000 bhp, a round figure marked medium confidence: "
+     "widely reported, not checked against a primary source. The chassis "
+     "register gives 1,040 hp (775 kW), read from the car's Wikipedia article. "
+     "Neither has been checked against a Red Bull, Honda or FIA figure. The "
+     "page shows the register's, as it does every figure the register holds "
+     "for this car."),
+    ("renault-r25", "power_bhp",
+     "Both rows read one published range, 800-900 hp at 19,000 rpm, from the "
+     "car's Wikipedia article. This car's row gives its middle, 850 bhp, with "
+     "the range as its note; the chassis register gives its top, 900, with the "
+     "same range as its note. Neither is a single measured figure. The page "
+     "shows the register's, as it does every figure the register holds for "
+     "this car, and the range beside it."),
+    ("renault-rs01", "capacity_cc",
+     "This car's row gives 1,492 cc, which is what the EF1 engine's bore and "
+     "stroke make (86 by 42.8 mm, six cylinders) and what the Renault EF-Type "
+     "engine's Wikipedia article states. The chassis register gives 1,496, the "
+     "figure in the RS01's own article (read 2026-10-06), which gives no "
+     "working for it. The page shows the register's, as it does every figure "
+     "the register holds for this car."),
+    ("renault-rs01", "weight_kg",
+     "One published range, read at each end. The car's Wikipedia article "
+     "gives the weight as 605-699 kg (read 2026-10-06), without saying which "
+     "applies when. This car's row gives the bottom, 605; the chassis register "
+     "the top, 699. The page shows the register's, as it does every figure the "
+     "register holds for this car."),
 ]
 
 

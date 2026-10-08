@@ -29,7 +29,7 @@ export const SHAPE = `SELECT
  */
 export const fileStrip = (meta, shape) => [
   { label: 'Database', value: meta.version ? `v${meta.version}` : null, note: 'meta.version' },
-  { label: 'Built', value: meta.built ?? null, note: 'meta.built' },
+  { label: 'Built', value: meta.built ?? null, note: 'meta.built', date: true },
   { label: 'Covers', value: meta.coverage_seasons ?? null },
   { label: 'Tables', value: number(shape.tables), note: `and ${number(shape.views)} views` },
   { label: 'Races', value: number(shape.races), note: `${number(shape.entries)} race entries` },

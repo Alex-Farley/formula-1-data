@@ -21,6 +21,8 @@
  *          strip is filtered on one field whichever form a tile takes
  *   quiet  the value is words standing where a figure would be ("not yet
  *          run", "not contested"), set smaller and muted
+ *   date   the value is an ISO day, drawn as a date in the reader's format
+ *          (components/Dates.jsx, CD-57) and never as the string
  */
 
 /** What sits between two linked names in one tile, as on every race list. */
