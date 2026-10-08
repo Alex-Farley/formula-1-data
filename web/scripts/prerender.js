@@ -374,8 +374,6 @@ import {
   winsNote,
   entryColumns,
   entryResult,
-  FIGURES_HEADING,
-  leadsWithPhotograph,
   specificationFields,
   wholeOfOneChassis,
 } from '../src/queries/car.js'
@@ -415,6 +413,7 @@ import {
   layoutTimeline,
   layoutsCount,
   leadOutline,
+  otherLayouts,
   outlineCaption,
   outlineLabel,
   roundShortName,
@@ -646,9 +645,6 @@ const yearRun = (from, to, open = '?') =>
 // figures used to be undated until the app took over, so the page Google
 // served carried numbers with no currency statement at all.
 const META = Object.fromEntries(all('SELECT key, value FROM meta').map((r) => [r.key, r.value]))
-// meta.current_season as the integer the pages compare a year with (PD-49);
-// lib/season.js's CAST, here, where the pages' own queries do not ask for it.
-const SEASON_NOW_YEAR = Number.parseInt(META.current_season, 10) || null
 
 /*
  * The digest of the file this page was built from, from the manifest the app
@@ -1207,9 +1203,10 @@ const confidencePill = (value) =>
 // timeline row beside the drawing it names, from the same layoutTimeline, so
 // the static page carries the register's history (AF-08) in the app's shape
 // rather than the two lists the app used to draw. PD-60: a strip of the rows
-// first, and the cards behind a disclosure, closed, as the app has them.
+// first, and the cards behind a disclosure, closed, as the app has them -
+// beside the lead drawing since VD-83, in a block of their own.
 const layoutRows = (circuit, entries) =>
-  `<ol class="layout-strip">${entries
+  `<div><ol class="layout-strip">${entries
     .map((entry) => `<li><span class="years">${esc(timelineYears(entry))}</span> ${esc(timelineStripName(entry))}</li>`)
     .join('')}</ol><details class="layout-cards"><summary>${esc(LAYOUT_CARDS)}</summary><div class="timeline layout-timeline">${entries
     .map(
@@ -1224,7 +1221,7 @@ const layoutRows = (circuit, entries) =>
           entry.layout?.change_reason ? `<p>${esc(entry.layout.change_reason)}</p>` : ''
         }</div></article>`,
     )
-    .join('')}</div></details>`
+    .join('')}</div></details></div>`
 // The winner's colour bar under a run round, as components/Outline.jsx draws
 // it: the same properties on the same element, so the static strip and the
 // app's agree (AF-04). One value, both themes, since AF-16 stopped moving a
@@ -2351,7 +2348,6 @@ const page = ({
               }, { unfolded: UNFOLDED.subject })}${note(GRID_FOOTER)}`
             : ''
         }
-        ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
         <h2>Who entered</h2>
         ${
           // On every season, as Season.jsx draws it: a season nobody has
@@ -2364,6 +2360,7 @@ const page = ({
               }, { fold: FOLD_NOUN.entrants })}${note(ENTRANTS_FOOTER)}`
             : EMPTY_STATE
         }
+        ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
@@ -2506,7 +2503,8 @@ const page = ({
     // the lede, and nowhere else on the page.
     const standfirst = raceLede(r, raceWinners, stage)
     // PD-57: the timetable leads a round not yet run and follows the
-    // photographs once a result is held, as Race.jsx places it.
+    // strategy once a result is held, before the photographs (VD-83), as
+    // Race.jsx places it.
     const timetable = sessions.length
       ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
       : ''
@@ -2665,8 +2663,8 @@ const page = ({
                 .join('')}</details>`
             : ''
         }
-        ${raceStrips(r)}
         ${scheduled ? '' : timetable}
+        ${raceStrips(r)}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
@@ -3011,7 +3009,6 @@ page({
               }, { fold: FOLD_NOUN.seasons })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
             : EMPTY_STATE
         }
-        ${photographSection(all(CONSTRUCTOR_IMAGES, c.id), { subjects: true })}
         ${
           wins.length
             ? `<h2>Every win</h2>${fromColumns(WIN_COLUMNS, wins, {
@@ -3030,6 +3027,7 @@ page({
               }, { fold: FOLD_NOUN.designs })}`
             : ''
         }
+        ${photographSection(all(CONSTRUCTOR_IMAGES, c.id), { subjects: true })}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
@@ -3163,27 +3161,6 @@ page({
         ${tiles(circuitStrip(cv))}
         ${prose(c.characteristics)}
         ${
-          // PD-60, as Circuit.jsx: with a timeline, the lead alone here,
-          // carrying the rule, and the history after the winners.
-          layoutsHere.length
-            ? outlineSplit.lead
-              ? `<div class="outline-set">${outlineCard(
-                  outlineSplit.lead.path,
-                  c.name,
-                  outlineSplit.lead.f1db_layout_id,
-                  outlineCaption(outlineSplit.lead),
-                  true,
-                )}</div>`
-              : ''
-            : outlinesHere.length
-              ? `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
-                  circuitOutlinesNote(outlinesHere.length),
-                )}<div class="outline-set">${card(outlineSplit.lead)}${
-                  outlineSplit.rest.length ? `<div class="outline-grid">${outlineSplit.rest.map(card).join('')}</div>` : ''
-                }</div>`
-              : ''
-        }
-        ${
           winnersHere.length
             ? `<h2>Most wins here</h2>${fromColumns(WINNER_COLUMNS, winnersHere, {
                 driver: (name, row) => link(`drivers/${row.driver_id}`, name),
@@ -3198,10 +3175,22 @@ page({
             : ''
         }
         ${
-          layoutsHere.length
-            ? `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
-                circuitOutlinesNote(outlinesHere.length, true),
-              )}${layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere))}`
+          // VD-83 (SD-41), as Circuit.jsx: after the winners on all 80, the
+          // lead drawn large and beside it the timeline's rows or the other
+          // drawings, behind one disclosure.
+          layoutsHere.length || outlinesHere.length
+            ? (() => {
+                const history = layoutsHere.length
+                  ? layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere))
+                  : outlineSplit.rest.length
+                    ? `<details class="layout-cards"><summary>${esc(otherLayouts(outlineSplit.rest.length))}</summary><div class="outline-grid">${outlineSplit.rest
+                        .map(card)
+                        .join('')}</div></details>`
+                    : ''
+                return `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
+                  circuitOutlinesNote(outlinesHere.length, layoutsHere.length > 0),
+                )}${outlineSplit.lead ? `<div class="outline-set">${card(outlineSplit.lead)}${history}</div>` : history}`
+              })()
             : ''
         }
         ${heading(CIRCUIT_RACES_HEADING, circuitRacesCount(racesHere))}
@@ -3442,10 +3431,9 @@ page({
     // The app's name for the page, from the same function (IA-06).
     const name = carPageName(variants, c)
     const carEntries = all(CAR_ENTRIES, c.id)
-    // Second on the page, where Car.jsx puts it: after the figures that say
-    // what the car is and before the prose that says why it mattered.
+    // After the page's own sections and before where they come from, where
+    // Car.jsx and every other page type put it (VD-83).
     const photos = photographs(at)
-    const photoFirst = leadsWithPhotograph(variants, SEASON_NOW_YEAR)
     // Where the car is one chassis, its figures are the ones Car.jsx prints,
     // resolved by the same precedence (IA-28, IA-29): the chassis's where it
     // has one, the curated row's where it does not. Every other curated page
@@ -3485,14 +3473,13 @@ page({
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
         ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced), title: NAMES.car(name).headline, lede: c.story })}
-        ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${tiles(carStrip(variants, row, carEntries))}
         ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
-        ${photoFirst ? '' : photos.html}
         ${prose(c.concept)}
         ${prose(c.innovations)}
         ${prose(c.outcome)}
         ${carTables(c.id, variants, carEntries)}
+        ${photos.html}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
@@ -3543,8 +3530,6 @@ page({
     const carEntries = all(CAR_ENTRIES, ch.id)
     const constructor = ch.constructor ?? ch.constructor_id
     const photos = photographs(ch.id)
-    // This year's chassis opens on its photograph, as Car.jsx's does (PD-49).
-    const photoFirst = leadsWithPhotograph(variants.length ? variants : [ch], SEASON_NOW_YEAR)
     // A chassis that is the whole of a curated car is a copy of the car's
     // page, and says so (IA-06); queries/car.js holds the rule for both halves.
     const address = carAddress(ch.id, carRow)
@@ -3573,15 +3558,14 @@ page({
           // own id (CAR in queries/car.js).
           lede: (ch.car_id && byId.get(ch.car_id)?.story) || null,
         })}
-        ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${tiles(carStrip(variants, carRow, carEntries))}
-        ${photoFirst ? '' : photos.html}
         ${
           ch.car_id && curated.has(ch.car_id)
             ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
             : ''
         }
         ${carTables(ch.id, variants, carEntries)}
+        ${photos.html}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not

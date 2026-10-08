@@ -1386,8 +1386,9 @@ describe('the circuit outlines (AF-03)', () => {
     // Whose lengths are whose, only where the register's sit beside F1DB's.
     assert.ok(!circuitOutlinesNote(8).includes(OUTLINE_FIGURES_NOTE))
     assert.ok(circuitOutlinesNote(8, true).endsWith(OUTLINE_FIGURES_NOTE))
-    // PD-60: over the timeline, below the winners, no large drawing is in view.
-    assert.ok(!circuitOutlinesNote(8, true).includes(OUTLINE_LEAD_NOTE))
+    // VD-83: the large lead sits in the timeline's section too, so it is named there.
+    assert.ok(circuitOutlinesNote(8, true).includes(OUTLINE_LEAD_NOTE))
+    assert.ok(!circuitOutlinesNote(1, true).includes(OUTLINE_LEAD_NOTE))
   })
   it("folds a circuit's timeline and its outlines into one list, and hides neither side's gaps (IX-32)", () => {
     const layout = (id, from, drawn) => ({ id, from_year: from, f1db_layout_id: drawn })

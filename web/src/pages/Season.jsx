@@ -429,7 +429,8 @@ function SeasonBody({ year, season, data }) {
    * A season with a round still to run reads the next round and its
    * calendar before standings that are not final yet; a concluded one
    * reads who won first and the calendar after. Then the grid, the
-   * photographs and the entrants. scripts/prerender.js keeps this order.
+   * entrants and the photographs (VD-83). scripts/prerender.js keeps this
+   * order.
    */
   const calendarSection = (
     <Section title="The calendar" count={`${calendar.length} rounds`}>
@@ -594,14 +595,6 @@ function SeasonBody({ year, season, data }) {
         </Section>
       )}
 
-      {/* The cars of the year, what they won first (VD-33), below the
-          title race and the tables it came to (PD-58): the strip used to
-          stand between the tiles and the chart, and pushed the chart off
-          the first screen. A season that has not run yet has no entries
-          and so no strip, which is right: the photographs are of cars that
-          raced. */}
-      <Photographs images={rows(data, 'images')} subjects />
-
       <Section title="Who entered" count={`${entrants.length} entrants`}>
         {/* No opening sort: the query's ORDER BY is the order the table opens
             in, and the static page prints the rows as they come. The header
@@ -616,6 +609,14 @@ function SeasonBody({ year, season, data }) {
           footer={ENTRANTS_FOOTER}
         />
       </Section>
+
+      {/* The cars of the year, what they won first (VD-33), after the page's
+          own sections and before where they come from, as on every page
+          type (VD-83): the strip used to stand between the tiles and the
+          chart (PD-58), and then between the calendar and the entrants. A
+          season that has not run yet has no entries and so no strip, which
+          is right: the photographs are of cars that raced. */}
+      <Photographs images={rows(data, 'images')} subjects />
 
       <Section title={LABELS.provenance}>
         <Fields

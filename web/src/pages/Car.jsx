@@ -8,15 +8,12 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
-import { CURRENT_SEASON } from '../lib/season.js'
-import { canShow } from '../lib/commons.js'
 import Disagreement from '../components/Disagreement.jsx'
 import {
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER,
   CAR,
   CAR_DISAGREEMENTS,
-  FIGURES_HEADING,
   ENTRIES,
   IMAGES,
   NO_ENTRIES,
@@ -32,7 +29,6 @@ import {
   carStrip,
   entryColumns,
   entryResult,
-  leadsWithPhotograph as photographLeads,
   publishedWins,
   specificationFields,
   specified,
@@ -85,7 +81,6 @@ export default function Car() {
     entries: [ENTRIES, [id]],
     seasons: [SEASONS, [id, id]],
     disagreements: [CAR_DISAGREEMENTS, [id]],
-    current: [CURRENT_SEASON],
   })
 
   return (
@@ -143,8 +138,6 @@ function CarBody({ id, chassis, variants, data }) {
   const facts = carFacts(chassis, car)
   const { chassis: specChassis, engine: specEngine } = specificationFields(facts)
   const hasSpecification = specified([...specChassis, ...specEngine])
-  // This year's chassis opens on its photograph (PD-49); queries/car.js says why.
-  const leadsWithPhotograph = photographLeads(variants, data.current.rows[0]?.season)
 
   return (
     <Page
@@ -154,20 +147,14 @@ function CarBody({ id, chassis, variants, data }) {
       canonical={carAddress(id, car)}
       lede={car?.story}
     >
-      {leadsWithPhotograph && <Photographs images={images} />}
-
-      {/* A heading only when the photograph is above it and something is
-          drawn there; otherwise the strip sits under the h1 as before. */}
-      <Section title={leadsWithPhotograph && images.some(canShow) ? FIGURES_HEADING : undefined}>
+      {/* The tiles directly under the h1, on every car (VD-83): this year's
+          chassis used to open on its photographs (PD-49), with the figures
+          below a strip of pictures. The photograph that identifies the car
+          is the opening slot's to carry (VD-84), not a section's. */}
+      <Section>
         {/* queries/car.js's strip, which the static page draws too (VD-49). */}
         <Stats items={carStrip(variants, car, entries)} />
       </Section>
-
-      {/* The section itself is components/Photographs.jsx, which the
-          constructor, season and race pages draw too (VD-33). No `subjects`:
-          this page is the car, and captioning six photographs with its own
-          title says nothing the heading has not. */}
-      {!leadsWithPhotograph && <Photographs images={images} />}
 
       {car && (
         <Section title="Why it mattered">
@@ -273,6 +260,14 @@ function CarBody({ id, chassis, variants, data }) {
           columns={withRenders(entryColumns(several), ENTRY_APP)}
         />
       </Section>
+
+      {/* The section itself is components/Photographs.jsx, which the
+          constructor, season and race pages draw too (VD-33), and in the one
+          place every page type puts it: after the page's own sections and
+          before where they come from (VD-83). No `subjects`: this page is
+          the car, and captioning six photographs with its own title says
+          nothing the heading has not. */}
+      <Photographs images={images} />
 
       <Section title={LABELS.provenance}>
         <Fields
