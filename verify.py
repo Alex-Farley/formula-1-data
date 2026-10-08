@@ -4242,6 +4242,47 @@ def provenance_resolves():
     check("no sourced row in f1.db cites OpenStreetMap", bool(osm) and not cite,
           "; ".join(cite) if osm else "the registry names no OpenStreetMap entry")
 
+    # CR-36. formula1.com publishes one results page and one racing page per
+    # season, and source_patterns prefix-matches the host, so a row citing
+    # another season's page resolves, carries the right source_id and passed
+    # every check above: 31 rows of the 2025 classification cited the 2026
+    # page until CR-34. The build now writes the year in from the row, which
+    # is right by construction; this holds it. Only the season-scoped paths
+    # are read - an announcement article, such as the 2027 calendar's, has
+    # no season in its URL. The tables are found, not named: any that cites
+    # such a page and has no year to hold it to fails rather than escapes.
+    season_page = re.compile(
+        r"^https://www\.formula1\.com/en/(?:results|racing)/([^/?#]+)")
+    off_season, yearless, held = [], [], 0
+    for t, _ in sourced:
+        cols = [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+        if "year" in cols:
+            rows = con.execute(f"""SELECT year, source, COUNT(*) n FROM "{t}"
+                WHERE source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        elif "race_id" in cols:
+            rows = con.execute(f"""SELECT r.year, x.source, COUNT(*) n
+                FROM "{t}" x LEFT JOIN races r ON r.id = x.race_id
+                WHERE x.source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        else:
+            rows = con.execute(f"""SELECT NULL, source, COUNT(*) n FROM "{t}"
+                WHERE source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        for year, src, n in rows:
+            m = season_page.match(src)
+            if not m:
+                continue
+            if year is None:
+                yearless.append(f"{t}: {n} row(s) cite {src}")
+                continue
+            held += n
+            if m.group(1) != str(year):
+                off_season.append(f"{t} {year}: {n} row(s) cite {src}")
+    wrong_season = off_season + yearless
+    check("every formula1.com season page is cited by its own season's rows",
+          held > 0 and not wrong_season,
+          "; ".join(wrong_season[:3]) if wrong_season
+          else "" if held else "no row cites a formula1.com season page")
+    print(f"        formula1.com season pages: {held:,} rows held to their year")
+
 
 @section('TIER DEFINITIONS NAME THEIR SOURCES')
 def tier_sources():
