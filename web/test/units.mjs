@@ -65,9 +65,11 @@ import {
   classificationOrder,
   dateSegments,
   houseDate,
+  houseTime,
   isDay,
   localDate,
   localRaceDates,
+  localTime,
   longDate,
   missing,
   number,
@@ -78,6 +80,7 @@ import {
   span,
   text,
   yearList,
+  zonedIso,
 } from '../src/lib/format.js'
 import { distance, elsewhere, fold, prepare, rank } from '../src/lib/search.js'
 import { EXAMPLES, QUESTIONS, TOPICS, questionPath } from '../src/lib/questions.js'
@@ -85,7 +88,7 @@ import { complaint, emptyTimingTableRead, nearestStatement } from '../src/lib/sq
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { KEY_SHAPE, holderPath, recordPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
-import { clock, eventDay, nextSession, raceStage, until, utc } from '../src/queries/sessions.js'
+import { SESSION_COLUMNS, clock, eventDay, nextSession, raceStage, until, utc, yourTimeColumn } from '../src/queries/sessions.js'
 import {
   SEASON_COLUMNS,
   careerSentence,
@@ -539,6 +542,43 @@ describe('the weekend timetable', () => {
     assert.equal(until('2026-11-19T12:00:20Z', before), 'in under a minute')
     assert.equal(until('2026-11-19T13:29:45Z', before), 'in 90 minutes')
     assert.equal(until('2026-11-19T13:31:00Z', before), 'in 2 hours')
+  })
+
+  // CD-59: the timetable is held to the Dates rule. The house form is the
+  // module's own words, so ICU's en-GB "Sept" never reaches it.
+  it("writes a start in the reader's own form, and keeps the house form for en-GB", () => {
+    const fp1 = '2026-12-04T09:30Z'
+    assert.equal(houseTime(fp1, 'Asia/Dubai'), 'Fri 4 Dec 13:30')
+    assert.equal(houseTime('2026-09-06T13:00Z', 'Europe/Rome'), 'Sun 6 Sep 15:00')
+    assert.equal(localTime(fp1, 'Asia/Dubai', 'en-GB'), 'Fri 4 Dec 13:30')
+    // ICU puts a narrow no-break space before PM; the words are what is held.
+    assert.equal(localTime(fp1, 'Asia/Dubai', 'en-US').replace(/[\u202f\u00a0]/g, ' '), 'Fri, Dec 4, 1:30 PM')
+    assert.equal(localTime(fp1, 'Asia/Dubai', 'de-DE'), 'Fr., 4. Dez., 13:30')
+    assert.equal(localTime(fp1, 'UTC', 'not a locale!'), 'Fri 4 Dec 09:30')
+    // Nothing to write is null, never the epoch or the runtime's own zone.
+    assert.equal(houseTime(null, 'UTC'), null)
+    assert.equal(houseTime('not a time', 'UTC'), null)
+    assert.equal(houseTime(fp1, 'Mars/Olympus_Mons'), null)
+    assert.equal(houseTime(fp1, undefined), null)
+  })
+
+  it('declares every time column for both renderers, and hands a file the wall clock on its zone', () => {
+    const row = { kind: 'fp1', name: 'Practice 1', start_utc: '2026-11-20T00:30Z', zone: 'America/Los_Angeles' }
+    const columns = [...SESSION_COLUMNS, yourTimeColumn('Asia/Kolkata')]
+    assert.deepEqual(
+      columns.filter((c) => c.date === 'time').map((c) => c.at(row)),
+      [
+        { iso: '2026-11-20T00:30Z', zone: 'America/Los_Angeles' },
+        { iso: '2026-11-20T00:30Z', zone: 'UTC' },
+        { iso: '2026-11-20T00:30Z', zone: 'Asia/Kolkata' },
+      ],
+    )
+    assert.deepEqual(
+      columns.slice(1).map((c) => fieldText(c, row)),
+      ['2026-11-19T16:30-08:00', '2026-11-20T00:30Z', '2026-11-20T06:00+05:30'],
+    )
+    assert.equal(fieldText(SESSION_COLUMNS[1], { ...row, start_utc: null }), EMPTY)
+    assert.equal(zonedIso('2026-03-08T04:00Z', 'Australia/Melbourne'), '2026-03-08T15:00+11:00')
   })
 
   // AF-01. schema.org reads a bare date in the event's own frame, so the day

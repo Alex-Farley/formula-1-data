@@ -56,6 +56,7 @@ import {
   dateSegments,
   finished,
   houseDate,
+  houseTime,
   missing,
   number,
   raceDates,
@@ -731,9 +732,20 @@ const dated = (sentence, length = 'long') =>
     .map((part) => (typeof part === 'string' ? esc(part) : dateHtml(part.iso, length)))
     .join('')
 
+/** An instant on one zone's clock, in the house form, in a <time> holding the instant (Dates.jsx's <TimeText>). */
+const timeHtml = (iso, zone) => {
+  if (missing(iso)) return '—'
+  const shown = houseTime(iso, zone)
+  return shown === null ? text(iso) : `<time datetime="${esc(iso)}">${esc(shown)}</time>`
+}
+
 /** A declared date column's cell (`date` on the column; Dates.jsx's dateCell). */
 const dateCellHtml = (column, row) => {
   const value = row[column.key]
+  if (column.date === 'time') {
+    const { iso, zone } = column.at(row)
+    return timeHtml(iso, zone)
+  }
   if (column.date === 'race') return raceDatesHtml(row)
   if (column.date === 'text') return missing(value) ? '—' : dated(value)
   return dateHtml(value, column.date)

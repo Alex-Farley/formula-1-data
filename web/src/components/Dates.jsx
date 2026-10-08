@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { EMPTY, dateSegments, localDate, localRaceDates, missing } from '../lib/format.js'
+import { EMPTY, dateSegments, localDate, localRaceDates, localTime, missing } from '../lib/format.js'
 import { raceDay } from '../lib/refresh.js'
 
 /**
@@ -24,6 +24,17 @@ const empty = <span className="empty">{EMPTY}</span>
 export function DateText({ iso, length = 'short' }) {
   if (missing(iso)) return empty
   const shown = localDate(iso, length)
+  return shown === null ? String(iso) : <time dateTime={iso}>{shown}</time>
+}
+
+/**
+ * One instant on one zone's clock - a session's start (CD-59): the reader's
+ * own form, in a <time> that keeps the instant. A value that will not parse,
+ * or a zone Intl does not know, is printed as it is held.
+ */
+export function TimeText({ iso, zone }) {
+  if (missing(iso)) return empty
+  const shown = localTime(iso, zone)
   return shown === null ? String(iso) : <time dateTime={iso}>{shown}</time>
 }
 
@@ -64,12 +75,17 @@ export function Dated({ children, length = 'long' }) {
 /**
  * A declared table column's cell when the column holds dates (`date` on the
  * column): 'short' or 'long' for a column of ISO days, 'race' for a race
- * row's weekend, and 'text' for a column of sentences with days inside them,
- * such as a record's derivation. DataTable reads it; scripts/prerender.js
+ * row's weekend, 'text' for a column of sentences with days inside them,
+ * such as a record's derivation, and 'time' for an instant, which the
+ * column's `at` names with its zone. DataTable reads it; scripts/prerender.js
  * has its twin.
  */
 export function dateCell(column, row) {
   const value = row[column.key]
+  if (column.date === 'time') {
+    const { iso, zone } = column.at(row)
+    return <TimeText iso={iso} zone={zone} />
+  }
   if (column.date === 'race') return <RaceDates race={row} />
   if (column.date === 'text') return missing(value) ? empty : <Dated>{String(value)}</Dated>
   return <DateText iso={value} length={column.date} />

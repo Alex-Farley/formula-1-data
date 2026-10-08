@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, until } from '../queries/sessions.js'
+import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, until } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -13,7 +13,7 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
-import { points as fmtPoints, number } from '../lib/format.js'
+import { points as fmtPoints, localTime, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
@@ -426,7 +426,7 @@ function SeasonBody({ year, season, data }) {
         kind: 'name',
         value: upcoming.name,
         href: `races/${year}/${upcoming.round}`,
-        note: `${upcoming.name_used}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
+        note: `${upcoming.name_used}, ${localTime(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
       }
     : null
 
