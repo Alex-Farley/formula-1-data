@@ -297,16 +297,24 @@ def track_ends(raw):
     figs = list(re.finditer(r"(\d[\d,.]*)\s*mm\b", s, re.I))
     if not figs:
         return None, None
-    labels = [(m.start(), "front" if (m.group(1) or m.group(2)).lower()
-               in ("front", "f") else "rear")
-              for m in re.finditer(r"\b(front|rear|back)\b|\b([FR])\s*:", s,
-                                   re.I)]
+    # "front and rear" is one label naming both ends, wherever it stands:
+    # read as two, the later word took the figure alone when the label came
+    # first ("Front and rear: 1,320 mm" was a rear and no front).
+    labels = []
+    for m in re.finditer(r"\b(front\s*(?:and|&|/)\s*(?:rear|back))\b"
+                         r"|\b(front|rear|back)\b|\b([FR])\s*:", s, re.I):
+        word = (m.group(2) or m.group(3) or "").lower()
+        labels.append((m.start(), "both" if m.group(1) else
+                       "front" if word in ("front", "f") else "rear"))
     ends = {}
+
+    def put(end, value):
+        for k in (("front", "rear") if end == "both" else (end,)):
+            ends.setdefault(k, value)
     if labels and labels[0][0] < figs[0].start():
         # labels before their figures; one holds until the next label
         for f in figs:
-            end = [k for at, k in labels if at < f.start()][-1]
-            ends.setdefault(end, mm(f.group(1)))
+            put([k for at, k in labels if at < f.start()][-1], mm(f.group(1)))
     else:
         # labels after their figures, up to the next figure or `;`
         for i, f in enumerate(figs):
@@ -314,7 +322,7 @@ def track_ends(raw):
             seg = s[f.end():stop].split(";")[0]
             for at, k in labels:
                 if f.end() <= at < f.end() + len(seg):
-                    ends.setdefault(k, mm(f.group(1)))
+                    put(k, mm(f.group(1)))
         if not labels:
             ends["front"] = mm(figs[0].group(1))
     return ends.get("front"), ends.get("rear")
