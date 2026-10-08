@@ -1661,19 +1661,23 @@ try {
     const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
     const notes = (one('SELECT notes FROM seasons WHERE year = ?', year) ?? '').trim()
     const drivers = db.prepare(SEASON_FINAL).all(year).filter((r) => r.table_type === 'drivers')
-    const answer =
-      !champion && drivers.length >= 2
-        ? titleAnswer({
-            drivers,
-            remaining: db.prepare(REMAINING).get(year) ?? null,
-            afterRound: latestRound(db.prepare(SEASON_STANDINGS).all(year)),
-          })
-        : null
+    const remaining = db.prepare(REMAINING).get(year) ?? null
+    const afterRound = latestRound(db.prepare(SEASON_STANDINGS).all(year))
+    const answer = !champion && drivers.length >= 2 ? titleAnswer({ drivers, remaining, afterRound }) : null
     await go(`/seasons/${year}`, String(year))
     const appLede = (await text('#root main .lede')) ?? ''
     const html = await (await fetch(`${BASE}/seasons/${year}`)).text()
     const staticLede = unescaped(html.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
     if (!answer) {
+      // The one decline a season being run can pass through on good data:
+      // the calendar has a round run that the standings do not stand after
+      // yet, because the two are harvested apart. Any other null on a season
+      // with no champion and a round to run is the answer lost.
+      const lagging = afterRound !== (remaining?.run ?? null)
+      truthy(
+        Boolean(champion) || !remaining?.races || drivers.length < 2 || lagging,
+        `a season being run, with standings after the last round run, has an answer to who can still win (after round ${afterRound}, ${remaining?.run} run)`,
+      )
       note(`\n/seasons/${year}  (no answer to who can still win: the lede is the note alone)`)
       for (const [half, lede] of [['app', appLede], ['static page', staticLede]]) {
         truthy(!/can still win|leader's total/.test(lede), `the ${half}'s lede claims no answer the arithmetic withholds`)

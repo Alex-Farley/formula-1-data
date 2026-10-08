@@ -951,7 +951,7 @@ describe('the queries a page and the prerenderer share', () => {
     // printing a list of one.
     assert.equal(
       titlePermutations({ drivers: [table[0], table[3]], remaining: live, afterRound: 21 }).split(' 2 rounds')[0],
-      "Only Antonelli can still win the drivers' title: no other driver can now reach that total.",
+      "Only Antonelli can still win the drivers' title: no other driver can now reach the leader's total.",
     )
     // More than ten still in: the count is the answer, not the names.
     const crowd = Array.from({ length: 12 }, (_, i) => ({ entity: `D${i}`, position: i + 1, points: 300 - i }))

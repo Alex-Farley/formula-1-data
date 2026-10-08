@@ -494,7 +494,7 @@ export function titleAnswer({ drivers, remaining, afterRound, built }) {
     .join(' and ')
   const who =
     alive.length === 1
-      ? `Only ${alive[0].entity} can still win the drivers' title: no other driver can now reach that total.`
+      ? `Only ${alive[0].entity} can still win the drivers' title: no other driver can now reach the leader's total.`
       : alive.length <= 10
         ? `Who can still win the drivers' title: ${listed(alive.map((d) => d.entity))}.`
         : alive.length === scored.length
