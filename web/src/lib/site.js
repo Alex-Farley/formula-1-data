@@ -484,6 +484,20 @@ export const PHOTOGRAPHS_SHOWN = 6
 export const PHOTOGRAPH_WIDTH = 600
 
 /**
+ * The most columns a lead chart may draw in the opening slot (VD-84).
+ *
+ * The slot is five columns of twelve, 458 px at 1180, its narrowest, and a
+ * column chart's plot inside it 382 px. §7 of the design system holds a
+ * chart's hover target to 6 px at every width, and 382 / 6 is 63: a team
+ * that has entered more seasons than that - Ferrari, 77 - cannot keep its
+ * marks usable beside the header, so its chart leads under the tiles at
+ * the full width instead, and the slot is left empty for the header. The
+ * smoke suite measures every column chart in a slot at 1180, so a change to
+ * the grid or the chart's margins that makes this wrong fails there.
+ */
+export const SLOT_MARKS = 63
+
+/**
  * The rest of a strip, behind a disclosure (PD-64).
  *
  * "6 of 51" in a heading with no way to the other 45 is a count of what the

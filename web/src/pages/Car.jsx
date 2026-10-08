@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
+import CommonsImage from '../components/CommonsImage.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { FOLD_NOUN } from '../lib/table.js'
@@ -25,6 +26,7 @@ import {
   carAddress,
   carFacts,
   carPageName,
+  carPhotographs,
   carRecord,
   carStrip,
   entryColumns,
@@ -36,7 +38,7 @@ import {
 } from '../queries/car.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
-import { EYEBROWS, LABELS, NAMES } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/car.js defines — the links and
@@ -113,7 +115,9 @@ function CarBody({ id, chassis, variants, data }) {
   // is headed "Photographs 1" over an empty grid otherwise, the day a file
   // arrives with nobody to credit. components/Photographs.jsx does it, for
   // every surface that shows one.
-  const images = rows(data, 'images')
+  // The one that identifies the car leads in the opening slot, and the
+  // strip holds the rest (queries/car.js, VD-84).
+  const photographs = carPhotographs(rows(data, 'images'))
   const entries = rows(data, 'entries')
   const seasons = rows(data, 'seasons')
 
@@ -155,6 +159,8 @@ function CarBody({ id, chassis, variants, data }) {
         {/* queries/car.js's strip, which the static page draws too (VD-49). */}
         <Stats items={carStrip(variants, car, entries)} />
       </Section>
+
+      <Slot>{photographs.lead && <CommonsImage image={photographs.lead} width={PHOTOGRAPH_WIDTH} />}</Slot>
 
       {car && (
         <Section title="Why it mattered">
@@ -267,7 +273,7 @@ function CarBody({ id, chassis, variants, data }) {
           before where they come from (VD-83). No `subjects`: this page is
           the car, and captioning six photographs with its own title says
           nothing the heading has not. */}
-      <Photographs images={images} />
+      <Photographs images={photographs.rest} />
 
       <Section title={LABELS.provenance}>
         <Fields

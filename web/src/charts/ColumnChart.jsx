@@ -79,12 +79,15 @@ export default function ColumnChart({
               onMouseEnter={() => setHover(d)}
               onMouseLeave={() => setHover(null)}
             >
-              {/* A hit target the full slot wide: a 12px column is not something
-                  a pointer should have to land on exactly. */}
+              {/* A hit target the full step wide, the gap either side
+                  included: a 12px column is not something a pointer should
+                  have to land on exactly, and the targets meet, so a chart
+                  of many seasons keeps each one as wide as it can (§7's
+                  minimum mark width, VD-84). */}
               <rect
-                x={x(d.key)}
+                x={x.centre(d.key) - x.step / 2}
                 y={M.top}
-                width={x.bandwidth}
+                width={x.step}
                 height={height - M.bottom - M.top}
                 fill="transparent"
               />

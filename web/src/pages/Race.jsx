@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { UNFOLDED } from '../lib/table.js'
@@ -312,84 +312,85 @@ function RaceBody({ race, data, year, round }) {
       }
     >
       <Section>
-        {/* The outline beside the figures, where the circuit used to be a
-            text link alone (VD-32). F1DB's drawing of the layout this race
-            ran, credited on the card; the caption says whose figures. */}
-        <div className={race.outline ? 'with-outline with-lead' : undefined}>
-          {/* queries/race.js's strip, which the static page draws too (VD-49). */}
-          <Stats items={raceStrip(race, entries, qualifying)} />
-          {race.outline && (
-            <OutlineCard
-              path={race.outline}
-              circuit={race.circuit}
-              layoutId={race.f1db_layout_id}
-              caption={outlineCaption({
-                f1db_layout_id: race.f1db_layout_id,
-                length_km: race.outline_km,
-                turns: race.outline_turns,
-              })}
-              rule
-            />
-          )}
-          {/* PD-57: what the reader came for, under the figures and beside
-              the outline rather than below its caption - the classification
-              once a result is held, the timetable before. On a phone the
-              grid is one column and this follows the outline. */}
-          <div className="lead">
-            {pending && (
-              <Note>
-                <strong>{pending.head}</strong> <Dated>{pending.body}</Dated>
-              </Note>
-            )}
-
-            {/* PD-57: before a round is run its timetable is the answer, so it
-                leads; once a result is held it follows the strategy, near the
-                end. `scheduled` rather than the clock's stage, because it is what
-                the static page can know too, and a round past its date with no
-                result held still has nothing to put above its timetable. */}
-            {scheduled && timetable}
-
-            <Disagreement rows={rows(data, 'disagreements')} what="this race" />
-
-            {shared && (
-              <Note>
-                <strong>{SHARED_DRIVE_NOTE.head}</strong> {SHARED_DRIVE_NOTE.body}
-              </Note>
-            )}
-
-            {classified.length > 0 && (
-              <Section title="Classification" count={`${classified.length} entries`}>
-                <DataTable
-                  unfolded={UNFOLDED.subject}
-                  rows={classified}
-                  rowKey={(row) => row.id}
-                  sortable
-                  // Already in classification order, from inClassificationOrder().
-                  opening={{ key: 'position_text', direction: 'asc' }}
-                  page={60}
-                  highlight={(row) => row.finish_position === 1}
-                  columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
-                  footer={classificationFooter(classified)}
-                />
-              </Section>
-            )}
-
-            {/* PD-30: the result as a picture, under the table it draws -
-                charts/gridFlag.js says what the lines can and cannot claim,
-                and scripts/prerender.js draws the same figure. */}
-            {gridFlagShown(flag) && (
-              <Section title={GRID_FLAG_HEADING}>
-                <Figure
-                  note={gridFlagNote(flag)}
-                  table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS, footer: gridFlagUndrawn(undrawnOf(entries)) }}
-                >
-                  <GridFlag entries={entries} label={gridFlagLabel(flag)} />
-                </Figure>
-              </Section>
-            )}
-          </div>
-        </div>
+        {/* queries/race.js's strip, which the static page draws too (VD-49). */}
+        <Stats items={raceStrip(race, entries, qualifying)} />
       </Section>
+
+      {/* PD-57: what the reader came for, straight under the figures - the
+          classification once a result is held, the timetable before. */}
+      {pending && (
+        <Note>
+          <strong>{pending.head}</strong> <Dated>{pending.body}</Dated>
+        </Note>
+      )}
+
+      {/* PD-57: before a round is run its timetable is the answer, so it
+          leads; once a result is held it follows the strategy, near the
+          end. `scheduled` rather than the clock's stage, because it is what
+          the static page can know too, and a round past its date with no
+          result held still has nothing to put above its timetable. */}
+      {scheduled && timetable}
+
+      <Disagreement rows={rows(data, 'disagreements')} what="this race" />
+
+      {shared && (
+        <Note>
+          <strong>{SHARED_DRIVE_NOTE.head}</strong> {SHARED_DRIVE_NOTE.body}
+        </Note>
+      )}
+
+      {classified.length > 0 && (
+        <Section title="Classification" count={`${classified.length} entries`}>
+          <DataTable
+            unfolded={UNFOLDED.subject}
+            rows={classified}
+            rowKey={(row) => row.id}
+            sortable
+            // Already in classification order, from inClassificationOrder().
+            opening={{ key: 'position_text', direction: 'asc' }}
+            page={60}
+            highlight={(row) => row.finish_position === 1}
+            columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
+            footer={classificationFooter(classified)}
+          />
+        </Section>
+      )}
+
+      {/* The opening slot (DP-11, VD-84): F1DB's drawing of the layout this
+          race ran, credited on the card, beside the header from 1180 px.
+          It is written after the classification, so below 1180 the result
+          is never beside it and never under it: the table has the column
+          to itself at every width (IX-45), and on a phone the outline
+          follows the result (visual defect 7). */}
+      <Slot>
+        {race.outline && (
+          <OutlineCard
+            path={race.outline}
+            circuit={race.circuit}
+            layoutId={race.f1db_layout_id}
+            caption={outlineCaption({
+              f1db_layout_id: race.f1db_layout_id,
+              length_km: race.outline_km,
+              turns: race.outline_turns,
+            })}
+            rule
+          />
+        )}
+      </Slot>
+
+      {/* PD-30: the result as a picture, under the table it draws -
+          charts/gridFlag.js says what the lines can and cannot claim,
+          and scripts/prerender.js draws the same figure. */}
+      {gridFlagShown(flag) && (
+        <Section title={GRID_FLAG_HEADING}>
+          <Figure
+            note={gridFlagNote(flag)}
+            table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS, footer: gridFlagUndrawn(undrawnOf(entries)) }}
+          >
+            <GridFlag entries={entries} label={gridFlagLabel(flag)} />
+          </Figure>
+        </Section>
+      )}
 
       {qualifying.length > 0 && (
         <Section title="Qualifying" count={`${qualifying.length} entries`}>

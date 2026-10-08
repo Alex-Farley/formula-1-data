@@ -46,9 +46,9 @@ it is, so that nobody holds new work to a rule that has not landed:
 measure and the design-system tests), VD-79 (#866, tiles, one page
 header and the handover), VD-80 (#867, one figure grammar), VD-81 (#868,
 one vocabulary), VD-82 (#869, one reveal control, with sort and fold in
-the address) and VD-83 (#870, one section order per page type) are built.
-Pending is VD-84 (#871, the opening slot and the middle type register); VD-86 (#884) holds the core
-rules none of the seven named. **A step's pull request moves
+the address), VD-83 (#870, one section order per page type) and VD-84
+(#871, the opening slot and the middle type register) are built: all seven.
+VD-86 (#884) holds the core rules none of the seven named. **A step's pull request moves
 the sections it builds from pending to built**, in this file, in the same
 change.
 
@@ -129,13 +129,19 @@ role and not a number:
 | Inside a tile or frame | `--space-6` / `--space-7` |
 | Between card siblings (photos, onward cards, record cards, outline cards) | `--space-6` (12). Pending: the card grids still use several gaps (VD-86 #884) |
 
-### Type — built: the scale; pending (VD-84): the middle register
+### Type — built: the scale and the middle register (VD-84)
 
 The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
-nowhere** (visual V7). DP-10 keeps them for the one hero figure per page, the
-opening slot's headline number, which VD-84 sets; until then
-`conventions.mjs` declares them unused, with that reason.
+nowhere** (visual V7). DP-10 kept them for the one hero figure per page,
+which VD-84 set: the first lead figure of a ranked tile strip (a driver's, a
+team's or a car's wins, a record's value, the rounds run on the home page;
+the season, race and circuit strips rank nothing and have none), at
+`--size-9` on a phone,
+`--size-10` from `--bp-tablet` and `--size-11` from `--bp-desktop`, beside
+the opening band. A second lead keeps `--size-8`, so a page has one hero and
+not two, and a name is never one. `conventions.mjs` now declares no token
+unused.
 
 | Role | Step |
 |---|---|
@@ -147,7 +153,7 @@ opening slot's headline number, which VD-84 sets; until then
 | Lede, a name in a tile | `--size-6` 17 |
 | Section head (h2) | `--size-7` 20 |
 | A tile figure | `--size-8` 25 |
-| One hero figure per page | `--size-9`–`--size-11` (pending, VD-84) |
+| One hero figure per page | `--size-9`–`--size-11`, by width (VD-84) |
 | Page title | `--size-display` |
 
 ### Measure — built (VD-78): one rule, two lengths, both on the grid
@@ -270,20 +276,45 @@ seven.
     page's lead answer, on every page type (**aim**; the accessibility
     critic's rule for predictability).
 
-### Opening slot (A) — pending (VD-84)
+### Opening slot (A) — built (VD-84)
 
 "The picture of this thing", 5 columns beside the header from 1180, after
 the tiles below that. What fills it:
 
-- driver, constructor and season: the lead chart;
-- circuit: the aerial photograph, or the outline where there is none
-  (VD-74 #823);
+- driver, constructor and season: the lead chart, as `<Section lead>`;
+- circuit: the current layout's outline, on every circuit with one. The
+  maintainer's ruling on VD-74 (#823) is that the outline leads every
+  circuit page, since only 19 of the 80 have an aerial photograph; where
+  there is one it stays the header's own (VD-62), in three of the header's
+  seven columns beside the heading, so the photograph and the outline share
+  the band and neither is dropped;
 - race: the outline (DP-11);
-- car: its photograph.
+- car: the first photograph whose file name names the car
+  (`carPhotographs` in `queries/car.js`). An unconfirmed file is never the
+  picture of this thing, and the photo strip holds the rest rather than
+  drawing it twice.
 
-An empty slot gives its width to the header. The band is as tall as the
-taller of the two, and the tiles start under both, so nothing below is
-ragged. VD-53's interim side-by-side opening holds the place until then.
+A picture is `<Slot>` in the app and `slot()` in `prerender.js`, the same
+`div.slot`; the static page draws the race's, the circuit's and the car's,
+and not yet the three charts (VD-73 #822).
+
+- **Order.** The slot is written after the tiles, a race's after its
+  classification, and only the grid lifts it into the band, so a screen
+  reader and the Tab key read heading, tiles, then the picture at every
+  width.
+- **Widths.** Below 1180 a picture is capped at 5 columns from
+  `--bp-tablet`, and a chart keeps the column. An outline in the slot is
+  drawn in a 2:1 box, so the band is little taller than the header beside
+  it.
+- **Empty.** An empty slot gives its width to the header. The band is as
+  tall as the taller of the two, and the tiles start under both, so nothing
+  below is ragged.
+- **Minimum mark width.** A lead chart goes in the slot only where its
+  hover targets keep 6 px at 1180, the slot's narrowest: `SLOT_MARKS` in
+  `lib/site.js`, 63 columns. Ferrari's 77 seasons lead under the tiles at
+  the full width instead, and its header keeps the band. A column chart's
+  hover targets meet, each the full step wide.
+- **Held by** `smoke.mjs`, *The opening slot*: §8, test 14.
 
 ### Tile strip (core) — built (VD-79, VD-81), but for its em dash and its name (VD-88 #887)
 
@@ -353,7 +384,7 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
-### Table (core) — built (VD-82, AX-21), but for sticky heads (VD-89 #901) and its width beside the race outline (IX-45 #848)
+### Table (core) — built (VD-82, AX-21, VD-84), but for sticky heads (VD-89 #901) and the race classification's own width below 1,010 px (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -451,7 +482,7 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
 
 ---
 
-## 4. Page templates — built: the order (VD-83), but for the season's *Who can still win* (VD-90 #904); pending: the opening (VD-84)
+## 4. Page templates — built: the order (VD-83) and the opening (VD-84), but for the season's *Who can still win* (VD-90 #904)
 
 The order is the *What leads* critique's (2026-10-05) unless this pass found
 a reason otherwise. The shared ending, provenance then *Keep going* then the
@@ -462,7 +493,7 @@ citation, is already one system and is kept.
 | Width | Layout |
 |---|---|
 | ≥1180 | header (7 columns) beside the slot (5); tiles full width; the type's sections full width |
-| <1180 | header; tiles; slot; sections |
+| <1180 | header; tiles; slot; sections (a race: header; tiles; classification; slot) |
 
 **Per type (the middle of the page):**
 
@@ -471,10 +502,11 @@ citation, is already one system and is kept.
   season · Team-mates · Every entry.
 - **Constructor:** lead chart (wins by season) · Season by season · Every
   win · Cars built · photographs.
-- **Circuit:** winners first on **all 80**, not only the 13 with a layout
-  timeline (S2) · Constructors here · Every layout raced here (the current
-  outline leads it, drawn large, with the timeline's rows or the other
-  drawings beside it behind one disclosure) · Every race here.
+- **Circuit:** the current outline in the slot (VD-74, VD-84) · winners
+  first on **all 80**, not only the 13 with a layout timeline (S2) ·
+  Constructors here · Every layout raced here (the timeline's rows or the
+  other drawings behind one disclosure; absent where there are neither, and
+  the slot's card then carries the rule) · Every race here.
 - **Season:** *Who can still win* takes the lede position (VD-90 #904) ·
   lead chart · standings · calendar · Who entered · photographs. The
   photographs follow *Who entered* so that they sit where the photo strip
@@ -482,7 +514,7 @@ citation, is already one system and is kept.
 - **Car:** tiles directly under the h1 · Why it mattered · Specification ·
   Every entry · photographs. This year's chassis opened on its photographs
   (I9, PD-49) until VD-83; the photograph that identifies a car is the
-  opening slot's (VD-84).
+  opening slot's (VD-84), and the strip holds the rest.
 
 ### Event pages: race
 
@@ -490,8 +522,17 @@ Race pages follow the entity layout (DP-11): the header beside the outline
 slot; tiles; the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
 photographs. The classification never shares its
-width with a side column, and a scheduled race leads with its timetable
-(kept).
+width with a side column (VD-84; beside the outline it lost Points and FL to
+a scroll from 768 to 1,110 px), and a scheduled race leads with its
+timetable (kept). Pending (IX-45 #848): the table is about 960 px wide on its
+own, so below about 1,010 px Points and FL still scroll.
+The slot is written after the classification, so below 1180 the outline
+follows the result.
+
+What it costs: the band is as tall as the outline, so at 1440 × 900 the
+classification's heading and its first four rows are on the first screen,
+where PD-57's tiles in the column beside the outline showed eight. The smoke
+suite holds the four.
 
 ### Lookup pages: records, Grand Prix, registers, `/data`
 
@@ -649,7 +690,7 @@ address and the one reveal control (VD-82).
   - What keeps both: a minimum mark width (aim), and the switch at 1180, not
     1024.
 - **The handover.**
-  - What the design gains: VD-53's opening fills the first screen.
+  - What the design gains: the opening band fills the first screen.
   - What it costs: not reading order, which is correct, but the jump when
     the app replaces the static page. It is felt by magnifier users and by
     anyone reading during a ~17 s cold boot.
@@ -686,7 +727,7 @@ The system is held by tests, not by memory.
 **The system's own tests, one each, so a drift fails the build.** Built in
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
 Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12. Built in
-VD-83: 13.
+VD-83: 13. Built in VD-84: 14.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -750,6 +791,15 @@ VD-83: 13.
     page*). The orders each type keeps around those are held by the
     sections that name them: *the result leads*, *the chart leads, the
     photographs follow*, and Monza's and a circuit with no timeline's.
+14. **One opening.** On a driver, a constructor, two seasons, a race, two
+    circuits and a car, the slot is beside the header from 1180 px, level
+    with the heading and to the page's right edge, the tiles run the full
+    width under both, and below 1180 the slot follows in one column, after
+    the tiles or a race's classification, in the app and, where it draws
+    one, the static page. A column chart in the slot keeps every hover
+    target 6 px wide at 1180, a team over `SLOT_MARKS` has no slot, and a
+    page with nothing for it keeps its header and tiles the page's width
+    (`smoke.mjs`, *The opening slot*).
 
 ### How a change to the system is made
 
