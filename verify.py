@@ -1181,12 +1181,13 @@ def pole_position_and_fastest_lap():
     check("a race has one winner, unless the drive was shared", not bad, f"{len(bad)} races")
     check("the shared drives are the three known ones", len(multi) == 3, f"{len(multi)}")
 
-    # Six from the season tables, and two the tables rendered as one name until
-    # the race articles were read: 1960 Belgium (three drivers) and 1969 Canada
-    # (two). See SHARED_FASTEST_LAPS in data/harvest.py.
+    # Six from the season tables, and three the tables rendered as one name
+    # until the race articles were read: 1952 Italy (two drivers), 1960
+    # Belgium (three) and 1969 Canada (two). See SHARED_FASTEST_LAPS in
+    # data/harvest.py.
     shared = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
         WHERE fastest_lap = 1 AND fastest_lap_shared > 1""").fetchone()[0]
-    check("shared fastest laps are recorded as such", shared == 8, f"{shared} races")
+    check("shared fastest laps are recorded as such", shared == 9, f"{shared} races")
 
     # the name a race carried must be a known name for the event it points at
     bad = []

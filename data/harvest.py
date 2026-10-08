@@ -1016,6 +1016,9 @@ GAP_RACES = {
 # closes Hill. The 1969 Canadian Grand Prix article credits Brabham with the
 # 1:18.1 that both harvests credit to Ickx: both are true of the same time,
 # and the share closes Brabham without moving Ickx off his reference 14.
+# The third was found the other way round, once the F1DB fetch kept every
+# row of a tie (PD-53): F1DB credits Ascari and González jointly at Monza in
+# 1952, the harvest Ascari alone, and the race article sides with F1DB.
 # build.py records each as a resolved row in `discrepancies`.
 #   (year, round): (name the harvest holds, shared names, source, why)
 SHARED_FASTEST_LAPS = {
@@ -1033,7 +1036,24 @@ SHARED_FASTEST_LAPS = {
         "season table and F1DB credit Ickx; the race article credits Brabham. "
         "The share takes Brabham to the 12 fastest laps of his reference "
         "record and leaves Ickx on his 14."),
+    (1952, 8): (
+        "Alberto Ascari", "Alberto Ascari / Jose Froilan Gonzalez",
+        "https://en.wikipedia.org/wiki/1952_Italian_Grand_Prix",
+        "Ascari and González both lapped in 2:06.1. The race article credits "
+        "both, and its classification gives Ascari half a point for a shared "
+        "fastest lap; F1DB credits both too. The season table the harvest "
+        "read carries Ascari alone. Restoring the share takes González to "
+        "the 6 fastest laps his career infobox and F1DB both give, and leaves "
+        "Ascari unchanged."),
 }
+
+# The shares above whose added names build.py inserts an entry for when it
+# reads the poles harvest (stage 17), ahead of the classification. That is
+# how these two were built when race_entries ids were promised stable, and
+# their rows keep the ids they were given. Every share added since waits for
+# the classification to create the entry and credits that row, so restoring
+# a share moves no id (DA-39). Nothing is added here.
+SHARED_FASTEST_LAPS_INSERTED = {(1960, 5), (1969, 9)}
 
 # Races where F1DB names a different fastest-lap setter from the harvest and
 # the disagreement has been LOOKED AT. build.py records every such race in
@@ -1057,17 +1077,29 @@ FASTEST_LAP_DISAGREEMENTS = {
         "10 on that evidence (CORRECTIONS). That is a reason to prefer one "
         "reading, not proof the other is wrong. "
         "Source: https://en.wikipedia.org/wiki/1970_South_African_Grand_Prix"),
+    (1953, 5): (
+        "open", "sources differ",
+        "The harvest credits Fangio alone with the 2:41.1; F1DB credits Fangio "
+        "and Ascari both, as a shared fastest lap. The race article credits "
+        "Fangio and footnotes that some sources credit Ascari with an equal "
+        "fastest lap, so this is a real disagreement between sources and stays "
+        "open. It is the race behind Ascari's open career row: F1DB's 13 "
+        "fastest laps for him against the 12 of his career infobox and the "
+        "race records (RESOURCED_ELSEWHERE). "
+        "Source: https://en.wikipedia.org/wiki/1953_French_Grand_Prix"),
 }
 
-# Reference fastest-lap totals for the two drivers a restored share above
-# also names and whose rows in data/drivers.py carry no career figures. With
-# these, all three names the shares credit sit under the same external
-# cross-check that pins Brabham and Phil Hill; without them Ireland's 1 and
-# Ickx's 14 were asserted in the reasoning and checked by nothing.
+# Reference fastest-lap totals for the three drivers a restored share above
+# also names and whose rows in data/drivers.py carry no fastest-lap figure.
+# With these, every name the shares credit sits under the same external
+# cross-check that pins Brabham and Phil Hill; without them Ireland's 1,
+# Ickx's 14 and González's 6 were asserted in the reasoning and checked by
+# nothing.
 #   driver_id: (fastest laps, source)
 EXTERNAL_FASTEST_LAPS = {
     "ireland": (1, "https://en.wikipedia.org/wiki/Innes_Ireland"),
     "ickx": (14, "https://en.wikipedia.org/wiki/Jacky_Ickx"),
+    "gonzalez": (6, "https://en.wikipedia.org/wiki/Jos%C3%A9_Froil%C3%A1n_Gonz%C3%A1lez"),
 }
 
 # The career figures typed into data/drivers.py came from reference records

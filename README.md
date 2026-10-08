@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,234<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,235<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -1215,7 +1215,7 @@ the source that gave it.
 
 The two are compared on every build. Across the
 **<!-- fig:drivers_with_external -->233<!-- /fig --> drivers that hold such a
-figure — <!-- fig:external_comparisons -->391<!-- /fig -->
+figure — <!-- fig:external_comparisons -->392<!-- /fig -->
 comparisons — live differences: <!-- fig:external_differences -->3<!-- /fig -->**,
 and `verify.py` fails the build on any that is not declared in
 `discrepancies`. Two earlier differences were errors in the external figure,
@@ -1238,7 +1238,7 @@ and `known_gaps` says so.
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
 holds <!-- fig:discrepancies -->100<!-- /fig --> rows:
-<!-- fig:discrepancies_open -->29<!-- /fig --> open,
+<!-- fig:discrepancies_open -->28<!-- /fig --> open,
 <!-- fig:discrepancies_explained -->22<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
 the best-results rule dropped, an entry or a car a source counts that the race
