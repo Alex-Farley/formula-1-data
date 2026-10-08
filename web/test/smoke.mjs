@@ -73,7 +73,7 @@ import {
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
-import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
+import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
 import { UNRESULTED } from '../src/queries/changes.js'
@@ -1625,12 +1625,14 @@ try {
   })
 
   /*
-   * PD-49: three pages that open on the season being run where the reader is
-   * in it. The season page carries the next round and who won there before;
-   * a driver of the season opens on a dot per round; this year's chassis
-   * opens on its photograph. Each is checked in both halves, and each against
-   * a page it must NOT appear on, because a section gated on the wrong year
-   * shows up everywhere or nowhere and both read as a working page.
+   * PD-49: pages that open on the season being run where the reader is in
+   * it. The season page carries the next round and who won there before; a
+   * driver of the season opens on a dot per round. Each is checked in both
+   * halves, and each against a page it must NOT appear on, because a section
+   * gated on the wrong year shows up everywhere or nowhere and both read as
+   * a working page. This year's chassis opened on its photograph too, until
+   * VD-83 put the tiles first on every car; that is checked here, on the
+   * page that used to differ.
    */
   await section('/seasons, /drivers and /cars open on the season being run (PD-49)', async () => {
     const season = one("SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season'")
@@ -1779,8 +1781,9 @@ try {
       `a driver with no ${season} entry has no ${season} section`,
     )
 
-    // This year's chassis opens on its photograph; a car of another year
-    // opens on its figures, the photographs after them.
+    // VD-83: this year's chassis opens on its figures, as every car does -
+    // the tiles under the h1 and no heading above them - and its
+    // photographs are the last section before where it all comes from.
     const pictured = db
       .prepare('SELECT id FROM chassis WHERE COALESCE(last_year, first_year) = ? ORDER BY id')
       .all(season)
@@ -1788,24 +1791,25 @@ try {
       .find((id) => db.prepare(CAR_IMAGES).all(id, id).some(canShow))
     const firstSection = () =>
       page.$eval('#root main section.section', (node) => node.querySelector('h2')?.textContent.trim() ?? '')
-    const photoFirst = (html) => {
-      const photo = html.indexOf('<h2>Photographs')
-      return photo >= 0 && photo < html.indexOf('<dl class=')
+    const tilesFirst = (html) => {
+      const tilesAt = html.indexOf('<dl class="stats')
+      const h2At = html.indexOf('<h2')
+      return tilesAt >= 0 && (h2At < 0 || tilesAt < h2At)
+    }
+    const photosLast = (headings) => {
+      const at = headings.findIndex((h) => h.startsWith('Photographs'))
+      return at >= 0 && headings[at + 1] === LABELS.provenance
     }
     if (pictured) {
       await go(`/cars/${pictured}`)
-      truthy((await firstSection()).startsWith('Photographs'), `/cars/${pictured}, a ${season} chassis, opens on its photograph`)
+      is(await firstSection(), '', `/cars/${pictured}, a ${season} chassis, opens on its tiles with no heading above them`)
       const carHtml = await served(`/cars/${pictured}`)
-      truthy(photoFirst(carHtml), 'and so does its static page')
+      truthy(tilesFirst(carHtml), 'and so does its static page')
       truthy(
-        (await appHeadings()).includes(FIGURES_HEADING) && staticHeadings(carHtml).includes(FIGURES_HEADING),
-        `and its figures are headed “${FIGURES_HEADING}” in both halves, not read as the photographs' own`,
+        photosLast(await appHeadings()) && photosLast(staticHeadings(carHtml)),
+        `and its photographs come straight before “${LABELS.provenance}” in both halves`,
       )
-    }
-    await go('/cars/lotus-72', 'Lotus 72')
-    truthy(!(await firstSection()).startsWith('Photographs'), 'a car of another year opens on its figures')
-    truthy(!photoFirst(await served('/cars/lotus-72')), 'in both halves')
-    truthy(!(await appHeadings()).includes(FIGURES_HEADING), `and needs no “${FIGURES_HEADING}” heading`)
+    } else fail(`no ${season} chassis has a photograph to read the order on`)
   })
 
   await section('/seasons/1976', async () => {
@@ -2003,10 +2007,10 @@ try {
    * sits under the tiles inside the first 900 px at 1440, with at least eight
    * rows showing in the app, and both halves put the rest in one order:
    * qualifying, the strategy, the practice sheets closed (their tables still
-   * in the page), the photographs, the timetable. The photograph strip and a
-   * run race's timetable used to stand between the tiles and the table, which
-   * put it on the second screen of 1,151 race pages. Before a round is run,
-   * its timetable leads instead.
+   * in the page), the timetable, the photographs (VD-83). The photograph
+   * strip and a run race's timetable used to stand between the tiles and the
+   * table, which put it on the second screen of 1,151 race pages. Before a
+   * round is run, its timetable leads instead.
    */
   await section('/races  (the result leads)', async () => {
     const readLead = (root) => {
@@ -2062,7 +2066,7 @@ try {
       return
     }
     const route = `/races/${run.year}/${run.round}`
-    const order = ['Classification', 'Qualifying', 'Pit stops', 'Practice sessions', RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE, 'Timetable']
+    const order = ['Classification', 'Qualifying', 'Pit stops', 'Practice sessions', 'Timetable', RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE]
     await go(route, run.name_used)
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.evaluate(() => window.scrollTo(0, 0))
@@ -2115,7 +2119,8 @@ try {
    * of it at 1440, and that is what pushed *Wins by season* and the title
    * race off the first screen. The chart is now drawn inside 900 px at 1440,
    * under the tiles or - since VD-53 - beside them, and both halves put the rest
-   * in one order: the main table, then the photographs, then the long lists.
+   * in one order: the main table, then the long lists, then the photographs
+   * (VD-83).
    * A season with a round still to run reads its next round and calendar
    * before standings that are not final; a concluded one, who won first. The
    * static page draws neither chart (VD-73, #822), so it is
@@ -2182,7 +2187,7 @@ try {
       const route = `/constructors/${team.id}`
       const got = await bothHalves(route, team.name, 'Wins by season')
       leads(route, 'Wins by season', got.app)
-      checkOrder(route, got, ['Wins by season', 'Season by season', 'Photographs', 'Every win', 'Cars built'])
+      checkOrder(route, got, ['Wins by season', 'Season by season', 'Every win', 'Cars built', 'Photographs'])
     } else fail('no constructor with a title has photographs to read the order on')
 
     // A concluded season with photographs: who won, then the calendar.
@@ -2208,8 +2213,8 @@ try {
           standingsHeading("Constructors'", false),
           'The calendar',
           'On the grid',
-          'Photographs',
           'Who entered',
+          'Photographs',
         ],
         new Set(['On the grid']),
       )
@@ -2240,8 +2245,8 @@ try {
           "Drivers' standings",
           "Constructors' standings",
           'On the grid',
-          'Photographs',
           'Who entered',
+          'Photographs',
         ],
         new Set(['On the grid', 'Photographs']),
       )
@@ -4330,6 +4335,7 @@ try {
           closed: !!cards && !cards.open,
           strip: [...main.querySelectorAll('.layout-strip > li')].map(clean),
           rows: [...main.querySelectorAll('.layout-timeline > article h3')].length,
+          hidden: main.querySelectorAll('details.layout-cards .outline-card').length,
         }
       }
       const order = ['Most wins here', 'Constructors here', 'Every layout raced here', 'Every race here']
@@ -4362,6 +4368,38 @@ try {
       for (const [half, got] of [['the app', app], ['the static page', served]]) {
         truthy(got.blocks.includes(racesHeading), `/circuits/monza, ${half}: “${racesHeading}” — ${got.blocks.join(' · ')}`)
       }
+
+      // VD-83 (SD-41): the same order where the register holds no timeline -
+      // 67 of the 80 opened on a grid of every layout above the winners. The
+      // one with the most drawings: the lead drawn large, the others behind
+      // a closed disclosure, in both halves.
+      const bare = db
+        .prepare(
+          `SELECT o.circuit_id AS id, COUNT(*) AS drawn FROM circuit_outlines o
+            WHERE NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.circuit_id = o.circuit_id)
+              AND EXISTS (SELECT 1 FROM v_circuit_winners w WHERE w.circuit_id = o.circuit_id)
+            GROUP BY o.circuit_id ORDER BY COUNT(*) DESC, o.circuit_id LIMIT 1`,
+        )
+        .get()
+      if (bare && bare.drawn > 1) {
+        const route = `/circuits/${bare.id}`
+        await go(route)
+        await page.setViewportSize({ width: 1440, height: 900 })
+        await page.evaluate(() => window.scrollTo(0, 0))
+        const bareApp = await page.evaluate(readOrder, '#root main')
+        await page.setViewportSize({ width: 1280, height: 900 })
+        const bareContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+        const barePlain = await bareContext.newPage()
+        await barePlain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        const bareServed = await barePlain.evaluate(readOrder, '#prerendered')
+        await bareContext.close()
+        for (const [half, got] of [['the app', bareApp], ['the static page', bareServed]]) {
+          truthy(inOrder(got.blocks, order), `${route}, no timeline, ${half}: ${order.join(' → ')} — ${got.blocks.join(' · ')}`)
+          truthy(got.wins !== null && got.wins < 1600, `${route}, ${half}: “Most wins here” at ${Math.round(got.wins)}, inside 1,600 px at 1440`)
+          truthy(got.closed, `${route}, ${half}: the other layouts are closed until opened`)
+          is(got.hidden, bare.drawn - 1, `${route}, ${half}: all ${bare.drawn - 1} drawings but the lead are behind the disclosure`)
+        }
+      } else fail('no circuit without a timeline has several drawings and a winner to read the order on')
     }
 
     // Skipped rather than failed when the overlay is absent: a build without
@@ -7582,6 +7620,9 @@ try {
       // a curated family, whose lede is the family's story.
       '/grands-prix/monaco',
       '/cars/lotus-72b',
+      // VD-83 (SD-41): a circuit with no layout timeline, which opened on
+      // every layout above its winners where Monza opened on the winners.
+      '/circuits/monaco',
     ]
     // The console's static page is not the console: it has no examples and
     // no schema for the app's lede to point at, so it says what the console
@@ -7613,6 +7654,7 @@ try {
       '/constructors/ferrari': { app: [['Wins by season', LEAD]] },
       '/circuits': { app: [['The traced centrelines', TRACE]] },
       '/circuits/monza': { app: [['Traced and measured', TRACE]] },
+      '/circuits/monaco': { app: [['Traced and measured', TRACE]] },
       '/cars/lotus-72': {
         app: [
           ['Why it mattered', DRIFT],
@@ -7671,6 +7713,13 @@ try {
           tiles: [...(main?.querySelectorAll('dl.stats') ?? [])].map((dl) =>
             [...dl.children].map((tile) => [flatten(tile.querySelector('dt')), flatten(tile.querySelector('dd'))]),
           ),
+          // How many headings stand above the first tile strip (VD-83).
+          beforeTiles: (() => {
+            const strip = main?.querySelector('dl.stats')
+            return strip
+              ? [...main.querySelectorAll('h2')].filter((h2) => h2.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).length
+              : null
+          })(),
           sections: [...(main?.querySelectorAll('h2') ?? [])].map((h2) => {
             const copy = h2.cloneNode(true)
             for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
@@ -7777,6 +7826,53 @@ try {
     }
     for (const message of sectionsWrong.slice(0, 8)) fail(message)
     if (sectionsWrong.length > 8) fail(`\u2026and ${sectionsWrong.length - 8} more`)
+
+    // One section order per page type (section 4, VD-83), in each half on
+    // its own, so that a page both halves draw the same wrong way still
+    // fails: the photographs, in one place on every type, straight before
+    // where the page comes from - they sat in five; on a circuit the winners
+    // before the layouts, on all 80 rather than the 13 with a timeline; and
+    // on a car the tiles under the h1 with no heading above them, where this
+    // year's chassis opened on its photographs.
+    const PHOTOS = new Set(['Photographs', RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE])
+    // The entity and event pages section 4 sets an order for; /data/quality
+    // has a section of photograph counts, which is not a strip.
+    const TYPED = new Set(['drivers', 'constructors', 'circuits', 'seasons', 'cars', 'races', 'grands-prix'])
+    const orderWrong = []
+    const pictured = new Set()
+    let held = 0
+    for (const { route, fromStatic, fromApp } of drawn) {
+      const type = route.split('/')[1]
+      if (!TYPED.has(type) || route.split('/').length < 3) continue
+      for (const [half, read] of [['the app', fromApp], ['the static page', fromStatic]]) {
+        const names = read.sections
+        const photos = names.flatMap((name, i) => (PHOTOS.has(name) ? [i] : []))
+        if (photos.length) {
+          pictured.add(type)
+          held++
+          const next = names[photos.at(-1) + 1]
+          if (photos.some((at, k) => k > 0 && at !== photos[k - 1] + 1) || next !== LABELS.provenance) {
+            orderWrong.push(`${route}, ${half}: the photographs are followed by \u201c${next ?? '(nothing)'}\u201d, not \u201c${LABELS.provenance}\u201d \u2014 ${names.join(' \u00b7 ')}`)
+          }
+        }
+        if (type === 'circuits') {
+          held++
+          const wins = names.indexOf('Most wins here')
+          const layouts = names.indexOf('Every layout raced here')
+          if (layouts >= 0 && wins >= 0 && layouts < wins) orderWrong.push(`${route}, ${half}: the layouts come before the winners \u2014 ${names.join(' \u00b7 ')}`)
+        }
+        if (type === 'cars') {
+          held++
+          if (read.beforeTiles !== 0) orderWrong.push(`${route}, ${half}: ${read.beforeTiles ?? 'no strip, so no'} heading(s) above the tiles`)
+        }
+      }
+    }
+    for (const type of ['cars', 'constructors', 'seasons', 'races']) {
+      if (!pictured.has(type)) orderWrong.push(`no /${type}/ route here shows a photograph, so their place is never read \u2014 add one to ROUTES`)
+    }
+    if (orderWrong.length === 0) pass(`one section order per page type: ${held} reads of photographs, circuits and cars, in both halves (VD-83)`)
+    for (const message of orderWrong.slice(0, 8)) fail(message)
+    if (orderWrong.length > 8) fail(`\u2026and ${orderWrong.length - 8} more`)
 
     // ONE VOCABULARY (VD-81, DP-05; docs/design-system.md section 8, test 7),
     // on the pages as drawn, in both halves: no tile label and no heading is

@@ -156,8 +156,8 @@ function ConstructorBody({ constructor, data }) {
 
       {/* What leads (PD-58): the tiles, then the shape of the team's
           success, then the season table - after the lineage and any
-          disagreement, which say how to read it. The photographs and the
-          exhaustive lists follow; scripts/prerender.js keeps the order. */}
+          disagreement, which say how to read it. The exhaustive lists and
+          then the photographs follow; scripts/prerender.js keeps the order. */}
       {winsBySeason.length > 1 && (
         <Section lead title="Wins by season">
           <Figure
@@ -222,14 +222,6 @@ function ConstructorBody({ constructor, data }) {
         />
       </Section>
 
-      {/* The cars, oldest first - the order "Cars built" prints them in
-          further down. Six of them: this is a team's page, not a gallery, and
-          the table below it lists every design with a link to its own page.
-          Below the season table, not above the chart (PD-58): the strip
-          used to stand between the tiles and *Wins by season*, and pushed
-          the page's best answer off the first screen. */}
-      <Photographs images={images} subjects />
-
       {wins.length > 0 && (
         <Section title="Every win" count={`${wins.length}`}>
           <DataTable
@@ -258,6 +250,15 @@ function ConstructorBody({ constructor, data }) {
           />
         </Section>
       )}
+
+      {/* The cars, oldest first - the order "Cars built" prints them in
+          above. Six of them: this is a team's page, not a gallery, and that
+          table lists every design with a link to its own page. After the
+          page's own sections and before where they come from, as on every
+          page type (VD-83): the strip used to stand between the tiles and
+          *Wins by season* (PD-58), and then between the season table and
+          the wins. */}
+      <Photographs images={images} subjects />
 
       <Section title={LABELS.provenance}>
         {constructor.confidence === 'medium' && (

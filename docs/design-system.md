@@ -45,9 +45,9 @@ it is, so that nobody holds new work to a rule that has not landed:
 §1's principles bind from adoption. The steps: VD-78 (#865, the grid, the
 measure and the design-system tests), VD-79 (#866, tiles, one page
 header and the handover), VD-80 (#867, one figure grammar), VD-81 (#868,
-one vocabulary) and VD-82 (#869, one reveal control, with sort and fold in
-the address) are built. Pending are VD-83 (#870, one section order per page
-type) and VD-84 (#871, the opening slot and the middle type register); VD-86 (#884) holds the core
+one vocabulary), VD-82 (#869, one reveal control, with sort and fold in
+the address) and VD-83 (#870, one section order per page type) are built.
+Pending is VD-84 (#871, the opening slot and the middle type register); VD-86 (#884) holds the core
 rules none of the seven named. **A step's pull request moves
 the sections it builds from pending to built**, in this file, in the same
 change.
@@ -404,15 +404,16 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
 | Note box | framed | 3 px left edge; the box and its lines end together at the measure |
 | Disagreement ("Two sources disagree") | framed | 1 px frame, 3 px left edge, spans the column; placed directly above the table it explains, as the shared-drive box already is |
 
-### Photo strip (core) — pending (place: VD-83; columns: VD-86 #884)
+### Photo strip (core) — built: the place (VD-83); pending: the columns (VD-86 #884)
 
 - **Job:** what something looked like, credited.
 - **Parts:** photo cards on column multiples: 4 to a row from 1180, 2 from
   768, 1 below. That removes today's 5 + 1 orphan. Each photograph is
   credited through `CommonsCredit` and **fails closed**: no attribution, no
   image (**floor**, the one attribution rule).
-- **Place:** after the page's own sections and before *Where this comes
-  from*, on every page type. Today photographs sit in five places.
+- **Place:** after the page's own sections and straight before *Where this
+  comes from*, on every page type. They sat in five places until VD-83;
+  `smoke.mjs` holds the place in both halves (§8, test 13).
 
 ### Outline card (core) — pending (AX-26 #509)
 
@@ -450,7 +451,7 @@ ragged. VD-53's interim side-by-side opening holds the place until then.
 
 ---
 
-## 4. Page templates — pending (order: VD-83; opening: VD-84)
+## 4. Page templates — built: the order (VD-83), but for the season's *Who can still win* (VD-90 #904); pending: the opening (VD-84)
 
 The order is the *What leads* critique's (2026-10-05) unless this pass found
 a reason otherwise. The shared ending, provenance then *Keep going* then the
@@ -472,17 +473,23 @@ citation, is already one system and is kept.
   win · Cars built · photographs.
 - **Circuit:** winners first on **all 80**, not only the 13 with a layout
   timeline (S2) · Constructors here · Every layout raced here (the current
-  outline joins this section in A) · Every race here.
-- **Season:** *Who can still win* takes the lede position · lead chart ·
-  standings · calendar · photographs · Who entered.
+  outline leads it, drawn large, with the timeline's rows or the other
+  drawings beside it behind one disclosure) · Every race here.
+- **Season:** *Who can still win* takes the lede position (VD-90 #904) ·
+  lead chart · standings · calendar · Who entered · photographs. The
+  photographs follow *Who entered* so that they sit where the photo strip
+  puts them on every type (§3), which this line had the other way round.
 - **Car:** tiles directly under the h1 · Why it mattered · Specification ·
-  Every entry · photographs. Photographs move from first place (I9).
+  Every entry · photographs. This year's chassis opened on its photographs
+  (I9, PD-49) until VD-83; the photograph that identifies a car is the
+  opening slot's (VD-84).
 
 ### Event pages: race
 
 Race pages follow the entity layout (DP-11): the header beside the outline
 slot; tiles; the classification at full width; Grid to flag; qualifying; pit
-stops; practice (folded); photographs. The classification never shares its
+stops; practice (folded); the timetable, once a result is held;
+photographs. The classification never shares its
 width with a side column, and a scheduled race leads with its timetable
 (kept).
 
@@ -678,7 +685,8 @@ The system is held by tests, not by memory.
 
 **The system's own tests, one each, so a drift fails the build.** Built in
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
-Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12.
+Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12. Built in
+VD-83: 13.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -734,6 +742,14 @@ Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12.
     reason given to the one list, in both halves. `smoke.mjs` *Back
     restores a table* opens a fold, sorts it, follows row 200 and comes
     back to the same address, fold, order and row.
+13. **One section order.** On every smoke route, in each half on its own,
+    the photographs come straight before *Where this comes from*, a
+    circuit's winners come before its layouts, and a car has no heading
+    above its tiles; a car, constructor, season and race route with
+    photographs must be among them (`smoke.mjs`, *Both renderers draw one
+    page*). The orders each type keeps around those are held by the
+    sections that name them: *the result leads*, *the chart leads, the
+    photographs follow*, and Monza's and a circuit with no timeline's.
 
 ### How a change to the system is made
 

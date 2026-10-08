@@ -343,7 +343,7 @@ function RaceBody({ race, data, year, round }) {
             )}
 
             {/* PD-57: before a round is run its timetable is the answer, so it
-                leads; once a result is held it follows the photographs, near the
+                leads; once a result is held it follows the strategy, near the
                 end. `scheduled` rather than the clock's stage, because it is what
                 the static page can know too, and a round past its date with no
                 result held still has nothing to put above its timetable. */}
@@ -494,13 +494,19 @@ function RaceBody({ race, data, year, round }) {
         </section>
       )}
 
+      {/* PD-57: once a result is held the timetable follows the result and
+          the strategy, as the last of the page's own sections. */}
+      {!scheduled && timetable}
+
       {/* The race's own photographs first, filed under its Commons category,
           then the cars entered, the best finisher first (VD-33), captioned
           with the car each one is - a race is twenty machines and an
           uncaptioned strip is twenty red cars. Each strip is headed with
           what it is (PD-64): a car's photograph was taken wherever its
           article's editors found it, and must not pass for this race's.
-          Below the tables since PD-57: a reader came for the result. */}
+          Below the tables since PD-57, a reader having come for the result,
+          and after every section of the page's own, before where they come
+          from, as on every page type (VD-83). */}
       <Photographs
         images={photographs}
         title={RACE_PHOTOGRAPHS_TITLE}
@@ -514,8 +520,6 @@ function RaceBody({ race, data, year, round }) {
         }
       />
       <Photographs images={rows(data, 'images')} title={RACE_CARS_TITLE} note={RACE_CARS_NOTE} subjects />
-
-      {!scheduled && timetable}
 
       <Section title={LABELS.provenance}>
         <Fields

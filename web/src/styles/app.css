@@ -3282,6 +3282,12 @@ figure.figure > .figure-note:first-child {
   margin-top: var(--space-6);
 }
 
+/* VD-83: at a circuit with no timeline the disclosure is the first thing
+   beside the lead drawing, and starts level with its top. */
+.outline-set > .layout-cards {
+  margin-top: 0;
+}
+
 .layout-cards > summary {
   cursor: pointer;
   font-size: var(--size-4);
