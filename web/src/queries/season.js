@@ -464,8 +464,15 @@ const listed = (names) =>
  * The round it was counted after and the date the database was built are
  * printed with it, because the answer changes with the harvest and not with
  * the code (SD-14).
+ *
+ * It comes in two parts (VD-90): `who`, the answer, which a season being run
+ * prints in its lede (seasonLede below), and `basis`, what it was worked out
+ * from and what it does not claim, which follows directly under the tiles.
+ * The whole of it, ninety words, was too long to be a lede: on 2026 it ran to
+ * ten lines, and the web font arriving after the page put an eleventh on and
+ * moved everything beneath it.
  */
-export function titlePermutations({ drivers, remaining, afterRound, built }) {
+export function titleAnswer({ drivers, remaining, afterRound, built }) {
   if (!remaining || !remaining.races) return null
   // Anything but the one spelling - a rule, or a blank - declines, so a
   // reworded row fails closed rather than into a wrong elimination.
@@ -494,14 +501,34 @@ export function titlePermutations({ drivers, remaining, afterRound, built }) {
           ? "Every driver who has scored can still reach the leader's total."
           : `${number(alive.length)} of the ${number(scored.length)} drivers who have scored can still reach the leader's total.`
 
-  return [
-    who,
+  const basis = [
     `${left} still to run, so ${points(available)} points are still available, and a driver further behind the leader than that cannot reach them.`,
     afterRound ? `Counted after round ${number(afterRound)}${built ? `, from the database built ${built}` : ''}.` : null,
     'Points only: a tie at the top is settled on wins, which this does not work out.',
   ]
     .filter(Boolean)
     .join(' ')
+  return { who, basis }
+}
+
+/**
+ * A season's lede: who can still win, then the season's own note (VD-90).
+ *
+ * Design system section 4 puts *Who can still win* in the lede position on a
+ * season being run, so that the page reads h1, the September question's
+ * answer, then the tiles - where it used to be the first sentence of an
+ * unheaded note between the tiles and the title chart. `who` is titleAnswer()'s
+ * answer; its basis stays under the tiles. The note follows rather than being
+ * replaced, as a race's follows who won (SD-39): it is the season written by
+ * hand, and the arithmetic says nothing of new regulations or new entries. A
+ * season with no answer to give - concluded, not yet run, or one the
+ * arithmetic declines - keeps its note alone. Both renderers print this
+ * string.
+ */
+export const seasonLede = (notes, who) => {
+  const written = typeof notes === 'string' && notes.trim() ? notes.trim() : null
+  if (!who) return written
+  return written ? `${who} ${written}` : who
 }
 
 /* ---------------------------------------------------------------- columns */
