@@ -2906,8 +2906,30 @@ try {
     truthy(cited.every((c) => behind.has(c.source)), 'and the source behind them is one this page names')
     const appCite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
     truthy(cited.every((c) => appCite.includes(c.source)), 'which the citation prints')
+    // Every note claim cites a source the race's rows already name, so the
+    // join could go unnoticed: a second connection shadows claims with a
+    // TEMP copy citing a source nothing else here does, and RACE_SOURCES
+    // must find it there.
+    const probe = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    probe.exec(
+      `CREATE TEMP TABLE claims AS SELECT * FROM main.claims;
+       UPDATE temp.claims SET source_id = (SELECT MAX(id) FROM source_registry) WHERE tbl = 'race_entries' AND field = 'note'`,
+    )
+    const only = probe.prepare('SELECT source FROM source_registry WHERE id = (SELECT MAX(id) FROM source_registry)').get().source
+    truthy(!behind.has(only) && probe.prepare(RACE_SOURCES).all(1969, 7).some((s) => s.source === only), `RACE_SOURCES reads the note's own claim — "${only}"`)
+    probe.close()
     const plainRace = await (await fetch(`${BASE}/races/1976/9`)).text()
     is(plainRace.includes(ENTRY_NOTE_SPOKEN), false, 'a race with no note carries no mark')
+    // Grid to flag names the same rows and has no footer giving the note, so
+    // it carries no mark.
+    const flagCell = await page.evaluate((heading) => {
+      const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+      return [...(h2?.closest('section')?.querySelectorAll('tbody th') ?? [])].map((n) => n.textContent).find((t) => t.includes('Pescarolo'))
+    }, GRID_FLAG_HEADING)
+    truthy(flagCell && !flagCell.includes('*'), `Grid to flag names the row without the mark — "${flagCell}"`)
+    const flagAt = html.indexOf(`<h2>${GRID_FLAG_HEADING}`)
+    const flagHtml = html.slice(flagAt, html.indexOf('</section>', flagAt))
+    truthy(flagAt > 0 && flagHtml.includes('Pescarolo') && !flagHtml.includes('Pescarolo *'), 'and so does the static page')
   })
 
   /*

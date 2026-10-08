@@ -203,7 +203,7 @@ export const outcome = (value, row) => (finished(value, row.finish_position) ? '
  * DA-46: why a row reads as it does, where the classification alone cannot
  * say - a Formula Two car in a paid place, a shared drive under the 1958
  * rule, a push-start penalty - held in race_entries.note and cited in claims.
- * The row carries the mark in its driver cell, beside "shared" and the
+ * The classification's row carries the mark in its driver cell, beside "shared" and the
  * practice sheets' dagger, and the note itself is the first sentence of the
  * footer under the table, naming the driver, so a 0 inside the paid places is
  * never left unexplained. The mark is spoken as where to look, because a
@@ -233,9 +233,16 @@ export const entryNotes = (entries) => {
   return [...groups].map(([note, names]) => `${ENTRY_NOTE_MARK} ${andList(names)}: ${note}`)
 }
 
-/** The driver, "shared" where two drivers took turns in the car, and the mark where the row carries a note. */
-export const driverName = (name, row) =>
-  `${text(name ?? row.driver_id)}${row.shared_drive === 1 ? ` ${SHARED}` : ''}${hasEntryNote(row) ? ` ${ENTRY_NOTE_MARK}` : ''}`
+/** The driver, and "shared" where two drivers took turns in the car. */
+export const driverName = (name, row) => `${text(name ?? row.driver_id)}${row.shared_drive === 1 ? ` ${SHARED}` : ''}`
+
+/*
+ * The classification's driver: driverName() and the mark where the row
+ * carries a note. Its own formatter rather than driverName()'s, because Grid
+ * to flag and the stint table name the same rows and have no footer giving
+ * the note, so a mark there would point at nothing.
+ */
+const classifiedName = (name, row) => `${driverName(name, row)}${hasEntryNote(row) ? ` ${ENTRY_NOTE_MARK}` : ''}`
 
 /** "●" with the words "fastest lap" for a screen reader; nothing otherwise. */
 export const fastestLapMark = (value) => (value === 1 ? `●${FASTEST_LAP}` : '')
@@ -277,7 +284,7 @@ const WRAPS = 'wraps'
 export const CLASSIFICATION_COLUMNS = [
   rail,
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
-  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName, cellClass: WRAPS },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: classifiedName, cellClass: WRAPS },
   // The entrant's name where no constructor is resolved: a privateer entry.
   { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)), cellClass: WRAPS },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id), cellClass: WRAPS },
