@@ -211,84 +211,89 @@ CALENDARS = {
     2027: (CALENDAR_2027, SOURCE_F1_2027),
 }
 
-# position, driver_id, display, team, points
+# The hand-entered tables hold no display name for the entrant: standings.entity
+# is the register's name for the id (drivers.full_name, constructors.name), the
+# rule F1DB's per-round rows already followed. A second name here once put 2025
+# Sauber in one season's tables as both 'Kick Sauber' and 'Sauber' (DA-29).
+# The team a driver raced for stays: it is the `team` column, not the entity.
+# position, driver_id, team, points
 DRIVER_STANDINGS_2026 = [
-    (1, "antonelli", "Kimi Antonelli", "Mercedes", 242),
-    (2, "russell", "George Russell", "Mercedes", 183),
-    (3, "hamilton", "Lewis Hamilton", "Ferrari", 183),
-    (4, "norris", "Lando Norris", "McLaren", 159),
-    (5, "leclerc", "Charles Leclerc", "Ferrari", 155),
-    (6, "verstappen", "Max Verstappen", "Red Bull Racing", 112),
-    (7, "piastri", "Oscar Piastri", "McLaren", 104),
-    (8, "hadjar", "Isack Hadjar", "Red Bull Racing", 68),
-    (9, "lawson", "Liam Lawson", "Racing Bulls", 49),
-    (10, "gasly", "Pierre Gasly", "Alpine", 44),
-    (11, "lindblad", "Arvid Lindblad", "Racing Bulls", 23),
-    (12, "colapinto", "Franco Colapinto", "Alpine", 19),
-    (13, "bearman", "Oliver Bearman", "Haas F1 Team", 18),
-    (14, "bortoleto", "Gabriel Bortoleto", "Audi", 10),
-    (15, "hulkenberg", "Nico Hulkenberg", "Audi", 6),
-    (16, "sainz", "Carlos Sainz", "Williams", 6),
-    (17, "albon", "Alexander Albon", "Williams", 5),
-    (18, "ocon", "Esteban Ocon", "Haas F1 Team", 3),
-    (19, "alonso", "Fernando Alonso", "Aston Martin", 3),
-    (20, "tsunoda", "Yuki Tsunoda", "Racing Bulls", 0),
-    (21, "stroll", "Lance Stroll", "Aston Martin", 0),
-    (22, "bottas", "Valtteri Bottas", "Cadillac", 0),
-    (23, "perez", "Sergio Perez", "Cadillac", 0),
+    (1, "antonelli", "Mercedes", 242),
+    (2, "russell", "Mercedes", 183),
+    (3, "hamilton", "Ferrari", 183),
+    (4, "norris", "McLaren", 159),
+    (5, "leclerc", "Ferrari", 155),
+    (6, "verstappen", "Red Bull Racing", 112),
+    (7, "piastri", "McLaren", 104),
+    (8, "hadjar", "Red Bull Racing", 68),
+    (9, "lawson", "Racing Bulls", 49),
+    (10, "gasly", "Alpine", 44),
+    (11, "lindblad", "Racing Bulls", 23),
+    (12, "colapinto", "Alpine", 19),
+    (13, "bearman", "Haas F1 Team", 18),
+    (14, "bortoleto", "Audi", 10),
+    (15, "hulkenberg", "Audi", 6),
+    (16, "sainz", "Williams", 6),
+    (17, "albon", "Williams", 5),
+    (18, "ocon", "Haas F1 Team", 3),
+    (19, "alonso", "Aston Martin", 3),
+    (20, "tsunoda", "Racing Bulls", 0),
+    (21, "stroll", "Aston Martin", 0),
+    (22, "bottas", "Cadillac", 0),
+    (23, "perez", "Cadillac", 0),
 ]
 
-# position, constructor_id, display, points
+# position, constructor_id, points
 TEAM_STANDINGS_2026 = [
-    (1, "mercedes", "Mercedes", 425),
-    (2, "ferrari", "Ferrari", 338),
-    (3, "mclaren", "McLaren", 263),
-    (4, "red-bull", "Red Bull Racing", 186),
-    (5, "racing-bulls", "Racing Bulls", 66),
-    (6, "alpine", "Alpine", 63),
-    (7, "haas", "Haas F1 Team", 21),
-    (8, "audi", "Audi", 16),
-    (9, "williams", "Williams", 11),
-    (10, "aston-martin", "Aston Martin", 3),
-    (11, "cadillac", "Cadillac", 0),
+    (1, "mercedes", 425),
+    (2, "ferrari", 338),
+    (3, "mclaren", 263),
+    (4, "red-bull", 186),
+    (5, "racing-bulls", 66),
+    (6, "alpine", 63),
+    (7, "haas", 21),
+    (8, "audi", 16),
+    (9, "williams", 11),
+    (10, "aston-martin", 3),
+    (11, "cadillac", 0),
 ]
 
 # Final 2025 standings, verified against formula1.com
 DRIVER_STANDINGS_2025 = [
-    (1, "norris", "Lando Norris", "McLaren", 423),
-    (2, "verstappen", "Max Verstappen", "Red Bull Racing", 421),
-    (3, "piastri", "Oscar Piastri", "McLaren", 410),
-    (4, "russell", "George Russell", "Mercedes", 319),
-    (5, "leclerc", "Charles Leclerc", "Ferrari", 242),
-    (6, "hamilton", "Lewis Hamilton", "Ferrari", 156),
-    (7, "antonelli", "Kimi Antonelli", "Mercedes", 150),
-    (8, "albon", "Alexander Albon", "Williams", 73),
-    (9, "sainz", "Carlos Sainz", "Williams", 64),
-    (10, "alonso", "Fernando Alonso", "Aston Martin", 56),
-    (11, "hulkenberg", "Nico Hulkenberg", "Kick Sauber", 51),
-    (12, "hadjar", "Isack Hadjar", "Racing Bulls", 51),
-    (13, "bearman", "Oliver Bearman", "Haas F1 Team", 41),
-    (14, "lawson", "Liam Lawson", "Racing Bulls", 38),
-    (15, "ocon", "Esteban Ocon", "Haas F1 Team", 38),
-    (16, "stroll", "Lance Stroll", "Aston Martin", 33),
-    (17, "tsunoda", "Yuki Tsunoda", "Red Bull Racing", 33),
-    (18, "gasly", "Pierre Gasly", "Alpine", 22),
-    (19, "bortoleto", "Gabriel Bortoleto", "Kick Sauber", 19),
-    (20, "colapinto", "Franco Colapinto", "Alpine", 0),
-    (21, "doohan", "Jack Doohan", "Alpine", 0),
+    (1, "norris", "McLaren", 423),
+    (2, "verstappen", "Red Bull Racing", 421),
+    (3, "piastri", "McLaren", 410),
+    (4, "russell", "Mercedes", 319),
+    (5, "leclerc", "Ferrari", 242),
+    (6, "hamilton", "Ferrari", 156),
+    (7, "antonelli", "Mercedes", 150),
+    (8, "albon", "Williams", 73),
+    (9, "sainz", "Williams", 64),
+    (10, "alonso", "Aston Martin", 56),
+    (11, "hulkenberg", "Kick Sauber", 51),
+    (12, "hadjar", "Racing Bulls", 51),
+    (13, "bearman", "Haas F1 Team", 41),
+    (14, "lawson", "Racing Bulls", 38),
+    (15, "ocon", "Haas F1 Team", 38),
+    (16, "stroll", "Aston Martin", 33),
+    (17, "tsunoda", "Red Bull Racing", 33),
+    (18, "gasly", "Alpine", 22),
+    (19, "bortoleto", "Kick Sauber", 19),
+    (20, "colapinto", "Alpine", 0),
+    (21, "doohan", "Alpine", 0),
 ]
 
 TEAM_STANDINGS_2025 = [
-    (1, "mclaren", "McLaren", 833),
-    (2, "mercedes", "Mercedes", 469),
-    (3, "red-bull", "Red Bull Racing", 451),
-    (4, "ferrari", "Ferrari", 398),
-    (5, "williams", "Williams", 137),
-    (6, "racing-bulls", "Racing Bulls", 92),
-    (7, "aston-martin", "Aston Martin", 89),
-    (8, "haas", "Haas F1 Team", 79),
-    (9, "sauber", "Kick Sauber", 70),
-    (10, "alpine", "Alpine", 22),
+    (1, "mclaren", 833),
+    (2, "mercedes", 469),
+    (3, "red-bull", 451),
+    (4, "ferrari", 398),
+    (5, "williams", 137),
+    (6, "racing-bulls", 92),
+    (7, "aston-martin", 89),
+    (8, "haas", 79),
+    (9, "sauber", 70),
+    (10, "alpine", 22),
 ]
 
 # year, round, gp_name, winner_id, constructor_id
@@ -388,8 +393,12 @@ SOURCE_REGISTRY = [
     (7, "F1 results archive", "https://www.formula1.com/en/results",
      "Season-by-season classifications and race results.", "official",
      "FOM copyright.", "Per event.",
-     "The winner of every race is held independently from the Wikipedia "
-     "harvest; the two must agree."),
+     "Every race winner taken from it - the seasons after the Wikipedia "
+     "race-winner harvest ends - is compared on load with the winner the "
+     "Wikipedia pole and venue harvests give for the same race, and with "
+     "F1DB's; any disagreement stops the build. A round run since its pages "
+     "were last read has F1DB's winner alone, cited to F1DB, and nothing to "
+     "compare it with."),
     (8, "Wikipedia season results tables", "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Championship_points_scoring_systems",
      "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications, and a race winner harvested from them is compared on load with F1DB's. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.", "reference",
      "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see "
@@ -424,11 +433,12 @@ SOURCE_REGISTRY = [
      "Re-released after every race, versioned, with a public commit history "
      "and a changelog. Better maintained than anything else at this scale.",
      "Heavily, in four independent places, all of them held here before F1DB "
-     "was read. (1) The winner of every one of the {{fig:races_completed}} races was established here "
-     "before F1DB was read - from the Wikipedia harvest, and from "
-     "formula1.com for the seasons it covers; a race whose winner "
-     "disagreed is refused WHOLE, and "
-     "none was. The comparison is on sets, because a shared drive puts two "
+     "was read. (1) The winner of {{fig:races_winner_held}} of the {{fig:races_completed}} races was "
+     "established here before F1DB was read - from the Wikipedia race-winner "
+     "harvest, and from formula1.com for the seasons after it; a race whose winner "
+     "disagreed is refused WHOLE, and none was. A round run since "
+     "formula1.com was last read has F1DB's winner and nothing to compare "
+     "it with. The comparison is on sets, because a shared drive puts two "
      "drivers on position 1 and both are winners. (2) The champion, the "
      "runner-up and both their point totals for {{fig:seasons_reproduced}} seasons were already in "
      "`seasons`; the final standings must reproduce all four and do. "
@@ -635,7 +645,7 @@ SOURCE_PATTERNS = [
     (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_World_Championship",
      "season articles - the results, pole and venue harvests"),
     (8,  r"^https://en\.wikipedia\.org/wiki/List_of_Formula_One", "the list articles"),
-    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio, and why a finisher inside the paid places scored nothing"),
     (10, r"^https://github\.com/f1db/f1db", None),
     (12, r"^https://api\.jolpi\.ca/", None),
     (15, r"^https://commons\.wikimedia\.org/", None),
@@ -683,6 +693,7 @@ CLAIM_FIELDS = {
     ("car_seasons", "other_chassis"): "chassis F1DB's entry lists name for the constructor that season beyond the ones the car covers",
     ("circuits", "article"): "the Wikipedia article the List of Formula One circuits links for the circuit",
     ("circuits", "article_section"): "likewise, the section of it the list links, where it links a section",
+    ("race_entries", "note"): "why a finisher inside the paid places scored nothing, as the race's article states it",
 }
 
 # Provenance for the tables that carry `confidence` and no `source` column.
@@ -926,8 +937,6 @@ EMPTY_COLUMNS = {
     "pit_stops.stationary_seconds":
         "no source read here gives it: the timing sources publish pit-lane "
         "time, and F1DB no duration at all",
-    "race_entries.note":
-        "a per-row annotation that no loader writes and no row has needed",
     "season_entries.note":
         "a per-row annotation that no loader writes and no row has needed",
     "sprint_results.note":

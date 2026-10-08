@@ -1629,6 +1629,20 @@ def _calendar_weekend(dates):
     return date_from, date_to
 
 
+def _register_name(cur, kind, eid):
+    """The name standings.entity carries for an entrant: the register's,
+    drivers.full_name or constructors.name, on every row of every source.
+    Both standings loaders take it from here, so one id cannot stand under
+    two names in one season's tables (DA-29)."""
+    row = cur.execute(
+        "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
+        else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
+    if row is None:
+        raise SystemExit(f"standings: {kind} entrant {eid!r} is not in the "
+                         f"register, so it has no name to stand under")
+    return row[0]
+
+
 def _stage_16_current_season(b):
     """current season"""
     cur = b.cur
@@ -1662,15 +1676,15 @@ def _stage_16_current_season(b):
         for row in rows:
             sid += 1
             if tbl == "drivers":
-                pos, eid, disp, team, pts = row
+                pos, eid, team, pts = row
             else:
-                pos, eid, disp, pts = row
+                pos, eid, pts = row
                 team = None
             cur.execute("""INSERT INTO standings (id, year, table_type, position, entity,
                 driver_id, constructor_id, team, points, after_round,
                 basis, snapshot_date, confidence, source)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (sid, year, tbl, pos, disp,
+                (sid, year, tbl, pos, _register_name(cur, tbl, eid),
                  eid if tbl == "drivers" else None,
                  eid if tbl == "constructors" else None,
                  team, pts, after, basis, dated, "verified",
@@ -2033,7 +2047,7 @@ def _stage_20_second_and_third_place_from_the(b):
                 f"{h['position']}, but this database has him as the winner")
 
         # Grid is taken from this source EXCEPT where it is 1. Pole is
-        # established for all 1,161 races by the pole harvest, and it is a
+        # established by the pole harvest for every race it reaches, and it is a
         # single fact per race; this source hands the car's grid slot to every
         # driver who shared it, so accepting grid 1 here gave Farina a pole in
         # 1955 for a car Gonzalez had qualified.
@@ -2109,7 +2123,10 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             continue
 
         # THE CHECK. The winner of this race is already established, from a
-        # different source, for all 1,161 races. If F1DB disagrees the race is
+        # different source - the Wikipedia race-winner harvest, or
+        # formula1.com for the seasons after it - wherever one of them has
+        # been read for it. A round neither reaches has no `ours` and nothing
+        # to compare, and loads on F1DB's word. If F1DB disagrees the race is
         # refused whole - never partially accepted, never nudged into a match.
         # A shared drive puts two drivers on position 1 and both are winners,
         # so this compares SETS: taking "the" winner would have made the 1956
@@ -2342,9 +2359,13 @@ def _zero_below_the_paid_places(cur):
     Only a NULL is written. An entry that did score keeps F1DB's figure - a
     1950s fastest-lap point for a car that retired, or a championship car
     classified behind the Formula Two entries of a German Grand Prix. A
-    finisher inside the paid places with no points is left NULL: the scale
-    says those places were paid, so what the race's own rules did to that
-    entry is not this rule's to state, and verify.py names each one. Every
+    finisher inside the paid places with no points is not this rule's: the
+    scale says those places were paid, so what the race's own rules did to
+    that entry - a shared drive, a Formula Two car, a second car not entered
+    for the championship, a penalty - is a fact about the entry. Each is
+    declared in data/harvest.py UNPAID_INSIDE_THE_PAID_PLACES with the cause
+    its race's article states, which is written as the row's note and cited
+    in `claims`, and the 0 that cause establishes goes with it (DA-37). Every
     row this touches is written here, after the last stage that inserts a
     race or sprint entry."""
     written = {}
@@ -2374,6 +2395,40 @@ def _zero_below_the_paid_places(cur):
     print(f"  points: 0 written for {gb} classified finishers below the last "
           f"place their points system paid and {gu} entries not classified; "
           f"sprints {sb} and {su}")
+
+    # Inside the paid places, only where a declared cause says nothing was
+    # paid. A name F1DB no longer bears out is refused rather than skipped:
+    # the row gone, no longer classified, below the paid places (the scale
+    # has already written it), or given points by F1DB after all.
+    stale = []
+    for (yr, rnd, did), (note, source) in sorted(
+            HV.UNPAID_INSIDE_THE_PAID_PLACES.items()):
+        row = cur.execute("""SELECT e.id, e.race_id, e.finish_position, e.points
+            FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.year = ? AND r.round = ? AND e.driver_id = ?""",
+            (yr, rnd, did)).fetchone()
+        system = cur.execute("""SELECT scale FROM points_systems
+            WHERE session = 'race' AND from_year <= ?
+              AND (to_year IS NULL OR to_year >= ?)
+            ORDER BY from_year DESC LIMIT 1""", (yr, yr)).fetchone()
+        if (row is None or row[2] is None or row[3] is not None
+                or system is None or row[2] > len(json.loads(system[0]))):
+            stale.append(f"{yr} r{rnd} {did}")
+            continue
+        cur.execute("UPDATE race_entries SET points = 0, note = ? WHERE id = ?",
+                    (note, row[0]))
+        cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
+            source) VALUES ('race_entries', ?, 'note', ?, ?)""",
+            (f"{row[1]}|{did}", note, source))
+    if stale:
+        raise SystemExit(
+            "data/harvest.py UNPAID_INSIDE_THE_PAID_PLACES names "
+            + ", ".join(stale) + ", which F1DB no longer gives as a classified "
+            "finisher inside the paid places with no points. Read the row "
+            "again and take the name out, or correct it.")
+    print(f"  points: 0 and the stated cause written for "
+          f"{len(HV.UNPAID_INSIDE_THE_PAID_PLACES)} finishers inside the paid "
+          f"places whom the race's own rules did not pay")
 
 
 def _stage_23_a_round_that_has_a_result(b):
@@ -2469,8 +2524,8 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             qual_rows += cur.rowcount
 
-        # The cross-check this table brings with it. Pole is held for all
-        # 1,161 races from the Wikipedia harvest, independently of F1DB, and
+        # The cross-check this table brings with it. Pole is held for every
+        # race the Wikipedia pole harvest reaches, independently of F1DB, and
         # the fastest qualifier is usually that driver. Where they differ
         # nothing is recorded: a grid penalty or a sprint-set grid moves the
         # quickest driver off pole without making either source wrong about
@@ -2923,9 +2978,6 @@ def _stage_25_championship_standings_after_every_round_and(b):
             if basis == "final":
                 continue
 
-        name = cur.execute(
-            "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
-            else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
         cur.execute("""INSERT OR IGNORE INTO standings (year, table_type,
                 position, position_text, entity, driver_id,
                 constructor_id, engine_id, points, after_round, basis,
@@ -2933,7 +2985,7 @@ def _stage_25_championship_standings_after_every_round_and(b):
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, kind,
              int(pos) if str(pos).isdigit() else None, str(pos) if pos else None,
-             name[0] if name else eid, did, cid,
+             _register_name(cur, kind, eid), did, cid,
              engine_id, pts, after, basis,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         std_rows += cur.rowcount

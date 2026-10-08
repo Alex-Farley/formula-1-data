@@ -654,13 +654,6 @@ CHASSIS_DISAGREEMENTS = [
      "read from the same infobox, keeps the whole cubic centimetres, 1,984. The "
      "page shows the register's, as it does every figure the register holds for "
      "this car."),
-    ("lotus-78", "track_rear_mm",
-     "This car's row gives a rear track of 1,600 mm, which is what the car's "
-     "Wikipedia article gives (front 1,702 mm, rear 1,600 mm, read 2026-10-06). "
-     "The chassis register gives 1,702 for both ends: its harvest copies the "
-     "front track into the rear, as it does for every chassis with both (PM-68, "
-     "#838). The page shows the register's, as it does every figure the "
-     "register holds for this car, until the harvest reads the rear end."),
     ("red-bull-rb19", "power_bhp",
      "This car's row gives 1,000 bhp, a round figure marked medium confidence: "
      "widely reported, not checked against a primary source. The chassis "
