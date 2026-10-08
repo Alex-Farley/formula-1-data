@@ -5353,6 +5353,11 @@ def facts_artefact():
           f"{len(decl)} tables carried; "
           + ", ".join(f"{len([r for r in rebuilt[t].values() if 'source_id' in r])} {t}"
                       for t in fa.RESOURCED) + " rows rebuilt from F1DB")
+    barred_ids = {i for i, x in reg.items() if x["redistributable"] not in ("yes", "facts-only")}
+    unfiltered = [t for t in fa.RESOURCED if not decl[t]["where"] or any(
+        str(i) in re.findall(r"\d+", decl[t]["where"]) for i in barred_ids)]
+    check("every table the facts artefact rebuilds selects its rows by source class",
+          not unfiltered, ", ".join(unfiltered))
     check("every share-alike row of a table the facts artefact rebuilds is rebuilt from F1DB",
           not unbuilt, f"{len(unbuilt)}: " + ", ".join(unbuilt[:6]) if unbuilt else "")
 
