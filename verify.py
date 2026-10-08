@@ -698,8 +698,9 @@ def standings():
                                 AND c.id = s.constructor_id
         WHERE s.entity IS NOT COALESCE(d.full_name, c.name)""").fetchall()
     check("every standings entity is the register's name for its entrant",
-          not named, "; ".join(f"{y} {t} {i}: {e!r}, register {r!r}"
-                               for y, t, i, e, r in named[:4]))
+          not named, f"{len(named)} rows: " + "; ".join(
+              f"{y} {t} {i}: {e!r}, register {r!r}"
+              for y, t, i, e, r in named[:4]))
 
 
 @section('STANDINGS ARE THE SUM OF THE RESULTS')
