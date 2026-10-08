@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
@@ -153,7 +153,8 @@ function CircuitBody({ circuit, data }) {
   const teams = rows(data, 'teams')
   const held = heldAs(rows(data, 'grandsPrix'))
   // VD-62: the photograph identifies the place, beside the heading - not a
-  // hero, and not in place of the outlines below. canShow() before anything
+  // hero, and not in place of the outline, which leads in the opening slot
+  // beside the header (VD-74, VD-84). canShow() before anything
   // is drawn, so a row with nobody to credit leaves the page as it was.
   const photograph = rows(data, 'photograph').find(canShow) ?? null
   // VD-83: what sits beside the lead in *Every layout raced here* - the
@@ -238,6 +239,22 @@ function CircuitBody({ circuit, data }) {
         <Stats items={circuitStrip(circuit)} />
       </Section>
 
+      {/* The opening slot (VD-84): the current layout leads every circuit
+          page (VD-74 #823), beside the header from 1180 px, where the
+          photograph stays the header's own. Where nothing else is drawn
+          below, the card carries the rule a section's note would. */}
+      <Slot>
+        {lead && (
+          <OutlineCard
+            path={lead.path}
+            circuit={circuit.name}
+            layoutId={lead.f1db_layout_id}
+            caption={outlineCaption(lead)}
+            rule={!history}
+          />
+        )}
+      </Slot>
+
       <div className="split">
         {winners.length > 0 && (
           <Section title="Most wins here" count={`${winners.length} drivers`}>
@@ -288,22 +305,17 @@ function CircuitBody({ circuit, data }) {
           PD-60 put the winners first and the history behind a disclosure,
           closed, but only at the 13 circuits with a timeline; the other 67
           opened on a grid of cards. VD-83 (SD-41): one order on all 80 -
-          winners, then this section, the lead drawn large with the rows or
-          the other drawings beside it behind the same disclosure. */}
-      {(timeline.length > 0 || outlines.length > 0) && (
+          winners, then this section, the rows or the other drawings behind
+          the same disclosure. The lead drawing is the opening slot's since
+          VD-84, so a venue with one layout and no timeline has nothing left
+          to put here, and no section. */}
+      {history && (
         <Section
           title="Every layout raced here"
           count={layoutsCount(layouts, outlines)}
           note={circuitOutlinesNote(outlines.length, timeline.length > 0)}
         >
-          {lead ? (
-            <div className="outline-set">
-              <OutlineCard path={lead.path} circuit={circuit.name} layoutId={lead.f1db_layout_id} caption={outlineCaption(lead)} />
-              {history}
-            </div>
-          ) : (
-            history
-          )}
+          {history}
         </Section>
       )}
 

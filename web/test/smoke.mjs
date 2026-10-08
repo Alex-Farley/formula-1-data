@@ -64,6 +64,7 @@ import {
   RACE_CARS_TITLE,
   RACE_PHOTOGRAPHS_TITLE,
   REPLACED,
+  SLOT_MARKS,
   SO_FAR,
   UNCHECKED_MARK,
   licenceTerms,
@@ -73,7 +74,7 @@ import {
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
-import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
+import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
 import { UNRESULTED } from '../src/queries/changes.js'
@@ -89,7 +90,7 @@ import {
   leadersDrawn,
   recordFamilies,
 } from '../src/queries/records.js'
-import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
+import { NO_DRAWING, NO_TIMELINE_ROW, OUTLINE_RULE } from '../src/lib/outline.js'
 import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -1788,7 +1789,9 @@ try {
       .prepare('SELECT id FROM chassis WHERE COALESCE(last_year, first_year) = ? ORDER BY id')
       .all(season)
       .map((row) => row.id)
-      .find((id) => db.prepare(CAR_IMAGES).all(id, id).some(canShow))
+      // A strip left once the slot has taken the photograph that names the
+      // car (VD-84), so the order has photographs to read.
+      .find((id) => carPhotographs(db.prepare(CAR_IMAGES).all(id, id)).rest.length > 0)
     const firstSection = () =>
       page.$eval('#root main section.section', (node) => node.querySelector('h2')?.textContent.trim() ?? '')
     const tilesFirst = (html) => {
@@ -2033,10 +2036,14 @@ try {
           : 0,
         sheetsOpen: sheets ? sheets.open : null,
         sheetTables: sheets ? sheets.querySelectorAll('table').length : 0,
-        // The two halves' blocks are the same shape: the grid and the
-        // disclosure each the child of a section of its own, not folded into
-        // a neighbour's by prerender.js's sectioned().
-        shape: [main.querySelector('.with-lead'), sheets].map((n) => n?.parentElement?.matches('section.section') ?? null),
+        // The two halves' blocks are the same shape: the outline's slot a
+        // block of the page beside the sections (VD-84), and the disclosure
+        // the child of a section of its own, neither folded into a
+        // neighbour's by prerender.js's sectioned().
+        shape: [
+          main.querySelector('.slot')?.parentElement?.matches('.page') ?? null,
+          sheets?.parentElement?.matches('section.section') ?? null,
+        ],
       }
     }
     // Every block named here is on the page, in this order; either strip of
@@ -2088,9 +2095,14 @@ try {
       )
       is(got.sheetsOpen, false, `${half}: the practice sheets are behind a closed disclosure`)
       is(got.sheetTables, run.sheets, `${half}: with all ${run.sheets} of their tables inside it`)
-      is(got.shape.join(' '), 'true true', `${half}: the grid and the disclosure each sit in a section of their own`)
+      is(got.shape.join(' '), 'true true', `${half}: the outline's slot is a block of the page, and the disclosure sits in a section of its own`)
     }
-    atLeast(app.rows, 8, 'the app shows at least eight rows of the classification on a 1440 × 900 screen')
+    // Eight rows while the tiles sat in the column beside the outline
+    // (PD-57). Version A puts the outline beside the header and the tiles
+    // full width under both (DP-11, VD-84), so the band is as tall as the
+    // drawing and the table starts lower: the heading and the podium, at
+    // least, are on the first screen.
+    atLeast(app.rows, 4, 'the app shows at least the first four rows of the classification on a 1440 × 900 screen')
 
     // A round not yet run: the timetable is what there is to lead with.
     const unrun = db
@@ -2140,8 +2152,8 @@ try {
         // come first and are svgs too, aria-hidden and 8 px tall.
         drawing: top(heading?.closest('section')?.querySelector('svg[role="img"][aria-label]')),
         tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
-        // In the column right of the heading and the tiles (VD-53).
-        beside: !!heading && !!tiles && heading.closest('section').getBoundingClientRect().left >= tiles.getBoundingClientRect().right,
+        // In the opening slot beside the header (VD-84).
+        beside: !!heading && heading.closest('section').matches('.page > .slot') && heading.closest('section').getBoundingClientRect().left > main.querySelector('.page > header').getBoundingClientRect().right,
       }
     }
     // Every block named is on the page, in this order, except the optional
@@ -2166,11 +2178,12 @@ try {
     }
     // The drawing itself, not only its heading, is inside the first screen -
     // on the season being run as well, whose two sentences under the tiles
-    // put its plot at 906 until VD-53 moved the chart beside them.
+    // put its plot at 906 until VD-53 moved the chart beside them, and the
+    // opening slot (VD-84) beside the header.
     const leads = (route, chart, got) =>
       truthy(
         got.heading !== null && got.drawing !== null && (got.heading > got.tilesEnd || got.beside) && got.drawing < 900,
-        `${route}: “${chart}” is under or beside the tiles and drawn inside the first 900 px at 1440 — heading at ${Math.round(got.heading)}, drawing at ${Math.round(got.drawing)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+        `${route}: “${chart}” is under the tiles or beside the header, and drawn inside the first 900 px at 1440 — heading at ${Math.round(got.heading)}, drawing at ${Math.round(got.drawing)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
       )
     const checkOrder = (route, got, order, optional) => {
       truthy(inOrder(got.app.blocks, order, optional), `${route}, the app: ${order.join(' → ')} — ${got.app.blocks.join(' · ')}`)
@@ -2381,43 +2394,51 @@ try {
     if (wrong.length > 8) fail(`…and ${wrong.length - 8} more`)
   })
 
-  await section('Lead figures  (beside the heading from 1180 px, after the tiles below: VD-53, VD-78)', async () => {
-    // The chart a driver's, a team's or a season's page is for sits in the
-    // column the lede leaves empty from 1180 px (--bp-desktop): level with the
-    // heading, right of the lede and the tiles, drawn inside the first 900 px,
-    // and clear of everything after the opening. Below 1180 it follows the
-    // tiles in one column. The markup is one order at every width - sentence,
-    // tiles, figure - so a screen reader and the Tab key take the order the
-    // eye does, left column then right. A page with no lead figure is left
-    // as it was, its tiles the width of the page.
-    const readOpening = () => {
-      const article = document.querySelector('#root main .page')
+  await section('The opening slot  (beside the header from 1180 px, after the tiles below: VD-84, DP-09, DP-11)', async () => {
+    // Version A's opening (§3, Opening slot): from 1180 px (--bp-desktop)
+    // the header takes seven columns and one picture of the page's subject
+    // the other five - the lead chart on a driver's, a team's and a season's
+    // page, a circuit's current layout (VD-74), a race's outline (DP-11), a
+    // car's photograph. The band is as tall as the taller side, and the tile
+    // strip runs the full width under both. Below 1180 the slot follows the
+    // tiles in one column; a race writes it after its classification, so the
+    // table never shares its width (IX-45) and a phone reads the result
+    // first. The markup is one order at every width - heading, tiles, the
+    // picture - and only the grid lifts the slot, so a screen reader and the
+    // Tab key keep it. A page with nothing for the slot keeps its tiles the
+    // width of the page.
+    const readOpening = (root) => {
+      const article = document.querySelector(`${root} .page`)
       const box = (node) => {
         if (!node) return null
         const b = node.getBoundingClientRect()
         return { top: b.top + window.scrollY, bottom: b.bottom + window.scrollY, left: b.left, right: b.right, width: b.width }
       }
-      const lead = article.querySelector(':scope > section.section-lead')
+      const slot = article.querySelector(':scope > .slot')
       const tiles = article.querySelector(':scope > header + section.section')
+      const before = slot?.previousElementSibling
       // The strip's last row of tiles, and the blank after its last tile.
       const strip = tiles?.querySelector('.stats')
       const cells = [...(strip?.querySelectorAll(':scope > div') ?? [])].map((tile) => tile.getBoundingClientRect())
       const lastTop = cells.length ? Math.max(...cells.map((b) => Math.round(b.top))) : null
       const lastRow = cells.filter((b) => Math.round(b.top) === lastTop)
       return {
-        lead: box(lead),
+        slot: box(slot),
+        header: box(article.querySelector(':scope > header')),
+        heading: box(article.querySelector(':scope > header h1')),
         tileSection: box(tiles),
+        tiles: box(strip),
         lastRow: lastRow.map((b) => b.width),
         blank: strip && lastRow.length ? strip.getBoundingClientRect().right - Math.max(...lastRow.map((b) => b.right)) : 0,
-        plot: box(lead?.querySelector('svg[role="img"][aria-label]')),
-        heading: box(article.querySelector(':scope > header h1')),
-        lede: box(article.querySelector(':scope > header .lede')),
-        tiles: box(tiles?.querySelector('.stats')),
-        follows: !!lead && lead.previousElementSibling === tiles,
-        next: box(lead?.nextElementSibling),
+        plot: box(slot?.querySelector('svg[role="img"][aria-label]')),
+        // What the markup puts the slot after: the tiles, or a race's result.
+        after: before === tiles ? 'tiles' : (before?.querySelector(':scope > h2')?.textContent.trim().split(/\s/)[0] ?? before?.tagName ?? null),
+        before: box(before),
+        // A split is a grid of sections, and its first one is what stands clear.
+        next: box(slot?.nextElementSibling?.matches('.split') ? slot.nextElementSibling.firstElementChild : slot?.nextElementSibling),
         // Placed across both columns (a disagreement is narrower than the
         // page by its own max-width, so it is the placement that is read).
-        spans: !!lead?.nextElementSibling && getComputedStyle(lead.nextElementSibling).gridColumn === '1 / -1',
+        spans: !slot?.nextElementSibling || getComputedStyle(slot.nextElementSibling).gridColumn === '1 / -1',
         page: box(article),
       }
     }
@@ -2428,58 +2449,149 @@ try {
             AND (SELECT COUNT(*) FROM races r WHERE r.year = s.year AND r.status = 'completed') > 1`,
       )
       .get()?.year
+    const race = db
+      .prepare("SELECT year, round, name_used FROM races WHERE status = 'completed' AND f1db_layout_id IS NOT NULL ORDER BY year DESC, round DESC LIMIT 1")
+      .get()
+    const name = (table, id, column = 'name') => db.prepare(`SELECT ${column} FROM ${table} WHERE id = ?`).get(id)[column]
+    const single = db
+      .prepare(
+        `SELECT c.id, c.name FROM circuits c
+          WHERE (SELECT COUNT(*) FROM circuit_outlines o WHERE o.circuit_id = c.id) = 1
+            AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.circuit_id = c.id)
+          ORDER BY c.id`,
+      )
+      .all()
+      .find((c) => !db.prepare(CIRCUIT_PHOTOGRAPH).all(c.id).some(canShow))
+    // [route, the heading to wait for, what fills the slot, what the slot
+    // follows in the markup, whether the static page draws it too]
     const cases = [
-      ['/drivers/fangio', db.prepare("SELECT full_name FROM drivers WHERE id = 'fangio'").get().full_name],
-      ['/constructors/ferrari', db.prepare("SELECT name FROM constructors WHERE id = 'ferrari'").get().name],
-      // A recorded disagreement is the block straight after the chart.
-      ['/constructors/mclaren', db.prepare("SELECT name FROM constructors WHERE id = 'mclaren'").get().name],
-      ['/seasons/1976', '1976'],
-      ...(live ? [[`/seasons/${live}`, String(live)]] : []),
+      ['/drivers/fangio', name('drivers', 'fangio', 'full_name'), 'chart', 'tiles', false],
+      // A recorded disagreement is the block straight after the chart; and
+      // 61 seasons, near the most the slot can draw (SLOT_MARKS).
+      ['/constructors/mclaren', name('constructors', 'mclaren'), 'chart', 'tiles', false],
+      ['/seasons/1976', '1976', 'chart', 'tiles', false],
+      ...(live ? [[`/seasons/${live}`, String(live), 'chart', 'tiles', false]] : []),
+      [`/races/${race.year}/${race.round}`, race.name_used, 'outline', 'Classification', true],
+      // Silverstone keeps its photograph in the header beside the outline.
+      ['/circuits/silverstone', name('circuits', 'silverstone'), 'outline', 'tiles', true],
+      // One drawing, no timeline and no photograph: the slot's card carries
+      // the rule, and there is no layouts section below.
+      [`/circuits/${single.id}`, single.name, 'outline', 'tiles', true],
+      ['/cars/lotus-72', name('cars', 'lotus-72', 'full_name'), 'photograph', 'tiles', true],
     ]
-    for (const [route, wait] of cases) {
+    const FILLS = { chart: 'svg[role="img"]', outline: '.outline-card svg.outline', photograph: 'figure.photo img' }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const [route, wait, fill, after, both] of cases) {
       await go(route, wait)
+      truthy(
+        await page.$(`#root main .page > .slot ${FILLS[fill]}`),
+        `${route}: the slot holds the ${fill}`,
+      )
+      if (both) await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
       for (const width of [1440, 1180, 1179, 1024, 400]) {
         await page.setViewportSize({ width, height: 900 })
         await settle()
-        const got = await page.evaluate(readOpening)
-        if (!got.lead || !got.tiles || !got.plot) {
-          fail(`${route} at ${width}: no lead figure after a tile strip`)
-          continue
+        const halves = [['the app', await page.evaluate(readOpening, '#root main')]]
+        if (both && (width === 1440 || width === 1024)) {
+          await plain.setViewportSize({ width, height: 900 })
+          halves.push(['the static page', await plain.evaluate(readOpening, '#prerendered main')])
         }
-        truthy(got.follows, `${route} at ${width}: the figure follows the tiles in the document`)
-        if (width >= 1180) {
-          truthy(
-            got.lead.left >= got.lede.right && got.lead.left >= got.tiles.right && got.lead.top <= got.heading.bottom,
-            `${route} at ${width}: the figure is level with the heading and right of the lede and the tiles — its box at ${Math.round(got.lead.left)}, ${Math.round(got.lead.top)}; the lede ending at ${Math.round(got.lede.right)}, the tiles at ${Math.round(got.tiles.right)}`,
-          )
-          truthy(got.plot.bottom <= 900, `${route} at ${width}: the plot is drawn inside the first 900 px, ending at ${Math.round(got.plot.bottom)}`)
-          truthy(
-            !!got.next && got.spans && got.next.top >= Math.max(got.lead.bottom, got.tileSection.bottom) + 24,
-            `${route} at ${width}: the block after the opening spans both columns and starts clear under them — at ${got.next ? Math.round(got.next.top) : 'none'}, the opening ending at ${Math.round(Math.max(got.lead.bottom, got.tileSection.bottom))}`,
-          )
-          // The strip wraps at half the page. The blank closing its last row
-          // takes no more than a tile's share of that row, so the tiles there
-          // keep room for their notes, and no tile spreads across the strip.
-          truthy(
-            got.lastRow.length > 0 && got.lastRow.every((w) => w >= got.blank && w <= 0.8 * got.tiles.width),
-            `${route} at ${width}: the strip's last row (${got.lastRow.map(Math.round).join(', ')} px) is wider tile by tile than the blank after it (${Math.round(got.blank)}) and spans no row alone (${Math.round(got.tiles.width)})`,
-          )
-        } else {
-          truthy(
-            got.lead.top > got.tiles.bottom && got.lead.left === got.tiles.left,
-            `${route} at ${width}: the figure follows the tiles in one column — at ${Math.round(got.lead.top)}, the tiles ending at ${Math.round(got.tiles.bottom)}`,
-          )
+        for (const [half, got] of halves) {
+          const at = `${route} at ${width}, ${half}`
+          if (!got.slot || !got.tiles) {
+            fail(`${at}: no slot after a tile strip`)
+            continue
+          }
+          is(got.after, after, `${at}: the slot follows the ${after === 'tiles' ? 'tiles' : `${after} section`} in the document`)
+          if (width >= 1180) {
+            truthy(
+              got.slot.left >= got.header.right + 23 && Math.abs(got.slot.right - got.page.right) <= 1 && got.slot.top <= got.heading.bottom,
+              `${at}: the slot is beside the header, level with the heading, to the page's right edge — its box at ${Math.round(got.slot.left)}–${Math.round(got.slot.right)}, ${Math.round(got.slot.top)}; the header ending at ${Math.round(got.header.right)}`,
+            )
+            truthy(
+              got.tileSection.top >= Math.max(got.header.bottom, got.slot.bottom) + 24 && Math.abs(got.tiles.width - got.page.width) <= 1,
+              `${at}: the tiles run the full width under both — at ${Math.round(got.tileSection.top)}, ${Math.round(got.tiles.width)} of ${Math.round(got.page.width)} px; the band ending at ${Math.round(Math.max(got.header.bottom, got.slot.bottom))}`,
+            )
+            if (fill === 'chart') truthy(got.plot && got.plot.bottom <= 900, `${at}: the plot is drawn inside the first 900 px, ending at ${got.plot ? Math.round(got.plot.bottom) : 'nowhere'}`)
+            truthy(
+              !got.next || (got.spans && got.next.top >= got.before.bottom + 24),
+              `${at}: the block after the slot spans the page and starts clear under the block before it — at ${got.next ? Math.round(got.next.top) : 'none'}, that one ending at ${Math.round(got.before.bottom)}`,
+            )
+            // Nine tiles fit a row at 1440. The blank closing its last row
+            // takes no more than a tile's share of that row, so the tiles
+            // there keep room for their notes, and no tile spreads across
+            // the strip.
+            truthy(
+              got.lastRow.length > 0 && got.lastRow.every((w) => w >= got.blank && w <= 0.8 * got.tiles.width),
+              `${at}: the strip's last row (${got.lastRow.map(Math.round).join(', ')} px) is wider tile by tile than the blank after it (${Math.round(got.blank)}) and spans no row alone (${Math.round(got.tiles.width)})`,
+            )
+          } else {
+            truthy(
+              got.slot.top >= got.before.bottom && Math.abs(got.slot.left - got.tiles.left) <= 1,
+              `${at}: the slot follows in one column — at ${Math.round(got.slot.top)}, the block before it ending at ${Math.round(got.before.bottom)}`,
+            )
+          }
         }
       }
     }
+    // The circuit with one drawing and no timeline: the drawing leads in the
+    // slot and is the whole of what there is to draw, so there is no layouts
+    // section under it, and the card says the rule a section's note would.
+    {
+      const route = `/circuits/${single.id}`
+      await go(route, single.name)
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
+        const got = await tab.evaluate(
+          (at) => ({
+            caption: document.querySelector(`${at} .page > .slot figcaption`)?.textContent ?? '',
+            layouts: [...document.querySelectorAll(`${at} h2`)].some((h) => h.textContent.startsWith('Every layout raced here')),
+          }),
+          root,
+        )
+        truthy(got.caption.includes(OUTLINE_RULE) && !got.layouts, `${route}, ${half}: one drawing leads in the slot with the rule on its card, and no layouts section follows`)
+      }
+    }
+    await noJs.close()
+    // §7's minimum mark width: a column chart in the slot keeps every hover
+    // target 6 px wide at 1180, the slot's narrowest. McLaren's 61 seasons
+    // are the case nearest SLOT_MARKS; Ferrari's 77 are over it, so its chart
+    // leads under the tiles at the full width and the header keeps the band.
+    await go('/constructors/mclaren', name('constructors', 'mclaren'))
+    await page.setViewportSize({ width: 1180, height: 900 })
+    await settle()
+    const targets = await page.$$eval('#root main .page > .slot svg[role="img"] g > rect[fill="transparent"]', (n) =>
+      n.map((r) => r.getBoundingClientRect().width),
+    )
+    truthy(
+      targets.length > 0 && targets.length <= SLOT_MARKS && Math.min(...targets) >= 6,
+      `/constructors/mclaren at 1180: ${targets.length} columns in the slot (at most ${SLOT_MARKS}), the narrowest hover target ${targets.length ? Math.min(...targets).toFixed(1) : 'none'} px, at least 6`,
+    )
+    await go('/constructors/ferrari', name('constructors', 'ferrari'))
+    for (const width of [1440, 1180]) {
+      await page.setViewportSize({ width, height: 900 })
+      await settle()
+      const over = await page.evaluate(readOpening, '#root main')
+      const chart = await page.evaluate(() => {
+        const h = [...document.querySelectorAll('#root main h2')].find((n) => n.textContent.startsWith('Wins by season'))
+        const s = h?.closest('section')
+        const tiles = document.querySelector('#root main .page > header + section.section')
+        return s ? { follows: s.previousElementSibling === tiles, full: Math.abs(s.getBoundingClientRect().width - tiles.getBoundingClientRect().width) <= 1 } : null
+      })
+      truthy(
+        !over.slot && over.header.width === over.page.width && chart?.follows && chart?.full,
+        `/constructors/ferrari at ${width}: ${SLOT_MARKS}+ seasons, so no slot; the header keeps the width and the chart follows the tiles at the full width`,
+      )
+    }
     // Brawn raced one season, so it has no wins-by-season chart to lead with.
-    await go('/constructors/brawn', db.prepare("SELECT name FROM constructors WHERE id = 'brawn'").get().name)
+    await go('/constructors/brawn', name('constructors', 'brawn'))
     await page.setViewportSize({ width: 1440, height: 900 })
     await settle()
-    const plain = await page.evaluate(readOpening)
+    const bare = await page.evaluate(readOpening, '#root main')
     truthy(
-      !plain.lead && !!plain.tiles && plain.tiles.width === plain.page.width,
-      `/constructors/brawn, with no lead figure, keeps its tiles the width of the page (${plain.tiles ? Math.round(plain.tiles.width) : 'none'} of ${Math.round(plain.page.width)})`,
+      !bare.slot && !!bare.tiles && bare.tiles.width === bare.page.width && bare.header.width === bare.page.width,
+      `/constructors/brawn, with nothing for the slot, keeps its header and its tiles the width of the page (${bare.tiles ? Math.round(bare.tiles.width) : 'none'} of ${Math.round(bare.page.width)})`,
     )
     await page.setViewportSize({ width: 1280, height: 900 })
   })
@@ -2510,7 +2622,7 @@ try {
         div.remove()
         return width
       }
-      const OPEN = 'header, section, .split, .with-outline, .outline-set, .lead'
+      const OPEN = 'header, section, .split, .with-outline, .slot'
       const name = (n) => n.tagName.toLowerCase() + [...n.classList].map((c) => `.${c}`).join('')
       const blocks = []
       const walk = (node, trail) => {
@@ -4259,21 +4371,21 @@ try {
     const latestHere = one(
       "SELECT f1db_layout_id FROM races WHERE circuit_id = 'silverstone' AND f1db_layout_id IS NOT NULL ORDER BY year DESC, round DESC LIMIT 1",
     )
-    const leadLabel = await page.$eval('#root main .outline-set > .outline-card svg.outline', (n) => n.getAttribute('aria-label'))
+    // VD-84 (VD-74): it leads the page, in the opening slot.
+    const leadLabel = await page.$eval('#root main .page > .slot .outline-card svg.outline', (n) => n.getAttribute('aria-label'))
     truthy(leadLabel.endsWith(`F1DB layout ${latestHere}`), `the latest layout, ${latestHere}, leads`)
     // PD-60: the timeline's cards are behind a disclosure, closed, so it is
     // opened to measure one.
     const [leadWidth, cardWidth] = await page.$eval('#root main', (n) => {
       n.querySelector('details.layout-cards').open = true
       return [
-        n.querySelector('.outline-set > .outline-card svg').getBoundingClientRect().width,
+        n.querySelector('.page > .slot .outline-card svg').getBoundingClientRect().width,
         n.querySelector('.layout-timeline .outline-card svg').getBoundingClientRect().width,
       ]
     })
     truthy(leadWidth > 2 * cardWidth, `the lead is drawn large (${Math.round(leadWidth)} px against ${Math.round(cardWidth)} px)`)
     truthy(
-      staticCircuit.includes(`<div class="outline-set"><figure class="outline-card"><svg class="outline"`) &&
-        new RegExp(`<div class="outline-set"><figure class="outline-card"><svg[^>]*aria-label="[^"]*F1DB layout ${latestHere}"`).test(staticCircuit),
+      new RegExp(`<div class="slot"><figure class="outline-card"><svg[^>]*aria-label="[^"]*F1DB layout ${latestHere}"`).test(staticCircuit),
       'the static page leads with the same layout',
     )
     // IX-31: Silverstone has no trace, and 55 of the 80 are in the same
@@ -4429,8 +4541,11 @@ try {
       const outlineAt = headings.findIndex((h) => h.startsWith('Every layout raced here'))
       const racesAt = headings.findIndex((h) => h.startsWith('Every race here'))
       const traceAt = headings.findIndex((h) => h.startsWith('Traced and measured'))
-      // PD-60: the trace is method, so it follows the races as well.
-      truthy(outlineAt >= 0 && racesAt > outlineAt && traceAt > racesAt, 'the outlines and the races lead and the trace follows them')
+      // PD-60: the trace is method, so it follows the races as well. The
+      // current outline leads the page in its slot (VD-84); the other
+      // drawings, where there are any, come before the races.
+      const led = !!(await page.$('#root main .page > .slot .outline-card svg.outline'))
+      truthy(led && racesAt > outlineAt && traceAt > racesAt, 'the outlines and the races lead and the trace follows them')
       pass(`the overlay merged in the browser — ${traced} read its figures from f1-geometry.db`)
     }
 
@@ -7339,9 +7454,11 @@ try {
     for (const id of withPhotos) {
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const captions = [...html.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((m) => m[1])
-      // Every one, the strip and its disclosure (PD-64): the static page
-      // writes the rest as the app does, and each owes its credit.
-      const expected = images.all(id, id).filter(canShow)
+      // Every one - the opening slot's, then the strip and its disclosure
+      // (PD-64, VD-84): the static page writes the rest as the app does, and
+      // each owes its credit.
+      const split = carPhotographs(images.all(id, id))
+      const expected = [...(split.lead ? [split.lead] : []), ...split.rest]
       if (captions.length !== expected.length) {
         uncredited.push(`/cars/${id}: ${expected.length} photograph(s), ${captions.length} caption(s)`)
         continue

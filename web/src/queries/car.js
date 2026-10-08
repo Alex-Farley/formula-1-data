@@ -14,6 +14,7 @@
  */
 import { finished, missing, number, span, text } from '../lib/format.js'
 import { LABELS } from '../lib/site.js'
+import { canShow } from '../lib/commons.js'
 
 /**
  * Every chassis a page covers.
@@ -341,6 +342,21 @@ export const carRecord = (variants, entries) => {
  * won, and a car page two clicks from a constructor page that ranks should
  * not be the one that does not.
  */
+/**
+ * The photograph that identifies a car, for its opening slot (VD-84), and
+ * the rest for its photo strip. The first that can be shown whose file name
+ * names the car: a file the build could not match to it (`name_matches` 0,
+ * the `unchecked` mark) may be another car of the family, and the picture
+ * of this thing is not the place to guess. None confirmed, and the slot is
+ * empty, so the header keeps the width. The strip leaves out the one the
+ * slot shows rather than drawing it twice. Both renderers call this.
+ */
+export const carPhotographs = (images) => {
+  const shown = images.filter(canShow)
+  const lead = shown.find((image) => image.name_matches === 1) ?? null
+  return { lead, rest: shown.filter((image) => image !== lead) }
+}
+
 export const carStrip = (variants, car, entries) => {
   const { raced, wins, poles, fastest } = carRecord(variants, entries)
   return [

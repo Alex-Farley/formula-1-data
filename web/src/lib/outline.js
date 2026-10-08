@@ -61,11 +61,11 @@ export const leadOutline = (rows) => {
 /**
  * The note over a circuit page's outlines: the rule and the scale caveat,
  * where one is drawn larger than the others why that one, and over a
- * timeline why the figures can differ. The large lead sits inside the
- * section on every circuit since VD-83, timeline or not, so "the large one"
- * always points at a drawing in view.
+ * timeline why the figures can differ. The large lead opens the page in its
+ * slot since VD-84, beside the header or straight under the tiles, so the
+ * note points there rather than at a drawing in its own section.
  */
-export const OUTLINE_LEAD_NOTE = 'The large one is the latest layout raced or on the calendar here, not the longest.'
+export const OUTLINE_LEAD_NOTE = 'The drawing that opens the page is the latest layout raced or on the calendar here, not the longest.'
 export const circuitOutlinesNote = (count, timeline = false) =>
   [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 ? OUTLINE_LEAD_NOTE : null, timeline ? OUTLINE_FIGURES_NOTE : null]
     .filter(Boolean)

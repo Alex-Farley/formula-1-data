@@ -234,17 +234,18 @@ export const SectionTitle = createContext(null)
 export const PageTitle = createContext(null)
 
 /**
- * `lead` marks the section whose figure leads its page (VD-53): straight
- * after the tile strip in the document, which is where it reads below
- * 1024 px, and beside the heading and the tiles above that width, in the
- * column the lede leaves empty. app.css places it; the order a screen
- * reader and the Tab key take - sentence, tiles, figure - is the same at
- * every width, because only the grid moves and the markup does not.
+ * `lead` marks the section whose figure leads its page: the opening slot
+ * (version A, VD-84), five columns beside the header from 1180 px and
+ * straight after the tile strip below that. It is written after the tiles,
+ * and app.css lifts it beside the header with the grid, so the order a
+ * screen reader and the Tab key take - sentence, tiles, figure - is the
+ * same at every width; only the grid moves, never the markup. A slot that
+ * holds a picture rather than a figure is <Slot>, below.
  */
 export function Section({ title, count, note, children, id, lead = false }) {
   return (
     <SectionTitle.Provider value={typeof title === 'string' ? title : null}>
-      <section className={lead ? 'section section-lead' : 'section'} id={id}>
+      <section className={lead ? 'section slot' : 'section'} id={id}>
         {title && (
           <h2>
             {title}
@@ -264,6 +265,18 @@ export function Section({ title, count, note, children, id, lead = false }) {
       </section>
     </SectionTitle.Provider>
   )
+}
+
+/**
+ * The opening slot when what fills it is a picture, not a figure (VD-84):
+ * a race's outline, a circuit's current layout, a car's photograph. The
+ * markup prerender.js's slot() writes, so one rule in app.css places both
+ * halves. Nothing to put in it, and there is no slot: the header keeps the
+ * width, as an empty slot's rule says.
+ */
+export function Slot({ children }) {
+  if (!children) return null
+  return <div className="slot">{children}</div>
 }
 
 /**

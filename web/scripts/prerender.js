@@ -369,6 +369,7 @@ import {
   carAddress,
   carFacts,
   carPageName,
+  carPhotographs,
   carRecord,
   carStrip,
   winsNote,
@@ -1191,6 +1192,10 @@ const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
         rule ? `<br><span class="faint">${esc(OUTLINE_RULE)}</span>` : ''
       }</figcaption></figure>`
     : ''
+// The opening slot (VD-84), as components/Page.jsx's Slot writes it: a
+// picture beside the header from 1180 px, placed by app.css's grid. Nothing
+// to hold, and there is no slot, so the header keeps the width.
+const slot = (html) => (html ? `<div class="slot">${html}</div>` : '')
 // A confidence tier as components/Page.jsx's Confidence draws it: the pill,
 // linked to the page that says what the tier means.
 const confidencePill = (value) =>
@@ -1693,10 +1698,14 @@ const raceStrips = (r) => {
 
 const photographs = (id) => {
   const images = all(CAR_IMAGES, id, id).filter(canShow)
-  if (!images.length) return { html: '', image: null }
+  if (!images.length) return { html: '', slot: '', image: null }
   const confirmed = images.slice(0, PHOTOGRAPHS_SHOWN).find((image) => image.name_matches === 1) ?? null
+  // The one that identifies the car leads in the opening slot, and the strip
+  // holds the rest, as Car.jsx splits them (queries/car.js, VD-84).
+  const { lead, rest } = carPhotographs(images)
   return {
-    html: photographSection(images),
+    html: photographSection(rest),
+    slot: slot(lead ? photograph(lead, PHOTOGRAPH_WIDTH) : ''),
     image: confirmed
       ? { url: thumbUrl(confirmed, CARD_WIDTH), alt: creditLine(confirmed) }
       : null,
@@ -2564,18 +2573,10 @@ const page = ({
       body: `
         ${opening({ eyebrow: EYEBROWS.race(r.round, neighbours.rounds, r.date_iso), title: headline, lede: standfirst })}
         ${stepperNav(raceSteps(neighbours))}
-        <section class="section"><div${r.outline ? ' class="with-outline with-lead"' : ''}>${tiles(raceStrip(r, entryRows, qualifying))}
-        ${outlineCard(
-          r.outline,
-          r.circuit,
-          r.f1db_layout_id,
-          outlineCaption({ f1db_layout_id: r.f1db_layout_id, length_km: r.outline_km, turns: r.outline_turns }),
-          true,
-        )}
-        <div class="lead">
+        <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
-        ${ownSection(disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race'))}
+        ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)
             ? noteBox(SHARED_DRIVE_NOTE.head, SHARED_DRIVE_NOTE.body)
@@ -2597,6 +2598,19 @@ const page = ({
             : ''
         }
         ${
+          // The opening slot (DP-11, VD-84), after the classification as
+          // Race.jsx writes it, so the table never shares its width (IX-45).
+          slot(
+            outlineCard(
+              r.outline,
+              r.circuit,
+              r.f1db_layout_id,
+              outlineCaption({ f1db_layout_id: r.f1db_layout_id, length_km: r.outline_km, turns: r.outline_turns }),
+              true,
+            ),
+          )
+        }
+        ${
           // PD-30: the figure under the classification, as Race.jsx places
           // it - the drawing, its note and its table open beneath it.
           gridFlagShown(flag)
@@ -2611,7 +2625,6 @@ const page = ({
               )}</section>`
             : ''
         }
-        </div></div></section>
         ${
           qualifying.length
             ? `<h2>Qualifying</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {
@@ -3121,6 +3134,16 @@ page({
     // the same query, through canShow() first, and nothing where there is none.
     const pictured = all(CIRCUIT_PHOTOGRAPH, c.id).find(canShow) ?? null
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
+    // VD-83 (SD-41), as Circuit.jsx: what *Every layout raced here* holds -
+    // the timeline's rows, or the other drawings, behind one disclosure. The
+    // lead is the opening slot's (VD-84), so with neither there is no section.
+    const layoutHistory = layoutsHere.length
+      ? layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere))
+      : outlineSplit.rest.length
+        ? `<details class="layout-cards"><summary>${esc(otherLayouts(outlineSplit.rest.length))}</summary><div class="outline-grid">${outlineSplit.rest
+            .map(card)
+            .join('')}</div></details>`
+        : ''
     // The events held here, in Circuit.jsx's words (IA-01).
     const held = heldAs(all(CIRCUIT_GRANDS_PRIX, c.id))
     const heldLine = held.length
@@ -3158,8 +3181,17 @@ page({
       body: `
         ${opening({ eyebrow: EYEBROWS.circuit(c.locality, c.country), title: NAMES.circuit(c.name).headline, lede: c.notes })}
         ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
-        ${tiles(circuitStrip(cv))}
-        ${prose(c.characteristics)}
+        <section class="section">${tiles(circuitStrip(cv))}${prose(c.characteristics)}</section>
+        ${
+          // The opening slot (VD-84), as Circuit.jsx: the current layout
+          // leads every circuit page (VD-74), carrying the rule where no
+          // section below does.
+          slot(
+            outlineSplit.lead
+              ? outlineCard(outlineSplit.lead.path, c.name, outlineSplit.lead.f1db_layout_id, outlineCaption(outlineSplit.lead), !layoutHistory)
+              : '',
+          )
+        }
         ${
           winnersHere.length
             ? `<h2>Most wins here</h2>${fromColumns(WINNER_COLUMNS, winnersHere, {
@@ -3175,22 +3207,11 @@ page({
             : ''
         }
         ${
-          // VD-83 (SD-41), as Circuit.jsx: after the winners on all 80, the
-          // lead drawn large and beside it the timeline's rows or the other
-          // drawings, behind one disclosure.
-          layoutsHere.length || outlinesHere.length
-            ? (() => {
-                const history = layoutsHere.length
-                  ? layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere))
-                  : outlineSplit.rest.length
-                    ? `<details class="layout-cards"><summary>${esc(otherLayouts(outlineSplit.rest.length))}</summary><div class="outline-grid">${outlineSplit.rest
-                        .map(card)
-                        .join('')}</div></details>`
-                    : ''
-                return `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
-                  circuitOutlinesNote(outlinesHere.length, layoutsHere.length > 0),
-                )}${outlineSplit.lead ? `<div class="outline-set">${card(outlineSplit.lead)}${history}</div>` : history}`
-              })()
+          // VD-83 (SD-41), as Circuit.jsx: after the winners on all 80.
+          layoutHistory
+            ? `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
+                circuitOutlinesNote(outlinesHere.length, layoutsHere.length > 0),
+              )}${layoutHistory}`
             : ''
         }
         ${heading(CIRCUIT_RACES_HEADING, circuitRacesCount(racesHere))}
@@ -3473,11 +3494,12 @@ page({
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
         ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced), title: NAMES.car(name).headline, lede: c.story })}
-        ${tiles(carStrip(variants, row, carEntries))}
+        <section class="section">${tiles(carStrip(variants, row, carEntries))}
         ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
         ${prose(c.concept)}
         ${prose(c.innovations)}
-        ${prose(c.outcome)}
+        ${prose(c.outcome)}</section>
+        ${photos.slot}
         ${carTables(c.id, variants, carEntries)}
         ${photos.html}
         <h2>${esc(LABELS.provenance)}</h2>
@@ -3558,12 +3580,13 @@ page({
           // own id (CAR in queries/car.js).
           lede: (ch.car_id && byId.get(ch.car_id)?.story) || null,
         })}
-        ${tiles(carStrip(variants, carRow, carEntries))}
+        <section class="section">${tiles(carStrip(variants, carRow, carEntries))}
         ${
           ch.car_id && curated.has(ch.car_id)
             ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
             : ''
-        }
+        }</section>
+        ${photos.slot}
         ${carTables(ch.id, variants, carEntries)}
         ${photos.html}
         <h2>${esc(LABELS.provenance)}</h2>

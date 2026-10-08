@@ -32,7 +32,7 @@ import {
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
-import { EYEBROWS, LABELS, NAMES } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, SLOT_MARKS } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/constructor.js defines — the
@@ -158,8 +158,11 @@ function ConstructorBody({ constructor, data }) {
           success, then the season table - after the lineage and any
           disagreement, which say how to read it. The exhaustive lists and
           then the photographs follow; scripts/prerender.js keeps the order. */}
+      {/* In the opening slot beside the header (VD-84), unless the team has
+          entered more seasons than the slot can draw at a usable width
+          (SLOT_MARKS); then it leads under the tiles at the full width. */}
       {winsBySeason.length > 1 && (
-        <Section lead title="Wins by season">
+        <Section lead={seasonsAsc.length <= SLOT_MARKS} title="Wins by season">
           <Figure
             lead
             note="Every season entered, winless ones included, so a drought is visible as a gap. A shared drive counts once, to the car."

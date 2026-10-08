@@ -1837,11 +1837,9 @@ describe('the design system holds its grid: widths, breakpoints and tokens (VD-7
   // system rules out (section 2): it is a claim the page does not make. The
   // breakpoints are held by the test above, and a racing colour is named by
   // lib/racingColours.js rather than written out.
-  const UNUSED = {
-    'size-9': 'the middle type register, kept and used by version A (DP-10): the opening slot in step 7 sets the one hero figure in it (#871)',
-    'size-10': 'the same (#871)',
-    'size-11': 'the same (#871)',
-  }
+  // Empty since VD-84 (#871) set the one hero figure in the middle register,
+  // --size-9/10/11, the last tokens declared here.
+  const UNUSED = {}
   it('every token tokens.css defines is used somewhere, or is declared here', () => {
     const files = [...sourceFiles(join(web, 'src')), ...sourceFiles(join(web, 'scripts'))]
     const corpus = files.map(read).join('\n')

@@ -743,6 +743,29 @@ main {
   letter-spacing: -0.005em;
 }
 
+/* The one hero figure (DP-10, VD-84): the first lead figure on the page -
+   a driver's or a team's wins, the rounds a season has run - set in the
+   middle register, 32 px on a phone, 40 from --bp-tablet and 50 beside the
+   opening band, where the page had nothing between a tile's 25 px and the
+   title (visual V7). A second lead keeps the tile's display size, so there
+   is one hero and not two. A name is not a figure, and stays as it is. */
+.stats[data-ranked] > div[data-lead]:not([data-kind='name'], div[data-lead] ~ div) dd {
+  font-size: var(--size-9);
+  line-height: 1;
+}
+
+@media (width >= 768px) {
+  .stats[data-ranked] > div[data-lead]:not([data-kind='name'], div[data-lead] ~ div) dd {
+    font-size: var(--size-10);
+  }
+}
+
+@media (width >= 1180px) {
+  .stats[data-ranked] > div[data-lead]:not([data-kind='name'], div[data-lead] ~ div) dd {
+    font-size: var(--size-11);
+  }
+}
+
 /* A name is not a figure. The display face is condensed and drawn for
    numerals; a driver's name set in it at 25px reads as a headline and, being
    a link, carries an underline that runs through the descenders. The sans
@@ -2302,58 +2325,104 @@ figure.photo figcaption a {
   }
 }
 
-/* The lead figure (VD-53): the chart that answers why a reader came to a
-   driver's, a team's or a season's page - the championship finishes, wins
-   by season, the title race - in the column the lede leaves empty.
-   In the document it follows the tile strip, which is where it stays below
-   --bp-desktop; from there the page is two columns for its opening, the heading
-   and the tiles in the first and the figure in the second, so the eye reads
-   the left column then the right in the order the markup and the Tab key
-   take. The row the tiles sit in takes any height the figure has over the
-   heading and the tiles together, as the circuit photograph's last row does
-   above, so neither is pushed apart from the other. Every block after the
-   opening spans both columns. A page without a lead section is untouched,
-   and so is the static page, which draws none of these charts. The two
-   columns are six of twelve each, a gutter apart (VD-78); version A's
-   opening slot replaces them in its own step. 1180 and not 1024: between the
-   two a lead chart's bars were 3.7 px wide, against 6.0 stacked. */
+/* The opening slot (version A, VD-84): "the picture of this thing", five
+   columns of twelve beside the header from --bp-desktop - the lead chart on
+   a driver's, a team's or a season's page, a circuit's current layout, a
+   race's outline, a car's photograph. The band is as tall as the taller of
+   the two, and the tile strip runs the full width under both, so nothing
+   below starts ragged. The slot is written after the tiles (a race writes it
+   after its classification, which never shares its width), and only the grid
+   lifts it into the band, so a screen reader and the Tab key keep the order
+   the markup has at every width: heading, tiles, then the picture. A page
+   with no slot is untouched, and its header keeps the width, which is the
+   empty slot's rule. 1180 and not 1024: between the two a lead chart's bars
+   were 3.7 px wide, against 6.0 stacked (interaction I3).
+
+   Below --bp-desktop the slot is a block in the column like a section. A
+   picture is capped at five columns from --bp-tablet so a drawing is not
+   the width of a tablet; a chart keeps the column, where its marks are
+   widest. */
+.slot {
+  margin-top: var(--space-9);
+}
+
+@media (width >= 768px) {
+  div.slot {
+    max-width: var(--span-5);
+  }
+}
+
+/* A drawing in the slot is twice as wide as it is tall, so it costs the band
+   little more height than the header beside it, and a race's classification
+   starts as near the top as the band allows; the path keeps its proportions
+   inside the box, centred. A photograph is contained, not cropped: it is
+   somebody's work shown under their licence, and a portrait one is capped. */
+.slot .outline {
+  aspect-ratio: 2 / 1;
+}
+
+.slot figure.photo img {
+  max-height: 22rem;
+  object-fit: contain;
+}
+
 @media (width >= 1180px) {
-  .page:has(> .section-lead) {
+  .page:has(> .slot) {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: auto auto 1fr;
+    grid-template-columns: minmax(0, 1fr) var(--span-5);
     column-gap: var(--gutter);
     align-items: start;
   }
 
-  .page:has(> .section-lead) > * {
+  .page:has(> .slot) > * {
     grid-column: 1 / -1;
+  }
+
+  /* The band: the header and the slot on one row. The app writes the trail
+     inside the page and the static page outside it, so the row is the first
+     or the second, and the trail, auto-placed, takes the first. */
+  .page:has(> .slot) > header,
+  .page:has(> .slot) > .slot {
+    grid-row: 1;
+  }
+
+  .page:has(> .crumbs):has(> .slot) > header,
+  .page:has(> .crumbs):has(> .slot) > .slot {
+    grid-row: 2;
+  }
+
+  .page:has(> .slot) > header {
+    grid-column: 1;
+  }
+
+  .page > .slot {
+    grid-column: 2;
+    max-width: none;
+    margin-top: 0;
   }
 
   /* A grid item holds its own margins, where a block let a margin under the
      header, a disagreement or a section's last paragraph collapse into the
      40 px above the next section. These keep every gap the one it was. */
-  .page:has(> .section-lead) > :has(+ .section),
-  .page:has(> .section-lead) > .section > :last-child {
+  .page:has(> .slot) > :has(+ .section),
+  .page:has(> .slot) > .section > :last-child {
     margin-bottom: 0;
   }
 
-  .page:has(> .section-lead) > header,
-  .page:has(> .section-lead) > header + .section {
-    grid-column: 1;
-  }
-
-  .page > .section-lead {
-    grid-column: 2;
-    grid-row: 2 / span 2;
-    margin-top: 0;
-  }
-
-  /* The first block after the opening is clear of it. A section brings its
-     own 40 px; a disagreement has none above it, and set straight under the
-     tile strip at nearly its width it read as one more row of tiles. */
-  .page:has(> .section-lead) > .section-lead + * {
+  /* What the markup puts after the slot is placed straight under the block
+     before it, and stands clear of it. A section brings its own 40 px, and
+     so do the sections in a split; a disagreement has none above it, and set
+     straight under the tile strip at nearly its width it read as one more
+     row of tiles. */
+  .page:has(> .slot) > .slot + :not(.section, .split) {
     margin-top: var(--space-9);
+  }
+
+  /* A circuit's photograph stays the header's (VD-62) beside a slot that
+     holds its outline (VD-74): three of the header's seven columns, the
+     heading and the lede in the other four. */
+  .page:has(> .slot) > header:has(> .page-photo) {
+    grid-template-columns: minmax(0, 1fr) var(--span-3);
   }
 }
 
@@ -2395,58 +2464,14 @@ figure.photo figcaption a {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
-/* A circuit page's outlines (VD-37): the latest layout large, and beside it
-   the rest behind a disclosure (VD-83) - the timeline's rows, or the other
-   drawings; the lead above them on a phone. The lead's column
-   is held whether or not a grid follows, so a venue with one layout draws it
-   at the size Silverstone's lead is drawn, not the width of the row. */
-.outline-set {
-  display: grid;
-  gap: var(--gutter);
-  grid-template-columns: var(--span-3) minmax(0, 1fr);
-  align-items: start;
-}
-
-/* Five columns of twelve for the lead: 5fr/7fr drew it 4 px off the line. */
-@media (width >= 1180px) {
-  .outline-set {
-    grid-template-columns: var(--span-5) minmax(0, 1fr);
-  }
-}
-
-@media (width < 768px) {
-  .outline-set {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* The race page: the figures with the outline beside them in two columns of
-   the grid; below them on a phone, where it is capped rather than left to
-   fill the width. */
+/* A season's next round: its figures with the outline beside them in two
+   columns of the grid; below them on a phone, where it is capped rather than
+   left to fill the width. */
 .with-outline {
   display: grid;
   gap: var(--gutter);
   grid-template-columns: minmax(0, 1fr) var(--span-2);
   align-items: start;
-}
-
-/* PD-57: a race page's result in the column under the figures, the outline
-   beside both, so the classification starts where the tiles end rather than
-   where the outline's caption does - which put it 250 px further down, past
-   the eighth row of a 900 px screen. */
-.with-lead > .outline-card {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-}
-
-.with-lead > .lead {
-  grid-column: 1;
-  grid-row: 2;
-  min-width: 0;
-}
-
-.lead > .section:first-child {
-  margin-top: var(--space-7);
 }
 
 @media (width < 768px) {
@@ -2456,12 +2481,6 @@ figure.photo figcaption a {
 
   .with-outline .outline-card {
     max-width: 220px; /* a drawing capped on a phone rather than filling the column */
-  }
-
-  .with-lead > .outline-card,
-  .with-lead > .lead {
-    grid-column: auto;
-    grid-row: auto;
   }
 }
 
@@ -3247,7 +3266,8 @@ figure.figure > .figure-note:first-child {
 }
 
 /* A circuit's layouts as one list (IX-32): each timeline row beside the
-   drawing it names, at the grid's card width, below the large lead. A row
+   drawing it names, at the grid's card width; the large lead opens the
+   page in its slot (VD-84). A row
    with no drawing holds the drawing's square with the words that say so,
    so the rows still line up. */
 .layout-timeline {
@@ -3281,12 +3301,6 @@ figure.figure > .figure-note:first-child {
 
 .layout-cards {
   margin-top: var(--space-6);
-}
-
-/* VD-83: at a circuit with no timeline the disclosure is the first thing
-   beside the lead drawing, and starts level with its top. */
-.outline-set > .layout-cards {
-  margin-top: 0;
 }
 
 .layout-cards > summary {
