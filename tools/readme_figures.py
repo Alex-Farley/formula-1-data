@@ -830,7 +830,8 @@ class Figures:
                    ("chassis", "published_poles"): "car", ("circuits", "article"): "circuit",
                    ("circuits", "article_section"): "section",
                    ("drivers", "fastest_laps_external"): "driver",
-                   ("drivers", "poles_external"): "driver"}
+                   ("drivers", "poles_external"): "driver",
+                   ("race_entries", "note"): "race note"}
 
     def _wp_claims(self):
         if hasattr(self, "_wpc"):
@@ -855,6 +856,7 @@ class Figures:
     def wp_claim_circuit_articles(self): return n(self._wp_claims().get("circuit", 0))
     def wp_claim_circuit_sections(self): return n(self._wp_claims().get("section", 0))
     def wp_claim_driver_totals(self):   return n(self._wp_claims().get("driver", 0))
+    def wp_claim_race_notes(self):      return n(self._wp_claims().get("race note", 0))
 
     def wp_claim_cars(self):
         return n(self.one(f"""SELECT COUNT(DISTINCT row_key) FROM claims WHERE tbl = 'chassis'
@@ -957,7 +959,8 @@ class Figures:
 
     # The race names and grand-prix keys against F1DB's (PD-53, the ruling of
     # 2026-10-06): harvest/race_grands_prix.txt and f1db_grands_prix.txt,
-    # which tools/f1db_fetch.py writes for this and nothing else reads.
+    # which tools/f1db_fetch.py writes and the build does not read; the
+    # rebuild in tools/facts_artefact.py does, and verify.py holds it.
     def _f1db_file(self, name):
         with open(os.path.join(ROOT, "harvest", name), encoding="utf-8") as f:
             return [line.rstrip("\n").split("|") for line in f

@@ -630,10 +630,11 @@ def race_grand_prix_rows(data, yaml):
     """The grand prix each race was a round of, and its official title:
     `grandPrixId` and `officialName` in the round's race.yml.
 
-    Nothing in build.py reads these. They are here so the facts artefact's
-    route can be measured (PD-53, #741): whether a rebuild of the race rows
-    from F1DB could supply races.gp_id and races.name_used, which the season
-    harvest takes from Wikipedia. tools/readme_figures.py does the measuring.
+    Nothing in build.py reads these. They are the facts artefact's route
+    (PD-53, #741): the rebuild of the race rows from F1DB takes races.gp_id
+    and races.name_used from them, where f1.db takes both from the season
+    harvest's Wikipedia. tools/facts_artefact.py does the rebuilding, and
+    tools/readme_figures.py measures it for docs/COMMERCIAL-READINESS.md.
     """
     rows = []
     for year, rnd, path in _races(data, yaml):
@@ -949,8 +950,8 @@ def main():
     ok &= write("race_layouts.txt",
                 "year|round|layout_id   (the F1DB circuit layout the race ran)",
                 race_layout_rows(data, yaml), version, commit, args.check)
-    # Read by nothing in the build: the inputs to measuring whether F1DB could
-    # supply the race rows' names and grand-prix keys (PD-53).
+    # Read by nothing in the build: the facts artefact's race names and
+    # grand-prix keys, rebuilt from F1DB (tools/facts_artefact.py, PD-53).
     ok &= write("race_grands_prix.txt",
                 "year|round|grand_prix_id|official_name"
                 "   (the F1DB grand prix the race was a round of, and the title "

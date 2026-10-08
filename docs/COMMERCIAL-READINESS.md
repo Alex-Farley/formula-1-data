@@ -295,9 +295,9 @@ unchanged by it: whether a right reaching these rows subsists stays
 unsettled, and the choice of route under *A CC BY 4.0 facts edition,
 counted* — the race rows stored as they are, or rebuilt from F1DB — turns on
 it. Which of the other Wikipedia-touched sets counted there the artefact may
-carry (`claims` and `driver_note_sources` among them) is open too. Both are
-measured under *For decision: the rest of what cites Wikipedia, and the
-route*, below, for the maintainer to rule on. **Nothing is offered under CC BY 4.0
+carry (`claims` and `driver_note_sources` among them) was left open too. Both
+were measured, and ruled on 2026-10-08: *Decided: the route, the claims and
+the note sources*, below. **Nothing is offered under CC BY 4.0
 yet.** The artefact does not exist until `PD-53` (#741), `PD-54` (#742) and
 `PD-55` (#743) ship; until then every row in `f1.db` ships under CC BY-SA 4.0
 as before, and `LICENSE-DATA` is unchanged.
@@ -504,7 +504,28 @@ copyright reading above is the whole question.
 
 ---
 
-## For decision: the rest of what cites Wikipedia, and the route
+## Decided: the route, the claims and the note sources
+
+**Decided by the maintainer on 2026-10-08** (`PD-53`, #741), on the
+measurement below, which was written for that decision and is kept as what
+it rests on:
+
+1. **The route: rebuild.** The facts artefact's race rows are rebuilt from
+   F1DB, CC BY 4.0, so that nothing Wikipedia made is in the file: F1DB's
+   grand-prix ids and names mapped to `races` and `grands_prix`, with the
+   São Paulo split, the accent-only differences and Mexico City's
+   official-title naming handled. The Indianapolis winners with no
+   constructor and the shared drives F1DB leaves blank stay NULL — not
+   established — and are never filled from the stored rows.
+2. **The claims** that cite Wikipedia stay out of the artefact, and
+3. **the note sources** that cite Wikipedia stay out too. Both follow the
+   route, and both remain in `f1.db` under its licence.
+
+How the ruling is carried out is *The declared set*, at the end of this
+section. The rest of the section is the measurement as the maintainer read
+it.
+
+### The measurement
 
 Written under `PD-53` (#741), on two rulings of the maintainer. The first,
 of 2026-10-03: the facts artefact is not built until the `claims` and
@@ -514,25 +535,27 @@ rebuild them from F1DB — are measured. The second, of 2026-10-06, on the
 first measurement: the route is not ruled until F1DB's race names and
 grand-prix ids are fetched and mapped, and what a rebuild would still not
 establish is stated in figures, with the two routes' costs side by side.
-**It decides nothing.** The three questions at its end are on `PD-53` for the
-maintainer, and the artefact's table and column set waits on the answers.
-Like the reading above, it is an analysis, not legal advice.
+It decided nothing itself: the three questions at its end were put to the
+maintainer, and the ruling above answers them. Like the reading above, it is
+an analysis, not legal advice.
 
 ### The claims: bare facts, held as a check
 
-<!-- fig:wp_claims -->2,449<!-- /fig --> claims cite Wikipedia. Each is a value as an article publishes it, and
+<!-- fig:wp_claims -->2,462<!-- /fig --> claims cite Wikipedia. Each is a value as an article publishes it, and
 each `claims` row is the field-grain record of a column of another table,
 which `verify.py` holds exactly to its claims:
 
 | Claims | Column | The value | Reading |
 |---:|---|---|---|
-| <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> | `chassis.published_races`, `published_wins`, `published_poles` | a car's race, win and pole totals from the infobox of <!-- fig:wp_claim_car_articles -->655<!-- /fig --> per-car articles, on <!-- fig:wp_claim_cars -->793<!-- /fig --> chassis rows | bare fact: a count |
+| <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> | `chassis.published_races`, `published_wins`, `published_poles` | a car's race, win and pole totals from the infobox of <!-- fig:wp_claim_car_articles -->656<!-- /fig --> per-car articles, on <!-- fig:wp_claim_cars -->793<!-- /fig --> chassis rows | bare fact: a count |
 | <!-- fig:wp_claim_circuit_articles -->79<!-- /fig --> | `circuits.article` | the title of the article the *List of Formula One circuits* links for a circuit | bare fact: a title names a work, it is not one |
 | <!-- fig:wp_claim_circuit_sections -->3<!-- /fig --> | `circuits.article_section` | the heading of the section that link points to | the same: a heading of a few words |
 | <!-- fig:wp_claim_driver_totals -->5<!-- /fig --> | `drivers.fastest_laps_external`, `poles_external` | a career total as the driver's article publishes it | bare fact: a count |
+| <!-- fig:wp_claim_race_notes -->13<!-- /fig --> | `race_entries.note` | why a finisher inside the paid places scored nothing, in this project's words, citing the race article that states it (DA-37, after the measurement) | this project's sentence on the article's fact; it follows the claims out of the artefact |
 
-None carries prose, selection or arrangement, so on copyright they are bare
-facts on the reading the race rows were given. The database-right reading is
+The first four carry no prose, selection or arrangement, so on copyright
+they are bare facts on the reading the race rows were given; the race notes
+are this project's sentences and were not part of the measurement. The database-right reading is
 the race rows' too, unchanged: whether a right subsists turns on the maker
 question, and whether the infoboxes count as one database or as many does not
 settle it.
@@ -564,8 +587,8 @@ settled field by field.
 The race rows, column by column, against the F1DB release `harvest/` holds.
 F1DB's grand prix of each race and its official title are
 `harvest/race_grands_prix.txt`, and its register of grands prix
-`harvest/f1db_grands_prix.txt`: `tools/f1db_fetch.py` writes both for this
-measurement, and nothing in the build reads them.
+`harvest/f1db_grands_prix.txt`: `tools/f1db_fetch.py` writes both, and
+`build.py` reads neither — the rebuild in `tools/facts_artefact.py` does.
 
 | Column | Against F1DB | What a rebuild needs |
 |---|---|---|
@@ -606,16 +629,65 @@ Wikipedia's values out of the race rows and then carries <!-- fig:wp_claim_car_t
 infobox figures has put the question back; keeping the rows as stored has
 already accepted it.
 
-### For decision
+### The questions as they were put
 
 1. **The route.** Rebuild the race rows from F1DB for the artefact, at the
    costs above — and if so, São Paulo's key, the Mexico City name, `entrant`
    and the fastest laps where F1DB differs, one way each — or keep them as
    stored on the reading that no database right reaches them.
-2. **The claims.** Carry the <!-- fig:wp_claims -->2,449<!-- /fig --> as bare facts, or leave them out with the
+2. **The claims.** Carry the <!-- fig:wp_claims -->2,462<!-- /fig --> as bare facts, or leave them out with the
    seven columns they mirror. Nothing in the artefact depends on them either way.
 3. **The note sources.** Carry the <!-- fig:wp_note_sources -->53<!-- /fig --> wherever the notes they back are
    carried, or leave them out.
+
+### The declared set
+
+`tools/facts_artefact.py` is the artefact's table and column set, and
+`verify.py`'s *THE FACTS ARTEFACT* section holds it; `PD-54` (#742) builds
+the file from it. Nothing in it lists the tables, or the columns of a table
+carried whole. Each is derived:
+
+- **Rows.** A table with `source_id` carries the rows whose source the
+  registry classes as redistributable and not share-alike — F1DB's, and the
+  facts-only official sources'. A table without one takes its
+  `table_provenance` source for the whole table. An authored table goes in
+  only if `PM-49` granted it, so the glossary and `technical_innovations`
+  stay out. A table every one of whose rows is keyed to a table left out —
+  `car_seasons`, to `cars` — goes with it. A claim goes in only where its
+  source does and the column it is about does.
+- **Columns.** Out go the prose the prose pass measures unless granted; the
+  per-car article's specifications on `chassis`, the span `spec_source`
+  governs; every column keyed to a table left out; and this project's own
+  writing that neither grant reaches — the source registry's account of each
+  source, `drivers.provenance`, `records.detail` and the like, which stay
+  CC BY-SA in `f1.db`. A column a claim cites Wikipedia for goes where every
+  value in it is such a claim (`circuits.article`), and keeps its other
+  values with the claimed cells NULL where it is not (`drivers.poles_external`).
+- **The rebuild.** The race rows, their winners and the drivers they
+  introduced are rebuilt rather than dropped, because every other table of
+  results is keyed to them. Every column of the three tables is classed — the
+  key, F1DB's value, a rule, this project's classification, a count PD-54
+  takes again, or not established — so a column added later cannot ride out
+  on a rebuilt row as the stored value. The grand-prix key is F1DB's grand
+  prix under the register's name or alias for it, accents and hyphens aside,
+  which puts São Paulo under the Brazilian Grand Prix as `f1.db` has it; the
+  name is the register's spelling of F1DB's, and where F1DB's official title
+  names Mexico City, the register's alias for the race held there. Pole is the
+  car F1DB starts from grid 1, except where the record credits the fastest
+  qualifier: a race with no car on grid 1, and a 2022 sprint weekend, when
+  the sprint set the grid. The fastest lap is F1DB's. `entrant` is not
+  carried on the rebuilt rows: it is the season article's house style, and
+  F1DB gives the ids it is made of but not the string.
+
+Where the rebuild leaves the artefact unlike `f1.db`, `verify.py` requires
+each difference to be one a rule predicts: the fastest lap where `f1.db`
+credits a shared one or holds an open discrepancy with F1DB; the shared
+drives F1DB leaves blank; dates of birth and death F1DB states and `f1.db`
+does not hold yet (`PM-73`, #931); and one declared disagreement, Bertrand
+Gachot's nationality (`PM-72`, #930). The race keys, names, circuits, dates
+and pole credits agree with `f1.db` on every rebuilt row.
+`python3 tools/facts_artefact.py --diff` lists every difference, and the
+command without `--diff` the set, table by table.
 
 ---
 
