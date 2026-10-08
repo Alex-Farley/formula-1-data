@@ -344,11 +344,21 @@ export const classificationFooter = (entries) =>
     .filter(Boolean)
     .join(' ')
 
-/** One time per driver before knock-out qualifying arrived in 2006; the best lap of each session from then. */
+/*
+ * One time per driver before knock-out qualifying arrived in 2006; the best
+ * lap of each session from then.
+ *
+ * A qualifying sheet is read whole, as the classification is: its figures -
+ * the three sessions' times, the gap and the interval - are the right-hand
+ * columns, and from 768 to 900 px they scrolled 112 px out of view on
+ * /races/2024/21, in both qualifying and sprint qualifying (IX-48). So its
+ * two columns of words take `WRAPS`, the classification's rule for a table
+ * that fits its box. The practice sheets fit at one line and keep it.
+ */
 export const qualifyingColumns = (rows) => [
   { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },
-  { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_id) },
-  { key: 'constructor', label: 'Constructor' },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_id), cellClass: WRAPS },
+  { key: 'constructor', label: 'Constructor', cellClass: WRAPS },
   { key: 'driver_number', label: 'No.', align: 'num' },
   ...(rows.some((q) => q.q1)
     ? [
@@ -431,8 +441,10 @@ export const sprintQualifyingColumns = (rows) =>
   qualifyingColumns(rows).map((column) =>
     // Object.hasOwn, not a lookup: every object answers `constructor`, which
     // is also this table's column key.
+    // The session sheet's driver cell, with its † mark, keeps qualifying's
+    // `WRAPS`; practice uses the same cell at one line.
     column.key === 'driver'
-      ? sessionDriver
+      ? { ...sessionDriver, cellClass: column.cellClass }
       : Object.hasOwn(SQ_LABELS, column.key)
         ? { ...column, label: SQ_LABELS[column.key] }
         : column,

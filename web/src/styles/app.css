@@ -1156,7 +1156,7 @@ tbody th:not(.prose) {
 }
 
 /*
- * A table that fits its box (IX-45, provisional).
+ * A table that fits its box (IX-45, provisional; the qualifying sheets, IX-48).
  *
  * The race classification is the page's subject, and from 768 to 1,010 px its
  * ten columns at max-content (about 960 px) ran past the content box, so
