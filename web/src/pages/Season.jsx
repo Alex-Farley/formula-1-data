@@ -5,7 +5,7 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from 
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { FOLD_NOUN, UNFOLDED } from '../lib/table.js'
-import { Dated, RaceDates } from '../components/Dates.jsx'
+import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import { OutlineCard, OutlineStrip } from '../components/Outline.jsx'
 import { outlineCaption } from '../lib/outline.js'
 import { measured, odblCredit } from '../lib/trace.js'
@@ -13,7 +13,7 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
-import { points as fmtPoints, localTime, number } from '../lib/format.js'
+import { points as fmtPoints, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
@@ -426,7 +426,13 @@ function SeasonBody({ year, season, data }) {
         kind: 'name',
         value: upcoming.name,
         href: `races/${year}/${upcoming.round}`,
-        note: `${upcoming.name_used}, ${localTime(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
+        // The start in the reader's form, in a <time> holding the instant (CD-59).
+        note: (
+          <>
+            {upcoming.name_used}, <TimeText iso={upcoming.start_utc} zone={upcoming.zone} /> at the circuit,{' '}
+            {until(upcoming.start_utc, now)}
+          </>
+        ),
       }
     : null
 
