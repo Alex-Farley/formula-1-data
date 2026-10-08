@@ -53,11 +53,12 @@ import {
   nextLine,
   noConstructorsNote,
   progressionNote,
+  seasonLede,
   standingsHeading,
   stillRunning,
   teamsByDriver,
+  titleAnswer,
   titleHeading,
-  titlePermutations,
   titleStrip,
   wonHereNote,
 } from '../queries/season.js'
@@ -401,14 +402,19 @@ function SeasonBody({ year, season, data }) {
   // once there is one, the strip above has already said who won, and a second
   // sentence working out who could have is noise at best and a contradiction
   // at worst. queries/season.js decides where the arithmetic will not carry.
-  const permutations = running
-    ? titlePermutations({
+  const answer = running
+    ? titleAnswer({
         drivers: driversFinal,
         remaining: data.remaining.rows[0] ?? null,
         afterRound: after,
         built: currentProgress().manifest?.built,
       })
     : null
+
+  // The page leads with the answer (VD-90): who can still win opens the
+  // lede, ahead of the season's own note, and what it was worked out from
+  // follows directly under the tiles.
+  const opening = seasonLede(season.notes, answer?.who)
 
   // The one hourly-changing fact on the page, as a tile among the others
   // rather than a paragraph beneath them (IA-17). Only a browser knows how
@@ -425,7 +431,8 @@ function SeasonBody({ year, season, data }) {
     : null
 
   /*
-   * What leads (PD-58): the tiles, the title race, then what it came to.
+   * What leads (PD-58): who can still win, in the lede (VD-90), the tiles,
+   * the title race, then what it came to.
    * A season with a round still to run reads the next round and its
    * calendar before standings that are not final yet; a concluded one
    * reads who won first and the calendar after. Then the grid, the
@@ -498,7 +505,7 @@ function SeasonBody({ year, season, data }) {
       title={NAMES.season(year).headline}
       documentName={NAMES.season(year).title}
       trail={TRAIL.season(year)}
-      lede={season.notes}
+      lede={opening}
       aside={
         <Stepper {...seasonSteps(neighbours)} />
       }
@@ -507,9 +514,9 @@ function SeasonBody({ year, season, data }) {
         {/* The strip is queries/season.js's, which the static page draws
             too (VD-49); the next session's tile is the browser's alone. */}
         <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
-        {permutations && (
+        {answer && (
           <p className="note follows">
-            <Dated>{permutations}</Dated>
+            <Dated>{answer.basis}</Dated>
           </p>
         )}
         {/* v_season_grid returns NULL, not 0, for a season nobody has entered

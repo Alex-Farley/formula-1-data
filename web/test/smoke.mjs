@@ -60,7 +60,19 @@ import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
-import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
+import {
+  FINAL as SEASON_FINAL,
+  NEXT_HEADING,
+  NEXT_ROUND,
+  REMAINING,
+  STANDINGS as SEASON_STANDINGS,
+  WON_HERE,
+  WON_HERE_HEADING,
+  latestRound,
+  standingsHeading,
+  titleAnswer,
+  titleHeading,
+} from '../src/queries/season.js'
 import { DRIVER_SOURCES, SEASON_TEAMS, STANDINGS, THIS_SEASON, roundsRun, seasonTile, teamsBySeason, thisSeasonHeading } from '../src/queries/driver.js'
 import { lastTeamColour } from '../src/lib/liveries.js'
 import { handoverWords } from '../src/lib/handover.js'
@@ -1633,6 +1645,63 @@ try {
     const staticSeason = await (await fetch(`${BASE}/seasons/${year}`)).text()
     is((staticSeason.match(/<li data-state="/g) ?? []).length, rounds, 'the static page carries the same strip')
     is((staticSeason.match(/<li data-state="next"/g) ?? []).length, toRun > 0 ? 1 : 0, 'and marks the same round next')
+  })
+
+  /*
+   * VD-90: on a season being run, who can still win takes the lede position
+   * (design system section 4), ahead of the season's own note, in both
+   * renderers, and what it was worked out from follows under the tiles. The
+   * answer is worked out here from the same queries and the same function the
+   * two pages use, so a season the arithmetic declines (a round run and not
+   * yet in the standings, say) is held to having no answer in its lede,
+   * rather than failing the build.
+   */
+  await section('/seasons/2026  (who can still win, in the lede)', async () => {
+    const year = inProgress()
+    const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
+    const notes = (one('SELECT notes FROM seasons WHERE year = ?', year) ?? '').trim()
+    const drivers = db.prepare(SEASON_FINAL).all(year).filter((r) => r.table_type === 'drivers')
+    const remaining = db.prepare(REMAINING).get(year) ?? null
+    const afterRound = latestRound(db.prepare(SEASON_STANDINGS).all(year))
+    const answer = !champion && drivers.length >= 2 ? titleAnswer({ drivers, remaining, afterRound }) : null
+    await go(`/seasons/${year}`, String(year))
+    const appLede = (await text('#root main .lede')) ?? ''
+    const html = await (await fetch(`${BASE}/seasons/${year}`)).text()
+    const staticLede = unescaped(html.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
+    if (!answer) {
+      // The one decline a season being run can pass through on good data:
+      // the calendar has a round run that the standings do not stand after
+      // yet, because the two are harvested apart. Any other null on a season
+      // with no champion and a round to run is the answer lost.
+      const lagging = afterRound !== (remaining?.run ?? null)
+      truthy(
+        Boolean(champion) || !remaining?.races || drivers.length < 2 || lagging,
+        `a season being run, with standings after the last round run, has an answer to who can still win (after round ${afterRound}, ${remaining?.run} run)`,
+      )
+      note(`\n/seasons/${year}  (no answer to who can still win: the lede is the note alone)`)
+      for (const [half, lede] of [['app', appLede], ['static page', staticLede]]) {
+        truthy(!/can still win|leader's total/.test(lede), `the ${half}'s lede claims no answer the arithmetic withholds`)
+      }
+      return
+    }
+    is(appLede, notes ? `${answer.who} ${notes}` : answer.who, "the app's lede opens on who can still win, then the season's note")
+    is(staticLede, appLede, 'and the static page opens on the same lede')
+    // Said once, in the lede and not again under the tiles; its basis is
+    // what follows them. Up to what is left to run, because the build date
+    // after it is written as a reader's date.
+    const basis = answer.basis.slice(0, answer.basis.indexOf(' still to run'))
+    const staticBody = unescaped((html.split('<div id="prerendered">')[1] ?? '').replace(/<[^>]+>/g, ''))
+    const appMain = (await text('#root main')) ?? ''
+    for (const [half, body] of [['static page', staticBody], ['app', appMain]]) {
+      is(body.split(answer.who).length - 1, 1, `the ${half} says who can still win once`)
+      is(body.split(basis).length - 1, 1, `and what it was worked out from once`)
+    }
+    const after = await page.$eval('#root main .stats', (strip) => strip.nextElementSibling?.textContent ?? '').catch(() => '')
+    truthy(after.startsWith(basis), `the basis follows the tiles in the app — "${after.slice(0, 80)}"`)
+    const staticAfter = unescaped(
+      ((html.split('<dl class="stats"')[1] ?? '').split('</dl>')[1]?.match(/^\s*<p class="faint">([\s\S]*?)<\/p>/)?.[1] ?? '').replace(/<[^>]+>/g, ''),
+    )
+    truthy(staticAfter.startsWith(basis), `and on the static page — "${staticAfter.slice(0, 80)}"`)
   })
 
   /*

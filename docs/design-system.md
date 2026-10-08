@@ -507,7 +507,7 @@ carry it.
 
 ---
 
-## 4. Page templates — built: the order (VD-83) and the opening (VD-84), but for the season's *Who can still win* (VD-90 #904)
+## 4. Page templates — built: the order (VD-83), the opening (VD-84) and the season's *Who can still win* (VD-90)
 
 The order is the *What leads* critique's (2026-10-05) unless this pass found
 a reason otherwise. The shared ending, provenance then *Keep going* then the
@@ -532,7 +532,13 @@ citation, is already one system and is kept.
   Constructors here · Every layout raced here (the timeline's rows or the
   other drawings behind one disclosure; absent where there are neither, and
   the slot's card then carries the rule) · Every race here.
-- **Season:** *Who can still win* takes the lede position (VD-90 #904) ·
+- **Season:** *Who can still win* takes the lede position on a season
+  being run, ahead of the season's own note, which follows it as a race's
+  follows who won; what the answer was worked out from follows the tiles
+  (VD-90: `titleAnswer` and `seasonLede` in `queries/season.js`, which both
+  renderers print; smoke's *who can still win, in the lede*). The whole
+  answer, some ninety words, was too long for a lede: it ran to ten lines
+  and the web font's arrival added an eleventh, moving the page beneath it ·
   lead chart · standings · calendar · Who entered · photographs. The
   photographs follow *Who entered* so that they sit where the photo strip
   puts them on every type (§3), which this line had the other way round.

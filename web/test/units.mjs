@@ -108,10 +108,11 @@ import {
   roundName,
   roundResult,
   roundWinner,
+  seasonLede,
   standingsHeading,
   stillRunning,
+  titleAnswer,
   titleHeading,
-  titlePermutations,
 } from '../src/queries/season.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
@@ -914,6 +915,11 @@ describe('the queries a page and the prerenderer share', () => {
   // matters is where it declines to make one: the tests below are mostly the
   // nulls.
   it('works out who can still win, and says nothing where the arithmetic will not carry', () => {
+    // The answer and its basis as the page prints them, one after the other.
+    const titlePermutations = (args) => {
+      const answer = titleAnswer(args)
+      return answer ? `${answer.who} ${answer.basis}` : null
+    }
     const live = { races: 2, sprints: 1, run: 21, dropped_scores: 'Every result counts', available: 58 }
     const table = [
       { entity: 'Antonelli', position: 1, points: 300 },
@@ -929,6 +935,12 @@ describe('the queries a page and the prerenderer share', () => {
     assert.match(said, /2 rounds and 1 sprint still to run, so 58 points are still available/)
     assert.match(said, /Counted after round 21, from the database built 2026-09-16\./)
     assert.match(said, /a tie at the top is settled on wins/)
+    // In two parts (VD-90): the answer, which a season's lede opens on, and
+    // what it was worked out from, which the page prints under the tiles.
+    const parts = titleAnswer({ drivers: table, remaining: live, afterRound: 21, built: '2026-09-16' })
+    assert.equal(parts.who, "Who can still win the drivers' title: Antonelli and Russell.")
+    assert.match(parts.basis, /^2 rounds and 1 sprint still to run, so 58 points/)
+    assert.match(parts.basis, /a tie at the top is settled on wins, which this does not work out\.$/)
 
     // Exactly level with the last available point is still in.
     assert.match(
@@ -939,7 +951,7 @@ describe('the queries a page and the prerenderer share', () => {
     // printing a list of one.
     assert.equal(
       titlePermutations({ drivers: [table[0], table[3]], remaining: live, afterRound: 21 }).split(' 2 rounds')[0],
-      "Only Antonelli can still win the drivers' title: no other driver can now reach that total.",
+      "Only Antonelli can still win the drivers' title: no other driver can now reach the leader's total.",
     )
     // More than ten still in: the count is the answer, not the names.
     const crowd = Array.from({ length: 12 }, (_, i) => ({ entity: `D${i}`, position: i + 1, points: 300 - i }))
@@ -977,6 +989,21 @@ describe('the queries a page and the prerenderer share', () => {
       }).split('.')[0],
       "Who can still win the drivers' title: Antonelli and Russell",
     )
+  })
+
+  // VD-90: the answer takes the lede position, and the season's own note
+  // follows it rather than giving way, as a race's follows who won (SD-39).
+  it("leads a season's lede with who can still win, and keeps the note after it", () => {
+    const said = "Who can still win the drivers' title: Antonelli and Russell."
+    assert.equal(seasonLede('Season in progress.', said), `${said} Season in progress.`)
+    assert.equal(seasonLede(null, said), said)
+    assert.equal(seasonLede('   ', said), said)
+    // No answer - a season concluded, not yet run, or one the arithmetic
+    // declines - is the note alone, and no note and no answer is no lede.
+    assert.equal(seasonLede('Hunt won by a point.', null), 'Hunt won by a point.')
+    assert.equal(seasonLede('  Hunt won by a point.  ', null), 'Hunt won by a point.')
+    assert.equal(seasonLede(null, null), null)
+    assert.equal(seasonLede('', null), null)
   })
 
   it('tells a constructor a gap from a chassis-engine pair', () => {

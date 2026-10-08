@@ -211,9 +211,10 @@ import {
   latestRound,
   nextLine,
   noConstructorsNote,
+  seasonLede,
   standingsHeading,
   stillRunning,
-  titlePermutations,
+  titleAnswer,
   titleStrip,
   wonHereNote,
 } from '../src/queries/season.js'
@@ -2260,11 +2261,12 @@ const page = ({
     // Why there is no constructors' table, where there is none — the app's
     // sentence, from the same module (CD-32).
     const noConstructors = noConstructorsNote(year, notRun)
-    // The same sentence the app prints, from the same function and the same
-    // rows (PD-28): who can still win the drivers' title, what is left to win
-    // and the round and build date the answer stands at.
-    const permutations = running
-      ? titlePermutations({
+    // The same sentences the app prints, from the same function and the same
+    // rows (PD-28): who can still win the drivers' title, which opens the
+    // lede (VD-90), then under the tiles what is left to win and the round
+    // and build date the answer stands at.
+    const answer = running
+      ? titleAnswer({
           drivers: driversFinal,
           remaining: one(REMAINING, year),
           afterRound: after,
@@ -2343,10 +2345,10 @@ const page = ({
         url: `${ORIGIN}${href(`seasons/${year}`)}`,
       },
       body: `
-        ${opening({ eyebrow: EYEBROWS.season(s.rounds, run), title: NAMES.season(year).headline, lede: s.notes })}
+        ${opening({ eyebrow: EYEBROWS.season(s.rounds, run), title: NAMES.season(year).headline, lede: seasonLede(s.notes, answer?.who) })}
         ${stepperNav(seasonSteps(neighbours))}
         ${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}
-        ${permutations ? `<p class="faint">${dated(permutations)}</p>` : ''}
+        ${answer ? `<p class="faint">${dated(answer.basis)}</p>` : ''}
         ${nextSection}
         ${live ? seasonCalendar + seasonStandings : seasonStandings + seasonCalendar}
         ${
