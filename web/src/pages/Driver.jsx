@@ -5,6 +5,7 @@ import LiveryScheme from '../components/LiveryScheme.jsx'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { DateText, Dated } from '../components/Dates.jsx'
 import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
@@ -498,7 +499,11 @@ function DriverBody({ driver, data }) {
             // The strings both renderers print, from queries/driver.js. A
             // dashed one goes back to null so Fields sets it faint like every
             // other missing value.
-            ...record(driver).map(([label, value]) => ({ label, value: value === EMPTY ? null : value })),
+            ...record(driver).map(([label, value, kind]) => ({
+              label,
+              value:
+                value === EMPTY ? null : kind === 'date' ? <DateText iso={value} /> : kind === 'text' ? <Dated>{value}</Dated> : value,
+            })),
             { label: 'Confidence', value: <Confidence value={driver.confidence} /> },
             {
               label: 'Source',

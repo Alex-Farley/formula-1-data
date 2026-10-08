@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { Dated, RaceDates } from '../components/Dates.jsx'
 import { OutlineCard, OutlineStrip } from '../components/Outline.jsx'
 import { outlineCaption } from '../lib/outline.js'
 import { measured, odblCredit } from '../lib/trace.js'
@@ -226,6 +227,8 @@ function NextRound({ year, next, sessions, traces, wonHere }) {
       <Section title={NEXT_HEADING}>
         <p className="measure">
           {line.before}
+          {line.dated && <RaceDates race={next} />}
+          {line.colon}
           <Link to={`/races/${year}/${next.round}`}>{next.name_used}</Link>
           {next.sprint ? ' ' : ''}
           {next.sprint ? <span className="tag">{SPRINT}</span> : null}
@@ -501,7 +504,7 @@ function SeasonBody({ year, season, data }) {
         <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
         {permutations && (
           <p className="note follows">
-            {permutations}
+            <Dated>{permutations}</Dated>
           </p>
         )}
         {/* v_season_grid returns NULL, not 0, for a season nobody has entered

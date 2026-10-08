@@ -6,7 +6,7 @@
  * takes over is the same disagreement Page.jsx's own docstring describes —
  * and the reader who bookmarks it gets whichever one happened to be there.
  */
-import { longDate, missing, span } from './format.js'
+import { isDay, missing, span } from './format.js'
 
 export const SITE = 'Lap Ledger'
 
@@ -116,11 +116,15 @@ const baseIn = (base, country) =>
 const roundsRun = (rounds, run) =>
   `${rounds} ${rounds === 1 ? 'round' : 'rounds'}, ${run >= rounds ? 'all run' : run === 0 ? 'none run yet' : `${run} run`}`
 
+// A date in an eyebrow stays the ISO day here, and each renderer draws it as
+// a date in its reader's format (components/Dates.jsx's <Dated>, CD-57); a
+// value that is not a whole day leaves its clause out rather than printing
+// half a date.
 export const EYEBROWS = {
-  driver: (nationality, born) => eyebrow('Driver', nationality, longDate(born) && `born ${longDate(born)}`),
+  driver: (nationality, born) => eyebrow('Driver', nationality, isDay(born) ? `born ${born}` : null),
   constructor: (country, base) => eyebrow('Constructor', country, baseIn(base, country)),
   circuit: (locality, country) => eyebrow('Circuit', [locality, country].filter((part) => !missing(part)).join(', ')),
-  race: (round, rounds, day) => eyebrow('Race', missing(rounds) ? `Round ${round}` : `Round ${round} of ${rounds}`, longDate(day)),
+  race: (round, rounds, day) => eyebrow('Race', missing(rounds) ? `Round ${round}` : `Round ${round} of ${rounds}`, isDay(day) ? day : null),
   season: (rounds, run) => eyebrow('Season', missing(rounds) ? null : roundsRun(Number(rounds), run)),
   car: (team, from, to) => eyebrow('Car', team, missing(from) && missing(to) ? null : span(from, to)),
   grandPrix: (country) => eyebrow('Grand Prix', country),

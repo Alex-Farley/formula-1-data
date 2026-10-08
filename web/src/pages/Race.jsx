@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { Dated, RaceDates } from '../components/Dates.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
@@ -336,7 +337,7 @@ function RaceBody({ race, data, year, round }) {
           <div className="lead">
             {pending && (
               <Note>
-                <strong>{pending.head}</strong> {pending.body}
+                <strong>{pending.head}</strong> <Dated>{pending.body}</Dated>
               </Note>
             )}
 
@@ -523,7 +524,7 @@ function RaceBody({ race, data, year, round }) {
                 race.name_used
               ),
             },
-            { label: 'Dates', value: raceDates(race) },
+            { label: 'Dates', value: raceDates(race) === null ? null : <RaceDates race={race} /> },
             {
               label: 'Layout raced',
               value: race.layout_name

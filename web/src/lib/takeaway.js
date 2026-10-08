@@ -38,7 +38,7 @@
  * `text` formatter where it has one — the same formatter scripts/prerender.js
  * prints — so the file and the page cannot disagree about what a cell says.
  */
-import { EMPTY, label as humanise, missing } from './format.js'
+import { EMPTY, isDay, label as humanise, missing } from './format.js'
 
 /** The header a column carries into a file: the header the table shows. */
 export const headerOf = (column) => column.label ?? humanise(column.key)
@@ -50,6 +50,11 @@ export const headerOf = (column) => column.label ?? humanise(column.key)
  */
 export function fieldText(column, row) {
   const value = row[column.key]
+  // A date column travels as the ISO day it holds (CD-57): a file is data,
+  // and data stays ISO whatever format the reader's page showed it in. A
+  // race's weekend, where one is stated, is an ISO interval, start/end.
+  if (column.date === 'race' && isDay(row.date_from) && isDay(row.date_to)) return `${row.date_from}/${row.date_to}`
+  if (column.date) return missing(value) ? EMPTY : String(value)
   if (column.text) {
     const written = column.text(value, row)
     return written === null || written === undefined ? '' : String(written)

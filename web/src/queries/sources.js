@@ -74,7 +74,7 @@ export const CONSEQUENCES = [
 export const CONSEQUENCE_COLUMNS = [
   { key: 'source', rowHeader: true, label: 'Source' },
   { key: 'licence', label: 'Licence' },
-  { key: 'consequence', label: 'Consequence', align: 'prose' },
+  { key: 'consequence', label: 'Consequence', align: 'prose', date: 'text' },
 ]
 
 export const CONSEQUENCES_NOTE =
@@ -84,10 +84,11 @@ export const SOURCE_COLUMNS = [
   { key: 'priority', label: 'Rank', align: 'num' },
   { key: 'source', rowHeader: true, label: 'Source' },
   { key: 'authority', label: 'Authority' },
-  { key: 'use', label: 'Used for', align: 'prose' },
-  { key: 'licence', label: 'Licence', align: 'prose' },
-  { key: 'cadence', label: 'Updated', align: 'prose' },
-  { key: 'checkability', label: 'What can check it', align: 'prose' },
+  // The registry's prose, which dates what it says (CD-57).
+  { key: 'use', label: 'Used for', align: 'prose', date: 'text' },
+  { key: 'licence', label: 'Licence', align: 'prose', date: 'text' },
+  { key: 'cadence', label: 'Updated', align: 'prose', date: 'text' },
+  { key: 'checkability', label: 'What can check it', align: 'prose', date: 'text' },
 ]
 
 export const SOURCES_FOOTER =

@@ -52,7 +52,18 @@ import { fileURLToPath } from 'node:url'
 // hardcoded `circuit_geometry` columns went wrong. `formatted` is the
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
-import { finished, missing, number, raceDates, result, span, text as formatted, yearList } from '../src/lib/format.js'
+import {
+  dateSegments,
+  finished,
+  houseDate,
+  missing,
+  number,
+  raceDates,
+  result,
+  span,
+  text as formatted,
+  yearList,
+} from '../src/lib/format.js'
 import { TILE_JOIN, tileSegments } from '../src/lib/tiles.js'
 import {
   FOLD_LESS,
@@ -148,7 +159,7 @@ import {
   feedEntries,
   feedRights,
 } from '../src/lib/changes.js'
-import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRaces } from '../src/lib/refresh.js'
+import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRaces, raceDay } from '../src/lib/refresh.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE, UNRESULTED } from '../src/queries/changes.js'
 import { SHAPE as DATA_SHAPE, fileStrip, trustStrip } from '../src/queries/data.js'
 import {
@@ -692,6 +703,42 @@ const link = (path, label) => `<a href="${esc(href(path))}">${esc(label)}</a>`
 // "so far" - in the same words (lib/site.js), so the two renderers' cells
 // read the same. A table's footer is the app's footer, printed under it.
 const tag = (word) => `<span class="tag">${esc(word)}</span>`
+
+/*
+ * Dates, as components/Dates.jsx draws them but in the house format (CD-57;
+ * docs/design-system.md section 5, *Dates*): "9 Mar 1997" in a <time> that
+ * keeps the ISO day. A static file cannot know its reader, so it is written
+ * once, with the month as a word, and the app rewrites it in the reader's
+ * format when it takes over. A missing date is the em dash; a value that is
+ * not a whole day is printed as held.
+ */
+const dateHtml = (iso, length = 'short') => {
+  const shown = houseDate(iso, length)
+  return shown === null ? text(iso) : `<time datetime="${esc(iso)}">${esc(shown)}</time>`
+}
+
+/** A race's weekend, or its day: the <time> carries the race's local day (lib/refresh.js's raceDay). */
+const raceDatesHtml = (race) => {
+  const shown = raceDates(race)
+  return shown === null ? '—' : `<time datetime="${esc(raceDay(race))}">${esc(shown)}</time>`
+}
+
+/** A sentence with each ISO day in it drawn as a date, and the rest escaped (Dates.jsx's <Dated>). */
+const dated = (sentence, length = 'long') =>
+  dateSegments(sentence)
+    .map((part) => (typeof part === 'string' ? esc(part) : dateHtml(part.iso, length)))
+    .join('')
+
+/** A declared date column's cell (`date` on the column; Dates.jsx's dateCell). */
+const dateCellHtml = (column, row) => {
+  const value = row[column.key]
+  if (column.date === 'race') return raceDatesHtml(row)
+  if (column.date === 'text') return missing(value) ? '—' : dated(value)
+  return dateHtml(value, column.date)
+}
+
+/** prose(), with the ISO days in it drawn as dates. */
+const datedProse = (value) => (value ? `<p class="measure">${dated(value)}</p>` : '')
 const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 
 // `aligns` is the class per column — 'num', 'prose', a column's own
@@ -808,6 +855,7 @@ const fromColumns = (declared, rows, links = {}, { fold = false } = {}) => {
           // Own properties only: a column keyed `constructor` would otherwise
           // find Object.prototype.constructor and print "[object Object]".
           if (Object.hasOwn(links, c.key)) return links[c.key](value, row)
+          if (c.date) return dateCellHtml(c, row)
           return esc(c.text ? c.text(value, row) : formatted(value))
         }),
       ),
@@ -887,6 +935,7 @@ const tiles = (items) =>
   stats(
     items.map((item) => {
       if (!item || item.value === null || item.value === undefined || item.value === '') return null
+      if (item.date) return { ...item, value: dateHtml(item.value) }
       const drawn = tileSegments(item)
         .map(({ label, href }) => {
           const shown = typeof label === 'number' ? formatted(label) : label
@@ -907,6 +956,9 @@ const prose = (value) => (value ? `<p class="measure">${esc(value)}</p>` : '')
 // page while the app set them apart, which is the same second vocabulary
 // VD-01 is about.
 const noteBox = (head, body) => `<div class="note-box"><strong>${esc(head)}</strong> ${esc(body)}</div>`
+// The same box with the ISO days in its body drawn as dates (CD-57), for a
+// body the app draws through <Dated>.
+const datedNoteBox = (head, body) => `<div class="note-box"><strong>${esc(head)}</strong> ${dated(body)}</div>`
 
 // What DataTable puts in place of a table it has no rows for. Without it a
 // heading stands alone announcing a table that is not there — which is what
@@ -1248,7 +1300,7 @@ const disagree = (rows, what) => {
       .map(
         (d) => `<div><dt>${esc(String(d.field ?? '').replace(/_/g, ' '))}</dt><dd>
           <p class="disagreement-pair num"><span>${esc(d.stored_value)}</span><span class="disagreement-vs">against</span><span>${esc(d.derived_value)}</span></p>
-          <p class="disagreement-why">${esc(d.assessment)}</p>
+          <p class="disagreement-why">${dated(d.assessment)}</p>
         </dd></div>`,
       )
       .join('')}</dl>
@@ -1297,7 +1349,7 @@ const chrome = (body, crumbs, citeUrl, sources = null) => `
       citeUrl
         ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, MANIFEST.digest, citeUrl)
             .split(citeUrl)
-            .map(esc)
+            .map((part) => dated(part))
             .join(`<span class="url">${esc(citeUrl)}</span>`)}</p>${
             // The sources behind the rows, the app's Cite paragraph (CD-08).
             (() => {
@@ -1314,7 +1366,7 @@ const chrome = (body, crumbs, citeUrl, sources = null) => `
     <p>${esc(IN_THIS_TAB)} ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
     <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
-  </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd><dt>${esc(CHECKED_LABEL)}</dt><dd>${esc(LAST_CHECKED)}</dd><dt>Digest</dt><dd><code>${esc(MANIFEST.digest)}</code></dd></dl></div></footer>
+  </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${dateHtml(META.built)}</dd><dt>${esc(CHECKED_LABEL)}</dt><dd>${dateHtml(LAST_CHECKED)}</dd><dt>Digest</dt><dd><code>${esc(MANIFEST.digest)}</code></dd></dl></div></footer>
 </div>`
 
 /**
@@ -1905,7 +1957,7 @@ const sectioned = (html) => {
  * (VD-56).
  */
 const opening = ({ eyebrow = null, title, lede = null }) =>
-  `${eyebrow ? `<p class="eyebrow">${esc(eyebrow)}</p>` : ''}<h1>${esc(title)}</h1>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}`
+  `${eyebrow ? `<p class="eyebrow">${dated(eyebrow)}</p>` : ''}<h1>${esc(title)}</h1>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}`
 
 const structure = (body, tail = '') => {
   // The stepper belongs to the header, because <Page aside> renders it there:
@@ -1993,7 +2045,7 @@ const page = ({
   const lastPanel = `<div class="panel round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>${
     latest
       ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
-        <p class="muted small">${esc([latest.circuit, raceDates(latest)].filter(Boolean).join(' \u00b7 '))}</p>
+        <p class="muted small">${[latest.circuit ? esc(latest.circuit) : null, raceDates(latest) ? raceDatesHtml(latest) : null].filter(Boolean).join(' \u00b7 ')}</p>
         <p>${esc(WON_BY)}${
           latest.winner_id ? link(`drivers/${latest.winner_id}`, latest.winner) : esc(UNRECORDED_WINNER)
         }${
@@ -2016,7 +2068,7 @@ const page = ({
     : `<div class="panel round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
     upcoming
       ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
-        <p class="muted small">${esc(`${raceDates(upcoming)} \u00b7 round ${upcoming.round}`)}</p>
+        <p class="muted small">${raceDatesHtml(upcoming)} \u00b7 round ${esc(upcoming.round)}</p>
         <p class="muted">${esc(stillToRunNote(now))}</p>
         <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
       : `<p class="muted">${esc(seasonComplete(now.year))}</p>${
@@ -2140,7 +2192,7 @@ const page = ({
       if (!next) return ''
       const line = nextLine(next)
       return `<h2>${esc(NEXT_HEADING)}</h2>
-        <p class="measure">${esc(line.before)}${link(`races/${year}/${next.round}`, next.name_used)}${
+        <p class="measure">${esc(line.before)}${line.dated ? raceDatesHtml(next) : ''}${esc(line.colon)}${link(`races/${year}/${next.round}`, next.name_used)}${
           next.sprint ? ` ${tag(SPRINT)}` : ''
         }${esc(line.at)}${next.circuit_id && next.circuit ? link(`circuits/${next.circuit_id}`, next.circuit) : esc(line.circuit)}${esc(line.after)}</p>
         <div${next.outline ? ' class="with-outline"' : ''}><div>${
@@ -2267,7 +2319,7 @@ const page = ({
         ${opening({ eyebrow: EYEBROWS.season(s.rounds, run), title: NAMES.season(year).headline, lede: s.notes })}
         ${stepperNav(seasonSteps(neighbours))}
         ${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}
-        ${permutations ? note(permutations) : ''}
+        ${permutations ? `<p class="faint">${dated(permutations)}</p>` : ''}
         ${nextSection}
         ${live ? seasonCalendar + seasonStandings : seasonStandings + seasonCalendar}
         ${
@@ -2505,7 +2557,7 @@ const page = ({
           true,
         )}
         <div class="lead">
-        ${pending ? noteBox(pending.head, pending.body) : ''}
+        ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
         ${ownSection(disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race'))}
         ${
@@ -2607,7 +2659,7 @@ const page = ({
           ['Round', `${r.round} of ${r.year}`],
           // The event this race is an edition of, linked as Race.jsx links it (IA-01).
           ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
-          ['Dates', text(raceDates(r))],
+          ['Dates', raceDatesHtml(r)],
           ['Format', r.sprint ? 'Sprint weekend' : 'Standard weekend'],
           // The entrant's name where no constructor row exists, the rule
           // queries/race.js applies everywhere a car is named; the eleven
@@ -2809,7 +2861,10 @@ const page = ({
             : ''
         }
         ${fields([
-          ...record(d).map(([label, value]) => [label, esc(value)]),
+          ...record(d).map(([label, value, kind]) => [
+            label,
+            kind === 'date' ? dateHtml(value) : kind === 'text' ? dated(value) : esc(value),
+          ]),
           ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
           ['Source', d.source ? `<a href="${esc(d.source)}">${esc(d.source)}</a>` : text(d.source)],
         ])}
@@ -3571,7 +3626,7 @@ page({
             (c) =>
               `<p class="record-card-extra">${esc(c.label)}: ${c.key === 'confidence' ? confidencePill(row.confidence) : esc(row[c.key])}</p>`,
           )
-          .join('')}<details class="record-card-how"><summary>${esc(DERIVATION)}<span class="sr-only">, ${esc(row.record)}</span></summary><p>${esc(row.detail)}</p></details></li>`
+          .join('')}<details class="record-card-how"><summary>${esc(DERIVATION)}<span class="sr-only">, ${esc(row.record)}</span></summary><p>${dated(row.detail)}</p></details></li>`
       })
       .join('')}</ul>`
   const driverLink = { full_name: (name, row) => link(`drivers/${row.driver_id}`, name) }
@@ -3605,7 +3660,7 @@ page({
     body: `
       ${opening({ title: NAMES.records().headline, lede: RECORDS_STANDFIRST })}
       <h2>${esc(HEADLINE)} <span class="count">${headline.length}</span></h2>
-      <p class="note">${esc(RECORDS_LEDE)}${asOf ? ` ${esc(asOfLine(asOf))}` : ''}${
+      <p class="note">${esc(RECORDS_LEDE)}${asOf ? ` ${dated(asOfLine(asOf))}` : ''}${
           tiers.length === 1
             ? ` ${esc(tierBefore(records.length))}${link('data/quality', tiers[0])}${esc(TIER_AFTER)}`
             : ''
@@ -3663,10 +3718,10 @@ page({
         <h1>${esc(NAMES.record(record.record).headline)}</h1>
         ${tiles(recordStrip(record))}
         <h2>${esc(DERIVATION)}</h2>
-        ${prose(record.detail)}
+        ${datedProse(record.detail)}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
-          ['As of', esc(record.as_of)],
+          ['As of', dateHtml(record.as_of)],
           ['Confidence', confidencePill(record.confidence)],
           ['Category', esc(record.category)],
           ['Family', esc(record.family)],
@@ -3914,9 +3969,9 @@ page({
     if (!rows.length) return ''
     return `${heading(title, rows.length)}<p class="note">${esc(intro)}</p>${fromColumns(GAP_COLUMNS, rows, {
       reader: (value, row) =>
-        `<p class="gap-reader">${esc(value)}</p><details class="gap-note"><summary>${esc(
+        `<p class="gap-reader">${dated(value)}</p><details class="gap-note"><summary>${esc(
           MAINTAINER_NOTE,
-        )}<span class="sr-only">, ${esc(row.area)}</span></summary>${prose(row.description)}${prose(row.resolution)}</details>`,
+        )}<span class="sr-only">, ${esc(row.area)}</span></summary>${datedProse(row.description)}${datedProse(row.resolution)}</details>`,
     })}`
   }
   page({
@@ -4074,11 +4129,11 @@ page({
       <h1>${esc(CHANGES_TITLE)}</h1>
       <p class="lede">${esc(CHANGES_LEDE)}</p>
       <h2>${esc(CURRENT_HEADING)}</h2>
-      ${late ? noteBox(late.head, late.body) : ''}
+      ${late ? datedNoteBox(late.head, late.body) : ''}
       ${fields([
         ['Version', `v${esc(META.version)}`],
-        ['Built', esc(META.built)],
-        [CHECKED_LABEL, esc(LAST_CHECKED)],
+        ['Built', dateHtml(META.built)],
+        [CHECKED_LABEL, dateHtml(LAST_CHECKED)],
         [
           'Races',
           `${figures.races_run.toLocaleString()} run, of ${figures.races.toLocaleString()} on the calendar`,
@@ -4086,7 +4141,7 @@ page({
         [
           'Most recent',
           latest
-            ? `${link(`races/${latest.year}/${latest.round}`, latest.name_used)}, ${esc(latest.date_iso)}`
+            ? `${link(`races/${latest.year}/${latest.round}`, latest.name_used)}, ${dateHtml(latest.date_iso)}`
             : null,
         ],
         ['Race entries', figures.entries.toLocaleString()],

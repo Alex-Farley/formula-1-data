@@ -843,6 +843,10 @@ export const derivedAndPublished = (derived, published) =>
  * and Source follow these in both renderers; they are a pill and a link
  * there, not strings, so each renderer appends its own. The sentence under
  * the list is ENTRIES_NOTE in lib/site.js, shared the same way.
+ *
+ * A pair whose third element is 'date' holds an ISO day, which each renderer
+ * draws as a date in its reader's format (CD-57) rather than as the string;
+ * 'text' is words with ISO days inside them, each drawn the same way.
  */
 export function record(driver) {
   // A DATE OF DEATH A LIVING DRIVER DOES NOT HAVE IS NOT A MISSING FACT
@@ -863,8 +867,8 @@ export function record(driver) {
   const practiceOnly = driver.practice_only === 1 && !driver.status
   const living = driver.status === 'active' || driver.status === 'retired' || (practiceOnly && !driver.died)
   return [
-    ['Born', text(driver.born)],
-    ...(living ? [] : [['Died', text(driver.died)]]),
+    ['Born', text(driver.born), 'date'],
+    ...(living ? [] : [['Died', text(driver.died), 'date']]),
     ['Nationality', text(driver.nationality)],
     ['Status', practiceOnly ? 'practice only' : text(driver.status)],
     // How a harvest put the row here, where one did. It used to open
@@ -888,7 +892,7 @@ export function record(driver) {
     ['Wins', derivedAndPublished(driver.wins, driver.wins_external)],
     ['Poles', derivedAndPublished(driver.poles, driver.poles_external)],
     ['Fastest laps', derivedAndPublished(driver.fastest_laps, driver.fastest_laps_external)],
-    ['External source', text(driver.external_source)],
+    ['External source', text(driver.external_source), 'text'],
   ]
 }
 

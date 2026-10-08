@@ -19,6 +19,7 @@ import {
 } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
 import Columns from './Columns.jsx'
+import { dateCell } from './Dates.jsx'
 import { PageTitle, SectionTitle } from './Page.jsx'
 import TakeAway from './TakeAway.jsx'
 
@@ -41,6 +42,12 @@ import TakeAway from './TakeAway.jsx'
  * `text` is a plain-string formatter from a page's queries module, shared
  * with scripts/prerender.js so the static table prints the same cell; it is
  * used where the page gives no `render`. See queries/drivers.js.
+ *
+ * `date` says the column holds ISO days - 'short', 'long', or 'race' for a
+ * race row's weekend - and each cell is drawn as a <time> in the reader's
+ * format (components/Dates.jsx, CD-57); scripts/prerender.js writes the same
+ * <time> in the house format. The value, and so the sort and a file taken
+ * from the table, stays the ISO day.
  *
  * `ariaHidden` takes a column out of the accessibility tree, header and every
  * cell, and leaves its header empty: a column that only repeats in colour
@@ -624,9 +631,11 @@ function Table({
                       >
                         {column.render
                           ? column.render(row[column.key], row)
-                          : column.text
-                            ? plain(column.text(row[column.key], row))
-                            : cell(row[column.key], { raw })}
+                          : column.date
+                            ? dateCell(column, row)
+                            : column.text
+                              ? plain(column.text(row[column.key], row))
+                              : cell(row[column.key], { raw })}
                       </Cell>
                     )
                   })}

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Confidence, FigurePart, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { Dated } from '../components/Dates.jsx'
 import SubNav from '../components/SubNav.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
@@ -73,7 +74,9 @@ const GAP_APP = {
   reader: {
     render: (value, row) => (
       <>
-        <p className="gap-reader">{value}</p>
+        <p className="gap-reader">
+          <Dated>{value}</Dated>
+        </p>
         <details className="gap-note">
           {/* Named for its row as well, for a screen reader's list of
               controls, where twenty notes read alike out of context (DP-30). */}
@@ -81,8 +84,14 @@ const GAP_APP = {
             {MAINTAINER_NOTE}
             <span className="sr-only">, {row.area}</span>
           </summary>
-          <p>{row.description}</p>
-          {row.resolution && <p>{row.resolution}</p>}
+          <p>
+            <Dated>{row.description}</Dated>
+          </p>
+          {row.resolution && (
+            <p>
+              <Dated>{row.resolution}</Dated>
+            </p>
+          )}
         </details>
       </>
     ),

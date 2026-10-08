@@ -314,8 +314,12 @@ export const WON_HERE_HEADING = 'Won here before'
  * The sentence that opens the section, in the pieces either side of its two
  * links - the race and the circuit - so both renderers say it word for word:
  *
- *     Round 15, 24-26 Sep 2026: Azerbaijan Grand Prix at Baku City Circuit,
+ *     Round 15, 24–26 Sep 2026: Azerbaijan Grand Prix at Baku City Circuit,
  *     Baku, Azerbaijan.
+ *
+ * The weekend is not in the strings: `dated` says there is one, and each
+ * renderer draws it between `before` and `colon` as a date in its reader's
+ * format (components/Dates.jsx, CD-57).
  *
  * The place is the circuit page's own eyebrow, locality then country. A round
  * with no circuit recorded says nothing about where it is rather than
@@ -324,7 +328,9 @@ export const WON_HERE_HEADING = 'Won here before'
 export const nextLine = (next) => {
   const place = [next.locality, next.country].filter(Boolean).join(', ')
   return {
-    before: `Round ${next.round}${raceDates(next) ? `, ${raceDates(next)}` : ''}: `,
+    before: `Round ${next.round}${raceDates(next) ? ', ' : ''}`,
+    dated: raceDates(next) !== null,
+    colon: ': ',
     at: next.circuit ? ' at ' : '',
     circuit: next.circuit ?? '',
     after: `${next.circuit && place ? `, ${place}` : ''}.`,
@@ -522,7 +528,7 @@ export const CALENDAR_COLUMNS = [
   { key: 'round', label: 'R', align: 'num' },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix', text: roundName },
   { key: 'circuit', label: 'Circuit' },
-  { key: 'date_iso', label: 'Dates', text: (_, row) => text(raceDates(row)) },
+  { key: 'date_iso', label: 'Dates', date: 'race' },
   { key: 'winner', label: 'Winner', text: roundWinner },
   { key: 'winning_team', label: 'Constructor', text: roundResult },
   { key: 'pole', label: 'Pole', text: roundResult },

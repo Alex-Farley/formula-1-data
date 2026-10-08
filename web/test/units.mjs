@@ -48,7 +48,13 @@ import {
 
 import {
   EMPTY,
+  HOUSE_LOCALE,
   classificationOrder,
+  dateSegments,
+  houseDate,
+  isDay,
+  localDate,
+  localRaceDates,
   longDate,
   missing,
   number,
@@ -388,25 +394,27 @@ describe('the question library (IA-20, PD-32)', () => {
 })
 
 describe('raceDates', () => {
-  // The strings races.dates held before DA-15, so no page changes with the column.
+  // The house format (CD-57): the month a word, the day unpadded, a range
+  // joined by an en dash as every span on the site is.
   it('writes a weekend inside one month', () => {
-    assert.equal(raceDates({ date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '27-29 Mar 2026')
+    assert.equal(raceDates({ date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '27–29 Mar 2026')
   })
 
   it('names both months for a weekend across two', () => {
-    assert.equal(raceDates({ date_iso: '2026-11-01', date_from: '2026-10-30', date_to: '2026-11-01' }), '30 Oct-01 Nov 2026')
+    assert.equal(raceDates({ date_iso: '2026-11-01', date_from: '2026-10-30', date_to: '2026-11-01' }), '30 Oct–1 Nov 2026')
   })
 
   it('names both years for a weekend across two', () => {
-    assert.equal(raceDates({ date_iso: '2028-01-01', date_from: '2027-12-30', date_to: '2028-01-01' }), '30 Dec 2027-01 Jan 2028')
+    assert.equal(raceDates({ date_iso: '2028-01-01', date_from: '2027-12-30', date_to: '2028-01-01' }), '30 Dec 2027–1 Jan 2028')
   })
 
-  it('is the race day where no weekend is stated', () => {
-    assert.equal(raceDates({ date_iso: '1950-05-13', date_from: null, date_to: null }), '1950-05-13')
+  it('is the race day, in words, where no weekend is stated - never the ISO string /seasons/1997 printed', () => {
+    assert.equal(raceDates({ date_iso: '1950-05-13', date_from: null, date_to: null }), '13 May 1950')
+    assert.equal(raceDates({ date_iso: '1997-03-09' }), '9 Mar 1997')
   })
 
   it('shows the weekend, not the UTC race day, for Las Vegas', () => {
-    assert.equal(raceDates({ date_iso: '2026-11-22', date_from: '2026-11-19', date_to: '2026-11-21' }), '19-21 Nov 2026')
+    assert.equal(raceDates({ date_iso: '2026-11-22', date_from: '2026-11-19', date_to: '2026-11-21' }), '19–21 Nov 2026')
   })
 
   it('is null when nothing is held, so the caller decides', () => {
@@ -1089,7 +1097,7 @@ describe('the queries a page and the prerenderer share', () => {
     )
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, []),
-      'Scheduled for 01-03 Oct 2027 at Istanbul Park; not yet run.',
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; not yet run.',
     )
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: null, date_iso: null, date_from: null, date_to: null, note: null }, []),
@@ -1101,11 +1109,11 @@ describe('the queries a page and the prerenderer share', () => {
     // instead. The note below the classification agrees with it.
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'run'),
-      'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; no result is recorded yet.',
     )
     assert.equal(
       raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'running'),
-      'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; no result is recorded yet.',
     )
     const scheduledRound = { year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }
     assert.equal(scheduledNote(scheduledRound).head, 'This race has not been run.')
@@ -1123,7 +1131,7 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(raceLede({ ...monza, note: '  Held on a Sunday in June.  ' }, won), 'Gerhard Berger won for Ferrari at Monza. Held on a Sunday in June.')
     assert.equal(
       raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: 'Subject to homologation.' }, []),
-      'Scheduled for 01-03 Oct 2027 at Istanbul Park; not yet run. Subject to homologation.',
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; not yet run. Subject to homologation.',
     )
     for (const note of [null, undefined, '', '   ']) {
       assert.equal(
@@ -2776,6 +2784,77 @@ describe('the counts the register ledes spell out (VD-79)', () => {
   })
 })
 
+describe('dates are words on the page and ISO in the data (CD-57)', () => {
+  // Intl puts a thin or narrow no-break space round a range's dash in some
+  // locales; the words are what is being checked.
+  const plain = (value) => String(value).replace(/[\u2009\u202f\u00a0]/g, ' ')
+
+  it('knows a whole ISO day from anything else', () => {
+    assert.equal(isDay('1997-03-09'), true)
+    for (const value of ['1997', '1997-03', '1997-02-30', '1997-13-01', '09/03/1997', '', null, undefined]) {
+      assert.equal(isDay(value), false, String(value))
+    }
+  })
+
+  it('writes the house format, short and long, and null where there is no whole day', () => {
+    assert.equal(houseDate('1997-03-09'), '9 Mar 1997')
+    assert.equal(houseDate('1997-09-09'), '9 Sep 1997')
+    assert.equal(houseDate('1997-03-09', 'long'), '9 March 1997')
+    assert.equal(houseDate('1911'), null)
+    assert.equal(houseDate(null), null)
+  })
+
+  it('writes the reader’s own format for en-US and de-DE, and keeps the house format for en-GB', () => {
+    assert.equal(HOUSE_LOCALE, 'en-GB')
+    assert.equal(localDate('1997-03-09', 'short', 'en-US'), 'Mar 9, 1997')
+    assert.equal(localDate('1997-03-09', 'short', 'de-DE'), '9. März 1997')
+    assert.equal(localDate('1997-03-09', 'long', 'de-DE'), '9. März 1997')
+    assert.equal(localDate('1997-03-09', 'long', 'en-US'), 'March 9, 1997')
+    // ICU's own en-GB says "Sept"; the house says "Sep", and an en-GB reader
+    // keeps the house, so the handover changes nothing for them.
+    assert.equal(localDate('1997-09-09', 'short', 'en-GB'), '9 Sep 1997')
+  })
+
+  it('reads the day in UTC, so a reader west of London is not shown the evening before', () => {
+    assert.equal(localDate('1950-01-01', 'short', 'en-US'), 'Jan 1, 1950')
+  })
+
+  it('falls back to the house format for a locale Intl will not take', () => {
+    assert.equal(localDate('1997-03-09', 'short', 'not a locale!'), '9 Mar 1997')
+  })
+
+  it('writes a weekend in the reader’s order, and the race day where none is stated', () => {
+    const weekend = { date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }
+    assert.equal(plain(localRaceDates(weekend, 'en-US')), 'Mar 27 – 29, 2026')
+    assert.equal(localRaceDates(weekend, 'en-GB'), '27–29 Mar 2026')
+    assert.equal(localRaceDates({ date_iso: '1997-03-09' }, 'en-US'), 'Mar 9, 1997')
+    assert.equal(localRaceDates({ date_iso: null }, 'en-US'), null)
+  })
+
+  it('cuts a sentence at its ISO days and leaves everything else as words', () => {
+    assert.deepEqual(dateSegments('read on 2026-09-04 after round 12'), ['read on ', { iso: '2026-09-04' }, ' after round 12'])
+    assert.deepEqual(dateSegments('2026-10-05'), [{ iso: '2026-10-05' }])
+    assert.deepEqual(dateSegments('no day here, v2.25'), ['no day here, v2.25'])
+    // Not a day: an impossible one, and a run of digits that only contains one.
+    assert.deepEqual(dateSegments('1997-02-30'), ['1997-02-30'])
+    assert.deepEqual(dateSegments('ref 12026-09-041'), ['ref 12026-09-041'])
+    // A day inside a longer token is that token's, and is left as written.
+    assert.deepEqual(dateSegments('File:Foo 2019-05-26.jpg'), ['File:Foo 2019-05-26.jpg'])
+    assert.deepEqual(dateSegments('https://x.org/2024-01-01/y'), ['https://x.org/2024-01-01/y'])
+    // And one ending a sentence, or in brackets, is still a day.
+    assert.deepEqual(dateSegments('(read 2026-10-06).'), ['(read ', { iso: '2026-10-06' }, ').'])
+    assert.deepEqual(dateSegments('built 2026-10-05, digest'), ['built ', { iso: '2026-10-05' }, ', digest'])
+  })
+
+  it('hands a file the ISO value of a date column, and a weekend as an ISO interval', () => {
+    assert.equal(fieldText({ key: 'as_of', date: 'short' }, { as_of: '2026-10-04' }), '2026-10-04')
+    assert.equal(fieldText({ key: 'as_of', date: 'short' }, { as_of: null }), EMPTY)
+    const race = { key: 'date_iso', date: 'race' }
+    assert.equal(fieldText(race, { date_iso: '1997-03-09', date_from: null, date_to: null }), '1997-03-09')
+    assert.equal(fieldText(race, { date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '2026-03-27/2026-03-29')
+  })
+})
+
 describe('one eyebrow rule: the page type, then the facts that identify the entity (VD-81, IA-09)', () => {
   it('writes a whole ISO day out, and nothing for half of one', () => {
     assert.equal(longDate('1985-01-07'), '7 January 1985')
@@ -2784,14 +2863,16 @@ describe('one eyebrow rule: the page type, then the facts that identify the enti
     assert.equal(longDate(null), null)
   })
   it('leads with the type on every entity page, and leaves out a fact not held', () => {
-    assert.equal(EYEBROWS.driver('United Kingdom', '1985-01-07'), 'Driver · United Kingdom · born 7 January 1985')
+    // The day stays ISO in the string, and each renderer draws it as a date (CD-57).
+    assert.equal(EYEBROWS.driver('United Kingdom', '1985-01-07'), 'Driver · United Kingdom · born 1985-01-07')
+    assert.equal(EYEBROWS.driver('Italy', '1911'), 'Driver · Italy')
     assert.equal(EYEBROWS.driver('United States of America', null), 'Driver · United States of America')
     assert.equal(EYEBROWS.constructor('Italy', 'Maranello, Italy'), 'Constructor · Italy · Maranello')
     // A base abroad keeps its country: the constructor's is not the base's.
     assert.equal(EYEBROWS.constructor('Austria', 'Milton Keynes, United Kingdom'), 'Constructor · Austria · Milton Keynes, United Kingdom')
     assert.equal(EYEBROWS.constructor('United Kingdom', null), 'Constructor · United Kingdom')
     assert.equal(EYEBROWS.circuit('Silverstone', 'United Kingdom'), 'Circuit · Silverstone, United Kingdom')
-    assert.equal(EYEBROWS.race(12, 24, '2025-07-06'), 'Race · Round 12 of 24 · 6 July 2025')
+    assert.equal(EYEBROWS.race(12, 24, '2025-07-06'), 'Race · Round 12 of 24 · 2025-07-06')
     assert.equal(EYEBROWS.season(24, 24), 'Season · 24 rounds, all run')
     assert.equal(EYEBROWS.season(24, 16), 'Season · 24 rounds, 16 run')
     assert.equal(EYEBROWS.season(24, 0), 'Season · 24 rounds, none run yet')

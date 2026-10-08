@@ -129,7 +129,8 @@ export const DISCREPANCY_COLUMNS = [
   { key: 'field', rowHeader: true, label: 'Field' },
   { key: 'stored_value', label: 'Recorded', align: 'num' },
   { key: 'derived_value', label: 'Derived', align: 'num' },
-  { key: 'assessment', label: 'Assessment', align: 'prose' },
+  // A source's note, which names the day it was read (CD-57).
+  { key: 'assessment', label: 'Assessment', align: 'prose', date: 'text' },
   // One of three words, and the phrase saying how where there is one: the
   // two were one free-text column until DA-09.
   { key: 'status', label: 'Status', text: (value, row) => (row.status_note ? `${value}: ${row.status_note}` : value) },
