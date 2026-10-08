@@ -294,12 +294,18 @@ def track_ends(raw):
                      s, re.I)
     if pair:
         return mm(pair.group(1)), mm(pair.group(2))
+    # and the same pair with its label first: "Front/rear: 1,450/1,420 mm"
+    pair = re.search(r"front\s*/\s*(?:rear|back)\W*(\d,?\d{3}(?:\.\d+)?)\s*(?:mm)?"
+                     r"\s*[/,]\s*(\d,?\d{3}(?:\.\d+)?)\s*mm", s, re.I)
+    if pair:
+        return mm(pair.group(1)), mm(pair.group(2))
     figs = list(re.finditer(r"(\d[\d,.]*)\s*mm\b", s, re.I))
     if not figs:
         return None, None
     # "front and rear" is one label naming both ends, wherever it stands:
     # read as two, the later word took the figure alone when the label came
-    # first ("Front and rear: 1,320 mm" was a rear and no front).
+    # first ("Front and rear: 1,320 mm" was a rear and no front). A
+    # "front/rear" over two figures is the pair read above; over one, both.
     labels = []
     for m in re.finditer(r"\b(front\s*(?:and|&|/)\s*(?:rear|back))\b"
                          r"|\b(front|rear|back)\b|\b([FR])\s*:", s, re.I):

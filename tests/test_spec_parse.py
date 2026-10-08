@@ -40,6 +40,12 @@ class TrackEnds(unittest.TestCase):
     def test_a_label_naming_both_ends_gives_both_wherever_it_stands(self):
         self.ends("1,320 mm front and rear", 1320, 1320)
         self.ends("Front and rear: 1,320 mm", 1320, 1320)
+        self.ends("Front/rear: 1,320 mm", 1320, 1320)
+
+    def test_a_front_rear_label_over_two_figures_is_a_pair_not_both(self):
+        self.ends("Front/rear: 1,450 mm / 1,420 mm", 1450, 1420)
+        self.ends("Front/rear: 1,450/1,420 mm", 1450, 1420)
+        self.ends("Front / rear: 1,450 mm, 1,420 mm", 1450, 1420)
 
     def test_an_unlabelled_figure_is_the_front_and_the_rear_stays_empty(self):
         self.ends("1,500 mm", 1500, None)
