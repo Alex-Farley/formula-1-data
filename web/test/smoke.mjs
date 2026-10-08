@@ -4312,6 +4312,13 @@ try {
     is(await table.locator('thead th[aria-sort]').first().textContent(), opening, 'an unknown sort key falls back to the opening order')
     is(await table.locator('details.table-fold').evaluate((d) => d.open), false, 'and an unwritten fold is closed')
 
+    // CR-79. A write is the query's alone: the fragment the reader arrived on
+    // stays, where it used to be dropped by the first sort.
+    await go('/drivers/hamilton#every-entry', 'Lewis Hamilton')
+    await table.locator('thead th button').nth(1).click()
+    await page.waitForFunction(() => /[?&]every-entry\.sort=/.test(location.search), null, { timeout: 10000 })
+    is(await page.evaluate(() => location.hash), '#every-entry', 'a sort keeps the address\u2019s #fragment')
+
     // A key names one table: two tables under one heading on one page would
     // sort and open together from one parameter.
     const shared = []

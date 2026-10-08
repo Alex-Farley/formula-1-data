@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
 /**
  * A register's filters, its sort and its expansion, in the address bar.
@@ -26,6 +25,12 @@ import { useSearchParams } from 'react-router-dom'
  *     `/drivers` stays `/drivers` until something is actually asked of it,
  *     and clearing a filter takes its parameter back out rather than writing
  *     `?nationality=`. Clear-all is the whole declared set dropped.
+ *
+ * THE FRAGMENT STAYS
+ *     A write changes the query and nothing else. `/records#champions`
+ *     sorted is `/records?champions.sort=year#champions`, not the query
+ *     alone: the anchor the reader arrived on, or was sent to, is still
+ *     where they are (CR-79).
  *
  * Values are strings, or booleans for a toggle — written as `=1`, absent when
  * false. Anything else a caller wants in the URL formats itself to a string
@@ -85,36 +90,46 @@ export function oneOf(value, options, fallback = '') {
 }
 
 /**
+ * The writer behind `useUrlState`, apart from React so it can be tested.
+ *
+ * `address()` is what the address bar holds at the moment of the write — a
+ * `{ search, hash }` — and `navigate` is react-router's. Every write is
+ * composed on `address()`, not on the parameters a render was handed, and
+ * goes out with the hash it found.
+ *
+ * Composed on the render, a write is built on parameters that may no longer
+ * describe the address. Two controls can be touched inside one frame — a
+ * chip, then the search box beside it — and the glossary's own test caught
+ * the second write dropping the first's filter. A per-hook record of its last
+ * write mended that for one hook and not for two: a page's filter and a
+ * table's keyed sort are two hooks, each blind to the other's write (CR-79).
+ * The address is the one record every hook shares, and under a BrowserRouter
+ * a navigation has reached `history` by the time `navigate` returns, so the
+ * next write in the same frame reads it already moved.
+ */
+export function urlWriter(defaults, { address, navigate }) {
+  const current = () => new URLSearchParams(address().search)
+  const write = (next) => {
+    const search = next.toString()
+    navigate({ search: search ? `?${search}` : '', hash: address().hash }, { replace: true })
+  }
+  return {
+    set: (changes) => write(writeState(current(), changes, defaults)),
+    clear: () => write(clearState(current(), defaults)),
+  }
+}
+
+/**
  * `const [state, set, clear] = useUrlState({ q: '', kind: '' })`
  *
  * `set` takes a partial — `set({ q: 'senna' })` — and `clear` drops the lot.
  */
 export function useUrlState(defaults) {
-  const [params, setParams] = useSearchParams()
-
-  /*
-   * What the address holds, which is not always what this render was handed.
-   *
-   * react-router gives a setter the parameters of the render it was made in,
-   * and two controls can be touched inside one frame — a chip, then the
-   * search box beside it, before the first write has rendered. Composed on
-   * the render, the second write is built on parameters that no longer
-   * describe the address and silently drops the first one's filter: the
-   * glossary's own test caught exactly that, a category chip and then a term,
-   * ending with the term and no category. Composing on the last WRITE as well
-   * as the last render is what makes a burst of them add up.
-   */
-  const latest = useRef(params)
-  useEffect(() => {
-    latest.current = params
-  }, [params])
-
-  const state = readState(params, defaults)
-  const write = (next) => {
-    latest.current = next
-    setParams(next, { replace: true })
-  }
-  const set = (changes) => write(writeState(latest.current, changes, defaults))
-  const clear = () => write(clearState(latest.current, defaults))
-  return [state, set, clear]
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  // A write only ever comes from the reader's hand, in a browser; the render's
+  // own parameters stand in for the address where there is no window.
+  const address = () => (typeof window === 'undefined' ? { search: `?${params}`, hash: '' } : window.location)
+  const { set, clear } = urlWriter(defaults, { address, navigate })
+  return [readState(params, defaults), set, clear]
 }

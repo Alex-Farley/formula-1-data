@@ -186,7 +186,7 @@ import {
   recordFamilies,
   tiersOf,
 } from '../src/queries/records.js'
-import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
+import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -1907,6 +1907,54 @@ describe('a register in the address bar', () => {
     // A register whose default is not the empty one falls back to its own.
     assert.equal(oneOf('1730', ['2020', '2010'], '2020'), '2020')
     assert.equal(oneOf('2010', ['2020', '2010'], '2020'), '2010')
+  })
+
+  /*
+   * CR-79. A stand-in for the address bar and react-router's navigate: like a
+   * BrowserRouter, a navigation has moved the address by the time it returns,
+   * and nothing re-renders in between - which is a burst inside one frame.
+   */
+  function bar(search, hash) {
+    const where = { search, hash }
+    const calls = []
+    const navigate = (to, options) => {
+      calls.push(options)
+      where.search = to.search
+      where.hash = to.hash
+    }
+    return { where, calls, address: () => where, navigate }
+  }
+
+  it('keeps the fragment the reader arrived on, and replaces rather than pushes', () => {
+    const b = bar('?decade=1990s', '#champions')
+    urlWriter({ 'champions.sort': '', 'champions.dir': '' }, b).set({ 'champions.sort': 'full_name', 'champions.dir': 'asc' })
+    assert.equal(b.where.search, '?decade=1990s&champions.sort=full_name&champions.dir=asc')
+    assert.equal(b.where.hash, '#champions')
+    urlWriter({ decade: '' }, b).clear()
+    assert.equal(b.where.search, '?champions.sort=full_name&champions.dir=asc')
+    assert.equal(b.where.hash, '#champions', 'clearing a filter keeps it too')
+    assert.deepEqual(b.calls, [{ replace: true }, { replace: true }])
+  })
+
+  it('writes an address with nothing left in it as no query at all', () => {
+    const b = bar('?q=senna', '')
+    urlWriter({ q: '' }, b).set({ q: '' })
+    assert.equal(b.where.search, '')
+  })
+
+  it('composes two hooks writing in one frame, neither dropping the other', () => {
+    // A page's filter and a table's keyed sort are two writers made from the
+    // same render. Each composes on the address, not on that render, so the
+    // second keeps what the first wrote - in either order.
+    const b = bar('', '')
+    const page = urlWriter({ q: '', category: '' }, b)
+    const table = urlWriter({ 'glossary.sort': '', 'glossary.dir': '' }, b)
+    page.set({ category: 'results' })
+    table.set({ 'glossary.sort': 'term', 'glossary.dir': 'desc' })
+    page.set({ q: 'pole' })
+    assert.equal(b.where.search, '?category=results&glossary.sort=term&glossary.dir=desc&q=pole')
+    table.set({ 'glossary.sort': '', 'glossary.dir': '' })
+    assert.equal(b.where.search, '?category=results&q=pole')
   })
 })
 
