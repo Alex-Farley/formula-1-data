@@ -290,15 +290,18 @@ def track_ends(raw):
             return float(t.replace(",", ""))
         except ValueError:
             return None
-    pair = re.search(r"(\d[\d,.]*)\s*mm\s*/\s*(\d[\d,.]*)\s*mm\W*front\s*/\s*rear",
-                     s, re.I)
+    # one track figure, never part of a longer number
+    fig = r"(?<![\d.])(\d,?\d{3}(?:\.\d+)?)(?!\d)"
+    pair = re.search(fig + r"\s*(?:mm)?\s*/\s*" + fig
+                     + r"\s*mm\W*front\s*/\s*rear", s, re.I)
     if pair:
         return mm(pair.group(1)), mm(pair.group(2))
     # and the same pair with its label first: "Front/rear: 1,450/1,420 mm",
-    # the label standing before every figure, not after one
-    pair = re.match(r"\D*?\bfront\s*/\s*(?:rear|back)\W*(\d,?\d{3}(?:\.\d+)?)"
-                    r"\s*(?:mm)?\s*[/,]\s*(\d,?\d{3}(?:\.\d+)?)\s*mm", s, re.I)
-    if pair:
+    # the label standing before every figure, not after one (a year or an
+    # engine size in the text before it is not a figure)
+    pair = re.search(r"\bfront\s*/\s*(?:rear|back)\b(?:\s*\([^)]*\))?\W*"
+                     + fig + r"\s*(?:mm)?\s*[/,]\s*" + fig + r"\s*mm", s, re.I)
+    if pair and not re.search(r"\d\s*mm\b", s[:pair.start()], re.I):
         return mm(pair.group(1)), mm(pair.group(2))
     figs = list(re.finditer(r"(\d[\d,.]*)\s*mm\b", s, re.I))
     if not figs:

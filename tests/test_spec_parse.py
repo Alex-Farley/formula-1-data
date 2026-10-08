@@ -46,6 +46,14 @@ class TrackEnds(unittest.TestCase):
         self.ends("Front/rear: 1,450 mm / 1,420 mm", 1450, 1420)
         self.ends("Front/rear: 1,450/1,420 mm", 1450, 1420)
         self.ends("Front / rear: 1,450 mm, 1,420 mm", 1450, 1420)
+        self.ends("Front/rear (1.5 L): 1,450/1,420 mm", 1450, 1420)
+        self.ends("Track (1950): Front/rear: 1,450/1,420 mm", 1450, 1420)
+
+    def test_a_figure_first_pair_needs_its_unit_only_once(self):
+        self.ends("1,450/1,420 mm front/rear", 1450, 1420)
+
+    def test_a_front_rear_label_over_variants_is_both_from_the_first(self):
+        self.ends("Front/rear: 1,450 mm (1977), 1,480 mm (1978)", 1450, 1450)
 
     def test_a_front_rear_label_after_a_figure_is_not_read_as_a_later_pair(self):
         self.ends("1,450 mm front/rear; 1,380 mm / 1,350 mm", 1450, 1450)
