@@ -1666,6 +1666,47 @@ SECOND_ENTRIES = {
         "(verify.py PRACTICE_TEAM_EXCEPTIONS).",
 }
 
+# A classified finisher inside the paid places whom F1DB gives no points
+# (DA-37). The points system's scale says the place was paid, so the 0 that
+# build.py writes below the paid places (DA-08) does not reach these: what
+# the race's own rules did to the entry is a fact about that entry, and each
+# one here is sourced to the race's own article, which states it. build.py
+# writes the note to race_entries.note, cites the article for it in
+# `claims`, and writes the 0 the cause establishes; it refuses a name here
+# F1DB no longer bears out - a row gone, moved out of the paid places, or
+# given points - and verify.py refuses a finisher inside the paid places
+# holding no points that is not named here, so a new one arrives as a row
+# to read and not as a blank or a guessed 0. The note is this project's
+# wording of what the article states. Keyed (year, round, our driver id).
+_F2 = ("A Formula Two car, run in the same race as the Formula One field and "
+       "not eligible for championship points.")
+_SHARED = ("A shared drive: from 1958 no championship points were awarded for "
+           "a car two drivers shared.")
+_SECOND_CAR = ("The team's second car, when the team had entered only one car "
+               "for the championship, so not eligible for points.")
+_WP = "https://en.wikipedia.org/wiki/"
+UNPAID_INSIDE_THE_PAID_PLACES = {
+    (1957, 5, "collins"): (
+        "Shared Trintignant's car and drove 3 of its 88 laps: Trintignant "
+        "received all 3 points for fourth, as Collins was judged not to have "
+        "driven a significant number of laps.", _WP + "1957_British_Grand_Prix"),
+    (1958, 8, "mclaren-d"): (_F2, _WP + "1958_German_Grand_Prix"),
+    (1958, 10, "gregory"): (_SHARED, _WP + "1958_Italian_Grand_Prix"),
+    (1958, 10, "carroll-shelby"): (_SHARED, _WP + "1958_Italian_Grand_Prix"),
+    (1960, 1, "moss"): (_SHARED, _WP + "1960_Argentine_Grand_Prix"),
+    (1960, 1, "trintignant"): (_SHARED, _WP + "1960_Argentine_Grand_Prix"),
+    (1963, 4, "g-hill"): (
+        "Push-started on the grid, for which the organisers gave a one-minute "
+        "penalty and no championship points for third place.",
+        _WP + "1963_French_Grand_Prix"),
+    (1967, 7, "oliver"): (_F2, _WP + "1967_German_Grand_Prix"),
+    (1969, 7, "pescarolo"): (_F2, _WP + "1969_German_Grand_Prix"),
+    (1969, 7, "attwood"): (_F2, _WP + "1969_German_Grand_Prix"),
+    (1984, 14, "jo-gartner"): (_SECOND_CAR, _WP + "1984_Italian_Grand_Prix"),
+    (1984, 14, "berger"): (_SECOND_CAR, _WP + "1984_Italian_Grand_Prix"),
+    (1987, 16, "yannick-dalmas"): (_SECOND_CAR, _WP + "1987_Australian_Grand_Prix"),
+}
+
 # F1DB constructor id -> this database's constructor id, for the seven that
 # do not already share one. Six are spelling; the seventh is not.
 F1DB_CONSTRUCTORS = {

@@ -2356,9 +2356,13 @@ def _zero_below_the_paid_places(cur):
     Only a NULL is written. An entry that did score keeps F1DB's figure - a
     1950s fastest-lap point for a car that retired, or a championship car
     classified behind the Formula Two entries of a German Grand Prix. A
-    finisher inside the paid places with no points is left NULL: the scale
-    says those places were paid, so what the race's own rules did to that
-    entry is not this rule's to state, and verify.py names each one. Every
+    finisher inside the paid places with no points is not this rule's: the
+    scale says those places were paid, so what the race's own rules did to
+    that entry - a shared drive, a Formula Two car, a second car not entered
+    for the championship, a penalty - is a fact about the entry. Each is
+    declared in data/harvest.py UNPAID_INSIDE_THE_PAID_PLACES with the cause
+    its race's article states, which is written as the row's note and cited
+    in `claims`, and the 0 that cause establishes goes with it (DA-37). Every
     row this touches is written here, after the last stage that inserts a
     race or sprint entry."""
     written = {}
@@ -2388,6 +2392,40 @@ def _zero_below_the_paid_places(cur):
     print(f"  points: 0 written for {gb} classified finishers below the last "
           f"place their points system paid and {gu} entries not classified; "
           f"sprints {sb} and {su}")
+
+    # Inside the paid places, only where a declared cause says nothing was
+    # paid. A name F1DB no longer bears out is refused rather than skipped:
+    # the row gone, no longer classified, below the paid places (the scale
+    # has already written it), or given points by F1DB after all.
+    stale = []
+    for (yr, rnd, did), (note, source) in sorted(
+            HV.UNPAID_INSIDE_THE_PAID_PLACES.items()):
+        row = cur.execute("""SELECT e.id, e.race_id, e.finish_position, e.points
+            FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.year = ? AND r.round = ? AND e.driver_id = ?""",
+            (yr, rnd, did)).fetchone()
+        system = cur.execute("""SELECT scale FROM points_systems
+            WHERE session = 'race' AND from_year <= ?
+              AND (to_year IS NULL OR to_year >= ?)
+            ORDER BY from_year DESC LIMIT 1""", (yr, yr)).fetchone()
+        if (row is None or row[2] is None or row[3] is not None
+                or system is None or row[2] > len(json.loads(system[0]))):
+            stale.append(f"{yr} r{rnd} {did}")
+            continue
+        cur.execute("UPDATE race_entries SET points = 0, note = ? WHERE id = ?",
+                    (note, row[0]))
+        cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
+            source) VALUES ('race_entries', ?, 'note', ?, ?)""",
+            (f"{row[1]}|{did}", note, source))
+    if stale:
+        raise SystemExit(
+            "data/harvest.py UNPAID_INSIDE_THE_PAID_PLACES names "
+            + ", ".join(stale) + ", which F1DB no longer gives as a classified "
+            "finisher inside the paid places with no points. Read the row "
+            "again and take the name out, or correct it.")
+    print(f"  points: 0 and the stated cause written for "
+          f"{len(HV.UNPAID_INSIDE_THE_PAID_PLACES)} finishers inside the paid "
+          f"places whom the race's own rules did not pay")
 
 
 def _stage_23_a_round_that_has_a_result(b):

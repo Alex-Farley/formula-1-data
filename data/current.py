@@ -688,6 +688,7 @@ CLAIM_FIELDS = {
     ("car_seasons", "other_chassis"): "chassis F1DB's entry lists name for the constructor that season beyond the ones the car covers",
     ("circuits", "article"): "the Wikipedia article the List of Formula One circuits links for the circuit",
     ("circuits", "article_section"): "likewise, the section of it the list links, where it links a section",
+    ("race_entries", "note"): "why a finisher inside the paid places scored nothing, as the race's article states it",
 }
 
 # Provenance for the tables that carry `confidence` and no `source` column.
@@ -931,8 +932,6 @@ EMPTY_COLUMNS = {
     "pit_stops.stationary_seconds":
         "no source read here gives it: the timing sources publish pit-lane "
         "time, and F1DB no duration at all",
-    "race_entries.note":
-        "a per-row annotation that no loader writes and no row has needed",
     "season_entries.note":
         "a per-row annotation that no loader writes and no row has needed",
     "sprint_results.note":
