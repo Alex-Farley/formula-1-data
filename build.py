@@ -2123,10 +2123,11 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             continue
 
         # THE CHECK. The winner of this race is already established, from a
-        # different source - the Wikipedia harvest, or formula1.com for the
-        # seasons after it - wherever one of them has been read for it. A
-        # round neither reaches has no `ours` and nothing to compare, and
-        # loads on F1DB's word. If F1DB disagrees the race is refused whole - never partially accepted, never nudged into a match.
+        # different source - the Wikipedia race-winner harvest, or
+        # formula1.com for the seasons after it - wherever one of them has
+        # been read for it. A round neither reaches has no `ours` and nothing
+        # to compare, and loads on F1DB's word. If F1DB disagrees the race is
+        # refused whole - never partially accepted, never nudged into a match.
         # A shared drive puts two drivers on position 1 and both are winners,
         # so this compares SETS: taking "the" winner would have made the 1956
         # Argentine and 1957 British Grands Prix look like disagreements when
@@ -2524,7 +2525,7 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
             qual_rows += cur.rowcount
 
         # The cross-check this table brings with it. Pole is held for every
-        # race the Wikipedia harvest reaches, independently of F1DB, and
+        # race the Wikipedia pole harvest reaches, independently of F1DB, and
         # the fastest qualifier is usually that driver. Where they differ
         # nothing is recorded: a grid penalty or a sprint-set grid moves the
         # quickest driver off pole without making either source wrong about
