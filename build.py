@@ -1629,6 +1629,20 @@ def _calendar_weekend(dates):
     return date_from, date_to
 
 
+def _register_name(cur, kind, eid):
+    """The name standings.entity carries for an entrant: the register's,
+    drivers.full_name or constructors.name, on every row of every source.
+    Both standings loaders take it from here, so one id cannot stand under
+    two names in one season's tables (DA-29)."""
+    row = cur.execute(
+        "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
+        else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
+    if row is None:
+        raise SystemExit(f"standings: {kind} entrant {eid!r} is not in the "
+                         f"register, so it has no name to stand under")
+    return row[0]
+
+
 def _stage_16_current_season(b):
     """current season"""
     cur = b.cur
@@ -1662,15 +1676,15 @@ def _stage_16_current_season(b):
         for row in rows:
             sid += 1
             if tbl == "drivers":
-                pos, eid, disp, team, pts = row
+                pos, eid, team, pts = row
             else:
-                pos, eid, disp, pts = row
+                pos, eid, pts = row
                 team = None
             cur.execute("""INSERT INTO standings (id, year, table_type, position, entity,
                 driver_id, constructor_id, team, points, after_round,
                 basis, snapshot_date, confidence, source)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (sid, year, tbl, pos, disp,
+                (sid, year, tbl, pos, _register_name(cur, tbl, eid),
                  eid if tbl == "drivers" else None,
                  eid if tbl == "constructors" else None,
                  team, pts, after, basis, dated, "verified",
@@ -2923,9 +2937,6 @@ def _stage_25_championship_standings_after_every_round_and(b):
             if basis == "final":
                 continue
 
-        name = cur.execute(
-            "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
-            else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
         cur.execute("""INSERT OR IGNORE INTO standings (year, table_type,
                 position, position_text, entity, driver_id,
                 constructor_id, engine_id, points, after_round, basis,
@@ -2933,7 +2944,7 @@ def _stage_25_championship_standings_after_every_round_and(b):
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, kind,
              int(pos) if str(pos).isdigit() else None, str(pos) if pos else None,
-             name[0] if name else eid, did, cid,
+             _register_name(cur, kind, eid), did, cid,
              engine_id, pts, after, basis,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         std_rows += cur.rowcount

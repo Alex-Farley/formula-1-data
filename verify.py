@@ -684,6 +684,22 @@ def standings():
         ).fetchone()
     check("every standings engine_id is an F1DB engine-manufacturer id",
           stray[0] == 0, f"{stray[0]} rows: {stray[1]}")
+    # entity is the register's name for the entrant, on every row of every
+    # source (DA-29). The formula1.com final row once said 'Kick Sauber' where
+    # every F1DB round said 'Sauber', so one season's tables named one team
+    # two ways. Equality with the register is stronger than one name per
+    # (year, table_type, id), and is the rule both loaders follow.
+    named = con.execute("""SELECT s.year, s.table_type,
+               COALESCE(s.driver_id, s.constructor_id), s.entity,
+               COALESCE(d.full_name, c.name)
+        FROM standings s
+        LEFT JOIN drivers d ON s.table_type = 'drivers' AND d.id = s.driver_id
+        LEFT JOIN constructors c ON s.table_type = 'constructors'
+                                AND c.id = s.constructor_id
+        WHERE s.entity IS NOT COALESCE(d.full_name, c.name)""").fetchall()
+    check("every standings entity is the register's name for its entrant",
+          not named, "; ".join(f"{y} {t} {i}: {e!r}, register {r!r}"
+                               for y, t, i, e, r in named[:4]))
 
 
 @section('STANDINGS ARE THE SUM OF THE RESULTS')

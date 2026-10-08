@@ -486,7 +486,11 @@ CREATE TABLE standings (
     -- a 0 there put him first in every query that ordered by position.
     position        INTEGER,
     position_text   TEXT,                      -- "2", or DSQ / EX
-    entity          TEXT NOT NULL,             -- driver or constructor display name
+    -- The register's name for the entrant - drivers.full_name or
+    -- constructors.name - on every row of every source, so one id stands
+    -- under one name in a season's tables (DA-29). The name raced under that
+    -- season is the lineage's entity_name, not this.
+    entity          TEXT NOT NULL,
     -- The entrant, in the namespace table_type names: a drivers.id on a
     -- drivers' row and a constructors.id on a constructors' one, exactly one
     -- of the two set. Up to v2.24 one `entity_id` column held both, and four
