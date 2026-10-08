@@ -47,6 +47,10 @@ class TrackEnds(unittest.TestCase):
         self.ends("Front/rear: 1,450/1,420 mm", 1450, 1420)
         self.ends("Front / rear: 1,450 mm, 1,420 mm", 1450, 1420)
 
+    def test_a_front_rear_label_after_a_figure_is_not_read_as_a_later_pair(self):
+        self.ends("1,450 mm front/rear; 1,380 mm / 1,350 mm", 1450, 1450)
+        self.ends("1,450 mm (front/rear), 1,480 mm, 1,500 mm", 1450, 1450)
+
     def test_an_unlabelled_figure_is_the_front_and_the_rear_stays_empty(self):
         self.ends("1,500 mm", 1500, None)
 

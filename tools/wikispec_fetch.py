@@ -294,9 +294,10 @@ def track_ends(raw):
                      s, re.I)
     if pair:
         return mm(pair.group(1)), mm(pair.group(2))
-    # and the same pair with its label first: "Front/rear: 1,450/1,420 mm"
-    pair = re.search(r"front\s*/\s*(?:rear|back)\W*(\d,?\d{3}(?:\.\d+)?)\s*(?:mm)?"
-                     r"\s*[/,]\s*(\d,?\d{3}(?:\.\d+)?)\s*mm", s, re.I)
+    # and the same pair with its label first: "Front/rear: 1,450/1,420 mm",
+    # the label standing before every figure, not after one
+    pair = re.match(r"\D*?\bfront\s*/\s*(?:rear|back)\W*(\d,?\d{3}(?:\.\d+)?)"
+                    r"\s*(?:mm)?\s*[/,]\s*(\d,?\d{3}(?:\.\d+)?)\s*mm", s, re.I)
     if pair:
         return mm(pair.group(1)), mm(pair.group(2))
     figs = list(re.finditer(r"(\d[\d,.]*)\s*mm\b", s, re.I))
