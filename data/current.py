@@ -393,8 +393,12 @@ SOURCE_REGISTRY = [
     (7, "F1 results archive", "https://www.formula1.com/en/results",
      "Season-by-season classifications and race results.", "official",
      "FOM copyright.", "Per event.",
-     "The winner of every race is held independently from the Wikipedia "
-     "harvest; the two must agree."),
+     "Every race winner taken from it - the seasons after the Wikipedia "
+     "race-winner harvest ends - is compared on load with the winner the "
+     "Wikipedia pole and venue harvests give for the same race, and with "
+     "F1DB's; any disagreement stops the build. A round run since its pages "
+     "were last read has F1DB's winner alone, cited to F1DB, and nothing to "
+     "compare it with."),
     (8, "Wikipedia season results tables", "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Championship_points_scoring_systems",
      "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications, and a race winner harvested from them is compared on load with F1DB's. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.", "reference",
      "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see "
@@ -429,11 +433,12 @@ SOURCE_REGISTRY = [
      "Re-released after every race, versioned, with a public commit history "
      "and a changelog. Better maintained than anything else at this scale.",
      "Heavily, in four independent places, all of them held here before F1DB "
-     "was read. (1) The winner of every one of the {{fig:races_completed}} races was established here "
-     "before F1DB was read - from the Wikipedia harvest, and from "
-     "formula1.com for the seasons it covers; a race whose winner "
-     "disagreed is refused WHOLE, and "
-     "none was. The comparison is on sets, because a shared drive puts two "
+     "was read. (1) The winner of {{fig:races_winner_held}} of the {{fig:races_completed}} races was "
+     "established here before F1DB was read - from the Wikipedia race-winner "
+     "harvest, and from formula1.com for the seasons after it; a race whose winner "
+     "disagreed is refused WHOLE, and none was. A round run since "
+     "formula1.com was last read has F1DB's winner and nothing to compare "
+     "it with. The comparison is on sets, because a shared drive puts two "
      "drivers on position 1 and both are winners. (2) The champion, the "
      "runner-up and both their point totals for {{fig:seasons_reproduced}} seasons were already in "
      "`seasons`; the final standings must reproduce all four and do. "

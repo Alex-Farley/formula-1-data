@@ -66,6 +66,12 @@ FIGURES = {
     "pit_stops": "SELECT COUNT(*) FROM pit_stops",
     "circuit_outlines": "SELECT COUNT(*) FROM circuit_outlines",
     "car_seasons": "SELECT COUNT(*) FROM car_seasons",
+    # The races whose winner was held before F1DB was read - from the
+    # Wikipedia harvest or formula1.com - which is what F1DB's winner is
+    # compared with. A round neither has been read for is held by F1DB's
+    # row alone, so it is in races_completed and not here.
+    "races_winner_held": """SELECT COUNT(DISTINCT race_id) FROM race_entries
+        WHERE finish_position = 1 AND source NOT LIKE '%f1db%'""",
     # The seasons whose champion, runner-up and both point totals were held
     # before F1DB was read, which is what the final standings must reproduce.
     "seasons_reproduced": """SELECT COUNT(*) FROM seasons
