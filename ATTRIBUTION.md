@@ -39,6 +39,7 @@ the current position from the rows themselves.
 | Car photographs (references and credits, not images) | [Wikimedia Commons](https://commons.wikimedia.org/) | 623 articles |
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
 | Notable team radio transcripts | Wikipedia per-race articles | 6 |
+| Why a finisher inside the paid places scored nothing | Wikipedia per-race articles, cited row by row in `claims`; the notes are written for this project | <!-- fig:wp_entry_notes -->13<!-- /fig --> entries |
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
 | How each grid was set, from 1996 | The FIA Sporting Regulations of each season from 2009, and formula1.com's history of qualifying formats before that; the facts only, with notes written for this project | every season from 1996 |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | 7 drivers at `verified` |

@@ -4329,15 +4329,18 @@ def claim_key_columns(table):
 
     The primary key, unless it is a bare INTEGER id: those are the build's
     business and may be renumbered (README, "which ids a reader may keep"),
-    and a claim keyed on one would silently re-point at another row.
+    and a claim keyed on one would silently re-point at another row. Such a
+    table is keyed instead by the natural key ID_STABILITY publishes for it,
+    which is how `discrepancies` already names its rows (DA-37).
     """
+    from data import current as _N
     info = con.execute(f'PRAGMA table_info("{table}")').fetchall()
     pk = [r["name"] for r in sorted(info, key=lambda r: r["pk"]) if r["pk"]]
-    if not pk:
-        return None
-    if len(pk) == 1 and next(r for r in info if r["name"] == pk[0])["type"].upper() == "INTEGER":
-        return None
-    return pk
+    if pk and not (len(pk) == 1 and next(
+            r for r in info if r["name"] == pk[0])["type"].upper() == "INTEGER"):
+        return pk
+    natural = (_N.ID_STABILITY.get(table) or (None, None))[1]
+    return list(natural) if natural else None
 
 
 @section('CLAIMS')
@@ -4531,8 +4534,6 @@ def a_disagreement_names_the_value_it_is_about():
     `claims` spells it, and this holds it to the database: the table exists,
     the field is one of its columns, and the row key names at least one of
     its rows. The columns are read from the schema, never listed here."""
-    from data import current as _N
-
     tables = {r[0] for r in con.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'")}
     rows = con.execute("""SELECT id, key, kind, tbl, row_key, field, stored_value,
@@ -4556,8 +4557,7 @@ def a_disagreement_names_the_value_it_is_about():
         # is, and otherwise the natural key the identifier policy publishes.
         # A row key may name only the head of it: a race's entries, a
         # standings table after one round.
-        key = claim_key_columns(r["tbl"]) or list(
-            (_N.ID_STABILITY.get(r["tbl"]) or (None, None))[1] or [])
+        key = claim_key_columns(r["tbl"]) or []
         parts = r["row_key"].split("|")
         if not key or len(parts) > len(key):
             dangling.append(f"#{r['id']} {r['tbl']} [{r['row_key']}]: "
@@ -5781,8 +5781,10 @@ def points_below_the_paid_places():
     paid scored 0, and says so (DA-08), and so did an entry that was not
     classified in a race that has a classification (DA-36): NULL is what
     this database uses for *not established*, and the scale establishes
-    both. The build writes the 0; this is what stops a new F1DB refresh, a
-    new season or a reworded system leaving a blank behind it."""
+    both. So did a finisher inside the paid places whom the race's own
+    rules did not pay, and the row's note says why (DA-37). The build writes
+    the 0; this is what stops a new F1DB refresh, a new season or a
+    reworded system leaving a blank behind it."""
     # The paid places per season, read from the scale in Python rather than
     # with SQLite's JSON functions, which nothing else here depends on.
     systems = con.execute("""SELECT from_year, to_year, scale,
@@ -5795,12 +5797,12 @@ def points_below_the_paid_places():
                 return len(json.loads(s["scale"]))
         return None
 
-    inside_unpaid = set()
+    inside_unpaid, inside_zero = set(), {}
     for table, sprint, what in (("race_entries", False, "grand prix"),
                                 ("sprint_results", True, "sprint")):
         blank, unclassified, above = [], [], 0
         for r in con.execute(f"""SELECT r.year, r.round, e.driver_id,
-                e.finish_position AS pos, e.position_text, e.points,
+                e.finish_position AS pos, e.position_text, e.points, e.note,
                 EXISTS (SELECT 1 FROM {table} c WHERE c.race_id = e.race_id
                         AND c.finish_position IS NOT NULL) AS run
             FROM {table} e JOIN races r ON r.id = e.race_id
@@ -5818,6 +5820,9 @@ def points_below_the_paid_places():
                                     f"{r['driver_id']} {r['position_text']}")
             elif r["points"] is None and r["pos"] is not None:
                 inside_unpaid.add((r["year"], r["round"], r["driver_id"]))
+            elif r["points"] == 0 and r["pos"] is not None and not below \
+                    and not sprint:
+                inside_zero[(r["year"], r["round"], r["driver_id"])] = r["note"]
             elif r["points"] == 0 and not (below or unpaid):
                 above += 1
         check(f"no {what} finisher below the paid places holds NULL points", not blank,
@@ -5826,32 +5831,39 @@ def points_below_the_paid_places():
               not unclassified,
               f"{len(unclassified)} rows: " + "; ".join(unclassified[:5])
               if unclassified else "")
-        # The write reaches no further than those two: nothing inside the
-        # paid places, and nothing in a race nobody was classified in, was
-        # given a 0.
-        check(f"a {what} 0 is only ever below the paid places or for an entry "
-              "not classified in a race that has a classification",
-              above == 0, f"{above} rows")
+        # The write reaches no further than those two and the declared
+        # causes below: nothing else inside the paid places, and nothing in
+        # a race nobody was classified in, was given a 0. A sprint has no
+        # declared cause, so a 0 inside its paid places lands here.
+        check(f"a {what} 0 is only ever below the paid places, for an entry "
+              "not classified in a race that has a classification, or for a "
+              "declared cause", above == 0, f"{above} rows")
 
-    # A finisher inside the paid places whom F1DB gives no points is left
-    # NULL, because the scale says the place was paid and what the race's
-    # own rules did to that entry - a shared drive, a Formula Two car, a
-    # second car not entered for the championship, a penalty - is not the
-    # scale's to state. These are the ones there are; a new one is a row to
-    # read, not a zero to write.
-    INSIDE_UNPAID = {
-        (1957, 5, "collins"), (1958, 8, "mclaren-d"), (1958, 10, "gregory"),
-        (1958, 10, "carroll-shelby"), (1960, 1, "moss"), (1960, 1, "trintignant"),
-        (1963, 4, "g-hill"), (1967, 7, "oliver"), (1969, 7, "pescarolo"),
-        (1969, 7, "attwood"), (1984, 14, "jo-gartner"), (1984, 14, "berger"),
-        (1987, 16, "yannick-dalmas"),
-    }
-    # A sprint has none, so one there is new by definition.
-    check(f"the {len(INSIDE_UNPAID)} unpaid finishers inside the paid places are "
-          "the ones declared, and no others",
-          inside_unpaid == INSIDE_UNPAID,
-          f"new: {sorted(inside_unpaid - INSIDE_UNPAID)}; "
-          f"gone: {sorted(INSIDE_UNPAID - inside_unpaid)}")
+    # A finisher inside the paid places whom F1DB gives no points was paid
+    # nothing by the race's own rules - a shared drive, a Formula Two car, a
+    # second car not entered for the championship, a penalty - which the
+    # scale cannot state and the race's article does. data/harvest.py
+    # UNPAID_INSIDE_THE_PAID_PLACES declares each with its cause; the build
+    # writes the cause as the note and the 0 it establishes. A new one is a
+    # row to read, not a blank to leave or a zero to write unexplained.
+    declared = {k: note for k, (note, _src)
+                in harvest_module().UNPAID_INSIDE_THE_PAID_PLACES.items()}
+    check("no finisher inside the paid places holds NULL points",
+          not inside_unpaid,
+          f"{len(inside_unpaid)}: {sorted(inside_unpaid)[:5]} - read the "
+          "race's article and declare the cause in UNPAID_INSIDE_THE_PAID_PLACES")
+    check(f"the {len(declared)} finishers inside the paid places who scored "
+          "nothing are the ones declared, each with its cause as the note",
+          inside_zero == declared,
+          f"undeclared: {sorted(set(inside_zero) - set(declared))}; "
+          f"not held: {sorted(set(declared) - set(inside_zero))}; "
+          f"note differs: {sorted(k for k in set(declared) & set(inside_zero) if inside_zero[k] != declared[k])}")
+    # And the note holds nothing else, so it cannot drift into a second use
+    # this check does not read.
+    noted = con.execute("SELECT COUNT(*) FROM race_entries WHERE note IS NOT NULL"
+                        ).fetchone()[0]
+    check("race_entries.note is held only for a declared cause",
+          noted == len(declared), f"{noted} notes, {len(declared)} declared")
 
 
 @section('THE README STATES WHAT THE DATABASE HOLDS')
