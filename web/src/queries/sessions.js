@@ -7,7 +7,12 @@
  * circuit's clock and the reader's are both computed rather than stored. The
  * static page shows the circuit's time and UTC; the app adds the reader's
  * zone and how long until the next session, which only a browser can know.
+ *
+ * The words are lib/format.js's (CD-59; docs/design-system.md section 5,
+ * *Dates*): the house form on the static page, the reader's own in the app,
+ * each in a <time> holding the instant.
  */
+import { houseTime } from '../lib/format.js'
 
 export const RACE_SESSIONS = `
   SELECT s.kind, s.name, s.start_utc, s.zone
@@ -23,19 +28,8 @@ export const SEASON_SESSIONS = `
    ORDER BY s.start_utc
 `
 
-const fmt = (zone) =>
-  new Intl.DateTimeFormat('en-GB', {
-    timeZone: zone,
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
-
-/** "Fri 9 Oct, 16:30" - the start on the clock of `zone`. */
-export const clock = (startUtc, zone) => fmt(zone).format(new Date(startUtc)).replace(',', '')
+/** "Fri 9 Oct 16:30" - the start on the clock of `zone`, in the house form. */
+export const clock = (startUtc, zone) => houseTime(startUtc, zone)
 
 /** "Fri 9 Oct 08:30" in UTC. */
 export const utc = (startUtc) => clock(startUtc, 'UTC')
@@ -154,19 +148,29 @@ export const eventDay = (sessions = [], fallback = null) => {
   }
 }
 
+/**
+ * A time column (`date: 'time'`): `at` names the instant and the zone it is
+ * read on, and each renderer draws it - the house form in prerender.js, the
+ * reader's in components/Dates.jsx - in a <time> holding the instant. `text`
+ * is the house form, for whatever reads a column as a string.
+ */
+const timeColumn = (key, label, zoneOf) => ({
+  key,
+  label,
+  date: 'time',
+  at: (row) => ({ iso: row.start_utc, zone: zoneOf(row) }),
+  text: (_, row) => clock(row.start_utc, zoneOf(row)),
+})
+
 /** The columns both renderers print, in order: the session, the circuit's clock, UTC. */
 export const SESSION_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Session' },
-  { key: 'circuit_time', label: 'At the circuit', text: (_, row) => clock(row.start_utc, row.zone) },
-  { key: 'utc_time', label: 'UTC', text: (_, row) => utc(row.start_utc) },
+  timeColumn('circuit_time', 'At the circuit', (row) => row.zone),
+  timeColumn('utc_time', 'UTC', () => 'UTC'),
 ]
 
 export const TIMETABLE_NOTE =
   "Start times on the circuit's clock and in UTC; a session's length and any change on the day are not held here."
 
 /** The reader's own clock, as a fourth column beside the shared three; the zone reads as words. */
-export const yourTimeColumn = (zone) => ({
-  key: 'your_time',
-  label: `Your time (${zone.replace(/_/g, ' ')})`,
-  text: (_, row) => clock(row.start_utc, zone),
-})
+export const yourTimeColumn = (zone) => timeColumn('your_time', `Your time (${zone.replace(/_/g, ' ')})`, () => zone)

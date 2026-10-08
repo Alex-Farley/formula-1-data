@@ -234,6 +234,126 @@ export function localRaceDates(race, locale = readerLocale()) {
   return format.formatRange(dayParts(from).date, dayParts(to).date)
 }
 
+/*
+ * Times (CD-59): a session's start, held as an instant - "2026-12-04T09:30Z"
+ * - and read on the clock of an IANA zone, the circuit's, UTC or the
+ * reader's own. The same two forms as a day:
+ *
+ *   The house form, "Fri 4 Dec 13:30": the weekday and month as words, a
+ *   24-hour clock, no year (a timetable is one weekend). The static page is
+ *   written in it. Its words are this module's own, as houseDate's are, and
+ *   Intl supplies only the figures, so it cannot drift with a release of ICU.
+ *
+ *   The reader's, once the app has taken over: the same instant through
+ *   Intl.DateTimeFormat in `navigator.language`, so the weekday, the order
+ *   and the 12- or 24-hour clock are that locale's - "Fri, Dec 4, 1:30 PM" in
+ *   en-US, "Fr., 4. Dez., 13:30" in de-DE. An en-GB reader keeps the house
+ *   form, as with a day.
+ *
+ * Both renderers put it in a <time datetime> holding the instant itself, and
+ * a file carries the wall-clock time on that zone with its offset (zonedIso).
+ */
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const pad = (n) => String(n).padStart(2, '0')
+
+/** One figures-only formatter per zone; a zone Intl will not take is null. */
+const clocks = new Map()
+function clockOf(zone) {
+  if (!clocks.has(zone)) {
+    let made = null
+    try {
+      made = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hourCycle: 'h23',
+      })
+    } catch {
+      made = null
+    }
+    clocks.set(zone, made)
+  }
+  return clocks.get(zone)
+}
+
+/**
+ * The wall clock on `zone` at `instant`, as figures, or null where the
+ * instant does not parse or the zone is not one Intl knows. A zone is
+ * required: left out, Intl would quietly read the runtime's own.
+ */
+function wallClock(instant, zone) {
+  if (typeof zone !== 'string' || zone === '') return null
+  // Date.parse rather than new Date(): new Date(null) is the epoch.
+  const at = Date.parse(instant ?? '')
+  const format = Number.isFinite(at) ? clockOf(zone) : null
+  if (!format) return null
+  const part = Object.fromEntries(format.formatToParts(at).map((p) => [p.type, Number(p.value)]))
+  const figures = { year: part.year, month: part.month, day: part.day, hour: part.hour % 24, minute: part.minute }
+  return Object.values(figures).every(Number.isInteger) ? { ...figures, at } : null
+}
+
+/** "Fri 4 Dec 13:30": `instant` on the clock of `zone`, in the house form; null as wallClock is. */
+export function houseTime(instant, zone) {
+  const c = wallClock(instant, zone)
+  if (!c) return null
+  const weekday = WEEKDAYS[new Date(Date.UTC(c.year, c.month - 1, c.day)).getUTCDay()]
+  return `${weekday} ${c.day} ${MONTHS[c.month - 1]} ${pad(c.hour)}:${pad(c.minute)}`
+}
+
+/** One Intl formatter per locale and zone; a bad locale falls back to the house. */
+const timeFormatters = new Map()
+function timeFormatter(locale, zone) {
+  const key = `${locale}|${zone}`
+  if (!timeFormatters.has(key)) {
+    let made = null
+    try {
+      made = new Intl.DateTimeFormat(locale, {
+        timeZone: zone,
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    } catch {
+      made = null
+    }
+    timeFormatters.set(key, made)
+  }
+  return timeFormatters.get(key)
+}
+
+/**
+ * houseTime in the reader's locale: "Fri, Dec 4, 1:30 PM" in en-US, "Fr., 4.
+ * Dez., 13:30" in de-DE, and the house form itself in en-GB. Null where
+ * houseTime is.
+ */
+export function localTime(instant, zone, locale = readerLocale()) {
+  const house = houseTime(instant, zone)
+  if (house === null || locale === HOUSE_LOCALE) return house
+  const format = timeFormatter(locale, zone)
+  return format ? format.format(Date.parse(instant)) : house
+}
+
+/**
+ * The instant as a file carries it: the wall clock on `zone` with its offset,
+ * "2026-12-04T13:30+04:00", or "Z" where the offset is nothing. Data stays
+ * ISO, and a column headed *At the circuit* holds the circuit's time, not
+ * UTC's. Null as wallClock is.
+ */
+export function zonedIso(instant, zone) {
+  const c = wallClock(instant, zone)
+  if (!c) return null
+  const offset = Math.round((Date.UTC(c.year, c.month - 1, c.day, c.hour, c.minute) - c.at) / 60000)
+  const sign = offset < 0 ? '-' : '+'
+  const zoneText = offset === 0 ? 'Z' : `${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`
+  return `${c.year}-${pad(c.month)}-${pad(c.day)}T${pad(c.hour)}:${pad(c.minute)}${zoneText}`
+}
+
 /** "1950–2026", "1950–", "1950". The dash is an en dash, as a span should be. */
 export function span(from, to) {
   if (missing(from) && missing(to)) return EMPTY

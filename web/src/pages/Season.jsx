@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, until } from '../queries/sessions.js'
+import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, until } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { FOLD_NOUN, UNFOLDED } from '../lib/table.js'
-import { Dated, RaceDates } from '../components/Dates.jsx'
+import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import { OutlineCard, OutlineStrip } from '../components/Outline.jsx'
 import { outlineCaption } from '../lib/outline.js'
 import { measured, odblCredit } from '../lib/trace.js'
@@ -426,7 +426,13 @@ function SeasonBody({ year, season, data }) {
         kind: 'name',
         value: upcoming.name,
         href: `races/${year}/${upcoming.round}`,
-        note: `${upcoming.name_used}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
+        // The start in the reader's form, in a <time> holding the instant (CD-59).
+        note: (
+          <>
+            {upcoming.name_used}, <TimeText iso={upcoming.start_utc} zone={upcoming.zone} /> at the circuit,{' '}
+            {until(upcoming.start_utc, now)}
+          </>
+        ),
       }
     : null
 

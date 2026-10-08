@@ -591,7 +591,7 @@ puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893); dates (CD-57), but for a weekend in a sentence (CD-39 #499) and session times (CD-59 #900)
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893); dates (CD-57) and session times (CD-59), but for a weekend in a sentence (CD-39 #499)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -633,15 +633,21 @@ puts the classification before the outline (visual defect 7).
     race day.
   - How a page asks for one: `date` on a table column (`'short'`,
     `'long'`, `'race'` for a race row's weekend, `'text'` for sentences
-    with days in them), `date` on a tile, or `<DateText>`, `<RaceDates>`
-    and `<Dated>` in `components/Dates.jsx`; `prerender.js` has a twin of
+    with days in them, `'time'` for an instant, with `at` naming it and its
+    zone), `date` on a tile, or `<DateText>`, `<RaceDates>`, `<Dated>` and
+    `<TimeText>` in `components/Dates.jsx`; `prerender.js` has a twin of
     each. A sentence built in a queries module keeps the ISO day and is
     drawn through `<Dated>`, so the words are shared and the date is each
     renderer's.
-  - *Pending (CD-59 #900):* session times. The race timetable writes each
-    start on the circuit's clock and in UTC, each zone named, and the app
-    adds the reader's own zone; all three are in en-GB's form, with no
-    `<time>`, and are not yet localised.
+  - **Times** (built in CD-59): a session's start is an instant read on a
+    named clock - the circuit's, UTC, or in the app the reader's own. The
+    house form is `Fri 4 Dec 13:30`, the weekday and month words, a 24-hour
+    clock, written by `lib/format.js` and not by ICU; the app writes the
+    reader's (`Fri, Dec 4, 1:30 PM` in en-US, `Fr., 4. Dez., 13:30` in
+    de-DE), and an en-GB reader keeps the house form. Each is a
+    `<time datetime="2026-12-04T09:30Z">` holding the instant, and a file
+    taken from the timetable carries the wall clock on each column's zone
+    with its offset, `2026-12-04T13:30+04:00`.
   - Data stays ISO: SQL, the JSON and Parquet exports, `f1.db`, a file or
     copy taken from a table (a weekend as an interval, `2026-03-27/2026-03-29`),
     and the SQL console. A day inside a longer token, a file name or a path,
@@ -813,8 +819,9 @@ VD-83: 13. Built in VD-84: 14.
 11. **Dates are words.** No ISO day is visible text on any prerendered
     page in `dist/`, outside a `<time datetime>` attribute, `<code>`, the
     SQL console and a Commons file's title; the app writes the same
-    `<time>` as en-GB, en-US and de-DE readers expect; and the handover is
-    measured in en-US, where the dates change width (`smoke.mjs`, *Dates in
+    `<time>` as en-GB, en-US and de-DE readers expect, a timetable's
+    starts included; and the handover is measured in en-US, where the
+    dates and times change width (`smoke.mjs`, *Dates in
     the reader's format* and *The handover*; `units.mjs`, *dates are words
     on the page*).
 12. **One reveal control.** A table over `FOLD_OVER` rows folds, naming

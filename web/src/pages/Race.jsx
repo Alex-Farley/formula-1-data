@@ -4,11 +4,11 @@ import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats, Stepper }
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { UNFOLDED } from '../lib/table.js'
-import { Dated, RaceDates } from '../components/Dates.jsx'
+import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
-import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { lateDays, readerDay } from '../lib/refresh.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, raceDates, result } from '../lib/format.js'
@@ -303,7 +303,7 @@ function RaceBody({ race, data, year, round }) {
       />
       {upcoming && (
         <p className="note follows">
-          Next: {upcoming.name}, {clock(upcoming.start_utc, upcoming.zone)} at the circuit — {until(upcoming.start_utc, now)}.
+          Next: {upcoming.name}, <TimeText iso={upcoming.start_utc} zone={upcoming.zone} /> at the circuit — {until(upcoming.start_utc, now)}.
         </p>
       )}
     </Section>

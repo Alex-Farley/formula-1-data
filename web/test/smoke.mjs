@@ -989,6 +989,16 @@ try {
    * critique measured - and the rest open from IndexedDB: the same handover,
    * faster. The shift is counted from the moment the static page leaves.
    */
+  // A race page with a timetable (CD-59): a round not yet run where there is
+  // one, since it leads with the timetable, and the latest held otherwise.
+  const timetableRound = db
+    .prepare(
+      `SELECT r.year, r.round FROM races r WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = r.id)
+        ORDER BY r.status = 'scheduled' DESC, r.year DESC, r.round DESC LIMIT 1`,
+    )
+    .get()
+  const TIMETABLE_ROUTE = timetableRound ? `/races/${timetableRound.year}/${timetableRound.round}` : null
+
   await section('The handover  (focus, the status line and nothing moving, on every page type: VD-79)', async () => {
     const ROUTES = [
       '/',
@@ -1005,6 +1015,9 @@ try {
       // CD-57: a calendar of race days, every one rewritten in the reader's
       // format at the handover.
       '/seasons/1997',
+      // CD-59: a timetable, every start rewritten in the reader's form - in
+      // en-US a 12-hour clock, wider than the house form's.
+      ...(TIMETABLE_ROUTE ? [TIMETABLE_ROUTE] : []),
     ]
     // en-US, so the handover is measured where the dates change width: the
     // static page's "9 Mar 1997" becomes the app's "Mar 9, 1997" (CD-57).
@@ -7901,6 +7914,59 @@ try {
       is(first?.datetime ?? null, day, `${locale}: and keeps the ISO day in its <time>`)
       await reader.close()
     }
+
+    // The timetable (CD-59): every start a <time> holding the instant, in the
+    // house form on the static page and the reader's own in the app - a
+    // 12-hour clock in en-US, German weekdays in de-DE, and for en-GB exactly
+    // what the static page said. units.mjs pins the words themselves.
+    if (TIMETABLE_ROUTE) {
+      const starts = db
+        .prepare('SELECT s.start_utc FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = ? AND r.round = ? ORDER BY s.start_utc')
+        .all(timetableRound.year, timetableRound.round)
+        .map((row) => row.start_utc)
+      const html = await (await fetch(`${BASE}${TIMETABLE_ROUTE}`)).text()
+      const timetable = html.slice(html.indexOf('<h2>Timetable</h2>'))
+      const staticTimes = [...timetable.slice(0, timetable.indexOf('</table>')).matchAll(/<time datetime="([^"]+)">([^<]+)<\/time>/g)].map((m) => ({
+        datetime: m[1],
+        text: m[2],
+      }))
+      is(staticTimes.length, starts.length * 2, `${TIMETABLE_ROUTE}: the static timetable writes every start twice, at the circuit and in UTC, each in a <time>`)
+      truthy(
+        staticTimes.every((t, i) => t.datetime === starts[Math.floor(i / 2)] && /^[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} \d{2}:\d{2}$/.test(t.text)),
+        `and each holds the instant, in the house form — ${staticTimes[0]?.text} for ${staticTimes[0]?.datetime}`,
+      )
+      const shapes = {
+        'en-GB': (text, i) => text === staticTimes[i]?.text,
+        'en-US': (text) => /^[A-Z][a-z]{2}, [A-Z][a-z]{2} \d{1,2}, \d{1,2}:\d{2}\s[AP]M$/.test(text),
+        'de-DE': (text) => /^(Mo|Di|Mi|Do|Fr|Sa|So)\., \d{1,2}\. \S+ \d{1,2}:\d{2}$/.test(text),
+      }
+      for (const [locale, shape] of Object.entries(shapes)) {
+        // A zone of the reader's own, so the app's fourth column is there to check too.
+        const reader = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale, timezoneId: 'America/New_York' })
+        const tab = await reader.newPage()
+        await tab.goto(`${BASE}${TIMETABLE_ROUTE}`, { waitUntil: 'domcontentloaded' })
+        await tab.waitForFunction(() => !document.getElementById('prerendered') && document.querySelector('#root main table time'), null, {
+          timeout: 60000,
+        })
+        const rows = await tab.evaluate(() => {
+          const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('Timetable'))
+          return [...(h2?.closest('section')?.querySelectorAll('table tbody tr') ?? [])].map((tr) =>
+            [...tr.querySelectorAll('time')].map((time) => ({ text: time.textContent.trim(), datetime: time.getAttribute('datetime') })),
+          )
+        })
+        is(rows.length, starts.length, `${locale}: the app's timetable has every session`)
+        const times = rows.flat()
+        truthy(
+          rows.every((row, i) => row.length === 3 && row.every((t) => t.datetime === starts[i])),
+          `${locale}: and every start, at the circuit, in UTC and on the reader's clock, is a <time> holding the instant`,
+        )
+        // The reader's column is the app's alone; the first two are the static page's.
+        const shared = rows.flatMap((row) => row.slice(0, 2))
+        const off = (locale === 'en-GB' ? shared : times).filter((t, i) => !shape(t.text.replace(/[\u202f\u00a0]/g, ' '), i))
+        is(off.length, 0, `${locale}: and each is in the reader's form — ${times[0]?.text}${off.length ? `; not: ${off.slice(0, 3).map((t) => t.text).join(', ')}` : ''}`)
+        await reader.close()
+      }
+    } else pass('no race holds a timetable, so there are no session times to read')
 
     // Every prerendered page, as a crawler or a reader without JavaScript has
     // it: no ISO day as visible text. Not counted: attributes (a <time>'s own
