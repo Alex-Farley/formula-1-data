@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Confidence, FigurePart, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { FOLD_NOUN } from '../lib/table.js'
 import { Dated } from '../components/Dates.jsx'
 import { Chips } from '../components/Filters.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
@@ -359,6 +360,7 @@ function Body({ data }) {
 
       <Section title="Champions" count={`${titles.length}`}>
         <DataTable
+          fold={FOLD_NOUN.champions}
           rows={titles}
           rowKey={(row) => row.id}
           sort="titles"
@@ -441,6 +443,7 @@ function Body({ data }) {
           most of these races — so this is the three-part version.
         </Note>
         <DataTable
+          fold={FOLD_NOUN.grandSlams}
           rows={grandSlams}
           rowKey={(row) => `${row.year}-${row.round}`}
           sort="year"

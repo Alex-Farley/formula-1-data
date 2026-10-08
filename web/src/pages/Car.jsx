@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { FOLD_NOUN } from '../lib/table.js'
 import Photographs from '../components/Photographs.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -261,6 +262,7 @@ function CarBody({ id, chassis, variants, data }) {
 
       <Section title="Every entry" count={`${entries.length.toLocaleString('en-GB')} ${entries.length === 1 ? 'entry' : 'entries'}`}>
         <DataTable
+          fold={FOLD_NOUN.entries}
           rows={entries}
           rowKey={(row) => `${row.year}-${row.round}-${row.driver_id}`}
           sortable

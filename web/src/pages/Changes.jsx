@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import { DateText, Dated } from '../components/Dates.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../lib/refresh.js'
@@ -136,7 +137,7 @@ export default function Changes() {
       </Section>
 
       <Section title={HISTORY_HEADING}>
-        <DataTable columns={RELEASE_COLUMNS} rows={RELEASES} />
+        <DataTable unfolded={UNFOLDED.reference} columns={RELEASE_COLUMNS} rows={RELEASES} />
         <p className="faint">{HISTORY_NOTE}</p>
       </Section>
 

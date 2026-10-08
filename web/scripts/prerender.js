@@ -68,11 +68,12 @@ import { TILE_JOIN, tileSegments } from '../src/lib/tiles.js'
 import {
   FOLD_LESS,
   FOLD_NOUN,
+  UNFOLDED,
   WIDE_ONLY,
   defaultColumns,
+  foldFault,
   foldMore,
   folds,
-  isFoldNoun,
   glossaryKey,
   onPhone,
   shared,
@@ -764,11 +765,24 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // the table, every row still in the markup. Its summary carries an empty sr-only span that nameTables()
 // fills with the heading above, as it fills the caption, which is the name
 // the app puts there.
+//
+// `unfolded` is the reason a table over FOLD_OVER rows does not fold, one of
+// UNFOLDED's (VD-82), as DataTable's prop of the same name is. A table over
+// the threshold with neither is refused: every one is collected, with the
+// page it was on, and the build stops before a page is written, naming them
+// all - so the rule holds on every prerendered route, not only the routes the
+// smoke suite visits.
 const FOLD_NAME = '<span class="sr-only fold-name"></span>'
+const foldFaults = []
+let unplacedFaults = []
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { aligns = [], hidden = [], rowHeaders = [], fold = false } = options
-  if (fold && !isFoldNoun(fold)) throw new Error(`prerender: fold ${String(fold)} is not a FOLD_NOUN value (CD-52)`)
+  const { aligns = [], hidden = [], rowHeaders = [], fold = false, unfolded = null } = options
+  const fault = foldFault(rows.length, fold, unfolded)
+  if (fault) {
+    const heads = headers.map((h) => (typeof h === 'string' ? h : (h.label ?? h.html))).join(' | ')
+    unplacedFaults.push(`${fault}: ${heads}`)
+  }
   const folded = fold && folds(rows.length)
   const cls = (i, extra) => {
     const names = [aligns[i], extra].filter(Boolean).join(' ')
@@ -807,7 +821,7 @@ const table = (headers, rows, options = {}) => {
 // A column with a React-only `render` and no `text` falls back to the
 // formatted raw value here; a render that changes the text must come with a
 // matching `text`, or the two renderers part.
-const fromColumns = (declared, rows, links = {}, { fold = false } = {}) => {
+const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null } = {}) => {
   // The default set, never the full one: a column declared `optional` waits
   // for a reader to ask for it, in the app, through `?cols=` (IA-23). The
   // phone default is the same table with the columns it leaves out marked
@@ -866,6 +880,7 @@ const fromColumns = (declared, rows, links = {}, { fold = false } = {}) => {
         hidden: kept.map((c) => c.ariaHidden === true),
         rowHeaders: kept.map((c) => c.rowHeader === true),
         fold,
+        unfolded,
       },
     )
   )
@@ -1147,11 +1162,11 @@ const pitSection = (race, entryRows, pits, span) => {
   const rows = stintRows(entryRows, pits)
   if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
   const pairs = pitPairs(entryRows, pits)
-  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits)), {
+  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure }), {
     plot: stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows)),
     footer: stintsUnbarred(unbarredOf(entryRows, pits)),
   })}${
-    pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs)}${note(PIT_ORDER_NOTE)}` : ''
+    pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs, {}, { unfolded: UNFOLDED.subject })}${note(PIT_ORDER_NOTE)}` : ''
   }`
 }
 
@@ -1992,6 +2007,9 @@ const page = ({
   // og:url and the citation name it, and the sitemap leaves this one out.
   canonical = null,
 }) => {
+  // The tables this page's body drew that broke the fold rule (VD-82).
+  for (const fault of unplacedFaults) foldFaults.push(`/${path}  ${fault}`)
+  unplacedFaults = []
   // The citation names the page by the address the canonical carries.
   pages.push({
     path,
@@ -2118,7 +2136,7 @@ const page = ({
         table(
           ['Season', 'Rounds'],
           seasons.map((row) => [link(`seasons/${row.year}`, row.year), num(row.rounds)]),
-          { aligns: ['num', 'num'], rowHeaders: [true] },
+          { aligns: ['num', 'num'], rowHeaders: [true], unfolded: UNFOLDED.figure },
         ),
       )}
       ${heading(READING_HEADING)}
@@ -2168,7 +2186,7 @@ const page = ({
         runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
         constructors_champion: marked('constructors', 'constructors_champion_id'),
         title_race: (value, row) => titleRaceSvg(value, titleRaceText(value, row)),
-      })}
+      }, { unfolded: UNFOLDED.register })}
       ${note(SEASON_LIST_FOOTER)}`,
   })
 
@@ -2273,7 +2291,7 @@ const page = ({
     // happened (CD-37). queries/season.js roundResult is the rule.
     winning_team: (name, row) =>
       row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(name),
-  })}
+  }, { unfolded: UNFOLDED.subject })}
   ${note(CALENDAR_FOOTER)}`
     const seasonStandings = `
   <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
@@ -2281,7 +2299,7 @@ const page = ({
     driversFinal.length
       ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
           entity: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
-        }) + note(DRIVERS_FINAL_FOOTER)
+        }, { unfolded: UNFOLDED.subject }) + note(DRIVERS_FINAL_FOOTER)
       : notRun
         ? `<p class="state is-empty">${esc(NOT_RUN_STANDINGS)}</p>`
         : EMPTY_STATE
@@ -2292,7 +2310,7 @@ const page = ({
       ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
           entity: (name, row) =>
             `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
-        }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
+        }, { unfolded: UNFOLDED.subject }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
       : noteBox(noConstructors.head, noConstructors.body)
   }`
     page({
@@ -2330,7 +2348,7 @@ const page = ({
                     row.role && row.role !== 'race' ? ` ${tag(row.role)}` : ''
                   }`,
                 team: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
-              })}${note(GRID_FOOTER)}`
+              }, { unfolded: UNFOLDED.subject })}${note(GRID_FOOTER)}`
             : ''
         }
         ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
@@ -2343,7 +2361,7 @@ const page = ({
             ? `${fromColumns(ENTRANT_COLUMNS, entrants, {
                 constructor: (name, row) =>
                   row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name ?? row.entrant_id),
-              })}${note(ENTRANTS_FOOTER)}`
+              }, { fold: FOLD_NOUN.entrants })}${note(ENTRANTS_FOOTER)}`
             : EMPTY_STATE
         }
         <h2>${esc(LABELS.provenance)}</h2>
@@ -2413,7 +2431,7 @@ const page = ({
         constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
         pole: (name, row) => (row.pole_id ? link(`drivers/${row.pole_id}`, name) : text(name)),
         fastest_lap: (name, row) => (row.fastest_lap_id ? link(`drivers/${row.fastest_lap_id}`, name) : text(name)),
-      })}
+      }, { unfolded: UNFOLDED.register })}
       ${note(RACES_FOOTER)}`,
   })
 
@@ -2577,7 +2595,7 @@ const page = ({
                 status: outCell,
                 fastest_lap: (value) =>
                   value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
-              })}${note(classificationFooter(entries))}</section>`
+              }, { unfolded: UNFOLDED.subject })}${note(classificationFooter(entries))}</section>`
             : ''
         }
         ${
@@ -2589,7 +2607,7 @@ const page = ({
                 gridFlagNote(flag),
                 fromColumns(
                   GRID_FLAG_COLUMNS,
-                  flag.map((r) => r.entry),
+                  flag.map((r) => r.entry), {}, { unfolded: UNFOLDED.figure },
                 ),
                 { plot: gridFlagSvg(gridFlagLayout(entryRows), gridFlagLabel(flag)), footer: gridFlagUndrawn(undrawnOf(entryRows)) },
               )}</section>`
@@ -2601,7 +2619,7 @@ const page = ({
             ? `<h2>Qualifying</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {
                 driver: driverCell,
                 constructor: constructorCell,
-              })}${note(QUALIFYING_FOOTER)}`
+              }, { unfolded: UNFOLDED.subject })}${note(QUALIFYING_FOOTER)}`
             : ''
         }
         ${
@@ -2611,7 +2629,7 @@ const page = ({
                 driver: driverCell,
                 constructor: constructorCell,
                 status: outCell,
-              })}${note(SPRINT_FOOTER)}`
+              }, { unfolded: UNFOLDED.subject })}${note(SPRINT_FOOTER)}`
             : ''
         }
         ${
@@ -2619,7 +2637,7 @@ const page = ({
             ? `<h2>Sprint qualifying</h2>${fromColumns(sprintQualifyingColumns(sprintQualifying), sprintQualifying, {
                 driver: sessionDriverCell,
                 constructor: constructorCell,
-              })}${note(sprintQualifyingFooter(sprintQualifying))}`
+              }, { unfolded: UNFOLDED.subject })}${note(sprintQualifyingFooter(sprintQualifying))}`
             : ''
         }
         ${
@@ -2642,7 +2660,7 @@ const page = ({
                     `<section class="section"><h2>${text(title)}</h2>${fromColumns(PRACTICE_COLUMNS, sheet, {
                       driver: sessionDriverCell,
                       constructor: constructorCell,
-                    })}${note(practiceFooter(sheet))}</section>`,
+                    }, { unfolded: UNFOLDED.subject })}${note(practiceFooter(sheet))}</section>`,
                 )
                 .join('')}</details>`
             : ''
@@ -2710,7 +2728,7 @@ const page = ({
         full_name: (name, d) =>
           link(`drivers/${d.id}`, name) +
           (d.practice_only === 1 ? ` <span aria-hidden="true">${PRACTICE_ONLY_MARK}</span><span class="sr-only">(never started a Grand Prix)</span>` : ''),
-      })}<p class="faint">${esc(REGISTER_FOOTER)}</p>`,
+      }, { unfolded: UNFOLDED.register })}<p class="faint">${esc(REGISTER_FOOTER)}</p>`,
   })
 
   const winsOf = db.prepare(
@@ -2911,7 +2929,7 @@ page({
         name: (name, row) => link(`constructors/${row.id}`, name),
         seasons_raced: (value, row) =>
           seasonsRacedSvg(value, row.first_season, row.grid_season, seasonsRacedText(value)),
-      })}
+      }, { unfolded: UNFOLDED.register })}
       ${note(CONSTRUCTORS_FOOTER)}`,
   })
 
@@ -3085,7 +3103,7 @@ page({
       ${fromColumns(CIRCUIT_COLUMNS, register, {
         name: (name, row) => link(`circuits/${row.id}`, name),
         traced: (value) => (value ? `<span aria-hidden="true">●</span><span class="sr-only">${esc(TRACED)}</span>` : '—'),
-      })}
+      }, { unfolded: UNFOLDED.register })}
       ${note(CIRCUITS_FOOTER)}`,
   })
 
@@ -3242,7 +3260,7 @@ page({
       ${fromColumns(GRANDS_PRIX_COLUMNS, register, {
         name: (name, row) => link(`grands-prix/${row.id}`, name),
         last_winner: lastWinner,
-      })}
+      }, { unfolded: UNFOLDED.register })}
       ${note(GRANDS_PRIX_FOOTER)}`,
   })
 
@@ -3278,7 +3296,7 @@ page({
             ? `<h2>Most wins</h2>${fromColumns(
                 GP_WINNER_COLUMNS,
                 winners,
-                { driver: (name, row) => link(`drivers/${row.driver_id}`, name) },
+                { driver: (name, row) => link(`drivers/${row.driver_id}`, name) }, { fold: FOLD_NOUN.winners },
               )}`
             : ''
         }
@@ -3297,7 +3315,7 @@ page({
             row.status === 'completed' && row.constructor_id
               ? link(`constructors/${row.constructor_id}`, name)
               : esc(editionCar(name, row)),
-        })}
+        }, { fold: FOLD_NOUN.editions })}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           ['Also run as', gp.aliases ? esc(gp.aliases) : null],
@@ -3386,7 +3404,7 @@ page({
               missing(row.finish_position)
                 ? `<span class="tag tag-dnf">${esc(entryResult(value, row))}</span>`
                 : `<b>${esc(entryResult(value, row))}</b>`,
-          })
+          }, { fold: FOLD_NOUN.entries })
         : `<p class="measure">${esc(NO_ENTRIES)}</p>`
     }`
   }
@@ -3400,7 +3418,7 @@ page({
     body: `
       ${opening({ title: NAMES.cars().headline, lede: CARS_LEDE })}
       <h2>The cars with a page of their own</h2>
-      ${fromColumns(GALLERY_COLUMNS, all(GALLERY), { car: (name, row) => link(`cars/${row.id}`, name) })}
+      ${fromColumns(GALLERY_COLUMNS, all(GALLERY), { car: (name, row) => link(`cars/${row.id}`, name) }, { unfolded: UNFOLDED.figure })}
       <h2>The chassis register</h2>
       <p class="measure">Every chassis that has started a championship Grand Prix, whether or not anybody
         has published a specification for it.</p>
@@ -3410,7 +3428,7 @@ page({
         {
           name: (name, row) => `${link(`cars/${row.id}`, name)}${row.landmark ? ` ${tag(LANDMARK)}` : ''}`,
           constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name)),
-        },
+        }, { unfolded: UNFOLDED.register },
       )}
       ${note(CHASSIS_FOOTER)}`,
   })
@@ -3637,7 +3655,7 @@ page({
   // (AX-28).
   const leaders = (spec, columns, rows, links, name) => {
     const drawn = leadersDrawn(rows, spec.key)
-    const body = fromColumns(columns, drawn, links)
+    const body = fromColumns(columns, drawn, links, { unfolded: UNFOLDED.figure })
     if (body.split('<table>').length !== 2) die(`prerender: the ${spec.title} figure is not one table`)
     return figure(name, `${spec.note} ${leadersDrawnLine(drawn.length)}`, body)
   }
@@ -3757,22 +3775,22 @@ page({
       ${fromColumns(ENGINE_COLUMNS, all(ENGINES), {
         era_name: (name, row) =>
           `<b>${esc(name)}</b> <br><span class="faint small">${esc(span(row.from_year, row.to_year))}</span>`,
-      })}
+      }, { unfolded: UNFOLDED.reference })}
       <h2>Scoring systems</h2>
       <p class="note">${esc(POINTS_NOTE)}</p>
-      ${fromColumns(POINTS_COLUMNS, all(POINTS))}
+      ${fromColumns(POINTS_COLUMNS, all(POINTS), {}, { unfolded: UNFOLDED.reference })}
       <h2>Regulation changes</h2>
-      ${fromColumns(REGULATION_COLUMNS, all(REGULATIONS))}
+      ${fromColumns(REGULATION_COLUMNS, all(REGULATIONS), {}, { unfolded: UNFOLDED.reference })}
       <h2>Regulation limits</h2>
       <p class="note">${esc(LIMITS_NOTE)}</p>
-      ${fromColumns(LIMIT_COLUMNS, all(LIMITS))}
+      ${fromColumns(LIMIT_COLUMNS, all(LIMITS), {}, { unfolded: UNFOLDED.reference })}
       <h2>Technical innovations</h2>
-      ${fromColumns(INNOVATION_COLUMNS, all(INNOVATIONS))}
+      ${fromColumns(INNOVATION_COLUMNS, all(INNOVATIONS), {}, { unfolded: UNFOLDED.reference })}
       ${timeline(all(SAFETY))}
       <h2>Governance</h2>
-      ${fromColumns(GOVERNANCE_COLUMNS, all(GOVERNANCE))}
+      ${fromColumns(GOVERNANCE_COLUMNS, all(GOVERNANCE), {}, { unfolded: UNFOLDED.reference })}
       <h2>Tyre suppliers</h2>
-      ${fromColumns(TYRE_COLUMNS, all(TYRES))}`,
+      ${fromColumns(TYRE_COLUMNS, all(TYRES), {}, { unfolded: UNFOLDED.reference })}`,
   })
 
   const glossary = all(GLOSSARY)
@@ -3785,9 +3803,9 @@ page({
     body: `
       ${opening({ title: NAMES.glossary().headline, lede: GLOSSARY_LEDE })}
       <h2>Glossary</h2>
-      ${fromColumns(GLOSSARY_COLUMNS, glossary)}
+      ${fromColumns(GLOSSARY_COLUMNS, glossary, {}, { unfolded: UNFOLDED.reference })}
       <h2>People</h2>
-      ${fromColumns(PERSONNEL_COLUMNS, all(PERSONNEL))}`,
+      ${fromColumns(PERSONNEL_COLUMNS, all(PERSONNEL), {}, { unfolded: UNFOLDED.reference })}`,
   })
 
   const sources = all(SOURCES)
@@ -3802,18 +3820,18 @@ page({
       ${opening({ title: NAMES.sources().headline, lede: SOURCES_LEDE })}
       <h2>What a licence cost, or bought</h2>
       <p class="note">${esc(CONSEQUENCES_NOTE)}</p>
-      ${fromColumns(CONSEQUENCE_COLUMNS, CONSEQUENCES)}
+      ${fromColumns(CONSEQUENCE_COLUMNS, CONSEQUENCES, {}, { unfolded: UNFOLDED.reference })}
       <h2>The source registry</h2>
       ${fromColumns(SOURCE_COLUMNS, sources, {
         source: (name, row) => (row.url && row.url !== 'None' ? `<a href="${esc(row.url)}">${esc(name)}</a>` : text(name)),
-      })}
+      }, { unfolded: UNFOLDED.reference })}
       ${note(SOURCES_FOOTER)}
       <p class="measure">${esc(OUTLINES_NOTE)}</p>
       <h2>Photograph licences</h2>
       <p class="note">${esc(LICENCES_NOTE)}</p>
       ${fromColumns(LICENCE_COLUMNS, all(LICENCES), {
         licence: (name, row) => (row.licence_url ? `<a href="${esc(row.licence_url)}">${esc(name)}</a>` : text(name)),
-      })}`,
+      }, { unfolded: UNFOLDED.reference })}`,
   })
 
   // The database's front door — the one crawlable surface that can carry the
@@ -3972,7 +3990,7 @@ page({
         `<p class="gap-reader">${dated(value)}</p><details class="gap-note"><summary>${esc(
           MAINTAINER_NOTE,
         )}<span class="sr-only">, ${esc(row.area)}</span></summary>${datedProse(row.description)}${datedProse(row.resolution)}</details>`,
-    })}`
+    }, { unfolded: UNFOLDED.reference })}`
   }
   page({
     path: 'data/quality',
@@ -3987,22 +4005,22 @@ page({
         the gaps that are known and stated.</p>
       ${GAP_GROUPS.map(gapGroup).join('')}
       <h2>The confidence ladder</h2>
-      ${fromColumns(PROVENANCE_COLUMNS, all(PROVENANCE))}
+      ${fromColumns(PROVENANCE_COLUMNS, all(PROVENANCE), {}, { unfolded: UNFOLDED.reference })}
       <p class="source-note">${esc(LADDER_NOTE)}</p>
       <h2>Disagreements kept rather than resolved</h2>
       <p class="note">${esc(DISCREPANCIES_NOTE)}</p>
-      ${fromColumns(DISCREPANCY_COLUMNS, all(DISCREPANCIES))}
+      ${fromColumns(DISCREPANCY_COLUMNS, all(DISCREPANCIES), {}, { unfolded: UNFOLDED.reference })}
       <h2>Career totals against published ones</h2>
       <p class="note">${esc(RECONCILIATION_NOTE)}</p>
-      ${fromColumns(RECONCILIATION_COLUMNS, all(RECONCILIATION))}
+      ${fromColumns(RECONCILIATION_COLUMNS, all(RECONCILIATION), {}, { unfolded: UNFOLDED.reference })}
       <h2>Coverage</h2>
       <div class="figure-part"><h3>${esc(CHASSIS_TITLE)}</h3>${figure(
         CHASSIS_TITLE,
         CHASSIS_NOTE,
-        fromColumns(CHASSIS_COVERAGE_COLUMNS, all(CHASSIS_COVERAGE)),
+        fromColumns(CHASSIS_COVERAGE_COLUMNS, all(CHASSIS_COVERAGE), {}, { unfolded: UNFOLDED.figure }),
       )}</div>
       <h2>Circuit geometry</h2>
-      ${fromColumns(GEOMETRY_COLUMNS, coverage)}
+      ${fromColumns(GEOMETRY_COLUMNS, coverage, {}, { unfolded: UNFOLDED.reference })}
       ${note(GEOMETRY_FOOTER)}
       <h2>Photographs</h2>
       ${stats(PHOTOGRAPH_STATS.map(({ key, label }) => ({ label, value: esc(formatted(images[key])) })))}
@@ -4010,9 +4028,9 @@ page({
       <p class="source-note">${esc(photographsCatalogued(formatted(images.catalogued)))}</p>
       <h2>Where a result cannot be attributed to a car</h2>
       <p class="note">${esc(UNATTRIBUTED_NOTE)}</p>
-      ${fromColumns(UNATTRIBUTED_COLUMNS, all(UNATTRIBUTED), { year: (year) => link(`seasons/${year}`, year) })}
+      ${fromColumns(UNATTRIBUTED_COLUMNS, all(UNATTRIBUTED), { year: (year) => link(`seasons/${year}`, year) }, { unfolded: UNFOLDED.reference })}
       <h2>Rows nobody has checked</h2>
-      ${fromColumns(UNVERIFIED_COLUMNS, all(UNVERIFIED))}
+      ${fromColumns(UNVERIFIED_COLUMNS, all(UNVERIFIED), {}, { unfolded: UNFOLDED.reference })}
       ${note(UNVERIFIED_FOOTER)}`,
   })
 
@@ -4159,7 +4177,7 @@ page({
       <h2>${esc(FEED_HEADING)}</h2>
       <p class="measure">${esc(FEED_NOTE)} <a href="${esc(href(FEED_FILE))}">${esc(FEED_LINK_TEXT)}</a>.</p>
       <h2>${esc(HISTORY_HEADING)}</h2>
-      ${fromColumns(RELEASE_COLUMNS, RELEASES)}
+      ${fromColumns(RELEASE_COLUMNS, RELEASES, {}, { unfolded: UNFOLDED.reference })}
       ${note(HISTORY_NOTE)}`,
   })
 
@@ -4301,6 +4319,16 @@ const render = ({ path, canonical = path, title, description, jsonld, image = nu
 // The card first: a page written with an og:image pointing at a file the
 // build did not produce is the grey box again, one redirect further on.
 writeFileSync(join(dist, CARD.file), shareCard())
+
+// VD-82: refused before anything is written, every one at once.
+if (foldFaults.length > 0) {
+  const shapes = [...new Set(foldFaults.map((f) => f.replace(/^\S+\s+\d+ rows/, 'N rows')))]
+  die(
+    `prerender: ${foldFaults.length.toLocaleString('en-GB')} table(s) over the fold threshold with no fold and no UNFOLDED reason (lib/table.js).\n` +
+      `${shapes.length} kind(s); the first page of each:\n` +
+      shapes.map((shape) => `  ${foldFaults.find((f) => f.replace(/^\S+\s+\d+ rows/, 'N rows') === shape)}`).join('\n'),
+  )
+}
 
 let written = 0
 let bytes = 0

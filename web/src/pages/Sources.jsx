@@ -1,6 +1,7 @@
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import SubNav from '../components/SubNav.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
@@ -70,7 +71,7 @@ export default function Sources() {
                 title="What a licence cost, or bought"
                 note={CONSEQUENCES_NOTE}
               >
-                <DataTable rows={CONSEQUENCES} rowKey={(row) => row.source} sortable={false} columns={CONSEQUENCE_COLUMNS} />
+                <DataTable unfolded={UNFOLDED.reference} rows={CONSEQUENCES} rowKey={(row) => row.source} sortable={false} columns={CONSEQUENCE_COLUMNS} />
               </Section>
 
               <Note>
@@ -86,6 +87,7 @@ export default function Sources() {
 
               <Section title="The source registry" count={`${sources.length}`}>
                 <DataTable
+                  unfolded={UNFOLDED.reference}
                   rows={sources}
                   rowKey={(row) => row.id}
                   sortable
@@ -103,6 +105,7 @@ export default function Sources() {
                 note={LICENCES_NOTE}
               >
                 <DataTable
+                  unfolded={UNFOLDED.reference}
                   rows={licences}
                   rowKey={(row) => row.licence}
                   sortable

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Confidence, FigurePart, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import { Dated } from '../components/Dates.jsx'
 import SubNav from '../components/SubNav.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -127,6 +128,7 @@ function Gaps({ rows: list, title, note }) {
   return (
     <Section title={title} count={`${list.length}`} note={note}>
       <DataTable
+        unfolded={UNFOLDED.reference}
         rows={list}
         rowKey={(row) => row.id}
         sortable={false}
@@ -164,6 +166,7 @@ function Body({ data }) {
     <>
       <Section title="The confidence ladder">
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={provenance}
           rowKey={(row) => row.confidence}
           sortable={false}
@@ -209,6 +212,7 @@ function Body({ data }) {
             and the static page prints the rows as they come. The header says
             so without re-sorting them (CR-28). */}
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={discrepancies}
           rowKey={(row) => row.id}
           sortable
@@ -233,6 +237,7 @@ function Body({ data }) {
           </Note>
         )}
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={reconciliation}
           rowKey={(row) => row.full_name}
           sortable
@@ -264,6 +269,7 @@ function Body({ data }) {
           <div>
             <Section title="Circuit geometry">
               <DataTable
+                unfolded={UNFOLDED.reference}
                 rows={geometryCoverage}
                 rowKey={(row) => row.status}
                 sortable={false}
@@ -289,6 +295,7 @@ function Body({ data }) {
         note={AMBIGUOUS_NOTE}
       >
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={ambiguous}
           rowKey={(row) => `${row.year}-${row.constructor}`}
           sortable
@@ -301,6 +308,7 @@ function Body({ data }) {
 
       <Section title="Rows nobody has checked" count={`${unverified.reduce((n, r) => n + r.n, 0)}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={unverified}
           rowKey={(row) => row.tbl}
           sortable

@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { FOLD_NOUN } from '../lib/table.js'
 import SearchKey from '../components/SearchKey.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
@@ -136,6 +137,7 @@ function GrandPrixBody({ gp, data }) {
       {winners.length > 0 && (
         <Section title="Most wins" count={winners.length === 1 ? '1 driver' : `${winners.length} drivers`}>
           <DataTable
+            fold={FOLD_NOUN.winners}
             rows={winners}
             rowKey={(row) => row.driver_id}
             sortable
@@ -149,6 +151,7 @@ function GrandPrixBody({ gp, data }) {
 
       <Section title="Every edition" count={`${editions.length}`}>
         <DataTable
+          fold={FOLD_NOUN.editions}
           rows={editions}
           rowKey={(row) => `${row.year}-${row.round}`}
           sortable

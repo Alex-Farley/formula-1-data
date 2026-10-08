@@ -1,6 +1,7 @@
 import { useContext, useId } from 'react'
 import DataTable from '../components/DataTable.jsx'
 import { SectionTitle } from '../components/Page.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import { seriesColour, seriesDash } from './palette.js'
 
 /**
@@ -119,6 +120,9 @@ export default function Figure({ note, legend, marks = 'swatch', lead = false, t
         footer={table.footer}
         sortable={false}
         page={5000}
+        // Already behind a disclosure of its own, and nothing to send.
+        unfolded={UNFOLDED.figure}
+        remember={false}
       />
     </details>
   )

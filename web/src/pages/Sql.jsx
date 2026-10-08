@@ -8,6 +8,7 @@ import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
 import { query, queryReadOnly } from '../data/client.js'
 import { number } from '../lib/format.js'
+import { UNFOLDED } from '../lib/table.js'
 import { EXAMPLES, QUESTIONS, TOPICS } from '../lib/questions.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -276,6 +277,10 @@ export default function Sql() {
                 data={state.data}
                 page={200}
                 raw
+                // The statement is the address (`?q=`); the rows are its, not
+                // a table of the page's to fold or to remember a sort for.
+                unfolded={UNFOLDED.console}
+                remember={false}
                 // The one table on the site the page's own heading would name
                 // wrongly: "SQL console" is where the reader is, not what they
                 // are looking at.
