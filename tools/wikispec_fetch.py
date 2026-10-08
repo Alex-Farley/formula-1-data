@@ -148,8 +148,10 @@ NUM_FIELDS = [
     ("power_bhp",    ["power"],          "hp"),
     ("weight_kg",    ["weight"],         "kg"),
     ("wheelbase_mm", ["wheelbase"],      "mm"),
-    ("track_front_mm", ["front track", "track"], "mm"),
-    ("track_rear_mm",  ["rear track", "track"],  "mm"),
+    # A single `track` field, which is what every article uses, is read by
+    # track_ends() instead: it usually gives both ends, labelled.
+    ("track_front_mm", ["front track"], "mm"),
+    ("track_rear_mm",  ["rear track"],  "mm"),
     ("fuel_l",       ["fuel capacity"],  "l"),
 ]
 # Published career figures. Not specifications - these are the numbers the
@@ -203,11 +205,10 @@ def strip(value):
                lambda m: m.group(2).strip() + " " + m.group(3).strip(), s, flags=re.I)
     s = re.sub(r"\{\{\s*(flagicon|flag|nowrap|small|nbsp|citation needed|cn|"
                r"efn|sfn|refn)[^{}]*\}\}", " ", s, flags=re.I)
-    # remaining simple templates: keep the last parameter, which is what
-    # {{ubl|a|b}} and friends render
+    # remaining simple templates, innermost first: a list template renders
+    # every item, anything else is taken as rendering its last parameter
     for _ in range(3):
-        s = re.sub(r"\{\{[^{}]*\}\}",
-                   lambda m: m.group(0).strip("{}").split("|")[-1], s)
+        s = re.sub(r"\{\{[^{}]*\}\}", _template, s)
     s = re.sub(r"\[\[[^\]|]*\|([^\]]*)\]\]", r"\1", s)
     s = re.sub(r"\[\[([^\]]*)\]\]", r"\1", s)
     s = re.sub(r"<br\s*/?>", "; ", s, flags=re.I)
@@ -216,6 +217,125 @@ def strip(value):
     s = re.sub(r"[|]", "/", s)          # the output file is pipe-delimited
     s = re.sub(r"\s+", " ", s).strip(" ;,\t")
     return s or None
+
+
+# Templates that render every item as a line of a list. Reading one as its
+# last parameter, as every other template is read, kept only the last of the
+# twelve designers of the RB18 to RB21 - Honda's engineer (PM-68).
+LIST_TEMPLATES = {"ubl", "ublist", "unbulleted list", "plainlist", "plain list",
+                  "flatlist", "flat list", "hlist", "bulleted list",
+                  "collapsible list"}
+
+
+def _params(body):
+    """Split a template's body at its own pipes, not a link's."""
+    parts, buf, depth = [], "", 0
+    k = 0
+    while k < len(body):
+        if body.startswith("[[", k) or body.startswith("]]", k):
+            depth += 1 if body[k] == "[" else -1
+            buf += body[k:k + 2]
+            k += 2
+            continue
+        if body[k] == "|" and depth == 0:
+            parts.append(buf)
+            buf = ""
+        else:
+            buf += body[k]
+        k += 1
+    parts.append(buf)
+    return parts
+
+
+def _template(m):
+    """One innermost template, as the text it renders."""
+    whole = m.group(0)
+    parts = _params(whole[2:-2])
+    name = parts[0].strip().lower()
+    if name in ("ill", "interlanguage link") and len(parts) > 1:
+        return parts[1]                 # the English name, not the link's
+    if name not in LIST_TEMPLATES:
+        return whole.strip("{}").split("|")[-1]
+    items = []
+    for p in parts[1:]:
+        named = re.match(r"\s*([A-Za-z_][\w ]*|\d+)\s*=", p)
+        if named:
+            if not named.group(1).isdigit():
+                continue                # title=, class=, style= ...
+            p = p[named.end():]
+        # {{plainlist}} carries its items as one bulleted parameter
+        items += [i.strip() for i in re.split(r"(?:^|\n)\s*\*+", p)
+                  if i.strip()]
+    return "; ".join(items)
+
+
+def track_ends(raw):
+    """(front, rear) in mm from an infobox's single `track` field.
+
+    The articles put both ends in that one field, labelled before the figure
+    ("Front: 1,702 mm; Rear: 1,600 mm", "F: ... R: ...") or after it
+    ("1,540 mm (Front); 1,520 mm (Rear)", "1,450 mm/1,420 mm front/rear").
+    Each end is read from its own label. A figure the page gives for both
+    ends ("1,320 mm front and rear") is both. A figure with no label is the
+    front and the rear is left None: the page has not said the two ends are
+    equal, and copying the front into the rear is what PM-68 removed. Where
+    the page gives a figure per variant, each end is the first one given.
+    """
+    s = strip(raw)
+    if not s:
+        return None, None
+
+    def mm(t):
+        try:
+            return float(t.replace(",", ""))
+        except ValueError:
+            return None
+    # one track figure, never part of a longer number
+    fig = r"(?<![\d.])(\d,?\d{3}(?:\.\d+)?)(?!\d)"
+    pair = re.search(fig + r"\s*(?:mm)?\s*/\s*" + fig
+                     + r"\s*mm\W*front\s*/\s*rear", s, re.I)
+    if pair:
+        return mm(pair.group(1)), mm(pair.group(2))
+    # and the same pair with its label first: "Front/rear: 1,450/1,420 mm",
+    # the label standing before every figure, not after one (a year or an
+    # engine size in the text before it is not a figure)
+    pair = re.search(r"\bfront\s*/\s*(?:rear|back)\b(?:\s*\([^)]*\))?\W*"
+                     + fig + r"\s*(?:mm)?\s*[/,]\s*" + fig + r"\s*mm", s, re.I)
+    if pair and not re.search(r"\d\s*mm\b", s[:pair.start()], re.I):
+        return mm(pair.group(1)), mm(pair.group(2))
+    figs = list(re.finditer(r"(\d[\d,.]*)\s*mm\b", s, re.I))
+    if not figs:
+        return None, None
+    # "front and rear" is one label naming both ends, wherever it stands:
+    # read as two, the later word took the figure alone when the label came
+    # first ("Front and rear: 1,320 mm" was a rear and no front). A
+    # "front/rear" over two figures is the pair read above; over one, both.
+    labels = []
+    for m in re.finditer(r"\b(front\s*(?:and|&|/)\s*(?:rear|back))\b"
+                         r"|\b(front|rear|back)\b|\b([FR])\s*:", s, re.I):
+        word = (m.group(2) or m.group(3) or "").lower()
+        labels.append((m.start(), "both" if m.group(1) else
+                       "front" if word in ("front", "f") else "rear"))
+    ends = {}
+
+    def put(end, value):
+        for k in (("front", "rear") if end == "both" else (end,)):
+            ends.setdefault(k, value)
+    if labels and labels[0][0] < figs[0].start():
+        # labels before their figures; one holds until the next label
+        for f in figs:
+            put([k for at, k in labels if at < f.start()][-1], mm(f.group(1)))
+    else:
+        # labels after their figures, up to the next figure or `;`
+        for i, f in enumerate(figs):
+            stop = figs[i + 1].start() if i + 1 < len(figs) else len(s)
+            seg = s[f.end():stop].split(";")[0]
+            for at, k in labels:
+                if f.end() <= at < f.end() + len(seg):
+                    put(k, mm(f.group(1)))
+        if not labels:
+            ends["front"] = mm(figs[0].group(1))
+    return ends.get("front"), ends.get("rear")
 
 
 def parse_infobox(text):
@@ -706,9 +826,11 @@ def main():
             m = re.match(r"^\s*(\d+)", v or "")
             row[col] = int(m.group(1)) if m else None
 
-        # A single `track` field cannot be split between front and rear.
-        if not first(box, ["front track"]) and first(box, ["track"]):
-            row["track_rear_mm"] = row["track_front_mm"]
+        # The single `track` field, where the page has no separate ends.
+        if (not first(box, ["front track"]) and not first(box, ["rear track"])
+                and first(box, ["track"])):
+            row["track_front_mm"], row["track_rear_mm"] = track_ends(
+                first(box, ["track"]))
 
         # ---- a regulation limit is not a measurement of this car
         for y in range(lo, hi + 1):

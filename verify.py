@@ -4785,13 +4785,21 @@ def the_full_classification():
     # clean; since #60 the README's figure spans catch it indirectly, which
     # invites "fixing" the README. A floor names the harvest. Same rule: the
     # count at v2.22, raised when a harvest legitimately adds, never lowered.
+    # PM-68 lowered two, by the maintainer's ruling of 2026-10-08 on #838.
+    # weight_kg 204 -> 201: BRM P160's infobox gives "550 kg; 573 kg
+    # (P160E)", the old parse kept the last item, so P160, P160B and P160C
+    # carried the P160E's weight; read in order, 550 is the 1972 regulation
+    # minimum, which the harvest drops. chassis_id 119 -> 118: Wikipedia has
+    # since published a Brabham BT33 article, whose lead image names no
+    # author and is refused, and an article takes a chassis off the category
+    # route. Both are what the source now says, not a lost harvest.
     COLUMN_FLOORS = (
-        ("chassis", "weight_kg", 204, "harvest/car_specs.txt"),
+        ("chassis", "weight_kg", 201, "harvest/car_specs.txt"),
         ("chassis", "wheelbase_mm", 346, "harvest/car_specs.txt"),
         # `article` is filled only on the article route, `chassis_id` only on
         # the category route (AF-42), so each floor names one harvest.
         ("article_images", "article", 623, "harvest/article_images.txt"),
-        ("article_images", "chassis_id", 119, "harvest/category_images.txt"),
+        ("article_images", "chassis_id", 118, "harvest/category_images.txt"),
         # VD-61's two, at the counts they arrived with: `circuit_id` is filled
         # only on the circuit route, and `circuits.article` from the mapping.
         ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
