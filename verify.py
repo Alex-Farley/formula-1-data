@@ -5372,6 +5372,9 @@ def facts_artefact():
     # And the class is what rebuild() does: a column classed as rebuilt is
     # given a value on every rebuilt row, and a column rebuild() replaces is
     # classed as one it may replace.
+    # A column classed not established is NULL on every rebuilt row, and
+    # one classed as a rule's holds a value on some of them. (F1DB's value
+    # can be NULL throughout: a winner's retirement status is.)
     replaced = ("f1db", "rule", "null", "cited")
     misclassed = set()
     for t, spec in fa.RESOURCED.items():
@@ -5380,8 +5383,13 @@ def facts_artefact():
             if c not in decl[t]["columns"]:
                 continue
             given = sum(1 for r in rows if c in r)
+            valued = sum(1 for r in rows if r.get(c) is not None)
             if (k in replaced) != (given == len(rows) and bool(rows)):
                 misclassed.add(f"{t}.{c} ({k}, rebuilt on {given} of {len(rows)})")
+            elif k == "null" and valued:
+                misclassed.add(f"{t}.{c} (null, but given a value on {valued} rows)")
+            elif k == "rule" and not valued:
+                misclassed.add(f"{t}.{c} ({k}, but NULL on every rebuilt row)")
     check("every class of a rebuilt column is what the rebuild does with it",
           not misclassed, ", ".join(sorted(misclassed)))
     unbacked = []
@@ -5448,6 +5456,21 @@ def facts_artefact():
             if y not in decl.get(x, {}).get("columns", ())]
         check(f"every {t} row the facts artefact carries is about a column it carries",
               not stray, ", ".join(stray))
+
+    # The discrepancies go out without the values they compare and only
+    # about a column the artefact carries - named here as well as in the
+    # declaration, so that loosening the declaration fails (PM-74, #933).
+    if decl["discrepancies"]["rows"] not in (None, "none"):
+        leaked = [c for c in ("stored_value", "derived_value", "status_note")
+                  if c in decl["discrepancies"]["columns"]]
+        check("the facts artefact carries no discrepancy's compared values", not leaked,
+              ", ".join(leaked))
+        w = decl["discrepancies"]["where"]
+        loose = [f"{x}.{y}" for x, y in con.execute(
+            "SELECT DISTINCT tbl, field FROM discrepancies" + (f" WHERE {w}" if w else ""))
+            if y not in decl.get(x, {}).get("columns", ())]
+        check("every discrepancy the facts artefact carries is about a column it carries",
+              not loose, ", ".join(loose[:6]))
 
     # A race whose circuit the rebuild does not take from F1DB's layout is on
     # a formula1.com calendar, not the venue harvest's.
@@ -5517,10 +5540,33 @@ def facts_artefact():
     race_of = dict(con.execute("SELECT id, race_id FROM race_entries").fetchall())
     open_fl = {int(k) for (k,) in con.execute(
         "SELECT row_key FROM discrepancies WHERE tbl = 'race_entries' "
-        "AND field = 'fastest_lap' AND status = 'open'")}
+        "AND field = 'fastest_lap' AND kind = 'f1db-fastest-lap' AND status = 'open'")}
     src = fa.F1DB(con)
+
+    # The fastest lap of every race F1DB gives one for is exactly F1DB's
+    # set, a tie shared as it shares it - read here from F1DB's file, not
+    # from rebuild(), so that an extra or a missing credit fails even in a
+    # race whose difference from f1.db is otherwise allowed.
+    wrong_fl = []
+    entry_of = {}
+    for eid, rid, did in con.execute("SELECT id, race_id, driver_id FROM race_entries"):
+        entry_of.setdefault(rid, {})[did] = eid
+    for rid, (y, r) in {rid: (y, r) for rid, y, r in con.execute(
+            "SELECT id, year, round FROM races")}.items():
+        theirs = {src.ours(x["driver_id"]) for x in src.fastest.get((y, r), [])}
+        if not theirs or rid not in entry_of:
+            continue
+        got = {d for d, eid in entry_of[rid].items()
+               if rebuilt["race_entries"].get(eid, {}).get("fastest_lap") == 1}
+        shares = {rebuilt["race_entries"][entry_of[rid][d]].get("fastest_lap_shared")
+                  for d in got}
+        if got != theirs or shares != {len(theirs)}:
+            wrong_fl.append(f"{y} r{r}")
+    check("every rebuilt fastest lap is F1DB's, a tie shared as F1DB shares it",
+          not wrong_fl, ", ".join(wrong_fl[:6]))
     key_of = {rid: (y, r) for rid, y, r in con.execute("SELECT id, year, round FROM races")}
     unexplained, notes = [], Counter()
+    f1db_of = dict(con.execute("SELECT id, f1db_id FROM drivers").fetchall())
     cells = fa.claimed_cells(con)
     for (t, c), rows in sorted(by.items()):
         kind = fa.RESOURCED.get(t, {}).get("columns", {}).get(c)
@@ -5541,7 +5587,9 @@ def facts_artefact():
                 notes["fastest laps F1DB does not state"] += 1
             elif theirs is None and c in decl[t]["nulled"] and (t, str(rid), c) in cells:
                 notes["values a claim cites a share-alike source for"] += 1
-            elif t == "drivers" and c in ("born", "died") and ours is None:
+            elif t == "drivers" and c in ("born", "died") and ours is None \
+                    and theirs == src.drivers.get(f1db_of.get(rid), [None] * 6)[
+                        4 if c == "born" else 5]:
                 notes["drivers' dates F1DB adds"] += 1
             elif t == "drivers" and (rid, c) in fa.DRIVER_DIFFERENCES:
                 notes["drivers F1DB describes otherwise (declared)"] += 1

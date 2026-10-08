@@ -4704,14 +4704,18 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
         held = [r[0] for r in cur.execute(
             "SELECT driver_id FROM race_entries WHERE race_id=? AND "
             "fastest_lap=1", (rid,))]
+        if held:
+            # One disagreement per race, whoever of F1DB's it names that the
+            # harvest does not, so a tie never files the same key twice.
+            missing = [d for d in (f1db_drivers.get(h["driver_id"]) for h in hs)
+                       if d and d not in held]
+            if missing:
+                fl_disagreements.append(
+                    (yr_, rnd_, " / ".join(held), " / ".join(missing), len(hs)))
+            continue
         for h in hs:
             did = f1db_drivers.get(h["driver_id"])
             if not did:
-                continue
-            if held:
-                if did not in held:
-                    fl_disagreements.append(
-                        (h["year"], h["round"], held[0], did, len(hs) > 1))
                 continue
             row = cur.execute("SELECT id FROM race_entries WHERE race_id=? AND "
                               "driver_id=?", (rid, did)).fetchone()
@@ -4730,11 +4734,11 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
         status_, note_, assessment_ = HV.FASTEST_LAP_DISAGREEMENTS.get(
             (int(yr_), int(rnd_)),
             ("open", None,
-             "F1DB records the fastest lap of the race as shared, timed the "
-             "same to the tenth, and the pole harvest credits one of the "
-             "drivers alone. The harvest keeps the slot because it is "
-             "hand-checked and older; the shared reading is recorded here so "
-             "somebody can look at it." if shared_ else
+             f"F1DB records the fastest lap of the race as shared by "
+             f"{shared_} drivers on the same time, and the pole harvest "
+             f"credits fewer of them. The harvest keeps the slot because it is "
+             f"hand-checked and older; the shared reading is recorded here so "
+             f"somebody can look at it." if shared_ > 1 else
              "The pole harvest and F1DB name different drivers as setting "
              "the fastest lap of the race. Both are describing the same "
              "thing, so one of them is wrong. The harvest keeps the slot "

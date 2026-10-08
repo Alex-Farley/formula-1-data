@@ -453,6 +453,13 @@ def declare(con):
     for t, d in out.items():
         if d["rows"] == "by source" and not d["resourced"]:
             d["where"] = f"source_id IN ({ids})"
+        elif d["rows"] == "by source":
+            # A rebuilt table keeps its share-alike rows, rebuilt, and never a
+            # row citing a source that may not be redistributed at all or
+            # none - which a local build with the timing loaders can write.
+            ok = ",".join(str(i) for i, x in sorted(reg.items())
+                          if x["redistributable"] in ("yes", "facts-only"))
+            d["where"] = f"source_id IN ({ok})"
     # A claim is carried where its source is and the column it is about is
     # carried too; a claim about a column the artefact does not hold is
     # about nothing in it.
