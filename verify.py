@@ -3113,18 +3113,35 @@ def the_chassis_register():
     # modern chassis printed "<hr>" in their engine. Every table and every column,
     # read from the schema rather than listed, so a table added later is
     # held to it without being named here. LIKE narrows; the pattern decides.
-    marked = []
-    _mk = harvest_module().MARKUP
+    # A wikitext link's bracket a harvest left unpaired (CR-76) is printed
+    # the same way - "Petronas E10Aramco]] branding" - and is the second
+    # check, in the same walk. A value that parses as JSON is exempt from
+    # that one: "]]" is JSON's own syntax for a nested array.
+    marked, linked = [], []
+    _mk, _wl = harvest_module().MARKUP, harvest_module().WIKILINK
+
+    def _is_json(v):
+        try:
+            json.loads(v)
+        except ValueError:
+            return False
+        return True
+
     for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
                             "AND name NOT LIKE 'sqlite_%'").fetchall():
         for c in [r[1] for r in con.execute(f'PRAGMA table_info("{t}")')]:
             for (v,) in con.execute(
                     f"""SELECT "{c}" FROM "{t}" WHERE typeof("{c}") = 'text'
-                         AND ("{c}" LIKE '%<%' OR "{c}" LIKE '%&%;%')"""):
+                         AND ("{c}" LIKE '%<%' OR "{c}" LIKE '%&%;%'
+                              OR "{c}" LIKE '%[[%' OR "{c}" LIKE '%]]%')"""):
                 if _mk.search(v):
                     marked.append(f"{t}.{c}: {v[:50]!r}")
+                if _wl.search(v) and not _is_json(v):
+                    linked.append(f"{t}.{c}: {v[:50]!r}")
     check("no text column holds markup", not marked,
           f"{len(marked)}: " + "; ".join(marked[:4]))
+    check("no text column holds a wiki link's bracket", not linked,
+          f"{len(linked)}: " + "; ".join(linked[:4]))
     overlaps = []
     for field in [r[0] for r in con.execute("SELECT DISTINCT field FROM regulation_limits")]:
         spans = con.execute("SELECT from_year, to_year FROM regulation_limits WHERE field = ? "

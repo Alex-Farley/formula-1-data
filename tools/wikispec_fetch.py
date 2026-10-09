@@ -222,6 +222,10 @@ def strip(value):
 # Templates that render every item as a line of a list. Reading one as its
 # last parameter, as every other template is read, kept only the last of the
 # twelve designers of the RB18 to RB21 - Honda's engineer (PM-68).
+# Templates that hold a footnote rather than the value: dropped, as strip()
+# drops a <ref>.
+FOOTNOTE_TEMPLATES = {"efn", "sfn", "refn", "citation needed", "cn"}
+
 LIST_TEMPLATES = {"ubl", "ublist", "unbulleted list", "plainlist", "plain list",
                   "flatlist", "flat list", "hlist", "bulleted list",
                   "collapsible list"}
@@ -254,8 +258,17 @@ def _template(m):
     name = parts[0].strip().lower()
     if name in ("ill", "interlanguage link") and len(parts) > 1:
         return parts[1]                 # the English name, not the link's
+    if name in FOOTNOTE_TEMPLATES:
+        # A footnote is not the value, and the regex in strip() that drops
+        # one cannot see past a template inside it: the AMR22's fuel was
+        # "Petronas E10" and a {{refn}} holding {{F1|2023}}, read as its
+        # last parameter (CR-76). Innermost first, it is reached here.
+        return " "
     if name not in LIST_TEMPLATES:
-        return whole.strip("{}").split("|")[-1]
+        # The last parameter split at the template's own pipes, not a
+        # link's: "[[Saudi Aramco|Aramco]]" split at every pipe left
+        # "Aramco]]" (CR-76).
+        return parts[-1]
     items = []
     for p in parts[1:]:
         named = re.match(r"\s*([A-Za-z_][\w ]*|\d+)\s*=", p)
