@@ -724,8 +724,9 @@ KNOWN_GAPS = [
 
     (11, "photograph-shows-the-car", "article_images.name_matches", "whether a photograph shows the car",
      "open",
-     "We cannot confirm that {{fig:images_to_check}} photographs show the car they are filed "
-     "under. The article is verified; the picture in it is not, and there "
+     "We cannot confirm that the {{fig:article_route_images}} photographs leading car articles "
+     "show the car they are filed under, and {{fig:images_to_check}} of them do not even name "
+     "it in their file name. The article is verified; the picture in it is not, and there "
      "is no second source to check it against - one car article leads with "
      "a photograph of police officers.",
      "{{fig:article_route_images}} car articles carry a lead photograph from Wikimedia Commons, with "

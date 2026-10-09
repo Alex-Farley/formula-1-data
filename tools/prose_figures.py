@@ -105,7 +105,8 @@ FIGURES = {
             AND e.finish_position = 1 AND e.chassis_id IS NULL)""",
     # The race articles known_gaps #6 says a pre-FastF1 timing harvest would
     # have to read: every round before 2018, when the FastF1 loader begins.
-    "races_before_2018": "SELECT COUNT(*) FROM races WHERE year < 2018",
+    "races_before_2018": """SELECT COUNT(*) FROM races
+        WHERE year < 2018 AND status = 'completed'""",
     "sessions": "SELECT COUNT(*) FROM sessions",
 }
 
@@ -163,10 +164,11 @@ def _known_gaps_literals():
     for g in HV.KNOWN_GAPS:
         # The same guard as SOURCE_REGISTRY's, for the same reason: a shifted
         # tuple would move build.py and verify.py together.
-        if len(g) != 8 or g[4] not in GAP_STATE:
+        state = g[4] if len(g) > 4 else None
+        if len(g) != 8 or state not in GAP_STATE:
             raise SystemExit(
                 f"KNOWN_GAPS entry {g[0]} is not the shape this reads: "
-                f"{len(g)} fields with {g[4]!r} at index 4, where 8 fields and "
+                f"{len(g)} fields with {state!r} at index 4, where 8 fields and "
                 f"one of {', '.join(GAP_STATE)} are expected. The prose "
                 f"indices below are positional; correct them before the build "
                 f"writes one column's text into another.")
