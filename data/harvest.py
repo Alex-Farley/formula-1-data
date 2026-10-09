@@ -1156,6 +1156,72 @@ SESSION_SHEET_DISAGREEMENTS = {
         "https://en.wikipedia.org/wiki/1991_Hungarian_Grand_Prix"),
 }
 
+# Where a second source classifies a driver's race otherwise than F1DB's race
+# result does, and the reading moves whether it is a start (DA-44, #753).
+# Found as the two open `stored-total` starts rows below: each was one race
+# read two ways, filed only against a career. Nothing in the data names the
+# second reading, so the build cannot find these on its own; what it does is
+# hold each declaration to the row - the entry must exist and carry the
+# result named here, or the build stops - and file it on the race, where the
+# race page shows it. The stored values stay F1DB's as published, as they do
+# for SESSION_SHEET_DISAGREEMENTS: race_results.txt is written by
+# tools/f1db_fetch.py alone, and neither side is an FIA classification read.
+#   (year, round, driver_id): (F1DB's position_text, the other reading,
+#                              status, status_note, assessment)
+_BELGIUM_2001 = (
+    "F1DB's race result, which the race records follow, has {name} retiring "
+    "with no lap completed, from his place on the original grid, which "
+    "counts as a start. The race was stopped on lap five for Irvine's and "
+    "Burti's accident, declared null and void, and run again from the start "
+    "over 36 laps. {what} The race's Wikipedia article, citing the 2001 "
+    "Formula One Annual, says the official results list Raikkonen, Irvine, "
+    "Burti and Alonso as not having started, because each took part only in "
+    "the voided race. formula1.com's result lists none of "
+    "the four - nor Heidfeld, who retired without completing a lap of the "
+    "restarted race - so it settles neither reading, and the FIA's own "
+    "classification has not been read. The race result is kept as F1DB "
+    "publishes it. Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix; "
+    "https://www.formula1.com/en/results/2001/races/716/belgium/race-result")
+_FAVOURS_DNS = "a second source favours a non-start"
+RACE_CLASSIFICATION_DISAGREEMENTS = {
+    (1985, 5, "piquet"): (
+        "DNS", "DNF", "open", "a contemporary report favours a start",
+        "F1DB's race result, which the race records follow, has Piquet DNS, "
+        "with a transmission failure, from ninth on the grid, and "
+        "formula1.com's results archive, read on 2026-10-09, gives him DNS "
+        "with no laps. formula1.com's page for the same race as archived in "
+        "February 2014, which the race's Wikipedia article cites, gave him "
+        "retired on lap 0 with a transmission failure from ninth on the grid, "
+        "which is a start, and so does the article. Alan Henry's report in "
+        "Motor Sport, July 1985, says that in the race he succumbed to "
+        "terminal gearbox problems on the opening lap. One race read two "
+        "ways, and formula1.com has given both. The race result is kept as "
+        "F1DB publishes it. Source: "
+        "https://www.formula1.com/en/results/1985/races/486/canada/race-result; "
+        "https://web.archive.org/web/20140218000549/http://www.formula1.com/results/season/1985/299/; "
+        "https://www.motorsportmagazine.com/archive/article/july-1985/33/canadian-grand-prix-ferrari-command"),
+    (2001, 14, "raikkonen"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Raikkonen",
+            what="He stopped in the first race with a transmission "
+                 "failure and took no part in the second.")),
+    (2001, 14, "irvine"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Irvine",
+            what="His Jaguar lost its right-hand wheels in the accident, and "
+                 "he took no part in the second race.")),
+    (2001, 14, "luciano-burti"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Burti",
+            what="He was taken to hospital after the accident and took no "
+                 "part in the second race.")),
+    (2001, 14, "alonso"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Alonso",
+            what="He retired from the first race with a broken gearshaft "
+                 "and took no part in the second.")),
+}
+
 # Reference fastest-lap totals for the three drivers a restored share above
 # also names and whose rows in data/drivers.py carry no fastest-lap figure.
 # With these, every name the shares credit sits under the same external
@@ -1468,14 +1534,18 @@ STORED_TOTALS_DECLARED = [
      "results list him as not having started, which is the 349 Wikipedia "
      "gives. F1DB's "
      "published total, 350, and the race records count it as a start he "
-     "retired from. One race read two ways. "
+     "retired from. One race read two ways, and that disagreement is open "
+     "on the race, 2001 round 14. "
      "Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix"),
     ("piquet", "starts", 204, 203, "open", "sources differ",
      "The race records, and F1DB's published total of 203, hold his 1985 "
      "Canadian Grand Prix as a race he did not start, with a transmission "
-     "failure. The race's Wikipedia article, citing formula1.com, has him "
-     "retiring on lap 0 from ninth on the grid, which is a start, and his "
-     "own article's infobox gives 204 starts. One race read two ways. "
+     "failure, as formula1.com's results archive now does. The race's "
+     "Wikipedia article, citing formula1.com's page for the race as it stood "
+     "in 2014, has him retiring on lap 0 from ninth on the grid, which is a "
+     "start, as does Motor Sport's report at the time, and his own "
+     "article's infobox gives 204 starts. One race read two ways, and that "
+     "disagreement is open on the race, 1985 round 5. "
      "Source: https://en.wikipedia.org/wiki/1985_Canadian_Grand_Prix"),
 ]
 

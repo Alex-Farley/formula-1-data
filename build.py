@@ -2826,6 +2826,40 @@ def _file_session_sheet_disagreements(cur):
                           why, status, note)
 
 
+def _file_race_classification_disagreements(cur):
+    """File every race result data/harvest.py
+    RACE_CLASSIFICATION_DISAGREEMENTS says a second source classifies
+    otherwise (DA-44, #753), on the race, where its page shows it.
+
+    The second reading is in no table, so the rows cannot find these; the
+    declaration is held to them instead. An entry the race records do not
+    hold, or one whose result is no longer the one declared, stops the build,
+    so a refresh that moves F1DB's reading reopens the question rather than
+    filing the old answer beside the new value."""
+    for (yr, rnd, did), (stored, other, status, note, why) in sorted(
+            HV.RACE_CLASSIFICATION_DISAGREEMENTS.items()):
+        row = cur.execute("""SELECT e.race_id, e.position_text FROM race_entries e
+                JOIN races r ON r.id = e.race_id
+               WHERE r.year = ? AND r.round = ? AND e.driver_id = ?""",
+                          (yr, rnd, did)).fetchone()
+        if row is None:
+            raise SystemExit(
+                f"RACE_CLASSIFICATION_DISAGREEMENTS names {yr} round {rnd} "
+                f"{did}, and the race records hold no such entry.")
+        if row[1] != stored:
+            raise SystemExit(
+                f"RACE_CLASSIFICATION_DISAGREEMENTS declares {yr} round {rnd} "
+                f"{did} as {stored!r}, and the race records now hold "
+                f"{row[1]!r}. Say what changed.")
+        if other == stored:
+            raise SystemExit(
+                f"RACE_CLASSIFICATION_DISAGREEMENTS: {yr} round {rnd} {did} "
+                f"gives the same reading twice, {stored!r}.")
+        _file_discrepancy(cur, "race-classification", "race_entries",
+                          f"{row[0]}|{did}", "position_text", f"{yr} round {rnd}",
+                          stored, other, why, status, note)
+
+
 def _table_words(year, table, after):
     """Which championship table a standings disagreement is about, in words:
     "2026 drivers' championship points after round 12"."""
@@ -4189,6 +4223,7 @@ def _stage_35_link_race_entries_to_the_curated(b):
 
     _file_car_chassis_disagreements(cur)
     _file_session_sheet_disagreements(cur)
+    _file_race_classification_disagreements(cur)
 
     # The two register spans the race records read differently, with the
     # reason beside the fact (CD-25). Not open: nothing is waiting to be
