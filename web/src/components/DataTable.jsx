@@ -449,18 +449,20 @@ function Table({
   // and a table that fits drops its scroller (`data-fits`, app.css), so the
   // page is the nearest scroll container and its column heads can stick
   // under the masthead. The table is watched as well as its box: once the
-  // scroller is gone, a table that widens - a fold opened, a filter cleared -
-  // overflows without the box changing size.
+  // scroller is gone, a table that widens - a fold opened, a column ticked -
+  // overflows without the box changing size. `data-fits` is written on the
+  // element here rather than through state: an observer runs between layout
+  // and paint, so the scroller is back before the wider table is drawn,
+  // where a render would leave it clipped with no scroller for a frame or two.
   const scroller = useRef(null)
   const [clipped, setClipped] = useState(false)
-  const [fits, setFits] = useState(false)
   useEffect(() => {
     const el = scroller.current
     if (!el) return undefined
     const check = () => {
       const over = el.scrollWidth - el.clientWidth
       setClipped(over - el.scrollLeft > 1)
-      setFits(over <= 1)
+      el.parentElement?.toggleAttribute('data-fits', over <= 1)
     }
     check()
     el.addEventListener('scroll', check, { passive: true })
@@ -647,7 +649,6 @@ function Table({
         data-shown={visible.length}
         data-key={addressKey ?? undefined}
         data-clipped={clipped || undefined}
-        data-fits={fits || undefined}
       >
         {/* A scrollable region is keyboard-reachable only while it has something
             to scroll to; a tab stop on every table would be noise. */}

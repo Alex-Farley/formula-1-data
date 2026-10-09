@@ -17,10 +17,12 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  /* The masthead is sticky and about 66px tall. Without this, Shift+Tab onto a link
-     near the top of the viewport scrolls it to y=0 - entirely behind the
-     masthead - which is WCAG 2.4.11 failed on every page. */
-  scroll-padding-top: 72px;
+  /* The masthead is sticky. Without this, Shift+Tab onto a link near the top
+     of the viewport scrolls it to y=0 - entirely behind the masthead - which
+     is WCAG 2.4.11 failed on every page. Its height is App's measurement
+     (VD-89): 66 px from 1180, 55 from 768, and 132 on a phone, where it wraps
+     and a typed 72 px left a focused link behind it. */
+  scroll-padding-top: calc(var(--masthead-height, 66px) + var(--space-3));
 }
 
 body {

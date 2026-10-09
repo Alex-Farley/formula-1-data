@@ -395,7 +395,7 @@ and not yet the three charts (VD-73 #822).
     which scroll in a box of their own. A table wider than its box keeps
     its scroller, a scroll container in both axes that never moves
     vertically, and its heads stay at its top until VD-98 (#947) is
-    decided. `smoke.mjs` (*Sticky column heads*) holds both halves;
+    decided. `smoke.mjs` (*Sticky column heads*) holds all three;
   - a footer band holding the source line on the left and *Copy* and *CSV*
     on the right;
   - the **fold**.
