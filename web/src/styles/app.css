@@ -941,9 +941,8 @@ caption {
 thead th {
   /* Positioned, and above the .table-wrap[data-clipped] fade, so that a table
      clipped at its right edge keeps its last header label legible while its
-     rows fade. Not sticky: that rule never stuck, because .table-scroll and
-     .table-wrap are both scroll containers between the th and the viewport,
-     and it was deleted rather than fixed (IX-18). */
+     rows fade. Sticky only where nothing scrolls between it and the page
+     (VD-89, below): IX-18 made every head sticky, and none stuck. */
   position: relative;
   z-index: 1;
   background: var(--panel);
@@ -961,6 +960,56 @@ thead th {
 
 thead th.num {
   text-align: right;
+}
+
+/*
+ * Sticky column heads (VD-89). `position: sticky` holds to the nearest scroll
+ * container, and `.table-scroll` (overflow-x: auto) and `.table-wrap`
+ * (overflow: hidden) are both scroll containers in both axes, neither of
+ * which scrolls vertically - so IX-18's sticky heads never stuck. A table
+ * that fits its box has nothing to scroll sideways: DataTable marks it
+ * `data-fits`, its scroller goes, the box clips rather than hides (`clip`
+ * makes no scroll container, and still rounds the corners), and its heads
+ * stop under the masthead, whose height App measures. A table wider than its
+ * box keeps its scroller and its heads at its top: a sticky head inside a
+ * horizontal scroller would be held by that scroller, which never moves
+ * vertically. A figure's numbers already scroll in a box of their own
+ * (below), and the figure clips what overflows it, so they are left out
+ * here and stick to the top of that box instead.
+ */
+.table-wrap[data-fits]:not(.figure .table-wrap) {
+  overflow: clip;
+}
+
+.table-wrap[data-fits]:not(.figure .table-wrap) > .table-scroll {
+  overflow: visible;
+}
+
+/* A collapsed border is the table's, and stays behind when a head moves, so
+   the rule under the heads is drawn inside them and the border they share
+   with the first row is cleared - in both cells, since either may win it -
+   keeping its pixel, so the table is no shorter than the static one. */
+.table-wrap[data-fits]:not(.figure .table-wrap) thead th,
+.figure details thead th {
+  border-bottom-color: transparent;
+  box-shadow: inset 0 -1px 0 var(--rule-strong);
+}
+
+.table-wrap[data-fits]:not(.figure .table-wrap) tbody tr:first-child > *,
+.figure details tbody tr:first-child > * {
+  border-top-color: transparent;
+}
+
+.table-wrap[data-fits]:not(.figure .table-wrap) thead th {
+  position: sticky;
+  top: var(--masthead-height, 0);
+}
+
+/* A focused row is not brought to rest under the stuck heads (WCAG 2.4.11):
+   html's scroll-padding-top clears the masthead, and this clears the heads,
+   which are a line of --size-2 between two --space-5 paddings. */
+.table-wrap[data-fits]:not(.figure .table-wrap) tbody * {
+  scroll-margin-top: var(--space-9);
 }
 
 th.sortable {
@@ -3130,6 +3179,12 @@ figure.figure > .figure-note:first-child {
   border-top: 1px solid var(--rule);
   max-height: 300px;
   overflow: auto;
+}
+
+/* The box scrolls its own rows, so the heads stick to its top (VD-89). */
+.figure details thead th {
+  position: sticky;
+  top: 0;
 }
 
 .tooltip {

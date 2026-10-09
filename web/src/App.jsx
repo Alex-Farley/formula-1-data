@@ -286,6 +286,25 @@ function Chrome() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // VD-89. A table's column heads stick under the masthead, and the
+  // masthead's height is the width's and the font's - one row from 768 px,
+  // two on a phone, its wordmark a line shorter below 1180 - so it is
+  // measured rather than typed, and written where app.css reads it.
+  const masthead = useRef(null)
+  useEffect(() => {
+    const el = masthead.current
+    if (!el) return undefined
+    const root = document.documentElement
+    const write = () => root.style.setProperty('--masthead-height', `${el.getBoundingClientRect().height}px`)
+    write()
+    const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(write)
+    watch?.observe(el)
+    return () => {
+      watch?.disconnect()
+      root.style.removeProperty('--masthead-height')
+    }
+  }, [])
+
   return (
     <div className="app">
       <ScrollToTop />
@@ -304,7 +323,7 @@ function Chrome() {
       <a className="skiplink" href="#main">
         Skip to content
       </a>
-      <header className="masthead">
+      <header className="masthead" ref={masthead}>
         <div className="masthead-inner">
           <Wordmark />
           <nav>

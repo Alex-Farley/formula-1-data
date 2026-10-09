@@ -444,16 +444,29 @@ function Table({
   // Seven of nine columns of the driver register were off-screen at 375 px
   // with nothing to say so. The fade at the right edge appears only while
   // there is more table to the right, and goes as the reader reaches it.
+  //
+  // VD-89. The same measurement says whether the table fits its box at all,
+  // and a table that fits drops its scroller (`data-fits`, app.css), so the
+  // page is the nearest scroll container and its column heads can stick
+  // under the masthead. The table is watched as well as its box: once the
+  // scroller is gone, a table that widens - a fold opened, a filter cleared -
+  // overflows without the box changing size.
   const scroller = useRef(null)
   const [clipped, setClipped] = useState(false)
+  const [fits, setFits] = useState(false)
   useEffect(() => {
     const el = scroller.current
     if (!el) return undefined
-    const check = () => setClipped(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+    const check = () => {
+      const over = el.scrollWidth - el.clientWidth
+      setClipped(over - el.scrollLeft > 1)
+      setFits(over <= 1)
+    }
     check()
     el.addEventListener('scroll', check, { passive: true })
     const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(check)
     watch?.observe(el)
+    if (el.firstElementChild) watch?.observe(el.firstElementChild)
     return () => {
       el.removeEventListener('scroll', check)
       watch?.disconnect()
@@ -634,6 +647,7 @@ function Table({
         data-shown={visible.length}
         data-key={addressKey ?? undefined}
         data-clipped={clipped || undefined}
+        data-fits={fits || undefined}
       >
         {/* A scrollable region is keyboard-reachable only while it has something
             to scroll to; a tab stop on every table would be noise. */}

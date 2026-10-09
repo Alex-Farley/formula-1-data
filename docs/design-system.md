@@ -384,12 +384,18 @@ and not yet the three charts (VD-73 #822).
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
-### Table (core) — built (VD-82, AX-21, VD-84), but for sticky heads (VD-89 #901); provisional: a table that fits its box (IX-45 #848)
+### Table (core) — built (VD-82, AX-21, VD-84, VD-89), but for sticky heads on a table wider than its box (VD-98 #947); provisional: a table that fits its box (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
   - a caption or an h2 that names it (**floor**, AX-21);
-  - sticky column heads;
+  - sticky column heads (VD-89): under the masthead on a table that fits
+    its box, which DataTable marks `data-fits` and whose scroller then goes,
+    so the page holds them; at the top of the box on a figure's numbers,
+    which scroll in a box of their own. A table wider than its box keeps
+    its scroller, a scroll container in both axes that never moves
+    vertically, and its heads stay at its top until VD-98 (#947) is
+    decided. `smoke.mjs` (*Sticky column heads*) holds both halves;
   - a footer band holding the source line on the left and *Copy* and *CSV*
     on the right;
   - the **fold**.
