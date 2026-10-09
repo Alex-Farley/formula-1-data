@@ -84,6 +84,16 @@ one is a harvest file's row count, one a past state in the past tense, two
 are Jolpica's. A rule stated more broadly than it is enforced is the kind
 nobody can rely on.
 
+That sweep landed as `CD-45` (#565), and `known_gaps` is the second entry in
+`PROSE`. On the day it said 1,161 races, 27,555 entries, 874 chassis, 22,481
+pit stops and 602 / 265 / 337 photographs against 1,165, 27,548, 878, 22,526
+and 623 / 277 / 346 held, and gap 6 said 1,161 race articles for 1950 to 2017,
+which ran 976 races. The reading added a fourth typed class
+— a past state in the past tense ("1,260 of 2,424 entries carried no
+constructor", "the review of #91 reproduced all 115 it then held"), which the
+count today would falsify — and took the harvest file's row count out of its
+sentence, because a file is not a table this can count.
+
 ---
 
 ## Licensing and redistribution
