@@ -1165,7 +1165,7 @@ SESSION_SHEET_DISAGREEMENTS = {
 # result named here, or the build stops - and file it on the race, where the
 # race page shows it. The stored values stay F1DB's as published, as they do
 # for SESSION_SHEET_DISAGREEMENTS: race_results.txt is written by
-# tools/f1db_fetch.py alone, and neither side is an FIA classification read.
+# tools/f1db_fetch.py alone, and no FIA classification read settles either.
 #   (year, round, driver_id): (F1DB's position_text, the other reading,
 #                              status, status_note, assessment)
 _BELGIUM_2001 = (
@@ -1176,11 +1176,13 @@ _BELGIUM_2001 = (
     "over 36 laps. {what} The race's Wikipedia article, citing the 2001 "
     "Formula One Annual, says the official results list Raikkonen, Irvine, "
     "Burti and Alonso as not having started, because each took part only in "
-    "the voided race. formula1.com's result lists none of "
-    "the four - nor Heidfeld, who retired without completing a lap of the "
-    "restarted race - so it settles neither reading, and the FIA's own "
-    "classification has not been read. The race result is kept as F1DB "
-    "publishes it. Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix; "
+    "the voided race. The FIA's provisional race classification after 36 "
+    "laps, and formula1.com's result, list none of the four - nor Heidfeld, "
+    "who retired without completing a lap of the restarted race - beside "
+    "13 classified and 4 not classified, so neither settles the reading. "
+    "The race result is kept as F1DB publishes it. "
+    "Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix; "
+    "https://web.archive.org/web/20050302104816/http://www.fia.com/resources/documents/1804534710__Belgium_Class_2001.pdf; "
     "https://www.formula1.com/en/results/2001/races/716/belgium/race-result")
 _FAVOURS_DNS = "a second source favours a non-start"
 RACE_CLASSIFICATION_DISAGREEMENTS = {

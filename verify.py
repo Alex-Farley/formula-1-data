@@ -1541,17 +1541,20 @@ def external_figures_vs_the_race_records():
         if d is None:
             _bad.append(f"{key}: names no race entry")
             continue
-        _rc[(y, r, d)] = sv
+        _rc[(y, r, d)] = (sv, dv)
         if subject != f"{y} round {r}":
             _bad.append(f"{key}: filed on {subject!r}, not its race")
         if sv != held:
             _bad.append(f"{key}: holds {sv!r}, the entry {held!r}")
         if dv is None or dv == sv:
             _bad.append(f"{key}: no second reading")
-    _bad += [f"{y} r{r} {d}: declared, not filed" for (y, r, d)
-             in sorted(set(harvest_module().RACE_CLASSIFICATION_DISAGREEMENTS) - set(_rc))]
+    _declared = {k: v[:2] for k, v in
+                 harvest_module().RACE_CLASSIFICATION_DISAGREEMENTS.items()}
+    _bad += [f"{y} r{r} {d}: declared {_declared[(y, r, d)]}, filed "
+             + ("nothing" if (y, r, d) not in _rc else str(_rc[(y, r, d)]))
+             for (y, r, d) in sorted(_declared) if _rc.get((y, r, d)) != _declared[(y, r, d)]]
     _bad += [f"{y} r{r} {d}: filed, not declared" for (y, r, d)
-             in sorted(set(_rc) - set(harvest_module().RACE_CLASSIFICATION_DISAGREEMENTS))]
+             in sorted(set(_rc) - set(_declared))]
     for key, why in con.execute("SELECT key, assessment FROM discrepancies "
                                 "WHERE tbl = 'drivers'"):
         for m in re.finditer(r"open on the race, (\d{4}) round (\d+)", why or ""):
