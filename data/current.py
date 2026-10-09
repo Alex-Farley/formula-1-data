@@ -116,9 +116,9 @@ ENTRIES_2026 = [
 
 TEAM_PERSONNEL_2026 = [
     ("mercedes", "Toto Wolff", "James Allison"),
-    ("ferrari", "Frederic Vasseur", "Loic Serra / Enrico Gualtieri"),
+    ("ferrari", "Frédéric Vasseur", "Loïc Serra / Enrico Gualtieri"),
     ("mclaren", "Andrea Stella", "Peter Prodromou / Neil Houldey"),
-    ("red-bull", "Laurent Mekies", "Pierre Wache"),
+    ("red-bull", "Laurent Mekies", "Pierre Waché"),
     ("racing-bulls", "Alan Permane", "Tim Goss"),
     ("alpine", "Flavio Briatore (Executive Advisor), Steve Nielsen (Managing Director)", "David Sanchez"),
     ("haas", "Ayao Komatsu", "Andrea De Zordo"),
