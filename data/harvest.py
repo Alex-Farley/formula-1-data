@@ -1102,11 +1102,13 @@ FASTEST_LAP_DISAGREEMENTS = {
 # contradiction is one of three things:
 #   - a DNPQ in the race result, beside a qualifying row that weekend, which
 #     says he went through pre-qualifying (the sheets read DNQ);
-#   - a place on the pre-qualifying sheet and no qualifying row, beside a race
-#     result that is neither DNPQ nor an exclusion (the sheets read DNPQ);
 #   - a place on the pre-qualifying sheet, no qualifying row, and a driver
 #     below him who went through - the order verify.py holds, which a
-#     declaration here explains (the sheets read no result).
+#     declaration here explains (the sheets have him through, then read no
+#     result);
+#   - otherwise, a row on the pre-qualifying sheet and no qualifying row,
+#     beside a race result that is neither DNPQ nor an exclusion (the sheets
+#     read DNPQ).
 # Each is one source against itself, and the stored values stay F1DB's as
 # published: the race result and the sheets are both held, and the row says
 # which a second source sides with. Worth reporting upstream.
@@ -1115,11 +1117,11 @@ _F1DB_RACES = "https://github.com/f1db/f1db/tree/main/src/data/seasons/"
 SESSION_SHEET_DISAGREEMENTS = {
     (1979, 7, "gianfranco-brancatelli"): (
         "open", "a second source favours the race result",
-        "F1DB's race result has Brancatelli DNPQ, and its pre-qualifying "
-        "sheet agrees: third of three, behind Hans-Joachim Stuck and Jochen "
-        "Mass, the two who went through. Its qualifying sheet holds him as "
-        "well, 25th with no time, which would mean he went through. The race "
-        "article sides with the race result: it lists him as not "
+        "F1DB's race result has Brancatelli DNPQ. He is slowest of the "
+        "three on its pre-qualifying sheet, behind Hans-Joachim Stuck and "
+        "Jochen Mass, but its qualifying sheet holds all three - him 25th "
+        "with no time - which says he went through. The race article sides "
+        "with the race result: two went through, and it lists him as not "
         "pre-qualifying, on 1:38.15, and leaves him out of its qualifying "
         "table. Both F1DB rows are kept as published. "
         "Source: " + _F1DB_RACES + "1979/races/07-monaco (race-results.yml "

@@ -2773,33 +2773,37 @@ def _file_session_sheet_disagreements(cur):
     contradict (PM-62, #716).
 
     The three readings data/harvest.py SESSION_SHEET_DISAGREEMENTS describes,
-    found from the rows: a DNPQ beside a qualifying row; a place on the
-    pre-qualifying sheet and no qualifying row beside a result that is
-    neither DNPQ nor an exclusion; and such a place above a driver who went
-    through. The sheets' reading is the derived value - DNQ, DNPQ, or none
-    for the third, where the sheets give no result. Each must be declared
-    with its assessment: an undeclared one stops the build, and so does a
-    declaration the rows no longer bear out."""
+    found from the rows: a DNPQ beside a qualifying row; a row on the
+    pre-qualifying sheet and no qualifying row, placed above a driver who
+    went through; and such a row, not so placed, beside a result that is
+    neither DNPQ nor an exclusion. The sheets' reading is the derived value
+    - DNQ, none for the second, where the sheets have him through and then
+    give no result, and DNPQ. A sheet row with no place - an exclusion from
+    pre-qualifying - is on the sheet, and is above nobody. Each must be
+    declared with its assessment: an undeclared one stops the build, and so
+    does a declaration the rows no longer bear out."""
     found = {}
-    for yr, rnd, rid, did, text, qualified, pq in cur.execute("""
+    for yr, rnd, rid, did, text, qualified, on_sheet, pq in cur.execute("""
             SELECT r.year, r.round, e.race_id, e.driver_id, e.position_text,
                    EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = e.race_id
                            AND q.driver_id = e.driver_id),
+                   EXISTS (SELECT 1 FROM practice p WHERE p.race_id = e.race_id
+                           AND p.driver_id = e.driver_id AND p.session = 'pre_qualifying'),
                    (SELECT p.position FROM practice p WHERE p.race_id = e.race_id
                      AND p.driver_id = e.driver_id AND p.session = 'pre_qualifying')
               FROM race_entries e JOIN races r ON r.id = e.race_id
              ORDER BY r.year, r.round, e.driver_id""").fetchall():
         if text == "DNPQ" and qualified:
             found[(yr, rnd, did)] = (rid, text, "DNQ")
-        elif pq is None or qualified:
+        elif not on_sheet or qualified:
             continue
-        elif text not in ("DNPQ", "EX", "DSQ"):
-            found[(yr, rnd, did)] = (rid, text, "DNPQ")
-        elif cur.execute("""SELECT 1 FROM practice p WHERE p.race_id = ?
+        elif pq is not None and cur.execute("""SELECT 1 FROM practice p WHERE p.race_id = ?
                 AND p.session = 'pre_qualifying' AND p.position > ?
                 AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = p.race_id
                             AND q.driver_id = p.driver_id)""", (rid, pq)).fetchone():
             found[(yr, rnd, did)] = (rid, text, None)
+        elif text not in ("DNPQ", "EX", "DSQ"):
+            found[(yr, rnd, did)] = (rid, text, "DNPQ")
     declared = HV.SESSION_SHEET_DISAGREEMENTS
     undeclared = sorted(set(found) - set(declared))
     if undeclared:
