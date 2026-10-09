@@ -3485,13 +3485,16 @@ def practice_and_sprint_qualifying():
     # a driver to the place. In pre-qualifying, nobody who failed it sits
     # above a driver who went through - "went through" being a qualifying
     # row that weekend, which is what going through means, rather than the
-    # race result, which F1DB gets wrong at least once: Caffi at Monza 1991
-    # is DNQ there with no qualifying row (review of #714; #716, with
-    # Brancatelli 1979, DNPQ with one). One sheet is published
-    # out of this order, declared as published: Mexico 1990, where Moreno
-    # is 3rd with no qualifying row and DSQ in the race results, above
-    # Suzuki, who went through. And the warm-up was run by the race's
-    # entrants: nobody on a warm-up sheet failed to qualify.
+    # race result, which F1DB gets wrong at least once: Caffi at the
+    # Hungaroring in 1991 is DNQ there with no qualifying row (review of
+    # #714), and Brancatelli at Monaco in 1979 DNPQ with one. Both are filed
+    # in `discrepancies`, kind 'session-sheet' (PM-62, #716). One sheet is
+    # published out of this order, declared as published: Mexico 1990, where
+    # Moreno is 3rd with no qualifying row, above Suzuki, who went through -
+    # disqualified in qualifying for a push start, which the race result
+    # gives as DSQ and his 'session-sheet' row explains. And the warm-up was
+    # run by the race's entrants: nobody on a warm-up sheet failed to
+    # qualify.
     PREQUAL_ORDER_EXCEPTIONS = {(1990, 6, "moreno")}
     above = [k for k in con.execute("""
         WITH pq AS (SELECT p.race_id, p.position, p.driver_id,
@@ -3506,6 +3509,28 @@ def practice_and_sprint_qualifying():
              if tuple(k) not in PREQUAL_ORDER_EXCEPTIONS]
     check("in pre-qualifying, nobody who failed it sits above a driver who went through",
           not above, ", ".join(f"{y} r{r} {d}" for y, r, d in above[:4]))
+    # The declarations behind those words are rows a reader can find: each
+    # one F1DB's race result and its sheets disagree on has its row (the key
+    # is unique, so one), with the race result as stored, and the exception
+    # above is one of them.
+    sheet_rows = {(y, r, d): sv for y, r, d, sv in con.execute("""
+        SELECT r.year, r.round, e.driver_id, x.stored_value
+          FROM discrepancies x
+          JOIN race_entries e ON CAST(e.race_id AS TEXT) || '|' || e.driver_id = x.row_key
+          JOIN races r ON r.id = e.race_id
+         WHERE x.kind = 'session-sheet' AND x.tbl = 'race_entries'
+           AND x.field = 'position_text'""")}
+    sheet_bad = sorted(f"{y} r{r} {d}" for (y, r, d) in
+                       set(harvest_module().SESSION_SHEET_DISAGREEMENTS) ^ set(sheet_rows))
+    sheet_bad += [f"{y} r{r} {d}: row holds {sv!r}" for (y, r, d), sv in sheet_rows.items()
+                  if con.execute("""SELECT e.position_text IS NOT ? FROM race_entries e
+                        JOIN races r ON r.id = e.race_id
+                        WHERE r.year = ? AND r.round = ? AND e.driver_id = ?""",
+                                 (sv, y, r, d)).fetchone()[0]]
+    sheet_bad += [f"{y} r{r} {d}: no session-sheet row"
+                  for y, r, d in PREQUAL_ORDER_EXCEPTIONS if (y, r, d) not in sheet_rows]
+    check("every race result F1DB's sheets contradict is filed, as stored",
+          not sheet_bad, "; ".join(sheet_bad[:4]))
     not_entrants = con.execute("""SELECT COUNT(*) FROM practice p
         LEFT JOIN race_entries e ON e.race_id = p.race_id AND e.driver_id = p.driver_id
         WHERE p.session = 'warm_up'

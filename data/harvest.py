@@ -1094,6 +1094,66 @@ FASTEST_LAP_DISAGREEMENTS = {
         "Source: https://en.wikipedia.org/wiki/1953_French_Grand_Prix"),
 }
 
+# Where F1DB's race result and its own session sheets contradict each other
+# about how a driver's weekend ended (PM-62, #716). Found by the review of
+# #714, which loaded the pre-qualifying sheets beside the race results. The
+# build reads every entry against the sheets and stops on a contradiction not
+# declared here, or a declaration the rows no longer bear out. A
+# contradiction is one of three things:
+#   - a DNPQ in the race result, beside a qualifying row that weekend, which
+#     says he went through pre-qualifying (the sheets read DNQ);
+#   - a place on the pre-qualifying sheet and no qualifying row, beside a race
+#     result that is neither DNPQ nor an exclusion (the sheets read DNPQ);
+#   - a place on the pre-qualifying sheet, no qualifying row, and a driver
+#     below him who went through - the order verify.py holds, which a
+#     declaration here explains (the sheets read no result).
+# Each is one source against itself, and the stored values stay F1DB's as
+# published: the race result and the sheets are both held, and the row says
+# which a second source sides with. Worth reporting upstream.
+#   (year, round, driver_id): (status, status_note, assessment)
+_F1DB_RACES = "https://github.com/f1db/f1db/tree/main/src/data/seasons/"
+SESSION_SHEET_DISAGREEMENTS = {
+    (1979, 7, "gianfranco-brancatelli"): (
+        "open", "a second source favours the race result",
+        "F1DB's race result has Brancatelli DNPQ, and its pre-qualifying "
+        "sheet agrees: third of three, behind Hans-Joachim Stuck and Jochen "
+        "Mass, the two who went through. Its qualifying sheet holds him as "
+        "well, 25th with no time, which would mean he went through. The race "
+        "article sides with the race result: it lists him as not "
+        "pre-qualifying, on 1:38.15, and leaves him out of its qualifying "
+        "table. Both F1DB rows are kept as published. "
+        "Source: " + _F1DB_RACES + "1979/races/07-monaco (race-results.yml "
+        "and pre-qualifying-results.yml against qualifying-results.yml); "
+        "https://en.wikipedia.org/wiki/1979_Monaco_Grand_Prix"),
+    (1990, 6, "moreno"): (
+        "explained", "went through pre-qualifying, excluded in qualifying",
+        "F1DB's pre-qualifying sheet has Moreno third, inside the four who "
+        "went through, and its qualifying sheet has no row for him: by the "
+        "sheets alone he went through and then has no result, placed above "
+        "Aguri Suzuki, who qualified, which is why verify.py declares his "
+        "place as published. The race result explains it: DSQ, for a push "
+        "start. "
+        "The race article says he was disqualified for receiving a push start "
+        "in qualifying, and its qualifying table lists him as excluded after "
+        "a first-session 1:21.142. F1DB holds no qualifying row for him, and "
+        "no reading is wrong. "
+        "Source: " + _F1DB_RACES + "1990/races/06-mexico (race-results.yml, "
+        "pre-qualifying-results.yml and qualifying-results.yml); "
+        "https://en.wikipedia.org/wiki/1990_Mexican_Grand_Prix"),
+    (1991, 10, "alex-caffi"): (
+        "open", "a second source favours the session sheets",
+        "F1DB's race result has Caffi DNQ, but its own sheets say he failed "
+        "pre-qualifying: sixth on the pre-qualifying sheet, behind the four "
+        "who went through, and no qualifying row. The race article agrees "
+        "with the sheets - sixth in Friday's pre-qualifying, one of the four "
+        "who did not pre-qualify - citing Murray Walker's Grand Prix Year "
+        "(1991). Both readings are a non-start, so his starts do not move. "
+        "The race result is kept as F1DB publishes it. "
+        "Source: " + _F1DB_RACES + "1991/races/10-hungary (race-results.yml "
+        "against pre-qualifying-results.yml and qualifying-results.yml); "
+        "https://en.wikipedia.org/wiki/1991_Hungarian_Grand_Prix"),
+}
+
 # Reference fastest-lap totals for the three drivers a restored share above
 # also names and whose rows in data/drivers.py carry no fastest-lap figure.
 # With these, every name the shares credit sits under the same external

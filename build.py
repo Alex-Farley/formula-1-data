@@ -2768,6 +2768,60 @@ def _file_car_chassis_disagreements(cur):
                           _points_text(theirs), declared[(car_id, field)], "open")
 
 
+def _file_session_sheet_disagreements(cur):
+    """File every entry whose race result F1DB's own session sheets
+    contradict (PM-62, #716).
+
+    The three readings data/harvest.py SESSION_SHEET_DISAGREEMENTS describes,
+    found from the rows: a DNPQ beside a qualifying row; a place on the
+    pre-qualifying sheet and no qualifying row beside a result that is
+    neither DNPQ nor an exclusion; and such a place above a driver who went
+    through. The sheets' reading is the derived value - DNQ, DNPQ, or none
+    for the third, where the sheets give no result. Each must be declared
+    with its assessment: an undeclared one stops the build, and so does a
+    declaration the rows no longer bear out."""
+    found = {}
+    for yr, rnd, rid, did, text, qualified, pq in cur.execute("""
+            SELECT r.year, r.round, e.race_id, e.driver_id, e.position_text,
+                   EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = e.race_id
+                           AND q.driver_id = e.driver_id),
+                   (SELECT p.position FROM practice p WHERE p.race_id = e.race_id
+                     AND p.driver_id = e.driver_id AND p.session = 'pre_qualifying')
+              FROM race_entries e JOIN races r ON r.id = e.race_id
+             ORDER BY r.year, r.round, e.driver_id""").fetchall():
+        if text == "DNPQ" and qualified:
+            found[(yr, rnd, did)] = (rid, text, "DNQ")
+        elif pq is None or qualified:
+            continue
+        elif text not in ("DNPQ", "EX", "DSQ"):
+            found[(yr, rnd, did)] = (rid, text, "DNPQ")
+        elif cur.execute("""SELECT 1 FROM practice p WHERE p.race_id = ?
+                AND p.session = 'pre_qualifying' AND p.position > ?
+                AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = p.race_id
+                            AND q.driver_id = p.driver_id)""", (rid, pq)).fetchone():
+            found[(yr, rnd, did)] = (rid, text, None)
+    declared = HV.SESSION_SHEET_DISAGREEMENTS
+    undeclared = sorted(set(found) - set(declared))
+    if undeclared:
+        raise SystemExit(
+            "F1DB's race result and its session sheets disagree, undeclared: "
+            + "; ".join(f"{y} round {r} {d} ({found[(y, r, d)][1]})"
+                        for y, r, d in undeclared)
+            + ". Declare each in data/harvest.py SESSION_SHEET_DISAGREEMENTS, "
+              "with what a second source says.")
+    stale = sorted(set(declared) - set(found))
+    if stale:
+        raise SystemExit(
+            "SESSION_SHEET_DISAGREEMENTS declares what the rows no longer "
+            "contradict: " + ", ".join(f"{y} round {r} {d}" for y, r, d in stale)
+            + ". Remove the declaration, or say what changed.")
+    for (yr, rnd, did), (rid, text, sheets) in sorted(found.items()):
+        status, note, why = declared[(yr, rnd, did)]
+        _file_discrepancy(cur, "session-sheet", "race_entries", f"{rid}|{did}",
+                          "position_text", f"{yr} round {rnd}", text, sheets,
+                          why, status, note)
+
+
 def _table_words(year, table, after):
     """Which championship table a standings disagreement is about, in words:
     "2026 drivers' championship points after round 12"."""
@@ -4130,6 +4184,7 @@ def _stage_35_link_race_entries_to_the_curated(b):
              f"chassis itself.", "resolved", "claim not corroborated")
 
     _file_car_chassis_disagreements(cur)
+    _file_session_sheet_disagreements(cur)
 
     # The two register spans the race records read differently, with the
     # reason beside the fact (CD-25). Not open: nothing is waiting to be
