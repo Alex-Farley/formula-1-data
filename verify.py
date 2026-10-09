@@ -1521,6 +1521,50 @@ def external_figures_vs_the_race_records():
             _bad.append(f"{did} {field}: correction filed as {row and tuple(row)}")
     check("every corrected stored figure holds its correction, with the typed one on "
           "the record", not _bad, "; ".join(_bad[:4]))
+    # A race result a second source classifies otherwise (DA-44, #753): each
+    # declaration is one 'race-classification' row, filed on its race, whose
+    # stored value is the entry's result as the race records hold it now and
+    # whose other reading differs from it. And a career row that says its
+    # disagreement "is open on the race, YYYY round N" names a race with an
+    # open row, so the pointer a reader follows from the driver page leads
+    # somewhere.
+    _bad = []
+    _rc = {}
+    for key, subject, rk, sv, dv, held, y, r, d in con.execute("""
+            SELECT x.key, x.subject, x.row_key, x.stored_value, x.derived_value,
+                   e.position_text, rr.year, rr.round, e.driver_id
+              FROM discrepancies x
+              LEFT JOIN race_entries e
+                ON CAST(e.race_id AS TEXT) || '|' || e.driver_id = x.row_key
+              LEFT JOIN races rr ON rr.id = e.race_id
+             WHERE x.kind = 'race-classification'"""):
+        if d is None:
+            _bad.append(f"{key}: names no race entry")
+            continue
+        _rc[(y, r, d)] = (sv, dv)
+        if subject != f"{y} round {r}":
+            _bad.append(f"{key}: filed on {subject!r}, not its race")
+        if sv != held:
+            _bad.append(f"{key}: holds {sv!r}, the entry {held!r}")
+        if dv is None or dv == sv:
+            _bad.append(f"{key}: no second reading")
+    _declared = {k: v[:2] for k, v in
+                 harvest_module().RACE_CLASSIFICATION_DISAGREEMENTS.items()}
+    _bad += [f"{y} r{r} {d}: declared {_declared[(y, r, d)]}, filed "
+             + ("nothing" if (y, r, d) not in _rc else str(_rc[(y, r, d)]))
+             for (y, r, d) in sorted(_declared) if _rc.get((y, r, d)) != _declared[(y, r, d)]]
+    _bad += [f"{y} r{r} {d}: filed, not declared" for (y, r, d)
+             in sorted(set(_rc) - set(_declared))]
+    for key, why in con.execute("SELECT key, assessment FROM discrepancies "
+                                "WHERE tbl = 'drivers'"):
+        for m in re.finditer(r"open on the race, (\d{4}) round (\d+)", why or ""):
+            if not con.execute("SELECT 1 FROM discrepancies WHERE status = 'open' "
+                               "AND subject = ?", (f"{m.group(1)} round {m.group(2)}",)
+                               ).fetchone():
+                _bad.append(f"{key}: no open row on {m.group(1)} round {m.group(2)}")
+    check("every race result a second source classifies otherwise is filed on its race, "
+          "as stored, and every career row pointing at a race finds it", not _bad,
+          "; ".join(_bad[:4]))
 
     n = con.execute("SELECT COUNT(*) FROM drivers WHERE wins_external IS NOT NULL").fetchone()[0]
     d = con.execute("SELECT COUNT(*) FROM discrepancies").fetchone()[0]
