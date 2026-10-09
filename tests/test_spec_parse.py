@@ -97,5 +97,24 @@ class ListTemplates(unittest.TestCase):
         self.reads("{{ubl|{{ill|Hans Mezger|de}}|Other}}", "Hans Mezger; Other")
 
 
+class Footnotes(unittest.TestCase):
+    """A footnote is not the value, and a link inside a template is not one
+    of its parameters (CR-76)."""
+
+    def reads(self, raw, text):
+        self.assertEqual(WS.strip(raw), text, raw)
+
+    def test_a_footnote_holding_a_template_is_dropped(self):
+        # The Aston Martin AMR22's fuel, as the article writes it.
+        self.reads("[[Petronas]] [[E10 fuel|E10]]{{refn|name=2022 oils|"
+                   "group=note|Despite with [[Saudi Aramco|Aramco]] branding, "
+                   "the car uses [[Petronas]] fuel before supplied by Aramco "
+                   "from {{F1|2023}}}}", "Petronas E10")
+        self.reads("Shell{{efn|Supplied from {{F1|1996}}}}", "Shell")
+
+    def test_a_piped_link_in_the_last_parameter_is_not_split(self):
+        self.reads("{{abbr|X|[[Saudi Aramco|Aramco]] fuel}}", "Aramco fuel")
+
+
 if __name__ == "__main__":
     unittest.main()

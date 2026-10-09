@@ -2043,10 +2043,21 @@ def _read_named(path, rerun):
 # entity. No column of the database holds one - a value that reaches a page
 # or a meta description is printed as written, so a tag in one is a tag on
 # the page (CD-54). build.py refuses one in the spec harvest; verify.py holds
-# every text column of every table to it. Wikitext link brackets left
-# unpaired by a harvest (a stray "]]") are not this pattern's yet: CR-76.
+# every text column of every table to it. A wikitext link's bracket is
+# WIKILINK's, below.
 MARKUP = re.compile(r"<\s*/?\s*[A-Za-z][A-Za-z0-9]*(\s[^<>]*)?/?\s*>|<!--"
                     r"|&[A-Za-z]+;|&#[0-9]+;|&#x[0-9A-Fa-f]+;")
+
+# A wikitext link's bracket, left in a value by a harvest that did not pair
+# it (CR-76): "Petronas E10Aramco]] branding" in a car's fuel, "Harry Pot for
+# Anefo ]]" in a photograph's credit, printed as written on the page. The
+# spec harvest's reader (build.py's _plain()) and the credit rule
+# (clean_credit below) remove one, and verify.py holds every text column to
+# it.
+# MARKUP's sibling rather than part of it, because a JSON value may hold
+# "]]" as its own syntax - the geometry overlay's coordinates do, in a merged
+# local copy - and verify.py exempts a value that parses as JSON.
+WIKILINK = re.compile(r"\[\[|\]\]")
 
 
 def load_car_specs():
@@ -2362,6 +2373,17 @@ def credit_without_licence(text):
     return name or None
 
 
+def credit_without_link_residue(text):
+    """A credit field without the wikitext link brackets Commons' own page
+    left unpaired (WIKILINK, CR-76), or None where nothing else is left.
+    Commons renders "Harry Pot for Anefo ]] / neg. stroken, ..." with the
+    stray "]]" as written; the credit is the rest of it. A field with no such
+    bracket is returned as it is."""
+    if not text or not WIKILINK.search(text):
+        return text
+    return " ".join(WIKILINK.sub(" ", text).split()) or None
+
+
 def credit_names_somebody(text):
     """Does a credit field, shown alone, name a person or a source? A bare
     URL does: a link is an acceptable CC BY credit (CR-70)."""
@@ -2375,13 +2397,14 @@ def credit_names_somebody(text):
 
 def clean_credit(artist, credit):
     """(artist, credit) as every route's harvest stores them, given the two
-    fields as Commons answered them: a licence paragraph cut to the name,
-    boilerplate read as empty, and the unknown-author value read as empty
-    where the credit names somebody. A field no rule touches comes back as
-    it went in, so a stored row is its own image under this function, which
-    is what build.py and verify.py hold it to."""
-    artist = credit_without_licence(artist)
-    credit = credit_without_licence(credit)
+    fields as Commons answered them: an unpaired wikitext link bracket
+    removed, a licence paragraph cut to the name, boilerplate read as empty,
+    and the unknown-author value read as empty where the credit names
+    somebody. A field no rule touches comes back as it went in, so a stored
+    row is its own image under this function, which is what build.py and
+    verify.py hold it to."""
+    artist = credit_without_licence(credit_without_link_residue(artist))
+    credit = credit_without_licence(credit_without_link_residue(credit))
     if artist and CREDIT_BOILERPLATE.match(artist):
         artist = None
     if credit and CREDIT_BOILERPLATE.match(credit):

@@ -923,7 +923,12 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
         characters they name - a non-breaking space as a space. Anything
         tag-shaped left after that stops the build - a new kind is handled here on purpose, never
         printed on a page - and verify.py holds every text column in the
-        database to the same rule.
+        database to the same rule. A wikitext link's bracket the harvest
+        left unpaired (HV.WIKILINK, CR-76) is removed here, as the credit
+        rule removes one: the AMR22's fuel was read with its footnote, and
+        a bracket of the footnote's link was left behind. The footnote is
+        tools/wikispec_fetch.py's to drop, and it now does; the committed
+        harvest predates that and still carries it.
         """
         if v is None:
             return None
@@ -933,6 +938,7 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
         if HV.MARKUP.search(s):
             raise SystemExit(f"harvest/car_specs.txt: markup in {v!r}; "
                              f"build.py's _plain() does not know it")
+        s = " ".join(HV.WIKILINK.sub(" ", s).split())
         return s or None
 
     specs = {}
