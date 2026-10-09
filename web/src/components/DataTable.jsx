@@ -444,16 +444,31 @@ function Table({
   // Seven of nine columns of the driver register were off-screen at 375 px
   // with nothing to say so. The fade at the right edge appears only while
   // there is more table to the right, and goes as the reader reaches it.
+  //
+  // VD-89. The same measurement says whether the table fits its box at all,
+  // and a table that fits drops its scroller (`data-fits`, app.css), so the
+  // page is the nearest scroll container and its column heads can stick
+  // under the masthead. The table is watched as well as its box: once the
+  // scroller is gone, a table that widens - a fold opened, a column ticked -
+  // overflows without the box changing size. `data-fits` is written on the
+  // element here rather than through state: an observer runs between layout
+  // and paint, so the scroller is back before the wider table is drawn,
+  // where a render would leave it clipped with no scroller for a frame or two.
   const scroller = useRef(null)
   const [clipped, setClipped] = useState(false)
   useEffect(() => {
     const el = scroller.current
     if (!el) return undefined
-    const check = () => setClipped(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+    const check = () => {
+      const over = el.scrollWidth - el.clientWidth
+      setClipped(over - el.scrollLeft > 1)
+      el.parentElement?.toggleAttribute('data-fits', over <= 1)
+    }
     check()
     el.addEventListener('scroll', check, { passive: true })
     const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(check)
     watch?.observe(el)
+    if (el.firstElementChild) watch?.observe(el.firstElementChild)
     return () => {
       el.removeEventListener('scroll', check)
       watch?.disconnect()

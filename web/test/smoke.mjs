@@ -4438,6 +4438,81 @@ try {
     is(shared.join('; '), '', 'no two tables on a page share an address key')
   })
 
+  // VD-89. A table that fits its box gives up its scroller, so the page is
+  // the nearest scroll container and its heads stick under the masthead.
+  // IX-18's sticky heads never stuck: the scroller between them and the page
+  // held them, and it never moves vertically. A table wider than its box
+  // keeps the scroller, and with it its heads at its top.
+  await section('Sticky column heads', async () => {
+    await go('/drivers/hamilton?every-entry.all=1', 'Lewis Hamilton')
+    const wrap = page
+      .locator('#root main section')
+      .filter({ has: page.locator('h2', { hasText: 'Every entry' }) })
+      .locator('.table-wrap')
+    await page
+      .waitForFunction(() => document.querySelector('#root main .table-wrap[data-key="every-entry"][data-fits]') !== null, null, {
+        timeout: 10000,
+      })
+      .catch(() => null)
+    is(await wrap.getAttribute('data-fits'), '', 'a table that fits its box is marked so')
+    const rows = await wrap.locator('tbody tr').count()
+    const held = await wrap.evaluate(async (w) => {
+      scrollTo(0, scrollY + w.getBoundingClientRect().top + w.offsetHeight / 2)
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+      const masthead = document.querySelector('.masthead').getBoundingClientRect().bottom
+      const th = w.querySelector('thead th')
+      const box = th.getBoundingClientRect()
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+      return { masthead, top: box.top, seen: th.contains(hit) }
+    })
+    truthy(
+      Math.abs(held.top - held.masthead) < 1 && held.seen,
+      `half way down its ${rows} rows, its heads sit under the masthead, uncovered (${held.top.toFixed(1)} against ${held.masthead.toFixed(1)})`,
+    )
+
+    // A figure's numbers scroll in a box of their own, and stick to its top.
+    await go('/records', 'Records')
+    const boxed = await page.$eval('#root main figure.figure details', async (details) => {
+      details.open = true
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+      const box = details.querySelector('.table-scroll')
+      box.scrollIntoView({ block: 'center' })
+      box.scrollTop = box.scrollHeight / 2
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+      const edge = box.getBoundingClientRect().top + box.clientTop
+      return { scrolls: box.scrollHeight > box.clientHeight, gap: details.querySelector('thead th').getBoundingClientRect().top - edge }
+    })
+    truthy(
+      boxed.scrolls && Math.abs(boxed.gap) < 1,
+      `a chart's numbers, scrolled half way, keep their heads at the top of their box (${boxed.gap.toFixed(1)} px off)`,
+    )
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    const every = 'full_name,nationality,first_season,entries,wins,podiums,poles,fastest_laps,titles'
+    await go(`/drivers?cols=${every}`, 'Drivers')
+    await page.waitForSelector('#root main .table-wrap[data-clipped]', { timeout: 10000 }).catch(() => null)
+    const wide = await page.$eval('#root main .table-wrap[data-clipped]', (w) => ({
+      fits: w.hasAttribute('data-fits'),
+      position: getComputedStyle(w.querySelector('thead th')).position,
+      page: document.documentElement.scrollWidth <= innerWidth,
+    }))
+    truthy(
+      !wide.fits && wide.position !== 'sticky' && wide.page,
+      `a table wider than its box keeps its scroller and its heads at its top, and the page does not scroll sideways (${JSON.stringify(wide)})`,
+    )
+    // WCAG 2.4.11 on a phone, where the masthead wraps to two rows: a focused
+    // link is brought to rest below it, not behind it.
+    const clear = await page.evaluate(() => ({
+      padding: parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
+      masthead: document.querySelector('.masthead').getBoundingClientRect().height,
+    }))
+    truthy(
+      clear.padding > clear.masthead,
+      `at 375 px the scroll padding clears the masthead (${clear.padding.toFixed(1)} against ${clear.masthead.toFixed(1)})`,
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
   // -------------------------------------------------------------- circuits
 
   await section('/circuits', async () => {
