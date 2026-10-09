@@ -400,7 +400,16 @@ SOURCE_REGISTRY = [
      "were last read has F1DB's winner alone, cited to F1DB, and nothing to "
      "compare it with."),
     (8, "Wikipedia season results tables", "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Championship_points_scoring_systems",
-     "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications, and a race winner harvested from them is compared on load with F1DB's. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.", "reference",
+     "Admitted as a REFERENCE source for race-by-race results (see the "
+     "'reference' confidence tier). Its season tables are transcribed from FIA "
+     "classifications, and a race winner harvested from them is compared on "
+     "load with F1DB's. Its per-race articles are cited for two things beyond "
+     "that, both admitted on the record: the team radio quotations, which are "
+     "narrative and a declared deviation, and the race entry notes saying why "
+     "a finisher inside the paid places scored nothing, which are "
+     "classification facts as the race's article states them. Otherwise not "
+     "admissible for narrative, attribution or contested claims, and never "
+     "promoted to 'verified' without an FIA/F1 check.", "reference",
      "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see "
      "ATTRIBUTION.md.", "Continuous, by anyone.",
      "Race count per season, contiguous rounds, and every driver and "
