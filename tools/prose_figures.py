@@ -37,11 +37,16 @@ it would be a second place to be wrong. And a figure house style spells out -
 schema.sql also spell - stays spelled, because this writes digits and a split
 vocabulary across three surfaces costs more than the figure is worth.
 
-What this covers today is `source_registry`, which is what /data/sources
-renders. `known_gaps` prose carries the same class of typed figure on
-/data/quality; PROSE is built to take a second accessor, and that sweep is
-filed rather than folded in, because each of its figures needs a reading of
-what the sentence around it claims.
+Two more stay typed in known_gaps, which each needed a reading of the
+sentence around it (CD-45). A past state in the past tense - "1,260 of 2,424
+entries carried no constructor" before F1DB, "the review of #91 reproduced
+all 115 it then held" - was true of a moment, and the count today would make
+it false. And a figure that counts a FILE rather than a table, like the rows
+in harvest/fastest_laps.txt, has nothing here to be derived from; that one
+was taken out of the sentence rather than left to drift.
+
+What this covers is `source_registry`, which /data/sources renders, and
+`known_gaps`, which /data/quality renders.
 
 Nothing here writes to a database except through apply(), which build.py
 calls once.
@@ -86,6 +91,23 @@ FIGURES = {
     "article_route_images": "SELECT COUNT(*) FROM article_images WHERE route = 'article'",
     "article_route_named": """SELECT COUNT(*) FROM article_images
         WHERE route = 'article' AND name_matches = 1""",
+    # The car-article photographs a person has still to look at, which is
+    # the view known_gaps #11 sends the reader to - counted off the view so
+    # the sentence and the list it names cannot part.
+    "images_to_check": "SELECT COUNT(*) FROM v_images_to_check",
+    # The complement of known_gaps #3's measure in data/harvest.py GAP_RACES:
+    # a completed race no winner of which lacks a chassis. The gap's
+    # races_affected and this sum to races_completed, so the page's two
+    # figures for the one gap cannot disagree.
+    "races_winning_chassis": """SELECT COUNT(*) FROM races r
+        WHERE r.status = 'completed' AND NOT EXISTS (
+            SELECT 1 FROM race_entries e WHERE e.race_id = r.id
+            AND e.finish_position = 1 AND e.chassis_id IS NULL)""",
+    # The race articles known_gaps #6 says a pre-FastF1 timing harvest would
+    # have to read: every round before 2018, when the FastF1 loader begins.
+    "races_before_2018": """SELECT COUNT(*) FROM races
+        WHERE year < 2018 AND status = 'completed'""",
+    "sessions": "SELECT COUNT(*) FROM sessions",
 }
 
 
@@ -123,13 +145,47 @@ def _source_registry_literals():
     return out
 
 
+# schema.sql constrains known_gaps.state to these. It sits at index 4 of
+# every KNOWN_GAPS tuple, and does the job AUTHORITY does above.
+GAP_STATE = ("open", "closed", "position")
+
+
+def _known_gaps_literals():
+    """id -> {column: the prose as data/harvest.py writes it}.
+
+    KNOWN_GAPS is a tuple per gap - id, key, field, area, state, reader,
+    description, resolution - and build.py unpacks it positionally. A NULL
+    column is left out rather than expanded, because expand() would turn it
+    into an empty string and apply() would write that over the NULL.
+    """
+    sys.path.insert(0, ROOT)
+    from data import harvest as HV  # noqa: E402 - ROOT has to be on the path first
+    out = {}
+    for g in HV.KNOWN_GAPS:
+        # The same guard as SOURCE_REGISTRY's, for the same reason: a shifted
+        # tuple would move build.py and verify.py together.
+        state = g[4] if len(g) > 4 else None
+        if len(g) != 8 or state not in GAP_STATE:
+            raise SystemExit(
+                f"KNOWN_GAPS entry {g[0]} is not the shape this reads: "
+                f"{len(g)} fields with {state!r} at index 4, where 8 fields and "
+                f"one of {', '.join(GAP_STATE)} are expected. The prose "
+                f"indices below are positional; correct them before the build "
+                f"writes one column's text into another.")
+        cols = {"area": g[3], "reader": g[5], "description": g[6], "resolution": g[7]}
+        out[g[0]] = {c: v for c, v in cols.items() if v is not None}
+    return out
+
+
 # The prose a build expands. Each entry names the table, the column that
 # identifies a row, and where the unexpanded literal lives, so build.py and
-# verify.py work from one source of truth rather than two. A second table
-# joins by adding an accessor beside the one above.
+# verify.py work from one source of truth rather than two. A third table
+# joins by adding an accessor beside the two above.
 PROSE = (
     {"table": "source_registry", "key": "priority",
      "literals": _source_registry_literals},
+    {"table": "known_gaps", "key": "id",
+     "literals": _known_gaps_literals},
 )
 
 

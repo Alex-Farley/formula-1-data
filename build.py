@@ -4283,8 +4283,9 @@ def _stage_35_link_race_entries_to_the_curated(b):
     # `source_registry` is read straight onto /data/sources, and its figures
     # were typed: 1,161 races and 27,555 entries against 1,163 and 27,504
     # held, with qualifying, standings and pit stops stale beside them,
-    # because nothing recomputed them (CD-38, AF-63). Each is now a
-    # {{fig:name}} token in data/current.py that this expands off the counts,
+    # because nothing recomputed them (CD-38, AF-63); `known_gaps` on
+    # /data/quality had the same (CD-45). Each is now a {{fig:name}} token in
+    # data/current.py or data/harvest.py that this expands off the counts,
     # here and not at insert time because the tables it counts are loaded by
     # the stages above. verify.py re-expands the literals and compares whole,
     # and refuses a token that survived into any text column.

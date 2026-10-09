@@ -57,10 +57,11 @@ database's own rows is a `{{fig:name}}` token in `data/current.py`;
 `build.py` expands it off the counts in its final stage and `verify.py`
 re-expands the literal and compares whole `[D-39]`. Adding a figure means
 adding its one expression to `FIGURES` in `tools/prose_figures.py`, and
-`PROSE` there is where a second table joins — `known_gaps` prose has not yet.
-A figure about another source's holdings, one `verify.py` already pins as an
-invariant, and one house style spells out each stay typed, and the module
-says which is which.
+`PROSE` there is where a table joins — `source_registry` and `known_gaps`
+have (`data/harvest.py` holds the second). A figure about another source's
+holdings, one `verify.py` already pins as an invariant, one house style
+spells out, and a past state in the past tense each stay typed, and the
+module says which is which.
 
 **Inspect the artefact diff before committing.** A rebuild that moved more
 than the change explains is the first sign something else moved with it.

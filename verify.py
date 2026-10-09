@@ -6351,7 +6351,8 @@ def prose_figures():
     # typed by hand: 1,161 races and 27,555 entries where 1,163 and 27,504
     # are held, with qualifying, standings, pit stops and the Commons
     # totals stale beside them, because nothing read them (CD-38, AF-63).
-    # Each is now a {{fig:name}} token in data/*.py; build.py expands it off
+    # `known_gaps` on /data/quality had the same (CD-45). Each is now a
+    # {{fig:name}} token in data/*.py; build.py expands it off
     # the counts in its final stage. Here the literals are re-expanded from
     # the same tables and the stored prose is compared WHOLE, the way
     # meta.coverage_note is, so a row whose other figures were wrong could
