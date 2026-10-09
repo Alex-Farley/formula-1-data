@@ -219,13 +219,13 @@ def strip(value):
     return s or None
 
 
-# Templates that render every item as a line of a list. Reading one as its
-# last parameter, as every other template is read, kept only the last of the
-# twelve designers of the RB18 to RB21 - Honda's engineer (PM-68).
 # Templates that hold a footnote rather than the value: dropped, as strip()
 # drops a <ref>.
 FOOTNOTE_TEMPLATES = {"efn", "sfn", "refn", "citation needed", "cn"}
 
+# Templates that render every item as a line of a list. Reading one as its
+# last parameter, as every other template is read, kept only the last of the
+# twelve designers of the RB18 to RB21 - Honda's engineer (PM-68).
 LIST_TEMPLATES = {"ubl", "ublist", "unbulleted list", "plainlist", "plain list",
                   "flatlist", "flat list", "hlist", "bulleted list",
                   "collapsible list"}
