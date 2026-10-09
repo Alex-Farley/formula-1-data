@@ -25,11 +25,11 @@ make all          # rebuild, verify, export — no dependencies
 ./f1 chassis lotus
 ```
 
-Built <!-- fig:built -->2026-10-05<!-- /fig -->; `meta.verification_date` is
-<!-- fig:verified_on -->2026-10-05<!-- /fig -->. The last race with a
+Built <!-- fig:built -->2026-10-09<!-- /fig -->; `meta.verification_date` is
+<!-- fig:verified_on -->2026-10-09<!-- /fig -->. The last race with a
 classification is the <!-- fig:last_race -->2026 Bahrain Grand Prix<!-- /fig -->.
 The chassis, engine, entrant and results registers are F1DB
-<!-- fig:f1db_version -->v2026.16.0<!-- /fig -->.
+<!-- fig:f1db_version -->v2026.16.1<!-- /fig -->.
 
 Every figure in this file that describes the current database is generated
 from it — `tools/readme_figures.py` computes each one from `f1.db` (and
@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,243<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,316<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -155,7 +155,7 @@ nobody has established goes in `known_gaps`.
 **Championship history** — all <!-- fig:seasons -->78<!-- /fig --> seasons
 <!-- fig:season_span -->1950–2027<!-- /fig -->: champion, points, wins,
 runner-up, margin, constructors' champion, engine formula, tyre suppliers and a
-paragraph of context on each, plus **<!-- fig:standings -->34,631<!-- /fig -->
+paragraph of context on each, plus **<!-- fig:standings -->34,632<!-- /fig -->
 championship standings rows** — the table after every round of every season
 and the end-of-season classification for each.
 
@@ -182,7 +182,7 @@ session F1DB holds, 1977 on —
 <!-- fig:practice -->49,730<!-- /fig --> rows over
 <!-- fig:practice_weekends -->788<!-- /fig --> weekends, each driver's best lap
 and laps run, which is a classification and not lap timing; and
-<!-- fig:pit_stops -->22,526<!-- /fig --> pit stops — lap and order, no
+<!-- fig:pit_stops -->22,598<!-- /fig --> pit stops — lap and order, no
 durations, because no source publishes those under a licence that permits
 passing them on.
 
@@ -985,7 +985,7 @@ constraint is the licences available here, not the law. So the split is:
 | `laps` | per-lap timing, sectors, tyres, track status | **empty, and `verify.py` fails if it is not** |
 | `stints` | tyre stints | empty, same |
 | `race_control_messages` | flags, safety cars, penalties, deleted laps | empty, same |
-| `pit_stops` | lap and order of every stop | <!-- fig:pit_stops -->22,526<!-- /fig --> rows from F1DB (CC BY 4.0); no durations, and only that source is permitted |
+| `pit_stops` | lap and order of every stop | <!-- fig:pit_stops -->22,598<!-- /fig --> rows from F1DB (CC BY 4.0); no durations, and only that source is permitted |
 | `team_radio` | clip index and optional transcripts | <!-- fig:notable_radio -->6<!-- /fig --> curated exchanges, quoted from a written source |
 
 `docs/TIMING-ARCHITECTURE.md` is the decision in full. The empty tables are
@@ -1032,7 +1032,7 @@ every entry of every one of the <!-- fig:races_classified -->1,165<!-- /fig -->
 run races**, <!-- fig:season_span -->1950–2027<!-- /fig -->, in the committed
 database. Position, grid, laps, retirement cause and points. Alongside it sit
 **<!-- fig:qualifying -->27,061<!-- /fig --> qualifying rows** and
-**<!-- fig:standings -->34,631<!-- /fig --> championship standings rows**: the
+**<!-- fig:standings -->34,632<!-- /fig --> championship standings rows**: the
 table after every round of every season, and the end-of-season classification
 for each, which `v_standings_final` returns one row per entity.
 
