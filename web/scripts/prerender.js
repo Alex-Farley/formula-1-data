@@ -190,7 +190,9 @@ import {
   DRIVERS_FINAL_FOOTER,
   CURRENT_GRID,
   ENTRANTS,
+  ENTRANT_CHASSIS,
   ENTRANT_COLUMNS,
+  ENTRANT_ENGINES,
   ENTRANTS_FOOTER,
   FINAL,
   GRID,
@@ -209,6 +211,7 @@ import {
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
   constructorsFooter,
+  entrantNames,
   latestRound,
   nextLine,
   noConstructorsNote,
@@ -2219,7 +2222,7 @@ const page = ({
     const final = all(FINAL, year)
     const driversFinal = final.filter((r) => r.table_type === 'drivers')
     const constructorsFinal = final.filter((r) => r.table_type === 'constructors')
-    const entrants = all(ENTRANTS, year)
+    const entrants = entrantNames(all(ENTRANTS, year), all(ENTRANT_CHASSIS, year), all(ENTRANT_ENGINES, year))
     const grid = one(GRID, year)
     const currentGrid = all(CURRENT_GRID, year)
     // The next round, on the page of the season being run only (PD-49): the
@@ -2382,7 +2385,9 @@ const page = ({
           entrants.length
             ? `${fromColumns(ENTRANT_COLUMNS, entrants, {
                 constructor: (name, row) =>
-                  row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name ?? row.entrant_id),
+                  row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name ?? row.entrant_name),
+                chassis_names: (names, row) =>
+                  row.chassis.length ? row.chassis.map((c) => link(`cars/${c.id}`, c.name)).join(', ') : text(names),
               }, { fold: FOLD_NOUN.entrants })}${note(ENTRANTS_FOOTER)}`
             : EMPTY_STATE
         }

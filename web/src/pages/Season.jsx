@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, until } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
@@ -28,7 +28,9 @@ import {
   DRIVERS_FINAL_FOOTER,
   DRIVER_TEAMS,
   ENTRANTS,
+  ENTRANT_CHASSIS,
   ENTRANT_COLUMNS,
+  ENTRANT_ENGINES,
   ENTRANTS_FOOTER,
   CURRENT_GRID,
   FINAL,
@@ -49,6 +51,7 @@ import {
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
   constructorsFooter,
+  entrantNames,
   latestRound,
   nextLine,
   noConstructorsNote,
@@ -195,8 +198,20 @@ const ENTRANTS_APP = {
       row.constructor_id ? (
         <Link to={`/constructors/${row.constructor_id}`}>{name ?? row.constructor_id}</Link>
       ) : (
-        cell(name ?? row.entrant_id)
+        cell(name ?? row.entrant_name)
       ),
+  },
+  // Every chassis has a page at /cars/<id>; the engines and tyres have none.
+  chassis_names: {
+    render: (names, row) =>
+      row.chassis.length
+        ? row.chassis.map((c, i) => (
+            <Fragment key={c.id}>
+              {i ? ', ' : ''}
+              <Link to={`/cars/${c.id}`}>{c.name}</Link>
+            </Fragment>
+          ))
+        : cell(names),
   },
 }
 
@@ -293,6 +308,8 @@ export default function Season() {
     standings: [STANDINGS, [Number(year)]],
     final: [FINAL, [Number(year)]],
     entrants: [ENTRANTS, [Number(year)]],
+    entrantChassis: [ENTRANT_CHASSIS, [Number(year)]],
+    entrantEngines: [ENTRANT_ENGINES, [Number(year)]],
     neighbours: [NEIGHBOURS, [Number(year)]],
     grid: [GRID, [Number(year)]],
     currentGrid: [CURRENT_GRID, [Number(year)]],
@@ -326,7 +343,10 @@ function SeasonBody({ year, season, data }) {
   const calendar = rows(data, 'calendar')
   const standings = rows(data, 'standings')
   const final = rows(data, 'final')
-  const entrants = rows(data, 'entrants')
+  const entrants = useMemo(
+    () => entrantNames(rows(data, 'entrants'), rows(data, 'entrantChassis'), rows(data, 'entrantEngines')),
+    [data],
+  )
   const currentGrid = rows(data, 'currentGrid')
   const neighbours = data.neighbours.rows[0] ?? {}
   const grid = data.grid.rows[0] ?? null

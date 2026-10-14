@@ -64,6 +64,7 @@ here is a number the build checked.
 | `harvest/engines.txt` | Every engine, with capacity, configuration and aspiration. **Generated.** |
 | `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre. **Generated.** |
 | `harvest/f1db_constructors.txt` | Constructor names, for the specification cross-check. **Generated.** |
+| `harvest/f1db_entrants.txt`, `f1db_tyre_manufacturers.txt` | Entrant and tyre manufacturer names, for `season_entrants.entrant_name` and `tyre_names`. **Generated.** |
 | `harvest/race_results.txt`, `qualifying.txt`, `practice.txt`, `sprint_qualifying.txt`, `standings.txt`, `sprint_results.txt`, `f1db_pit_stops.txt` | The full classification, qualifying, practice, sprint qualifying, standings after every round, sprint classifications and pit stops. **Generated** by `tools/f1db_fetch.py`. |
 | `harvest/circuit_outlines.txt`, `race_layouts.txt` | The SVG outline of every F1DB circuit layout (drawn by Jules Roy, CC BY 4.0) and the layout each race ran. **Generated** by `tools/f1db_fetch.py`. |
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles. **Generated** by `tools/wikispec_fetch.py`. |

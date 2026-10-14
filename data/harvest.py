@@ -1554,7 +1554,9 @@ STORED_TOTALS_DECLARED = [
 
 # =====================================================================
 # The chassis, engine and entrant register (harvest/chassis.txt,
-# harvest/engines.txt, harvest/f1db_constructors.txt, harvest/entrants.txt)
+# harvest/engines.txt, harvest/f1db_constructors.txt, harvest/entrants.txt,
+# and the entrant and tyre names in harvest/f1db_entrants.txt and
+# harvest/f1db_tyre_manufacturers.txt)
 #
 # Source: F1DB (https://github.com/f1db/f1db), CC BY 4.0, re-released after
 # every race. Fetched by tools/f1db_fetch.py, which writes these files and is
@@ -1604,6 +1606,8 @@ F1DB_COUNTRIES_FILE = os.path.join(HERE, "..", "harvest", "f1db_countries.txt")
 ENTRANT_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "entrant_drivers.txt")
 ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
 F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
+F1DB_ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "f1db_entrants.txt")
+F1DB_TYRES_FILE = os.path.join(HERE, "..", "harvest", "f1db_tyre_manufacturers.txt")
 ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
 SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
@@ -1948,6 +1952,16 @@ def load_engines():
 def load_f1db_constructors():
     """constructor_id, name, full_name, country_id"""
     return _read_pipe(F1DB_CONS_FILE, 4)
+
+
+def load_f1db_entrant_names():
+    """{entrant_id: name}, off F1DB's entrant register (UR-14)."""
+    return {eid: name for eid, name in _read_pipe(F1DB_ENTRANTS_FILE, 2)}
+
+
+def load_f1db_tyre_names():
+    """{tyre_manufacturer_id: name}, off F1DB's register of them (UR-14)."""
+    return {tid: name for tid, name in _read_pipe(F1DB_TYRES_FILE, 2)}
 
 
 def load_entrants():

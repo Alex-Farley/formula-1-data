@@ -9,6 +9,7 @@ Fetch the chassis, engine and per-season entrant register from F1DB.
 Source:  https://github.com/f1db/f1db   (CC BY 4.0)
 Writes:  harvest/chassis.txt, harvest/engines.txt, harvest/entrants.txt,
          harvest/entrant_drivers.txt, harvest/f1db_constructors.txt,
+         harvest/f1db_entrants.txt, harvest/f1db_tyre_manufacturers.txt,
          harvest/f1db_drivers.txt, and the results, qualifying, practice,
          sprint qualifying, standings, pit stop, race date, fastest lap,
          circuit outline, race layout and grand prix files main() lists
@@ -326,6 +327,32 @@ def constructor_rows(data, yaml):
         d = yaml.safe_load(open(p, encoding="utf-8"))
         rows.append("|".join(_clean(d.get(k)) for k in
                              ("id", "name", "fullName", "countryId")))
+    return sorted(rows)
+
+
+def entrant_name_rows(data, yaml):
+    """The entrant register's names, so the season page can say "Team Lotus"
+    where it would otherwise print `team-lotus` (UR-14). One name per entrant:
+    F1DB keeps no per-season name, so a title sponsor that changed from year
+    to year is the register's one name, not that year's."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "entrants", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in ("id", "name")))
+    return sorted(rows)
+
+
+def tyre_manufacturer_rows(data, yaml):
+    """The tyre manufacturers' names, for the same reason (UR-14):
+    `tyre_suppliers` is a history of supply, three rows of it Pirelli, and
+    has no row for Avon or Continental, so it is not a register to name an
+    id from."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "tyre-manufacturers", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in ("id", "name")))
     return sorted(rows)
 
 
@@ -877,6 +904,11 @@ def main():
     ok &= write("f1db_constructors.txt",
                 "constructor_id|name|full_name|country_id",
                 constructor_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_entrants.txt", "entrant_id|name",
+                entrant_name_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_tyre_manufacturers.txt",
+                "tyre_manufacturer_id|name",
+                tyre_manufacturer_rows(data, yaml), version, commit, args.check)
     ok &= write("f1db_countries.txt",
                 "country_id|name|alpha3|demonym",
                 country_rows(data, yaml), version, commit, args.check)

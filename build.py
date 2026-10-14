@@ -1517,20 +1517,43 @@ def _stage_14_a_regulation_figure_is_not_a(b):
                     "resolved", "withdrawn")
 
     known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
+    # The names a reader sees in place of the ids (UR-14), off F1DB's own
+    # registers. An id with no name is refused rather than shown as a slug,
+    # and a tyre name holding a '+' is refused because tyre_names is a
+    # '+'-separated list read in step with tyre_ids.
+    entrant_names = HV.load_f1db_entrant_names()
+    tyre_names = HV.load_f1db_tyre_names()
+    for tid, tname in tyre_names.items():
+        if "+" in tname:
+            raise SystemExit(f"f1db_tyre_manufacturers.txt: {tid}'s name "
+                             f"{tname!r} holds the '+' that separates "
+                             f"season_entrants.tyre_names")
     for i, (year, entrant, f1db_cons, eng_man, ch_ids, eng_ids, tyres) in \
             enumerate(entrants, 1):
         if year not in known_years:
             raise SystemExit(f"entrants.txt: season {year} is not in the "
                              f"season register")
+        if entrant not in entrant_names:
+            raise SystemExit(f"entrants.txt: entrant {entrant!r} ({year}) has "
+                             f"no name in harvest/f1db_entrants.txt. Rerun "
+                             f"tools/f1db_fetch.py.")
+        unnamed = [t for t in tyres if t not in tyre_names]
+        if unnamed:
+            raise SystemExit(f"entrants.txt: tyre {', '.join(unnamed)} ({year}) "
+                             f"has no name in harvest/f1db_tyre_manufacturers.txt. "
+                             f"Rerun tools/f1db_fetch.py.")
         our_cons = HV.constructor_for_f1db(f1db_cons, year)
         cur.execute("""INSERT INTO season_entrants (id, year, entrant_id,
             f1db_constructor_id, constructor_id, engine_manufacturer_id,
-            chassis_ids, chassis_count, engine_ids, tyre_ids, confidence,
-            source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            chassis_ids, chassis_count, engine_ids, tyre_ids, entrant_name,
+            tyre_names, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (i, year, entrant, f1db_cons,
              our_cons if our_cons in known_cons else None, eng_man,
              "+".join(ch_ids) or None, len(ch_ids),
              "+".join(eng_ids) or None, "+".join(tyres) or None,
+             entrant_names[entrant],
+             "+".join(tyre_names[t] for t in tyres) or None,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
 
     for gid, name, country, aliases, notes in EV.GRANDS_PRIX:
