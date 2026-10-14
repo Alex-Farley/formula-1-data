@@ -1,0 +1,4 @@
+# Written by tools/refresh_hold.py on every refresh that rebuilds (AF-90). Do not edit by hand.
+# The rows F1DB had just published for one race in one file that failed a check here, left out
+# of that file so the rest of the refresh could be published. No line: nothing is held back.
+# file|year|round|rows|failed   (rows: how many were left out; failed: the checks they failed)

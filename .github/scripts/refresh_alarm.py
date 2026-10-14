@@ -30,8 +30,9 @@ AN ITEM OF THE QUEUE (AF-89)
     must not fail - and `next.py` and `precheck.sh` take it by `#n`.
 
     Never closed by a pull request. The body says so to whoever picks it up:
-    the first run that lands closes it, which is the only proof the fix
-    worked, and a PR names it `Refs #n`. `precheck.sh` refuses a `Closes`.
+    the first run that lands, holding nothing back, closes it, which is the
+    only proof the fix worked, and a PR names it `Refs #n`. `precheck.sh`
+    refuses a `Closes`.
 
 ONE ISSUE EACH, NEVER ONE PER RUN
     The refresh runs every three hours, and a failing run does not stamp the
@@ -44,9 +45,11 @@ ONE ISSUE EACH, NEVER ONE PER RUN
     nothing else survives from one run to the next.
 
     failure    opened by a run in which any job failed or timed out, or
-               which finds the refresh's own pull request refused by CI;
+               which held back a race's rows that failed a check (AF-90),
+               or which finds the refresh's own pull request refused by CI;
                closed by the first run after it whose `land` job passes
-               while that pull request has no refused CI run. A run the
+               with nothing held back, while that pull request has no
+               refused CI run. A run the
                gate stopped, or one a person cancelled, says nothing about
                the pipeline either way and leaves the issue as it is.
     freshness  refresh_health.py's verdict on what is committed, on every
@@ -82,7 +85,8 @@ THE PULL REQUEST CI REFUSES (SD-36)
 
 Needs GH_TOKEN (the workflow's own token, with issues: write, actions: read
 and pull-requests: read - never the refresh App's), GH_REPO, RUN_ID, RUN_URL
-and OWNER; for `failure`, the three jobs' results as GATE, REFRESH and LAND.
+and OWNER; for `failure`, the three jobs' results as GATE, REFRESH and LAND,
+and HELD, the line tools/refresh_hold.py wrote if the run held rows back.
 """
 import json
 import os
@@ -120,16 +124,19 @@ QUEUE_LABELS = ("source: maintainer", "size: ?")
 
 # ------------------------------------------------------------- the decisions
 
-def failure_action(results, is_open, refused=False):
-    """'open', 'update', 'close' or None, from the three jobs' results and
-    whether CI is refusing the refresh's pull request.
+def failure_action(results, is_open, refused=False, held=False):
+    """'open', 'update', 'close' or None, from the three jobs' results,
+    whether CI is refusing the refresh's pull request, and whether the run
+    held back a race's rows (AF-90).
 
     `cancelled` counts as failing. The report job does not run in a run a
     person cancelled (`!cancelled()`), so a job cancelled in a run it does
     run in is one that hit its timeout-minutes - a hung fetch is a failure.
     A `land` that passed does not close the issue while CI refuses what it
-    landed: it reached a pull request that will never merge."""
-    if refused or {"failure", "cancelled"} & set(results.values()):
+    landed: it reached a pull request that will never merge. Nor does one
+    that held rows back: the rest landed, and the rows that failed have not,
+    which is a failure still to fix (AF-90)."""
+    if refused or held or {"failure", "cancelled"} & set(results.values()):
         return "update" if is_open else "open"
     if results.get("land") == "success" and is_open:
         return "close"
@@ -231,17 +238,32 @@ NOT_YET = (
     "is, start one with `gh workflow run refresh.yml`. Either way, skip the item.")
 
 
-def failure_body(failing, run_url, when, count, first, refusal=None):
+def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
     """`failing` is this run's failed steps, or None when this run passed
     and only the pull request is failing; `refusal` is (where, steps): the
-    pull request and the CI run refusing it, and that run's failed steps."""
-    parts = [
-        "The scheduled refresh of the harvest from F1DB is failing. Until it lands, "
-        "nothing new reaches the database and lapledger.org keeps the last snapshot "
-        "that did."]
+    pull request and the CI run refusing it, and that run's failed steps;
+    `held` the line refresh_hold.py wrote when the run held rows back."""
+    if failing is None and not refusal and held:
+        parts = [
+            "The scheduled refresh of the harvest from F1DB is holding rows back. "
+            "The rows F1DB published for one race in one file failed a check, so "
+            "they were left out and everything else was published (AF-90). They "
+            "reach the database only when a run finds they pass."]
+    else:
+        parts = [
+            "The scheduled refresh of the harvest from F1DB is failing. Until it lands, "
+            "nothing new reaches the database and lapledger.org keeps the last snapshot "
+            "that did."]
     if failing is not None:
         parts.append("**What failed in the latest run:**\n"
                      + (bullets(failing) or "- (the run's jobs could not be read)"))
+    if held:
+        parts.append("**Held back by the latest run:** " + held.replace("`", "'") + "\n"
+                     "`harvest/held.txt` and an open `known_gaps` row record the hold. "
+                     "Every run that rebuilds tries the rows again: if they are wrong, "
+                     "a run after F1DB corrects them publishes them; if the check is "
+                     "wrong, correct it, and the first run after that merges publishes "
+                     "them. Never empty `harvest/held.txt` by hand.")
     if refusal:
         where, steps = refusal
         parts.append("**CI is refusing the refresh's pull request, which will not merge "
@@ -253,9 +275,10 @@ def failure_body(failing, run_url, when, count, first, refusal=None):
         "This issue is kept by refresh.yml's `report` job: it is updated on every "
         "failing run, commented on when what is failing changes, and closed by the "
         "first run after it that hands its change to the pull request that merges "
-        "itself once CI passes, while CI is not refusing that pull request. The run's "
+        "itself once CI passes, holding nothing back, while CI is not refusing that "
+        "pull request. The run's "
         "log says why; `docs/UPSTREAM.md` says how to check the sync by hand.",
-        PICKING_UP.format(proof="lands") + NOT_YET]
+        PICKING_UP.format(proof="lands with nothing held back") + NOT_YET]
     return "\n\n".join(parts)
 
 
@@ -396,7 +419,8 @@ def now_utc():
 
 def failure():
     results = {k.lower(): os.environ.get(k, "") for k in ("GATE", "REFRESH", "LAND")}
-    print(f"job results: {results}")
+    held = os.environ.get("HELD", "").strip() or None
+    print(f"job results: {results}; held back: {held or 'nothing'}")
     issue = find(FAILING)
     # Unreadable, the rest still runs - this run's own failure is recorded -
     # but nothing is closed on a question that went unanswered, and the step
@@ -407,14 +431,15 @@ def failure():
     except Unreadable as e:
         refused, unreadable = None, str(e)
     print(f"refresh pull request: {unreadable or ('refused by CI' if refused else 'not refused')}")
-    action = failure_action(results, issue is not None, refused is not None)
+    action = failure_action(results, issue is not None, refused is not None, held is not None)
     if unreadable and action == "close":
         action = None
     run_url = os.environ["RUN_URL"]
     if action == "close":
         gh("issue", "close", str(issue["number"]), "--comment",
            f"{run_url} passed, as far as handing its change to the pull request that "
-           "merges itself once CI passes, and CI is not refusing that pull request. Closing.")
+           "merges itself once CI passes, held nothing back, and CI is not refusing that "
+           "pull request. Closing.")
     elif action:
         run_failed = bool({"failure", "cancelled"} & set(results.values()))
         failing = failing_steps(os.environ["RUN_ID"]) if run_failed else None
@@ -426,16 +451,17 @@ def failure():
         # run after run is one failure, and comments only when it changes.
         signature = " | ".join(
             ([" / ".join(failing) or "unknown"] if failing is not None else [])
+            + ([f"held: {held}"] if held else [])
             + ([refused[2]] if refused else []))
         body = with_mark(failure_body(failing, run_url, when, count, first,
-                                      refused[:2] if refused else None),
+                                      refused[:2] if refused else None, held),
                          dict(signature=signature, count=count, first=first))
         if action == "open":
             open_issue(FAILING, body)
         else:
             gh("issue", "edit", str(issue["number"]), "--body", body)
             if signature != state.get("signature"):
-                changed = (failing or []) + (
+                changed = (failing or []) + ([f"Held back: {held}"] if held else []) + (
                     [f"CI on the refresh's pull request: {s}" for s in refused[1]] if refused else [])
                 gh("issue", "comment", str(issue["number"]), "--body",
                    f"What is failing has changed, as of {run_url}:\n\n"

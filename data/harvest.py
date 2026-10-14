@@ -487,6 +487,8 @@ POLE_ONLY_PROVENANCE = ("Added to the register from the pole position and fastes
 # gap). `reader` is the paragraph a reader of the site is shown; the
 # description and resolution are the maintainer's note and are kept whole.
 # A row is never deleted: a closed gap is recorded as closed.
+# The one exception is a hold (HELD_FILE, AF-90): build.py adds its row
+# after these and it goes with the hold.
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
     (1, "fastest-lap-before-the-harvest", "fastest_lap", "the fastest lap of a race the pole harvest has not "
@@ -2685,6 +2687,95 @@ def load_fastest_laps():
     discrepancy rather than choosing where the two disagree.
     """
     return _read_named(FASTEST_LAPS_FILE, "tools/f1db_fetch.py")
+
+
+# ---------------------------------------------------------------------
+# What a refresh held back (AF-90, [D-56]). Before AF-90 one failing check
+# held back the whole refresh: from 2026-10-11 to 2026-10-14 Singapore's
+# result, sprint and standings passed every check and still went unpublished
+# behind one row of its sprint qualifying sheet (#965). tools/refresh_hold.py
+# now runs the build and the checks for refresh.yml, and when they fail it
+# tries leaving out, one at a time, the rows F1DB has just added for one race
+# to one of the files below. If exactly one such set, left out, lets the rest
+# pass every check, those rows are left out of the harvest file and recorded
+# here; anything else fails the run whole, as before. The rows that failed
+# never publish - the checks are not loosened - and the rest of the race
+# does not wait on them.
+#
+# harvest/held.txt is rewritten by every refresh that rebuilds, and holds at
+# most one line: one race's rows in one file, which is what the maintainer's
+# ruling on #969 allows. build.py turns each line into an open known_gaps row
+# after the ones written above, and verify.py rebuilds that row from the line
+# and compares it whole. It is never edited by hand: every refresh that
+# rebuilds tries the rows again, and a hold ends on the first that finds
+# they pass - after F1DB corrects them, or after the check is corrected.
+# ---------------------------------------------------------------------
+HELD_FILE = os.path.join(HERE, "..", "harvest", "held.txt")
+
+# The F1DB files a race's new rows can be held back from: each one's
+# known_gaps `field`, and what its rows are of, as a reader is told. The
+# per-race files tools/f1db_fetch.py writes, and no other - the calendar
+# files (race dates, layouts, grands prix) describe the race before it is
+# run, and a hold is for what the race weekend produced.
+HOLDABLE = {
+    "race_results.txt": ("race_entries", "race classification"),
+    "sprint_results.txt": ("sprint_results", "sprint classification"),
+    "qualifying.txt": ("qualifying", "qualifying classification"),
+    "sprint_qualifying.txt": ("sprint_qualifying", "sprint qualifying classification"),
+    "practice.txt": ("practice", "practice classifications"),
+    "standings.txt": ("standings", "championship standings after the race"),
+    "f1db_pit_stops.txt": ("pit_stops", "pit stops"),
+    "fastest_laps.txt": ("race_entries.fastest_lap", "fastest lap"),
+}
+
+
+def load_held():
+    """harvest/held.txt as (file, year, round, rows, failed) tuples, or []
+    when the file is absent. A line this cannot read whole is refused, not
+    skipped: a hold the build did not record would be rows missing without
+    a word."""
+    if not os.path.exists(HELD_FILE):
+        return []
+    out = []
+    for file_, year, round_, rows, failed in _read_pipe(HELD_FILE, 5):
+        if file_ not in HOLDABLE:
+            raise SystemExit(f"held.txt names {file_!r}, which is not a file a race's rows "
+                             f"can be held back from: {', '.join(HOLDABLE)}")
+        if not all(v and v.isdigit() for v in (year, round_, rows)) or int(rows) < 1 \
+                or not failed:
+            raise SystemExit(f"held.txt: {file_}|{year}|{round_}|{rows}|{failed} is not "
+                             "file|year|round|rows|failed with a row count of one or more "
+                             "and the checks the rows failed")
+        out.append((file_, int(year), int(round_), int(rows), failed))
+    if len(out) > 1:
+        raise SystemExit(f"held.txt holds {len(out)} lines. A refresh holds back one race's "
+                         "rows in one file or nothing (AF-90); more is a run that should "
+                         "have failed whole.")
+    return out
+
+
+def held_gap(gap_id, held, race_name):
+    """The known_gaps tuple - KNOWN_GAPS's shape - for one line of
+    held.txt. One function, so build.py writes it and verify.py rebuilds it
+    and compares the two whole."""
+    file_, year, round_, rows, failed = held
+    field, what = HOLDABLE[file_]
+    count = f"{rows} row" + ("" if rows == 1 else "s")
+    key = f"held-{year}-{round_}-" + file_[:-len(".txt")].replace("_", "-")
+    return (
+        gap_id, key, field, f"the {what} of the {year} {race_name}", "open",
+        f"The {what} of the {year} {race_name} is held back. F1DB has published it, "
+        "but it failed a check this database makes, so it is left out rather than "
+        "published unchecked. Everything else about the race is published as "
+        "normal, and this is added once it passes.",
+        f"Held by refresh.yml (tools/refresh_hold.py, AF-90): leaving out the {count} "
+        f"F1DB had just added to harvest/{file_} for {year} round {round_}, and only "
+        f"those, let the rest of the refresh pass every check. What they failed: {failed}",
+        "Goes when a refresh finds these rows pass - F1DB corrects them, or the check "
+        "is corrected - and publishes them. A hold is the one kind of known_gaps row "
+        "that is removed rather than closed: it records rows that are on their way, "
+        "not a fact nobody holds, and refresh.yml keeps its failure alarm open "
+        "until the rows land.")
 
 
 def load_circuit_outlines():

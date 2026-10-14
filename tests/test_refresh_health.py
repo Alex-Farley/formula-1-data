@@ -229,6 +229,19 @@ class TheIssues(unittest.TestCase):
     def test_a_land_that_passed_does_not_close_it_while_ci_refuses(self):
         self.assertEqual(alarm.failure_action(self.results(), True, refused=True), "update")
 
+    def test_a_run_that_held_rows_back_opens_it_and_does_not_close_it(self):
+        # AF-90: the rest of the refresh landed, the rows that failed did not.
+        self.assertEqual(alarm.failure_action(self.results(), False, held=True), "open")
+        self.assertEqual(alarm.failure_action(self.results(), True, held=True), "update")
+        self.assertEqual(alarm.failure_action(self.results(), True, held=False), "close")
+
+    def test_a_hold_alone_says_what_is_held_and_not_that_nothing_landed(self):
+        body = alarm.failure_body(None, "u", "w", 1, "2026-10-14",
+                                  held="harvest/qualifying.txt, 2030 round 1: 2 row(s)")
+        self.assertIn("**Held back by the latest run:** harvest/qualifying.txt", body)
+        self.assertIn("everything else was published", body)
+        self.assertNotIn("nothing new reaches the database", body)
+
     def test_freshness_follows_the_check(self):
         late = [("2026/16", "- late")]
         self.assertEqual(alarm.freshness_action(late, False), "open")

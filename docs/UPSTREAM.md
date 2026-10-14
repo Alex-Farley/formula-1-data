@@ -79,12 +79,32 @@ with the refreshed harvest and artefacts, which merges itself once CI's
 required checks pass `[D-45]`. A refresh that fails commits nothing and the
 site keeps the last good snapshot.
 
+**One race's failing rows are held back, not the whole refresh (AF-90,
+`[D-56]`).** `tools/refresh_hold.py` runs the build and `verify.py` for the
+workflow. When they fail, it tries leaving out, one at a time, the rows the
+fetch has just added for one race to one of the per-race files
+(`HOLDABLE` in `data/harvest.py`: results, sprint results, qualifying,
+sprint qualifying, practice, standings, pit stops, fastest laps). If
+exactly one such set, left out, lets everything else pass every check,
+those rows stay out of the harvest, `harvest/held.txt` names them and the
+checks they failed, the build makes that line an open `known_gaps` row, and
+the rest of the refresh lands. If none does, or more than one, the run
+fails whole as before. The checks are not loosened: what lands passed
+`verify.py`, and the one allowance it makes - a held race need not have
+rows of the file it is held from - is tied to a line of `held.txt` and its
+`known_gaps` row. Every refresh that rebuilds starts by emptying
+`held.txt`, so the held rows are tried again on each run and land on the
+first in which they pass - after F1DB corrects them, or after the pull
+request that corrects the check merges. `held.txt` is never edited by hand:
+emptying it without the rows would drop the record and leave them missing.
+
 **A failing refresh says so (SD-35).** Every run ends with a `report` job
 that keeps two issues, each found by its label so a run that fails eight
 times a day is one issue rather than eight. `refresh-failing` opens on the
-first run in which a job fails or times out, names the step, is rewritten on
-each repeat and commented on only when what is failing changes, and closes
-on the first run after it that gets through `land`. `results-late` opens
+first run in which a job fails or times out, or which holds a race's rows
+back, names the step or the rows, is rewritten on each repeat and commented
+on only when what is failing changes, and closes on the first run after it
+that gets through `land` with nothing held back. `results-late` opens
 while a race is more than three days past its date in `races` with no
 result, and closes when none is. That second one is measured against the
 race dates rather than against the refresh, so it holds when the refresh

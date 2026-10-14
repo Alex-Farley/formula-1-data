@@ -126,6 +126,7 @@ jobs:
     timeout-minutes: 45
     outputs:
       artifact: ${{ steps.upload.outputs.artifact-id }}
+      held: ${{ steps.hold.outputs.held }}
     steps:
       # This job runs npm, so it holds no token that writes (AF-78, and the
       # header above): only the workflow's read-only GITHUB_TOKEN, and not
@@ -158,10 +159,13 @@ jobs:
       - name: Fetch F1DB's career totals for the same release
         run: python3 tools/f1db_totals_fetch.py
 
+      # A hold (AF-90, below) is retried by every run that rebuilds, so one
+      # still recorded counts as a change even if F1DB has since withdrawn
+      # the rows it held: otherwise nothing would ever empty held.txt.
       - name: Has anything changed?
         id: diff
         run: |
-          if git diff --quiet -- harvest/; then
+          if git diff --quiet -- harvest/ && ! grep -qv '^#' harvest/held.txt; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "The harvest already matches F1DB. Nothing to do."
           else
@@ -199,7 +203,9 @@ jobs:
       # rebuilds from the new harvest and verify.py runs every check against
       # the result; a failure here stops the commit, so the repository keeps
       # the last harvest that was known good rather than taking on a broken
-      # one unattended.
+      # one unattended. The one exception is a failure that one race's new
+      # rows in one file account for exactly: those rows are held back and
+      # the rest goes on (AF-90, the step below).
       # BUILT is a constant in build.py rather than a clock, so that the same
       # sources always rebuild to the same bytes — CI checks the committed
       # artefacts against a fresh build, and a rebuild that changed nothing
@@ -215,26 +221,33 @@ jobs:
           grep -q "^BUILT = \"${today}\"$" build.py \
             || { echo "::error::BUILT was not updated; has it moved or been renamed?"; exit 1; }
 
-      - name: Rebuild and verify
+      # build.py, then the README's figures (spans written from the
+      # database and checked by verify.py, so a refresh that moved the build
+      # date or a count without rewriting them would fail its own gate),
+      # then verify.py - run by refresh_hold.py, which on a failure tries
+      # leaving out each race's newly fetched rows, one race and one file at
+      # a time. When exactly one such set accounts for every failure, those
+      # rows stay out, harvest/held.txt and a known_gaps row say so, and the
+      # rest of the refresh goes on; anything else fails the run whole, as a
+      # failed check always did (AF-90, [D-56]). Its outputs: `changed`,
+      # which every step below keys on, false when the harvest is back to
+      # the commit's once a hold is applied; and `held`, which the report
+      # job reads to keep the failure alarm open until the rows land.
+      - name: Rebuild and verify, holding back one race's failing new rows
+        id: hold
         if: steps.diff.outputs.changed == 'true'
-        run: |
-          python3 build.py
-          # The README's figures are spans written from the database and
-          # checked by verify.py; a refresh that moved the build date or a
-          # count without rewriting them would fail its own gate here.
-          python3 tools/readme_figures.py --write
-          python3 verify.py
+        run: python3 tools/refresh_hold.py
 
       - name: Unit-test the loaders
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.hold.outputs.changed == 'true'
         run: python3 -m unittest discover -s tests
 
       - name: Regenerate the JSON exports
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.hold.outputs.changed == 'true'
         run: python3 export_json.py --compat
 
       - name: Smoke-test the query tool
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.hold.outputs.changed == 'true'
         run: |
           ./f1 champions 2020 2025
           ./f1 gaps
@@ -269,14 +282,14 @@ jobs:
       # front end's half: the build that puts the database on the site, and
       # the smoke test that reads its expectations out of that database.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.hold.outputs.changed == 'true'
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
 
       - name: Build and test the site against the refreshed database
-        if: steps.diff.outputs.changed == 'true'
+        if: steps.hold.outputs.changed == 'true'
         working-directory: web
         run: |
           npm ci
@@ -349,9 +362,13 @@ jobs:
           GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
           version=$(sed -n '2s/.*F1DB \(v[^ ]*\) (\([^)]*\)).*/\1 \2/p' harvest/race_results.txt)
+          body="Rebuilt and verified before committing; every check passed."
+          # A hold says so in the commit as well as in harvest/held.txt.
+          if grep -qv '^#' harvest/held.txt; then
+            body="${body} Held back, because they failed a check (AF-90): $(grep -v '^#' harvest/held.txt | cut -d'|' -f1-4 | tr '|' ' ')."
+          fi
           git add -A
-          .github/scripts/land-refresh.sh "harvest: refresh from F1DB ${version}" \
-            "Rebuilt and verified before committing; every check passed."
+          .github/scripts/land-refresh.sh "harvest: refresh from F1DB ${version}" "${body}"
 
       # The no-change path's entire commit: one dated line. Cloudflare Workers
       # Builds runs on every push to main, so its merge is also what re-deploys
@@ -428,11 +445,14 @@ jobs:
             .github/scripts/refresh_health.py
           sparse-checkout-cone-mode: false
 
+      # HELD is the line refresh_hold.py wrote when it held a race's rows
+      # back (AF-90): a run that lands with a hold keeps the alarm open.
       - name: Did this run fail?
         env:
           GATE: ${{ needs.gate.result }}
           REFRESH: ${{ needs.refresh.result }}
           LAND: ${{ needs.land.result }}
+          HELD: ${{ needs.refresh.outputs.held }}
         run: python3 -B .github/scripts/refresh_alarm.py failure
 
       # Even when the step above failed, so a broken issue write for one
