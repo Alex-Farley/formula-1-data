@@ -512,6 +512,10 @@ one only for it to pause.
 - **A pause is a new contract line for the manager**, `PAUSE: until <time>`,
   which `supervise.py` sleeps through without counting it among the limits
   its restart cap counts: no session died and no work was lost.
+- **Only the all-models week is read.** A per-model weekly line, when
+  `/usage` prints one, is not: a per-model limit binding on the loop's model
+  is still met as a `LIMIT`, as before this check. Read it once its wording
+  has been seen.
 - **Nothing here is a control.** A figure can stop the loop starting work; it
   cannot change a check, a review, the permission mode or what is merged.
 

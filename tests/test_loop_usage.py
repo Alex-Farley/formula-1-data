@@ -58,6 +58,14 @@ class ReadsOnlyWhatItCanReadWhole(unittest.TestCase):
     def test_a_line_missing_its_reset_is_not_read(self):
         self.assertEqual(lu.parse("Current session: 25% used\n", NOW), {})
 
+    def test_an_hour_off_the_clock_is_not_read(self):
+        self.assertEqual(lu.parse(report().replace("10:59pm", "13pm"), NOW).keys(), {"week"})
+        self.assertIsNone(lu.reset_at("resets 0am (UTC)", NOW))
+
+    def test_a_zone_that_does_not_resolve_is_not_read(self):
+        self.assertEqual(lu.parse(report().replace("(Europe/London)", "(Mars/Base)", 1), NOW).keys(), {"week"})
+        self.assertEqual(lu.parse("Current session: 5% used · resets 11pm\n", NOW), {})
+
     def test_a_percentage_out_of_range_is_not_read(self):
         self.assertNotIn("session", lu.parse(report(session=250), NOW))
 

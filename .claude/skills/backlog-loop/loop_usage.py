@@ -114,6 +114,18 @@ DEFAULTS = {"ANY_LEFT": 20, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10}
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "WAIT": 5}
 
 
+def known_zone(name):
+    """Whether a zone name resolves. zone() falls back to local time, which
+    suits a limit message; a /usage line in a zone not known is not read."""
+    if not name or ZoneInfo is None:
+        return False
+    try:
+        ZoneInfo(name.strip())
+    except (ZoneInfoNotFoundError, ValueError):
+        return False
+    return True
+
+
 def zone(name):
     if name and ZoneInfo is not None:
         try:
@@ -142,10 +154,11 @@ def reset_at(text, now=None):
         return None
     tz = zone(m.group("tz"))
     now = now.astimezone(tz)
-    hour = int(m.group("h")) % 12 + (12 if m.group("ap").lower() == "pm" else 0)
-    minute = int(m.group("m") or 0)
-    if hour > 23 or minute > 59:
+    # A twelve-hour clock reading: 1 to 12, and a 13pm is not read as 1pm.
+    hour, minute = int(m.group("h")), int(m.group("m") or 0)
+    if not 1 <= hour <= 12 or minute > 59:
         return None
+    hour = hour % 12 + (12 if m.group("ap").lower() == "pm" else 0)
     if m.group("mon"):
         month = MONTHS.get(m.group("mon").lower())
         if not month:
@@ -169,15 +182,19 @@ def reset_at(text, now=None):
 def parse(text, now):
     """{"session": (used, reset), "week": (used, reset)} for each window read
     whole. `used` is points of 100; `reset` an aware datetime. A window whose
-    percentage is out of range or whose reset is unreadable is left out."""
+    percentage is out of range, or whose reset is unreadable or names no zone
+    that resolves, is left out."""
     out = {}
     for name, pattern in WINDOWS.items():
         m = pattern.search(text or "")
         if not m:
             continue
         used = int(m.group(1))
+        r = RESET.search(m.group(2))
+        if used > 100 or not r or not known_zone(r.group("tz")):
+            continue
         when = reset_at(m.group(2), now)
-        if used > 100 or when is None:
+        if when is None:
             continue
         out[name] = (used, when)
     return out

@@ -262,10 +262,10 @@ def main(argv):
             continue
         if kind == "PAUSE":
             # The manager stopped before a fork because the usage check said
-            # wait: no work was lost and no limit was hit, so this is not one
-            # of the limits LOOP_MAX_RESTARTS counts.
+            # wait: no limit was hit, so this is not one of the limits
+            # LOOP_MAX_RESTARTS counts - and no work was done either, so it
+            # leaves the count of those as it found it.
             now = dt.datetime.now(dt.timezone.utc)
-            idle = 0
             when = until_at(line, now)
             note = "pause" if when else "pause, time not readable"
             when = (when or now + FALLBACK_WAIT) + dt.timedelta(minutes=1)
