@@ -50,6 +50,7 @@ saying so, and editing one by hand is the same mistake as editing `f1.db`:
 | `harvest/engines.txt` | Every engine, with capacity/config/aspiration | `tools/f1db_fetch.py` |
 | `harvest/f1db_constructors.txt` | Constructor names, for the spec cross-check | `tools/f1db_fetch.py` |
 | `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre | `tools/f1db_fetch.py` |
+| `harvest/f1db_entrants.txt`, `f1db_tyre_manufacturers.txt` | Entrant and tyre manufacturer names | `tools/f1db_fetch.py` |
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles | `tools/wikispec_fetch.py` |
 | `harvest/car_specs.log` | Every chassis refused, and why | `tools/wikispec_fetch.py` |
 

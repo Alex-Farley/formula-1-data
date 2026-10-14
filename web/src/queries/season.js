@@ -197,16 +197,65 @@ export const NEIGHBOURS = `
 /**
  * Who entered, by constructor. The ORDER BY is the order the app's table
  * opens in — case-insensitive, an entrant with no constructor last — so the
- * static page can print the rows as they come.
+ * static page can print the rows as they come. Within a constructor the
+ * entrants run by the name the table shows, not by the id it used to.
  */
 export const ENTRANTS = `
-  SELECT se.id, se.entrant_id, se.constructor_id, k.name AS constructor,
-         se.chassis_ids, se.chassis_count, se.engine_ids, se.tyre_ids
+  SELECT se.id, se.entrant_id, se.entrant_name, se.constructor_id, k.name AS constructor,
+         se.chassis_ids, se.chassis_count, se.engine_ids, se.tyre_ids, se.tyre_names
     FROM season_entrants se
     LEFT JOIN constructors k ON k.id = se.constructor_id
    WHERE se.year = ?
-   ORDER BY k.name IS NULL, k.name COLLATE NOCASE, se.entrant_id
+   ORDER BY k.name IS NULL, k.name COLLATE NOCASE, se.entrant_name COLLATE NOCASE, se.entrant_id
 `
+
+/**
+ * The register's name for every chassis and engine the season's entrants
+ * list (UR-14). season_entrants keeps those as '+'-separated ids, for the
+ * reason schema.sql gives, and `full_name` in `chassis` and `engines` names
+ * each of them - verify.py holds every id in the lists to a register row.
+ * `entrantNames` below puts the names into the rows in list order.
+ */
+export const ENTRANT_CHASSIS = `
+  SELECT ch.id, ch.full_name AS name
+    FROM chassis ch
+   WHERE EXISTS (SELECT 1 FROM season_entrants se
+                  WHERE se.year = ?1 AND instr('+' || se.chassis_ids || '+', '+' || ch.id || '+') > 0)
+`
+
+export const ENTRANT_ENGINES = `
+  SELECT en.id, en.full_name AS name
+    FROM engines en
+   WHERE EXISTS (SELECT 1 FROM season_entrants se
+                  WHERE se.year = ?1 AND instr('+' || se.engine_ids || '+', '+' || en.id || '+') > 0)
+`
+
+const ids = (list) => (list ? list.split('+') : [])
+
+/**
+ * The entrant rows with names where the table used to print slugs (UR-14),
+ * so both renderers read one shape: `chassis` is each chassis as { id, name }
+ * in the row's own order, which the app and the static page link to
+ * /cars/<id>; `chassis_names`, `engine_names` and `tyres` are the names as
+ * one string, which is what the cell says, what the column sorts on and what
+ * a file taken from the table carries. An id with no register row - which
+ * verify.py refuses - would show as itself rather than vanish.
+ */
+export function entrantNames(rows, chassis, engines) {
+  const chassisName = new Map(chassis.map((c) => [c.id, c.name]))
+  const engineName = new Map(engines.map((e) => [e.id, e.name]))
+  const joined = (names) => (names.length ? names.join(', ') : null)
+  return rows.map((row) => {
+    const cars = ids(row.chassis_ids).map((id) => ({ id, name: chassisName.get(id) ?? id }))
+    return {
+      ...row,
+      chassis: cars,
+      chassis_names: joined(cars.map((c) => c.name)),
+      engine_names: joined(ids(row.engine_ids).map((id) => engineName.get(id) ?? id)),
+      tyres: joined(ids(row.tyre_names)),
+    }
+  })
+}
 
 export const GRID = 'SELECT * FROM v_season_grid WHERE year = ?'
 
@@ -657,12 +706,12 @@ export const noConstructorsNote = (year, notRun) => {
 export const NOT_RUN_STANDINGS = 'Not yet run: no round of this calendar has been raced.'
 
 export const ENTRANT_COLUMNS = [
-  { key: 'constructor', rowHeader: true, label: 'Constructor', text: (name, row) => text(name ?? row.entrant_id) },
-  { key: 'entrant_id', rowHeader: true, label: 'Entered as' },
-  { key: 'chassis_ids', label: 'Chassis', align: 'prose' },
+  { key: 'constructor', rowHeader: true, label: 'Constructor', text: (name, row) => text(name ?? row.entrant_name) },
+  { key: 'entrant_name', rowHeader: true, label: 'Entered as' },
+  { key: 'chassis_names', label: 'Chassis', align: 'prose' },
   { key: 'chassis_count', label: 'Designs', align: 'num' },
-  { key: 'engine_ids', label: 'Engines' },
-  { key: 'tyre_ids', label: 'Tyres' },
+  { key: 'engine_names', label: 'Engines' },
+  { key: 'tyres', label: 'Tyres' },
 ]
 
 export const ENTRANTS_FOOTER =

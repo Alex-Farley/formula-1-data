@@ -2941,6 +2941,35 @@ def the_chassis_register():
     print(f"  [info] {nch} chassis, {neng} engines, {nent} season entrant rows; "
           f"{nspec} chassis carry harvested specifications")
 
+    # UR-14: the season page shows these names where it used to print the
+    # slugs. An empty name, or a name that is only the id again, is a slug
+    # by another route; a tyre list whose names have fallen out of step with
+    # its ids names the wrong tyre. build.py refuses each of these on the way
+    # in, and this holds the database it wrote to the same rule.
+    _bad_names = []
+    for sid, eid, ename, tids, tnames in con.execute(
+            """SELECT id, entrant_id, entrant_name, tyre_ids, tyre_names
+               FROM season_entrants"""):
+        if not (ename or "").strip() or ename == eid:
+            _bad_names.append(f"#{sid} {eid}: entrant_name {ename!r}")
+        if len((tids or "").split("+")) != len((tnames or "").split("+")) \
+                or (tids is None) != (tnames is None) \
+                or any(not n.strip() or n == t for t, n in
+                       zip((tids or "").split("+"), (tnames or "").split("+")) if tids):
+            _bad_names.append(f"#{sid} {eid}: tyres {tids!r} named {tnames!r}")
+    check("every season entrant carries its entrant's name and a name for each tyre, in step",
+          not _bad_names, "; ".join(_bad_names[:5]))
+    # The season page names the chassis and engines off their registers, so
+    # an id in either list with no register row would be shown as the slug.
+    _ch_ids = {r[0] for r in con.execute("SELECT id FROM chassis")}
+    _en_ids = {r[0] for r in con.execute("SELECT id FROM engines")}
+    _unreg = set()
+    for _chs, _ens in con.execute("SELECT chassis_ids, engine_ids FROM season_entrants"):
+        _unreg |= {f"chassis {c}" for c in (_chs or "").split("+") if _chs and c not in _ch_ids}
+        _unreg |= {f"engine {e}" for e in (_ens or "").split("+") if _ens and e not in _en_ids}
+    check("every chassis and engine a season entrant lists is in its register",
+          not _unreg, "; ".join(sorted(_unreg)[:5]))
+
     # Every chassis id in CAR_CHASSIS must exist, belong to the car's constructor,
     # be claimed by only one car, not have raced before the car existed, and
     # not have raced after it except in the declared privateer cases. A typo

@@ -993,6 +993,15 @@ CREATE TABLE season_entrants (
     chassis_count   INTEGER NOT NULL DEFAULT 0,
     engine_ids      TEXT,                      -- '+'-separated
     tyre_ids        TEXT,                      -- '+'-separated
+    -- The names a reader is shown in place of the ids (UR-14), off F1DB's own
+    -- registers rather than title-cased from a slug. `entrant_name` is the
+    -- register's one name for the entrant, not that season's: F1DB keeps no
+    -- per-season name. `tyre_names` is tyre_ids' list in the same order,
+    -- which build.py can promise because it refuses a name holding a '+'.
+    -- The chassis and engines need no such column: `chassis.full_name` and
+    -- `engines.full_name` name every id in those two lists already.
+    entrant_name    TEXT NOT NULL,
+    tyre_names      TEXT,                      -- '+'-separated, as tyre_ids
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT NOT NULL,
     UNIQUE (year, entrant_id, f1db_constructor_id, engine_manufacturer_id)
