@@ -25,7 +25,8 @@ would put the merge where that check cannot see it.
 it should, 1 when the PR is not merged or its state could not be read (and
 nothing was touched), 4 when gh cannot answer at all, and 2 when
 the PR merged but a cleanup step failed - the step is named, and `after` can
-be run again: every step it takes is idempotent.
+be run again: every step it takes is idempotent but the refresh run, and a
+second one of those only queues behind the first (`concurrency: refresh`).
 
 WHY `after` EXISTS (AF-99)
     On 2026-10-14 `gh pr merge` on #979 was refused because main had moved,
@@ -75,7 +76,9 @@ WAIT = 540
 POLL = 30
 ALARMS = {"refresh-failing", "results-late"}
 CLOSING = re.compile(r"^\s*(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b", re.I | re.M)
-REFS = re.compile(r"^\s*refs?\s+#(\d+)\b", re.I | re.M)
+# `Refs #n` is the alarm's form `AF-89`; a colon or a place mid-line is the
+# same reference, and missing one would leave the alarm at *In progress*.
+REFS = re.compile(r"\brefs?:?\s+#(\d+)\b", re.I)
 CLEAR = {"CLEAN", "UNSTABLE", "HAS_HOOKS"}
 MOVED = {"BEHIND", "DIRTY"}
 
@@ -173,6 +176,12 @@ def before(n, now=None, sleep=time.sleep):
     state = merge_state(n)
     if state in CLEAR:
         print(f"PR #{n} is clear to merge ({state})")
+        if state == "UNSTABLE":
+            # Every required check is green under strict protection, so a
+            # failure here is CodeQL or the Workers build - and a Workers
+            # build that fails on the PR may fail on the deploy too.
+            print("UNSTABLE: a check that is not required failed - read `gh pr checks "
+                  f"{n}` before merging; a failed Workers build is a deploy that may fail")
         return 0
     if state in MOVED:
         print(f"PR #{n} is {state}: main moved under the branch. From the worktree: "

@@ -76,6 +76,9 @@ class ReadsThePullRequestBody(unittest.TestCase):
         body = "Text.\n\nCloses #982\ncloses #988\nRefs #846\nFixes #12 and more\nNot Closes #5"
         self.assertEqual(ms.issues_in(body), ([12, 982, 988], [846]))
 
+    def test_a_reference_with_a_colon_or_mid_line(self):
+        self.assertEqual(ms.issues_in("Refs: #846\nThe alarm (refs #847) waits."), ([], [846, 847]))
+
     def test_an_issue_both_closed_and_referred_to_is_closed(self):
         self.assertEqual(ms.issues_in("Closes #3\nRefs #3"), ([3], []))
 
