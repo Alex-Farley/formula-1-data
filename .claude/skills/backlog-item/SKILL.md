@@ -327,7 +327,7 @@ from the worktree root, naming every id in the group; an item with no id,
 which `next.py` names `#<n>`, is given as `#<n>` `CR-75`. It refuses conflict
 markers, scripts that do not parse, duplicated imports, a PR body that does
 not close every item's issue, and a `verify.py` floor lowered or removed
-without a PR-body line naming it and its ruling — `Floor lowered:
+without a PR-body line naming it, its change and its ruling — `Floor lowered:
 article_images.race_id 3916 -> 3910, ruled on #838` `AF-103` — and warns
 about an artefact that moved without a source change. Half the FAIL rounds
 it was written for were one of these, and it costs a few hundred tokens

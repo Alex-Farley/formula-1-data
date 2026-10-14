@@ -21,6 +21,7 @@ WHY THIS FILE EXISTS
     were about a diff that did not exist. A control's tests cannot depend on
     where they are run from.
 """
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -308,10 +309,11 @@ class Precheck(unittest.TestCase):
 # verify.py's floors (AF-103), at the commit the branch left main at.
 VERIFY = """def checks(con):
     FLOORS = (
-        ("standings", 34563), ("engines", 424),
+        ("standings", 34563), ("engines", 424), ("chassis", 1153),
     )
     COLUMN_FLOORS = (
         ("article_images", "race_id", 3916, "harvest/race_images.txt"),
+        ("chassis", "weight_kg", 201, "harvest/car_specs.txt"),
     )
     FLOOR = 60
     {extra}
@@ -376,16 +378,44 @@ class Floors(unittest.TestCase):
         self.assertEqual(code, 1, out)
 
     def test_a_line_naming_the_floor_with_no_reference_is_not_a_ruling(self):
-        body = "Floor lowered: article_images.race_id, the maintainer agreed\\n"
+        body = "Floor lowered: article_images.race_id 3916 -> 3910, the maintainer agreed\\n"
         code, out = self.run_in(self.floor_repo(self.LOWERED), says(body))
+        self.assertIn("article_images.race_id lowered 3916 -> 3910 with no ruling named", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_ruling_for_a_column_floor_does_not_cover_its_table(self):
+        # grep -w counts "." as a word boundary, so the first version took a
+        # ruling for chassis.weight_kg as one for the chassis row floor.
+        head = VERIFY.format(extra="pass").replace("1153", "1100")
+        body = "Floor lowered: chassis.weight_kg 201 -> 200, ruled on #838\\n"
+        code, out = self.run_in(self.floor_repo(head), says(body))
+        self.assertIn("floor chassis lowered 1153 -> 1100 with no ruling named", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_line_that_only_mentions_the_floor_is_not_a_ruling(self):
+        head = VERIFY.format(extra="pass").replace("34563", "34000")
+        body = "The standings floor test is in this PR. Closes #986\\n"
+        code, out = self.run_in(self.floor_repo(head), says(body))
+        self.assertIn("floor standings lowered 34563 -> 34000 with no ruling named", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_floor_in_a_shape_it_cannot_read_fails(self):
+        # Fail closed: a floor floors.py skipped is one a change lowers unseen.
+        head = VERIFY.format(extra="NEW_FLOORS = ((100, \"engines\"),)")
+        code, out = self.run_in(self.floor_repo(head), says("Body.\\n"))
+        self.assertIn("verify.py's floors could not be compared", out)
         self.assertEqual(code, 1, out)
 
     def test_a_removed_floor_is_a_lowered_one(self):
         # A deleted floor guards nothing at all.
         head = VERIFY.format(extra="pass").replace('("engines", 424),', "")
         code, out = self.run_in(self.floor_repo(head), says("Body.\\n"))
-        self.assertIn("floor engines removed (was 424)", out)
+        self.assertIn("floor engines removed (was 424) with no ruling named", out)
         self.assertEqual(code, 1, out)
+        body = "Floor removed: engines 424 -> removed, ruled on #838\\n"
+        code, out = self.run_in(self.floor_repo(head), says(body))
+        self.assertIn("floor engines removed (was 424), and the PR body names its ruling", out)
+        self.assertEqual(code, 0, out)
 
     def test_a_scalar_floor_is_read_by_its_function(self):
         head = VERIFY.format(extra="pass").replace("FLOOR = 60", "FLOOR = 59")
@@ -409,16 +439,19 @@ class Floors(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
     def test_the_body_already_read_for_the_items_serves_the_floors_too(self):
-        body = "Body.\\n\\nCloses #291\\nFloor lowered: article_images.race_id, ruled on #838\\n"
+        body = "Body.\\n\\nCloses #291\\nFloor lowered: article_images.race_id 3916 -> 3910, ruled on #838\\n"
         code, out = self.run_in(self.floor_repo(self.LOWERED), says(body), "AF-12")
         self.assertIn("names its ruling", out)
         self.assertEqual(code, 0, out)
 
     def test_an_unreadable_pr_body_still_fails_a_lowered_floor(self):
-        # Fail closed: a floor nobody can see a ruling for stays refused.
-        code, out = self.run_in(self.floor_repo(self.LOWERED), REFUSING)
-        self.assertIn("no PR body read", out)
-        self.assertEqual(code, 1, out)
+        # Fail closed: a floor nobody can see a ruling for stays refused. With
+        # items named, check 4 read the body first and later gh calls reused
+        # the error file, so the reason has to be the one check 4 kept.
+        for items in ((), ("AF-12",)):
+            code, out = self.run_in(self.floor_repo(self.LOWERED), REFUSING, *items)
+            self.assertIn("no PR body read: GraphQL: API rate limit", out, items)
+            self.assertEqual(code, 1, out)
 
     def test_the_extractor_reads_the_real_verify_py(self):
         # A refactor of verify.py that hid its floors from floors.py would
@@ -430,6 +463,52 @@ class Floors(unittest.TestCase):
         for key in ("standings", "race_entries", "article_images.race_id",
                     "chassis.weight_kg", "records_are_derived:FLOOR"):
             self.assertIn(key, keys)
+
+
+def load_floors():
+    spec = importlib.util.spec_from_file_location("floors", FLOORS)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class FloorShapes(unittest.TestCase):
+    """What floors.py reads, and the shapes it refuses rather than skips."""
+
+    def setUp(self):
+        self.f = load_floors()
+
+    def test_the_shapes_it_reads(self):
+        src = ("A_FLOOR = 5\n"
+               "def f():\n    FLOOR: int = 60\n    RATIO_FLOOR = 0.95\n"
+               "ROW_FLOORS = [('t', 'c', 10, 'x.txt')]\n"
+               "DICT_FLOORS = {'d': 7}\n")
+        self.assertEqual(self.f.floors(src), {
+            "<module>:A_FLOOR": 5, "f:FLOOR": 60, "f:RATIO_FLOOR": 0.95,
+            "t.c": 10, "d": 7})
+
+    def test_the_shapes_it_refuses(self):
+        for src in ("X_FLOOR, Y_FLOOR = 5, 6\n",
+                    "FLOORS = ((100, 'engines'),)\n",
+                    "FLOORS = (('engines',),)\n",
+                    "FLOORS = (('t', 'c', 10, 'a'), ('t', 'c', 20, 'b'))\n",
+                    "FLOOR = 5\nFLOOR += 1\n",
+                    "FLOORS = {}\nFLOORS['x'] = 5\n",
+                    "FLOOR = compute()\n",
+                    "FLOORS = {'t': n}\n"):
+            with self.assertRaises(self.f.Unreadable, msg=src):
+                self.f.floors(src)
+
+    def test_a_ruling_names_the_floor_its_change_and_a_reference(self):
+        ok = "Floor lowered: chassis 1153 -> 1100, ruled on #838"
+        self.assertTrue(self.f.ruled(ok, "chassis", 1153, 1100))
+        self.assertTrue(self.f.ruled(ok.replace("#838", "D-53"), "chassis", 1153, 1100))
+        self.assertFalse(self.f.ruled(ok.replace(", ruled on #838", ""), "chassis", 1153, 1100))
+        self.assertFalse(self.f.ruled(ok.replace("Floor lowered", "Lowered"), "chassis", 1153, 1100))
+        self.assertFalse(self.f.ruled(ok.replace("chassis", "x.chassis"), "chassis", 1153, 1100))
+        self.assertFalse(self.f.ruled(ok.replace("1100", "11000"), "chassis", 1153, 1100))
+        self.assertFalse(self.f.ruled("Floor lowered: chassis 1153 -> 1100\nruled on #838",
+                                      "chassis", 1153, 1100))
 
 
 if __name__ == "__main__":

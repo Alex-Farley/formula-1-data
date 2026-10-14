@@ -25,6 +25,14 @@ git rev-parse --verify -q origin/main >/dev/null 2>&1 || \
 # FAIL; an empty answer from a gh that could not run means nothing at all.
 errf=$(mktemp)
 trap 'rm -f "$errf"' EXIT
+# The PR body, read once by whichever check needs it first (4 or 7), and why
+# it could not be read; set here so `set -u` never meets them unset.
+body=""; prrc=0; bodyread=0; bodyerr=""
+readbody() {
+  [ "$bodyread" = 1 ] && return
+  body=$(gh pr view --json body --jq .body 2>"$errf"); prrc=$?
+  bodyerr=$(head -1 "$errf" | cut -c1-56); bodyread=1
+}
 say() { printf '  %-4s %s\n' "$1" "$2"; }
 # 1. no conflict markers anywhere tracked
 if git grep -nE '^(<<<<<<< |=======$|\|\|\|\|\|\|\| |>>>>>>> )' -- . ':!*.db' >/dev/null 2>&1; then
@@ -81,11 +89,11 @@ if [ -n "$pyfiles" ]; then
 fi
 # 4. the queue: each item is one open issue, and the PR (once it exists) closes each
 if [ $# -gt 0 ]; then
-  body=$(gh pr view --json body --jq .body 2>"$errf"); prrc=$?
+  readbody
   # `gh pr view` exits non-zero when the branch has no PR at all, so that is
   # the "not yet" case; a zero exit with an empty body is a PR someone opened
   # with nothing in it, which is a different thing to say.
-  if [ $prrc -ne 0 ]; then say WARN "no PR read for this branch (none yet, or gh failed: $(head -1 "$errf" | cut -c1-56)) - its body must carry a 'Closes #n' line for every item"
+  if [ $prrc -ne 0 ]; then say WARN "no PR read for this branch (none yet, or gh failed: $bodyerr) - its body must carry a 'Closes #n' line for every item"
   elif [ -z "$body" ]; then say FAIL "this branch's PR has an empty body; it must carry a 'Closes #n' line for every item"; fail=1; fi
   unresolved=0
   # Each issue found is printed as its number, with "!" after it when it
@@ -159,31 +167,37 @@ fi
 # without one; #935 lowered one, 3911 to 3910, and only the reviewer saw it.
 # floors.py says which; this compares the branch's verify.py with the one at
 # the commit it left main at, so a floor main has raised since does not read
-# as this branch lowering it. The PR body carries a line per floor naming it,
-# the word "floor" and the ruling, an issue or a decision:
+# as this branch lowering it. The PR body carries a line per floor holding
+# the word "floor", the floor as `<key> <old> -> <new>` (`removed` for a floor
+# deleted) and the ruling, an issue or a decision:
 #   Floor lowered: article_images.race_id 3916 -> 3910, ruled on #838
-# That the ruling exists is for the reviewer; this makes sure one is named.
+# That the ruling exists and says so is for the reviewer; this makes sure one
+# is named. A floor floors.py cannot read fails it, rather than passing unseen.
 vchanged=$(git diff --name-only origin/main...HEAD -- verify.py 2>/dev/null)
 if [ -n "$vchanged" ]; then
-  oldv=$(mktemp); newv=$(mktemp)
-  trap 'rm -f "$errf" "$oldv" "$newv"' EXIT
+  oldv=$(mktemp); newv=$(mktemp); bodyf=$(mktemp)
+  trap 'rm -f "$errf" "$oldv" "$newv" "$bodyf"' EXIT
   git show "$(git merge-base origin/main HEAD):verify.py" >"$oldv" 2>/dev/null
   # Absent at HEAD is every floor gone, which is what an empty file says.
   git show HEAD:verify.py >"$newv" 2>/dev/null
-  low=$(python3 "$(dirname "${BASH_SOURCE[0]}")/floors.py" "$oldv" "$newv" 2>"$errf"); frc=$?
+  floors="$(dirname "${BASH_SOURCE[0]}")/floors.py"
+  low=$(python3 "$floors" "$oldv" "$newv" 2>"$errf"); frc=$?
   if [ $frc -ne 0 ]; then
-    say FAIL "verify.py's floors could not be compared: $(head -1 "$errf" | cut -c1-60)"; fail=1
+    say FAIL "verify.py's floors could not be compared: $(head -1 "$errf" | cut -c1-72)"; fail=1
   elif [ -z "$low" ]; then say ok "no verify.py floor lowered"
   else
-    if [ -z "${body+x}" ]; then body=$(gh pr view --json body --jq .body 2>"$errf"); prrc=$?; fi
+    readbody
+    printf '%s\n' "$body" >"$bodyf"
     why=""
-    [ "$prrc" -ne 0 ] && why=" (no PR body read: $(head -1 "$errf" | cut -c1-40))"
-    while read -r key was now; do
-      [ "$now" = "-" ] && what="removed (was $was)" || what="lowered $was -> $now"
-      if printf '%s\n' "$body" | grep -i 'floor' | grep -wF -- "$key" | grep -qE '(#[0-9]+|\bD-[0-9]+)\b'; then
+    [ "$prrc" -ne 0 ] && why=" (no PR body read: $bodyerr)"
+    low=$(python3 "$floors" "$oldv" "$newv" --body "$bodyf" 2>"$errf") || \
+      low="? ? ? unread"
+    while read -r key was now verdict; do
+      [ "$now" = "removed" ] && what="removed (was $was)" || what="lowered $was -> $now"
+      if [ "$verdict" = ruled ]; then
         say ok "verify.py floor $key $what, and the PR body names its ruling"
       else
-        say FAIL "verify.py floor $key $what with no ruling named$why - a PR body line naming it, 'floor' and the ruling (#n or D-nn), or put it back"; fail=1
+        say FAIL "verify.py floor $key $what with no ruling named$why - a PR body line with 'floor', '$key $was -> $now' and the ruling (#n or D-nn), or put it back"; fail=1
       fi
     done <<<"$low"
   fi
