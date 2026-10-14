@@ -20,13 +20,16 @@ WHY A DATABASE OF ITS OWN
 
     python3 -m unittest tests.test_refresh_health
 """
+import contextlib
 import datetime as dt
 import importlib.util
+import io
 import os
 import sqlite3
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, ".github", "scripts")
@@ -323,6 +326,76 @@ class ThePullRequestCIRefuses(unittest.TestCase):
         self.assertEqual(len(alarm.failed_steps(jobs)), 2)
         timed_out = [dict(name="web", conclusion="cancelled", steps=[])]
         self.assertEqual(alarm.failed_steps(timed_out, only_failed=True), ["`web`"])
+
+
+
+class AnAlarmIsAnItemOfTheQueue(unittest.TestCase):
+    """open_issue() opens the alarm with an id, the queue's labels and an
+    assignee (AF-89), and only the alarm itself is allowed to fail the
+    step: each extra that cannot be added costs that extra alone."""
+
+    def opened(self, titles='[{"title": "AF-93: x"}, {"title": "AF-07: y"}]',
+               list_rc=0, create_out="https://github.com/o/r/issues/970\n", edit_rc=()):
+        calls = []
+
+        class Out:
+            def __init__(self, rc=0, stdout="", stderr=""):
+                self.returncode, self.stdout, self.stderr = rc, stdout, stderr
+
+        def fake(*args, check=True):
+            calls.append(args)
+            if args[:2] == ("issue", "list"):
+                return Out(list_rc, titles, "refused")
+            if args[:2] == ("issue", "create"):
+                return Out(0, create_out)
+            if args[:2] == ("issue", "edit"):
+                return Out(1 if args[3] in edit_rc else 0, "", "nope")
+            raise AssertionError(args)
+
+        # The warnings it prints are the workflow log's, not the test run's.
+        with mock.patch.object(alarm, "gh", fake), \
+                mock.patch.dict(os.environ, {"OWNER": "someone"}), \
+                contextlib.redirect_stdout(io.StringIO()):
+            alarm.open_issue(alarm.FAILING, "body")
+        return calls
+
+    def created(self, calls):
+        return next(c for c in calls if c[:2] == ("issue", "create"))
+
+    def test_it_takes_the_next_af_id_and_the_queue_labels_and_an_assignee(self):
+        calls = self.opened()
+        create = self.created(calls)
+        self.assertEqual(create[create.index("--title") + 1],
+                         "AF-94: The refresh from F1DB is failing")
+        edits = [c[3:] for c in calls if c[:2] == ("issue", "edit")]
+        self.assertTrue(all(c[2] == "970" for c in calls if c[:2] == ("issue", "edit")))
+        self.assertEqual(edits, [("--add-assignee", "someone"),
+                                 ("--add-label", "source: maintainer"),
+                                 ("--add-label", "size: ?")])
+
+    def test_an_unreadable_issue_list_costs_the_id_and_not_the_alarm(self):
+        create = self.created(self.opened(list_rc=1))
+        self.assertEqual(create[create.index("--title") + 1], "The refresh from F1DB is failing")
+
+    def test_a_label_that_cannot_be_added_does_not_stop_the_assignee(self):
+        calls = self.opened(edit_rc=("--add-label",))
+        self.assertIn(("issue", "edit", "970", "--add-assignee", "someone"), calls)
+
+    def test_no_number_in_the_reply_skips_the_extras(self):
+        calls = self.opened(create_out="")
+        self.assertFalse([c for c in calls if c[:2] == ("issue", "edit")])
+
+    def test_next_ident(self):
+        self.assertEqual(alarm.next_ident(["AF-09: a", "PD-40: b", "AF-88: c", "AF-x: d"]), "AF-89")
+        self.assertEqual(alarm.next_ident([]), "AF-01")
+        self.assertEqual(alarm.next_ident(["The refresh from F1DB is failing"]), "AF-01")
+
+    def test_both_bodies_tell_whoever_picks_it_up_not_to_close_it(self):
+        for body in (alarm.failure_body(["x"], "u", "w", 1, "2026-10-14"),
+                     alarm.freshness_body("late", "u")):
+            self.assertIn("do not put `Closes #n` in a pull request", body)
+            self.assertIn("`Refs #n`", body)
+            self.assertNotIn("{proof}", body)
 
 
 if __name__ == "__main__":

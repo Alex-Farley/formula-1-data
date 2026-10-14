@@ -2,10 +2,16 @@
 # The self-check a change passes before it costs a reviewer anything. Run
 # from the worktree root after `make ci`. Every check here is one a reviewer
 # has failed a PR on in the 2026-09-12 run, at 40,000-130,000 tokens a pass.
-#   bash .claude/skills/backlog-loop/precheck.sh [ITEM-ID...]
+#   bash .claude/skills/backlog-loop/precheck.sh [ITEM-ID | #n ...]
 # Several ids are a group landing in one PR: each must be one open issue and
 # each must have its own `Closes #n` line, or the merge closes some of them
 # and silently leaves the rest open on the board.
+# An item with no id - an issue filed without one, which next.py names `#n` -
+# is given as `#n` or `n`, and checked by number (CR-75).
+# refresh.yml's alarm issues (labelled refresh-failing or results-late) are
+# the one kind a PR must NOT close: the workflow closes them on the first run
+# that proves the fix, so the PR names one `Refs #n` and a closing keyword
+# anywhere in the body is a FAIL (AF-89).
 set -u
 fail=0
 # Every diff-based check below is against origin/main. Without that ref they
@@ -82,17 +88,40 @@ if [ $# -gt 0 ]; then
   if [ $prrc -ne 0 ]; then say WARN "no PR read for this branch (none yet, or gh failed: $(head -1 "$errf" | cut -c1-56)) - its body must carry a 'Closes #n' line for every item"
   elif [ -z "$body" ]; then say FAIL "this branch's PR has an empty body; it must carry a 'Closes #n' line for every item"; fail=1; fi
   unresolved=0
+  # Each issue found is printed as its number, with "!" after it when it
+  # carries an alarm label.
+  alarm='any(.labels[].name; . == "refresh-failing" or . == "results-late")'
   for item in "$@"; do
     [ -n "$item" ] || continue
-    ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \")) | .number] | join(\" \")" 2>"$errf"); rc=$?
-    n=${ns%% *}
+    num=${item#\#}
+    if [[ "$num" =~ ^[0-9]+$ ]]; then
+      # By number. `gh issue view` answers for a pull request too, with its
+      # state, so a merged or open PR number is told apart by its URL.
+      ns=$(gh issue view "$num" --json number,state,url,labels --jq "if .state == \"OPEN\" and (.url | test(\"/issues/\")) then \"\(.number)\(if $alarm then \"!\" else \"\" end)\" else \"\" end" 2>"$errf"); rc=$?
+      # The one refusal that means the number is not an issue at all.
+      if [ $rc -ne 0 ] && grep -q "Could not resolve to an issue" "$errf"; then ns=""; rc=0; fi
+    else
+      ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title,labels --jq "[.[] | select(.title | startswith(\"$item: \")) | \"\(.number)\(if $alarm then \"!\" else \"\" end)\"] | join(\" \")" 2>"$errf"); rc=$?
+    fi
+    first=${ns%% *}
+    n=${first%!}
     if [ $rc -ne 0 ]; then
       # Not a missing issue. Saying so sends a fork to file one that exists,
       # and a group multiplies that by its own size.
       say WARN "$item unchecked, gh failed: $(head -1 "$errf" | cut -c1-72)"
       unresolved=1
     elif [ -z "$n" ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
-    elif [ "$ns" != "$n" ]; then say FAIL "$item is more than one open issue (#${ns// /, #}); ids are never reused - close the duplicate"; fail=1
+    elif [ "$ns" != "$first" ]; then say FAIL "$item is more than one open issue (#${ns// /, #}); ids are never reused - close the duplicate"; fail=1
+    elif [ "$first" != "$n" ]; then
+      say ok "$item is issue #$n, a refresh.yml alarm that the workflow closes"
+      if [ -n "$body" ]; then
+        # GitHub closes on a keyword anywhere in the body, not only at the
+        # start of a line, so the refusal reads the whole of it.
+        if printf '%s\n' "$body" | grep -qiE "\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? #$n\b"; then
+          say FAIL "the PR body would close alarm #$n on merge; refresh.yml closes it - say 'Refs #$n' instead"; fail=1
+        elif printf '%s\n' "$body" | grep -qE "#$n\b"; then say ok "the PR refers to #$n without closing it"
+        else say FAIL "the PR body does not name alarm #$n ('Refs #$n' on its own line)"; fail=1; fi
+      fi
     else
       say ok "$item is issue #$n"
       if [ -n "$body" ]; then

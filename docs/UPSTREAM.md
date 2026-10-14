@@ -92,10 +92,16 @@ is not running at all, and raises nothing through a break or the winter,
 when no race date passes. A round F1DB's calendar for that season no
 longer lists is taken as cancelled and raises nothing; a season F1DB does
 not hold yet counts on the dates typed in `data/current.py`. From 1
-February it also flags a season with no calendar. Both issues are assigned
-to the repository's owner. What neither sees is a refresh pull request
-that CI refuses after `land` has opened it: that stays an open pull
-request, and is caught only when a race goes late.
+February it also flags a season with no calendar. A refresh pull request
+that CI refuses after `land` has opened it counts as failing too (SD-36).
+
+Both issues are opened as items of the queue (AF-89): assigned to the
+repository's owner, so GitHub tells them, and given an `AF-n` id and the
+labels `file.py new` would, so the backlog loop takes them. The job cannot
+write the Lap Ledger board, which is user-owned; `next.py` reads an open
+alarm with no status as *Now*, below what a person placed there. Neither is
+closed by a pull request: a fix says `Refs #n`, and the next run that proves
+it closes the issue.
 
 **Checking the sync by hand.** Look at the check date in the site's footer
 or on `/changes`: it is the last morning a refresh got as far as fetching

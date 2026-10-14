@@ -34,6 +34,13 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   issue with no Status (filed in the web UI and auto-added) or with *Done*
   while still open is not lost: it is listed under every item as
   *unplaced*, `--list unplaced` prints them, and `next.py <ID>` finds it.
+- one exception to that: refresh.yml's alarm issues, labelled
+  `refresh-failing` or `results-late`. The workflow opens one as an item -
+  an id, its labels, assigned - but cannot write a user-owned board, and the
+  project's automation adds it with no status. So an open alarm with no
+  Status, or not on the board at all, is read as *Now*, below everything a
+  person placed there: filing is not ranking `[D-36]`. Any status a person
+  gives it is obeyed `AF-89`.
 
 `--group` prints a second block under the item: the open items, **of any
 size**, in the item's own status or the next one down, that share a file
@@ -84,6 +91,9 @@ QUEUE = ("Now", "Next", "Someday")
 # the next item never reads the cache - see loop_cache's docstring.
 CACHE_TTL = 120
 ID = re.compile(r"^([A-Z]{2}-[0-9Ø]+): ")
+# refresh_alarm.py's two labels. An open issue carrying one is in the queue
+# under *Now* until a person says otherwise - see the docstring.
+ALARMS = frozenset({"refresh-failing", "results-late"})
 # The three signals a group is proposed on, read out of a title and body.
 # A path or a route is a claim about where the work lands; a cross-reference
 # is one item's author saying the two belong together. Nothing else scores
@@ -335,16 +345,7 @@ def load(allow_cache=False, bodies=False):
     board = board_rows()
     open_issues = {i["number"]: i for i in gh("issue", "list", "--repo", REPO, "--state", "open",
                                               "--limit", "1000", "--json", fields)}
-    rows = []
-    for n, status, *waits in board:
-        issue = open_issues.get(n)
-        if issue is None:
-            continue
-        m = ID.match(issue["title"])
-        rows.append(dict(status=status, number=n, ident=m.group(1) if m else f"#{n}",
-                         title=issue["title"], labels=sorted(lb["name"] for lb in issue["labels"]),
-                         body=issue.get("body") or "", url=issue["url"],
-                         waits=(waits[0] if waits else 0) or 0))
+    rows = queue_rows(board, open_issues)
     ranked = [r for s in QUEUE for r in rows if r["status"] == s]
     in_progress = [r for r in rows if r["status"] == "In progress"]
     # Open, on the board, and in no queue status: no Status at all, or Done
@@ -354,6 +355,33 @@ def load(allow_cache=False, bodies=False):
     loop_cache.write("queue", {"ranked": ranked, "in_progress": in_progress,
                                "unplaced": unplaced, "bodies": bodies})
     return ranked, in_progress, unplaced
+
+
+def queue_rows(board, open_issues):
+    """The open issues as rows, in board order: `board` is board_rows(),
+    `open_issues` {number: the issue list's issue}.
+
+    An alarm with no status is given *Now*, and one the board does not hold
+    is added after every row that it does, so it lands at the foot of *Now*
+    either way: it is in the queue without having been ranked."""
+    def row(n, status, waits, issue):
+        m = ID.match(issue["title"])
+        labels = sorted(lb["name"] for lb in issue["labels"])
+        if not status and ALARMS & set(labels):
+            status = "Now"
+        return dict(status=status, number=n, ident=m.group(1) if m else f"#{n}",
+                    title=issue["title"], labels=labels,
+                    body=issue.get("body") or "", url=issue["url"], waits=waits or 0)
+    rows, placed = [], set()
+    for n, status, *waits in board:
+        issue = open_issues.get(n)
+        if issue is None:
+            continue
+        placed.add(n)
+        rows.append(row(n, status, waits[0] if waits else 0, issue))
+    rows += [row(n, "", 0, issue) for n, issue in sorted(open_issues.items())
+             if n not in placed and ALARMS & {lb["name"] for lb in issue["labels"]}]
+    return rows
 
 
 def show(row):

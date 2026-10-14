@@ -12,6 +12,27 @@ tells only someone who goes and looks at it. Both halves here say so where a
 person is told without looking: an issue, assigned to the repository's
 owner, which GitHub notifies.
 
+AN ITEM OF THE QUEUE (AF-89)
+    Assigned is a person told; it is not work taken. #965 was assigned and
+    sat three days through nine failing runs, because the loop's queue is
+    the Lap Ledger board and an issue there is returned only with an item
+    id in its title and a queue status. So an alarm is opened as an item:
+    `AF-n: ` before its title, the next number after the highest AF id in
+    use, and the `source:` and `size:` labels `file.py new` gives one. The
+    status is not written here. The project's own automation adds a new
+    issue to the board with no status, and this job's token cannot write a
+    user-owned board at all; `next.py` reads an open alarm with no status,
+    or not on the board, as *Now*, at the foot of it - filing is not
+    ranking [D-36]. A person who moves it anywhere is obeyed.
+
+    The id costs an issue-list read. If that read fails the alarm opens
+    without one rather than not at all - a person told is the half that
+    must not fail - and `next.py` and `precheck.sh` take it by `#n`.
+
+    Never closed by a pull request. The body says so to whoever picks it up:
+    the first run that lands closes it, which is the only proof the fix
+    worked, and a PR names it `Refs #n`. `precheck.sh` refuses a `Closes`.
+
 ONE ISSUE EACH, NEVER ONE PER RUN
     The refresh runs every three hours, and a failing run does not stamp the
     check date, so the gate lets every one of them through: a failure that
@@ -90,6 +111,12 @@ LATE = dict(label="results-late", colour="D93F0B",
             description="A race has gone unreported past its date; opened and closed by refresh.yml",
             title="Results are behind the calendar")
 
+# What makes an alarm an item of the queue. AF is the maintainer's prefix,
+# and an alarm is the maintainer's defect; `file.py new AF` labels it so.
+# Its size is unknown until somebody reads the run.
+PREFIX = "AF"
+QUEUE_LABELS = ("source: maintainer", "size: ?")
+
 
 # ------------------------------------------------------------- the decisions
 
@@ -166,6 +193,33 @@ def bullets(items):
     return "\n".join(f"- {i}" for i in items)
 
 
+def next_ident(titles, prefix=PREFIX):
+    """The next unused id for `prefix` among these issue titles, the rule
+    `next.py --next-id` keeps. That also reads docs/LANDED.md, which this
+    job does not check out; the archive's AF entries stop at AF-04, below
+    every AF issue, so for this prefix the titles alone give the same."""
+    used = [int(m.group(1)) for t in titles
+            for m in [re.match(rf"^{prefix}-(\d+): ", t)] if m]
+    return f"{prefix}-{(max(used) + 1 if used else 1):02d}"
+
+
+def number_of(url):
+    """The issue number at the end of the URL `gh issue create` prints."""
+    m = re.search(r"/issues/(\d+)\s*$", url or "")
+    return m.group(1) if m else None
+
+
+# Said in both bodies, to whoever takes the alarm off the queue. It is the
+# maintainer's own note on #965, made the body's so it is there every time.
+PICKING_UP = (
+    "**For whoever picks this up.** It is an item of the queue, under *Now*. Do not "
+    "close it by hand, and do not put `Closes #n` in a pull request: this job "
+    "closes it on the first run that {proof}, which is the only proof the fix "
+    "worked. Name it in the pull request as `Refs #n`. Work from the latest run's "
+    "log. If the cause is upstream - F1DB has not published yet - there is nothing "
+    "to fix here: mark it blocked and leave it to close itself.")
+
+
 def failure_body(failing, run_url, when, count, first, refusal=None):
     """`failing` is this run's failed steps, or None when this run passed
     and only the pull request is failing; `refusal` is (where, steps): the
@@ -189,7 +243,10 @@ def failure_body(failing, run_url, when, count, first, refusal=None):
         "failing run, commented on when what is failing changes, and closed by the "
         "first run after it that hands its change to the pull request that merges "
         "itself once CI passes, while CI is not refusing that pull request. The run's "
-        "log says why; `docs/UPSTREAM.md` says how to check the sync by hand."]
+        "log says why; `docs/UPSTREAM.md` says how to check the sync by hand.",
+        PICKING_UP.format(proof="lands") + " If no run has failed since your fix "
+        "merged, there is nothing to fix yet: start one with `gh workflow run "
+        "refresh.yml` and read its result."]
     return "\n\n".join(parts)
 
 
@@ -201,7 +258,8 @@ def freshness_body(report, run_url):
         "ran, so it says the same thing whether or not the refresh is running. It is "
         "kept by refresh.yml's `report` job, which runs "
         "`.github/scripts/refresh_health.py` on every run and closes this issue on the "
-        "first run that finds no race late.")
+        "first run that finds no race late.\n\n"
+        + PICKING_UP.format(proof="finds no race late"))
 
 
 # ---------------------------------------------------------------- the effects
@@ -222,12 +280,34 @@ def find(kind):
 
 
 def open_issue(kind, body):
-    args = ("issue", "create", "--title", kind["title"], "--label", kind["label"],
-            "--body", body)
+    """Open the alarm as an item of the queue: an id, its labels, assigned.
+
+    Only the alarm itself is required. The id, the queue labels and the
+    assignee are each added on their own after it, so a failure of any one -
+    the id read refused, a label renamed, an owner that cannot be assigned
+    (an organisation) - costs that one and never the issue."""
+    out = gh("issue", "list", "--state", "all", "--limit", "1000", "--json", "title",
+             check=False)
+    try:
+        ident = None if out.returncode else next_ident(t["title"] for t in json.loads(out.stdout))
+    except (ValueError, KeyError, TypeError):
+        ident = None
+    if ident is None:
+        print(f"::warning::no item id for the alarm, the issue list was unreadable: {out.stderr.strip()}")
+    title = f"{ident}: {kind['title']}" if ident else kind["title"]
+    url = gh("issue", "create", "--title", title, "--label", kind["label"],
+             "--body", body).stdout.strip()
+    number = number_of(url)
+    if number is None:
+        print(f"::warning::could not read the new alarm's number from {url!r}; "
+              "it is neither labelled for the queue nor assigned")
+        return
     # Assigned, so the owner is told whether or not they watch the repository.
-    # An owner that cannot be assigned (an organisation) still gets the issue.
-    if gh(*args, "--assignee", os.environ["OWNER"], check=False).returncode:
-        gh(*args)
+    for extra in (("--add-assignee", os.environ["OWNER"]),
+                  *(("--add-label", lb) for lb in QUEUE_LABELS)):
+        r = gh("issue", "edit", number, *extra, check=False)
+        if r.returncode:
+            print(f"::warning::#{number}: {' '.join(extra)} failed: {r.stderr.strip()}")
 
 
 def failed_steps(jobs, only_failed=False):
