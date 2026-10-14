@@ -107,7 +107,7 @@ pass** for any change under `data/`, `harvest/`, `build.py`, `verify.py`,
 | First-pass reviewer | `frontend-reviewer-quick` (Sonnet, 50 turns) for an S item under `web/` not touching `scripts/prerender.js` — in a group the largest item decides; the Opus reviewer for the area otherwise | the Opus reviewer for the area | the Opus reviewer for the area |
 | Routes named for the reviewer to spot-check | 3 | 10, chosen for edge cases: a NULL, a tie, a shared drive, a season not yet run | every route the change touches |
 | Confirming a fix that must land before merge | fresh Sonnet | fresh Sonnet | fresh Opus |
-| Items per PR | the head and every item linked to it, at any size `[D-20]` | the same | the same |
+| Items per PR | the head and every item linked to it, at any size `[D-20]`; or, for an `XS` head, a tidy batch of up to five `XS` items `[D-54]` | the same | the same |
 | Pipelining | none — the review and the CI wait are foreground, so a fork holds one item at a time | none | none |
 
 Reviewer effort and turn caps are frontmatter in `.claude/agents/`. The caps
@@ -152,6 +152,31 @@ they are not one change, and that sentence goes in the pull request.
   item; one that turns into a blocker is dropped and recorded on its own
   issue, status back, and the head carries on. Only the head being blocked is
   a `SKIPPED`.
+
+**The tidy lane** `[D-54]` is the one place unrelated items share a pull
+request. When the head is labelled `size: XS` — about thirty changed lines
+or fewer: a wording fix, a comment, one data row, one declared exception —
+up to four more `XS` items from the head's status or the one below ride with
+it in a *tidy batch*, five at most, linked to it or not. `next.py --group`
+lists them under the head's companions, in queue order. The rest of this
+section still applies to a batch except the one-change test, which a batch
+replaces with this:
+
+- **Every gate is unchanged.** One review pass for the batch, by the Opus
+  reviewer for each area the batch touches — a batch that spans `web/` and
+  `data/` gets both, launched in one message — and the licence and security
+  triggers read against the whole diff. The precheck names every id; all
+  four checks are green before the merge.
+- **The diff reads as a list of separate small changes**, one section per
+  item in the PR body, each with its own `Closes` line. It does not have to
+  read as one change; it does have to read item by item.
+- **An item that grows past the limit leaves the batch**, status back, and
+  is relabelled with its real size on the way past. So does one that turns
+  out to need a decision or a source the batch cannot wait for. The batch
+  never waits for its slowest member.
+- **A linked companion of any size still rides with an `XS` head** under
+  `[D-20]`, and then the head's PR is a group, not a tidy batch: the two do
+  not mix in one pull request.
 
 **Every issue set to *In progress* leaves it by exactly one of five routes**,
 and a group accounts for each of its own: merged (`Done`, or *Now* for an
@@ -205,19 +230,29 @@ line could not be written; say so in the stock-take and carry on.
 - **Gate each step on the previous one's exit status**, never on the output
   of a `| grep`.
 - **Order:** `make all QUIET=1` → `make lint` → `cd web && npm run build &&
-  npm test -- --quiet` (one smoke run at a time; kill any listener on 4179
-  first and check the log does not say "Reusing the server") → `git add -A &&
-  make ci QUIET=1` → commit → push → `gh pr create`. Commit and PR text end
+  npm run test:units && npm run test:page -- <route> [<route>...]` for the
+  pages the change reaches (one smoke run at a time; kill any listener on
+  4179 first and check the log does not say "Reusing the server") → `git add
+  -A && make ci QUIET=1` → commit → push → `gh pr create`. Commit and PR text end
   with the attribution lines the session was given.
 - **Web work follows the design system** `[D-53]`. An item under `web/`
   reads the sections of `docs/design-system.md` that its components and
   tokens fall under before building, holds itself to those marked built, and
   extends the system in the same PR, under its §8, where it needs what the
   system lacks.
-- **Quiet forms, always** `[D-25]`. While iterating on one page, `npm run
-  test:page -- /drivers` runs only the smoke sections whose heading names it
-  (`node test/smoke.mjs --list` shows them), then the full `npm test
-  -- --quiet` before the commit — a passing subset is not a passing site.
+- **Quiet forms, always** `[D-25]`. `npm run test:page -- /drivers` runs
+  only the smoke sections whose heading names it (`node test/smoke.mjs
+  --list` shows them).
+- **The pages a change reaches are what it tests locally; CI tests the
+  site** `[D-54]`. Before the push, run the smoke sections of the pages the
+  change can reach — the routes it edits, and for a change that moves
+  `f1.db`, the pages that show what moved. Run the full `npm test -- --quiet`
+  locally only when the change touches `web/scripts/prerender.js`, a shared
+  component or library (`web/src/components/`, `web/src/lib/`) or the styles
+  (`web/src/styles/`, any `.css`), or when the pages it reaches cannot be
+  named. A change that reaches no page — the loop's own scripts, docs,
+  `tests/` — runs `npm run test:units` alone. CI's `web` job always runs the
+  whole suite, and it is still one of the four checks that never slide.
 - **The issue:** `file.py status <n> "In progress"` for every issue in the
   group when the worktree opens; `Closes #<n>` on its own line for each in
   the PR body, which is the record of what was done and what was left.
@@ -226,7 +261,7 @@ line could not be written; say so in the stock-take and carry on.
   the first run that proves the fix: the PR says `Refs #<n>`, never a
   closing keyword, and its body says how to work it `AF-89`.
   Anything discovered is filed as its own issue — `file.py new <prefix>
-  "<title>" --size <S|M|L|?> --body "..."` — never left in a note, a PR
+  "<title>" --size <XS|S|M|L|?> --body "..."` — never left in a note, a PR
   comment or a TODO.
 
 ## Before asking for review

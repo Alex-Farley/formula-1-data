@@ -18,14 +18,18 @@ or to `frontend-reviewer-quick` where the pace table in
     `git diff origin/main...HEAD`. Read CLAUDE.md and
     `.claude/agents/<reviewer>.md`, including its "Already enforced" list —
     those items are tests that passed on this head; do not re-check them.
-    Do NOT run `npm test` (the smoke port is shared; units, conventions and
-    smoke passed on this head); you may run `npm run test:units` in web/,
+    Do NOT run `npm test` (the smoke port is shared; units and conventions
+    passed on this head, and the smoke sections of <the routes tested
+    locally, or "the whole suite">; CI's `web` job runs the whole suite on
+    this head before any merge); you may run `npm run test:units` in web/,
     `python3 verify.py --quiet`, sqlite3 and node scripts against web/dist
     and f1.db. Node is whatever `which node` reports. `make ci` green.
 
     Task <ID>: <what the item asked for, in one or two sentences>. <For a
     group, one such line per item, and one sentence saying what makes them
-    one change - the file or component they share.>
+    one change - the file or component they share. For a tidy batch of XS
+    items [D-54], one such line per item and the words "tidy batch": the
+    items are unrelated by design, and each is read on its own.>
     Routes to spot-check: <the routes the pace allows - three at fast, ten
     chosen for edge cases at balanced, every touched route at thorough>.
     <For a web change:> Design system: <the components and tokens the diff
@@ -39,9 +43,11 @@ or to `frontend-reviewer-quick` where the pace table in
     figure copied rather than computed, the PR body's `Closes #n` naming the
     right issue, one line per item of a group; for a group, whether one
     item's change quietly breaks another's, and whether each item is
-    actually done rather than the easiest of them standing for all>.
+    actually done rather than the easiest of them standing for all; for a
+    tidy batch, the same, and whether any item has outgrown XS>.
     Static-against-app parity of every table on the routes named,
-    header and every shown row, is proven by `npm test` on this head; do not
+    header and every shown row, is proven by the smoke test, which CI's
+    `web` job runs whole on this head before any merge; do not
     rebuild that comparison - name a row or a route the suite does not reach
     if you believe one exists.
 

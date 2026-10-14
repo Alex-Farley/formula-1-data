@@ -57,6 +57,14 @@ maintainer, replacing an S-only rule and a per-pace count). A path or route
 that occurs in more than a few open items is dropped as noise before
 scoring, so `f1.db` and `/drivers` never group anything by themselves.
 
+When the head is labelled `size: XS`, `--group` prints a third block: the
+tidy batch, the next `XS` items in queue order from the head's status or the
+one below, up to five with the head. Those ride whether or not they are
+linked - one review for several changes of about thirty lines each, every
+gate unchanged - and the fork reads each body and drops any that has
+outgrown the size (decided 2026-10-14 by the maintainer, beside the rule
+above and not in place of it) `AF-107` `[D-54]`.
+
 Why a script and not `gh issue list`: the ranking lives on the board, not in
 the issue list, and reading it is two `gh` calls and a join. The output is
 one item - title, labels, body, the open decisions - for a few hundred
@@ -130,6 +138,7 @@ IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
 # linked to the head, so a cap would hide exactly the item it exists to
 # take; the noise counter below is what stops a hot file proposing a crowd.
 THRESHOLD = 3        # below this a candidate is not worth a fork's attention
+TIDY = 5             # items in a tidy batch, the head among them `[D-54]`
 NOISE = 4            # see below
 # A signal more items than this name is noise, dropped before scoring.
 # Measured over the 157 open items on 2026-09-14, the queue is bimodal: 149
@@ -550,12 +559,49 @@ def companions(head, ranked, skip, taken):
     return out
 
 
+def tidy_batch(head, ranked, skip, taken):
+    """The XS items that could ride with an XS head, in queue order.
+
+    Linked or not: the tidy lane is the one place unrelated items share a
+    pull request, and what bounds it is the size of each and the count, not
+    a signal. The same filters as a companion otherwise - eligible, not
+    already named, from the head's status or the one below - and `taken`,
+    which holds the head and anything the caller named with it, counts
+    against the five `[D-54]`."""
+    if size_of(head) != "XS":
+        return []
+    allowed = bands(head)
+    room = max(0, TIDY - len(taken | {head["number"]}))
+    return [r for r in ranked
+            if r["number"] != head["number"] and r["number"] not in taken
+            and eligible(r, skip) and r["status"] in allowed and size_of(r) == "XS"][:room]
+
+
+def show_tidy(head, ranked, skip, taken):
+    rows = tidy_batch(head, ranked, skip, taken)
+    if size_of(head) != "XS":
+        return
+    print(f"## Tidy batch for {head['ident']} (size XS) — up to {TIDY} XS items in one PR [D-54]\n")
+    if not rows:
+        print(f"None: no other open XS item under {' or '.join(bands(head))}.\n")
+        return
+    for row in rows:
+        title = row["title"][len(row["ident"]) + 2:] if row["title"].startswith(row["ident"] + ": ") else row["title"]
+        print(f"  #{row['number']:<4} {row['ident']:<6} {row['status']:<7} {title[:60]}")
+    print("\nUnrelated items may ride here, one PR-body section and one Closes line each,"
+          "\nwith one review and every gate unchanged. A linked companion above makes the PR"
+          "\na group instead; the two do not mix. Drop any that has outgrown XS, status back."
+          f"\n  python3 .claude/skills/backlog-loop/next.py {head['ident']} "
+          + " ".join(r["ident"] for r in rows) + "\n")
+
+
 def show_companions(head, ranked, skip, taken):
     print(f"## Companions for {head['ident']} (size {size_of(head)}) — proposals, not a group\n")
     rows = companions(head, ranked, skip, taken)
     if not rows:
+        alone = "" if tidy_batch(head, ranked, skip, taken) else " One item, one PR."
         print(f"None: no open item under {' or '.join(bands(head))} shares a file, a route or a"
-              f"\ncross-reference with {head['ident']}. One item, one PR.\n")
+              f"\ncross-reference with {head['ident']}.{alone}\n")
         return
     for score, row, why in rows:
         title = row["title"][len(row["ident"]) + 2:] if row["title"].startswith(row["ident"] + ": ") else row["title"]
@@ -659,7 +705,9 @@ def main(argv):
             row["body"] = one_body(row["number"])
         show(row)
     if group:
-        show_companions(heads[0], ranked, skip, {r["number"] for r in heads})
+        taken = {r["number"] for r in heads}
+        show_companions(heads[0], ranked, skip, taken)
+        show_tidy(heads[0], ranked, skip, taken)
     footers(decisions, in_progress, unplaced)
 
 
