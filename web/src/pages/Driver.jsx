@@ -5,14 +5,15 @@ import LiveryScheme from '../components/LiveryScheme.jsx'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { DateText, Dated } from '../components/Dates.jsx'
 import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
-import { ENTRIES_NOTE, NAMES } from '../lib/site.js'
-import { colourForEntry, colourSource, lastTeamColour } from '../lib/liveries.js'
-import { canonicalCountry } from '../lib/racingColours.js'
+import { EYEBROWS, ENTRIES_NOTE, LABELS, NAMES } from '../lib/site.js'
+import { FOLD_NOUN } from '../lib/table.js'
+import { colourForEntry, colourSource, driverBandNote, lastTeamColour } from '../lib/liveries.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -41,9 +42,11 @@ import {
   careerStrip,
   teamsBySeason,
   roundsRun,
+  finishesFigureNote,
+  thisSeasonFigureNote,
   thisSeasonFooter,
   thisSeasonHeading,
-  thisSeasonNote,
+  thisSeasonLine,
   teamMateCount,
   teamMatesFooter,
 } from '../queries/driver.js'
@@ -170,16 +173,9 @@ function ThisSeason({ name, rows: calendar, standings }) {
   const mixed = inColour && !placed.every((d) => d.colour)
 
   return (
-    <Section title={thisSeasonHeading(calendar)} note={thisSeasonNote(calendar, standing)}>
+    <Section title={thisSeasonHeading(calendar)} note={thisSeasonLine(calendar, standings)}>
       <Figure
-        title={`${name}'s finishes, round by round`}
-        note={`Where ${name} finished in each round of ${season}, P1 at the top. A round with no dot is one ${name} was not classified in or not entered for, and the table says which${toCome ? '; the space to the right is the rounds still to run' : ''}. A win is ringed. ${
-          inColour
-            ? `Each dot is in the colour of the team raced that weekend: ${colourSource(placed.map((d) => d.colour))}.${
-                mixed ? ' A hollow dot is a round this record holds no colour for.' : ''
-              }`
-            : 'The dots are not in team colours: no round on this record has one.'
-        }`}
+        note={thisSeasonFigureNote(toCome, inColour ? colourSource(placed.map((d) => d.colour)) : null, mixed)}
         table={{
           rows: run,
           columns: THIS_SEASON_COLUMNS.map((column) => ({ ...column, ...THIS_SEASON_APP[column.key] })),
@@ -334,20 +330,13 @@ function DriverBody({ driver, data }) {
 
   return (
     <Page
-      eyebrow="Driver"
+      eyebrow={EYEBROWS.driver(driver.nationality, driver.born)}
       title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors, practice)}
       sources={rows(data, 'sources')}
       aside={
-        <LiveryScheme
-          colour={teamColour}
-          note={
-            teamColour?.kind === 'livery'
-              ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, ${teamColour.claim} - the last team on this record.`
-              : `${canonicalCountry(lastTeam?.constructor_country)}'s international racing colour, under the convention that painted a car for the country that entered it, as it stood when ${lastTeam?.constructor} raced in ${lastTeam?.year}. Not the team's own livery.`
-          }
-        />
+        <LiveryScheme colour={teamColour} note={driverBandNote(lastTeam, teamColour)} />
       }
     >
       {practiceOnly && (
@@ -369,7 +358,7 @@ function DriverBody({ driver, data }) {
         <Section title="Practice sessions" count={practiceCount(practice)}>
           <DataTable
             rows={practice}
-            fold
+            fold={FOLD_NOUN.practice}
             rowKey={(row) => row.id}
             sortable
             sort="year"
@@ -384,16 +373,7 @@ function DriverBody({ driver, data }) {
         <Section lead title="Where each championship finished">
           <Figure
             lead
-            title="Final standing by season"
-            note={`Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed. ${
-              finishesInColour
-                ? `Each dot is coloured for the team that season finished with, named in the table: ${colourSource(plotted.map((s) => s.colour))}.${
-                    finishesMixed
-                      ? ' A hollow dot is a season this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here, so the dot names its team on hover rather than wearing one.'
-                      : ''
-                  }`
-                : 'The dots are not in team colours: no season on this record has one.'
-            }`}
+            note={finishesFigureNote(finishesInColour ? colourSource(plotted.map((s) => s.colour)) : null, finishesMixed)}
             table={{
               rows: finishes,
               columns: [
@@ -457,7 +437,7 @@ function DriverBody({ driver, data }) {
         <Section title="Season by season" count={`${seasons.length} seasons`}>
           <DataTable
             rows={seasons}
-            fold
+            fold={FOLD_NOUN.seasons}
             rowKey={(row) => row.year}
             sortable
             sort="year"
@@ -474,7 +454,7 @@ function DriverBody({ driver, data }) {
         <Section title="Team-mates" count={teamMateCount(teamMates)}>
           <DataTable
             rows={teamMates}
-            fold
+            fold={FOLD_NOUN.teamMates}
             rowKey={(row) => `${row.year}-${row.constructor_id}-${row.mate_id}`}
             sortable
             sort="year"
@@ -492,10 +472,10 @@ function DriverBody({ driver, data }) {
       )}
 
       {!practiceOnly && (
-        <Section title="Every entry" count={`${results.length} races`}>
+        <Section title="Every entry" count={`${results.length.toLocaleString('en-GB')} ${results.length === 1 ? 'entry' : 'entries'}`}>
           <DataTable
             rows={results}
-            fold
+            fold={FOLD_NOUN.entries}
             rowKey={(row) => `${row.year}-${row.round}`}
             sortable
             sort="year"
@@ -508,7 +488,7 @@ function DriverBody({ driver, data }) {
 
       <Disagreement rows={rows(data, 'disagreements')} what="this career" />
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         {differ && (
           <Note>
             <strong>{pointsNote(driver, derived).head}</strong> {pointsNote(driver, derived).body}
@@ -519,7 +499,11 @@ function DriverBody({ driver, data }) {
             // The strings both renderers print, from queries/driver.js. A
             // dashed one goes back to null so Fields sets it faint like every
             // other missing value.
-            ...record(driver).map(([label, value]) => ({ label, value: value === EMPTY ? null : value })),
+            ...record(driver).map(([label, value, kind]) => ({
+              label,
+              value:
+                value === EMPTY ? null : kind === 'date' ? <DateText iso={value} /> : kind === 'text' ? <Dated>{value}</Dated> : value,
+            })),
             { label: 'Confidence', value: <Confidence value={driver.confidence} /> },
             {
               label: 'Source',

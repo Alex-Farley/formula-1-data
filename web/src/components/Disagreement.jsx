@@ -20,6 +20,7 @@
  * no race: the check is what makes the quiet join safe to rely on.
  */
 import { Link } from 'react-router-dom'
+import { Dated } from './Dates.jsx'
 import { EXPLAINED_FOOTER, EXPLAINED_SPAN, OPEN_FOOTER, allExplained } from '../lib/disagreement.js'
 import { REPORT_URL, SETTLE_ASK, SETTLE_LINK } from '../lib/site.js'
 
@@ -101,7 +102,9 @@ export default function Disagreement({ rows, what = 'this' }) {
                 <span className="disagreement-vs">against</span>
                 <span>{row.derived_value}</span>
               </p>
-              <p className="disagreement-why">{row.assessment}</p>
+              <p className="disagreement-why">
+                <Dated>{row.assessment}</Dated>
+              </p>
             </dd>
           </div>
         ))}

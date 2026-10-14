@@ -2,10 +2,11 @@ import { useMemo } from 'react'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import { SportNav } from '../components/SubNav.jsx'
 import { Chips, Filters, NoMatch, SearchField } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../queries/glossary.js'
+import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS, GLOSSARY_LEDE } from '../queries/glossary.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
@@ -28,7 +29,7 @@ export default function Glossary() {
       title={NAMES.glossary().headline}
       documentName={NAMES.glossary().title}
       trail={TRAIL.glossary()}
-      lede="What the words on a classification actually mean — and the designers, administrators and team principals whose decisions are behind most of the rest of this site."
+      lede={GLOSSARY_LEDE}
     >
       <SportNav />
       <Result state={state}>
@@ -97,6 +98,7 @@ function Body({ glossary, personnel }) {
             the table opens in, and the static page prints the rows as they come.
             The header says so without re-sorting them (CR-28). */}
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={filtered}
           rowKey={(row) => row.term}
           sortable
@@ -109,6 +111,7 @@ function Body({ glossary, personnel }) {
 
       <Section title="People" count={`${personnel.length}`}>
         <DataTable
+          unfolded={UNFOLDED.reference}
           rows={personnel}
           rowKey={(row) => row.id}
           sortable

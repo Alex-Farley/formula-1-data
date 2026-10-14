@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { THUMB_WIDTH, attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
+import { THUMB_WIDTH, attribution, canShow, fileLinkName, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
 
 /**
@@ -95,7 +95,7 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt,
             is showing several (VD-33). A class rather than an inline style so
             that scripts/prerender.js can write the same figure. */}
         {caption && <div className="photo-subject">{caption}</div>}
-        <a href={image.description_url} target="_blank" rel="noreferrer noopener">
+        <a href={image.description_url} target="_blank" rel="noreferrer noopener" aria-label={fileLinkName(image)}>
           {fileTitle(image.file_name)}
         </a>
         {' · '}

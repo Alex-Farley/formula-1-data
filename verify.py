@@ -684,6 +684,23 @@ def standings():
         ).fetchone()
     check("every standings engine_id is an F1DB engine-manufacturer id",
           stray[0] == 0, f"{stray[0]} rows: {stray[1]}")
+    # entity is the register's name for the entrant, on every row of every
+    # source (DA-29). The formula1.com final row once said 'Kick Sauber' where
+    # every F1DB round said 'Sauber', so one season's tables named one team
+    # two ways. Equality with the register is stronger than one name per
+    # (year, table_type, id), and is the rule both loaders follow.
+    named = con.execute("""SELECT s.year, s.table_type,
+               COALESCE(s.driver_id, s.constructor_id), s.entity,
+               COALESCE(d.full_name, c.name)
+        FROM standings s
+        LEFT JOIN drivers d ON s.table_type = 'drivers' AND d.id = s.driver_id
+        LEFT JOIN constructors c ON s.table_type = 'constructors'
+                                AND c.id = s.constructor_id
+        WHERE s.entity IS NOT COALESCE(d.full_name, c.name)""").fetchall()
+    check("every standings entity is the register's name for its entrant",
+          not named, f"{len(named)} rows: " + "; ".join(
+              f"{y} {t} {i}: {e!r}, register {r!r}"
+              for y, t, i, e, r in named[:4]))
 
 
 @section('STANDINGS ARE THE SUM OF THE RESULTS')
@@ -1164,12 +1181,13 @@ def pole_position_and_fastest_lap():
     check("a race has one winner, unless the drive was shared", not bad, f"{len(bad)} races")
     check("the shared drives are the three known ones", len(multi) == 3, f"{len(multi)}")
 
-    # Six from the season tables, and two the tables rendered as one name until
-    # the race articles were read: 1960 Belgium (three drivers) and 1969 Canada
-    # (two). See SHARED_FASTEST_LAPS in data/harvest.py.
+    # Six from the season tables, and three the tables rendered as one name
+    # until the race articles were read: 1952 Italy (two drivers), 1960
+    # Belgium (three) and 1969 Canada (two). See SHARED_FASTEST_LAPS in
+    # data/harvest.py.
     shared = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
         WHERE fastest_lap = 1 AND fastest_lap_shared > 1""").fetchone()[0]
-    check("shared fastest laps are recorded as such", shared == 8, f"{shared} races")
+    check("shared fastest laps are recorded as such", shared == 9, f"{shared} races")
 
     # the name a race carried must be a known name for the event it points at
     bad = []
@@ -1503,6 +1521,50 @@ def external_figures_vs_the_race_records():
             _bad.append(f"{did} {field}: correction filed as {row and tuple(row)}")
     check("every corrected stored figure holds its correction, with the typed one on "
           "the record", not _bad, "; ".join(_bad[:4]))
+    # A race result a second source classifies otherwise (DA-44, #753): each
+    # declaration is one 'race-classification' row, filed on its race, whose
+    # stored value is the entry's result as the race records hold it now and
+    # whose other reading differs from it. And a career row that says its
+    # disagreement "is open on the race, YYYY round N" names a race with an
+    # open row, so the pointer a reader follows from the driver page leads
+    # somewhere.
+    _bad = []
+    _rc = {}
+    for key, subject, rk, sv, dv, held, y, r, d in con.execute("""
+            SELECT x.key, x.subject, x.row_key, x.stored_value, x.derived_value,
+                   e.position_text, rr.year, rr.round, e.driver_id
+              FROM discrepancies x
+              LEFT JOIN race_entries e
+                ON CAST(e.race_id AS TEXT) || '|' || e.driver_id = x.row_key
+              LEFT JOIN races rr ON rr.id = e.race_id
+             WHERE x.kind = 'race-classification'"""):
+        if d is None:
+            _bad.append(f"{key}: names no race entry")
+            continue
+        _rc[(y, r, d)] = (sv, dv)
+        if subject != f"{y} round {r}":
+            _bad.append(f"{key}: filed on {subject!r}, not its race")
+        if sv != held:
+            _bad.append(f"{key}: holds {sv!r}, the entry {held!r}")
+        if dv is None or dv == sv:
+            _bad.append(f"{key}: no second reading")
+    _declared = {k: v[:2] for k, v in
+                 harvest_module().RACE_CLASSIFICATION_DISAGREEMENTS.items()}
+    _bad += [f"{y} r{r} {d}: declared {_declared[(y, r, d)]}, filed "
+             + ("nothing" if (y, r, d) not in _rc else str(_rc[(y, r, d)]))
+             for (y, r, d) in sorted(_declared) if _rc.get((y, r, d)) != _declared[(y, r, d)]]
+    _bad += [f"{y} r{r} {d}: filed, not declared" for (y, r, d)
+             in sorted(set(_rc) - set(_declared))]
+    for key, why in con.execute("SELECT key, assessment FROM discrepancies "
+                                "WHERE tbl = 'drivers'"):
+        for m in re.finditer(r"open on the race, (\d{4}) round (\d+)", why or ""):
+            if not con.execute("SELECT 1 FROM discrepancies WHERE status = 'open' "
+                               "AND subject = ?", (f"{m.group(1)} round {m.group(2)}",)
+                               ).fetchone():
+                _bad.append(f"{key}: no open row on {m.group(1)} round {m.group(2)}")
+    check("every race result a second source classifies otherwise is filed on its race, "
+          "as stored, and every career row pointing at a race finds it", not _bad,
+          "; ".join(_bad[:4]))
 
     n = con.execute("SELECT COUNT(*) FROM drivers WHERE wins_external IS NOT NULL").fetchone()[0]
     d = con.execute("SELECT COUNT(*) FROM discrepancies").fetchone()[0]
@@ -2879,6 +2941,35 @@ def the_chassis_register():
     print(f"  [info] {nch} chassis, {neng} engines, {nent} season entrant rows; "
           f"{nspec} chassis carry harvested specifications")
 
+    # UR-14: the season page shows these names where it used to print the
+    # slugs. An empty name, or a name that is only the id again, is a slug
+    # by another route; a tyre list whose names have fallen out of step with
+    # its ids names the wrong tyre. build.py refuses each of these on the way
+    # in, and this holds the database it wrote to the same rule.
+    _bad_names = []
+    for sid, eid, ename, tids, tnames in con.execute(
+            """SELECT id, entrant_id, entrant_name, tyre_ids, tyre_names
+               FROM season_entrants"""):
+        if not (ename or "").strip() or ename == eid:
+            _bad_names.append(f"#{sid} {eid}: entrant_name {ename!r}")
+        if len((tids or "").split("+")) != len((tnames or "").split("+")) \
+                or (tids is None) != (tnames is None) \
+                or any(not n.strip() or n == t for t, n in
+                       zip((tids or "").split("+"), (tnames or "").split("+")) if tids):
+            _bad_names.append(f"#{sid} {eid}: tyres {tids!r} named {tnames!r}")
+    check("every season entrant carries its entrant's name and a name for each tyre, in step",
+          not _bad_names, "; ".join(_bad_names[:5]))
+    # The season page names the chassis and engines off their registers, so
+    # an id in either list with no register row would be shown as the slug.
+    _ch_ids = {r[0] for r in con.execute("SELECT id FROM chassis")}
+    _en_ids = {r[0] for r in con.execute("SELECT id FROM engines")}
+    _unreg = set()
+    for _chs, _ens in con.execute("SELECT chassis_ids, engine_ids FROM season_entrants"):
+        _unreg |= {f"chassis {c}" for c in (_chs or "").split("+") if _chs and c not in _ch_ids}
+        _unreg |= {f"engine {e}" for e in (_ens or "").split("+") if _ens and e not in _en_ids}
+    check("every chassis and engine a season entrant lists is in its register",
+          not _unreg, "; ".join(sorted(_unreg)[:5]))
+
     # Every chassis id in CAR_CHASSIS must exist, belong to the car's constructor,
     # be claimed by only one car, not have raced before the car existed, and
     # not have raced after it except in the declared privateer cases. A typo
@@ -2936,16 +3027,15 @@ def the_chassis_register():
           f"no longer late: {_fmt_late(_late_declared - _late_cars)}")
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
 
-    # A car that is the whole of one chassis under another id shows each
-    # figure from the chassis where it has one (IA-28), so every figure the
+    # A car that is the whole of one chassis shows each figure from the
+    # chassis where it has one (IA-28, IA-29), so every figure the
     # two rows give differently must be an open disagreement carrying both,
     # and every such row must still be one: the car's figure stored, the
     # chassis's derived, read here from the two tables, not from the build.
     import build
     _copies = con.execute("""SELECT c.id, ch.id FROM cars c
         JOIN chassis ch ON ch.car_id = c.id
-        WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
-          AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1""").fetchall()
+        WHERE (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1""").fetchall()
     _differ = {}
     for car_id, ch_id in _copies:
         for field in build.CAR_CHASSIS_FIGURES:
@@ -2963,6 +3053,14 @@ def the_chassis_register():
              for c, f in sorted(set(_filed) - set(_differ))]
     check("every figure a car and its one chassis give differently is an open disagreement carrying both",
           not _bad, "; ".join(_bad))
+    # The set above, build.py's and wholeOfOneChassis() in queries/car.js all
+    # count only the chassis that name a car, so they describe the page only
+    # while a chassis that shares a car's id names that car: otherwise
+    # /cars/<id> would show one chassis and be compared against another.
+    _astray = [r[0] for r in con.execute("""SELECT ch.id FROM chassis ch
+        JOIN cars c ON c.id = ch.id WHERE ch.car_id IS NOT c.id ORDER BY ch.id""")]
+    check("a chassis that shares a car's id names that car as its design",
+          not _astray, ", ".join(_astray))
 
     bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
         AND NOT EXISTS (SELECT 1 FROM cars x WHERE x.id = c.car_id)""").fetchone()[0]
@@ -3083,6 +3181,40 @@ def the_chassis_register():
              AND power_note NOT GLOB '*[0-9]*'""")]
     check("no harvested power note names a power without a number", not empty,
           f"{len(empty)}: " + "; ".join(empty[:4]))
+    # No text value holds markup (CD-54): a tag or an entity in a column is
+    # printed as written on the page and in its meta description, as the
+    # modern chassis printed "<hr>" in their engine. Every table and every column,
+    # read from the schema rather than listed, so a table added later is
+    # held to it without being named here. LIKE narrows; the pattern decides.
+    # A wikitext link's bracket a harvest left unpaired (CR-76) is printed
+    # the same way - "Petronas E10Aramco]] branding" - and is the second
+    # check, in the same walk. A value that parses as JSON is exempt from
+    # that one: "]]" is JSON's own syntax for a nested array.
+    marked, linked = [], []
+    _mk, _wl = harvest_module().MARKUP, harvest_module().WIKILINK
+
+    def _is_json(v):
+        try:
+            json.loads(v)
+        except ValueError:
+            return False
+        return True
+
+    for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
+                            "AND name NOT LIKE 'sqlite_%'").fetchall():
+        for c in [r[1] for r in con.execute(f'PRAGMA table_info("{t}")')]:
+            for (v,) in con.execute(
+                    f"""SELECT "{c}" FROM "{t}" WHERE typeof("{c}") = 'text'
+                         AND ("{c}" LIKE '%<%' OR "{c}" LIKE '%&%;%'
+                              OR "{c}" LIKE '%[[%' OR "{c}" LIKE '%]]%')"""):
+                if _mk.search(v):
+                    marked.append(f"{t}.{c}: {v[:50]!r}")
+                if _wl.search(v) and not _is_json(v):
+                    linked.append(f"{t}.{c}: {v[:50]!r}")
+    check("no text column holds markup", not marked,
+          f"{len(marked)}: " + "; ".join(marked[:4]))
+    check("no text column holds a wiki link's bracket", not linked,
+          f"{len(linked)}: " + "; ".join(linked[:4]))
     overlaps = []
     for field in [r[0] for r in con.execute("SELECT DISTINCT field FROM regulation_limits")]:
         spans = con.execute("SELECT from_year, to_year FROM regulation_limits WHERE field = ? "
@@ -3372,18 +3504,22 @@ def practice_and_sprint_qualifying():
 
     # The laps of the drivers who went through, which no band holds: every
     # SQ3 driver's SQ2 lap is quicker than every SQ2 eliminee's (the gaps
-    # of #707's third review). Three drivers are published with an SQ2 lap
+    # of #707's third review). Four drivers are published with an SQ2 lap
     # quicker than drivers who went through, and none of them was eliminated
-    # in SQ2 (LV-08): each went through to SQ3, set no time there and is
-    # classified in SQ3's places - Alonso 9th at Qatar 2023, Leclerc 10th at
-    # Austria 2024, Bearman 10th at Sao Paulo 2024. The Wikipedia article on
-    # each of those Grands Prix gives the driver "No time" in SQ3 in its
-    # sprint qualifying classification (2023_Qatar_Grand_Prix,
-    # 2024_Austrian_Grand_Prix, 2024_S%C3%A3o_Paulo_Grand_Prix). This check
+    # in SQ2 (LV-08, AF-88): each went through to SQ3, set no time there and
+    # is classified in SQ3's places - Alonso 9th at Qatar 2023, Leclerc 10th
+    # at Austria 2024, Bearman 10th at Sao Paulo 2024, Hadjar 9th at
+    # Singapore 2026. The Wikipedia article on each of those Grands Prix
+    # gives the driver "No time" in SQ3 in its sprint qualifying
+    # classification (2023_Qatar_Grand_Prix, 2024_Austrian_Grand_Prix,
+    # 2024_S%C3%A3o_Paulo_Grand_Prix, 2026_Singapore_Grand_Prix). This check
     # reads a driver with no SQ3 lap as an SQ2 eliminee, so each is declared
     # as published, one row each, so the rest of each sheet is still held
-    # (review of #712). Why each set no SQ3 time none of the three says.
-    SQ_CUT_EXCEPTIONS = {(2023, 17, "alonso"), (2024, 11, "leclerc"), (2024, 21, "bearman")}
+    # (review of #712). Gasly, 10th at Singapore 2026 with no SQ3 time
+    # either, has an SQ2 lap slower than every driver who went through, so
+    # is not declared. Why each set no SQ3 time none of the four says.
+    SQ_CUT_EXCEPTIONS = {(2023, 17, "alonso"), (2024, 11, "leclerc"), (2024, 21, "bearman"),
+                         (2026, 17, "hadjar")}
     cut_bad = []
     for (yr, rnd), sheet in sq_sheets.items():
         through = [secs(q2) for _p, _d, _q1, q2, q3, _g, _i in sheet if q3 and q2]
@@ -3426,13 +3562,16 @@ def practice_and_sprint_qualifying():
     # a driver to the place. In pre-qualifying, nobody who failed it sits
     # above a driver who went through - "went through" being a qualifying
     # row that weekend, which is what going through means, rather than the
-    # race result, which F1DB gets wrong at least once: Caffi at Monza 1991
-    # is DNQ there with no qualifying row (review of #714; #716, with
-    # Brancatelli 1979, DNPQ with one). One sheet is published
-    # out of this order, declared as published: Mexico 1990, where Moreno
-    # is 3rd with no qualifying row and DSQ in the race results, above
-    # Suzuki, who went through. And the warm-up was run by the race's
-    # entrants: nobody on a warm-up sheet failed to qualify.
+    # race result, which F1DB gets wrong at least once: Caffi at the
+    # Hungaroring in 1991 is DNQ there with no qualifying row (review of
+    # #714), and Brancatelli at Monaco in 1979 DNPQ with one. Both are filed
+    # in `discrepancies`, kind 'session-sheet' (PM-62, #716). One sheet is
+    # published out of this order, declared as published: Mexico 1990, where
+    # Moreno is 3rd with no qualifying row, above Suzuki, who went through -
+    # disqualified in qualifying for a push start, which the race result
+    # gives as DSQ and his 'session-sheet' row explains. And the warm-up was
+    # run by the race's entrants: nobody on a warm-up sheet failed to
+    # qualify.
     PREQUAL_ORDER_EXCEPTIONS = {(1990, 6, "moreno")}
     above = [k for k in con.execute("""
         WITH pq AS (SELECT p.race_id, p.position, p.driver_id,
@@ -3447,6 +3586,47 @@ def practice_and_sprint_qualifying():
              if tuple(k) not in PREQUAL_ORDER_EXCEPTIONS]
     check("in pre-qualifying, nobody who failed it sits above a driver who went through",
           not above, ", ".join(f"{y} r{r} {d}" for y, r, d in above[:4]))
+    # The declarations behind those words are rows a reader can find: each
+    # one F1DB's race result and its sheets disagree on has its row (the key
+    # is unique, so one), with the race result as stored, and the exception
+    # above is one of them.
+    # The sheets' reading is recomputed here, not read back: DNQ where he
+    # has a qualifying row; with none, no result where a driver he sits
+    # above went through, and DNPQ otherwise.
+    sheet_rows, sheet_bad = {}, []
+    for key, y, r, d, sv, dv, stored, want in con.execute("""
+        SELECT x.key, r.year, r.round, e.driver_id, x.stored_value, x.derived_value,
+               e.position_text,
+               CASE WHEN EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = e.race_id
+                                 AND q.driver_id = e.driver_id) THEN 'DNQ'
+                    WHEN EXISTS (SELECT 1 FROM practice a JOIN practice b
+                                   ON b.race_id = a.race_id AND b.session = a.session
+                                  AND b.position > a.position
+                                  WHERE a.race_id = e.race_id AND a.driver_id = e.driver_id
+                                    AND a.session = 'pre_qualifying'
+                                    AND EXISTS (SELECT 1 FROM qualifying q
+                                                WHERE q.race_id = b.race_id
+                                                  AND q.driver_id = b.driver_id))
+                         THEN NULL
+                    ELSE 'DNPQ' END
+          FROM discrepancies x
+          LEFT JOIN race_entries e ON CAST(e.race_id AS TEXT) || '|' || e.driver_id = x.row_key
+          LEFT JOIN races r ON r.id = e.race_id
+         WHERE x.kind = 'session-sheet'""").fetchall():
+        if d is None:
+            sheet_bad.append(f"{key}: names no race entry")
+            continue
+        sheet_rows[(y, r, d)] = sv
+        if sv != stored:
+            sheet_bad.append(f"{y} r{r} {d}: row holds {sv!r}, the race result {stored!r}")
+        if dv != want:
+            sheet_bad.append(f"{y} r{r} {d}: row reads the sheets as {dv!r}, they give {want!r}")
+    sheet_bad += sorted(f"{y} r{r} {d}: declared and filed differ" for (y, r, d) in
+                        set(harvest_module().SESSION_SHEET_DISAGREEMENTS) ^ set(sheet_rows))
+    sheet_bad += [f"{y} r{r} {d}: no session-sheet row"
+                  for y, r, d in PREQUAL_ORDER_EXCEPTIONS if (y, r, d) not in sheet_rows]
+    check("every race result F1DB's sheets contradict is filed, as stored",
+          not sheet_bad, "; ".join(sheet_bad[:4]))
     not_entrants = con.execute("""SELECT COUNT(*) FROM practice p
         LEFT JOIN race_entries e ON e.race_id = p.race_id AND e.driver_id = p.driver_id
         WHERE p.session = 'warm_up'
@@ -4201,6 +4381,47 @@ def provenance_resolves():
     check("no sourced row in f1.db cites OpenStreetMap", bool(osm) and not cite,
           "; ".join(cite) if osm else "the registry names no OpenStreetMap entry")
 
+    # CR-36. formula1.com publishes one results page and one racing page per
+    # season, and source_patterns prefix-matches the host, so a row citing
+    # another season's page resolves, carries the right source_id and passed
+    # every check above: 31 rows of the 2025 classification cited the 2026
+    # page until CR-34. The build now writes the year in from the row, which
+    # is right by construction; this holds it. Only the season-scoped paths
+    # are read - an announcement article, such as the 2027 calendar's, has
+    # no season in its URL. The tables are found, not named: any that cites
+    # such a page and has no year to hold it to fails rather than escapes.
+    season_page = re.compile(
+        r"^https://www\.formula1\.com/en/(?:results|racing)/([^/?#]+)")
+    off_season, yearless, held = [], [], 0
+    for t, _ in sourced:
+        cols = [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+        if "year" in cols:
+            rows = con.execute(f"""SELECT year, source, COUNT(*) n FROM "{t}"
+                WHERE source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        elif "race_id" in cols:
+            rows = con.execute(f"""SELECT r.year, x.source, COUNT(*) n
+                FROM "{t}" x LEFT JOIN races r ON r.id = x.race_id
+                WHERE x.source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        else:
+            rows = con.execute(f"""SELECT NULL, source, COUNT(*) n FROM "{t}"
+                WHERE source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        for year, src, n in rows:
+            m = season_page.match(src)
+            if not m:
+                continue
+            if year is None:
+                yearless.append(f"{t}: {n} row(s) cite {src}")
+                continue
+            held += n
+            if m.group(1) != str(year):
+                off_season.append(f"{t} {year}: {n} row(s) cite {src}")
+    wrong_season = off_season + yearless
+    check("every formula1.com season page is cited by its own season's rows",
+          held > 0 and not wrong_season,
+          "; ".join(wrong_season[:3]) if wrong_season
+          else "" if held else "no row cites a formula1.com season page")
+    print(f"        formula1.com season pages: {held:,} rows held to their year")
+
 
 @section('TIER DEFINITIONS NAME THEIR SOURCES')
 def tier_sources():
@@ -4288,15 +4509,18 @@ def claim_key_columns(table):
 
     The primary key, unless it is a bare INTEGER id: those are the build's
     business and may be renumbered (README, "which ids a reader may keep"),
-    and a claim keyed on one would silently re-point at another row.
+    and a claim keyed on one would silently re-point at another row. Such a
+    table is keyed instead by the natural key ID_STABILITY publishes for it,
+    which is how `discrepancies` already names its rows (DA-37).
     """
+    from data import current as _N
     info = con.execute(f'PRAGMA table_info("{table}")').fetchall()
     pk = [r["name"] for r in sorted(info, key=lambda r: r["pk"]) if r["pk"]]
-    if not pk:
-        return None
-    if len(pk) == 1 and next(r for r in info if r["name"] == pk[0])["type"].upper() == "INTEGER":
-        return None
-    return pk
+    if pk and not (len(pk) == 1 and next(
+            r for r in info if r["name"] == pk[0])["type"].upper() == "INTEGER"):
+        return pk
+    natural = (_N.ID_STABILITY.get(table) or (None, None))[1]
+    return list(natural) if natural else None
 
 
 @section('CLAIMS')
@@ -4490,8 +4714,6 @@ def a_disagreement_names_the_value_it_is_about():
     `claims` spells it, and this holds it to the database: the table exists,
     the field is one of its columns, and the row key names at least one of
     its rows. The columns are read from the schema, never listed here."""
-    from data import current as _N
-
     tables = {r[0] for r in con.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'")}
     rows = con.execute("""SELECT id, key, kind, tbl, row_key, field, stored_value,
@@ -4515,8 +4737,7 @@ def a_disagreement_names_the_value_it_is_about():
         # is, and otherwise the natural key the identifier policy publishes.
         # A row key may name only the head of it: a race's entries, a
         # standings table after one round.
-        key = claim_key_columns(r["tbl"]) or list(
-            (_N.ID_STABILITY.get(r["tbl"]) or (None, None))[1] or [])
+        key = claim_key_columns(r["tbl"]) or []
         parts = r["row_key"].split("|")
         if not key or len(parts) > len(key):
             dangling.append(f"#{r['id']} {r['tbl']} [{r['row_key']}]: "
@@ -4703,19 +4924,30 @@ def the_full_classification():
     # clean; since #60 the README's figure spans catch it indirectly, which
     # invites "fixing" the README. A floor names the harvest. Same rule: the
     # count at v2.22, raised when a harvest legitimately adds, never lowered.
+    # PM-68 lowered two, by the maintainer's ruling of 2026-10-08 on #838.
+    # weight_kg 204 -> 201: BRM P160's infobox gives "550 kg; 573 kg
+    # (P160E)", the old parse kept the last item, so P160, P160B and P160C
+    # carried the P160E's weight; read in order, 550 is the 1972 regulation
+    # minimum, which the harvest drops. chassis_id 119 -> 118: Wikipedia has
+    # since published a Brabham BT33 article, whose lead image names no
+    # author and is refused, and an article takes a chassis off the category
+    # route. Both are what the source now says, not a lost harvest.
     COLUMN_FLOORS = (
-        ("chassis", "weight_kg", 204, "harvest/car_specs.txt"),
+        ("chassis", "weight_kg", 201, "harvest/car_specs.txt"),
         ("chassis", "wheelbase_mm", 346, "harvest/car_specs.txt"),
         # `article` is filled only on the article route, `chassis_id` only on
         # the category route (AF-42), so each floor names one harvest.
         ("article_images", "article", 623, "harvest/article_images.txt"),
-        ("article_images", "chassis_id", 119, "harvest/category_images.txt"),
+        ("article_images", "chassis_id", 118, "harvest/category_images.txt"),
         # VD-61's two, at the counts they arrived with: `circuit_id` is filled
         # only on the circuit route, and `circuits.article` from the mapping.
         ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
-        # PD-64's, at the count it arrived with: `race_id` is filled only on
-        # the race route.
-        ("article_images", "race_id", 3911, "harvest/race_images.txt"),
+        # PD-64's: `race_id` is filled only on the race route. 3911 -> 3916
+        # on LV-09's rerun (2026-10-08): six of 2026 Bahrain, run since, and
+        # one 2000 United States file that Commons now redirects to another
+        # it already held; 2026 round 7's one row moved to round 14 with the
+        # name, its category being Madrid's race.
+        ("article_images", "race_id", 3916, "harvest/race_images.txt"),
         ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
@@ -5166,6 +5398,367 @@ def project_prose():
         wider = sorted(set(offered) - set(declared))
         check(f"{doc} offers no column that PROJECT_PROSE_COLUMNS does not",
               not wider, ", ".join(wider))
+
+
+# ---------------------------------------------------------------------------
+# THE FACTS ARTEFACT
+#
+# PD-53 (#741), piece 2 of PD-41 (#481). The CC BY 4.0 facts artefact that
+# PD-54 publishes beside f1.db carries the set tools/facts_artefact.py
+# declares, and the declaration is derived - from source_id, table_provenance,
+# the prose pass's labels and the claims - rather than listed. What this
+# section holds is that the derivation leaves nothing share-alike, nothing
+# unclassified and no prose in the set, and that the race rows the ruling of
+# 2026-10-08 rebuilds from F1DB differ from f1.db only where the rules say
+# they must. A grant of CC BY cannot be taken back from a copy, so every
+# failure here is a row or a column that must not go out, not a style point.
+# ---------------------------------------------------------------------------
+@section("THE FACTS ARTEFACT")
+def facts_artefact():
+    fa = _tool("facts_artefact")
+    decl = fa.declare(con)
+    reg = fa.registry(con)
+    carried = fa.carried_sources(con)
+    grant = fa.granted()
+    cols_of = {t: [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')] for t in decl}
+
+    # Named here as well as there, so that narrowing the declaration fails.
+    fom = [t for t in ("laps", "stints", "race_timing", "race_control_messages")
+           if decl.get(t, {}).get("rows") != "none"]
+    check("the facts artefact leaves out the four FOM timing tables by name", not fom,
+          ", ".join(fom))
+
+    undeclared = sorted(t for t, d in decl.items() if d["rows"] is None)
+    check("every table has a declared place in the facts artefact", not undeclared,
+          ", ".join(undeclared))
+
+    # A declaration naming nothing declares nothing, and a renamed column
+    # would leave it pointing at nothing without a word.
+    stale = [t for t in list(fa.APPARATUS) + list(fa.UNSOURCED) + list(fa.RESOURCED)
+             + list(fa.SPANS) if t not in decl]
+    for name in list(fa.UNGRANTED) + list(fa.KEYED) + [
+            k for k in fa.RECOUNTED if "." in k]:
+        t, _, c = name.partition(".")
+        if c not in cols_of.get(t, ()):
+            stale.append(name)
+    for t, (governs, first, last) in fa.SPANS.items():
+        stale += [f"{t}.{c}" for c in (governs, first, last) if c not in cols_of.get(t, ())]
+    for name in fa.KEYED:
+        t, _, c = name.partition(".")
+        if any(f[3] == c for f in con.execute(f'PRAGMA foreign_key_list("{t}")')):
+            stale.append(f"{name} (the schema keys it already)")
+    for t, spec in fa.UNSOURCED.items():
+        stale += [f"{t}.{c}" for c in spec["own"] + list(spec["about"] or ())
+                  if c not in cols_of.get(t, ())]
+    stale += [f"race_entries.{c}" for c in fa.SHARED_DRIVE_BLANKS
+              if c not in cols_of["race_entries"]]
+    for (d, c) in fa.DRIVER_DIFFERENCES:
+        if c not in cols_of["drivers"] or not con.execute(
+                "SELECT 1 FROM drivers WHERE id = ?", (d,)).fetchone():
+            stale.append(f"drivers.{c} {d}")
+    check("every facts-artefact declaration names a table and column that exist",
+          not stale, ", ".join(stale))
+
+    # Sources. Every row carried as stored cites a source the registry
+    # classifies as redistributable with no share-alike; every table carried
+    # whole has a provenance row saying the same, or is authored and granted.
+    unclassified, barred = [], []
+    tp = dict(con.execute("SELECT tbl, source_id FROM table_provenance").fetchall())
+    for t, d in decl.items():
+        if d["rows"] == "by source":
+            for sid, n in con.execute(f'SELECT source_id, COUNT(*) FROM "{t}" '
+                                      f'GROUP BY source_id'):
+                if sid not in reg or reg[sid]["redistributable"] not in ("yes", "facts-only", "no"):
+                    unclassified.append(f"{t}: {n} rows citing {sid}")
+        elif d["rows"] == "all" and t in tp:
+            s = reg.get(tp[t])
+            if s is None:
+                unclassified.append(f"{t}: provenance {tp[t]}")
+            elif tp[t] not in carried and s["authority"] != "authored":
+                barred.append(f"{t}: provenance {tp[t]}")
+    check("no row the facts artefact carries cites an unclassified source",
+          not unclassified, "; ".join(unclassified[:4]))
+    check("no table the facts artefact carries whole has a share-alike or barred provenance",
+          not barred, "; ".join(barred))
+
+    # The rebuild: every share-alike row of a table it covers is rebuilt, so
+    # none goes out as stored.
+    rebuilt = fa.rebuild(con)
+    ids = ",".join(str(i) for i in sorted(carried))
+    unbuilt = []
+    for t in fa.RESOURCED:
+        for (rid,) in con.execute(f'SELECT id FROM "{t}" WHERE source_id NOT IN ({ids})'):
+            row = rebuilt[t].get(rid)
+            if row is None or row.get("source_id") != fa.f1db_source(con):
+                unbuilt.append(f"{t} {rid}")
+    print(f"  [info] {sum(1 for d in decl.values() if d['rows'] not in (None, 'none'))} of "
+          f"{len(decl)} tables carried; "
+          + ", ".join(f"{len([r for r in rebuilt[t].values() if 'source_id' in r])} {t}"
+                      for t in fa.RESOURCED) + " rows rebuilt from F1DB")
+    barred_ids = {i for i, x in reg.items() if x["redistributable"] not in ("yes", "facts-only")}
+    unfiltered = [t for t in fa.RESOURCED if not decl[t]["where"] or any(
+        str(i) in re.findall(r"\d+", decl[t]["where"]) for i in barred_ids)]
+    check("every table the facts artefact rebuilds selects its rows by source class",
+          not unfiltered, ", ".join(unfiltered))
+    check("every share-alike row of a table the facts artefact rebuilds is rebuilt from F1DB",
+          not unbuilt, f"{len(unbuilt)}: " + ", ".join(unbuilt[:6]) if unbuilt else "")
+
+    # Every column of a rebuilt table is classed, so a column added later
+    # cannot ride out on a rebuilt row as the stored value.
+    unclassed = []
+    for t, spec in fa.RESOURCED.items():
+        for c in decl[t]["columns"]:
+            k = spec["columns"].get(c)
+            if k not in fa.CLASSES:
+                unclassed.append(f"{t}.{c}" + (f" ({k})" if k else ""))
+        unclassed += [f"{t}.{c} (classed and left out)" for c in spec["columns"]
+                      if c not in decl[t]["columns"]]
+    check("every column of a table the facts artefact rebuilds says what it is on a rebuilt row",
+          not unclassed, ", ".join(unclassed))
+
+    # And the class is what rebuild() does: a column classed as rebuilt is
+    # given a value on every rebuilt row, and a column rebuild() replaces is
+    # classed as one it may replace.
+    # A column classed not established is NULL on every rebuilt row, and
+    # one classed as a rule's holds a value on some of them. (F1DB's value
+    # can be NULL throughout: a winner's retirement status is.)
+    replaced = ("f1db", "rule", "null", "cited")
+    misclassed = set()
+    for t, spec in fa.RESOURCED.items():
+        rows = [r for r in rebuilt[t].values() if "source_id" in r]
+        for c, k in spec["columns"].items():
+            if c not in decl[t]["columns"]:
+                continue
+            given = sum(1 for r in rows if c in r)
+            valued = sum(1 for r in rows if r.get(c) is not None)
+            if (k in replaced) != (given == len(rows) and bool(rows)):
+                misclassed.add(f"{t}.{c} ({k}, rebuilt on {given} of {len(rows)})")
+            elif k == "null" and valued:
+                misclassed.add(f"{t}.{c} (null, but given a value on {valued} rows)")
+            elif k == "rule" and not valued:
+                misclassed.add(f"{t}.{c} ({k}, but NULL on every rebuilt row)")
+    check("every class of a rebuilt column is what the rebuild does with it",
+          not misclassed, ", ".join(sorted(misclassed)))
+    unbacked = []
+    for t, spec in fa.RESOURCED.items():
+        for c, k in spec["columns"].items():
+            if k != "claimed":
+                continue
+            for (rid,) in con.execute(
+                    f'SELECT id FROM "{t}" WHERE source_id NOT IN ({ids}) AND "{c}" IS NOT NULL'):
+                if not con.execute(
+                        f"SELECT 1 FROM claims WHERE tbl = ? AND row_key = ? AND field = ? "
+                        f"AND source_id IN ({ids})", (t, str(rid), c)).fetchone():
+                    unbacked.append(f"{t}.{c} {rid}")
+    check("every claimed value on a rebuilt row has a claim citing a source carried",
+          not unbacked, f"{len(unbacked)}: " + ", ".join(unbacked[:6]) if unbacked else "")
+
+    # Prose. The pass's columns go unless granted; an authored table not
+    # granted goes whole; and a screen on everything else carried, because
+    # a written column the pass has never been told about would otherwise
+    # ride out unmeasured.
+    prose, screened = [], []
+    for t, d in decl.items():
+        if d["rows"] in (None, "none"):
+            continue
+        prose += [f"{t}.{c}" for c in d["columns"]
+                  if c in fa.measured(t) and f"{t}.{c}" not in grant]
+        types = {c[1]: c[2] for c in con.execute(f'PRAGMA table_info("{t}")')}
+        for c in d["columns"]:
+            if types.get(c) != "TEXT" or f"{t}.{c}" in grant:
+                continue
+            where = f"WHERE {d['where']}" if d["where"] else ""
+            for (v,) in con.execute(f'SELECT DISTINCT "{c}" FROM "{t}" {where}'):
+                if v and len(re.findall(r"[A-Za-z]{2,}", str(v))) > fa.PROSE_WORDS:
+                    screened.append(f"{t}.{c}")
+                    break
+    check("the facts artefact carries no prose the prose pass measures that is not granted",
+          not prose, ", ".join(prose))
+    check(f"no other text column the facts artefact carries runs past {fa.PROSE_WORDS} words",
+          not screened, ", ".join(screened) + " - declare it in UNGRANTED, or grant it"
+          if screened else "")
+
+    # A Wikipedia value on a row that does not cite Wikipedia: the claims say
+    # where, column by column.
+    claimed = [f"{t}.{c} {k}" for t, k, c in fa.claimed_cells(con)
+               if c in decl.get(t, {}).get("columns", ())
+               and rebuilt.get(t, {}).get(k, {}).get(c, "stored") is not None]
+    check("the facts artefact holds NULL every value a claim cites a share-alike source for",
+          not claimed, ", ".join(sorted(claimed)[:6]))
+    if decl.get("claims", {}).get("rows") == "by source":
+        about = con.execute(
+            f"SELECT COUNT(*) FROM claims WHERE {decl['claims']['where']}").fetchone()[0]
+        stray = [f"{t}.{c}" for t, c in con.execute(
+            f"SELECT DISTINCT tbl, field FROM claims WHERE {decl['claims']['where']}")
+            if c not in decl.get(t, {}).get("columns", ())]
+        print(f"  [info] {about} claims carried")
+        check("every claim the facts artefact carries is about a column it carries",
+              not stray, ", ".join(stray))
+    for t, spec in fa.UNSOURCED.items():
+        if not spec["about"] or decl[t]["rows"] != "all":
+            continue
+        a, b = spec["about"]
+        stray = [f"{x}.{y}" for x, y in con.execute(
+            f'SELECT DISTINCT "{a}", "{b}" FROM "{t}" WHERE {decl[t]["where"]}')
+            if y not in decl.get(x, {}).get("columns", ())]
+        check(f"every {t} row the facts artefact carries is about a column it carries",
+              not stray, ", ".join(stray))
+
+    # The discrepancies go out without the values they compare and only
+    # about a column the artefact carries - named here as well as in the
+    # declaration, so that loosening the declaration fails (PM-74, #933).
+    if decl["discrepancies"]["rows"] not in (None, "none"):
+        leaked = [c for c in ("stored_value", "derived_value", "status_note")
+                  if c in decl["discrepancies"]["columns"]]
+        check("the facts artefact carries no discrepancy's compared values", not leaked,
+              ", ".join(leaked))
+        w = decl["discrepancies"]["where"]
+        loose = [f"{x}.{y}" for x, y in con.execute(
+            "SELECT DISTINCT tbl, field FROM discrepancies" + (f" WHERE {w}" if w else ""))
+            if y not in decl.get(x, {}).get("columns", ())]
+        check("every discrepancy the facts artefact carries is about a column it carries",
+              not loose, ", ".join(loose[:6]))
+
+    # A race whose circuit the rebuild does not take from F1DB's layout is on
+    # a formula1.com calendar, not the venue harvest's.
+    from data import current as _N
+    no_layout = [f"{y} r{r}" for rid, y, r in con.execute(
+        "SELECT id, year, round FROM races ORDER BY year, round")
+        if "circuit_id" not in rebuilt["races"].get(rid, {}) and y not in _N.CALENDARS]
+    check("every race whose circuit is not F1DB's layout's is on a formula1.com calendar",
+          not no_layout, ", ".join(no_layout[:6]))
+    for t, (governs, first, last) in fa.SPANS.items():
+        span = cols_of[t][cols_of[t].index(first):cols_of[t].index(last) + 1]
+        loose = [c for c in span if con.execute(
+            f'SELECT 1 FROM "{t}" WHERE "{governs}" IS NULL AND "{c}" IS NOT NULL').fetchone()]
+        check(f"every column of {t}'s {first}..{last} span is held only where {governs} cites a source",
+              not loose, ", ".join(loose))
+
+    # Keys. A carried value naming a row the artefact does not carry is a
+    # dangling key in the file PD-54 writes.
+    def carried_rows(t):
+        w = decl[t]["where"]
+        return f'(SELECT * FROM "{t}" WHERE {w})' if w else f'"{t}"'
+    dangling = []
+    for t, d in decl.items():
+        if d["rows"] in (None, "none"):
+            continue
+        for f in con.execute(f'PRAGMA foreign_key_list("{t}")'):
+            ref, col, to = f[2], f[3], f[4] or "id"
+            if col not in d["columns"]:
+                continue
+            if decl.get(ref, {}).get("rows") in (None, "none"):
+                dangling.append(f"{t}.{col} -> {ref} (left out)")
+                continue
+            n = con.execute(
+                f'SELECT COUNT(*) FROM {carried_rows(t)} x WHERE x."{col}" IS NOT NULL '
+                f'AND x."{col}" NOT IN (SELECT "{to}" FROM {carried_rows(ref)})').fetchone()[0]
+            if n:
+                dangling.append(f"{t}.{col} -> {ref}: {n}")
+    check("every key the facts artefact carries names a row it carries", not dangling,
+          "; ".join(dangling[:6]))
+    # A key the schema gives no foreign key is found by its name: car_id is
+    # a key into cars. KEYED declares the ones this finds, and the ones its
+    # name does not give away (races.layout_key).
+    named = []
+    for t, d in decl.items():
+        if d["rows"] in (None, "none"):
+            continue
+        fk = {f[3] for f in con.execute(f'PRAGMA foreign_key_list("{t}")')}
+        for c in d["columns"]:
+            if not c.endswith("_id") or c in fk or f"{t}.{c}" in fa.KEYED:
+                continue
+            stem = c[:-3]
+            for ref in (stem + "s", stem):
+                if decl.get(ref, {}).get("rows") == "none":
+                    named.append(f"{t}.{c} -> {ref}")
+    check("no column the facts artefact carries is named for a table it leaves out",
+          not named, ", ".join(named) + " - declare it in KEYED" if named else "")
+
+    # Where the rebuild leaves the artefact unlike f1.db, each difference has
+    # to be one a rule predicts. Anything else is the rebuild being wrong, or
+    # F1DB and f1.db disagreeing where nobody has said so.
+    diffs = fa.differences(con, rebuilt)
+    by = {}
+    for t, rid, c, ours, theirs in diffs:
+        by.setdefault((t, c), []).append((rid, ours, theirs))
+    shared = {rid for (rid,) in con.execute(
+        "SELECT id FROM race_entries WHERE shared_drive = 1")}
+    race_of = dict(con.execute("SELECT id, race_id FROM race_entries").fetchall())
+    open_fl = {int(k) for (k,) in con.execute(
+        "SELECT row_key FROM discrepancies WHERE tbl = 'race_entries' "
+        "AND field = 'fastest_lap' AND kind = 'f1db-fastest-lap' AND status = 'open'")}
+    src = fa.F1DB(con)
+
+    # The fastest lap of every race F1DB gives one for is exactly F1DB's
+    # set, a tie shared as it shares it - read here from F1DB's file, not
+    # from rebuild(), so that an extra or a missing credit fails even in a
+    # race whose difference from f1.db is otherwise allowed.
+    wrong_fl = []
+    entry_of = {}
+    for eid, rid, did in con.execute("SELECT id, race_id, driver_id FROM race_entries"):
+        entry_of.setdefault(rid, {})[did] = eid
+    for rid, (y, r) in {rid: (y, r) for rid, y, r in con.execute(
+            "SELECT id, year, round FROM races")}.items():
+        theirs = {src.ours(x["driver_id"]) for x in src.fastest.get((y, r), [])}
+        if not theirs or rid not in entry_of:
+            continue
+        got = {d for d, eid in entry_of[rid].items()
+               if rebuilt["race_entries"].get(eid, {}).get("fastest_lap") == 1}
+        shares = {rebuilt["race_entries"][entry_of[rid][d]].get("fastest_lap_shared")
+                  for d in got}
+        if got != theirs or shares != {len(theirs)}:
+            wrong_fl.append(f"{y} r{r}")
+    check("every rebuilt fastest lap is F1DB's, a tie shared as F1DB shares it",
+          not wrong_fl, ", ".join(wrong_fl[:6]))
+    key_of = {rid: (y, r) for rid, y, r in con.execute("SELECT id, year, round FROM races")}
+    unexplained, notes = [], Counter()
+    f1db_of = dict(con.execute("SELECT id, f1db_id FROM drivers").fetchall())
+    cells = fa.claimed_cells(con)
+    for (t, c), rows in sorted(by.items()):
+        kind = fa.RESOURCED.get(t, {}).get("columns", {}).get(c)
+        for rid, ours, theirs in rows:
+            if kind == "null" and theirs is None:
+                notes[f"{t}.{c} not established"] += 1
+            elif t == "race_entries" and c in fa.SHARED_DRIVE_BLANKS and theirs is None \
+                    and rid in shared:
+                notes["shared drives' F1DB row blank"] += 1
+            elif t == "race_entries" and c in ("fastest_lap", "fastest_lap_shared") \
+                    and race_of[rid] in open_fl:
+                notes["fastest laps in an open discrepancy with F1DB"] += 1
+            elif t == "race_entries" and c == "pole" and theirs is None \
+                    and key_of[race_of[rid]] not in src.results:
+                notes["poles on races F1DB's release does not yet hold"] += 1
+            elif t == "race_entries" and c in ("fastest_lap", "fastest_lap_shared") \
+                    and theirs is None and key_of[race_of[rid]] not in src.fastest:
+                notes["fastest laps F1DB does not state"] += 1
+            elif theirs is None and c in decl[t]["nulled"] and (t, str(rid), c) in cells:
+                notes["values a claim cites a share-alike source for"] += 1
+            elif t == "drivers" and c in ("born", "died") and ours is None \
+                    and theirs == src.drivers.get(f1db_of.get(rid), [None] * 6)[
+                        4 if c == "born" else 5]:
+                notes["drivers' dates F1DB adds"] += 1
+            elif t == "drivers" and (rid, c) in fa.DRIVER_DIFFERENCES:
+                notes["drivers F1DB describes otherwise (declared)"] += 1
+            else:
+                unexplained.append(f"{t}.{c} {rid}: {ours!r} -> {theirs!r}")
+    print("  [info] the facts artefact differs from f1.db: "
+          + (", ".join(f"{n} {k}" for k, n in sorted(notes.items())) or "nowhere"))
+    check("every difference the F1DB rebuild makes from f1.db is one a rule predicts",
+          not unexplained, f"{len(unexplained)}: " + "; ".join(unexplained[:5])
+          if unexplained else "")
+    unused = [f"{d} {c}" for (d, c) in fa.DRIVER_DIFFERENCES
+              if not any(t == "drivers" and rid == d and col == c
+                         for t, rid, col, _, _ in diffs)]
+    check("every declared driver difference is still one", not unused, ", ".join(unused))
+
+    # The crosswalk covers every grand prix the rebuilt races ran under.
+    walk, bad = fa.crosswalk(con, src)
+    used = {src.gp[(y, r)]["grand_prix_id"] for y, r in con.execute(
+        f"SELECT year, round FROM races WHERE source_id NOT IN ({ids})")
+        if (y, r) in src.gp}
+    check("every F1DB grand prix a rebuilt race ran under is one row of grands_prix",
+          not (used & set(bad)), ", ".join(sorted(used & set(bad))))
 
 
 @section('ILLUSTRATION AND GEOMETRY')
@@ -5740,8 +6333,10 @@ def points_below_the_paid_places():
     paid scored 0, and says so (DA-08), and so did an entry that was not
     classified in a race that has a classification (DA-36): NULL is what
     this database uses for *not established*, and the scale establishes
-    both. The build writes the 0; this is what stops a new F1DB refresh, a
-    new season or a reworded system leaving a blank behind it."""
+    both. So did a finisher inside the paid places whom the race's own
+    rules did not pay, and the row's note says why (DA-37). The build writes
+    the 0; this is what stops a new F1DB refresh, a new season or a
+    reworded system leaving a blank behind it."""
     # The paid places per season, read from the scale in Python rather than
     # with SQLite's JSON functions, which nothing else here depends on.
     systems = con.execute("""SELECT from_year, to_year, scale,
@@ -5754,12 +6349,12 @@ def points_below_the_paid_places():
                 return len(json.loads(s["scale"]))
         return None
 
-    inside_unpaid = set()
+    inside_unpaid, inside_zero = set(), {}
     for table, sprint, what in (("race_entries", False, "grand prix"),
                                 ("sprint_results", True, "sprint")):
         blank, unclassified, above = [], [], 0
         for r in con.execute(f"""SELECT r.year, r.round, e.driver_id,
-                e.finish_position AS pos, e.position_text, e.points,
+                e.finish_position AS pos, e.position_text, e.points, e.note,
                 EXISTS (SELECT 1 FROM {table} c WHERE c.race_id = e.race_id
                         AND c.finish_position IS NOT NULL) AS run
             FROM {table} e JOIN races r ON r.id = e.race_id
@@ -5777,6 +6372,9 @@ def points_below_the_paid_places():
                                     f"{r['driver_id']} {r['position_text']}")
             elif r["points"] is None and r["pos"] is not None:
                 inside_unpaid.add((r["year"], r["round"], r["driver_id"]))
+            elif r["points"] == 0 and r["pos"] is not None and not below \
+                    and not sprint:
+                inside_zero[(r["year"], r["round"], r["driver_id"])] = r["note"]
             elif r["points"] == 0 and not (below or unpaid):
                 above += 1
         check(f"no {what} finisher below the paid places holds NULL points", not blank,
@@ -5785,32 +6383,39 @@ def points_below_the_paid_places():
               not unclassified,
               f"{len(unclassified)} rows: " + "; ".join(unclassified[:5])
               if unclassified else "")
-        # The write reaches no further than those two: nothing inside the
-        # paid places, and nothing in a race nobody was classified in, was
-        # given a 0.
-        check(f"a {what} 0 is only ever below the paid places or for an entry "
-              "not classified in a race that has a classification",
-              above == 0, f"{above} rows")
+        # The write reaches no further than those two and the declared
+        # causes below: nothing else inside the paid places, and nothing in
+        # a race nobody was classified in, was given a 0. A sprint has no
+        # declared cause, so a 0 inside its paid places lands here.
+        check(f"a {what} 0 is only ever below the paid places, for an entry "
+              "not classified in a race that has a classification, or for a "
+              "declared cause", above == 0, f"{above} rows")
 
-    # A finisher inside the paid places whom F1DB gives no points is left
-    # NULL, because the scale says the place was paid and what the race's
-    # own rules did to that entry - a shared drive, a Formula Two car, a
-    # second car not entered for the championship, a penalty - is not the
-    # scale's to state. These are the ones there are; a new one is a row to
-    # read, not a zero to write.
-    INSIDE_UNPAID = {
-        (1957, 5, "collins"), (1958, 8, "mclaren-d"), (1958, 10, "gregory"),
-        (1958, 10, "carroll-shelby"), (1960, 1, "moss"), (1960, 1, "trintignant"),
-        (1963, 4, "g-hill"), (1967, 7, "oliver"), (1969, 7, "pescarolo"),
-        (1969, 7, "attwood"), (1984, 14, "jo-gartner"), (1984, 14, "berger"),
-        (1987, 16, "yannick-dalmas"),
-    }
-    # A sprint has none, so one there is new by definition.
-    check(f"the {len(INSIDE_UNPAID)} unpaid finishers inside the paid places are "
-          "the ones declared, and no others",
-          inside_unpaid == INSIDE_UNPAID,
-          f"new: {sorted(inside_unpaid - INSIDE_UNPAID)}; "
-          f"gone: {sorted(INSIDE_UNPAID - inside_unpaid)}")
+    # A finisher inside the paid places whom F1DB gives no points was paid
+    # nothing by the race's own rules - a shared drive, a Formula Two car, a
+    # second car not entered for the championship, a penalty - which the
+    # scale cannot state and the race's article does. data/harvest.py
+    # UNPAID_INSIDE_THE_PAID_PLACES declares each with its cause; the build
+    # writes the cause as the note and the 0 it establishes. A new one is a
+    # row to read, not a blank to leave or a zero to write unexplained.
+    declared = {k: note for k, (note, _src)
+                in harvest_module().UNPAID_INSIDE_THE_PAID_PLACES.items()}
+    check("no finisher inside the paid places holds NULL points",
+          not inside_unpaid,
+          f"{len(inside_unpaid)}: {sorted(inside_unpaid)[:5]} - read the "
+          "race's article and declare the cause in UNPAID_INSIDE_THE_PAID_PLACES")
+    check(f"the {len(declared)} finishers inside the paid places who scored "
+          "nothing are the ones declared, each with its cause as the note",
+          inside_zero == declared,
+          f"undeclared: {sorted(set(inside_zero) - set(declared))}; "
+          f"not held: {sorted(set(declared) - set(inside_zero))}; "
+          f"note differs: {sorted(k for k in set(declared) & set(inside_zero) if inside_zero[k] != declared[k])}")
+    # And the note holds nothing else, so it cannot drift into a second use
+    # this check does not read.
+    noted = con.execute("SELECT COUNT(*) FROM race_entries WHERE note IS NOT NULL"
+                        ).fetchone()[0]
+    check("race_entries.note is held only for a declared cause",
+          noted == len(declared), f"{noted} notes, {len(declared)} declared")
 
 
 @section('THE README STATES WHAT THE DATABASE HOLDS')
@@ -5867,7 +6472,8 @@ def prose_figures():
     # typed by hand: 1,161 races and 27,555 entries where 1,163 and 27,504
     # are held, with qualifying, standings, pit stops and the Commons
     # totals stale beside them, because nothing read them (CD-38, AF-63).
-    # Each is now a {{fig:name}} token in data/*.py; build.py expands it off
+    # `known_gaps` on /data/quality had the same (CD-45). Each is now a
+    # {{fig:name}} token in data/*.py; build.py expands it off
     # the counts in its final stage. Here the literals are re-expanded from
     # the same tables and the stored prose is compared WHOLE, the way
     # meta.coverage_note is, so a row whose other figures were wrong could

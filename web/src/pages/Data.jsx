@@ -147,7 +147,7 @@ function Body({ data }) {
             </p>
           </a>
         </div>
-        <p className="measure" style={{ marginTop: 18 }}>
+        <p className="measure">
           {TWO_FILES}
         </p>
         <p className="measure">{SELF_DESCRIBING}</p>
@@ -207,7 +207,7 @@ function Body({ data }) {
             </a>
           ))}
         </div>
-        <p className="measure" style={{ marginTop: 18 }}>
+        <p className="measure">
           {DOCUMENTS_NOTE} <a href={REPOSITORY}>The repository</a> holds the build, the checks that
           gate it and the source data they read, so the cross-checking claimed above can be read
           rather than taken on trust.

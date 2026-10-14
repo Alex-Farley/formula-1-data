@@ -7,7 +7,7 @@ import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filt
 import { useQuery } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
-import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER } from '../queries/drivers.js'
+import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER, DRIVERS_LEDE } from '../queries/drivers.js'
 import { PRACTICE_ONLY_MARK } from '../queries/race.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -47,7 +47,7 @@ export default function Drivers() {
       title={NAMES.drivers().headline}
       documentName={NAMES.drivers().title}
       trail={TRAIL.drivers()}
-      lede="Every driver the championship has recorded an entry for, from 1950 to now, and the Friday drivers who ran in practice and never started a race. Filter by nationality, narrow to champions or race winners, then open anyone for their record."
+      lede={DRIVERS_LEDE}
     >
       <Section>
         <Result state={state} skeleton>

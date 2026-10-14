@@ -21,8 +21,25 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
+import { SEASONS_LEDE } from '../src/queries/seasons.js'
+import { CONSTRUCTORS_LEDE } from '../src/queries/constructors.js'
+import { CIRCUITS_LEDE } from '../src/queries/circuits.js'
+import { CARS_LEDE } from '../src/queries/cars.js'
 
-import { MIN_ROWS, cellText, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
+import {
+  FOLD_NOUN,
+  FOLD_OVER,
+  MIN_ROWS,
+  UNFOLDED,
+  cellText,
+  chosenColumns,
+  defaultColumns,
+  foldFault,
+  onPhone,
+  shared,
+  sharedLine,
+  tableKey,
+} from '../src/lib/table.js'
 import { captureOpenFolds, captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
 
 import {
@@ -44,7 +61,16 @@ import {
 
 import {
   EMPTY,
+  HOUSE_LOCALE,
   classificationOrder,
+  dateSegments,
+  houseDate,
+  houseTime,
+  isDay,
+  localDate,
+  localRaceDates,
+  localTime,
+  longDate,
   missing,
   number,
   percent,
@@ -54,6 +80,7 @@ import {
   span,
   text,
   yearList,
+  zonedIso,
 } from '../src/lib/format.js'
 import { distance, elsewhere, fold, prepare, rank } from '../src/lib/search.js'
 import { EXAMPLES, QUESTIONS, TOPICS, questionPath } from '../src/lib/questions.js'
@@ -61,7 +88,7 @@ import { complaint, emptyTimingTableRead, nearestStatement } from '../src/lib/sq
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { KEY_SHAPE, holderPath, recordPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
-import { clock, eventDay, nextSession, raceStage, until, utc } from '../src/queries/sessions.js'
+import { SESSION_COLUMNS, clock, eventDay, nextSession, raceStage, until, utc, yourTimeColumn } from '../src/queries/sessions.js'
 import {
   SEASON_COLUMNS,
   careerSentence,
@@ -73,18 +100,22 @@ import {
   seasonTile,
   seasonsNote,
   strip,
+  thisSeasonHeading,
+  thisSeasonLine,
 } from '../src/queries/driver.js'
 import {
   constructorsFooter,
   latestRound,
   noConstructorsNote,
+  progressionNote,
   roundName,
   roundResult,
   roundWinner,
+  seasonLede,
   standingsHeading,
   stillRunning,
+  titleAnswer,
   titleHeading,
-  titlePermutations,
 } from '../src/queries/season.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
@@ -94,8 +125,8 @@ import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
-import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
-import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
+import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty } from '../src/queries/race.js'
+import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
 import { pitPairs, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
 import {
   SEASONS_RACED_WIDTH,
@@ -111,7 +142,9 @@ import {
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, recordFigures } from '../src/queries/constructor.js'
 import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
-import { DIGEST_NOTE, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
+import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
+import { raceSteps } from '../src/lib/wayfinding.js'
+import { NEIGHBOURS as RACE_NEIGHBOURS } from '../src/queries/race.js'
 import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
   LIVERIES,
@@ -142,7 +175,7 @@ import {
   roundShortName,
   roundStates,
 } from '../src/lib/outline.js'
-import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
+import { THUMB_WIDTH, attribution, canShow, fileLinkName, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { GRACE_DAYS, LATE_NOTE, lateDays, lateLine, lateNotice, lateRaces, raceDay, readerDay } from '../src/lib/refresh.js'
 import { UNRESULTED } from '../src/queries/changes.js'
 import {
@@ -157,7 +190,7 @@ import {
   recordFamilies,
   tiersOf,
 } from '../src/queries/records.js'
-import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
+import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -378,25 +411,27 @@ describe('the question library (IA-20, PD-32)', () => {
 })
 
 describe('raceDates', () => {
-  // The strings races.dates held before DA-15, so no page changes with the column.
+  // The house format (CD-57): the month a word, the day unpadded, a range
+  // joined by an en dash as every span on the site is.
   it('writes a weekend inside one month', () => {
-    assert.equal(raceDates({ date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '27-29 Mar 2026')
+    assert.equal(raceDates({ date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '27–29 Mar 2026')
   })
 
   it('names both months for a weekend across two', () => {
-    assert.equal(raceDates({ date_iso: '2026-11-01', date_from: '2026-10-30', date_to: '2026-11-01' }), '30 Oct-01 Nov 2026')
+    assert.equal(raceDates({ date_iso: '2026-11-01', date_from: '2026-10-30', date_to: '2026-11-01' }), '30 Oct–1 Nov 2026')
   })
 
   it('names both years for a weekend across two', () => {
-    assert.equal(raceDates({ date_iso: '2028-01-01', date_from: '2027-12-30', date_to: '2028-01-01' }), '30 Dec 2027-01 Jan 2028')
+    assert.equal(raceDates({ date_iso: '2028-01-01', date_from: '2027-12-30', date_to: '2028-01-01' }), '30 Dec 2027–1 Jan 2028')
   })
 
-  it('is the race day where no weekend is stated', () => {
-    assert.equal(raceDates({ date_iso: '1950-05-13', date_from: null, date_to: null }), '1950-05-13')
+  it('is the race day, in words, where no weekend is stated - never the ISO string /seasons/1997 printed', () => {
+    assert.equal(raceDates({ date_iso: '1950-05-13', date_from: null, date_to: null }), '13 May 1950')
+    assert.equal(raceDates({ date_iso: '1997-03-09' }), '9 Mar 1997')
   })
 
   it('shows the weekend, not the UTC race day, for Las Vegas', () => {
-    assert.equal(raceDates({ date_iso: '2026-11-22', date_from: '2026-11-19', date_to: '2026-11-21' }), '19-21 Nov 2026')
+    assert.equal(raceDates({ date_iso: '2026-11-22', date_from: '2026-11-19', date_to: '2026-11-21' }), '19–21 Nov 2026')
   })
 
   it('is null when nothing is held, so the caller decides', () => {
@@ -507,6 +542,43 @@ describe('the weekend timetable', () => {
     assert.equal(until('2026-11-19T12:00:20Z', before), 'in under a minute')
     assert.equal(until('2026-11-19T13:29:45Z', before), 'in 90 minutes')
     assert.equal(until('2026-11-19T13:31:00Z', before), 'in 2 hours')
+  })
+
+  // CD-59: the timetable is held to the Dates rule. The house form is the
+  // module's own words, so ICU's en-GB "Sept" never reaches it.
+  it("writes a start in the reader's own form, and keeps the house form for en-GB", () => {
+    const fp1 = '2026-12-04T09:30Z'
+    assert.equal(houseTime(fp1, 'Asia/Dubai'), 'Fri 4 Dec 13:30')
+    assert.equal(houseTime('2026-09-06T13:00Z', 'Europe/Rome'), 'Sun 6 Sep 15:00')
+    assert.equal(localTime(fp1, 'Asia/Dubai', 'en-GB'), 'Fri 4 Dec 13:30')
+    // ICU puts a narrow no-break space before PM; the words are what is held.
+    assert.equal(localTime(fp1, 'Asia/Dubai', 'en-US').replace(/[\u202f\u00a0]/g, ' '), 'Fri, Dec 4, 1:30 PM')
+    assert.equal(localTime(fp1, 'Asia/Dubai', 'de-DE'), 'Fr., 4. Dez., 13:30')
+    assert.equal(localTime(fp1, 'UTC', 'not a locale!'), 'Fri 4 Dec 09:30')
+    // Nothing to write is null, never the epoch or the runtime's own zone.
+    assert.equal(houseTime(null, 'UTC'), null)
+    assert.equal(houseTime('not a time', 'UTC'), null)
+    assert.equal(houseTime(fp1, 'Mars/Olympus_Mons'), null)
+    assert.equal(houseTime(fp1, undefined), null)
+  })
+
+  it('declares every time column for both renderers, and hands a file the wall clock on its zone', () => {
+    const row = { kind: 'fp1', name: 'Practice 1', start_utc: '2026-11-20T00:30Z', zone: 'America/Los_Angeles' }
+    const columns = [...SESSION_COLUMNS, yourTimeColumn('Asia/Kolkata')]
+    assert.deepEqual(
+      columns.filter((c) => c.date === 'time').map((c) => c.at(row)),
+      [
+        { iso: '2026-11-20T00:30Z', zone: 'America/Los_Angeles' },
+        { iso: '2026-11-20T00:30Z', zone: 'UTC' },
+        { iso: '2026-11-20T00:30Z', zone: 'Asia/Kolkata' },
+      ],
+    )
+    assert.deepEqual(
+      columns.slice(1).map((c) => fieldText(c, row)),
+      ['2026-11-19T16:30-08:00', '2026-11-20T00:30Z', '2026-11-20T06:00+05:30'],
+    )
+    assert.equal(fieldText(SESSION_COLUMNS[1], { ...row, start_utc: null }), EMPTY)
+    assert.equal(zonedIso('2026-03-08T04:00Z', 'Australia/Melbourne'), '2026-03-08T15:00+11:00')
   })
 
   // AF-01. schema.org reads a bare date in the event's own frame, so the day
@@ -774,10 +846,11 @@ describe('the queries a page and the prerenderer share', () => {
       { year: 2025, position: 2, points: 300 },
       { year: 2026, position: 6, points: 163 },
     ]
-    assert.deepEqual(seasonTile(calendar, standings), { label: '2026 so far', value: '6th', note: '163 points, 2 of 3 rounds run' })
+    // P6, as the strip's Best finish and Best grid write a position (CD-51).
+    assert.deepEqual(seasonTile(calendar, standings), { label: '2026 so far', value: 'P6', note: '163 points, 2 of 3 rounds run' })
     // Once every round is run the label is the season and the note the total.
     const done = calendar.map((row) => ({ ...row, status: 'completed' }))
-    assert.deepEqual(seasonTile(done, standings), { label: '2026', value: '6th', note: '163 points' })
+    assert.deepEqual(seasonTile(done, standings), { label: '2026', value: 'P6', note: '163 points' })
     assert.equal(seasonTile(done, [{ year: 2026, position: 1, points: 1 }]).note, '1 point')
     // No points figure: the place alone, no "— points".
     assert.equal(seasonTile(done, [{ year: 2026, position: 21, points: null }]).note, undefined)
@@ -786,6 +859,23 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(seasonTile(done, [{ year: 2025, position: 2, points: 300 }]), null)
     // A driver of another season has no rows and so no tile.
     assert.equal(seasonTile([], standings), null)
+  })
+
+  it('says the season being run once on the first screen: the tile, or the line where there is no tile (CD-51)', () => {
+    const calendar = [
+      { season: 2026, round: 1, status: 'completed', entry_id: 1, constructor: 'Ferrari' },
+      { season: 2026, round: 2, status: 'scheduled', entry_id: null, constructor: null },
+    ]
+    assert.equal(thisSeasonHeading(calendar), '2026, round by round')
+    assert.equal(thisSeasonHeading(calendar.map((row) => ({ ...row, status: 'completed' }))), '2026, round by round')
+    // Placed: the tile says it, and the section says nothing more.
+    assert.equal(thisSeasonLine(calendar, [{ year: 2026, position: 3, points: 214 }]), null)
+    // Not placed: no tile, so the line is the one place that says it.
+    assert.equal(
+      thisSeasonLine(calendar, [{ year: 2026, position: null, points: 0 }]),
+      "0 points in the drivers' championship, driving for Ferrari, with 1 of the 2 rounds run.",
+    )
+    assert.equal(thisSeasonLine(calendar, []), 'Driving for Ferrari, with 1 of the 2 rounds run.')
   })
 
   it('labels the stored figures as published, and shows a row only where there is a figure or a fact', () => {
@@ -865,6 +955,11 @@ describe('the queries a page and the prerenderer share', () => {
   // matters is where it declines to make one: the tests below are mostly the
   // nulls.
   it('works out who can still win, and says nothing where the arithmetic will not carry', () => {
+    // The answer and its basis as the page prints them, one after the other.
+    const titlePermutations = (args) => {
+      const answer = titleAnswer(args)
+      return answer ? `${answer.who} ${answer.basis}` : null
+    }
     const live = { races: 2, sprints: 1, run: 21, dropped_scores: 'Every result counts', available: 58 }
     const table = [
       { entity: 'Antonelli', position: 1, points: 300 },
@@ -880,6 +975,12 @@ describe('the queries a page and the prerenderer share', () => {
     assert.match(said, /2 rounds and 1 sprint still to run, so 58 points are still available/)
     assert.match(said, /Counted after round 21, from the database built 2026-09-16\./)
     assert.match(said, /a tie at the top is settled on wins/)
+    // In two parts (VD-90): the answer, which a season's lede opens on, and
+    // what it was worked out from, which the page prints under the tiles.
+    const parts = titleAnswer({ drivers: table, remaining: live, afterRound: 21, built: '2026-09-16' })
+    assert.equal(parts.who, "Who can still win the drivers' title: Antonelli and Russell.")
+    assert.match(parts.basis, /^2 rounds and 1 sprint still to run, so 58 points/)
+    assert.match(parts.basis, /a tie at the top is settled on wins, which this does not work out\.$/)
 
     // Exactly level with the last available point is still in.
     assert.match(
@@ -890,7 +991,7 @@ describe('the queries a page and the prerenderer share', () => {
     // printing a list of one.
     assert.equal(
       titlePermutations({ drivers: [table[0], table[3]], remaining: live, afterRound: 21 }).split(' 2 rounds')[0],
-      "Only Antonelli can still win the drivers' title: no other driver can now reach that total.",
+      "Only Antonelli can still win the drivers' title: no other driver can now reach the leader's total.",
     )
     // More than ten still in: the count is the answer, not the names.
     const crowd = Array.from({ length: 12 }, (_, i) => ({ entity: `D${i}`, position: i + 1, points: 300 - i }))
@@ -930,6 +1031,21 @@ describe('the queries a page and the prerenderer share', () => {
     )
   })
 
+  // VD-90: the answer takes the lede position, and the season's own note
+  // follows it rather than giving way, as a race's follows who won (SD-39).
+  it("leads a season's lede with who can still win, and keeps the note after it", () => {
+    const said = "Who can still win the drivers' title: Antonelli and Russell."
+    assert.equal(seasonLede('Season in progress.', said), `${said} Season in progress.`)
+    assert.equal(seasonLede(null, said), said)
+    assert.equal(seasonLede('   ', said), said)
+    // No answer - a season concluded, not yet run, or one the arithmetic
+    // declines - is the note alone, and no note and no answer is no lede.
+    assert.equal(seasonLede('Hunt won by a point.', null), 'Hunt won by a point.')
+    assert.equal(seasonLede('  Hunt won by a point.  ', null), 'Hunt won by a point.')
+    assert.equal(seasonLede(null, null), null)
+    assert.equal(seasonLede('', null), null)
+  })
+
   it('tells a constructor a gap from a chassis-engine pair', () => {
     assert.match(constructorsFooter(false), /^The gap is to the highest points total classified/)
     assert.match(constructorsFooter(false), /before 1991 it is a difference of net totals/)
@@ -949,6 +1065,12 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(latestRound([]), null)
     assert.equal(titleHeading(true), 'The title race')
     assert.equal(titleHeading(false), 'How the title was decided')
+    // The dropped-scores sentence only where the rule dropped results (CD-50).
+    assert.match(progressionNote(false, 'Best 6 of 10'), /^The three drivers who finished highest, .*best few results counted/)
+    assert.match(progressionNote(true, 'Best 6 of 10'), /^The three drivers placed highest so far, /)
+    assert.equal(progressionNote(false, 'Every result counts'), 'The three drivers who finished highest, tracked from the opening round.')
+    assert.equal(progressionNote(true, 'Every result counts'), 'The three drivers placed highest so far, tracked from the opening round.')
+    assert.equal(progressionNote(false, null), 'The three drivers who finished highest, tracked from the opening round.')
     assert.equal(standingsHeading("Drivers'", true, 13), "Drivers' standings after round 13")
     assert.equal(standingsHeading("Drivers'", true, null), "Drivers' standings")
     assert.equal(standingsHeading("Constructors'", false, 23), "Final constructors' standings")
@@ -1055,7 +1177,7 @@ describe('the queries a page and the prerenderer share', () => {
     )
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, []),
-      'Scheduled for 01-03 Oct 2027 at Istanbul Park; not yet run.',
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; not yet run.',
     )
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: null, date_iso: null, date_from: null, date_to: null, note: null }, []),
@@ -1067,11 +1189,11 @@ describe('the queries a page and the prerenderer share', () => {
     // instead. The note below the classification agrees with it.
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'run'),
-      'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; no result is recorded yet.',
     )
     assert.equal(
       raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'running'),
-      'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; no result is recorded yet.',
     )
     const scheduledRound = { year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }
     assert.equal(scheduledNote(scheduledRound).head, 'This race has not been run.')
@@ -1082,10 +1204,15 @@ describe('the queries a page and the prerenderer share', () => {
     // would be, and a thrown lede is worse than a plain sentence.
     assert.equal(raceSentence(monza, []), 'No winner is recorded for this round.')
 
-    // The override, and what counts as one. Whitespace is not a note.
+    // SD-39: the note follows who won and never replaces it. Whitespace is
+    // not a note.
     const won = [{ driver: 'Gerhard Berger', constructor_id: 'ferrari', constructor: 'Ferrari' }]
-    assert.equal(raceLede({ ...monza, note: 'Held on a Sunday in June.' }, won), 'Held on a Sunday in June.')
-    assert.equal(raceLede({ ...monza, note: '  Held on a Sunday in June.  ' }, won), 'Held on a Sunday in June.')
+    assert.equal(raceLede({ ...monza, note: 'Held on a Sunday in June.' }, won), 'Gerhard Berger won for Ferrari at Monza. Held on a Sunday in June.')
+    assert.equal(raceLede({ ...monza, note: '  Held on a Sunday in June.  ' }, won), 'Gerhard Berger won for Ferrari at Monza. Held on a Sunday in June.')
+    assert.equal(
+      raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: 'Subject to homologation.' }, []),
+      'Scheduled for 1–3 Oct 2027 at Istanbul Park; not yet run. Subject to homologation.',
+    )
     for (const note of [null, undefined, '', '   ']) {
       assert.equal(
         raceLede({ ...monza, note }, won),
@@ -1093,6 +1220,20 @@ describe('the queries a page and the prerenderer share', () => {
         `a ${JSON.stringify(note)} note falls through to the records`,
       )
     }
+
+    // SD-40: an empty pit-stop section before the first season with a stop,
+    // between, and after the last round holding one - the last on either
+    // side of a season's turn as well as within one.
+    const span = { year: 1994, latest_year: 2026, latest_round: 15 }
+    assert.match(stintsEmpty({ year: 1976, round: 9 }, span), /^Pit stops are recorded from 1994\./)
+    for (const race of [{ year: 2021, round: 12 }, { year: 2026, round: 15 }, { year: 2026, round: 3 }]) {
+      assert.match(stintsEmpty(race, span), /^F1DB records no pit stop for this race/, `${race.year}/${race.round} is a race without a stop`)
+    }
+    for (const race of [{ year: 2026, round: 16 }, { year: 2027, round: 1 }]) {
+      assert.match(stintsEmpty(race, span), /^No pit stop is recorded for this race yet\./, `${race.year}/${race.round} is awaiting its stops`)
+    }
+    // No stop held anywhere: nothing to be before or after.
+    assert.match(stintsEmpty({ year: 2026, round: 16 }, undefined), /^F1DB records no pit stop for this race/)
   })
 
   it('joins a constructor’s seasons to their championship position, newest first', () => {
@@ -1119,7 +1260,7 @@ describe('the queries a page and the prerenderer share', () => {
       recordColumns(shared).map((c) => c.label),
       // The value is second: the record and its figure are the pair the
       // page is for, and the holder answers the question after that (VD-51).
-      ['Record', 'Value', 'Holder', 'How it is derived'],
+      ['Record', 'Value', 'Held by', 'How it is derived'],
     )
     assert.equal(recordColumns([{ confidence: 'reference' }, { confidence: 'high' }]).at(-1).key, 'confidence')
     const apart = [{ ...shared[0] }, { ...shared[1], as_of: '2026-09-07' }]
@@ -1237,9 +1378,18 @@ describe('thumbUrl and fileTitle: the stored address, or one built from the file
     assert.equal(thumbUrl({ file_name: 'File:' }), null)
     assert.equal(thumbUrl(null), null)
   })
-  it('captions with the name a person would read', () => {
-    assert.equal(fileTitle('File:Ayrton_Senna_1988.jpg'), 'Ayrton Senna 1988.jpg')
+  it('captions with the name a person would read, as Commons heads the page (DP-31)', () => {
+    assert.equal(fileTitle('File:Ayrton_Senna_1988.jpg'), 'Ayrton Senna 1988')
+    assert.equal(fileTitle('Circuit de Monaco, April 1, 2018 SkySat (cropped).jpg'), 'Circuit de Monaco, April 1, 2018 SkySat (cropped)')
+    assert.equal(fileTitle('File:Lotus 49 (1967).PNG'), 'Lotus 49 (1967)')
+    // Only a trailing extension: a dot inside a title is part of it.
+    assert.equal(fileTitle('File:Dr. Giuseppe Farina.jpg'), 'Dr. Giuseppe Farina')
     assert.equal(fileTitle(undefined), '')
+  })
+  it('names the credit link for the photograph and where it goes, beginning with what it shows', () => {
+    const name = fileLinkName({ file_name: 'File:Ayrton_Senna_1988.jpg' })
+    assert.equal(name, 'Ayrton Senna 1988, on Wikimedia Commons')
+    assert.ok(name.startsWith(fileTitle('File:Ayrton_Senna_1988.jpg')), 'the visible text begins the name (2.5.3)')
   })
 })
 
@@ -1303,8 +1453,9 @@ describe('the circuit outlines (AF-03)', () => {
     // Whose lengths are whose, only where the register's sit beside F1DB's.
     assert.ok(!circuitOutlinesNote(8).includes(OUTLINE_FIGURES_NOTE))
     assert.ok(circuitOutlinesNote(8, true).endsWith(OUTLINE_FIGURES_NOTE))
-    // PD-60: over the timeline, below the winners, no large drawing is in view.
-    assert.ok(!circuitOutlinesNote(8, true).includes(OUTLINE_LEAD_NOTE))
+    // VD-83: the large lead sits in the timeline's section too, so it is named there.
+    assert.ok(circuitOutlinesNote(8, true).includes(OUTLINE_LEAD_NOTE))
+    assert.ok(!circuitOutlinesNote(1, true).includes(OUTLINE_LEAD_NOTE))
   })
   it("folds a circuit's timeline and its outlines into one list, and hides neither side's gaps (IX-32)", () => {
     const layout = (id, from, drawn) => ({ id, from_year: from, f1db_layout_id: drawn })
@@ -1438,21 +1589,22 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
 
     // Liveries only: the team's own, and nothing about a convention the
     // chart never drew.
-    assert.equal(colourSource([livery, livery]), "the team's own livery")
+    assert.equal(colourSource([livery, livery]), 'the team’s own livery')
     // National only: never "the team's", and it says whose it is.
-    assert.match(colourSource([national]), /country that entered the car/)
-    assert.doesNotMatch(colourSource([national]), /the team's own livery$/)
+    assert.match(colourSource([national]), /the entrant’s national racing colour/)
+    assert.doesNotMatch(colourSource([national]), /the team’s own livery$/)
     // Both: both named, and the national one still disclaimed.
     const both = colourSource([livery, national])
-    assert.match(both, /livery of the team's own from 2010/)
-    assert.match(both, /rather than one of the team's$/)
+    assert.match(both, /the team’s livery from 2010/)
+    assert.match(both, /before 1968 the entrant’s national racing colour, not the team’s$/)
     // A hollow mark is a null in the list and changes none of the three
     // answers - the note describes it in a clause of its own.
     assert.equal(colourSource([livery, gap]), colourSource([livery]))
     assert.equal(colourSource([national, gap]), colourSource([national]))
     // No colour at all is the one case the sentence must never be printed
     // for, and both callers guard it: Driver.jsx on finishesInColour and
-    // Records.jsx on bars.some(colour), each of which is false here.
+    // Records.jsx on bars.some(colour), each of which is false here. The
+    // clause is short because a figure's note is held to 50 words (VD-80).
     assert.equal([gap, gap].some((c) => c), false)
   })
   it('a livery is a primary and its accents, and the pair renders the mark\'s lead (AF-15, AF-57)', () => {
@@ -1822,6 +1974,87 @@ describe('a register in the address bar', () => {
     // A register whose default is not the empty one falls back to its own.
     assert.equal(oneOf('1730', ['2020', '2010'], '2020'), '2020')
     assert.equal(oneOf('2010', ['2020', '2010'], '2020'), '2010')
+  })
+
+  /*
+   * CR-79. A stand-in for the address bar and react-router's navigate: like a
+   * BrowserRouter, a navigation has moved the address by the time it returns,
+   * and nothing re-renders in between - which is a burst inside one frame.
+   */
+  function bar(search, hash) {
+    const where = { search, hash }
+    const calls = []
+    const navigate = (to, options) => {
+      calls.push(options)
+      where.search = to.search
+      where.hash = to.hash
+    }
+    return { where, calls, address: () => where, navigate }
+  }
+
+  it('keeps the fragment the reader arrived on, and replaces rather than pushes', () => {
+    const b = bar('?decade=1990s', '#champions')
+    urlWriter({ 'champions.sort': '', 'champions.dir': '' }, b).set({ 'champions.sort': 'full_name', 'champions.dir': 'asc' })
+    assert.equal(b.where.search, '?decade=1990s&champions.sort=full_name&champions.dir=asc')
+    assert.equal(b.where.hash, '#champions')
+    urlWriter({ decade: '' }, b).clear()
+    assert.equal(b.where.search, '?champions.sort=full_name&champions.dir=asc')
+    assert.equal(b.where.hash, '#champions', 'clearing a filter keeps it too')
+    assert.deepEqual(b.calls, [{ replace: true }, { replace: true }])
+  })
+
+  it('writes an address with nothing left in it as no query at all', () => {
+    const b = bar('?q=senna', '')
+    urlWriter({ q: '' }, b).set({ q: '' })
+    assert.equal(b.where.search, '')
+  })
+
+  it('composes two hooks writing in one frame, neither dropping the other', () => {
+    // A page's filter and a table's keyed sort are two writers made from the
+    // same render. Each composes on the address, not on that render, so the
+    // second keeps what the first wrote - in either order.
+    const b = bar('', '')
+    const page = urlWriter({ q: '', category: '' }, b)
+    const table = urlWriter({ 'glossary.sort': '', 'glossary.dir': '' }, b)
+    page.set({ category: 'results' })
+    table.set({ 'glossary.sort': 'term', 'glossary.dir': 'desc' })
+    page.set({ q: 'pole' })
+    assert.equal(b.where.search, '?category=results&glossary.sort=term&glossary.dir=desc&q=pole')
+    table.set({ 'glossary.sort': '', 'glossary.dir': '' })
+    assert.equal(b.where.search, '?category=results&q=pole')
+  })
+})
+
+/*
+ * VD-82, IX-46. Every other table keeps its state in the address too, under
+ * its own name, and folds past FOLD_OVER rows unless it says why not.
+ */
+describe('a table in the address, and the one reveal control (VD-82)', () => {
+  it('keys a table by the heading a reader can see, spelled for an address', () => {
+    assert.equal(tableKey('Every entry'), 'every-entry')
+    assert.equal(tableKey("Final drivers' standings"), 'final-drivers-standings')
+    assert.equal(tableKey('Räikkönen — 2007 '), 'raikkonen-2007')
+    assert.equal(tableKey(''), '')
+    assert.equal(tableKey(null), '')
+  })
+
+  it('writes a keyed table down as a register is written, and leaves the others', () => {
+    const keyed = { 'every-entry.sort': '', 'every-entry.dir': '', 'every-entry.all': false }
+    const next = writeState(new URLSearchParams('every-win.all=1'), { 'every-entry.all': true, 'every-entry.sort': 'year', 'every-entry.dir': 'asc' }, keyed)
+    assert.equal(String(next), 'every-win.all=1&every-entry.all=1&every-entry.sort=year&every-entry.dir=asc')
+    // Back to the table's own order: nothing left behind but the other table.
+    assert.equal(String(writeState(next, { 'every-entry.sort': '', 'every-entry.dir': '', 'every-entry.all': false }, keyed)), 'every-win.all=1')
+  })
+
+  it('refuses a long table that neither folds nor says why', () => {
+    const over = FOLD_OVER + 1
+    assert.equal(foldFault(FOLD_OVER, false, null), null, 'at the threshold, nothing to say')
+    assert.match(foldFault(over, false, null), /no fold and no UNFOLDED reason/)
+    assert.equal(foldFault(over, FOLD_NOUN.entries, null), null)
+    assert.equal(foldFault(over, false, UNFOLDED.register), null)
+    assert.match(foldFault(over, 'rows', null), /not a FOLD_NOUN value/)
+    assert.match(foldFault(3, false, 'because'), /not an UNFOLDED reason/)
+    assert.match(foldFault(over, FOLD_NOUN.entries, UNFOLDED.subject), /both/)
   })
 })
 
@@ -2351,6 +2584,18 @@ describe('a Grand Prix and the venues it has used', () => {
     assert.equal(venuesCount([{ races: 11 }, { races: 18 }]), '2')
   })
 
+  // SD-38: the circuit's race list counts what the tile counts, and the rest apart.
+  it('counts a circuit\'s races run as its tile does, and the ones to come apart', () => {
+    const races = (run, ahead) => [
+      ...Array.from({ length: ahead }, () => ({ status: 'scheduled' })),
+      ...Array.from({ length: run }, () => ({ status: 'completed' })),
+    ]
+    assert.equal(racesCount(races(61, 1)), '61 · 1 to come')
+    assert.equal(racesCount(races(76, 0)), '76')
+    assert.equal(racesCount(races(0, 1)), '0 · 1 to come', 'a venue only booked has run none')
+    assert.equal(racesCount([]), '0')
+  })
+
   it('names the car an entrant ran where no constructor row exists, and none for an edition to come', () => {
     const run = { status: 'completed', constructor_id: null, constructor: null, entrant: 'Kurtis Kraft-Offenhauser' }
     assert.equal(editionCar(null, run), 'Kurtis Kraft-Offenhauser')
@@ -2656,6 +2901,161 @@ describe('late results', () => {
       const after = `${Number(last.slice(0, 4)) + 1}${last.slice(4)}`
       assert.equal(lateRaces(rounds, after).length, rounds.filter((r) => r.on_f1db_calendar !== 0).length)
       assert.equal(lateRaces(rounds, rounds[0].date_iso).length, 0)
+    } finally {
+      db.close()
+    }
+  })
+})
+
+/*
+ * The counts the register ledes spell out (VD-79). The ledes are written by
+ * hand, and since VD-79 the static page draws them too, in place of the
+ * counts it used to compute at build time - so a season, a venue or a
+ * chassis arriving would leave both halves stating last year's figure, with
+ * nothing to say so. Held against f1.db here instead.
+ */
+describe('the counts the register ledes spell out (VD-79)', () => {
+  const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+  const count = (sql) => Object.values(db.prepare(sql).get())[0]
+  const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve',
+    'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen']
+  const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+  // As the ledes write a number: "seventy-seven", "a hundred and fifty".
+  const spelled = (n) => {
+    const under = (m) => (m < 20 ? ONES[m] : `${TENS[Math.floor(m / 10)]}${m % 10 ? `-${ONES[m % 10]}` : ''}`)
+    if (n < 100) return under(n)
+    const hundreds = Math.floor(n / 100)
+    const rest = n % 100
+    return `${hundreds === 1 ? 'a' : ONES[hundreds]} hundred${rest ? ` and ${under(rest)}` : ''}`
+  }
+  const opens = (lede, n, noun) => assert.ok(lede.toLowerCase().startsWith(`${spelled(n)} ${noun}`), `the lede opens "${lede.slice(0, 40)}…", and f1.db holds ${n}`)
+
+  it('the seasons register counts the championships begun', () => {
+    opens(SEASONS_LEDE, count("SELECT COUNT(DISTINCT year) FROM races WHERE status = 'completed'"), 'championships')
+  })
+  it('the constructors register counts the constructors', () => {
+    opens(CONSTRUCTORS_LEDE, count('SELECT COUNT(*) FROM constructors'), 'constructors')
+  })
+  it('the circuits register counts the venues', () => {
+    opens(CIRCUITS_LEDE, count('SELECT COUNT(*) FROM circuits'), 'venues')
+  })
+  it('the cars register counts the designs with a page, and every chassis', () => {
+    opens(CARS_LEDE, count('SELECT COUNT(*) FROM cars'), 'designs')
+    const chassis = count('SELECT COUNT(*) FROM chassis').toLocaleString('en-GB')
+    assert.ok(CARS_LEDE.includes(`${chassis} of them`), `the lede counts the chassis, and f1.db holds ${chassis}`)
+  })
+})
+
+describe('dates are words on the page and ISO in the data (CD-57)', () => {
+  // Intl puts a thin or narrow no-break space round a range's dash in some
+  // locales; the words are what is being checked.
+  const plain = (value) => String(value).replace(/[\u2009\u202f\u00a0]/g, ' ')
+
+  it('knows a whole ISO day from anything else', () => {
+    assert.equal(isDay('1997-03-09'), true)
+    for (const value of ['1997', '1997-03', '1997-02-30', '1997-13-01', '09/03/1997', '', null, undefined]) {
+      assert.equal(isDay(value), false, String(value))
+    }
+  })
+
+  it('writes the house format, short and long, and null where there is no whole day', () => {
+    assert.equal(houseDate('1997-03-09'), '9 Mar 1997')
+    assert.equal(houseDate('1997-09-09'), '9 Sep 1997')
+    assert.equal(houseDate('1997-03-09', 'long'), '9 March 1997')
+    assert.equal(houseDate('1911'), null)
+    assert.equal(houseDate(null), null)
+  })
+
+  it('writes the reader’s own format for en-US and de-DE, and keeps the house format for en-GB', () => {
+    assert.equal(HOUSE_LOCALE, 'en-GB')
+    assert.equal(localDate('1997-03-09', 'short', 'en-US'), 'Mar 9, 1997')
+    assert.equal(localDate('1997-03-09', 'short', 'de-DE'), '9. März 1997')
+    assert.equal(localDate('1997-03-09', 'long', 'de-DE'), '9. März 1997')
+    assert.equal(localDate('1997-03-09', 'long', 'en-US'), 'March 9, 1997')
+    // ICU's own en-GB says "Sept"; the house says "Sep", and an en-GB reader
+    // keeps the house, so the handover changes nothing for them.
+    assert.equal(localDate('1997-09-09', 'short', 'en-GB'), '9 Sep 1997')
+  })
+
+  it('reads the day in UTC, so a reader west of London is not shown the evening before', () => {
+    assert.equal(localDate('1950-01-01', 'short', 'en-US'), 'Jan 1, 1950')
+  })
+
+  it('falls back to the house format for a locale Intl will not take', () => {
+    assert.equal(localDate('1997-03-09', 'short', 'not a locale!'), '9 Mar 1997')
+  })
+
+  it('writes a weekend in the reader’s order, and the race day where none is stated', () => {
+    const weekend = { date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }
+    assert.equal(plain(localRaceDates(weekend, 'en-US')), 'Mar 27 – 29, 2026')
+    assert.equal(localRaceDates(weekend, 'en-GB'), '27–29 Mar 2026')
+    assert.equal(localRaceDates({ date_iso: '1997-03-09' }, 'en-US'), 'Mar 9, 1997')
+    assert.equal(localRaceDates({ date_iso: null }, 'en-US'), null)
+  })
+
+  it('cuts a sentence at its ISO days and leaves everything else as words', () => {
+    assert.deepEqual(dateSegments('read on 2026-09-04 after round 12'), ['read on ', { iso: '2026-09-04' }, ' after round 12'])
+    assert.deepEqual(dateSegments('2026-10-05'), [{ iso: '2026-10-05' }])
+    assert.deepEqual(dateSegments('no day here, v2.25'), ['no day here, v2.25'])
+    // Not a day: an impossible one, and a run of digits that only contains one.
+    assert.deepEqual(dateSegments('1997-02-30'), ['1997-02-30'])
+    assert.deepEqual(dateSegments('ref 12026-09-041'), ['ref 12026-09-041'])
+    // A day inside a longer token is that token's, and is left as written.
+    assert.deepEqual(dateSegments('File:Foo 2019-05-26.jpg'), ['File:Foo 2019-05-26.jpg'])
+    assert.deepEqual(dateSegments('https://x.org/2024-01-01/y'), ['https://x.org/2024-01-01/y'])
+    // And one ending a sentence, or in brackets, is still a day.
+    assert.deepEqual(dateSegments('(read 2026-10-06).'), ['(read ', { iso: '2026-10-06' }, ').'])
+    assert.deepEqual(dateSegments('built 2026-10-05, digest'), ['built ', { iso: '2026-10-05' }, ', digest'])
+  })
+
+  it('hands a file the ISO value of a date column, and a weekend as an ISO interval', () => {
+    assert.equal(fieldText({ key: 'as_of', date: 'short' }, { as_of: '2026-10-04' }), '2026-10-04')
+    assert.equal(fieldText({ key: 'as_of', date: 'short' }, { as_of: null }), EMPTY)
+    const race = { key: 'date_iso', date: 'race' }
+    assert.equal(fieldText(race, { date_iso: '1997-03-09', date_from: null, date_to: null }), '1997-03-09')
+    assert.equal(fieldText(race, { date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '2026-03-27/2026-03-29')
+  })
+})
+
+describe('one eyebrow rule: the page type, then the facts that identify the entity (VD-81, IA-09)', () => {
+  it('writes a whole ISO day out, and nothing for half of one', () => {
+    assert.equal(longDate('1985-01-07'), '7 January 1985')
+    assert.equal(longDate('2025-07-06'), '6 July 2025')
+    assert.equal(longDate('1911'), null)
+    assert.equal(longDate(null), null)
+  })
+  it('leads with the type on every entity page, and leaves out a fact not held', () => {
+    // The day stays ISO in the string, and each renderer draws it as a date (CD-57).
+    assert.equal(EYEBROWS.driver('United Kingdom', '1985-01-07'), 'Driver · United Kingdom · born 1985-01-07')
+    assert.equal(EYEBROWS.driver('Italy', '1911'), 'Driver · Italy')
+    assert.equal(EYEBROWS.driver('United States of America', null), 'Driver · United States of America')
+    assert.equal(EYEBROWS.constructor('Italy', 'Maranello, Italy'), 'Constructor · Italy · Maranello')
+    // A base abroad keeps its country: the constructor's is not the base's.
+    assert.equal(EYEBROWS.constructor('Austria', 'Milton Keynes, United Kingdom'), 'Constructor · Austria · Milton Keynes, United Kingdom')
+    assert.equal(EYEBROWS.constructor('United Kingdom', null), 'Constructor · United Kingdom')
+    assert.equal(EYEBROWS.circuit('Silverstone', 'United Kingdom'), 'Circuit · Silverstone, United Kingdom')
+    assert.equal(EYEBROWS.race(12, 24, '2025-07-06'), 'Race · Round 12 of 24 · 2025-07-06')
+    assert.equal(EYEBROWS.season(24, 24), 'Season · 24 rounds, all run')
+    assert.equal(EYEBROWS.season(24, 16), 'Season · 24 rounds, 16 run')
+    assert.equal(EYEBROWS.season(24, 0), 'Season · 24 rounds, none run yet')
+    assert.equal(EYEBROWS.car('Red Bull Racing', 2023, 2023), 'Car · Red Bull Racing · 2023')
+    assert.equal(EYEBROWS.car('Ferrari', 1952, 1953), 'Car · Ferrari · 1952–1953')
+    assert.equal(EYEBROWS.car(null, null, null), 'Car')
+    assert.equal(EYEBROWS.grandPrix('United Kingdom'), 'Grand Prix · United Kingdom')
+    assert.equal(EYEBROWS.grandPrix(null), 'Grand Prix')
+  })
+  it('names a race page\'s neighbours as their own pages are headed', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const middle = db.prepare(RACE_NEIGHBOURS).get(2025, 12)
+      const steps = raceSteps(middle)
+      assert.equal(steps.previous.label, `2025 ${db.prepare('SELECT name_used FROM races WHERE year = 2025 AND round = 11').get().name_used}`)
+      assert.equal(steps.next.label, `2025 ${db.prepare('SELECT name_used FROM races WHERE year = 2025 AND round = 13').get().name_used}`)
+      assert.equal(middle.rounds, db.prepare('SELECT COUNT(*) AS n FROM races WHERE year = 2025').get().n)
+      // Across a season's edge, the step names the other season's race.
+      const first = raceSteps(db.prepare(RACE_NEIGHBOURS).get(2025, 1))
+      assert.ok(first.previous.label.startsWith('2024 '), first.previous.label)
+      assert.equal(raceSteps(db.prepare(RACE_NEIGHBOURS).get(1950, 1)).previous, null, 'the first race has no step back')
     } finally {
       db.close()
     }

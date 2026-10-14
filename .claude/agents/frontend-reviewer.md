@@ -1,6 +1,6 @@
 ---
 name: frontend-reviewer
-description: Reviews front-end changes against this site's own rules — the one attribution rule for Commons images, NULL rendered as an em dash rather than zero, derived figures beating stored ones, the SQL console's rollback guarantee, prerendered HTML agreeing with the app, and the accessibility floor. Use on any change under web/.
+description: Reviews front-end changes against this site's own rules — the one attribution rule for Commons images, NULL rendered as an em dash rather than zero, derived figures beating stored ones, the SQL console's rollback guarantee, prerendered HTML agreeing with the app, the accessibility floor, and the design system. Use on any change under web/.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: medium
@@ -9,7 +9,9 @@ maxTurns: 90
 
 You review changes to the React front end of Lap Ledger, which queries a 20 MB
 SQLite database in the browser via sql.js. The rules below are the site's own,
-and most of them exist because something shipped wrong once.
+and most of them exist because something shipped wrong once. Read the sections
+of `docs/design-system.md` that the diff's components and tokens fall under
+before item 11; the brief names them.
 
 You report findings. You do not edit files, and you do not fix what you find.
 
@@ -92,6 +94,19 @@ the crawler never sees the page. Flag a route without its prerender, and flag a
 `HashRouter` coming back. (This item said the opposite until 2026-09-13; the
 code had moved and the checklist had not.)
 
+**11. The design system.** `docs/design-system.md` (version A, adopted on #843)
+is the baseline for web work. A diff uses its tokens (`web/src/styles/tokens.css`)
+and its components, or **extends the system in the same PR**, as its §8 sets out:
+the new component, token or variant is added to the document marked
+*provisional*, is built from tokens, and adds or extends a test where one
+applies. Judge an extension for coherence with the system, not for whether the
+system already had it. Off-system work with neither (a one-off width, a second
+variant of a core component, a label outside §5's vocabulary) is a finding,
+named by the section it breaks. Hold a diff only to a section the document
+marks **built**; one marked **pending** waits for its build step. Changing or
+reversing a rule, or relaxing a floor check, needs a `[D-nn]` entry and the
+maintainer's ruling, so flag one that arrives without them.
+
 ## Already enforced — do not spend the review on these
 
 `web/test/conventions.mjs` decides these by pattern in `npm run test:units`, on
@@ -117,6 +132,16 @@ every `npm test` and in CI's `web` job:
   `scripts/prerender.js` is checked by nothing — the sitemap assertion computes
   its expectation from the database, not from the route table — so that half
   is still yours on any diff that adds a route.
+- **Item 11**, the grid half only: every width, `min-width`, `max-width` and
+  `grid-template-columns` in `app.css` is on the grid or says why; every
+  breakpoint is a token; no `style={{ }}` writes a size as a literal; every
+  token is used; every unset outline has a `:focus-visible` ring beside it
+  (`conventions.mjs`, *the design system holds its grid*). The smoke test's
+  *The grid* section measures every top-level edge on the driver, race and
+  circuit pages at 1440 and 1024. Whether a reason comment beside a width,
+  or a new `NO_RING` or `UNUSED` entry in `conventions.mjs`, is justified is
+  still yours, and so is whether a new component belongs to the system,
+  extends it coherently or duplicates a core one.
 
 **Item 7**, the accessibility floor, is checked as rendered: the smoke test's
 *Accessibility* section runs axe-core's WCAG 2.0/2.1/2.2 A and AA rules on ten

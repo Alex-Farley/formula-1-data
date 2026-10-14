@@ -8,6 +8,7 @@ import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
 import { query, queryReadOnly } from '../data/client.js'
 import { number } from '../lib/format.js'
+import { UNFOLDED } from '../lib/table.js'
 import { EXAMPLES, QUESTIONS, TOPICS } from '../lib/questions.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -78,7 +79,7 @@ function SchemaEntry({ entry }) {
         </div>
       )}
       {empty && (
-        <p className="small faint" style={{ margin: '0 0 8px', paddingLeft: 14 }}>
+        <p className="small faint ddl-empty">
           {timingEmpty(entry.name)} <Link to="/data">Why this is so</Link>.
         </p>
       )}
@@ -220,7 +221,7 @@ export default function Sql() {
             onKeyDown={onKeyDown}
             aria-label="SQL to run"
           />
-          <div className="filters" style={{ marginTop: 10 }}>
+          <div className="filters run-bar">
             <button type="button" className="button" onClick={() => run()} disabled={state.status === 'running'}>
               Run
             </button>
@@ -239,7 +240,7 @@ export default function Sql() {
             )}
           </div>
           {(replaced || arrived) && (
-            <p className="small faint" style={{ margin: '8px 0 0', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <p className="small faint run-notes">
               {arrived && (
                 <span className="permalink">
                   {text === arrived
@@ -276,6 +277,10 @@ export default function Sql() {
                 data={state.data}
                 page={200}
                 raw
+                // The statement is the address (`?q=`); the rows are its, not
+                // a table of the page's to fold or to remember a sort for.
+                unfolded={UNFOLDED.console}
+                remember={false}
                 // The one table on the site the page's own heading would name
                 // wrongly: "SQL console" is where the reader is, not what they
                 // are looking at.

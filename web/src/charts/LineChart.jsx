@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { linear, niceDomain, ticks } from './scales.js'
 import { seriesColour, seriesDash } from './palette.js'
 import { LineKey } from './Figure.jsx'
+import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
 
 const M = { top: 14, right: 58, bottom: 26, left: 44 }
@@ -170,12 +171,12 @@ export default function LineChart({
         })}
       </svg>
 
+      {/* Beside the hover line rather than over it, so it covers none of the
+          marks it reads, and held inside the plot (charts/Tooltip.jsx):
+          risen above the plot's top, it ran out of the figure, which clips
+          it, at every width (IX-44). */}
       {hover !== null && (
-        <div
-          className="tooltip"
-          style={{ left: `${(x(hover) / width) * 100}%`, top: M.top }}
-          role="status"
-        >
+        <Tooltip x={x(hover)} y={M.top} place="beside" onDismiss={() => setHover(null)} role="status">
           <b>{formatX(hover)}</b>
           {series.map((s, i) => {
             const point = s.points.find((p) => p.x === hover)
@@ -188,7 +189,7 @@ export default function LineChart({
               </span>
             )
           })}
-        </div>
+        </Tooltip>
       )}
     </div>
   )

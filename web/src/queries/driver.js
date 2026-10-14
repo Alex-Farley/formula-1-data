@@ -15,7 +15,9 @@
  */
 import { EMPTY, finished, missing, number, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
+import { FOLD_NOUN } from '../lib/table.js'
 import { PRACTICE_SESSIONS } from './race.js'
+import { LABELS } from '../lib/site.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -260,9 +262,40 @@ export const THIS_SEASON = `
    ORDER BY r.round, e.id
 `
 
-/** "The 2026 season so far" while a round is still to run; "The 2026 season" once none is. */
-export const thisSeasonHeading = (rows) =>
-  rows.some((row) => row.status !== 'completed') ? `The ${rows[0]?.season} season so far` : `The ${rows[0]?.season} season`
+/**
+ * "2026, round by round" (CD-51). It was "The 2026 season so far", which
+ * restated the strip's last tile 100 px above it; the tile says where the
+ * season stands, and this section is the rounds, so its heading says that.
+ */
+/**
+ * The notes under the driver's two figures, here rather than in Driver.jsx so
+ * conventions.mjs can hold each to the figure grammar's 50 words at its
+ * longest (VD-80). `source` is colourSource()'s clause for the colours the
+ * figure drew, or null where it drew none; `hollow` is whether some mark is
+ * drawn hollow among coloured ones.
+ */
+const colourClause = (lead, source, hollow, mark, none) =>
+  source
+    ? `${lead}: ${source}.${hollow ? ` A hollow ${mark} has no colour on record.` : ''}`
+    : `The ${mark}s are not in team colours: ${none}.`
+
+/** The championship chart's note: 50 words at the longest, a career that runs from national colours into the gap. */
+export const finishesFigureNote = (source, hollow) =>
+  `Final championship position by season, ringed for a title; a season with points and no dot was an exclusion. ${colourClause(
+    'Dots are coloured for each season’s final team',
+    source,
+    hollow,
+    'dot',
+    'no season on this record has one',
+  )}`
+
+/** The season-so-far chart's note: 50 words at the longest. A season is one year, so it draws liveries or national colours, never both. */
+export const thisSeasonFigureNote = (toCome, source, hollow) =>
+  `Finishing position by round, P1 at the top, a win ringed. No dot: not classified or not entered.${
+    toCome ? ' The space at the right is rounds to come.' : ''
+  } ${colourClause('Dots are coloured for that weekend’s team', source, hollow, 'dot', 'no round on this record has one')}`
+
+export const thisSeasonHeading = (rows) => `${rows[0]?.season}, round by round`
 
 /** The rounds run, which are the table's rows: a round still to come has no result to state. */
 export const roundsRun = (rows) => rows.filter((row) => row.status === 'completed')
@@ -294,9 +327,11 @@ export const seasonTile = (rows, standings) => {
   const ran = new Set(roundsRun(rows).map((row) => row.round)).size
   const total = missing(standing.points) ? null : `${points(standing.points)} ${standing.points === 1 ? 'point' : 'points'}`
   const note = [total, running ? `${number(ran)} of ${plural(rounds, 'round')} run` : null].filter(Boolean).join(', ')
+  // P3, not 3rd: the strip's other positions - Best finish, Best grid - are
+  // P-numbers, and one strip reads one form (CD-51).
   return {
     label: running ? `${season} so far` : String(season),
-    value: ordinal(standing.position),
+    value: `P${standing.position}`,
     note: note || undefined,
   }
 }
@@ -326,8 +361,19 @@ export const THIS_SEASON_COLUMNS = [
 ]
 
 /**
- * The line under the heading: where the drivers' championship has this
- * driver, for whom, and how much of the season that is.
+ * The line under the heading, where the strip has no tile for the season
+ * (CD-51). The tile says where the championship has the driver and how much
+ * of the season is run, and this line said it again 100 px below, so it is
+ * drawn only for a driver the standings do not place - where seasonTile()
+ * returns null, and the section would otherwise be the only place that says
+ * who the driver is driving for and how far the season has gone.
+ */
+export const thisSeasonLine = (rows, standings) =>
+  seasonTile(rows, standings) ? null : thisSeasonNote(rows, standings.find((row) => row.year === rows[0]?.season) ?? null)
+
+/**
+ * The sentence itself: where the drivers' championship has this driver, for
+ * whom, and how much of the season that is.
  *
  * The position and the total are the standings' own row for the season -
  * v_standings_final, which the championship chart below already reads -
@@ -541,11 +587,15 @@ export const PAIR_COLUMNS = [
   ...HEAD_TO_HEAD_COLUMNS,
 ]
 
-/** How many different drivers the rows pair this one with: the section's count. */
-export const teamMateCount = (rows) => {
-  const n = new Set(rows.map((row) => row.mate_id)).size
-  return `${number(n)} ${n === 1 ? 'team-mate' : 'team-mates'}`
-}
+/**
+ * The section's count: how many different drivers the rows pair this one
+ * with, and how many rows that is. A row is a team-mate in a season, so
+ * Fangio's 46 team-mates are 74 rows, and the fold under the table counts
+ * those (CD-52): the heading names both, in the fold's own words, so the
+ * two figures can be squared.
+ */
+export const teamMateCount = (rows) =>
+  `${plural(new Set(rows.map((row) => row.mate_id)).size, 'team-mate')}, ${plural(rows.length, 'team-mate season', FOLD_NOUN.teamMates)}`
 
 /**
  * Under the table, in both renderers. It says what each figure counts, what
@@ -615,11 +665,11 @@ export function strip(driver, derived) {
   )
   return [
     {
-      label: 'Seasons',
+      label: LABELS.seasons,
       value: span(driver.first_season, driver.last_season),
       note: seasonsNote(driver, derived),
     },
-    { label: 'Entries', value: number(entries) },
+    { label: LABELS.entries, value: number(entries) },
     // Only where an entry was not a start. On 417 careers the two figures are
     // the same and a second tile would restate the first - the two drivers
     // with no entry at all among them, 0 and 0 - and on the other 445 the gap
@@ -793,6 +843,10 @@ export const derivedAndPublished = (derived, published) =>
  * and Source follow these in both renderers; they are a pill and a link
  * there, not strings, so each renderer appends its own. The sentence under
  * the list is ENTRIES_NOTE in lib/site.js, shared the same way.
+ *
+ * A pair whose third element is 'date' holds an ISO day, which each renderer
+ * draws as a date in its reader's format (CD-57) rather than as the string;
+ * 'text' is words with ISO days inside them, each drawn the same way.
  */
 export function record(driver) {
   // A DATE OF DEATH A LIVING DRIVER DOES NOT HAVE IS NOT A MISSING FACT
@@ -813,8 +867,8 @@ export function record(driver) {
   const practiceOnly = driver.practice_only === 1 && !driver.status
   const living = driver.status === 'active' || driver.status === 'retired' || (practiceOnly && !driver.died)
   return [
-    ['Born', text(driver.born)],
-    ...(living ? [] : [['Died', text(driver.died)]]),
+    ['Born', text(driver.born), 'date'],
+    ...(living ? [] : [['Died', text(driver.died), 'date']]),
     ['Nationality', text(driver.nationality)],
     ['Status', practiceOnly ? 'practice only' : text(driver.status)],
     // How a harvest put the row here, where one did. It used to open
@@ -838,7 +892,7 @@ export function record(driver) {
     ['Wins', derivedAndPublished(driver.wins, driver.wins_external)],
     ['Poles', derivedAndPublished(driver.poles, driver.poles_external)],
     ['Fastest laps', derivedAndPublished(driver.fastest_laps, driver.fastest_laps_external)],
-    ['External source', text(driver.external_source)],
+    ['External source', text(driver.external_source), 'text'],
   ]
 }
 

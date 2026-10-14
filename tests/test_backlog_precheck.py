@@ -100,13 +100,16 @@ class Precheck(unittest.TestCase):
         git(d, "commit", "-q", "-m", message)
         return d
 
-    def run_in(self, repo, stub, *items, ruff=CLEAN_RUFF):
+    def run_in(self, repo, stub, *items, ruff=CLEAN_RUFF, python=None):
         """precheck.sh in `repo`, with a stub gh (and ruff) ahead of PATH.
         `ruff=None` means ruff is not installed: PATH is cut to the system
-        directories, where a pip or brew install never lands."""
+        directories, where a brew install never lands, and PYTHON names an
+        interpreter that cannot run it as a module, which is where a pip
+        install would otherwise be found. `python` replaces that interpreter
+        with a stub, for Ruff reachable only as a module."""
         bin_dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, bin_dir, ignore_errors=True)
-        for name, body in (("gh", stub), ("ruff", ruff)):
+        for name, body in (("gh", stub), ("ruff", ruff), ("py", python)):
             if body is None:
                 continue
             path = os.path.join(bin_dir, name)
@@ -115,6 +118,11 @@ class Precheck(unittest.TestCase):
             os.chmod(path, 0o755)
         rest = os.environ["PATH"] if ruff is not None else "/usr/bin:/bin"
         env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{rest}")
+        env.pop("RUFF", None)
+        if python is not None:
+            env["PYTHON"] = os.path.join(bin_dir, "py")
+        elif ruff is None:
+            env["PYTHON"] = "false"
         r = subprocess.run(["bash", PRECHECK, *items], cwd=repo, env=env,
                            capture_output=True, text=True, check=False)
         return r.returncode, r.stdout
@@ -198,6 +206,18 @@ class Precheck(unittest.TestCase):
         self.assertNotIn("no such file", out)
         self.assertIn("ruff clean on the changed Python", out)
         self.assertEqual(code, 0, out)
+
+    def test_ruff_installed_only_as_a_module_is_still_run(self):
+        # CR-44: a pip install off PATH is reached as `python3 -m ruff`, the
+        # way `make lint` runs it, rather than reported as not installed.
+        module = ANGRY_RUFF.replace(
+            "#!/bin/sh\n",
+            '#!/bin/sh\n[ "$1 $2" = "-m ruff" ] || exit 2\n'
+            '[ "$3" = "--version" ] && exit 0\n')
+        code, out = self.run_with(WORKING, "AF-12", ruff=None, python=module)
+        self.assertNotIn("ruff not installed", out)
+        self.assertIn("ruff finds what CI's lint job will fail on", out)
+        self.assertEqual(code, 1, out)
 
     def test_a_missing_ruff_only_warns(self):
         # It is a CI tool, not a dependency, so it may genuinely be absent.

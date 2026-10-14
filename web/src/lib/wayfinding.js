@@ -550,10 +550,19 @@ export const ONWARD = {
  * of addresses; these put the labels on them. IA-03: the static page carried
  * neither, so /races/2026/13 held no link to round 12 or 14 for anyone
  * reading it before the database opened.
+ *
+ * A step names where it goes (VD-81, DP-05): "← 2025 Austrian Grand Prix",
+ * as a season's says "← 1975 season". All 1,196 race pages said only
+ * "Previous race" and "Next race", which tells a reader nothing they did not
+ * know and gives a screen reader's list of links two names that fit any
+ * race. The race's name is the one its own h1 carries, NAMES.race's year and
+ * name_used.
  */
 export const raceSteps = (neighbours) => ({
-  previous: neighbours.previous ? { to: `/races/${neighbours.previous}`, label: 'Previous race' } : null,
-  next: neighbours.next ? { to: `/races/${neighbours.next}`, label: 'Next race' } : null,
+  previous: neighbours.previous
+    ? { to: `/races/${neighbours.previous}`, label: neighbours.previous_name ?? 'Previous race' }
+    : null,
+  next: neighbours.next ? { to: `/races/${neighbours.next}`, label: neighbours.next_name ?? 'Next race' } : null,
 })
 
 export const seasonSteps = (neighbours) => ({

@@ -84,6 +84,16 @@ one is a harvest file's row count, one a past state in the past tense, two
 are Jolpica's. A rule stated more broadly than it is enforced is the kind
 nobody can rely on.
 
+That sweep landed as `CD-45` (#565), and `known_gaps` is the second entry in
+`PROSE`. On the day it said 1,161 races, 27,555 entries, 874 chassis, 22,481
+pit stops and 602 / 265 / 337 photographs against 1,165, 27,548, 878, 22,526
+and 623 / 277 / 346 held, and gap 6 said 1,161 race articles for 1950 to 2017,
+which ran 976 races. The reading added a fourth typed class
+— a past state in the past tense ("1,260 of 2,424 entries carried no
+constructor", "the review of #91 reproduced all 115 it then held"), which the
+count today would falsify — and took the harvest file's row count out of its
+sentence, because a file is not a table this can count.
+
 ---
 
 ## Licensing and redistribution
@@ -188,6 +198,39 @@ browser downloads (4.4 MB gzipped, 20 MB raw).
 ### D-13 · An HTTP range-request VFS: measured and rejected
 No source has lap times under a redistributable licence, and prerendering
 already took the download off the first-paint path.
+
+### D-53 · The design system is adopted, and grows in the PR that needs it — 2026-10-06
+On 5 and 6 October thirteen layout changes each fixed one page type well,
+and together they left five two-column systems, seven text widths and eight
+opening bands. None was wrong against anything, because nothing was written
+down for it to be wrong against. VD-75 (#843) wrote `docs/design-system.md`
+in three versions; the maintainer chose version A the same day, to be built
+in seven reviewed steps (VD-78 to VD-84). VD-78 landed the grid, the measure
+and the tests that hold them.
+
+VD-85 (#872) adopted it at the maintainer's request. Web work follows it;
+the front-end reviewers hold a diff to it as their item 11; the five design
+critics judge against it and file drift against the rule it breaks;
+`CLAUDE.md`, `CONTRIBUTING.md` and the backlog-item skill point at it and
+restate none of it.
+
+Two things keep adoption from freezing the site. **Only what is built is
+held against a page:** each section says built or pending, because a
+reviewer holding a page to a rule whose step has not landed would fail every
+page for a component that does not exist yet. A pending section asks one
+thing of new work, that it builds no rival to what the step will build; the
+principles bind from adoption. **A feature extends the system in its
+own pull request**, adding what it needs marked provisional, built from the
+tokens and tested where a test applies; the reviewer judges the extension's
+coherence, not whether the system already had it. A provisional component
+becomes core when a second page uses it or at the next design pass, and
+each design pass starts by listing them. Forbidding off-system work outright
+was the alternative, and a system nobody can extend gets routed around,
+which is the drift it exists to stop.
+
+What a feature cannot do alone is change or reverse a rule, or relax a floor
+check: that takes an entry here and the maintainer's ruling, as the
+system's §8 says.
 
 ---
 

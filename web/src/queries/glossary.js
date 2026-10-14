@@ -42,3 +42,11 @@ export const PERSONNEL_COLUMNS = [
   { key: 'nationality', label: 'Nationality' },
   { key: 'significance', label: 'Why they are here', align: 'prose' },
 ]
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Glossary.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const GLOSSARY_LEDE =
+  'What the words on a classification actually mean — and the designers, administrators and team principals whose decisions are behind most of the rest of this site.'

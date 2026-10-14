@@ -68,7 +68,7 @@ CIRCUITS = [
     ("madring", "Madrid IFEMA", "Circuito del Jarama-IFEMA Madrid (Madring)", "Madrid", "Spain", "hybrid",
      2026, None, 5.474, 22, "clockwise",
      "New for 2026: a mix of public roads and permanent sections around the IFEMA exhibition centre, including a banked turn",
-     "Spain's second race on the 2026 calendar. Contracted to become the sole Spanish round from 2027, when Barcelona's deal ends.", "verified"),
+     "Host of the Spanish Grand Prix from 2026, the year Barcelona's race ran as the Barcelona-Catalunya Grand Prix. Contracted to become the sole Spanish round from 2027, when Barcelona's deal ends.", "verified"),
     ("baku", "Baku City Circuit", "Baku City Circuit", "Baku", "Azerbaijan", "street",
      2016, None, 6.003, 20, "anti-clockwise",
      "A 2.2 km flat-out run to Turn 1 combined with a castle section barely eight metres wide",
@@ -471,12 +471,13 @@ GRANDS_PRIX = [
     ("miami", "Miami Grand Prix", "United States", 2022, None, "Miami International Autodrome", "", "high"),
     ("emilia-romagna", "Emilia-Romagna Grand Prix", "Italy", 2020, None, "Imola", "Imola's return under a new name.", "high"),
     ("las-vegas", "Las Vegas Grand Prix", "United States", 2023, None, "Las Vegas Strip Circuit", "", "high"),
-    # The 2027 calendar has one Spanish round and the announcement names it
-    # for the country, not the city, so it is recorded as the Spanish Grand
-    # Prix at Madrid. Whether the Madrid Grand Prix name returns is not
+    # formula1.com's 2026 race pages give Madrid the Spanish Grand Prix
+    # (round 14, Gran Premio de Espana) and Barcelona this name (round 7,
+    # Gran Premio de Barcelona-Catalunya), as F1DB does. The 2027 calendar
+    # has no Barcelona round, but whether the event returns is not
     # established, so last_gp stays open rather than being closed at 2026.
-    ("madrid", "Madrid Grand Prix", "Spain", 2026, None, "Madring",
-     "New for 2026. From 2027 Madrid hosts the Spanish Grand Prix, Barcelona's deal having ended.", "verified"),
+    ("barcelona-catalunya", "Barcelona-Catalunya Grand Prix", "Spain", 2026, None, "Catalunya",
+     "New for 2026, when the Spanish Grand Prix moved to Madrid.", "verified"),
 ]
 
 

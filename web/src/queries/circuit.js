@@ -12,7 +12,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { number, span, text } from '../lib/format.js'
-import { NOT_YET_RUN } from '../lib/site.js'
+import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 
 /**
  * The stored row with the derived figures beside it: v_circuits counts the
@@ -145,6 +145,24 @@ export const GRANDS_PRIX = `
    ORDER BY races DESC, g.name
 `
 
+/**
+ * The race list's heading and count, as both renderers write them (SD-38).
+ * The list holds every race at the venue, the ones still to run among them,
+ * so "Every race held here 62" sat beside the tile's "Championship races 61"
+ * on /circuits/silverstone: the extra row was the scheduled 2027 race. The
+ * heading no longer says "held", and the count separates the two in the words
+ * a Grand Prix's venue count uses (venuesCount in queries/grandprix.js): run
+ * first, which is the tile's figure, since both count status 'completed'
+ * (v_circuits.races), and then the rows the table marks "not yet run".
+ */
+export const RACES_HEADING = 'Every race here'
+
+export const racesCount = (races) => {
+  const ahead = races.filter((row) => row.status !== 'completed').length
+  const run = races.length - ahead
+  return ahead ? `${number(run)} · ${number(ahead)} to come` : number(run)
+}
+
 /** The winner, or "not yet run" for a race still on the calendar. */
 export const raceWinnerHere = (name, row) => (row.status !== 'completed' ? NOT_YET_RUN : text(name))
 
@@ -157,7 +175,7 @@ export const RACE_COLUMNS = [
   // them (VD-29).
   { key: 'layout_key', label: 'Layout', collapse: true },
   { key: 'winner', label: 'Winner', text: raceWinnerHere },
-  { key: 'constructor', label: 'Car' },
+  { key: 'constructor', label: 'Constructor' },
 ]
 
 export const WINNER_COLUMNS = [
@@ -215,7 +233,7 @@ const seasonCount = (n) => `${n} ${n === 1 ? 'season' : 'seasons'}`
 export const circuitStrip = (circuit) => [
   { label: 'Championship races', value: number(circuit.races) },
   {
-    label: 'Grands Prix',
+    label: LABELS.seasons,
     value: span(circuit.derived_first, circuit.derived_last),
     note: seasonCount(circuit.seasons_used ?? 0),
   },

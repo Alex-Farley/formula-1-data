@@ -506,7 +506,7 @@ KNOWN_GAPS = [
      "and no longer does: F1DB may now fill grid 1 where nothing else has.",
      "CLOSED in v2.18, the same way pole was closed. tools/f1db_fetch.py now "
      "reads the fastest-lap results beside race-results.yml and writes "
-     "harvest/fastest_laps.txt (1,161 rows, 1950-2026); build.py fills "
+     "harvest/fastest_laps.txt, 1950 to the latest round F1DB holds; build.py fills "
      "race_entries.fastest_lap ONLY where the pole harvest is silent, and "
      "records a discrepancy rather than choosing where the two disagree - "
      "two did, at 1960 round 5 and 1970 round 1, and both are open. The one "
@@ -524,13 +524,15 @@ KNOWN_GAPS = [
      "differently, the disagreement is recorded rather than one being "
      "chosen.",
      "CLOSED in v2.15, and by a licence rather than a harvest. The full "
-     "classification - 27,555 entries across all 1,161 races, 1950 to 2026 - "
+     "classification - {{fig:race_entries}} entries across all {{fig:races_completed}} races, 1950 to 2026 - "
      "now ships in the committed database. It comes from F1DB, which is CC "
      "BY 4.0: attribution only. The same facts via Jolpica-F1 carry Ergast's "
      "CC BY-NC-SA, and that non-commercial clause is the whole reason this "
      "gap stood for seven versions; nothing about the data was ever hard to "
-     "get. The winner of every one of the 1,161 races was already held here "
-     "from the Wikipedia harvest, and F1DB agreed with all of them. "
+     "get. The winner of {{fig:races_winner_held}} of those races was already "
+     "held here, from the Wikipedia harvest and from formula1.com for the "
+     "seasons after it, and F1DB agrees with every one; a round run since "
+     "formula1.com was last read has F1DB's winner alone. "
      "What remains is not missing data. race_entries is ONE ROW PER DRIVER "
      "PER RACE, so a driver who drove two cars in one Grand Prix - normal "
      "before 1965, and the 1955 Argentine Grand Prix in particular - can "
@@ -553,7 +555,8 @@ KNOWN_GAPS = [
      "which raced which round, the winning chassis is left blank rather than "
      "guessed. Closing it needs per-round entry lists, which no source in "
      "use here publishes.",
-     "The winning chassis is known for 874 of 1,161 races. It comes from "
+     "The winning chassis is known for {{fig:races_winning_chassis}} of "
+     "{{fig:races_completed}} races. It comes from "
      "F1DB's entry lists, resolved through the driver and the round: F1DB "
      "records which chassis a constructor ran in a SEASON and which driver "
      "an entrant ran in which ROUND, and the second is far sharper than the "
@@ -620,7 +623,7 @@ KNOWN_GAPS = [
      "LOCALLY ONLY, and there is no version of this that ends in a shipped "
      "table: no source has lap times under a licence that permits passing "
      "them on. F1DB is the one source here that does permit it - which is "
-     "why 22,481 of its pit stops ARE committed - and it has no lap times. "
+     "why {{fig:pit_stops}} of its pit stops ARE committed - and it has no lap times. "
      "So this is not an unfinished harvest, it is the correct state until "
      "that changes. On your own machine: "
      "python3 tools/ergast_load.py --from-dump --timing   (1996-, one "
@@ -643,7 +646,7 @@ KNOWN_GAPS = [
      "source and have not been read.",
      "The race_timing table is empty. These figures are published per race "
      "rather than per season, so filling them for 1950-2017 means reading "
-     "1,161 individual race articles, which was judged too expensive against "
+     "{{fig:races_before_2018}} individual race articles, which was judged too expensive against "
      "what it returns. From 2018 the FastF1 loader supplies the same "
      "information at far greater resolution.",
      "Either harvest race articles for the pre-2018 seasons, or accept that "
@@ -721,11 +724,12 @@ KNOWN_GAPS = [
 
     (11, "photograph-shows-the-car", "article_images.name_matches", "whether a photograph shows the car",
      "open",
-     "We cannot confirm that 337 photographs show the car they are filed "
-     "under. The article is verified; the picture in it is not, and there "
+     "We cannot confirm that the {{fig:article_route_images}} photographs leading car articles "
+     "show the car they are filed under, and {{fig:images_to_check}} of them do not even name "
+     "it in their file name. The article is verified; the picture in it is not, and there "
      "is no second source to check it against - one car article leads with "
      "a photograph of police officers.",
-     "602 car articles carry a lead photograph from Wikimedia Commons, with "
+     "{{fig:article_route_images}} car articles carry a lead photograph from Wikimedia Commons, with "
      "its licence and photographer. The ARTICLE is well constrained - it "
      "passed the constructor, seasons and name checks in "
      "tools/wikispec_fetch.py before it was accepted - so the recorded claim "
@@ -734,14 +738,15 @@ KNOWN_GAPS = [
      "in this database constrains the content of an image and there is no "
      "second source to disagree with, which makes this the only part of the "
      "database with no cross-check available at all. Testing whether the "
-     "file name mentions the chassis finds 265 of 602, because most correct "
+     "file name mentions the chassis finds {{fig:article_route_named}} of "
+     "{{fig:article_route_images}}, because most correct "
      "images are filed under the driver - "
      "File:Jos_Verstappen_2000_Monza_(cropped).jpg really is an Arrows A21 - "
      "so the test cannot be a rule without discarding half the good rows. "
      "It is stored as name_matches and enforced nowhere. The failure it "
      "half-detects is real: the ATS D5 article leads with a photograph of "
      "officials and police.",
-     "A person looking. v_images_to_check lists the 337 whose file name does "
+     "A person looking. v_images_to_check lists the {{fig:images_to_check}} whose file name does "
      "not name the car, worst first by how many chassis depend on the "
      "article. Every row sits at 'unverified' until then, which is where "
      "this database puts what it cannot prove; a row taken from a Commons "
@@ -848,9 +853,9 @@ KNOWN_GAPS = [
      "timetable for each event as a document, and this database has not yet "
      "read those documents, so a start time here has one source behind it "
      "where most figures have two.",
-     "sessions carries 115 rows read from formula1.com's per-event pages "
+     "sessions carries {{fig:sessions}} rows read from formula1.com's per-event pages "
      "(LV-02, #91), whose schema.org markup states each start in UTC; the "
-     "review of #91 reproduced all 115 from that markup. verify.py holds the "
+     "review of #91 reproduced all 115 it then held from that markup. verify.py holds the "
      "structure - the five sessions a sprint flag implies, their order, and "
      "the race's local day against races.date_to - but no non-race start is "
      "constrained by anything independent of the source it came from. The "
@@ -1016,6 +1021,9 @@ GAP_RACES = {
 # closes Hill. The 1969 Canadian Grand Prix article credits Brabham with the
 # 1:18.1 that both harvests credit to Ickx: both are true of the same time,
 # and the share closes Brabham without moving Ickx off his reference 14.
+# The third was found the other way round, once the F1DB fetch kept every
+# row of a tie (PD-53): F1DB credits Ascari and González jointly at Monza in
+# 1952, the harvest Ascari alone, and the race article sides with F1DB.
 # build.py records each as a resolved row in `discrepancies`.
 #   (year, round): (name the harvest holds, shared names, source, why)
 SHARED_FASTEST_LAPS = {
@@ -1033,7 +1041,24 @@ SHARED_FASTEST_LAPS = {
         "season table and F1DB credit Ickx; the race article credits Brabham. "
         "The share takes Brabham to the 12 fastest laps of his reference "
         "record and leaves Ickx on his 14."),
+    (1952, 8): (
+        "Alberto Ascari", "Alberto Ascari / Jose Froilan Gonzalez",
+        "https://en.wikipedia.org/wiki/1952_Italian_Grand_Prix",
+        "Ascari and González both lapped in 2:06.1. The race article credits "
+        "both, and its classification gives Ascari half a point for a shared "
+        "fastest lap; F1DB credits both too. The season table the harvest "
+        "read carries Ascari alone. Restoring the share takes González to "
+        "the 6 fastest laps his career infobox and F1DB both give, and leaves "
+        "Ascari unchanged."),
 }
+
+# The shares above whose added names build.py inserts an entry for when it
+# reads the poles harvest (stage 17), ahead of the classification. That is
+# how these two were built when race_entries ids were promised stable, and
+# their rows keep the ids they were given. Every share added since waits for
+# the classification to create the entry and credits that row, so restoring
+# a share moves no id (DA-39). Nothing is added here.
+SHARED_FASTEST_LAPS_INSERTED = {(1960, 5), (1969, 9)}
 
 # Races where F1DB names a different fastest-lap setter from the harvest and
 # the disagreement has been LOOKED AT. build.py records every such race in
@@ -1047,7 +1072,9 @@ FASTEST_LAP_DISAGREEMENTS = {
     (1970, 1): (
         "open", "sources differ, reference record favours the stored value",
         "The harvest credits Brabham alone with the 1:20.8; F1DB credits "
-        "Surtees. The race article credits Brabham and footnotes that some "
+        "Surtees and Brabham both, as a shared fastest lap (until PD-53 the "
+        "fetch kept only the first row of a tie, so this read as Surtees "
+        "alone). The race article credits Brabham and footnotes that some "
         "sources credit both, so this is a real disagreement between sources "
         "and stays open. The single-name reading is kept because the reference "
         "record sides with it: Surtees's total is 10 on formula1.com and in "
@@ -1055,17 +1082,159 @@ FASTEST_LAP_DISAGREEMENTS = {
         "10 on that evidence (CORRECTIONS). That is a reason to prefer one "
         "reading, not proof the other is wrong. "
         "Source: https://en.wikipedia.org/wiki/1970_South_African_Grand_Prix"),
+    (1953, 5): (
+        "open", "sources differ",
+        "The harvest credits Fangio alone with the 2:41.1; F1DB credits Fangio "
+        "and Ascari both, as a shared fastest lap. The race article credits "
+        "Fangio and footnotes that some sources credit Ascari with an equal "
+        "fastest lap, so this is a real disagreement between sources and stays "
+        "open. It is the race behind Ascari's open career row: F1DB's 13 "
+        "fastest laps for him against the 12 of his career infobox and the "
+        "race records (RESOURCED_ELSEWHERE). "
+        "Source: https://en.wikipedia.org/wiki/1953_French_Grand_Prix"),
 }
 
-# Reference fastest-lap totals for the two drivers a restored share above
-# also names and whose rows in data/drivers.py carry no career figures. With
-# these, all three names the shares credit sit under the same external
-# cross-check that pins Brabham and Phil Hill; without them Ireland's 1 and
-# Ickx's 14 were asserted in the reasoning and checked by nothing.
+# Where F1DB's race result and its own session sheets contradict each other
+# about how a driver's weekend ended (PM-62, #716). Found by the review of
+# #714, which loaded the pre-qualifying sheets beside the race results. The
+# build reads every entry against the sheets and stops on a contradiction not
+# declared here, or a declaration the rows no longer bear out. A
+# contradiction is one of three things:
+#   - a DNPQ in the race result, beside a qualifying row that weekend, which
+#     says he went through pre-qualifying (the sheets read DNQ);
+#   - a place on the pre-qualifying sheet, no qualifying row, and a driver
+#     below him who went through - the order verify.py holds, which a
+#     declaration here explains (the sheets have him through, then read no
+#     result);
+#   - otherwise, a row on the pre-qualifying sheet and no qualifying row,
+#     beside a race result that is neither DNPQ nor an exclusion (the sheets
+#     read DNPQ).
+# Each is one source against itself, and the stored values stay F1DB's as
+# published: the race result and the sheets are both held, and the row says
+# which a second source sides with. Worth reporting upstream.
+#   (year, round, driver_id): (status, status_note, assessment)
+_F1DB_RACES = "https://github.com/f1db/f1db/tree/main/src/data/seasons/"
+SESSION_SHEET_DISAGREEMENTS = {
+    (1979, 7, "gianfranco-brancatelli"): (
+        "open", "a second source favours the race result",
+        "F1DB's race result has Brancatelli DNPQ. He is slowest of the "
+        "three on its pre-qualifying sheet, behind Hans-Joachim Stuck and "
+        "Jochen Mass, but its qualifying sheet holds all three - him 25th "
+        "with no time - which says he went through. The race article sides "
+        "with the race result: two went through, and it lists him as not "
+        "pre-qualifying, on 1:38.15, and leaves him out of its qualifying "
+        "table. Both F1DB rows are kept as published. "
+        "Source: " + _F1DB_RACES + "1979/races/07-monaco (race-results.yml "
+        "and pre-qualifying-results.yml against qualifying-results.yml); "
+        "https://en.wikipedia.org/wiki/1979_Monaco_Grand_Prix"),
+    (1990, 6, "moreno"): (
+        "explained", "went through pre-qualifying, excluded in qualifying",
+        "F1DB's pre-qualifying sheet has Moreno third, inside the four who "
+        "went through, and its qualifying sheet has no row for him: by the "
+        "sheets alone he went through and then has no result, placed above "
+        "Aguri Suzuki, who qualified, which is why verify.py declares his "
+        "place as published. The race result explains it: DSQ, for a push "
+        "start. "
+        "The race article says he was disqualified for receiving a push start "
+        "in qualifying, and its qualifying table lists him as excluded after "
+        "a first-session 1:21.142. F1DB holds no qualifying row for him, and "
+        "no reading is wrong. "
+        "Source: " + _F1DB_RACES + "1990/races/06-mexico (race-results.yml, "
+        "pre-qualifying-results.yml and qualifying-results.yml); "
+        "https://en.wikipedia.org/wiki/1990_Mexican_Grand_Prix"),
+    (1991, 10, "alex-caffi"): (
+        "open", "a second source favours the session sheets",
+        "F1DB's race result has Caffi DNQ, but its own sheets say he failed "
+        "pre-qualifying: sixth on the pre-qualifying sheet, behind the four "
+        "who went through, and no qualifying row. The race article agrees "
+        "with the sheets - sixth in Friday's pre-qualifying, one of the four "
+        "who did not pre-qualify - citing Murray Walker's Grand Prix Year "
+        "(1991). Both readings are a non-start, so his starts do not move. "
+        "The race result is kept as F1DB publishes it. "
+        "Source: " + _F1DB_RACES + "1991/races/10-hungary (race-results.yml "
+        "against pre-qualifying-results.yml and qualifying-results.yml); "
+        "https://en.wikipedia.org/wiki/1991_Hungarian_Grand_Prix"),
+}
+
+# Where a second source classifies a driver's race otherwise than F1DB's race
+# result does, and the reading moves whether it is a start (DA-44, #753).
+# Found as the two open `stored-total` starts rows below: each was one race
+# read two ways, filed only against a career. Nothing in the data names the
+# second reading, so the build cannot find these on its own; what it does is
+# hold each declaration to the row - the entry must exist and carry the
+# result named here, or the build stops - and file it on the race, where the
+# race page shows it. The stored values stay F1DB's as published, as they do
+# for SESSION_SHEET_DISAGREEMENTS: race_results.txt is written by
+# tools/f1db_fetch.py alone, and no FIA classification read settles either.
+#   (year, round, driver_id): (F1DB's position_text, the other reading,
+#                              status, status_note, assessment)
+_BELGIUM_2001 = (
+    "F1DB's race result, which the race records follow, has {name} retiring "
+    "with no lap completed, from his place on the original grid, which "
+    "counts as a start. The race was stopped on lap five for Irvine's and "
+    "Burti's accident, declared null and void, and run again from the start "
+    "over 36 laps. {what} The race's Wikipedia article, citing the 2001 "
+    "Formula One Annual, says the official results list Raikkonen, Irvine, "
+    "Burti and Alonso as not having started, because each took part only in "
+    "the voided race. The FIA's provisional race classification after 36 "
+    "laps, and formula1.com's result, list none of the four - nor Heidfeld, "
+    "who retired without completing a lap of the restarted race - beside "
+    "13 classified and 4 not classified, so neither settles the reading. "
+    "The race result is kept as F1DB publishes it. "
+    "Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix; "
+    "https://web.archive.org/web/20050302104816/http://www.fia.com/resources/documents/1804534710__Belgium_Class_2001.pdf; "
+    "https://www.formula1.com/en/results/2001/races/716/belgium/race-result")
+_FAVOURS_DNS = "a second source favours a non-start"
+RACE_CLASSIFICATION_DISAGREEMENTS = {
+    (1985, 5, "piquet"): (
+        "DNS", "DNF", "open", "a contemporary report favours a start",
+        "F1DB's race result, which the race records follow, has Piquet DNS, "
+        "with a transmission failure, from ninth on the grid, and "
+        "formula1.com's results archive, read on 2026-10-09, gives him DNS "
+        "with no laps. formula1.com's page for the same race as archived in "
+        "February 2014, which the race's Wikipedia article cites, gave him "
+        "retired on lap 0 with a transmission failure from ninth on the grid, "
+        "which is a start, and so does the article. Alan Henry's report in "
+        "Motor Sport, July 1985, says that in the race he succumbed to "
+        "terminal gearbox problems on the opening lap. One race read two "
+        "ways, and formula1.com has given both. The race result is kept as "
+        "F1DB publishes it. Source: "
+        "https://www.formula1.com/en/results/1985/races/486/canada/race-result; "
+        "https://web.archive.org/web/20140218000549/http://www.formula1.com/results/season/1985/299/; "
+        "https://www.motorsportmagazine.com/archive/article/july-1985/33/canadian-grand-prix-ferrari-command"),
+    (2001, 14, "raikkonen"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Raikkonen",
+            what="He stopped in the first race with a transmission "
+                 "failure and took no part in the second.")),
+    (2001, 14, "irvine"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Irvine",
+            what="His Jaguar lost its right-hand wheels in the accident, and "
+                 "he took no part in the second race.")),
+    (2001, 14, "luciano-burti"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Burti",
+            what="He was taken to hospital after the accident and took no "
+                 "part in the second race.")),
+    (2001, 14, "alonso"): (
+        "DNF", "DNS", "open", _FAVOURS_DNS, _BELGIUM_2001.format(
+            name="Alonso",
+            what="He retired from the first race with a broken gearshaft "
+                 "and took no part in the second.")),
+}
+
+# Reference fastest-lap totals for the three drivers a restored share above
+# also names and whose rows in data/drivers.py carry no fastest-lap figure.
+# With these, every name the shares credit sits under the same external
+# cross-check that pins Brabham and Phil Hill; without them Ireland's 1,
+# Ickx's 14 and González's 6 were asserted in the reasoning and checked by
+# nothing.
 #   driver_id: (fastest laps, source)
 EXTERNAL_FASTEST_LAPS = {
     "ireland": (1, "https://en.wikipedia.org/wiki/Innes_Ireland"),
     "ickx": (14, "https://en.wikipedia.org/wiki/Jacky_Ickx"),
+    "gonzalez": (6, "https://en.wikipedia.org/wiki/Jos%C3%A9_Froil%C3%A1n_Gonz%C3%A1lez"),
 }
 
 # The career figures typed into data/drivers.py came from reference records
@@ -1367,21 +1536,27 @@ STORED_TOTALS_DECLARED = [
      "results list him as not having started, which is the 349 Wikipedia "
      "gives. F1DB's "
      "published total, 350, and the race records count it as a start he "
-     "retired from. One race read two ways. "
+     "retired from. One race read two ways, and that disagreement is open "
+     "on the race, 2001 round 14. "
      "Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix"),
     ("piquet", "starts", 204, 203, "open", "sources differ",
      "The race records, and F1DB's published total of 203, hold his 1985 "
      "Canadian Grand Prix as a race he did not start, with a transmission "
-     "failure. The race's Wikipedia article, citing formula1.com, has him "
-     "retiring on lap 0 from ninth on the grid, which is a start, and his "
-     "own article's infobox gives 204 starts. One race read two ways. "
+     "failure, as formula1.com's results archive now does. The race's "
+     "Wikipedia article, citing formula1.com's page for the race as it stood "
+     "in 2014, has him retiring on lap 0 from ninth on the grid, which is a "
+     "start, as does Motor Sport's report at the time, and his own "
+     "article's infobox gives 204 starts. One race read two ways, and that "
+     "disagreement is open on the race, 1985 round 5. "
      "Source: https://en.wikipedia.org/wiki/1985_Canadian_Grand_Prix"),
 ]
 
 
 # =====================================================================
 # The chassis, engine and entrant register (harvest/chassis.txt,
-# harvest/engines.txt, harvest/f1db_constructors.txt, harvest/entrants.txt)
+# harvest/engines.txt, harvest/f1db_constructors.txt, harvest/entrants.txt,
+# and the entrant and tyre names in harvest/f1db_entrants.txt and
+# harvest/f1db_tyre_manufacturers.txt)
 #
 # Source: F1DB (https://github.com/f1db/f1db), CC BY 4.0, re-released after
 # every race. Fetched by tools/f1db_fetch.py, which writes these files and is
@@ -1431,6 +1606,8 @@ F1DB_COUNTRIES_FILE = os.path.join(HERE, "..", "harvest", "f1db_countries.txt")
 ENTRANT_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "entrant_drivers.txt")
 ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
 F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
+F1DB_ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "f1db_entrants.txt")
+F1DB_TYRES_FILE = os.path.join(HERE, "..", "harvest", "f1db_tyre_manufacturers.txt")
 ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
 SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
@@ -1666,6 +1843,55 @@ SECOND_ENTRIES = {
         "(verify.py PRACTICE_TEAM_EXCEPTIONS).",
 }
 
+# A classified finisher inside the paid places whom F1DB gives no points
+# (DA-37). The points system's scale says the place was paid, so the 0 that
+# build.py writes below the paid places (DA-08) does not reach these: what
+# the race's own rules did to the entry is a fact about that entry, and each
+# one here is sourced to the race's own article, which states it. build.py
+# writes the note to race_entries.note, cites the article for it in
+# `claims`, and writes the 0 the cause establishes; it refuses a name here
+# F1DB no longer bears out - a row gone, moved out of the paid places, or
+# given points - and verify.py refuses a finisher inside the paid places
+# holding no points that is not named here, so a new one arrives as a row
+# to read and not as a blank or a guessed 0. The note is this project's
+# wording of what the article states. Keyed (year, round, our driver id).
+_F2 = ("A Formula Two car, run in the same race as the Formula One field and "
+       "not eligible for championship points.")
+_SHARED = "A shared drive, for which no championship points were awarded."
+# The 1960 article states the rule's age; the 1958 one states only the
+# outcome, so each note says what its own article does.
+_SHARED_SINCE_1958 = ("A shared drive: under a rule in place since 1958, no "
+                      "championship points were awarded for it.")
+_SECOND_CAR = ("The team's second car, when the team had entered only one car "
+               "for the championship, so not eligible for points.")
+_WP = "https://en.wikipedia.org/wiki/"
+UNPAID_INSIDE_THE_PAID_PLACES = {
+    (1957, 5, "collins"): (
+        "Shared Trintignant's car and drove 3 of its 88 laps: Trintignant "
+        "received all 3 points for fourth, as Collins was judged not to have "
+        "driven a significant number of laps.", _WP + "1957_British_Grand_Prix"),
+    (1958, 8, "mclaren-d"): (_F2, _WP + "1958_German_Grand_Prix"),
+    (1958, 10, "gregory"): (_SHARED, _WP + "1958_Italian_Grand_Prix"),
+    (1958, 10, "carroll-shelby"): (_SHARED, _WP + "1958_Italian_Grand_Prix"),
+    (1960, 1, "moss"): (_SHARED_SINCE_1958, _WP + "1960_Argentine_Grand_Prix"),
+    (1960, 1, "trintignant"): (_SHARED_SINCE_1958, _WP + "1960_Argentine_Grand_Prix"),
+    (1963, 4, "g-hill"): (
+        "Push-started on the grid, for which the organisers gave a one-minute "
+        "penalty; no championship points were awarded for his third place.",
+        _WP + "1963_French_Grand_Prix"),
+    # The 1967 article marks the car Formula Two and pays fifth place's 2
+    # points to Bonnier, sixth on the road; it does not state the rule.
+    (1967, 7, "oliver"): (
+        "A Formula Two car, run in the same race as the Formula One field; "
+        "the 2 points for fifth went to the next Formula One car.",
+        _WP + "1967_German_Grand_Prix"),
+    (1969, 7, "pescarolo"): (_F2, _WP + "1969_German_Grand_Prix"),
+    (1969, 7, "attwood"): (_F2, _WP + "1969_German_Grand_Prix"),
+    (1984, 14, "jo-gartner"): (_SECOND_CAR, _WP + "1984_Italian_Grand_Prix"),
+    (1984, 14, "berger"): (_SECOND_CAR, _WP + "1984_Italian_Grand_Prix"),
+    (1987, 16, "yannick-dalmas"): (_SECOND_CAR, _WP + "1987_Australian_Grand_Prix"),
+}
+
 # F1DB constructor id -> this database's constructor id, for the seven that
 # do not already share one. Six are spelling; the seventh is not.
 F1DB_CONSTRUCTORS = {
@@ -1726,6 +1952,16 @@ def load_engines():
 def load_f1db_constructors():
     """constructor_id, name, full_name, country_id"""
     return _read_pipe(F1DB_CONS_FILE, 4)
+
+
+def load_f1db_entrant_names():
+    """{entrant_id: name}, off F1DB's entrant register (UR-14)."""
+    return {eid: name for eid, name in _read_pipe(F1DB_ENTRANTS_FILE, 2)}
+
+
+def load_f1db_tyre_names():
+    """{tyre_manufacturer_id: name}, off F1DB's register of them (UR-14)."""
+    return {tid: name for tid, name in _read_pipe(F1DB_TYRES_FILE, 2)}
 
 
 def load_entrants():
@@ -1954,6 +2190,27 @@ def _read_named(path, rerun):
                     f"{len(cols) if cols else '?'}. Rerun {rerun}.")
             rows.append({c: (v.strip() or None) for c, v in zip(cols, parts)})
     return rows
+
+
+# Markup in a text value: an HTML or wikitext tag, a comment, or a character
+# entity. No column of the database holds one - a value that reaches a page
+# or a meta description is printed as written, so a tag in one is a tag on
+# the page (CD-54). build.py refuses one in the spec harvest; verify.py holds
+# every text column of every table to it. A wikitext link's bracket is
+# WIKILINK's, below.
+MARKUP = re.compile(r"<\s*/?\s*[A-Za-z][A-Za-z0-9]*(\s[^<>]*)?/?\s*>|<!--"
+                    r"|&[A-Za-z]+;|&#[0-9]+;|&#x[0-9A-Fa-f]+;")
+
+# A wikitext link's bracket, left in a value by a harvest that did not pair
+# it (CR-76): "Petronas E10Aramco]] branding" in a car's fuel, "Harry Pot for
+# Anefo ]]" in a photograph's credit, printed as written on the page. The
+# spec harvest's reader (build.py's _plain()) and the credit rule
+# (clean_credit below) remove one, and verify.py holds every text column to
+# it.
+# MARKUP's sibling rather than part of it, because a JSON value may hold
+# "]]" as its own syntax - the geometry overlay's coordinates do, in a merged
+# local copy - and verify.py exempts a value that parses as JSON.
+WIKILINK = re.compile(r"\[\[|\]\]")
 
 
 def load_car_specs():
@@ -2269,6 +2526,17 @@ def credit_without_licence(text):
     return name or None
 
 
+def credit_without_link_residue(text):
+    """A credit field without the wikitext link brackets Commons' own page
+    left unpaired (WIKILINK, CR-76), or None where nothing else is left.
+    Commons renders "Harry Pot for Anefo ]] / neg. stroken, ..." with the
+    stray "]]" as written; the credit is the rest of it. A field with no such
+    bracket is returned as it is."""
+    if not text or not WIKILINK.search(text):
+        return text
+    return " ".join(WIKILINK.sub(" ", text).split()) or None
+
+
 def credit_names_somebody(text):
     """Does a credit field, shown alone, name a person or a source? A bare
     URL does: a link is an acceptable CC BY credit (CR-70)."""
@@ -2282,13 +2550,14 @@ def credit_names_somebody(text):
 
 def clean_credit(artist, credit):
     """(artist, credit) as every route's harvest stores them, given the two
-    fields as Commons answered them: a licence paragraph cut to the name,
-    boilerplate read as empty, and the unknown-author value read as empty
-    where the credit names somebody. A field no rule touches comes back as
-    it went in, so a stored row is its own image under this function, which
-    is what build.py and verify.py hold it to."""
-    artist = credit_without_licence(artist)
-    credit = credit_without_licence(credit)
+    fields as Commons answered them: an unpaired wikitext link bracket
+    removed, a licence paragraph cut to the name, boilerplate read as empty,
+    and the unknown-author value read as empty where the credit names
+    somebody. A field no rule touches comes back as it went in, so a stored
+    row is its own image under this function, which is what build.py and
+    verify.py hold it to."""
+    artist = credit_without_licence(credit_without_link_residue(artist))
+    credit = credit_without_licence(credit_without_link_residue(credit))
     if artist and CREDIT_BOILERPLATE.match(artist):
         artist = None
     if credit and CREDIT_BOILERPLATE.match(credit):

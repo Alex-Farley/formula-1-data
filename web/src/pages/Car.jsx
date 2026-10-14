@@ -1,21 +1,20 @@
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
+import CommonsImage from '../components/CommonsImage.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { FOLD_NOUN } from '../lib/table.js'
 import Photographs from '../components/Photographs.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
-import { CURRENT_SEASON } from '../lib/season.js'
-import { canShow } from '../lib/commons.js'
 import Disagreement from '../components/Disagreement.jsx'
 import {
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER,
   CAR,
   CAR_DISAGREEMENTS,
-  FIGURES_HEADING,
   ENTRIES,
   IMAGES,
   NO_ENTRIES,
@@ -27,11 +26,11 @@ import {
   carAddress,
   carFacts,
   carPageName,
+  carPhotographs,
   carRecord,
   carStrip,
   entryColumns,
   entryResult,
-  leadsWithPhotograph as photographLeads,
   publishedWins,
   specificationFields,
   specified,
@@ -39,7 +38,7 @@ import {
 } from '../queries/car.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
-import { NAMES } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/car.js defines — the links and
@@ -84,7 +83,6 @@ export default function Car() {
     entries: [ENTRIES, [id]],
     seasons: [SEASONS, [id, id]],
     disagreements: [CAR_DISAGREEMENTS, [id]],
-    current: [CURRENT_SEASON],
   })
 
   return (
@@ -117,7 +115,9 @@ function CarBody({ id, chassis, variants, data }) {
   // is headed "Photographs 1" over an empty grid otherwise, the day a file
   // arrives with nobody to credit. components/Photographs.jsx does it, for
   // every surface that shows one.
-  const images = rows(data, 'images')
+  // The one that identifies the car leads in the opening slot, and the
+  // strip holds the rest (queries/car.js, VD-84).
+  const photographs = carPhotographs(rows(data, 'images'))
   const entries = rows(data, 'entries')
   const seasons = rows(data, 'seasons')
 
@@ -142,31 +142,25 @@ function CarBody({ id, chassis, variants, data }) {
   const facts = carFacts(chassis, car)
   const { chassis: specChassis, engine: specEngine } = specificationFields(facts)
   const hasSpecification = specified([...specChassis, ...specEngine])
-  // This year's chassis opens on its photograph (PD-49); queries/car.js says why.
-  const leadsWithPhotograph = photographLeads(variants, data.current.rows[0]?.season)
 
   return (
     <Page
-      eyebrow={chassis.constructor ?? 'Chassis'}
+      eyebrow={EYEBROWS.car(chassis.constructor, raced[0], raced[1])}
       title={NAMES.car(name).headline}
       trail={TRAIL.car(chassis.id, name)}
       canonical={carAddress(id, car)}
       lede={car?.story}
     >
-      {leadsWithPhotograph && <Photographs images={images} />}
-
-      {/* A heading only when the photograph is above it and something is
-          drawn there; otherwise the strip sits under the h1 as before. */}
-      <Section title={leadsWithPhotograph && images.some(canShow) ? FIGURES_HEADING : undefined}>
+      {/* The tiles directly under the h1, on every car (VD-83): this year's
+          chassis used to open on its photographs (PD-49), with the figures
+          below a strip of pictures. The photograph that identifies the car
+          is the opening slot's to carry (VD-84), not a section's. */}
+      <Section>
         {/* queries/car.js's strip, which the static page draws too (VD-49). */}
         <Stats items={carStrip(variants, car, entries)} />
       </Section>
 
-      {/* The section itself is components/Photographs.jsx, which the
-          constructor, season and race pages draw too (VD-33). No `subjects`:
-          this page is the car, and captioning six photographs with its own
-          title says nothing the heading has not. */}
-      {!leadsWithPhotograph && <Photographs images={images} />}
+      <Slot>{photographs.lead && <CommonsImage image={photographs.lead} width={PHOTOGRAPH_WIDTH} />}</Slot>
 
       {car && (
         <Section title="Why it mattered">
@@ -259,8 +253,9 @@ function CarBody({ id, chassis, variants, data }) {
         </Section>
       )}
 
-      <Section title="Every entry" count={`${entries.length} races`}>
+      <Section title="Every entry" count={`${entries.length.toLocaleString('en-GB')} ${entries.length === 1 ? 'entry' : 'entries'}`}>
         <DataTable
+          fold={FOLD_NOUN.entries}
           rows={entries}
           rowKey={(row) => `${row.year}-${row.round}-${row.driver_id}`}
           sortable
@@ -272,11 +267,19 @@ function CarBody({ id, chassis, variants, data }) {
         />
       </Section>
 
-      <Section title="On the record">
+      {/* The section itself is components/Photographs.jsx, which the
+          constructor, season and race pages draw too (VD-33), and in the one
+          place every page type puts it: after the page's own sections and
+          before where they come from (VD-83). No `subjects`: this page is
+          the car, and captioning six photographs with its own title says
+          nothing the heading has not. */}
+      <Photographs images={photographs.rest} />
+
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             // The builder's colour mark (AF-51), for the last season this
-            // PAGE covers - `raced[1]`, the same figure the "Raced" stat
+            // PAGE covers - `raced[1]`, the same figure the "Seasons" tile
             // prints. `chassis` is variants[0], so reading its `last_year`
             // would take the first variant's last season and contradict the
             // span shown above it. No `year` is passed:

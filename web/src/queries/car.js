@@ -13,6 +13,8 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { finished, missing, number, span, text } from '../lib/format.js'
+import { LABELS } from '../lib/site.js'
+import { canShow } from '../lib/commons.js'
 
 /**
  * Every chassis a page covers.
@@ -34,9 +36,9 @@ export const VARIANTS = `
 `
 
 /**
- * The curated car behind a page, with the two facts carAddress() needs:
- * `family`, how many chassis name it as their design, and `owned`, whether a
- * chassis shares its id.
+ * The curated car behind a page, with the two facts carAddress() and
+ * carFacts() need: `family`, how many chassis name it as their design, and
+ * `owned`, whether a chassis shares its id.
  */
 export const CAR = `
   SELECT c.*,
@@ -69,11 +71,17 @@ export const CAR = `
  */
 export const carAddress = (id, car) => `/cars/${wholeOfOneChassis(car) && car.id !== id ? car.id : id}`
 
-/** Whether the curated car is the whole of one chassis registered under another id: one object, two rows. */
-export const wholeOfOneChassis = (car) => Boolean(car && !car.owned && car.family === 1)
+/**
+ * Whether the curated car is the whole of one chassis: one object, two rows.
+ * Four are registered under another id (`mercedes-w11` is `mercedes-f1-w11`),
+ * and only those have a second address, which carAddress() sends to the
+ * car's; the rest share the car's id (`mclaren-mp4-4`), so their one address
+ * is already the car's (IA-06, IA-29).
+ */
+export const wholeOfOneChassis = (car) => Boolean(car && car.family === 1)
 
 /**
- * ONE PRECEDENCE, BOTH HALVES (IA-28).
+ * ONE PRECEDENCE, BOTH HALVES (IA-28, IA-29).
  *
  * Every field the page shows about what the car is, resolved from the two
  * rows it may have: `chassis`, the register's row the page is about, and
@@ -81,20 +89,29 @@ export const wholeOfOneChassis = (car) => Boolean(car && !car.owned && car.famil
  * scripts/prerender.js both read the page's figures from here, so the two
  * halves of one address cannot print different engines again.
  *
- * Where the car is the whole of one chassis (`mercedes-w11`, which is
- * `mercedes-f1-w11`), the two rows are one object, and every field is the
- * chassis's where it holds a value and the car's only where it does not -
- * the maintainer's ruling on IA-28. A figure the two give differently is
- * shown from the chassis and is on the record beside it: build.py files it
- * in `discrepancies` and the page shows both readings. The power note goes
- * with the power figure, so a figure is never captioned by the other row's
- * description of a different number. The curated row's one `suspension`
- * stands in only where the chassis has neither end's.
+ * Where the car is the whole of one chassis - under another id
+ * (`mercedes-w11`, which is `mercedes-f1-w11`) or its own (`mclaren-mp4-4`)
+ * - the two rows are one object, and every field is the chassis's where it
+ * holds a value and the car's only where it does not: the maintainer's
+ * ruling on IA-28, extended to every car of one chassis on IA-29. A figure
+ * the two give differently is shown from the chassis and is on the record
+ * beside it: build.py files it in `discrepancies` and the page shows both
+ * readings. The power note goes with the power figure, so a figure is never
+ * captioned by the other row's description of a different number. The
+ * curated row's one `suspension` stands in only where the chassis has
+ * neither end's.
  *
- * Every other page keeps the precedence it had: the curated designers first,
- * the engine, brakes and tyres the chassis's before the design's, and the
- * rest the chassis's alone, because a variant of a design of several is its
- * own machine and the family's weight is not its weight.
+ * The designers are not a figure, and a car that shares its id with its
+ * chassis keeps its curated list first, as it always has: the register's
+ * list for `red-bull-rb19` is Honda's power-unit engineer alone, where the
+ * car's article names a dozen people from Newey down, so chassis first
+ * would put the wrong person on the page.
+ *
+ * Every other page - a design of several variants, or one of those variants
+ * - keeps the precedence it had: the curated designers first, the engine,
+ * brakes and tyres the chassis's before the design's, and the rest the
+ * chassis's alone, because a variant of a design of several is its own
+ * machine and the family's weight is not its weight.
  */
 export function carFacts(chassis, car) {
   const whole = wholeOfOneChassis(car)
@@ -102,7 +119,7 @@ export function carFacts(chassis, car) {
   const own = (field) => (whole ? either(field) : (chassis?.[field] ?? null))
   const powered = whole && missing(chassis?.power_bhp) ? car : chassis
   return {
-    designers: whole ? either('designers') : (car?.designers ?? chassis?.designers ?? null),
+    designers: whole && !car.owned ? either('designers') : (car?.designers ?? chassis?.designers ?? null),
     chassis_type: own('chassis_type'),
     susp_front: chassis?.susp_front ?? null,
     susp_rear: chassis?.susp_rear ?? null,
@@ -288,28 +305,6 @@ export const NO_SPECIFICATION =
   'No specification is published for this car: no chassis, engine, weight or dimension figure is ' +
   'on record for it.'
 
-/**
- * THIS YEAR'S CHASSIS LEADS WITH ITS PHOTOGRAPH (PD-49).
- *
- * A car on this season's grid is one a reader has just watched race, and the
- * picture is what they came to match it against; every other car's page
- * leads with its figures and the photographs follow, as before. "This
- * year's" is the last season any variant the page covers raced - the span
- * the Raced tile prints - reaching meta.current_season (lib/season.js), and
- * never the latest season the register holds. Both renderers ask here.
- */
-/**
- * The heading the figures take when the photograph leads: under the
- * Photographs h2 the untitled strip and fields read as the section's own, so
- * they get one of their own there, and nowhere else.
- */
-export const FIGURES_HEADING = 'In figures'
-
-export const leadsWithPhotograph = (variants, season) => {
-  const years = variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))
-  return !missing(season) && years.length > 0 && Math.max(...years) === season
-}
-
 /** Whether any specification field holds a figure, and so whether to draw the fields at all. */
 export const specified = (fields) => fields.some(({ value }) => !missing(value))
 
@@ -320,12 +315,12 @@ export const NO_ENTRIES =
  * What a car page counts from its rows: the seasons its variants raced, and
  * the wins, poles and fastest laps in its entries. One reading for the strip
  * and for the rest of Car.jsx, which prints the same span as the strip's
- * Raced and sets its derived wins against the published figure.
+ * Seasons and sets its derived wins against the published figure.
  *
  * `raced` runs from the first variant's first season to the last season any
  * variant ran, a variant with no last season counting its first; a page
  * whose variants carry no season at all has [null, null], and the strip
- * then has no Raced tile.
+ * then has no Seasons tile.
  */
 export const carRecord = (variants, entries) => {
   const firsts = variants.map((v) => v.first_year).filter((y) => !missing(y))
@@ -347,12 +342,27 @@ export const carRecord = (variants, entries) => {
  * won, and a car page two clicks from a constructor page that ranks should
  * not be the one that does not.
  */
+/**
+ * The photograph that identifies a car, for its opening slot (VD-84), and
+ * the rest for its photo strip. The first that can be shown whose file name
+ * names the car: a file the build could not match to it (`name_matches` 0,
+ * the `unchecked` mark) may be another car of the family, and the picture
+ * of this thing is not the place to guess. None confirmed, and the slot is
+ * empty, so the header keeps the width. The strip leaves out the one the
+ * slot shows rather than drawing it twice. Both renderers call this.
+ */
+export const carPhotographs = (images) => {
+  const shown = images.filter(canShow)
+  const lead = shown.find((image) => image.name_matches === 1) ?? null
+  return { lead, rest: shown.filter((image) => image !== lead) }
+}
+
 export const carStrip = (variants, car, entries) => {
   const { raced, wins, poles, fastest } = carRecord(variants, entries)
   return [
-    { label: 'Raced', value: raced[0] === null ? null : span(raced[0], raced[1]) },
+    { label: LABELS.seasons, value: raced[0] === null ? null : span(raced[0], raced[1]) },
     variants.length > 1 ? { label: 'Variants', value: number(variants.length) } : null,
-    { label: 'Recorded entries', value: number(entries.length) },
+    { label: LABELS.entries, value: number(entries.length) },
     { label: 'Wins', value: number(wins), lead: wins > 0 },
     { label: 'Poles', value: number(poles) },
     { label: 'Fastest laps', value: number(fastest) },

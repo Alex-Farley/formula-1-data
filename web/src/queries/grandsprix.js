@@ -19,7 +19,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { span, text } from '../lib/format.js'
-import { SHARED } from '../lib/site.js'
+import { LABELS, SHARED } from '../lib/site.js'
 
 /** The register's standfirst, in both renderers. */
 export const GRANDS_PRIX_LEDE =
@@ -59,7 +59,7 @@ export const GRANDS_PRIX_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Grand Prix' },
   { key: 'country', label: 'Country' },
   { key: 'held', label: 'Held', align: 'num', phone: true },
-  { key: 'first_held', label: 'Span', align: 'num', text: (_, row) => span(row.first_held, row.last_held) },
+  { key: 'first_held', label: LABELS.seasons, align: 'num', text: (_, row) => span(row.first_held, row.last_held) },
   { key: 'circuits', label: 'Circuits', align: 'num', phone: true },
   { key: 'last_winner', label: 'Last winner', text: lastWinner },
 ]

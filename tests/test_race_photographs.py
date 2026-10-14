@@ -217,6 +217,16 @@ class TheCreditIsAName(unittest.TestCase):
                      ("Hans van Dijk for Anefo", "http://proxy.handle.net/x")):
             self.assertEqual(H.clean_credit(*pair), pair)
 
+    def test_a_stray_link_bracket_is_not_part_of_the_credit(self):
+        # Commons' own page renders the 1963 Dutch Grand Prix photographs'
+        # author with an unpaired "]]" (CR-76).
+        self.assertEqual(
+            H.clean_credit("Harry Pot for Anefo ]] / neg. stroken, 1945-1989",
+                           "http://proxy.handle.net/x"),
+            ("Harry Pot for Anefo / neg. stroken, 1945-1989",
+             "http://proxy.handle.net/x"))
+        self.assertEqual(H.clean_credit("[[ ]]", "Corsa"), (None, "Corsa"))
+
     def test_the_harvest_applies_it(self):
         meta = {"host": WI.COMMONS_HOST, "namespace": 6, "repository": "local",
                 "licence": "Public domain", "licence_url": None,

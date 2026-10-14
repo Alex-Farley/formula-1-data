@@ -6,6 +6,7 @@ Build f1.db from schema.sql and the data modules.
 
 Idempotent: deletes and rebuilds the database each run.
 """
+import html
 import importlib
 import json
 import math
@@ -84,7 +85,7 @@ VERSION = "2.25"
 # pages. So the refresh workflow now bumps it whenever it commits a new
 # harvest — the only time the data actually changes — and a hand edit to
 # data/*.py should bump it too.
-BUILT = "2026-10-05"
+BUILT = "2026-10-14"
 
 
 def _haversine(a, b):
@@ -882,8 +883,67 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
                     f"and {car_id}")
             chassis_car[ch] = car_id
 
+    def _engine_split(row):
+        """The engine name and configuration, parted where the page parted
+        them (CD-54).
+
+        Thirty-three modern infoboxes, when this was written, put a
+        horizontal rule inside the engine field - "Honda RBPTH001<hr>1.6 L
+        direct injection V6 ..." - to set the unit's name above a sentence
+        describing it, and the harvest keeps the `<hr>` as the page wrote
+        it. Some carry it at the end of the name and the sentence in the
+        configuration field; some open the configuration field with it.
+        Either way the name is what stands before the rule and the
+        configuration what stands after.
+
+        Where the page also fills its own configuration field (eight cars:
+        "V6 (90°)", "V6"), that field comes first and the sentence follows
+        it, after a semicolon. The sentence is not dropped: on five of the
+        eight (the Haas VF-22, VF-24, VF-25 and VF-26 and the Sauber C45)
+        it is the only place the page says the engine is a turbocharged
+        1.6 L, and the aspiration, capacity and position columns are NULL.
+        """
+        name, cfg = row.get("engine_name"), row.get("engine_config")
+        rest = None
+        if name and "<hr>" in name:
+            name, rest = (p.strip() or None for p in name.split("<hr>", 1))
+        if cfg and cfg.startswith("<hr>"):
+            cfg = cfg[len("<hr>"):].strip() or None
+        cfg = "; ".join(p for p in (cfg, rest) if p) or None
+        return {**row, "engine_name": name, "engine_config": cfg}
+
+    def _plain(v):
+        """A harvested value as plain text: no wikitext tag, no entity.
+
+        The harvest strips the markup tools/wikispec_fetch.py understands and
+        leaves the rest where it can be seen; this is where it is seen. Two
+        survive into the infoboxes this build reads: `<nowiki>*</nowiki>`
+        around a footnote star (Alfa Romeo 158/159's rear suspension), and
+        `&nbsp;` and `&ndash;` written as entities, which are read as the
+        characters they name - a non-breaking space as a space. Anything
+        tag-shaped left after that stops the build - a new kind is handled here on purpose, never
+        printed on a page - and verify.py holds every text column in the
+        database to the same rule. A wikitext link's bracket the harvest
+        left unpaired (HV.WIKILINK, CR-76) is removed here, as the credit
+        rule removes one: the AMR22's fuel was read with its footnote, and
+        a bracket of the footnote's link was left behind. The footnote is
+        tools/wikispec_fetch.py's to drop, and it now does; the committed
+        harvest predates that and still carries it.
+        """
+        if v is None:
+            return None
+        s = re.sub(r"</?nowiki>", "", v, flags=re.I)
+        s = html.unescape(s)
+        s = re.sub(r"\s+", " ", s).strip()
+        if HV.MARKUP.search(s):
+            raise SystemExit(f"harvest/car_specs.txt: markup in {v!r}; "
+                             f"build.py's _plain() does not know it")
+        s = " ".join(HV.WIKILINK.sub(" ", s).split())
+        return s or None
+
     specs = {}
     for row in HV.load_car_specs():
+        row = {k: _plain(v) for k, v in _engine_split(row).items()}
         for ch in (row["chassis_ids"] or "").split("+"):
             if ch:
                 specs[ch] = row
@@ -1457,20 +1517,46 @@ def _stage_14_a_regulation_figure_is_not_a(b):
                     "resolved", "withdrawn")
 
     known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
+    # The names a reader sees in place of the ids (UR-14), off F1DB's own
+    # registers. An id with no name is refused rather than shown as a slug,
+    # and a tyre name holding a '+' is refused because tyre_names is a
+    # '+'-separated list read in step with tyre_ids.
+    entrant_names = HV.load_f1db_entrant_names()
+    tyre_names = HV.load_f1db_tyre_names()
+    for tid, tname in tyre_names.items():
+        if not tname:
+            raise SystemExit(f"f1db_tyre_manufacturers.txt: {tid} has no name. "
+                             f"Rerun tools/f1db_fetch.py.")
+        if "+" in tname:
+            raise SystemExit(f"f1db_tyre_manufacturers.txt: {tid}'s name "
+                             f"{tname!r} holds the '+' that separates "
+                             f"season_entrants.tyre_names")
     for i, (year, entrant, f1db_cons, eng_man, ch_ids, eng_ids, tyres) in \
             enumerate(entrants, 1):
         if year not in known_years:
             raise SystemExit(f"entrants.txt: season {year} is not in the "
                              f"season register")
+        if not entrant_names.get(entrant):
+            raise SystemExit(f"entrants.txt: entrant {entrant!r} ({year}) has "
+                             f"no name in harvest/f1db_entrants.txt. Rerun "
+                             f"tools/f1db_fetch.py.")
+        unnamed = [t for t in tyres if t not in tyre_names]
+        if unnamed:
+            raise SystemExit(f"entrants.txt: tyre {', '.join(unnamed)} ({year}) "
+                             f"has no name in harvest/f1db_tyre_manufacturers.txt. "
+                             f"Rerun tools/f1db_fetch.py.")
         our_cons = HV.constructor_for_f1db(f1db_cons, year)
         cur.execute("""INSERT INTO season_entrants (id, year, entrant_id,
             f1db_constructor_id, constructor_id, engine_manufacturer_id,
-            chassis_ids, chassis_count, engine_ids, tyre_ids, confidence,
-            source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            chassis_ids, chassis_count, engine_ids, tyre_ids, entrant_name,
+            tyre_names, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (i, year, entrant, f1db_cons,
              our_cons if our_cons in known_cons else None, eng_man,
              "+".join(ch_ids) or None, len(ch_ids),
              "+".join(eng_ids) or None, "+".join(tyres) or None,
+             entrant_names[entrant],
+             "+".join(tyre_names[t] for t in tyres) or None,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
 
     for gid, name, country, aliases, notes in EV.GRANDS_PRIX:
@@ -1575,6 +1661,20 @@ def _calendar_weekend(dates):
     return date_from, date_to
 
 
+def _register_name(cur, kind, eid):
+    """The name standings.entity carries for an entrant: the register's,
+    drivers.full_name or constructors.name, on every row of every source.
+    Both standings loaders take it from here, so one id cannot stand under
+    two names in one season's tables (DA-29)."""
+    row = cur.execute(
+        "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
+        else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
+    if row is None:
+        raise SystemExit(f"standings: {kind} entrant {eid!r} is not in the "
+                         f"register, so it has no name to stand under")
+    return row[0]
+
+
 def _stage_16_current_season(b):
     """current season"""
     cur = b.cur
@@ -1608,15 +1708,15 @@ def _stage_16_current_season(b):
         for row in rows:
             sid += 1
             if tbl == "drivers":
-                pos, eid, disp, team, pts = row
+                pos, eid, team, pts = row
             else:
-                pos, eid, disp, pts = row
+                pos, eid, pts = row
                 team = None
             cur.execute("""INSERT INTO standings (id, year, table_type, position, entity,
                 driver_id, constructor_id, team, points, after_round,
                 basis, snapshot_date, confidence, source)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (sid, year, tbl, pos, disp,
+                (sid, year, tbl, pos, _register_name(cur, tbl, eid),
                  eid if tbl == "drivers" else None,
                  eid if tbl == "constructors" else None,
                  team, pts, after, basis, dated, "verified",
@@ -1800,6 +1900,20 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
     # winner already recorded. A mismatch means the row describes a different
     # race and is rejected outright.
     restored = []
+    # A name a restored share adds whose entry the classification has not
+    # created yet waits for it (stage 28), rather than being inserted here.
+    # An insert here takes an id ahead of every row stage 21 writes, and
+    # race_entries is a table whose ids this database undertakes not to
+    # renumber (ID_STABILITY): restoring the 1952 Italian share by insert
+    # moved 1,727 of them (DA-39). The shares in SHARED_FASTEST_LAPS_INSERTED
+    # were inserted here before that, and still are, because deferring them
+    # now would move their own rows and 4,774 in all.
+    stray = sorted(set(HV.SHARED_FASTEST_LAPS_INSERTED) - set(HV.SHARED_FASTEST_LAPS))
+    if stray:
+        raise SystemExit(
+            f"SHARED_FASTEST_LAPS_INSERTED names {stray}, which "
+            f"SHARED_FASTEST_LAPS does not hold")
+    b.deferred_fastest_laps = []
     pole_rows = HV.load_poles()
     for h in pole_rows:
         rid = race_key.get((h["year"], h["round"]))
@@ -1838,8 +1952,15 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
         if pole_names:
             upsert(driver_id(pole_names[0], f"pole {h['year']} r{h['round']}"), pole=1)
         for nm in fl_names:
-            upsert(driver_id(nm, f"fastest lap {h['year']} r{h['round']}"),
-                   source=h["fastest_lap_source"],
+            did_ = driver_id(nm, f"fastest lap {h['year']} r{h['round']}")
+            if h["shared_override"] and (h["year"], h["round"]) not in \
+                    HV.SHARED_FASTEST_LAPS_INSERTED and cur.execute(
+                    "SELECT 1 FROM race_entries WHERE race_id=? AND "
+                    "driver_id=?", (rid, did_)).fetchone() is None:
+                b.deferred_fastest_laps.append(
+                    (h["year"], h["round"], rid, did_, len(fl_names)))
+                continue
+            upsert(did_, source=h["fastest_lap_source"],
                    fastest_lap=1, fastest_lap_shared=len(fl_names))
         if h["shared_override"]:
             restored.append((h["year"], h["round"]))
@@ -1979,7 +2100,7 @@ def _stage_20_second_and_third_place_from_the(b):
                 f"{h['position']}, but this database has him as the winner")
 
         # Grid is taken from this source EXCEPT where it is 1. Pole is
-        # established for all 1,161 races by the pole harvest, and it is a
+        # established by the pole harvest for every race it reaches, and it is a
         # single fact per race; this source hands the car's grid slot to every
         # driver who shared it, so accepting grid 1 here gave Farina a pole in
         # 1955 for a car Gonzalez had qualified.
@@ -2055,7 +2176,10 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             continue
 
         # THE CHECK. The winner of this race is already established, from a
-        # different source, for all 1,161 races. If F1DB disagrees the race is
+        # different source - the Wikipedia race-winner harvest, or
+        # formula1.com for the seasons after it - wherever one of them has
+        # been read for it. A round neither reaches has no `ours` and nothing
+        # to compare, and loads on F1DB's word. If F1DB disagrees the race is
         # refused whole - never partially accepted, never nudged into a match.
         # A shared drive puts two drivers on position 1 and both are winners,
         # so this compares SETS: taking "the" winner would have made the 1956
@@ -2288,9 +2412,13 @@ def _zero_below_the_paid_places(cur):
     Only a NULL is written. An entry that did score keeps F1DB's figure - a
     1950s fastest-lap point for a car that retired, or a championship car
     classified behind the Formula Two entries of a German Grand Prix. A
-    finisher inside the paid places with no points is left NULL: the scale
-    says those places were paid, so what the race's own rules did to that
-    entry is not this rule's to state, and verify.py names each one. Every
+    finisher inside the paid places with no points is not this rule's: the
+    scale says those places were paid, so what the race's own rules did to
+    that entry - a shared drive, a Formula Two car, a second car not entered
+    for the championship, a penalty - is a fact about the entry. Each is
+    declared in data/harvest.py UNPAID_INSIDE_THE_PAID_PLACES with the cause
+    its race's article states, which is written as the row's note and cited
+    in `claims`, and the 0 that cause establishes goes with it (DA-37). Every
     row this touches is written here, after the last stage that inserts a
     race or sprint entry."""
     written = {}
@@ -2320,6 +2448,40 @@ def _zero_below_the_paid_places(cur):
     print(f"  points: 0 written for {gb} classified finishers below the last "
           f"place their points system paid and {gu} entries not classified; "
           f"sprints {sb} and {su}")
+
+    # Inside the paid places, only where a declared cause says nothing was
+    # paid. A name F1DB no longer bears out is refused rather than skipped:
+    # the row gone, no longer classified, below the paid places (the scale
+    # has already written it), or given points by F1DB after all.
+    stale = []
+    for (yr, rnd, did), (note, source) in sorted(
+            HV.UNPAID_INSIDE_THE_PAID_PLACES.items()):
+        row = cur.execute("""SELECT e.id, e.race_id, e.finish_position, e.points
+            FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.year = ? AND r.round = ? AND e.driver_id = ?""",
+            (yr, rnd, did)).fetchone()
+        system = cur.execute("""SELECT scale FROM points_systems
+            WHERE session = 'race' AND from_year <= ?
+              AND (to_year IS NULL OR to_year >= ?)
+            ORDER BY from_year DESC LIMIT 1""", (yr, yr)).fetchone()
+        if (row is None or row[2] is None or row[3] is not None
+                or system is None or row[2] > len(json.loads(system[0]))):
+            stale.append(f"{yr} r{rnd} {did}")
+            continue
+        cur.execute("UPDATE race_entries SET points = 0, note = ? WHERE id = ?",
+                    (note, row[0]))
+        cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
+            source) VALUES ('race_entries', ?, 'note', ?, ?)""",
+            (f"{row[1]}|{did}", note, source))
+    if stale:
+        raise SystemExit(
+            "data/harvest.py UNPAID_INSIDE_THE_PAID_PLACES names "
+            + ", ".join(stale) + ", which F1DB no longer gives as a classified "
+            "finisher inside the paid places with no points. Read the row "
+            "again and take the name out, or correct it.")
+    print(f"  points: 0 and the stated cause written for "
+          f"{len(HV.UNPAID_INSIDE_THE_PAID_PLACES)} finishers inside the paid "
+          f"places whom the race's own rules did not pay")
 
 
 def _stage_23_a_round_that_has_a_result(b):
@@ -2415,8 +2577,8 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             qual_rows += cur.rowcount
 
-        # The cross-check this table brings with it. Pole is held for all
-        # 1,161 races from the Wikipedia harvest, independently of F1DB, and
+        # The cross-check this table brings with it. Pole is held for every
+        # race the Wikipedia pole harvest reaches, independently of F1DB, and
         # the fastest qualifier is usually that driver. Where they differ
         # nothing is recorded: a grid penalty or a sprint-set grid moves the
         # quickest driver off pole without making either source wrong about
@@ -2584,12 +2746,13 @@ CAR_CHASSIS_FIGURES = ("capacity_cc", "power_bhp", "weight_kg", "wheelbase_mm",
 
 
 def _file_car_chassis_disagreements(cur):
-    """File every figure a car and its one chassis give differently (IA-28).
+    """File every figure a car and its one chassis give differently (IA-28,
+    IA-29).
 
-    A car that is the whole of one chassis under another id - no chassis owns
-    the car's id, and exactly one names it as its design - is one object with
-    two rows, the same test web/src/queries/car.js makes to give it one
-    address. Its page shows the chassis's figure where there is one, so a
+    A car that is the whole of one chassis - exactly one names it as its
+    design, under another id or the car's own - is one object with two rows,
+    the same test wholeOfOneChassis() in web/src/queries/car.js makes. Its
+    page shows the chassis's figure where there is one, so a
     figure the two rows disagree on is shown from one of them, and it is on
     the record here rather than picked silently. Each must be declared in
     CHASSIS_DISAGREEMENTS with its assessment: an undeclared one stops the
@@ -2605,8 +2768,7 @@ def _file_car_chassis_disagreements(cur):
     found = {}
     for car_id, ch_id in cur.execute("""SELECT c.id, ch.id FROM cars c
             JOIN chassis ch ON ch.car_id = c.id
-            WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
-              AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
+            WHERE (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
             ORDER BY c.id""").fetchall():
         for field in CAR_CHASSIS_FIGURES:
             ours = cur.execute(f"SELECT {field} FROM cars WHERE id=?", (car_id,)).fetchone()[0]
@@ -2630,6 +2792,98 @@ def _file_car_chassis_disagreements(cur):
         _file_discrepancy(cur, "car-chassis", "cars", car_id, field,
                           _full_name(cur, "cars", car_id), _points_text(ours),
                           _points_text(theirs), declared[(car_id, field)], "open")
+
+
+def _file_session_sheet_disagreements(cur):
+    """File every entry whose race result F1DB's own session sheets
+    contradict (PM-62, #716).
+
+    The three readings data/harvest.py SESSION_SHEET_DISAGREEMENTS describes,
+    found from the rows: a DNPQ beside a qualifying row; a row on the
+    pre-qualifying sheet and no qualifying row, placed above a driver who
+    went through; and such a row, not so placed, beside a result that is
+    neither DNPQ nor an exclusion. The sheets' reading is the derived value
+    - DNQ, none for the second, where the sheets have him through and then
+    give no result, and DNPQ. A sheet row with no place - an exclusion from
+    pre-qualifying - is on the sheet, and is above nobody. Each must be
+    declared with its assessment: an undeclared one stops the build, and so
+    does a declaration the rows no longer bear out."""
+    found = {}
+    for yr, rnd, rid, did, text, qualified, on_sheet, pq in cur.execute("""
+            SELECT r.year, r.round, e.race_id, e.driver_id, e.position_text,
+                   EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = e.race_id
+                           AND q.driver_id = e.driver_id),
+                   EXISTS (SELECT 1 FROM practice p WHERE p.race_id = e.race_id
+                           AND p.driver_id = e.driver_id AND p.session = 'pre_qualifying'),
+                   (SELECT p.position FROM practice p WHERE p.race_id = e.race_id
+                     AND p.driver_id = e.driver_id AND p.session = 'pre_qualifying')
+              FROM race_entries e JOIN races r ON r.id = e.race_id
+             ORDER BY r.year, r.round, e.driver_id""").fetchall():
+        if text == "DNPQ" and qualified:
+            found[(yr, rnd, did)] = (rid, text, "DNQ")
+        elif not on_sheet or qualified:
+            continue
+        elif pq is not None and cur.execute("""SELECT 1 FROM practice p WHERE p.race_id = ?
+                AND p.session = 'pre_qualifying' AND p.position > ?
+                AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = p.race_id
+                            AND q.driver_id = p.driver_id)""", (rid, pq)).fetchone():
+            found[(yr, rnd, did)] = (rid, text, None)
+        elif text not in ("DNPQ", "EX", "DSQ"):
+            found[(yr, rnd, did)] = (rid, text, "DNPQ")
+    declared = HV.SESSION_SHEET_DISAGREEMENTS
+    undeclared = sorted(set(found) - set(declared))
+    if undeclared:
+        raise SystemExit(
+            "F1DB's race result and its session sheets disagree, undeclared: "
+            + "; ".join(f"{y} round {r} {d} ({found[(y, r, d)][1]})"
+                        for y, r, d in undeclared)
+            + ". Declare each in data/harvest.py SESSION_SHEET_DISAGREEMENTS, "
+              "with what a second source says.")
+    stale = sorted(set(declared) - set(found))
+    if stale:
+        raise SystemExit(
+            "SESSION_SHEET_DISAGREEMENTS declares what the rows no longer "
+            "contradict: " + ", ".join(f"{y} round {r} {d}" for y, r, d in stale)
+            + ". Remove the declaration, or say what changed.")
+    for (yr, rnd, did), (rid, text, sheets) in sorted(found.items()):
+        status, note, why = declared[(yr, rnd, did)]
+        _file_discrepancy(cur, "session-sheet", "race_entries", f"{rid}|{did}",
+                          "position_text", f"{yr} round {rnd}", text, sheets,
+                          why, status, note)
+
+
+def _file_race_classification_disagreements(cur):
+    """File every race result data/harvest.py
+    RACE_CLASSIFICATION_DISAGREEMENTS says a second source classifies
+    otherwise (DA-44, #753), on the race, where its page shows it.
+
+    The second reading is in no table, so the rows cannot find these; the
+    declaration is held to them instead. An entry the race records do not
+    hold, or one whose result is no longer the one declared, stops the build,
+    so a refresh that moves F1DB's reading reopens the question rather than
+    filing the old answer beside the new value."""
+    for (yr, rnd, did), (stored, other, status, note, why) in sorted(
+            HV.RACE_CLASSIFICATION_DISAGREEMENTS.items()):
+        row = cur.execute("""SELECT e.race_id, e.position_text FROM race_entries e
+                JOIN races r ON r.id = e.race_id
+               WHERE r.year = ? AND r.round = ? AND e.driver_id = ?""",
+                          (yr, rnd, did)).fetchone()
+        if row is None:
+            raise SystemExit(
+                f"RACE_CLASSIFICATION_DISAGREEMENTS names {yr} round {rnd} "
+                f"{did}, and the race records hold no such entry.")
+        if row[1] != stored:
+            raise SystemExit(
+                f"RACE_CLASSIFICATION_DISAGREEMENTS declares {yr} round {rnd} "
+                f"{did} as {stored!r}, and the race records now hold "
+                f"{row[1]!r}. Say what changed.")
+        if other == stored:
+            raise SystemExit(
+                f"RACE_CLASSIFICATION_DISAGREEMENTS: {yr} round {rnd} {did} "
+                f"gives the same reading twice, {stored!r}.")
+        _file_discrepancy(cur, "race-classification", "race_entries",
+                          f"{row[0]}|{did}", "position_text", f"{yr} round {rnd}",
+                          stored, other, why, status, note)
 
 
 def _table_words(year, table, after):
@@ -2869,9 +3123,6 @@ def _stage_25_championship_standings_after_every_round_and(b):
             if basis == "final":
                 continue
 
-        name = cur.execute(
-            "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
-            else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
         cur.execute("""INSERT OR IGNORE INTO standings (year, table_type,
                 position, position_text, entity, driver_id,
                 constructor_id, engine_id, points, after_round, basis,
@@ -2879,7 +3130,7 @@ def _stage_25_championship_standings_after_every_round_and(b):
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, kind,
              int(pos) if str(pos).isdigit() else None, str(pos) if pos else None,
-             name[0] if name else eid, did, cid,
+             _register_name(cur, kind, eid), did, cid,
              engine_id, pts, after, basis,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         std_rows += cur.rowcount
@@ -3997,6 +4248,8 @@ def _stage_35_link_race_entries_to_the_curated(b):
              f"chassis itself.", "resolved", "claim not corroborated")
 
     _file_car_chassis_disagreements(cur)
+    _file_session_sheet_disagreements(cur)
+    _file_race_classification_disagreements(cur)
 
     # The two register spans the race records read differently, with the
     # reason beside the fact (CD-25). Not open: nothing is waiting to be
@@ -4150,8 +4403,9 @@ def _stage_35_link_race_entries_to_the_curated(b):
     # `source_registry` is read straight onto /data/sources, and its figures
     # were typed: 1,161 races and 27,555 entries against 1,163 and 27,504
     # held, with qualifying, standings and pit stops stale beside them,
-    # because nothing recomputed them (CD-38, AF-63). Each is now a
-    # {{fig:name}} token in data/current.py that this expands off the counts,
+    # because nothing recomputed them (CD-38, AF-63); `known_gaps` on
+    # /data/quality had the same (CD-45). Each is now a {{fig:name}} token in
+    # data/current.py or data/harvest.py that this expands off the counts,
     # here and not at insert time because the tables it counts are loaded by
     # the stages above. verify.py re-expands the literals and compares whole,
     # and refuses a token that survived into any text column.
@@ -4583,41 +4837,68 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
     # F1DB fills the VACANCY only. Where the harvest already names someone,
     # it keeps the slot - it is the older, hand-checked source - and a
     # disagreement is recorded rather than resolved quietly.
+    # The shared-fastest-lap names stage 17 held back until the
+    # classification had created their entries. One that still has none is
+    # refused: the share names a driver this database does not hold in the
+    # race, and an entry is not invented to carry it.
+    for yr_, rnd_, rid, did, n in b.deferred_fastest_laps:
+        if cur.execute("UPDATE race_entries SET fastest_lap=1, "
+                       "fastest_lap_shared=? WHERE race_id=? AND driver_id=?",
+                       (n, rid, did)).rowcount != 1:
+            raise SystemExit(
+                f"shared fastest lap {yr_} r{rnd_}: {did} has no entry in the "
+                f"race after the classification load")
+
     fl_filled = 0
     fl_no_entry = 0
     fl_disagreements = []
+    # F1DB writes a tie as several rows at position 1, so a race's fastest
+    # lap is the set of its rows, and a share is how many there are.
+    f1db_fl = {}
     for h in HV.load_fastest_laps():
-        rid = b.race_for(h["year"], h["round"], "fastest laps")
+        f1db_fl.setdefault((h["year"], h["round"]), []).append(h)
+    for (yr_, rnd_), hs in f1db_fl.items():
+        rid = b.race_for(yr_, rnd_, "fastest laps")
         if rid is None:
-            continue
-        did = f1db_drivers.get(h["driver_id"])
-        if not did:
             continue
         held = [r[0] for r in cur.execute(
             "SELECT driver_id FROM race_entries WHERE race_id=? AND "
             "fastest_lap=1", (rid,))]
         if held:
-            if did not in held:
+            # One disagreement per race, whoever of F1DB's it names that the
+            # harvest does not, so a tie never files the same key twice.
+            missing = [d for d in (f1db_drivers.get(h["driver_id"]) for h in hs)
+                       if d and d not in held]
+            if missing:
                 fl_disagreements.append(
-                    (h["year"], h["round"], held[0], did))
+                    (yr_, rnd_, " / ".join(held), " / ".join(missing), len(hs)))
             continue
-        row = cur.execute("SELECT id FROM race_entries WHERE race_id=? AND "
-                          "driver_id=?", (rid, did)).fetchone()
-        if row is None:
-            # F1DB names a driver this database has no entry for in that
-            # race. Inventing the entry to hang a fastest lap on it would be
-            # asserting a start nothing here supports, so it is counted and
-            # skipped.
-            fl_no_entry += 1
-            continue
-        cur.execute("UPDATE race_entries SET fastest_lap=1, "
-                    "fastest_lap_shared=1 WHERE id=?", (row[0],))
-        fl_filled += 1
+        for h in hs:
+            did = f1db_drivers.get(h["driver_id"])
+            if not did:
+                continue
+            row = cur.execute("SELECT id FROM race_entries WHERE race_id=? AND "
+                              "driver_id=?", (rid, did)).fetchone()
+            if row is None:
+                # F1DB names a driver this database has no entry for in that
+                # race. Inventing the entry to hang a fastest lap on it would
+                # be asserting a start nothing here supports, so it is counted
+                # and skipped.
+                fl_no_entry += 1
+                continue
+            cur.execute("UPDATE race_entries SET fastest_lap=1, "
+                        "fastest_lap_shared=? WHERE id=?", (len(hs), row[0]))
+            fl_filled += 1
 
-    for yr_, rnd_, ours_, theirs_ in fl_disagreements:
+    for yr_, rnd_, ours_, theirs_, shared_ in fl_disagreements:
         status_, note_, assessment_ = HV.FASTEST_LAP_DISAGREEMENTS.get(
             (int(yr_), int(rnd_)),
             ("open", None,
+             f"F1DB records the fastest lap of the race as shared by "
+             f"{shared_} drivers on the same time, and the pole harvest "
+             f"credits fewer of them. The harvest keeps the slot because it is "
+             f"hand-checked and older; the shared reading is recorded here so "
+             f"somebody can look at it." if shared_ > 1 else
              "The pole harvest and F1DB name different drivers as setting "
              "the fastest lap of the race. Both are describing the same "
              "thing, so one of them is wrong. The harvest keeps the slot "

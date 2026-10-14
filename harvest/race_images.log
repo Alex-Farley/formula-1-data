@@ -2649,6 +2649,7 @@
 2026-04	REFUSED	Commons holds no Category:2026 Miami Grand Prix
 2026-05	REFUSED	Commons holds no Category:2026 Canadian Grand Prix
 2026-06	REFUSED	Commons holds no Category:2026 Monaco Grand Prix
+2026-07	REFUSED	Commons holds no Category:2026 Barcelona-Catalunya Grand Prix
 2026-08	PASSED OVER	File:FIA F1 Austria 2026 Nr. 16 Leclerc (3).jpg is a version of File:FIA F1 Austria 2026 Nr. 16 Leclerc (3) (cropped).jpg
 2026-08	PASSED OVER	File:FIA F1 Austria 2026 Nr. 63 Russell (2).jpg is a version of File:FIA F1 Austria 2026 Nr. 63 Russell (2) (cropped).jpg
 2026-09	PASSED OVER	File:Lego Cars British Grand Prix 2026 Silverstone (55382810817).jpg says in its name it is not of the race as run (RACE_PHOTOGRAPH_ELSEWHERE)
@@ -2668,8 +2669,6 @@
 2026-10	PASSED OVER	File:F1 2002, Jordan EJ12, Spa Francorchamps (55425963945).jpg names a season other than the race's
 2026-11	PASSED OVER	File:Gábor Wéber at Hungaroring, Mogyoród.jpg is a version of File:Gábor Wéber at Hungaroring, Mogyoród (cropped).jpg
 2026-12	REFUSED	Category:2026 Dutch Grand Prix holds no JPEG that no other race's category holds, whose name carries no copyright mark and says it was not taken at the race
-2026-14	REFUSED	Commons holds no Category:2026 Madrid Grand Prix
-2026-16	REFUSED	Commons holds no Category:2026 Bahrain Grand Prix
 1950-02	ACCEPTED	File:GPX MONACO 1950.jpg	CC BY-SA 4.0
 1950-03	ACCEPTED	File:1950 Indianapolis 500.jpg	Public domain
 1950-03	ACCEPTED	File:B. Levrett in Adams Offenhauser Palmer Special, 1950-05-30 Indianapolis 500.jpg	Public domain
@@ -3783,7 +3782,6 @@
 2000-13	ACCEPTED	File:Rubens Barrichello 2000 Belgian.jpg	CC BY 2.0
 2000-14	ACCEPTED	File:Pit Stop.jpg	Public domain
 2000-15	ACCEPTED	File:2000 Orange Arrows F1.JPG	Public domain
-2000-15	ACCEPTED	File:Ims.jpg	CC BY-SA 3.0
 2000-15	ACCEPTED	File:Ims2.jpg	CC BY-SA 3.0
 2000-15	ACCEPTED	File:Mika Häkkinen 2000 United States Grand Prix.jpg	CC BY-SA 3.0
 2000-15	ACCEPTED	File:Start of 2000 United States Grand Prix at Indianapolis from Tower Terrace grandstand.jpg	CC0
@@ -6524,7 +6522,6 @@
 2026-03	ACCEPTED	File:Mclaren MCL40 - Oscar Piastri enters the Nissin Brake Hairpin at Suzuka during the 2026 Japanese GP (55195174246).jpg	CC BY-SA 4.0
 2026-03	ACCEPTED	File:Mercedes W17 - George Russell exits the final chicane at Suzuka during the 2026 Japanese GP (55195432314).jpg	CC BY-SA 4.0
 2026-03	ACCEPTED	File:Mercedes W17 - Kimi Antonelli approaches Spoon Curve at Suzuka during the 2026 Japanese GP (55194289192).jpg	CC BY-SA 4.0
-2026-07	ACCEPTED	File:Díaz Ayuso en la cuenta atrás para el regreso de la F1 a Madrid.jpg	CC BY-SA 4.0
 2026-08	ACCEPTED	File:FIA F1 Austria 2026 Alpine.jpg	CC BY-SA 4.0
 2026-08	ACCEPTED	File:FIA F1 Austria 2026 Nr. 1 Norris (1).jpg	CC BY-SA 4.0
 2026-08	ACCEPTED	File:FIA F1 Austria 2026 Nr. 1 Norris (2).jpg	CC BY-SA 4.0
@@ -6569,6 +6566,7 @@
 2026-13	ACCEPTED	File:Nico Hulkenberg 2026 Italian Grand Prix qualifying.jpg	CC BY 4.0
 2026-13	ACCEPTED	File:Pierre Gasly 2026 Italian Grand Prix qualifying - 1.jpg	CC BY 4.0
 2026-13	ACCEPTED	File:Sergio Perez 2026 Italian Grand Prix qualifying.jpg	CC BY 4.0
+2026-14	ACCEPTED	File:Díaz Ayuso en la cuenta atrás para el regreso de la F1 a Madrid.jpg	CC BY-SA 4.0
 2026-15	ACCEPTED	File:2026 Azerbaijan Grand Prix image 01.jpg	CC BY-SA 4.0
 2026-15	ACCEPTED	File:2026 Azerbaijan Grand Prix image 02.jpg	CC BY-SA 4.0
 2026-15	ACCEPTED	File:2026 Azerbaijan Grand Prix image 03.jpg	CC BY-SA 4.0
@@ -6581,6 +6579,12 @@
 2026-15	ACCEPTED	File:Formula 1 2026 Azerbaijan Grand Prix 3.jpg	CC BY 4.0
 2026-15	ACCEPTED	File:Formula 1 2026 Azerbaijan Grand Prix 4.jpg	CC BY 4.0
 2026-15	ACCEPTED	File:Formula 1 2026 Azerbaijan Grand Prix 5.jpg	CC BY 4.0
+2026-16	ACCEPTED	File:2026 Bahrain GP - Ferrari - Lewis Hamilton - Qualifying.jpg	CC BY-SA 4.0
+2026-16	ACCEPTED	File:2026 Bahrain GP - Haas - Esteban Ocon - Race.jpg	CC BY-SA 4.0
+2026-16	ACCEPTED	File:2026 Bahrain GP - McLaren - Oscar Piastri - Race.jpg	CC BY-SA 4.0
+2026-16	ACCEPTED	File:2026 Bahrain GP - Mercedes - Kimi Antonelli - Race.jpg	CC BY-SA 4.0
+2026-16	ACCEPTED	File:2026 Bahrain GP - Red Bull - Isack Hadjar - Race.jpg	CC BY-SA 4.0
+2026-16	ACCEPTED	File:2026 Bahrain GP - Red Bull - Max Verstappen - FP2.jpg	CC BY-SA 4.0
 # NO THUMB: accepted, but the thumbnail address did not answer; the page builds a Special:FilePath one instead.
 1985-11	NO THUMB	File:Aangekocht van United Photos de Boer bv. - Negatiefnummer 25453 K 17 A. - Gepubliceerd in het Haarlems Dagblad dd.26-08-85. Identificatienummer 54-01693501, NL-HlmNHA 54016935 01.JPG: the API gave no thumbnail address on upload.wikimedia.org, thumb.wikimedia.org
 2006-18	NO THUMB	File:Felipe Massa(Ferrari) - Vencedor do GP Brasil de Fórmula 1 em 2006. Foi a primeira vitória de um piloto brasileiro em Interlagos desde a morte de Ayrton Senna . - panoramio.jpg: the API gave no thumbnail address on upload.wikimedia.org, thumb.wikimedia.org

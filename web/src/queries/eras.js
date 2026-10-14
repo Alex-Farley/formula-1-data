@@ -93,3 +93,11 @@ export const TYRE_COLUMNS = [
   { key: 'exclusive', label: 'Sole supplier', align: 'num', text: (value) => (value ? 'yes' : 'no') },
   { key: 'notes', label: 'Notes', align: 'prose' },
 ]
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Eras.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const ERAS_LEDE =
+  'Formula One is a rule set that keeps being rewritten, and most of what changed about the cars follows from that. Here is the chronology: what the rules were, what someone invented to get round them, and what was banned afterwards.'

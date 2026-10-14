@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
+import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
-import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { lateDays, readerDay } from '../lib/refresh.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, raceDates, result } from '../lib/format.js'
@@ -19,17 +21,20 @@ import {
   SHARED,
   raceCategoryLink,
   racePhotographAlt,
+  EYEBROWS,
+  LABELS,
 } from '../lib/site.js'
 import { categoryUrl } from '../lib/commons.js'
 import { outlineCaption } from '../lib/outline.js'
 import { RACE_IMAGES, RACE_PHOTOGRAPHS } from '../queries/photographs.js'
 import {
   CLASSIFICATION_COLUMNS,
+  ENTRY_NOTE_MARK,
+  ENTRY_NOTE_SPOKEN,
   ENTRIES,
   FASTEST_LAP,
   GRID_FLAG_COLUMNS,
   GRID_FLAG_HEADING,
-  GRID_FLAG_TITLE,
   NEIGHBOURS,
   PITS,
   PITS_FROM,
@@ -45,12 +50,13 @@ import {
   SPRINT,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
-  STINTS_TITLE,
   STINT_COLUMNS,
   carName,
   classificationFooter,
+  hasEntryNote,
   gridFlagLabel,
   gridFlagNote,
+  gridFlagUndrawn,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -70,6 +76,7 @@ import {
   stintsEmpty,
   stintsLabel,
   stintsNote,
+  stintsUnbarred,
 } from '../queries/race.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
@@ -132,13 +139,20 @@ const classificationRenders = (year) => ({
     },
   },
   driver: {
-    // The mark follows the row, not the link: driverName() in queries/race.js
-    // is what this cell says, with or without a driver id.
+    // The marks follow the row, not the link: classifiedName() in
+    // queries/race.js is what this cell says, with or without a driver id.
     render: (name, row) => (
       <>
         {row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name)}
         {row.shared_drive === 1 ? ' ' : ''}
         {row.shared_drive === 1 ? <span className="tag">{SHARED}</span> : null}
+        {hasEntryNote(row) && (
+          <>
+            {' '}
+            <span aria-hidden="true">{ENTRY_NOTE_MARK}</span>
+            <span className="sr-only">{ENTRY_NOTE_SPOKEN}</span>
+          </>
+        )}
       </>
     ),
   },
@@ -288,8 +302,8 @@ function RaceBody({ race, data, year, round }) {
         footer={TIMETABLE_NOTE}
       />
       {upcoming && (
-        <p className="note" style={{ marginTop: 10 }}>
-          Next: {upcoming.name}, {clock(upcoming.start_utc, upcoming.zone)} at the circuit — {until(upcoming.start_utc, now)}.
+        <p className="note follows">
+          Next: {upcoming.name}, <TimeText iso={upcoming.start_utc} zone={upcoming.zone} /> at the circuit — {until(upcoming.start_utc, now)}.
         </p>
       )}
     </Section>
@@ -297,7 +311,7 @@ function RaceBody({ race, data, year, round }) {
 
   return (
     <Page
-      eyebrow={`Round ${round} of ${year}`}
+      eyebrow={EYEBROWS.race(round, neighbours.rounds, race.date_iso)}
       title={NAMES.race(year, race.name_used).headline}
       documentName={NAMES.race(year, race.name_used).title}
       trail={TRAIL.race(year, round, race.name_used)}
@@ -308,88 +322,90 @@ function RaceBody({ race, data, year, round }) {
       }
     >
       <Section>
-        {/* The outline beside the figures, where the circuit used to be a
-            text link alone (VD-32). F1DB's drawing of the layout this race
-            ran, credited on the card; the caption says whose figures. */}
-        <div className={race.outline ? 'with-outline with-lead' : undefined}>
-          {/* queries/race.js's strip, which the static page draws too (VD-49). */}
-          <Stats items={raceStrip(race, entries, qualifying)} />
-          {race.outline && (
-            <OutlineCard
-              path={race.outline}
-              circuit={race.circuit}
-              layoutId={race.f1db_layout_id}
-              caption={outlineCaption({
-                f1db_layout_id: race.f1db_layout_id,
-                length_km: race.outline_km,
-                turns: race.outline_turns,
-              })}
-              rule
-            />
-          )}
-          {/* PD-57: what the reader came for, under the figures and beside
-              the outline rather than below its caption - the classification
-              once a result is held, the timetable before. On a phone the
-              grid is one column and this follows the outline. */}
-          <div className="lead">
-            {pending && (
-              <Note>
-                <strong>{pending.head}</strong> {pending.body}
-              </Note>
-            )}
-
-            {/* PD-57: before a round is run its timetable is the answer, so it
-                leads; once a result is held it follows the photographs, near the
-                end. `scheduled` rather than the clock's stage, because it is what
-                the static page can know too, and a round past its date with no
-                result held still has nothing to put above its timetable. */}
-            {scheduled && timetable}
-
-            <Disagreement rows={rows(data, 'disagreements')} what="this race" />
-
-            {shared && (
-              <Note>
-                <strong>{SHARED_DRIVE_NOTE.head}</strong> {SHARED_DRIVE_NOTE.body}
-              </Note>
-            )}
-
-            {classified.length > 0 && (
-              <Section title="Classification" count={`${classified.length} entries`}>
-                <DataTable
-                  rows={classified}
-                  rowKey={(row) => row.id}
-                  sortable
-                  // Already in classification order, from inClassificationOrder().
-                  opening={{ key: 'position_text', direction: 'asc' }}
-                  page={60}
-                  highlight={(row) => row.finish_position === 1}
-                  columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
-                  footer={classificationFooter(classified)}
-                />
-              </Section>
-            )}
-
-            {/* PD-30: the result as a picture, under the table it draws -
-                charts/gridFlag.js says what the lines can and cannot claim,
-                and scripts/prerender.js draws the same figure. */}
-            {gridFlagShown(flag) && (
-              <Section title={GRID_FLAG_HEADING}>
-                <Figure
-                  title={GRID_FLAG_TITLE}
-                  note={gridFlagNote(flag, undrawnOf(entries))}
-                  table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS }}
-                >
-                  <GridFlag entries={entries} label={gridFlagLabel(flag)} />
-                </Figure>
-              </Section>
-            )}
-          </div>
-        </div>
+        {/* queries/race.js's strip, which the static page draws too (VD-49). */}
+        <Stats items={raceStrip(race, entries, qualifying)} />
       </Section>
+
+      {/* PD-57: what the reader came for, straight under the figures - the
+          classification once a result is held, the timetable before. */}
+      {pending && (
+        <Note>
+          <strong>{pending.head}</strong> <Dated>{pending.body}</Dated>
+        </Note>
+      )}
+
+      {/* PD-57: before a round is run its timetable is the answer, so it
+          leads; once a result is held it follows the strategy, near the
+          end. `scheduled` rather than the clock's stage, because it is what
+          the static page can know too, and a round past its date with no
+          result held still has nothing to put above its timetable. */}
+      {scheduled && timetable}
+
+      <Disagreement rows={rows(data, 'disagreements')} what="this race" />
+
+      {shared && (
+        <Note>
+          <strong>{SHARED_DRIVE_NOTE.head}</strong> {SHARED_DRIVE_NOTE.body}
+        </Note>
+      )}
+
+      {classified.length > 0 && (
+        <Section title="Classification" count={`${classified.length} entries`}>
+          <DataTable
+            unfolded={UNFOLDED.subject}
+            rows={classified}
+            rowKey={(row) => row.id}
+            sortable
+            // Already in classification order, from inClassificationOrder().
+            opening={{ key: 'position_text', direction: 'asc' }}
+            page={60}
+            highlight={(row) => row.finish_position === 1}
+            columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
+            footer={classificationFooter(classified)}
+          />
+        </Section>
+      )}
+
+      {/* The opening slot (DP-11, VD-84): F1DB's drawing of the layout this
+          race ran, credited on the card, beside the header from 1180 px.
+          It is written after the classification, so below 1180 the result
+          is never beside it and never under it: the table has the column
+          to itself at every width (IX-45), and on a phone the outline
+          follows the result (visual defect 7). */}
+      <Slot>
+        {race.outline && (
+          <OutlineCard
+            path={race.outline}
+            circuit={race.circuit}
+            layoutId={race.f1db_layout_id}
+            caption={outlineCaption({
+              f1db_layout_id: race.f1db_layout_id,
+              length_km: race.outline_km,
+              turns: race.outline_turns,
+            })}
+            rule
+          />
+        )}
+      </Slot>
+
+      {/* PD-30: the result as a picture, under the table it draws -
+          charts/gridFlag.js says what the lines can and cannot claim,
+          and scripts/prerender.js draws the same figure. */}
+      {gridFlagShown(flag) && (
+        <Section title={GRID_FLAG_HEADING}>
+          <Figure
+            note={gridFlagNote(flag)}
+            table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS, footer: gridFlagUndrawn(undrawnOf(entries)) }}
+          >
+            <GridFlag entries={entries} label={gridFlagLabel(flag)} />
+          </Figure>
+        </Section>
+      )}
 
       {qualifying.length > 0 && (
         <Section title="Qualifying" count={`${qualifying.length} entries`}>
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={qualifying}
             rowKey={(row) => row.id}
             sortable={false}
@@ -403,6 +419,7 @@ function RaceBody({ race, data, year, round }) {
       {sprint.length > 0 && (
         <Section title="Sprint" count={`${sprint.length} entries`}>
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={sprint}
             rowKey={(row) => row.id}
             sortable={false}
@@ -416,6 +433,7 @@ function RaceBody({ race, data, year, round }) {
       {sprintQualifying.length > 0 && (
         <Section title="Sprint qualifying" count={`${sprintQualifying.length} entries`}>
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={sprintQualifying}
             rowKey={(row) => row.id}
             sortable={false}
@@ -435,9 +453,8 @@ function RaceBody({ race, data, year, round }) {
           {stintsShown(stints) ? (
             <>
               <Figure
-                title={STINTS_TITLE}
-                note={stintsNote(stints, lateStops(stints), unbarredOf(entries, pits))}
-                table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS }}
+                note={stintsNote(stints, lateStops(stints))}
+                table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS, footer: stintsUnbarred(unbarredOf(entries, pits)) }}
               >
                 <Stints entries={entries} pits={pits} label={stintsLabel(stints)} />
               </Figure>
@@ -445,6 +462,7 @@ function RaceBody({ race, data, year, round }) {
                 <>
                   <h3>{PIT_ORDER_HEADING}</h3>
                   <DataTable
+                    unfolded={UNFOLDED.subject}
                     rows={pairs}
                     rowKey={(row) => `${row.ahead.id}-${row.behind.id}`}
                     caption={PIT_ORDER_HEADING}
@@ -457,7 +475,7 @@ function RaceBody({ race, data, year, round }) {
               )}
             </>
           ) : (
-            <p className="muted">{stintsEmpty(race, data.pitsFrom.rows[0]?.year)}</p>
+            <p className="muted">{stintsEmpty(race, data.pitsFrom.rows[0])}</p>
           )}
         </Section>
       )}
@@ -473,6 +491,7 @@ function RaceBody({ race, data, year, round }) {
             {practice.map(({ session, title, rows: sheet }) => (
               <Section key={session} title={title} count={`${sheet.length} entries`}>
                 <DataTable
+                  unfolded={UNFOLDED.subject}
                   rows={sheet}
                   rowKey={(row) => row.id}
                   sortable={false}
@@ -486,13 +505,19 @@ function RaceBody({ race, data, year, round }) {
         </section>
       )}
 
+      {/* PD-57: once a result is held the timetable follows the result and
+          the strategy, as the last of the page's own sections. */}
+      {!scheduled && timetable}
+
       {/* The race's own photographs first, filed under its Commons category,
           then the cars entered, the best finisher first (VD-33), captioned
           with the car each one is - a race is twenty machines and an
           uncaptioned strip is twenty red cars. Each strip is headed with
           what it is (PD-64): a car's photograph was taken wherever its
           article's editors found it, and must not pass for this race's.
-          Below the tables since PD-57: a reader came for the result. */}
+          Below the tables since PD-57, a reader having come for the result,
+          and after every section of the page's own, before where they come
+          from, as on every page type (VD-83). */}
       <Photographs
         images={photographs}
         title={RACE_PHOTOGRAPHS_TITLE}
@@ -507,9 +532,7 @@ function RaceBody({ race, data, year, round }) {
       />
       <Photographs images={rows(data, 'images')} title={RACE_CARS_TITLE} note={RACE_CARS_NOTE} subjects />
 
-      {!scheduled && timetable}
-
-      <Section title="Where this comes from">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             // The event this race is an edition of, and the way to every other
@@ -523,7 +546,7 @@ function RaceBody({ race, data, year, round }) {
                 race.name_used
               ),
             },
-            { label: 'Dates', value: raceDates(race) },
+            { label: 'Dates', value: raceDates(race) === null ? null : <RaceDates race={race} /> },
             {
               label: 'Layout raced',
               value: race.layout_name

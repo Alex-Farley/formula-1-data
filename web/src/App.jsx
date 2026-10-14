@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
+import { DateText } from './components/Dates.jsx'
 import Search from './components/Search.jsx'
 import SearchKey from './components/SearchKey.jsx'
 import { Result } from './components/States.jsx'
@@ -212,13 +213,17 @@ function Footer() {
           <dt>Database</dt>
           <dd>v{manifest?.version ?? '—'}</dd>
           <dt>Built</dt>
-          <dd>{manifest?.built ?? '—'}</dd>
+          <dd>
+            <DateText iso={manifest?.built} />
+          </dd>
           {/* When the pipeline last looked, beside when the data last moved.
               A build date alone cannot tell a quiet week from a dead refresh
               (SD-25); this is a committed source constant rather than a row
               in meta, because BUILT is deliberately not a clock [D-01]. */}
           <dt>{CHECKED_LABEL}</dt>
-          <dd>{LAST_CHECKED}</dd>
+          <dd>
+            <DateText iso={LAST_CHECKED} />
+          </dd>
           <dt>Digest</dt>
           <dd>
             <code>{manifest?.digest ?? '—'}</code>
@@ -281,6 +286,25 @@ function Chrome() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // VD-89. A table's column heads stick under the masthead, and the
+  // masthead's height is the width's and the font's - one row from 768 px,
+  // two on a phone, its wordmark a line shorter below 1180 - so it is
+  // measured rather than typed, and written where app.css reads it.
+  const masthead = useRef(null)
+  useEffect(() => {
+    const el = masthead.current
+    if (!el) return undefined
+    const root = document.documentElement
+    const write = () => root.style.setProperty('--masthead-height', `${el.getBoundingClientRect().height}px`)
+    write()
+    const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(write)
+    watch?.observe(el)
+    return () => {
+      watch?.disconnect()
+      root.style.removeProperty('--masthead-height')
+    }
+  }, [])
+
   return (
     <div className="app">
       <ScrollToTop />
@@ -299,7 +323,7 @@ function Chrome() {
       <a className="skiplink" href="#main">
         Skip to content
       </a>
-      <header className="masthead">
+      <header className="masthead" ref={masthead}>
         <div className="masthead-inner">
           <Wordmark />
           <nav>

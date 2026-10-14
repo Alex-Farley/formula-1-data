@@ -8,7 +8,7 @@ import { useQuery } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { colourFor } from '../lib/racingColours.js'
-import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../queries/constructors.js'
+import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER, CONSTRUCTORS_LEDE } from '../queries/constructors.js'
 import { SeasonsRacedSpark } from '../charts/Spark.jsx'
 import { seasonsRacedText } from '../charts/spark.js'
 
@@ -56,7 +56,7 @@ export default function Constructors() {
       title={NAMES.constructors().headline}
       documentName={NAMES.constructors().title}
       trail={TRAIL.constructors()}
-      lede="A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Sorted by race entries, with alphabetical a click away: filter by country, or narrow to race winners, champions and this season’s grid. Each page carries the team’s record, the cars it built, and the names it raced under before and after."
+      lede={CONSTRUCTORS_LEDE}
     >
       <Section>
         <Result state={state} skeleton>

@@ -197,16 +197,65 @@ export const NEIGHBOURS = `
 /**
  * Who entered, by constructor. The ORDER BY is the order the app's table
  * opens in — case-insensitive, an entrant with no constructor last — so the
- * static page can print the rows as they come.
+ * static page can print the rows as they come. Within a constructor the
+ * entrants run by the name the table shows, not by the id it used to.
  */
 export const ENTRANTS = `
-  SELECT se.id, se.entrant_id, se.constructor_id, k.name AS constructor,
-         se.chassis_ids, se.chassis_count, se.engine_ids, se.tyre_ids
+  SELECT se.id, se.entrant_id, se.entrant_name, se.constructor_id, k.name AS constructor,
+         se.chassis_ids, se.chassis_count, se.engine_ids, se.tyre_ids, se.tyre_names
     FROM season_entrants se
     LEFT JOIN constructors k ON k.id = se.constructor_id
    WHERE se.year = ?
-   ORDER BY k.name IS NULL, k.name COLLATE NOCASE, se.entrant_id
+   ORDER BY k.name IS NULL, k.name COLLATE NOCASE, se.entrant_name COLLATE NOCASE, se.entrant_id
 `
+
+/**
+ * The register's name for every chassis and engine the season's entrants
+ * list (UR-14). season_entrants keeps those as '+'-separated ids, for the
+ * reason schema.sql gives, and `full_name` in `chassis` and `engines` names
+ * each of them - verify.py holds every id in the lists to a register row.
+ * `entrantNames` below puts the names into the rows in list order.
+ */
+export const ENTRANT_CHASSIS = `
+  SELECT ch.id, ch.full_name AS name
+    FROM chassis ch
+   WHERE EXISTS (SELECT 1 FROM season_entrants se
+                  WHERE se.year = ?1 AND instr('+' || se.chassis_ids || '+', '+' || ch.id || '+') > 0)
+`
+
+export const ENTRANT_ENGINES = `
+  SELECT en.id, en.full_name AS name
+    FROM engines en
+   WHERE EXISTS (SELECT 1 FROM season_entrants se
+                  WHERE se.year = ?1 AND instr('+' || se.engine_ids || '+', '+' || en.id || '+') > 0)
+`
+
+const ids = (list) => (list ? list.split('+') : [])
+
+/**
+ * The entrant rows with names where the table used to print slugs (UR-14),
+ * so both renderers read one shape: `chassis` is each chassis as { id, name }
+ * in the row's own order, which the app and the static page link to
+ * /cars/<id>; `chassis_names`, `engine_names` and `tyres` are the names as
+ * one string, which is what the cell says, what the column sorts on and what
+ * a file taken from the table carries. An id with no register row - which
+ * verify.py refuses - would show as itself rather than vanish.
+ */
+export function entrantNames(rows, chassis, engines) {
+  const chassisName = new Map(chassis.map((c) => [c.id, c.name]))
+  const engineName = new Map(engines.map((e) => [e.id, e.name]))
+  const joined = (names) => (names.length ? names.join(', ') : null)
+  return rows.map((row) => {
+    const cars = ids(row.chassis_ids).map((id) => ({ id, name: chassisName.get(id) ?? id }))
+    return {
+      ...row,
+      chassis: cars,
+      chassis_names: joined(cars.map((c) => c.name)),
+      engine_names: joined(ids(row.engine_ids).map((id) => engineName.get(id) ?? id)),
+      tyres: joined(ids(row.tyre_names)),
+    }
+  })
+}
 
 export const GRID = 'SELECT * FROM v_season_grid WHERE year = ?'
 
@@ -314,8 +363,12 @@ export const WON_HERE_HEADING = 'Won here before'
  * The sentence that opens the section, in the pieces either side of its two
  * links - the race and the circuit - so both renderers say it word for word:
  *
- *     Round 15, 24-26 Sep 2026: Azerbaijan Grand Prix at Baku City Circuit,
+ *     Round 15, 24–26 Sep 2026: Azerbaijan Grand Prix at Baku City Circuit,
  *     Baku, Azerbaijan.
+ *
+ * The weekend is not in the strings: `dated` says there is one, and each
+ * renderer draws it between `before` and `colon` as a date in its reader's
+ * format (components/Dates.jsx, CD-57).
  *
  * The place is the circuit page's own eyebrow, locality then country. A round
  * with no circuit recorded says nothing about where it is rather than
@@ -324,7 +377,9 @@ export const WON_HERE_HEADING = 'Won here before'
 export const nextLine = (next) => {
   const place = [next.locality, next.country].filter(Boolean).join(', ')
   return {
-    before: `Round ${next.round}${raceDates(next) ? `, ${raceDates(next)}` : ''}: `,
+    before: `Round ${next.round}${raceDates(next) ? ', ' : ''}`,
+    dated: raceDates(next) !== null,
+    colon: ': ',
     at: next.circuit ? ' at ' : '',
     circuit: next.circuit ?? '',
     after: `${next.circuit && place ? `, ${place}` : ''}.`,
@@ -399,8 +454,18 @@ export const latestRound = (standings) => {
 /** "The title race" while rounds remain; "How the title was decided" once none do. */
 export const titleHeading = (live) => (live ? 'The title race' : 'How the title was decided')
 
-export const progressionNote = (live) =>
-  `${live ? 'The three drivers placed highest so far' : 'The three drivers who finished highest'}, tracked from the opening round. Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend.`
+/**
+ * The title-race chart's note. The dropped-scores sentence is said only of a
+ * season whose scoring rule dropped results (CD-50): it sat on all 36 charts
+ * from 1991 on, where it is false, and since PD-58 and VD-53 beside the h1.
+ * `dropped` is the season's `points_systems.dropped_scores`, REMAINING's
+ * column; a season with no rule on record makes no claim either way.
+ */
+export const progressionNote = (live, dropped) => {
+  const who = `${live ? 'The three drivers placed highest so far' : 'The three drivers who finished highest'}, tracked from the opening round.`
+  if (missing(dropped) || dropped === EVERY_RESULT_COUNTS) return who
+  return `${who} Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend.`
+}
 
 /**
  * "Drivers' standings after round 13" while rounds remain; "Final drivers'
@@ -448,8 +513,15 @@ const listed = (names) =>
  * The round it was counted after and the date the database was built are
  * printed with it, because the answer changes with the harvest and not with
  * the code (SD-14).
+ *
+ * It comes in two parts (VD-90): `who`, the answer, which a season being run
+ * prints in its lede (seasonLede below), and `basis`, what it was worked out
+ * from and what it does not claim, which follows directly under the tiles.
+ * The whole of it, ninety words, was too long to be a lede: on 2026 it ran to
+ * ten lines, and the web font arriving after the page put an eleventh on and
+ * moved everything beneath it.
  */
-export function titlePermutations({ drivers, remaining, afterRound, built }) {
+export function titleAnswer({ drivers, remaining, afterRound, built }) {
   if (!remaining || !remaining.races) return null
   // Anything but the one spelling - a rule, or a blank - declines, so a
   // reworded row fails closed rather than into a wrong elimination.
@@ -471,21 +543,41 @@ export function titlePermutations({ drivers, remaining, afterRound, built }) {
     .join(' and ')
   const who =
     alive.length === 1
-      ? `Only ${alive[0].entity} can still win the drivers' title: no other driver can now reach that total.`
+      ? `Only ${alive[0].entity} can still win the drivers' title: no other driver can now reach the leader's total.`
       : alive.length <= 10
         ? `Who can still win the drivers' title: ${listed(alive.map((d) => d.entity))}.`
         : alive.length === scored.length
           ? "Every driver who has scored can still reach the leader's total."
           : `${number(alive.length)} of the ${number(scored.length)} drivers who have scored can still reach the leader's total.`
 
-  return [
-    who,
+  const basis = [
     `${left} still to run, so ${points(available)} points are still available, and a driver further behind the leader than that cannot reach them.`,
     afterRound ? `Counted after round ${number(afterRound)}${built ? `, from the database built ${built}` : ''}.` : null,
     'Points only: a tie at the top is settled on wins, which this does not work out.',
   ]
     .filter(Boolean)
     .join(' ')
+  return { who, basis }
+}
+
+/**
+ * A season's lede: who can still win, then the season's own note (VD-90).
+ *
+ * Design system section 4 puts *Who can still win* in the lede position on a
+ * season being run, so that the page reads h1, the September question's
+ * answer, then the tiles - where it used to be the first sentence of an
+ * unheaded note between the tiles and the title chart. `who` is titleAnswer()'s
+ * answer; its basis stays under the tiles. The note follows rather than being
+ * replaced, as a race's follows who won (SD-39): it is the season written by
+ * hand, and the arithmetic says nothing of new regulations or new entries. A
+ * season with no answer to give - concluded, not yet run, or one the
+ * arithmetic declines - keeps its note alone. Both renderers print this
+ * string.
+ */
+export const seasonLede = (notes, who) => {
+  const written = typeof notes === 'string' && notes.trim() ? notes.trim() : null
+  if (!who) return written
+  return written ? `${who} ${written}` : who
 }
 
 /* ---------------------------------------------------------------- columns */
@@ -512,9 +604,9 @@ export const CALENDAR_COLUMNS = [
   { key: 'round', label: 'R', align: 'num' },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix', text: roundName },
   { key: 'circuit', label: 'Circuit' },
-  { key: 'date_iso', label: 'Dates', text: (_, row) => text(raceDates(row)) },
+  { key: 'date_iso', label: 'Dates', date: 'race' },
   { key: 'winner', label: 'Winner', text: roundWinner },
-  { key: 'winning_team', label: 'Car', text: roundResult },
+  { key: 'winning_team', label: 'Constructor', text: roundResult },
   { key: 'pole', label: 'Pole', text: roundResult },
   { key: 'fastest', label: 'Fastest lap', text: roundResult },
 ]
@@ -614,12 +706,12 @@ export const noConstructorsNote = (year, notRun) => {
 export const NOT_RUN_STANDINGS = 'Not yet run: no round of this calendar has been raced.'
 
 export const ENTRANT_COLUMNS = [
-  { key: 'constructor', rowHeader: true, label: 'Constructor', text: (name, row) => text(name ?? row.entrant_id) },
-  { key: 'entrant_id', rowHeader: true, label: 'Entered as' },
-  { key: 'chassis_ids', label: 'Chassis', align: 'prose' },
+  { key: 'constructor', rowHeader: true, label: 'Constructor', text: (name, row) => text(name ?? row.entrant_name) },
+  { key: 'entrant_name', rowHeader: true, label: 'Entered as' },
+  { key: 'chassis_names', label: 'Chassis', align: 'prose' },
   { key: 'chassis_count', label: 'Designs', align: 'num' },
-  { key: 'engine_ids', label: 'Engines' },
-  { key: 'tyre_ids', label: 'Tyres' },
+  { key: 'engine_names', label: 'Engines' },
+  { key: 'tyres', label: 'Tyres' },
 ]
 
 export const ENTRANTS_FOOTER =

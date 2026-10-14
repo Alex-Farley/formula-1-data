@@ -44,7 +44,7 @@ PERSONNEL = [
      "A Grand Prix driver whose career ended when a stone pierced his visor at Charade in 1972. Ran Red Bull's junior programme, which produced Vettel, Ricciardo, Verstappen, Gasly, Sainz, Hadjar and Lindblad.", "high"),
     ("stella", "Andrea Stella", "Italy", "team principal", 2023, None, "Ferrari, McLaren",
      "McLaren team principal from 2023; oversaw the return to constructors' titles in 2024 and 2025.", "verified"),
-    ("vasseur", "Frederic Vasseur", "France", "team principal", 2016, None, "Renault, Sauber, Ferrari",
+    ("vasseur", "Frédéric Vasseur", "France", "team principal", 2016, None, "Renault, Sauber, Ferrari",
      "Ferrari team principal from 2023. Signed Hamilton for 2025.", "verified"),
     ("binotto", "Mattia Binotto", "Italy/Switzerland", "engineer / team principal", 1995, None, "Ferrari, Audi",
      "Ferrari team principal 2019-2022; leads Audi's works entry from 2026.", "verified"),

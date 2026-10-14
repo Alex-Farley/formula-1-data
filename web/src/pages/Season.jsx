@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
-import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, until } from '../queries/sessions.js'
+import { Fragment, useMemo } from 'react'
+import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, until } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { FOLD_NOUN, UNFOLDED } from '../lib/table.js'
+import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import { OutlineCard, OutlineStrip } from '../components/Outline.jsx'
 import { outlineCaption } from '../lib/outline.js'
 import { measured, odblCredit } from '../lib/trace.js'
@@ -15,7 +17,7 @@ import { points as fmtPoints, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
-import { NAMES, NOT_YET_RUN, SPRINT } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { SEASON_IMAGES } from '../queries/photographs.js'
 import {
   CALENDAR,
@@ -26,7 +28,9 @@ import {
   DRIVERS_FINAL_FOOTER,
   DRIVER_TEAMS,
   ENTRANTS,
+  ENTRANT_CHASSIS,
   ENTRANT_COLUMNS,
+  ENTRANT_ENGINES,
   ENTRANTS_FOOTER,
   CURRENT_GRID,
   FINAL,
@@ -47,15 +51,17 @@ import {
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
   constructorsFooter,
+  entrantNames,
   latestRound,
   nextLine,
   noConstructorsNote,
   progressionNote,
+  seasonLede,
   standingsHeading,
   stillRunning,
   teamsByDriver,
+  titleAnswer,
   titleHeading,
-  titlePermutations,
   titleStrip,
   wonHereNote,
 } from '../queries/season.js'
@@ -192,8 +198,20 @@ const ENTRANTS_APP = {
       row.constructor_id ? (
         <Link to={`/constructors/${row.constructor_id}`}>{name ?? row.constructor_id}</Link>
       ) : (
-        cell(name ?? row.entrant_id)
+        cell(name ?? row.entrant_name)
       ),
+  },
+  // Every chassis has a page at /cars/<id>; the engines and tyres have none.
+  chassis_names: {
+    render: (names, row) =>
+      row.chassis.length
+        ? row.chassis.map((c, i) => (
+            <Fragment key={c.id}>
+              {i ? ', ' : ''}
+              <Link to={`/cars/${c.id}`}>{c.name}</Link>
+            </Fragment>
+          ))
+        : cell(names),
   },
 }
 
@@ -226,6 +244,8 @@ function NextRound({ year, next, sessions, traces, wonHere }) {
       <Section title={NEXT_HEADING}>
         <p className="measure">
           {line.before}
+          {line.dated && <RaceDates race={next} />}
+          {line.colon}
           <Link to={`/races/${year}/${next.round}`}>{next.name_used}</Link>
           {next.sprint ? ' ' : ''}
           {next.sprint ? <span className="tag">{SPRINT}</span> : null}
@@ -288,6 +308,8 @@ export default function Season() {
     standings: [STANDINGS, [Number(year)]],
     final: [FINAL, [Number(year)]],
     entrants: [ENTRANTS, [Number(year)]],
+    entrantChassis: [ENTRANT_CHASSIS, [Number(year)]],
+    entrantEngines: [ENTRANT_ENGINES, [Number(year)]],
     neighbours: [NEIGHBOURS, [Number(year)]],
     grid: [GRID, [Number(year)]],
     currentGrid: [CURRENT_GRID, [Number(year)]],
@@ -321,7 +343,10 @@ function SeasonBody({ year, season, data }) {
   const calendar = rows(data, 'calendar')
   const standings = rows(data, 'standings')
   const final = rows(data, 'final')
-  const entrants = rows(data, 'entrants')
+  const entrants = useMemo(
+    () => entrantNames(rows(data, 'entrants'), rows(data, 'entrantChassis'), rows(data, 'entrantEngines')),
+    [data],
+  )
   const currentGrid = rows(data, 'currentGrid')
   const neighbours = data.neighbours.rows[0] ?? {}
   const grid = data.grid.rows[0] ?? null
@@ -397,14 +422,19 @@ function SeasonBody({ year, season, data }) {
   // once there is one, the strip above has already said who won, and a second
   // sentence working out who could have is noise at best and a contradiction
   // at worst. queries/season.js decides where the arithmetic will not carry.
-  const permutations = running
-    ? titlePermutations({
+  const answer = running
+    ? titleAnswer({
         drivers: driversFinal,
         remaining: data.remaining.rows[0] ?? null,
         afterRound: after,
         built: currentProgress().manifest?.built,
       })
     : null
+
+  // The page leads with the answer (VD-90): who can still win opens the
+  // lede, ahead of the season's own note, and what it was worked out from
+  // follows directly under the tiles.
+  const opening = seasonLede(season.notes, answer?.who)
 
   // The one hourly-changing fact on the page, as a tile among the others
   // rather than a paragraph beneath them (IA-17). Only a browser knows how
@@ -416,16 +446,24 @@ function SeasonBody({ year, season, data }) {
         kind: 'name',
         value: upcoming.name,
         href: `races/${year}/${upcoming.round}`,
-        note: `${upcoming.name_used}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
+        // The start in the reader's form, in a <time> holding the instant (CD-59).
+        note: (
+          <>
+            {upcoming.name_used}, <TimeText iso={upcoming.start_utc} zone={upcoming.zone} /> at the circuit,{' '}
+            {until(upcoming.start_utc, now)}
+          </>
+        ),
       }
     : null
 
   /*
-   * What leads (PD-58): the tiles, the title race, then what it came to.
+   * What leads (PD-58): who can still win, in the lede (VD-90), the tiles,
+   * the title race, then what it came to.
    * A season with a round still to run reads the next round and its
    * calendar before standings that are not final yet; a concluded one
    * reads who won first and the calendar after. Then the grid, the
-   * photographs and the entrants. scripts/prerender.js keeps this order.
+   * entrants and the photographs (VD-83). scripts/prerender.js keeps this
+   * order.
    */
   const calendarSection = (
     <Section title="The calendar" count={`${calendar.length} rounds`}>
@@ -433,6 +471,7 @@ function SeasonBody({ year, season, data }) {
           the table that carries the facts (AF-03, PD-28). */}
       <OutlineStrip year={year} calendar={calendar} />
       <DataTable
+        unfolded={UNFOLDED.subject}
         rows={calendar}
         rowKey={(row) => row.round}
         sortable={false}
@@ -442,9 +481,10 @@ function SeasonBody({ year, season, data }) {
     </Section>
   )
   const standingsSection = (
-    <div className="split" style={{ marginTop: 34 }}>
+    <div className="split">
       <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
         <DataTable
+          unfolded={UNFOLDED.subject}
           rows={driversFinal}
           rowKey={(row) => row.driver_id ?? row.entity}
           sortable
@@ -466,6 +506,7 @@ function SeasonBody({ year, season, data }) {
           </Note>
         ) : (
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={constructorsFinal}
             rowKey={(row) => row.id}
             sortable
@@ -480,14 +521,17 @@ function SeasonBody({ year, season, data }) {
   )
 
   return (
-    // No eyebrow: the h1 is "2026 FIA Formula One World Championship" now
-    // rather than the bare year (PD-40), so the "Season" above it restated
-    // the heading it was there to explain.
+    // The eyebrow used to be left off: the h1 is "2026 FIA Formula One World
+    // Championship" rather than the bare year (PD-40), so a bare "Season"
+    // above it restated the heading it was there to explain. It now carries
+    // the type and the fact that identifies the season, as every entity
+    // page's does (VD-81): "Season · 24 rounds, 16 run".
     <Page
+      eyebrow={EYEBROWS.season(season.rounds, run)}
       title={NAMES.season(year).headline}
       documentName={NAMES.season(year).title}
       trail={TRAIL.season(year)}
-      lede={season.notes}
+      lede={opening}
       aside={
         <Stepper {...seasonSteps(neighbours)} />
       }
@@ -496,15 +540,15 @@ function SeasonBody({ year, season, data }) {
         {/* The strip is queries/season.js's, which the static page draws
             too (VD-49); the next session's tile is the browser's alone. */}
         <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
-        {permutations && (
-          <p className="note" style={{ marginTop: 10 }}>
-            {permutations}
+        {answer && (
+          <p className="note follows">
+            <Dated>{answer.basis}</Dated>
           </p>
         )}
         {/* v_season_grid returns NULL, not 0, for a season nobody has entered
             yet - so the sentence is absent rather than counting nobody. */}
         {grid && grid.drivers !== null && (
-          <p className="note" style={{ marginTop: 10 }}>
+          <p className="note follows">
             The grid: {number(grid.drivers)} drivers, {number(grid.constructors)} constructors and{' '}
             {number(grid.engine_manufacturers)} engine makers, counted from the entries — a driver
             entered for one race counts once, whether or not they started.
@@ -516,8 +560,7 @@ function SeasonBody({ year, season, data }) {
         <Section lead title={titleHeading(live)}>
           <Figure
             lead
-            title={`Points after each round, ${year}`}
-            note={progressionNote(live)}
+            note={progressionNote(live, data.remaining.rows[0]?.dropped_scores)}
             legend={progression.map((s) => ({ name: s.name, colour: inColour ? s.colour : null }))}
             marks="line"
             table={{
@@ -575,6 +618,7 @@ function SeasonBody({ year, season, data }) {
               is the order the table opens in, and the static page prints the
               rows as they come. */}
           <DataTable
+            unfolded={UNFOLDED.subject}
             rows={currentGrid}
             rowKey={(row) => row.id}
             sortable
@@ -584,19 +628,12 @@ function SeasonBody({ year, season, data }) {
         </Section>
       )}
 
-      {/* The cars of the year, what they won first (VD-33), below the
-          title race and the tables it came to (PD-58): the strip used to
-          stand between the tiles and the chart, and pushed the chart off
-          the first screen. A season that has not run yet has no entries
-          and so no strip, which is right: the photographs are of cars that
-          raced. */}
-      <Photographs images={rows(data, 'images')} subjects />
-
       <Section title="Who entered" count={`${entrants.length} entrants`}>
         {/* No opening sort: the query's ORDER BY is the order the table opens
             in, and the static page prints the rows as they come. The header
             says so without re-sorting them. */}
         <DataTable
+          fold={FOLD_NOUN.entrants}
           rows={entrants}
           rowKey={(row) => row.id}
           sortable
@@ -606,7 +643,15 @@ function SeasonBody({ year, season, data }) {
         />
       </Section>
 
-      <Section title="The season on the record">
+      {/* The cars of the year, what they won first (VD-33), after the page's
+          own sections and before where they come from, as on every page
+          type (VD-83): the strip used to stand between the tiles and the
+          chart (PD-58), and then between the calendar and the entrants. A
+          season that has not run yet has no entries and so no strip, which
+          is right: the photographs are of cars that raced. */}
+      <Photographs images={rows(data, 'images')} subjects />
+
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
             { label: 'Engine formula', value: season.engine_formula },

@@ -49,9 +49,10 @@ and every derived table, `records` among them.
 
 ## How it arrives
 
-`tools/f1db_fetch.py` clones F1DB, reads its YAML and rewrites the generated
-files in `harvest/` — pipe-delimited text, one row per line, with the F1DB
-version and commit in the header of every file. The build reads those files
+`tools/f1db_fetch.py` clones F1DB at its latest published release — never
+the tip of its branch, which carries fixes not yet released — reads its YAML
+and rewrites the generated files in `harvest/`: pipe-delimited text, one row
+per line, with the release's tag and commit in the header of every file. The build reads those files
 and never the network. **The repository holds a snapshot**, and the snapshot
 is what `build.py` turns into `f1.db`; the F1DB version in play is stated in
 `README.md` and in the header of every generated harvest file.

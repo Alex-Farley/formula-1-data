@@ -14,6 +14,9 @@ crosses between them is files, and this is the whole of what may cross.
 in <dir>/paths.txt. It runs before npm does, and it refuses a change to any
 path a refresh does not write, so a refresh that starts writing somewhere
 new fails loudly instead of having its change dropped on the way across.
+A run that changed nothing - any quiet run after the day's first, whose
+heartbeat is already on main - still writes paths.txt, listing no path and
+with no tree beside it, and `apply` lands that as nothing (CR-78).
 
 `apply` treats <dir> as untrusted: everything in it went through a job that
 ran npm, however early it was packed. It copies a file into the checkout
@@ -127,6 +130,9 @@ def pack(out, root=ROOT):
             bad.append(f"{path} {why}")
     if bad:
         sys.exit("::error::the refresh wrote what it cannot land: " + "; ".join(bad))
+    # Here, not only in the loop below: with no path to copy the loop never
+    # runs, and paths.txt had no directory to go in (CR-78).
+    os.makedirs(out, exist_ok=True)
     for path in paths:
         dest = os.path.join(out, TREE, path)
         os.makedirs(os.path.dirname(dest), exist_ok=True)

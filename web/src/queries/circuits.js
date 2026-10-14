@@ -115,3 +115,11 @@ export const CIRCUIT_COLUMNS = [
 
 export const CIRCUITS_FOOTER =
   "Length and turns describe the layout in use now. Only 13 of the 80 have a layout timeline, so a 1976 lap of a circuit rebuilt since is reported at today's length."
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Circuits.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const CIRCUITS_LEDE =
+  'Eighty venues, from airfield perimeters to street courses laid out for a single season. Drawn below, then listed by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged.'

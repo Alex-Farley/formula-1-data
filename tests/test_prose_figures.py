@@ -120,6 +120,44 @@ class TheGateRefuses(unittest.TestCase):
             N.SOURCE_REGISTRY = good
         self.assertIn("positional", str(caught.exception))
 
+    def test_a_stale_figure_in_known_gaps_is_refused(self):
+        # The second table PROSE names (CD-45). Gap 11's reader sentence is
+        # the one /data/quality shows; the figure is read off the copy, for
+        # the reason the source_registry test above gives.
+        con = sqlite3.connect(self.db)
+        reader = con.execute(
+            "SELECT reader FROM known_gaps WHERE key = 'photograph-shows-the-car'").fetchone()[0]
+        con.close()
+        stated = re.search(r"\d[\d,]* photographs", reader).group(0)
+        n = int(stated.split()[0].replace(",", ""))
+        self.edit("UPDATE known_gaps SET reader = REPLACE(reader, ?, ?) "
+                  "WHERE key = 'photograph-shows-the-car'", stated, f"{n + 9:,} photographs")
+        code, out = run_gate(self.db)
+        self.assertEqual(code, 1, out)
+        self.assertIn("known_gaps.reader", out)
+
+    def test_a_shifted_KNOWN_GAPS_tuple_is_refused(self):
+        from data import harvest as HV
+        good = HV.KNOWN_GAPS
+        try:
+            HV.KNOWN_GAPS = [g[:4] + g[5:] for g in good]
+            with self.assertRaises(SystemExit) as caught:
+                pf._known_gaps_literals()
+        finally:
+            HV.KNOWN_GAPS = good
+        self.assertIn("positional", str(caught.exception))
+
+    def test_a_NULL_known_gaps_column_is_not_expanded_into_an_empty_string(self):
+        # expand(None) is "", and apply() would write that over the NULL.
+        from data import harvest as HV
+        good = HV.KNOWN_GAPS
+        try:
+            HV.KNOWN_GAPS = [good[0][:7] + (None,)] + list(good[1:])
+            literals = pf._known_gaps_literals()
+        finally:
+            HV.KNOWN_GAPS = good
+        self.assertNotIn("resolution", literals[good[0][0]])
+
 
 class TheFiguresAreWhatTheProseUses(unittest.TestCase):
     def test_every_figure_computed_is_stated_in_some_prose(self):

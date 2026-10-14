@@ -10,12 +10,12 @@
 export function Skeleton({ rows = 6, height = 34 }) {
   return (
     <div className="skeleton-table" aria-hidden="true">
-      <div className="skeleton" style={{ height, borderRadius: 0 }} />
+      <div className="skeleton" style={{ height }} />
       {Array.from({ length: rows }, (_, i) => (
         <div
           key={i}
           className="skeleton"
-          style={{ height: height - 6, borderRadius: 0, opacity: 1 - i * 0.1 }}
+          style={{ height: height - 6, opacity: 1 - i * 0.1 }}
         />
       ))}
     </div>

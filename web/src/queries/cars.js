@@ -88,3 +88,11 @@ export const CHASSIS_COLUMNS = [
 
 export const CHASSIS_FOOTER =
   "“Wins” counts the races that can be attributed to this exact chassis; “published wins” is what the car's own article claims. A gap between them is usually a season the constructor ran two designs and no source says which car raced when."
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Cars.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const CARS_LEDE =
+  'Twenty-nine designs with a page of their own, and behind them every chassis with a championship entry — 1,153 of them, most raced by a privateer for a single weekend. Filter the register to race winners, landmark designs, or the ones with a published specification. A blank is a figure nobody published, not a car with no wheelbase.'

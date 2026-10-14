@@ -51,8 +51,30 @@ export function thumbUrl(image, width = THUMB_WIDTH, { direct = true } = {}) {
 export const categoryUrl = (category) =>
   `https://commons.wikimedia.org/wiki/${encodeURI(String(category ?? '').replace(/ /g, '_'))}`
 
-/** The file name without its "File:" prefix, for a caption. */
-export const fileTitle = (fileName) => String(fileName ?? '').replace(/^File:/, '').replace(/_/g, ' ')
+const EXTENSION = /\.(jpe?g|png|gif|svg|webp|tiff?)$/i
+
+/**
+ * The file's title, as Commons heads its page: no "File:" prefix and no
+ * extension, for a caption (DP-31).
+ *
+ * The extension is a fact about a file and not about a photograph, and it was
+ * the visible text of the credit link on every captioned photograph - a
+ * screen reader's list of links read "Circuit de Monaco, April 1, 2018
+ * SkySat (cropped).jpg". The citation is the link's address, the file's own
+ * Commons page, which still names the file exactly.
+ */
+export const fileTitle = (fileName) =>
+  String(fileName ?? '')
+    .replace(/^File:/, '')
+    .replace(/_/g, ' ')
+    .replace(EXTENSION, '')
+
+/**
+ * The credit link's accessible name: the photograph's title and where the
+ * link goes, so it says what it opens (DP-31). The visible text is the
+ * title alone, which this begins with, so a voice user says what they see.
+ */
+export const fileLinkName = (image) => `${fileTitle(image?.file_name)}, on Wikimedia Commons`
 
 /**
  * What the photograph is OF — its `alt` (AX-13).
@@ -75,9 +97,7 @@ export const fileTitle = (fileName) => String(fileName ?? '').replace(/^File:/, 
  * extension, which is a fact about a file and not about a car.
  */
 export const photoAlt = (image, caption) =>
-  (caption ?? '').trim() ||
-  (image?.article ?? '').trim() ||
-  fileTitle(image?.file_name).replace(/\.(jpe?g|png|gif|svg|webp|tiff?)$/i, '')
+  (caption ?? '').trim() || (image?.article ?? '').trim() || fileTitle(image?.file_name)
 
 /**
  * The person or source to credit for a photograph — the ONE rule.

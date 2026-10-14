@@ -21,8 +21,7 @@ committed artefacts against a fresh build, so run it after staging a rebuild,
 not before.
 
 `make lint` (Ruff, Biome, actionlint) is a **separate CI job that nothing
-else here runs** `[D-04]`. It belongs in the local order too. Ruff is not on
-`PATH` on this machine; use `python3 -m ruff check`.
+else here runs** `[D-04]`. It belongs in the local order too.
 
 The front end has its own: `cd web && npm test`. Use the quiet forms —
 `QUIET=1`, `--quiet` — which keep every exit code and print failures and a
@@ -58,10 +57,11 @@ database's own rows is a `{{fig:name}}` token in `data/current.py`;
 `build.py` expands it off the counts in its final stage and `verify.py`
 re-expands the literal and compares whole `[D-39]`. Adding a figure means
 adding its one expression to `FIGURES` in `tools/prose_figures.py`, and
-`PROSE` there is where a second table joins — `known_gaps` prose has not yet.
-A figure about another source's holdings, one `verify.py` already pins as an
-invariant, and one house style spells out each stay typed, and the module
-says which is which.
+`PROSE` there is where a table joins — `source_registry` and `known_gaps`
+have (`data/harvest.py` holds the second). A figure about another source's
+holdings, one `verify.py` already pins as an invariant, one house style
+spells out, and a past state in the past tense each stay typed, and the
+module says which is which.
 
 **Inspect the artefact diff before committing.** A rebuild that moved more
 than the change explains is the first sign something else moved with it.
@@ -116,6 +116,16 @@ publish `f1-geometry.db` beside it.**
 showing a Commons file imports `CommonsCredit` or `CommonsImage`, and fails
 closed — no attribution, no image. `web/test/smoke.mjs` enforces this and has
 already caught one real regression.
+
+## One design system
+
+Web work follows `docs/design-system.md` (version A, adopted on #843): its
+principles, its tokens in `web/src/styles/tokens.css`, and the sections it
+marks **built**. A section marked pending is not yet held against a page,
+but nothing new is built as a rival to it. A feature that
+needs what the system lacks extends it in the same pull request, under its
+§8, because a system nobody can extend gets routed around, which is the
+drift it exists to stop `[D-53]`.
 
 ## One country vocabulary
 

@@ -2,16 +2,17 @@
 """
 Fetch the chassis, engine and per-season entrant register from F1DB.
 
-    python3 tools/f1db_fetch.py                    # clone and regenerate
-    python3 tools/f1db_fetch.py --source ~/f1db    # use an existing checkout
+    python3 tools/f1db_fetch.py                    # clone the latest release
+    python3 tools/f1db_fetch.py --source ~/f1db    # use a checkout at a release
     python3 tools/f1db_fetch.py --check            # regenerate and diff only
 
 Source:  https://github.com/f1db/f1db   (CC BY 4.0)
 Writes:  harvest/chassis.txt, harvest/engines.txt, harvest/entrants.txt,
          harvest/entrant_drivers.txt, harvest/f1db_constructors.txt,
+         harvest/f1db_entrants.txt, harvest/f1db_tyre_manufacturers.txt,
          harvest/f1db_drivers.txt, and the results, qualifying, practice,
          sprint qualifying, standings, pit stop, race date, fastest lap,
-         circuit outline and race layout files main() lists
+         circuit outline, race layout and grand prix files main() lists
 
 Why a tool and not a person
 ---------------------------
@@ -77,10 +78,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 from data.harvest import (  # noqa: E402  (the one rule for what an outline may hold)
-    SVG_PATH_DATA, svg_path_in_box, svg_path_translate)
+    SVG_PATH_DATA, f1db_harvest_release, svg_path_in_box, svg_path_translate)
 HARVEST = os.path.join(ROOT, "harvest")
 CACHE = os.path.join(ROOT, ".f1dbcache")
 REPO = "https://github.com/f1db/f1db.git"
+# GitHub's documented link to a repository's latest published release: it
+# redirects to the release's own page, which names the tag. Published means
+# not a draft and not a pre-release. GitHub does not promise the artefacts
+# are attached by then: F1DB's take about ten minutes, and a refresh that
+# lands in that window fails at tools/f1db_totals_fetch.py's download, which
+# reads the same tag straight after this, and succeeds on the next run.
+LATEST = "https://github.com/f1db/f1db/releases/latest"
+# A release tag. F1DB's beta tags (v2026.0.0.beta1) are not releases.
+RELEASE_TAG = re.compile(r"v\d+\.\d+\.\d+")
 
 # The licence the header states, and the licence SOURCE_LICENCE in
 # data/current.py classifies F1DB under. The header used to be stamped from
@@ -160,22 +170,80 @@ def _yaml():
 
 
 def checkout(source):
-    """Return (path, version, commit) for an F1DB working tree."""
+    """Return (path, version, commit) for an F1DB working tree at a release.
+
+    The harvest is read from a release, never from the tip of F1DB's default
+    branch. The version stamped in every header is the release's tag, and
+    tools/f1db_totals_fetch.py fetches that release's artefact by it - the
+    career totals exist only there - so verify.py can hold the two to the
+    same release (CR-69). The version used to be read off the last commit's
+    subject, which named a release only while nothing had been pushed since
+    one: three fixes on 2026-10-05 made it "updated incorrect per-round
+    standings (#165)", the totals fetch found no version in the header, and
+    the refresh failed (#830). Reading the tip would also have stamped and
+    committed data F1DB had not released."""
     if source:
         path = os.path.abspath(os.path.expanduser(source))
         if not os.path.isdir(os.path.join(path, "src", "data")):
             sys.exit(f"{path} does not look like an F1DB checkout")
     else:
         path = CACHE
+        tag = latest_release()
+        try:
+            committed = f1db_harvest_release()
+        except SystemExit:
+            committed = None
+        refuse_older(tag, committed)
         if os.path.isdir(os.path.join(path, ".git")):
-            run(["git", "-C", path, "fetch", "--depth", "1", "origin", "HEAD"])
-            run(["git", "-C", path, "reset", "--hard", "FETCH_HEAD"])
+            run(["git", "-C", path, "fetch", "--depth", "1", "origin",
+                 f"+refs/tags/{tag}:refs/tags/{tag}"])
+            run(["git", "-C", path, "reset", "--hard", f"refs/tags/{tag}"])
         else:
-            run(["git", "clone", "--depth", "1", REPO, path])
+            run(["git", "clone", "--depth", "1", "--branch", tag, REPO, path])
+    version = release_at(path)
     commit = run(["git", "-C", path, "rev-parse", "--short", "HEAD"]).strip()
-    version = run(["git", "-C", path, "log", "-1", "--format=%s"]).strip()
-    version = version.split(":")[-1].strip()
     return path, version, commit
+
+
+def latest_release():
+    """The tag of F1DB's latest published release."""
+    import urllib.request
+    with urllib.request.urlopen(LATEST, timeout=60) as r:
+        return release_from_url(r.geturl())
+
+
+def refuse_older(tag, committed):
+    """Stop when the latest release is older than the one the committed
+    harvest was read from. "Latest" is whatever F1DB marks as latest, so a
+    release deleted or re-marked upstream would otherwise roll the harvest
+    back, and the refresh would merge the rollback unattended."""
+    def key(t):
+        return tuple(int(n) for n in t[1:].split("."))
+    if committed and RELEASE_TAG.fullmatch(committed) and key(tag) < key(committed):
+        sys.exit(f"F1DB's latest release is {tag}, older than the {committed} "
+                 f"the harvest was read from. Nothing is written; a rollback "
+                 f"is a person's decision, made with --source.")
+
+
+def release_from_url(url):
+    """The tag named by the release page LATEST redirected to."""
+    m = re.fullmatch(r"https://github\.com/f1db/f1db/releases/tag/([^/]+)", url)
+    if not m or not RELEASE_TAG.fullmatch(m.group(1)):
+        sys.exit(f"{LATEST} did not lead to a release: it went to {url}")
+    return m.group(1)
+
+
+def release_at(path):
+    """The one release tag on the commit checked out at path."""
+    tags = run(["git", "-C", path, "tag", "--points-at", "HEAD"]).split()
+    releases = sorted(t for t in tags if RELEASE_TAG.fullmatch(t))
+    if len(releases) != 1:
+        found = ", ".join(releases) if releases else "no release tag"
+        sys.exit(f"{path} must be checked out at exactly one F1DB release "
+                 f"(git checkout v<year>.<n>.<n>), and HEAD has {found}. The "
+                 f"harvest is read from a release, so that its version names "
+                 f"the release tools/f1db_totals_fetch.py reads.")
+    return releases[0]
 
 
 def run(cmd):
@@ -259,6 +327,32 @@ def constructor_rows(data, yaml):
         d = yaml.safe_load(open(p, encoding="utf-8"))
         rows.append("|".join(_clean(d.get(k)) for k in
                              ("id", "name", "fullName", "countryId")))
+    return sorted(rows)
+
+
+def entrant_name_rows(data, yaml):
+    """The entrant register's names, so the season page can say "Team Lotus"
+    where it would otherwise print `team-lotus` (UR-14). One name per entrant:
+    F1DB keeps no per-season name, so a title sponsor that changed from year
+    to year is the register's one name, not that year's."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "entrants", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in ("id", "name")))
+    return sorted(rows)
+
+
+def tyre_manufacturer_rows(data, yaml):
+    """The tyre manufacturers' names, for the same reason (UR-14):
+    `tyre_suppliers` is a history of supply, three rows of it Pirelli, and
+    has no row for Avon or Continental, so it is not a register to name an
+    id from."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "tyre-manufacturers", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in ("id", "name")))
     return sorted(rows)
 
 
@@ -559,6 +653,39 @@ def race_layout_rows(data, yaml):
     return rows
 
 
+def race_grand_prix_rows(data, yaml):
+    """The grand prix each race was a round of, and its official title:
+    `grandPrixId` and `officialName` in the round's race.yml.
+
+    Nothing in build.py reads these. They are the facts artefact's route
+    (PD-53, #741): the rebuild of the race rows from F1DB takes races.gp_id
+    and races.name_used from them, where f1.db takes both from the season
+    harvest's Wikipedia. tools/facts_artefact.py does the rebuilding, and
+    tools/readme_figures.py measures it for docs/COMMERCIAL-READINESS.md.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        race = _load(os.path.join(path, "race.yml"), yaml)
+        if not isinstance(race, dict) or not race.get("grandPrixId"):
+            continue
+        rows.append("|".join(_clean(v) for v in
+                             (year, rnd, race["grandPrixId"], race.get("officialName"))))
+    return rows
+
+
+def grand_prix_rows(data, yaml):
+    """F1DB's register of grands prix, for the same measurement as
+    race_grand_prix_rows(): its ids against grands_prix, and its names
+    against races.name_used."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "grands-prix", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in
+                             ("id", "name", "fullName", "shortName", "countryId")))
+    return sorted(rows)
+
+
 def fastest_lap_rows(data, yaml):
     """Who set the fastest lap of each race, on which lap, and in what time.
 
@@ -570,8 +697,13 @@ def fastest_lap_rows(data, yaml):
 
     F1DB shapes fastest-laps.yml as a classification, so the fastest lap of
     the race is the row at position 1; the rest order the field behind it and
-    are not this database's concern. build.py fills only where the harvest is
-    silent, and records a discrepancy where the two disagree.
+    are not this database's concern. A tie is several rows at position 1 -
+    the seven drivers who shared the 1954 British Grand Prix's, timed to the
+    second - and every one of them is written. Until PD-53 this kept the
+    first and stopped, so F1DB looked as though it named one driver of every
+    shared fastest lap, and 1970 round 1 looked like a disagreement over who
+    set it rather than over whether it was shared. build.py fills only where
+    the harvest is silent, and records a discrepancy where the two disagree.
 
     Eleven races have no such file, and all eleven are correct: 2021 Belgium,
     where no racing lap was ever set and the null is declared in known_gaps,
@@ -585,7 +717,6 @@ def fastest_lap_rows(data, yaml):
             rows.append("|".join(_clean(v) for v in (
                 year, rnd, r.get("driverId"), r.get("constructorId"),
                 r.get("lap"), r.get("time"))))
-            break
     return rows
 
 
@@ -773,6 +904,11 @@ def main():
     ok &= write("f1db_constructors.txt",
                 "constructor_id|name|full_name|country_id",
                 constructor_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_entrants.txt", "entrant_id|name",
+                entrant_name_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_tyre_manufacturers.txt",
+                "tyre_manufacturer_id|name",
+                tyre_manufacturer_rows(data, yaml), version, commit, args.check)
     ok &= write("f1db_countries.txt",
                 "country_id|name|alpha3|demonym",
                 country_rows(data, yaml), version, commit, args.check)
@@ -850,6 +986,16 @@ def main():
     ok &= write("race_layouts.txt",
                 "year|round|layout_id   (the F1DB circuit layout the race ran)",
                 race_layout_rows(data, yaml), version, commit, args.check)
+    # Read by nothing in the build: the facts artefact's race names and
+    # grand-prix keys, rebuilt from F1DB (tools/facts_artefact.py, PD-53).
+    ok &= write("race_grands_prix.txt",
+                "year|round|grand_prix_id|official_name"
+                "   (the F1DB grand prix the race was a round of, and the title "
+                "F1DB gives the race)",
+                race_grand_prix_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_grands_prix.txt",
+                "grand_prix_id|name|full_name|short_name|country_id",
+                grand_prix_rows(data, yaml), version, commit, args.check)
 
     if args.check and not ok:
         sys.exit("the committed harvest files are out of date with F1DB")

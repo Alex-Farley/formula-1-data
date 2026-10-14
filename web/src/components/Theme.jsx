@@ -52,11 +52,10 @@ export default function ThemeToggle() {
   return (
     <button
       type="button"
-      className="chip"
+      className="chip theme-toggle"
       onClick={cycle}
       title={LABEL[choice]}
       aria-label={`${LABEL[choice]} — click to change`}
-      style={{ padding: '4px 9px', lineHeight: 1.4 }}
     >
       <span aria-hidden="true">{GLYPH[choice]}</span>
     </button>

@@ -24,7 +24,7 @@
  *     in lib/site.js, so the words are still decided once.
  */
 import { number } from '../lib/format.js'
-import { NOT_YET_RUN } from '../lib/site.js'
+import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 
 /** The counts the opening strip and the board are built from. */
 export const SHAPE = `
@@ -146,7 +146,7 @@ export const LEDE =
 /** The opening strip, as components/Page.jsx's <Stats> and prerender's stats() draw it. */
 export const strip = (shape) => [
   { label: 'Races run', value: number(shape.races_run), note: `${shape.from_year}–${shape.to_year}` },
-  { label: 'Race entries', value: number(shape.entries), note: 'one row per driver per race' },
+  { label: LABELS.entries, value: number(shape.entries), note: 'one row per driver per race' },
   { label: 'Qualifying rows', value: number(shape.qualifying) },
   { label: 'Standings rows', value: number(shape.standings), note: 'after every round' },
   { label: 'Pit stops', value: number(shape.pit_stops), note: 'from 1994' },
@@ -256,7 +256,6 @@ export const BOARD = [
 ]
 
 export const CHART_HEADING = 'The shape of the championship'
-export const CHART_TITLE = 'Championship races per season'
 
 /** "2026 and 2027", "2026, 2027 and 2028", "2027". */
 const years = (list) =>

@@ -2,12 +2,13 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { TitleRaceSpark } from '../charts/Spark.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { NAMES, NOT_YET_RUN, SO_FAR } from '../lib/site.js'
-import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../queries/seasons.js'
+import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER, SEASONS_LEDE } from '../queries/seasons.js'
 import { titleRaceText } from '../charts/spark.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -108,12 +109,13 @@ export default function Seasons() {
       title={NAMES.seasons().headline}
       documentName={NAMES.seasons().title}
       trail={TRAIL.seasons()}
-      lede="Seventy-seven championships, newest first. Pick a year for its calendar, the title race round by round, and the final tables — or sort this list by any column to find the closest finishes and the biggest walkovers."
+      lede={SEASONS_LEDE}
     >
       <Section>
         <Result state={state} skeleton>
           {(data) => (
             <DataTable
+              unfolded={UNFOLDED.register}
               data={data}
               rowKey={(row) => row.year}
               sort="year"

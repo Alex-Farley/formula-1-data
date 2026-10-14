@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
+import { UNFOLDED } from '../lib/table.js'
+import { DateText, Dated } from '../components/Dates.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../lib/refresh.js'
 import {
@@ -58,7 +60,7 @@ function Current({ data }) {
     <>
       {late && (
         <Note>
-          <strong>{late.head}</strong> {late.body}
+          <strong>{late.head}</strong> <Dated>{late.body}</Dated>
         </Note>
       )}
       {/* `fields`, the class prerender.js's fields() writes and app.css draws
@@ -68,12 +70,16 @@ function Current({ data }) {
         <dt>Version</dt>
         <dd>{meta.version ? `v${meta.version}` : '—'}</dd>
         <dt>Built</dt>
-        <dd>{meta.built ?? '—'}</dd>
+        <dd>
+          <DateText iso={meta.built} />
+        </dd>
         {/* Not from meta: the check date is a fact about the pipeline, not
             about the data, and it is the one that moves on a morning when
             nothing else did. lib/refresh.js says why it lives there. */}
         <dt>{CHECKED_LABEL}</dt>
-        <dd>{LAST_CHECKED}</dd>
+        <dd>
+          <DateText iso={LAST_CHECKED} />
+        </dd>
         <dt>Races</dt>
         <dd>{shape ? `${n(shape.races_run)} run, of ${n(shape.races)} on the calendar` : '—'}</dd>
         <dt>Most recent</dt>
@@ -81,7 +87,7 @@ function Current({ data }) {
           {latest ? (
             <>
               <Link to={`/races/${latest.year}/${latest.round}`}>{latest.name_used}</Link>,{' '}
-              {latest.date_iso}
+              <DateText iso={latest.date_iso} />
             </>
           ) : (
             '—'
@@ -131,7 +137,7 @@ export default function Changes() {
       </Section>
 
       <Section title={HISTORY_HEADING}>
-        <DataTable columns={RELEASE_COLUMNS} rows={RELEASES} />
+        <DataTable unfolded={UNFOLDED.reference} columns={RELEASE_COLUMNS} rows={RELEASES} />
         <p className="faint">{HISTORY_NOTE}</p>
       </Section>
 

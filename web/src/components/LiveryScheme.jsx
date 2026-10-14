@@ -1,4 +1,4 @@
-import { accentsBySource } from '../lib/liveries.js'
+import { bandWords } from '../lib/liveries.js'
 
 /**
  * The identity band at the top of a constructor's or a driver's page: the
@@ -38,31 +38,22 @@ import { accentsBySource } from '../lib/liveries.js'
  * checked; the split is by the flag, not by the team.
  */
 export default function LiveryScheme({ colour, note }) {
-  if (!colour) return null
-  const { sourced, chosen } = accentsBySource(colour.scheme)
-  const them = chosen.length === 1 ? 'it' : 'them'
+  // The words are lib/liveries.js's, which scripts/prerender.js draws the
+  // same band from (VD-79).
+  const words = bandWords(colour)
+  if (!words) return null
   return (
-    <p className="livery-band" style={{ marginTop: 14 }}>
+    <p className="livery-band">
       {/* aria-hidden: the band repeats the names beside it, and the sentence
           below says what it is. A second announcement of the same colour is
           noise, not information. */}
       <i className="livery" style={colour.style} aria-hidden="true" />
-      {colour.name}
-      {sourced.length > 0 && <em>{sourced.map((c) => c.name).join(' · ')}</em>}
+      {words.name}
+      {words.sourced && <em>{words.sourced}</em>}
       <span>
         {note}
-        {chosen.length > 0 &&
-          ` The mark also carries ${names(chosen)}, which no page cited here states: this site` +
-            ` added ${them} because the car is recognised by ${them}, not because a source names` +
-            ' the colour.'}
+        {words.chosen}
       </span>
     </p>
   )
-}
-
-/** "red", or "red and silver", or "red, silver and white". */
-function names(colours) {
-  const all = colours.map((c) => c.name.toLowerCase())
-  if (all.length === 1) return all[0]
-  return `${all.slice(0, -1).join(', ')} and ${all[all.length - 1]}`
 }

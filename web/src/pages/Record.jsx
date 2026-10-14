@@ -1,11 +1,12 @@
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
+import { DateText, Dated } from '../components/Dates.jsx'
 import SearchKey from '../components/SearchKey.jsx'
-import { number } from '../lib/format.js'
-import { NAMES } from '../lib/site.js'
+import { missing, number } from '../lib/format.js'
+import { LABELS, NAMES } from '../lib/site.js'
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
-import { DERIVATION, RECORD, holderPath } from '../queries/records.js'
+import { DERIVATION, RECORD, holderPath, recordStrip } from '../queries/records.js'
 import { useQueries } from '../data/useQuery.js'
 
 /**
@@ -50,22 +51,20 @@ function RecordBody({ record }) {
   return (
     <Page title={NAMES.record(record.record).headline} trail={TRAIL.record(record.key, record.record)}>
       <Section>
-        <Stats
-          items={[
-            { label: 'Value', value: record.value, lead: true },
-            { label: 'Holder', value: holder ? <Link to={`/${holder}`}>{record.holder}</Link> : record.holder },
-          ]}
-        />
+        {/* queries/records.js's strip, which the static page draws too (VD-71). */}
+        <Stats items={recordStrip(record)} />
       </Section>
 
       <Section title={DERIVATION}>
-        <p className="measure">{record.detail}</p>
+        <p className="measure">
+          <Dated>{record.detail}</Dated>
+        </p>
       </Section>
 
-      <Section title="On the record">
+      <Section title={LABELS.provenance}>
         <Fields
           items={[
-            { label: 'As of', value: record.as_of },
+            { label: 'As of', value: missing(record.as_of) ? null : <DateText iso={record.as_of} /> },
             { label: 'Confidence', value: <Confidence value={record.confidence} /> },
             { label: 'Category', value: record.category },
             // The section of /records it is listed under (WK-08).

@@ -50,6 +50,7 @@ saying so, and editing one by hand is the same mistake as editing `f1.db`:
 | `harvest/engines.txt` | Every engine, with capacity/config/aspiration | `tools/f1db_fetch.py` |
 | `harvest/f1db_constructors.txt` | Constructor names, for the spec cross-check | `tools/f1db_fetch.py` |
 | `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre | `tools/f1db_fetch.py` |
+| `harvest/f1db_entrants.txt`, `f1db_tyre_manufacturers.txt` | Entrant and tyre manufacturer names | `tools/f1db_fetch.py` |
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles | `tools/wikispec_fetch.py` |
 | `harvest/car_specs.log` | Every chassis refused, and why | `tools/wikispec_fetch.py` |
 
@@ -138,6 +139,15 @@ races stored at it.
 Do not pick one silently. Record the disagreement in
 `data/harvest.py: DECLARED_DISCREPANCIES`, and if you resolve it, record the
 resolution in `CORRECTIONS` with the reasoning. `./f1 gaps` prints both.
+
+## The front end's design system
+
+A change under `web/` follows `docs/design-system.md`: its values live in
+`web/src/styles/tokens.css`, and `web/test/conventions.mjs` and `smoke.mjs`
+hold its rules. A feature that needs something the system lacks adds it in
+the same pull request, marked provisional; changing or reversing a rule
+needs a `docs/DECISIONS.md` entry and the maintainer's ruling. Its §8 says
+how.
 
 ## Before opening a pull request
 

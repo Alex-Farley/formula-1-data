@@ -13,7 +13,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { span, text } from '../lib/format.js'
-import { NOT_YET_RUN } from '../lib/site.js'
+import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 import { carName } from './race.js'
 import { raceName, raceWinner } from './races.js'
 
@@ -112,7 +112,7 @@ export const CIRCUIT_COLUMNS = [
   { key: 'circuit', rowHeader: true, label: 'Circuit' },
   { key: 'country', label: 'Country' },
   { key: 'races', label: 'Races', align: 'num' },
-  { key: 'first_year', label: 'Span', align: 'num', text: circuitYears },
+  { key: 'first_year', label: LABELS.seasons, align: 'num', text: circuitYears },
 ]
 
 export const EDITION_COLUMNS = [
@@ -120,7 +120,7 @@ export const EDITION_COLUMNS = [
   { key: 'name_used', rowHeader: true, label: 'Run as', text: raceName },
   { key: 'circuit', label: 'Circuit' },
   { key: 'winner', label: 'Winner', text: raceWinner },
-  { key: 'constructor', label: 'Car', text: editionCar },
+  { key: 'constructor', label: 'Constructor', text: editionCar },
 ]
 
 export const WINNER_COLUMNS = [
@@ -129,3 +129,15 @@ export const WINNER_COLUMNS = [
   { key: 'first_win', label: 'Span', align: 'num', text: (_, row) => span(row.first_win, row.last_win) },
 ]
 
+/**
+ * The Grand Prix's tile strip, as data (VD-71, after VD-49): read by
+ * pages/GrandPrix.jsx and drawn by scripts/prerender.js's tiles(), where the
+ * static page used to write the four tiles out again. lib/tiles.js says what
+ * each field means.
+ */
+export const grandPrixStrip = (gp) => [
+  { label: 'Times held', value: gp.held },
+  { label: LABELS.seasons, value: span(gp.first_held, gp.last_held) },
+  { label: 'Circuits', value: gp.circuits },
+  gp.scheduled ? { label: 'Still to come', value: gp.scheduled } : null,
+]

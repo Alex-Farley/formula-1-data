@@ -147,6 +147,24 @@ class PackThenApply(unittest.TestCase):
             self.assertEqual([x for x in f.read().splitlines() if not x.startswith("#")],
                              ["web/src/lib/refresh.js"])
 
+    def test_a_run_that_changed_nothing_crosses_as_nothing(self):
+        # CR-78. Every quiet run after the day's first: the heartbeat is
+        # already on main, so git status is empty. The pack is still made,
+        # since upload-artifact refuses an empty directory, and lands as
+        # nothing on a clean checkout.
+        self.assertFalse(os.path.exists(self.pack))
+        tree.pack(self.pack, self.repo)
+        self.assertEqual(os.listdir(self.pack), [tree.LIST])
+        with open(os.path.join(self.pack, tree.LIST)) as f:
+            self.assertEqual([x for x in f.read().splitlines() if not x.startswith("#")], [])
+        before = {p: real(p) if p in DATED else b"before\n"
+                  for p in ("build.py", "web/src/lib/refresh.js", "harvest/races.txt", "f1.db")}
+        tree.apply(self.pack, self.clean)
+        for path, data in before.items():
+            with open(os.path.join(self.clean, path), "rb") as f:
+                self.assertEqual(f.read(), data, path)
+        self.assertEqual(sorted(os.listdir(self.clean)), ["build.py", "f1.db", "harvest", "web"])
+
     def test_pack_refuses_a_path_a_refresh_does_not_write(self):
         self.write("web/package.json", b"{}\n")
         with self.assertRaises(SystemExit):

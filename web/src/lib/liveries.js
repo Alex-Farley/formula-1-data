@@ -1438,13 +1438,12 @@ export function nationalEntry(country) {
 export function colourSource(colours) {
   const livery = colours.some((c) => c?.kind === 'livery')
   const national = colours.some((c) => c?.kind === 'national')
-  if (livery && national) {
-    return "a livery of the team's own from 2010, and before 1968 the international racing colour of the country that entered the car rather than one of the team's"
-  }
-  if (national) {
-    return "the international racing colour of the country that entered the car, the convention that painted it for its country and not a livery of the team's own"
-  }
-  return "the team's own livery"
+  // Short, because it is a clause in a figure's note, which the figure
+  // grammar holds to 50 words (VD-80); the national colour is still named as
+  // the entrant's country's and still disclaimed as the team's.
+  if (livery && national) return 'the team’s livery from 2010; before 1968 the entrant’s national racing colour, not the team’s'
+  if (national) return 'the entrant’s national racing colour, not the team’s'
+  return 'the team’s own livery'
 }
 
 /** The clause that says whose word the primary's name is: the team's, or this file's reading of its sources. */
@@ -1477,3 +1476,58 @@ export const winnerColour = (round, year) =>
         team: round.winning_team,
       })
     : null
+
+/**
+ * The words of a page's livery band (components/LiveryScheme.jsx), which
+ * scripts/prerender.js draws too (VD-79): the primary's name, the sourced
+ * accents named beside it, and the sentence that names an accent this site
+ * chose. LiveryScheme says whose word each name is; this keeps the split in
+ * one place, so the two renderers cannot name a colour differently.
+ */
+export function bandWords(colour) {
+  if (!colour) return null
+  const { sourced, chosen } = accentsBySource(colour.scheme)
+  const them = chosen.length === 1 ? 'it' : 'them'
+  return {
+    name: colour.name,
+    sourced: sourced.length ? sourced.map((c) => c.name).join(' · ') : null,
+    chosen: chosen.length
+      ? ` The mark also carries ${colourList(chosen)}, which no page cited here states: this site` +
+        ` added ${them} because the car is recognised by ${them}, not because a source names` +
+        ' the colour.'
+      : '',
+  }
+}
+
+/** "red", or "red and silver", or "red, silver and white". */
+function colourList(colours) {
+  const all = colours.map((c) => c.name.toLowerCase())
+  if (all.length === 1) return all[0]
+  return `${all.slice(0, -1).join(', ')} and ${all[all.length - 1]}`
+}
+
+/**
+ * A driver's band sentence: whose colour the stripe is (VD-79, from
+ * Driver.jsx, so the static page says the same). `lastTeam` is the newest
+ * race entry with a constructor, `colour` the colourForEntry() it gave.
+ */
+export function driverBandNote(lastTeam, colour) {
+  if (!colour) return null
+  return colour.kind === 'livery'
+    ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, ${colour.claim} - the last team on this record.`
+    : `${canonicalCountry(lastTeam?.constructor_country)}'s international racing colour, under the convention that painted a car for the country that entered it, as it stood when ${lastTeam?.constructor} raced in ${lastTeam?.year}. Not the team's own livery.`
+}
+
+/**
+ * A constructor's band sentence (VD-79, from Constructor.jsx). `livery` is
+ * the liveryFor() entry of the last season it raced, or null where the band
+ * shows the national convention instead.
+ */
+export function constructorBandNote(team, lastSeason, livery, colour) {
+  if (!colour) return null
+  return livery
+    ? `The colour ${team.name} raced in ${lastSeason.year}, ${colour.claim}. Read from ${[
+        ...new Set(livery.source.map(sourceHost)),
+      ].join(' and ')}; the shades here are this site's rendering of them, not a measurement.`
+    : `${team.country}'s international racing colour, under the convention that painted a car for the country that entered it until sponsor liveries took over around 1968. Not this team's own livery.`
+}

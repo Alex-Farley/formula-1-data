@@ -28,8 +28,8 @@ import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
-import { DOCUMENTS, IN_THIS_TAB } from '../src/lib/site.js'
-import { FOLD_TO } from '../src/lib/table.js'
+import { DOCUMENTS, IN_THIS_TAB, LABELS, REPLACED } from '../src/lib/site.js'
+import { FOLD_NOUN, FOLD_TO, UNFOLDED } from '../src/lib/table.js'
 import { measurement } from '../scripts/measurement.js'
 import {
   ACCENT_APART,
@@ -666,8 +666,17 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
         failing.push(`${where}: the tooltip says whose name it is wrongly`)
     }
     assert.deepEqual(failing, [])
-    for (const page of ['Constructor.jsx', 'Driver.jsx'])
-      assert.match(read(join(web, 'src', 'pages', page)), /raced in \$?\{/, `${page}: the band no longer says what the car raced in`)
+    // The band sentences are driverBandNote() and constructorBandNote() in
+    // liveries.js since VD-79, which the two pages and the static page read.
+    const liveries = read(join(web, 'src', 'lib', 'liveries.js'))
+    for (const [note, page] of [
+      ['constructorBandNote', 'Constructor.jsx'],
+      ['driverBandNote', 'Driver.jsx'],
+    ]) {
+      const from = liveries.slice(liveries.indexOf(`export function ${note}`))
+      assert.match(from.slice(0, from.indexOf('\n}\n')), /raced in \$\{/, `${note}: the band no longer says what the car raced in`)
+      assert.match(read(join(web, 'src', 'pages', page)), new RegExp(`\\b${note}\\(`), `${page}: the band no longer reads ${note}()`)
+    }
   })
 
   it('a band draws every colour of its scheme, primary first, and a scheme of one draws no gradient (AF-17)', () => {
@@ -769,12 +778,18 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     // draft printed a colour this project chose under a sentence saying the
     // sources describe it. The bypass is slicing the scheme directly, so this
     // refuses that outside liveries.js itself.
-    const band = read(join(web, 'src', 'components', 'LiveryScheme.jsx'))
-    assert.ok(/accentsBySource/.test(band), 'LiveryScheme no longer reads accentsBySource')
-    assert.ok(
-      /no page cited here states/.test(band),
-      'LiveryScheme names a colour this site chose without the clause saying so',
-    )
+    //
+    // The band's words are bandWords() in liveries.js since VD-79, so that
+    // the static page draws the same band: that function reads the split and
+    // carries the clause, and the two renderers draw the band from it.
+    const liveries = read(join(web, 'src', 'lib', 'liveries.js'))
+    const words = liveries.slice(liveries.indexOf('export function bandWords'))
+    const body = words.slice(0, words.indexOf('\n}\n'))
+    assert.ok(/accentsBySource/.test(body), 'bandWords() no longer reads accentsBySource')
+    assert.ok(/no page cited here states/.test(body), 'bandWords() names a colour this site chose without the clause saying so')
+    for (const surface of [join(web, 'src', 'components', 'LiveryScheme.jsx'), join(web, 'scripts', 'prerender.js')]) {
+      assert.ok(/\bbandWords\(/.test(read(surface)), `${rel(surface)} draws the livery band without bandWords()`)
+    }
     // Both ways round: slicing the scheme, and liveryAccents(), which returns
     // the same list unsplit. It is the right export for a test reading the
     // raw data - test/units.mjs does - and the wrong one for a surface that
@@ -1014,6 +1029,47 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
       assert.deepEqual(failing, [])
     })
   }
+
+  it('the ring round a title is drawn at full strength, in colours that clear 3:1 (AX-23)', () => {
+    // The halo takes the dot's own colour - a series slot, or a livery pair
+    // the livery checks above hold to 3:1 on the panel - so the pair's ratio
+    // is the ring's only while nothing thins it. At opacity 0.5 it was
+    // 2.33:1 in light and 2.69:1 in dark. The hollow ring is --ink-soft,
+    // measured here because nothing else measures it as a mark.
+    const rule = (selector) => {
+      const at = app.indexOf(`\n${selector} {`)
+      assert.ok(at >= 0, `app.css has no ${selector} rule`)
+      return app.slice(at, app.indexOf('}', at))
+    }
+    for (const selector of ['.figure .mark-halo', '.figure .mark-halo-hollow']) {
+      const body = rule(selector)
+      assert.ok(!/opacity\s*:/.test(body), `${selector} sets an opacity, which takes its colour under the 3:1 it is held to: ${body.trim()}`)
+      assert.ok(!/stroke-opacity\s*:/.test(body), `${selector} sets a stroke-opacity: ${body.trim()}`)
+      const width = /stroke-width\s*:\s*([\d.]+)/.exec(body)
+      if (width) assert.ok(Number(width[1]) >= 2, `${selector} draws a ${width[1]} px ring: under 2 px it is antialiased into the panel, below its colour's ratio (DP-33)`)
+    }
+    // DP-33: a 1 px hairline on a radius that falls between pixels is drawn
+    // as two half-covered pixels, each a blend of the colour and the panel,
+    // so the pair's 3:1 above is not what reaches the screen. The hollow
+    // ring inherits this width, and DotPlot.jsx sets none of its own.
+    const halo = /stroke-width\s*:\s*([\d.]+)/.exec(rule('.figure .mark-halo'))
+    assert.ok(halo && Number(halo[1]) >= 2, `.figure .mark-halo is ${halo?.[1] ?? 'unset'} px wide; a title ring is at least 2 px (DP-33)`)
+    // Each <circle ... /> in DotPlot.jsx, whole, so a strokeWidth written
+    // before the className is caught as well as one after it.
+    const circles = read(join(web, 'src', 'charts', 'DotPlot.jsx')).match(/<circle\b[\s\S]*?\/>/g) ?? []
+    assert.ok(circles.some((c) => c.includes('mark-halo')), 'DotPlot.jsx draws no mark-halo circle')
+    assert.ok(
+      circles.filter((c) => c.includes('mark-halo')).every((c) => !/strokeWidth/.test(c)),
+      'DotPlot.jsx sets the ring\'s width inline, where this test cannot see it',
+    )
+    assert.match(rule('.figure .mark-halo-hollow'), /stroke:\s*var\(--ink-soft\)/)
+    for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
+      const t = tokens(block)
+      assert.ok(t['ink-soft'], `${label} block has no six-digit --ink-soft`)
+      const ratio = contrast(t['ink-soft'], t.panel)
+      assert.ok(ratio >= 3, `${label}: the hollow ring's --ink-soft ${t['ink-soft']} on --panel is ${ratio.toFixed(2)}:1`)
+    }
+  })
 })
 
 describe('the button carries a foreground that clears 4.5:1 on its own fill (AX-06)', () => {
@@ -1629,6 +1685,8 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
   const RELATIVE = /^-?[0-9.]+em$/
   const VIEWPORT = /^[0-9.]+(vh|vw)$/
   const SPACE_LITERAL = new Set(['0', 'auto', '1px', '-1px'])
+  // The grid's gutter is a step under the name of its role (tokens.css).
+  const GUTTER = 'var(--gutter)'
 
   it('every font-size, font and font-weight in app.css is a step, or relative', () => {
     const off = declarations(/^font(-size|-weight)?$/)
@@ -1646,7 +1704,7 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     for (const { prop, value } of declarations(/^(padding|margin)(-[a-z-]+)?$|^(row-|column-)?gap$/)) {
       const parts = value.match(/calc\(-1 \* var\(--space-\d+\)\)|var\(--space-\d+\)|\S+/g)
       for (const part of parts) {
-        if (/^(calc\(-1 \* )?var\(--space-\d+\)\)?$/.test(part) || SPACE_LITERAL.has(part) || RELATIVE.test(part) || VIEWPORT.test(part)) continue
+        if (/^(calc\(-1 \* )?var\(--space-\d+\)\)?$/.test(part) || part === GUTTER || SPACE_LITERAL.has(part) || RELATIVE.test(part) || VIEWPORT.test(part)) continue
         off.push(`${prop}: ${value}`)
         break
       }
@@ -1677,6 +1735,260 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
         assert.ok(ratio >= floor, `--${steps[i]} is ${ratio.toFixed(3)}x --${steps[i - 1]}, under ${floor}`)
       }
     }
+  })
+})
+
+describe('the design system holds its grid: widths, breakpoints and tokens (VD-78, DP-08)', () => {
+  // Thirteen layout changes on 5 and 6 October each fixed one page well and
+  // together left five two-column systems, seven text widths and seven
+  // breakpoints, because nothing written down said a width was wrong. The
+  // grid in tokens.css is that statement (docs/design-system.md section 2);
+  // these are the parts of it a pattern can hold. smoke.mjs measures the
+  // rest, the edges on a rendered page. A deviation is declared here, by
+  // name, with its reason and the issue that removes it.
+  const tokens = read(join(web, 'src', 'styles', 'tokens.css'))
+  const appRaw = read(join(web, 'src', 'styles', 'app.css'))
+  // Comments blanked rather than removed, so an index still finds its line.
+  const blank = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '))
+  const app = blank(appRaw)
+  const lineOf = (text, index) => text.slice(0, index).split('\n').length
+  const breakpoints = new Map([...tokens.matchAll(/--(bp-[a-z]+):\s*(\d+)px;/g)].map((m) => [Number(m[2]), m[1]]))
+
+  it('tokens.css names the grid: columns, gutter, spans, measures and breakpoints', () => {
+    for (const name of ['--columns', '--gutter', '--col', '--measure', '--measure-small', '--bp-tablet', '--bp-desktop']) {
+      assert.match(tokens, new RegExp(`${name}:`), `${name} is defined`)
+    }
+    assert.deepEqual([...breakpoints.keys()].sort((a, b) => a - b), [768, 1180], 'the two breakpoints the bands turn on')
+    assert.match(appRaw, /^main \{[^}]*container-type: inline-size;/m, 'main is the container a span counts its columns off')
+  })
+
+  // The width equivalent of VD-03's scale test. A layout width is a span of
+  // the grid, a measure, the page or the full width; anything else - a
+  // control, a swatch, a cell's measure inside its table, an overlay - says
+  // what it is in a comment on its own line, where a reviewer reads it.
+  it('every width, min-width, max-width and grid-template-columns in app.css is on the grid, or says why', () => {
+    // A value on the grid is made of nothing but these parts: a span, a
+    // measure, the page, or a track that takes what the spans leave.
+    const PARTS = /var\(--(span-\d+|measure(-small)?|page)\)|minmax\(0, 1fr\)/g
+    const FULL = new Set(['100%', 'auto', 'none', 'max-content', 'min-content', 'fit-content', '0', '1px'])
+    // Two halves a gutter apart are two spans at any even column count.
+    const HALVES = 'repeat(2, minmax(0, 1fr))'
+    const off = []
+    for (const m of app.matchAll(/(?<=[{;\s])(width|min-width|max-width|grid-template-columns)\s*:\s*([^;{}]+?)\s*;/g)) {
+      const value = m[2]
+      if (FULL.has(value) || value === HALVES || value.replace(PARTS, '').trim() === '') continue
+      const at = lineOf(app, m.index)
+      const source = appRaw.split('\n')[at - 1]
+      const end = source.indexOf(';', source.indexOf(m[1]))
+      // A reason is a sentence, not a ditto: three words at least.
+      const reason = end >= 0 ? /\/\*([\s\S]*)\*\//.exec(source.slice(end))?.[1].trim() : null
+      if (reason && reason.split(/\s+/).length >= 3) continue
+      off.push(`app.css:${at} ${m[1]}: ${value}`)
+    }
+    assert.deepEqual(off, [], `a width off the grid, with no reason beside it:\n  ${off.join('\n  ')}\nUse a --span-* or --measure* token, or say on the line what the width is for.`)
+  })
+
+  // A custom property cannot stand in a media query, so the breakpoints are
+  // literals in app.css and this is what keeps them two. The range form only:
+  // `width < 768px` and `width >= 768px` meet without the 767.98 a
+  // max-width/min-width pair needs, and cannot overlap by a pixel.
+  it('every breakpoint in app.css and lib/table.js is one of the tokens', async () => {
+    const off = []
+    const used = new Set()
+    for (const m of app.matchAll(/@media\s+([^{]+)\{/g)) {
+      const query = m[1].trim()
+      if (!/width/.test(query)) continue
+      if (/(min|max)-width/.test(query)) off.push(`app.css:${lineOf(app, m.index)} ${query} (write it as a range: width < N or width >= N)`)
+      for (const px of query.matchAll(/(\d+(?:\.\d+)?)px/g)) {
+        if (breakpoints.has(Number(px[1]))) used.add(Number(px[1]))
+        else off.push(`app.css:${lineOf(app, m.index)} ${query}`)
+      }
+    }
+    const { PHONE } = await import('../src/lib/table.js')
+    for (const px of PHONE.matchAll(/(\d+)px/g)) if (!breakpoints.has(Number(px[1]))) off.push(`lib/table.js PHONE ${PHONE}`)
+    assert.deepEqual(off, [], `a breakpoint that is not --bp-tablet or --bp-desktop:\n  ${off.join('\n  ')}`)
+    assert.deepEqual([...used].sort((a, b) => a - b), [...breakpoints.keys()].sort((a, b) => a - b), 'every breakpoint token is a query app.css turns on')
+  })
+
+  // VD-60 (#615): fifteen inline style literals sat outside the scales,
+  // where the stylesheet tests could not see them, and an inline style also
+  // outranks every rule, so a page's gap could not be changed from app.css.
+  // A computed value - a width from the data, a colour from a livery - is
+  // not a literal and stays inline.
+  it('no style={{ }} in the pages, components or charts writes a size as a literal (VD-60)', () => {
+    const SIZED = /^(margin|padding|gap|rowGap|columnGap|width|height|minWidth|maxWidth|minHeight|maxHeight|fontSize|fontWeight|lineHeight|letterSpacing|borderRadius|top|right|bottom|left|inset)/
+    const literal = /^(-?\d+(\.\d+)?|'[^']*\d[^']*'|"[^"]*\d[^"]*"|`[^`$]*\d[^`$]*`)$/
+    const top = readdirSync(join(web, 'src')).filter((f) => f.endsWith('.jsx')).map((f) => join(web, 'src', f))
+    const files = [...top, ...['pages', 'components', 'charts'].flatMap((dir) => sourceFiles(join(web, 'src', dir), /\.jsx$/))]
+    const off = []
+    for (const file of files) {
+      const source = read(file)
+      for (const m of source.matchAll(/style=\{\{([\s\S]*?)\}\}/g)) {
+        for (const entry of m[1].split(',')) {
+          const pair = /^\s*([A-Za-z]+)\s*:\s*([\s\S]+?)\s*$/.exec(entry)
+          if (pair && SIZED.test(pair[1]) && literal.test(pair[2])) off.push(`${rel(file)}:${lineOf(source, m.index)} ${pair[1]}: ${pair[2]}`)
+        }
+      }
+    }
+    assert.deepEqual(off, [], `an inline size the scales cannot see:\n  ${off.join('\n  ')}\nGive it a class in app.css, on a --space-* or --size-* step.`)
+  })
+
+  // Holding a token the stylesheet never uses is the one choice the design
+  // system rules out (section 2): it is a claim the page does not make. The
+  // breakpoints are held by the test above, and a racing colour is named by
+  // lib/racingColours.js rather than written out.
+  // Empty since VD-84 (#871) set the one hero figure in the middle register,
+  // --size-9/10/11, the last tokens declared here.
+  const UNUSED = {}
+  it('every token tokens.css defines is used somewhere, or is declared here', () => {
+    const files = [...sourceFiles(join(web, 'src')), ...sourceFiles(join(web, 'scripts'))]
+    const corpus = files.map(read).join('\n')
+    const named = new Set(Object.values(COLOURS).map((c) => c.token))
+    const defined = [...new Set([...tokens.matchAll(/^\s*--([a-z0-9-]+):/gm)].map((m) => m[1]))]
+    const unused = defined.filter(
+      (name) => !name.startsWith('bp-') && !named.has(name) && !corpus.includes(`var(--${name})`) && !corpus.includes(`var(--${name},`),
+    )
+    assert.deepEqual(unused.filter((name) => !(name in UNUSED)), [], 'defined in tokens.css and used nowhere')
+    const stale = Object.keys(UNUSED).filter((name) => !unused.includes(name))
+    assert.deepEqual(stale, [], 'declared unused, and now used: take it out of UNUSED')
+  })
+
+  // 2.4.7. A rule that unsets a control's outline - `all: unset` takes it
+  // with everything else, and outranks the global :focus-visible ring by
+  // specificity - must draw a ring of its own, or a keyboard reader loses
+  // their place on every element it matches. axe cannot see this; the sort
+  // buttons went without a ring from 5 September to the design pass.
+  const NO_RING = {
+    '.page h1:focus': 'not a control: the h1 takes focus on navigation so a screen reader announces the page',
+    '.app > main:focus': 'not a control: main takes focus from the skip link, for the same reason',
+    '.palette input:focus': "the search palette's one field, which holds focus from the moment the dialog opens; its caret is the cue",
+  }
+  it('every rule that unsets an outline has a :focus-visible ring beside it, or is declared here', () => {
+    const rules = [...app.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selectors: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), body: m[2] }))
+    const ringed = new Set(rules.flatMap((r) => r.selectors).filter((s) => s.endsWith(':focus-visible')).map((s) => s.slice(0, -':focus-visible'.length)))
+    const off = []
+    for (const rule of rules) {
+      if (!/\ball:\s*unset\b|\boutline:\s*(none|0)\b/.test(rule.body)) continue
+      for (const selector of rule.selectors) {
+        if (selector.endsWith(':focus-visible') || ringed.has(selector) || selector in NO_RING) continue
+        off.push(selector)
+      }
+    }
+    assert.deepEqual(off, [], `unsets the focus ring and draws none of its own:\n  ${off.join('\n  ')}\nAdd \`<selector>:focus-visible { outline: ... }\`.`)
+    const stale = Object.keys(NO_RING).filter((s) => ringed.has(s))
+    assert.deepEqual(stale, [], 'declared ringless, and now ringed: take it out of NO_RING')
+  })
+})
+
+describe('one figure grammar: the heading names the figure, and the note goes under it in 50 words (VD-80, DP-04)', () => {
+  // docs/design-system.md section 8, test 6. Every figure had an h2 and a
+  // bold title of its own, and two caption orders: the note under the plot on
+  // the three lead figures VD-67 reached, above it everywhere else, at up to
+  // 126 words. smoke.mjs holds the rendered figures on its routes; this holds
+  // the source, so a page cannot bring a second title back between visits,
+  // and holds every note builder to the 50 words at its longest.
+  const figureSource = read(join(web, 'src', 'charts', 'Figure.jsx'))
+  const prerender = read(join(web, 'scripts', 'prerender.js'))
+  const lineOf = (text, index) => text.slice(0, index).split('\n').length
+
+  // The props of each <Figure ...> element: from the tag to the > that closes
+  // it at brace depth zero, so an arrow function's => inside a prop is not
+  // taken for the end of the tag.
+  const figureTags = (source) => {
+    const tags = []
+    for (const m of source.matchAll(/<Figure\b/g)) {
+      let depth = 0
+      let at = m.index + m[0].length
+      for (; at < source.length; at += 1) {
+        const c = source[at]
+        if (c === '{') depth += 1
+        else if (c === '}') depth -= 1
+        else if (c === '>' && depth === 0 && source[at - 1] !== '=') break
+      }
+      tags.push({ index: m.index, props: source.slice(m.index, at) })
+    }
+    return tags
+  }
+
+  it('no page passes a figure a title, and Figure takes none', () => {
+    const files = ['pages', 'components', 'charts'].flatMap((dir) => sourceFiles(join(web, 'src', dir), /\.jsx$/))
+    const off = []
+    let figures = 0
+    for (const file of files) {
+      const source = read(file)
+      for (const { index, props } of figureTags(source)) {
+        figures += 1
+        if (/\stitle=/.test(props)) off.push(`${rel(file)}:${lineOf(source, index)}`)
+      }
+    }
+    assert.ok(figures >= 14, `found ${figures} <Figure> elements; the scan has stopped finding them`)
+    assert.deepEqual(off, [], `a figure with a second title; the heading above it is its name:\n  ${off.join('\n  ')}`)
+    assert.doesNotMatch(/export default function Figure\(\{([^}]*)\}/.exec(figureSource)?.[1] ?? '', /\btitle\b/, 'Figure takes a title prop')
+    assert.doesNotMatch(figureSource, /<figcaption/, 'Figure renders a figcaption, which is a second name')
+  })
+
+  it('Figure takes its note as a prop and renders it under the plot, named as the description', () => {
+    assert.match(/export default function Figure\(\{([^}]*)\}/.exec(figureSource)?.[1] ?? '', /\bnote\b/)
+    const body = figureSource.indexOf('className="figure-body"')
+    const noteAt = figureSource.indexOf('className="figure-note"')
+    assert.ok(body > 0 && noteAt > body, 'the note is rendered after the plot')
+    assert.match(figureSource, /aria-describedby=\{note \? noteId : undefined\}/)
+    assert.match(figureSource, /aria-label=\{name \?\? undefined\}/, 'the figure is named from its heading')
+  })
+
+  it('the static half frames every figure the same way', () => {
+    assert.doesNotMatch(prerender, /<figure class="figure"[^>]*>\s*<figcaption/, 'a static figure with a caption title')
+    const helper = /const figure = \(([^)]*)\) =>\n([\s\S]*?)\n\n/.exec(prerender)
+    assert.ok(helper, 'prerender.js has no figure() helper')
+    assert.ok(helper[2].indexOf('figure-body') < helper[2].indexOf('figure-note'), "the static note follows the drawing, as the app's does")
+    // Every static chart figure goes through the helper.
+    assert.equal((prerender.match(/<figure class="figure"/g) ?? []).length, 1, 'a static figure written out by hand rather than through figure()')
+  })
+
+  it('every note builder is 50 words at its longest', async () => {
+    const { gridFlagNote, stintsNote } = await import('../src/queries/race.js')
+    const { finishesFigureNote, thisSeasonFigureNote } = await import('../src/queries/driver.js')
+    const records = await import('../src/queries/records.js')
+    const { progressionNote } = await import('../src/queries/season.js')
+    const { chartNote } = await import('../src/queries/home.js')
+    const { CHASSIS_NOTE } = await import('../src/queries/quality.js')
+    const { colourSource } = await import('../src/lib/liveries.js')
+    const livery = colourSource([{ kind: 'livery' }])
+    const national = colourSource([{ kind: 'national' }])
+    const both = colourSource([{ kind: 'livery' }, { kind: 'national' }])
+    const many = records.LEADERS_DRAWN + 10
+    const notes = {
+      // Every conditional sentence at once: a car out and a shared drive.
+      'grid to flag': gridFlagNote([{ out: true, entry: { shared_drive: 1 } }]),
+      // A gap in the record, a car out, and stops on the lap a car went out.
+      stints: stintsNote([{ stops: [], out: true }], [{}, {}]),
+      // A career can cross from national colours into the gap; no career
+      // spans 1967 and 2010, but the note is held to it anyway.
+      'championship, both kinds and a hollow dot': finishesFigureNote(both, true),
+      'championship, national and a hollow dot': finishesFigureNote(national, true),
+      'championship, no colour': finishesFigureNote(null, false),
+      // A season is one year: liveries or national colours, never both.
+      'season so far, liveries': thisSeasonFigureNote(true, livery, true),
+      'season so far, national colours': thisSeasonFigureNote(true, national, true),
+      'season so far, no colour': thisSeasonFigureNote(true, null, false),
+      'constructors, every kind and a hollow bar': records.constructorWinsNote(both, true),
+      'title race, dropped scores': progressionNote(false, 'Best 5 results'),
+      'races per season, two calendars': chartNote([
+        { year: 1950, rounds: 7, run: true },
+        { year: 2026, rounds: 24, run: true },
+        { year: 2027, rounds: 24, run: false },
+        { year: 2028, rounds: 24, run: false },
+      ]),
+      'chassis named': CHASSIS_NOTE,
+    }
+    for (const spec of [records.DRIVER_WINS_FIGURE, records.DRIVER_POLES_FIGURE, records.CONSTRUCTOR_WINS_FIGURE]) {
+      notes[`${spec.title}, static`] = `${spec.note} ${records.leadersDrawnLine(many)}`
+    }
+    const words = (text) => text.trim().split(/\s+/).length
+    const long = Object.entries(notes)
+      .filter(([, text]) => words(text) > 50)
+      .map(([name, text]) => `${name}: ${words(text)} words: ${text}`)
+    assert.deepEqual(long, [], `a figure note over 50 words; cut it to what stops a misreading:\n  ${long.join('\n  ')}`)
   })
 })
 
@@ -1722,5 +2034,165 @@ describe('an exhaustive list folds at the number lib/table.js names (VD-69)', ()
     const app = read(join(web, 'src', 'styles', 'app.css'))
     const rules = [...app.matchAll(/\.table-wrap\.is-folded[^{]*nth-child\(n \+ (\d+)\)/g)].map((m) => Number(m[1]))
     assert.deepEqual(rules, [FOLD_TO + 1])
+  })
+
+  // "Show all 74" under a heading counting 46 could not be squared (CD-52).
+  // Every fold, in the app's pages and in the static half, names its rows
+  // from the one map, so the two halves print the same words.
+  it('every fold names its rows from FOLD_NOUN, in both halves (CD-52)', () => {
+    const files = [...sourceFiles(join(web, 'src', 'pages'), /\.jsx$/), join(web, 'scripts', 'prerender.js')]
+    const unnamed = []
+    let named = 0
+    for (const file of files) {
+      const source = read(file)
+      const line = (index) => source.slice(0, index).split('\n').length
+      // A JSX `fold` prop, bare or given anything else, and an options `fold:`.
+      for (const match of source.matchAll(/^\s+fold(=\{[^}\n]*\})?\s*$|[{,]\s*fold:\s*([^,}\s]+)/gm)) {
+        const value = match[1]?.slice(2, -1) ?? match[2] ?? 'true'
+        const key = /^FOLD_NOUN\.(\w+)$/.exec(value)?.[1]
+        if (key && key in FOLD_NOUN) named += 1
+        else unnamed.push(`${rel(file)}:${line(match.index)} fold ${value}`)
+      }
+    }
+    assert.deepEqual(unnamed, [], 'a fold whose button counts rows without saying what they are')
+    assert.ok(named >= 20, `the scan found the folds it is guarding, ${named} of them`)
+  })
+
+  // VD-82, DP-06: the fold is the one reveal control, on any table over
+  // FOLD_OVER rows, and a table that does not fold says why from one list.
+  // Which tables are over the threshold is the data's to say, so that half
+  // is held where the rows are: prerender.js refuses an unclassified one on
+  // every route it writes, and DataTable logs the error smoke.mjs fails on.
+  // This holds the words: every reason given is one UNFOLDED names, in both
+  // halves, and every reason UNFOLDED names is given somewhere.
+  it('every table that does not fold gives an UNFOLDED reason, in both halves (VD-82)', () => {
+    const files = [
+      ...sourceFiles(join(web, 'src', 'pages'), /\.jsx$/),
+      join(web, 'src', 'charts', 'Figure.jsx'),
+      join(web, 'scripts', 'prerender.js'),
+    ]
+    const wrong = []
+    const given = new Set()
+    for (const file of files) {
+      const source = read(file)
+      const line = (index) => source.slice(0, index).split('\n').length
+      for (const match of source.matchAll(/\bunfolded(?:=\{([^}\n]*)\}|:\s*([^,}\s]+))/g)) {
+        const value = match[1] ?? match[2]
+        const key = /^UNFOLDED\.(\w+)$/.exec(value)?.[1]
+        if (key && key in UNFOLDED) given.add(key)
+        else wrong.push(`${rel(file)}:${line(match.index)} unfolded ${value}`)
+      }
+    }
+    assert.deepEqual(wrong, [], 'a reason not to fold that is not one of UNFOLDED in lib/table.js')
+    // `register` is also DataTable's own default for an addressed table.
+    const unused = Object.keys(UNFOLDED).filter((key) => !given.has(key))
+    assert.deepEqual(unused, [], 'an UNFOLDED reason no table gives: take it out')
+  })
+})
+
+describe('one vocabulary: tile labels and provenance headings come from one list (VD-81, DP-05)', () => {
+  // docs/design-system.md section 8, test 7. REPLACED in lib/site.js holds
+  // the words LABELS replaced, each with the word that replaced it: a year
+  // span was five labels, an entry three, the provenance section three names
+  // (CD-12). A synonym fails wherever a strip or a provenance heading writes
+  // it, so a sixth word cannot creep back in one page at a time; smoke.mjs
+  // holds the drawn pages to the same list.
+  const SYNONYMS = REPLACED
+  const WORDS = new Set(Object.values(LABELS))
+  const queries = sourceFiles(join(web, 'src', 'queries'), /\.js$/)
+
+  // Every tile strip is data in a queries/*.js module (VD-49), an exported
+  // function whose name ends in Strip, or `strip` itself, written as a const
+  // or as a function: its body runs to the next top-level declaration.
+  const strips = queries.flatMap((file) => {
+    const source = read(file)
+    return [...source.matchAll(/^export (?:const (\w*[sS]trip) = |function (\w*[sS]trip)\b)/gm)].map((match) => {
+      const rest = source.slice(match.index + match[0].length)
+      const end = rest.search(/^(export |const |function |\/\*\*)/m)
+      return { file, name: match[1] ?? match[2], body: end === -1 ? rest : rest.slice(0, end) }
+    })
+  })
+
+  it('every tile strip takes its vocabulary from LABELS and writes no synonym', () => {
+    const offenders = []
+    for (const { file, name, body } of strips) {
+      for (const [, , literal] of body.matchAll(/\blabel:\s*(['"`])((?:(?!\1).)*)\1/g)) {
+        if (literal in SYNONYMS) offenders.push(`${rel(file)} ${name}: '${literal}' is '${SYNONYMS[literal]}'`)
+        else if (WORDS.has(literal)) offenders.push(`${rel(file)} ${name}: '${literal}' written out, where LABELS holds it`)
+      }
+    }
+    assert.deepEqual(offenders, [], 'a tile label off the one vocabulary')
+    assert.ok(strips.length >= 13, `the scan found the strips it is guarding, ${strips.length} of them`)
+    assert.ok(
+      strips.some(({ file, name }) => rel(file).endsWith('queries/driver.js') && name === 'strip'),
+      "and the driver's, which is a function",
+    )
+    assert.ok(
+      strips.filter(({ body }) => /\bLABELS\.\w+/.test(body)).length >= 7,
+      'and the entity strips read the list',
+    )
+  })
+
+  // A table's column is held to the list too, so a page and the register or
+  // table one click away do not name one figure two ways: the record tiles
+  // said *Holder* while /records' tables said it too, and both now say *Held
+  // by*; a Grand Prix's tile said *Span* and so did /grands-prix. Declared,
+  // with the reason: the /constructors and /cars register columns, outside
+  // VD-81's step until CD-58 (#893) moves them, and the winners tables'
+  // *Span*, which is the years from a first win to a last, not a span of
+  // seasons raced. A declaration no longer needed fails, so the list cannot
+  // outlive its cause.
+  const WIN_SPAN = 'the years from a first win to a last, not the seasons raced'
+  const DECLARED = {
+    'src/queries/constructors.js': { Entered: '#893', 'Race entries': '#893' },
+    'src/queries/cars.js': { Raced: '#893' },
+    'src/queries/car.js': { Raced: '#893' },
+    'src/queries/circuit.js': { Span: WIN_SPAN },
+    'src/queries/grandprix.js': { Span: WIN_SPAN },
+  }
+  it('no column or tile in queries/*.js writes a word LABELS replaced, but those declared', () => {
+    const offenders = []
+    const used = new Set()
+    for (const file of queries) {
+      const declared = DECLARED[rel(file)] ?? {}
+      for (const [, , literal] of read(file).matchAll(/\blabel:\s*(['"`])((?:(?!\1).)*)\1/g)) {
+        if (!(literal in SYNONYMS)) continue
+        if (literal in declared) used.add(`${rel(file)} ${literal}`)
+        else offenders.push(`${rel(file)}: '${literal}' is '${SYNONYMS[literal]}'`)
+      }
+    }
+    for (const [file, words] of Object.entries(DECLARED)) {
+      for (const word of Object.keys(words)) {
+        if (!used.has(`${file} ${word}`)) offenders.push(`${file}: '${word}' is declared and no longer written - delete it from DECLARED`)
+      }
+    }
+    assert.deepEqual(offenders, [], 'a column or tile off the one vocabulary')
+  })
+
+  it('every provenance heading is LABELS.provenance, in both renderers', () => {
+    const offenders = []
+    const provenance = (heading) =>
+      heading === LABELS.provenance || SYNONYMS[heading] === LABELS.provenance || /\bon the record\b/i.test(heading)
+    for (const file of sourceFiles(join(web, 'src', 'pages'), /\.jsx$/)) {
+      for (const [, heading] of read(file).matchAll(/<Section\b[^>]*\btitle="([^"]+)"/g)) {
+        if (provenance(heading)) offenders.push(`${rel(file)}: <Section title="${heading}">`)
+      }
+    }
+    const prerender = join(web, 'scripts', 'prerender.js')
+    for (const [, heading] of read(prerender).matchAll(/<h2>([^<$]+)<\/h2>/g)) {
+      if (provenance(heading.trim())) offenders.push(`${rel(prerender)}: <h2>${heading}</h2>`)
+    }
+    assert.deepEqual(offenders, [], 'a provenance heading written out rather than read from LABELS')
+    const pages = sourceFiles(join(web, 'src', 'pages'), /\.jsx$/).filter((file) =>
+      /<Section title=\{LABELS\.provenance\}>/.test(read(file)),
+    )
+    assert.ok(pages.length >= 8, `the entity pages read it, ${pages.length} of them`)
+    assert.ok((read(prerender).match(/<h2>\$\{esc\(LABELS\.provenance\)\}<\/h2>/g) ?? []).length >= 9, 'and so does the static half')
+  })
+
+  it('the list holds one word for each concept', () => {
+    const words = Object.values(LABELS)
+    assert.equal(new Set(words).size, words.length, 'two concepts given one word')
+    for (const word of words) assert.ok(!(word in SYNONYMS), `${word} is both a word and a synonym`)
   })
 })

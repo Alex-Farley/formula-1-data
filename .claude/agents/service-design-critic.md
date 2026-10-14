@@ -68,6 +68,16 @@ structure rather than a list, because the findings live between the cells.
 Then walk two or three end-to-end journeys as a specific kind of user, using
 every channel they would really use, including the ones outside the product.
 
+**This project's design system is the baseline.** Read
+`docs/design-system.md` (version A, adopted on #843) before you start, and
+judge the service touchpoints it names (§6) against it first. A page that drifts from a rule the
+document marks **built** is filed against that rule, by name, as its §8
+asks; a rule marked **pending** is a build step still to land, not a
+drift. Where the system itself is wrong for the reader, say so as a
+finding against the system, kept apart from drift. List its
+**provisional** components and say whether each should be promoted,
+merged or dropped.
+
 ## Calibration
 
 - **Do not re-review the interface.** Other critics have it. Your findings should
