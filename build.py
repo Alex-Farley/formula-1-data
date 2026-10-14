@@ -1524,6 +1524,9 @@ def _stage_14_a_regulation_figure_is_not_a(b):
     entrant_names = HV.load_f1db_entrant_names()
     tyre_names = HV.load_f1db_tyre_names()
     for tid, tname in tyre_names.items():
+        if not tname:
+            raise SystemExit(f"f1db_tyre_manufacturers.txt: {tid} has no name. "
+                             f"Rerun tools/f1db_fetch.py.")
         if "+" in tname:
             raise SystemExit(f"f1db_tyre_manufacturers.txt: {tid}'s name "
                              f"{tname!r} holds the '+' that separates "
@@ -1533,7 +1536,7 @@ def _stage_14_a_regulation_figure_is_not_a(b):
         if year not in known_years:
             raise SystemExit(f"entrants.txt: season {year} is not in the "
                              f"season register")
-        if entrant not in entrant_names:
+        if not entrant_names.get(entrant):
             raise SystemExit(f"entrants.txt: entrant {entrant!r} ({year}) has "
                              f"no name in harvest/f1db_entrants.txt. Rerun "
                              f"tools/f1db_fetch.py.")
