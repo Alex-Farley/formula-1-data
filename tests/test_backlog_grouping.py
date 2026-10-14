@@ -361,6 +361,10 @@ class TidyLane(unittest.TestCase):
         self.assertEqual(self.batch(skip={"TL-03"}), ["TL-07", "TL-08", "TL-09", "TL-10"])
         # `next.py --group TL-01 TL-07` names two: three more fit.
         self.assertEqual(self.batch(taken={1, 7}), ["TL-03", "TL-08", "TL-09"])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            next_py.show_tidy(self.head, self.ranked, set(), {1, 7}, ["TL-07"])
+        self.assertIn("next.py TL-01 TL-07 TL-03 TL-08 TL-09\n", out.getvalue())
 
     def test_a_someday_head_draws_from_someday_alone(self):
         self.assertEqual(self.batch(head=self.ranked[-1]), [])

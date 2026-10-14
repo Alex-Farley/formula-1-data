@@ -577,7 +577,9 @@ def tidy_batch(head, ranked, skip, taken):
             and eligible(r, skip) and r["status"] in allowed and size_of(r) == "XS"][:room]
 
 
-def show_tidy(head, ranked, skip, taken):
+def show_tidy(head, ranked, skip, taken, named=()):
+    """`named` is the ids the caller gave after the head, which count
+    against the five and belong in the command printed for the batch."""
     rows = tidy_batch(head, ranked, skip, taken)
     if size_of(head) != "XS":
         return
@@ -589,10 +591,11 @@ def show_tidy(head, ranked, skip, taken):
         title = row["title"][len(row["ident"]) + 2:] if row["title"].startswith(row["ident"] + ": ") else row["title"]
         print(f"  #{row['number']:<4} {row['ident']:<6} {row['status']:<7} {title[:60]}")
     print("\nUnrelated items may ride here, one PR-body section and one Closes line each,"
-          "\nwith one review and every gate unchanged. A linked companion above makes the PR"
-          "\na group instead; the two do not mix. Drop any that has outgrown XS, status back."
-          f"\n  python3 .claude/skills/backlog-loop/next.py {head['ident']} "
-          + " ".join(r["ident"] for r in rows) + "\n")
+          "\nwith one review and every gate unchanged. A linked XS companion above is one of"
+          "\nthem; one larger than XS makes the PR a group instead, and a batch holds XS"
+          "\nitems only. Drop any that has outgrown XS, status back."
+          "\n  python3 .claude/skills/backlog-loop/next.py "
+          + " ".join([head["ident"], *named, *(r["ident"] for r in rows)]) + "\n")
 
 
 def show_companions(head, ranked, skip, taken):
@@ -707,7 +710,7 @@ def main(argv):
     if group:
         taken = {r["number"] for r in heads}
         show_companions(heads[0], ranked, skip, taken)
-        show_tidy(heads[0], ranked, skip, taken)
+        show_tidy(heads[0], ranked, skip, taken, [r["ident"] for r in heads[1:]])
     footers(decisions, in_progress, unplaced)
 
 

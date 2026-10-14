@@ -161,9 +161,11 @@ Add `QUIET=1` to any make target — `make ci QUIET=1` — for failures, warning
 and a count instead of one line per check; the front end's equivalents are
 `npm test -- --quiet` and, for one page's smoke sections, `npm run test:page
 -- /drivers`. Same checks, same exit codes, a fortieth of the output. Before a
-push, the pages a change reaches are enough locally, and the whole suite is
-for a change to `web/scripts/prerender.js`, a shared component or the styles;
-CI's `web` job runs all of it on every push `[D-54]`.
+push, the pages a change reaches are enough locally (`--only` before each
+further route), and the whole suite is for a change to
+`web/scripts/prerender.js`, a shared component or the styles, or anything
+else every page passes through; CI's `web` job runs all of it on every push
+`[D-54]`.
 
 `verify.py` must exit 0. Commit the regenerated `f1.db` and `f1_compat.json` —
 CI fails if the committed export does not match a fresh build. `f1_database.json`

@@ -450,7 +450,8 @@ triggers. The diff has to read as a list of separate small changes, one
 section per item in the PR body. An item that grows past the limit leaves
 the batch, status back. D-20 is not loosened: everything that is not `XS`
 groups only by what it shares with the head, and an `XS` head that carries a
-linked companion is a group under D-20, not a batch.
+linked companion larger than `XS` is a group under D-20, not a batch, since a
+batch holds `XS` items only.
 
 Decided at the same time: before a push, the local web tests are the smoke
 sections of the pages a change reaches (`npm run test:page`), with the unit

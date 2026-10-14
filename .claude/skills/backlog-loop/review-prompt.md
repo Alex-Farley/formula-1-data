@@ -17,7 +17,9 @@ or to `frontend-reviewer-quick` where the pace table in
     installed; web/dist built from this head). Compare with
     `git diff origin/main...HEAD`. Read CLAUDE.md and
     `.claude/agents/<reviewer>.md`, including its "Already enforced" list —
-    those items are tests that passed on this head; do not re-check them.
+    those items are tests, the unit and convention ones passed on this head
+    and the smoke ones pass in CI's `web` job before any merge; do not
+    re-check them.
     Do NOT run `npm test` (the smoke port is shared; units and conventions
     passed on this head, and the smoke sections of <the routes tested
     locally, or "the whole suite">; CI's `web` job runs the whole suite on

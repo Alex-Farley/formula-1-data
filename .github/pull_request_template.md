@@ -7,5 +7,7 @@ Closes #
 
 <!-- Before asking for review: make all, make lint (a separate CI job from
      make ci, which is ci.yml's Python job only), cd web && npm run build &&
-     npm test -- --quiet, make ci, then
+     npm run test:units && npm run test:page -- <route> for the pages the
+     change reaches (the whole npm test -- --quiet for prerender.js, a shared
+     component or the styles; D-54), make ci, then
      bash .claude/skills/backlog-loop/precheck.sh <ID> [<ID>...]. -->
