@@ -152,6 +152,15 @@ def cars_module():
     return cars
 
 
+def held_races(file_):
+    """(year, round) of each race whose rows of harvest/<file_> the refresh
+    held back (AF-90, [D-56]). A check that every completed race has a row
+    of that file passes over these and only these: the rows failed a check
+    and were left out, and the known_gaps row the build made of the hold
+    says so, and the known_gaps section holds that row to its line."""
+    return {(y, r) for f, y, r, _n, _w in harvest_module().load_held() if f == file_}
+
+
 # name -> (heading, function), in definition order, which is run order.
 SECTIONS = {}
 
@@ -1260,9 +1269,13 @@ def pole_position_and_fastest_lap():
           not bad, ", ".join(bad))
     # The closed rows must be closed in the data too: the thing each says was
     # missing is present. Two are closed today, and each has its own test.
-    fl_missing = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+    # A race whose fastest lap the refresh is holding back (AF-90) is open in
+    # its own row, so it is not a closed gap reopened.
+    fl_held = held_races("fastest_laps.txt")
+    fl_missing = sum(1 for r in con.execute("""SELECT r.year, r.round FROM races r
+        WHERE r.status = 'completed'
         AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id AND e.fastest_lap = 1)
-        AND NOT (r.year = 2021 AND r.round = 12)""").fetchone()[0]
+        AND NOT (r.year = 2021 AND r.round = 12)""") if tuple(r) not in fl_held)
     no_entries = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
         AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)""").fetchone()[0]
     # Pinned to the two fields tested above: a third row marked closed without
@@ -1306,6 +1319,40 @@ def pole_position_and_fastest_lap():
     check("every known_gaps #N cited in the tree names a row that exists",
           not _dangling, "; ".join(f"#{n} in {', '.join(sorted(f))}" for n, f in sorted(_dangling.items())))
     print(f"  [info] known_gaps cited by number in {sum(len(f) for f in _cited.values())} places across the tree")
+
+    # AF-90 [D-56]. A hold - one race's new rows that the refresh left out
+    # because they failed a check - is a line of harvest/held.txt, and the
+    # build makes it the open row after every row data/harvest.py writes.
+    # Rebuilt here from the line and compared whole, so a hold cannot be
+    # recorded without the row, the row cannot outlive the hold, and the
+    # passes the coverage checks give a held race (held_races()) follow
+    # from a row a reader is shown. Only for the season being run, or the
+    # one after it: a refresh adds rows to no other, so a hold of an older
+    # race is not one the refresh made. The season after, because a season
+    # is "being run" only once a race of it is classified, and the opening
+    # weekend's practice and qualifying arrive before that.
+    hv = harvest_module()
+    held = hv.load_held()
+    written = max(g[0] for g in hv.KNOWN_GAPS)
+    want, not_races = [], []
+    for k, h in enumerate(held):
+        race = con.execute("SELECT name_used FROM races WHERE year = ? AND round = ?",
+                           h[1:3]).fetchone()
+        if race is None:
+            not_races.append(f"{h[0]} {h[1]} r{h[2]}")
+            continue
+        want.append(hv.held_gap(written + 1 + k, h, race[0]))
+    got = [tuple(r) for r in con.execute(
+        """SELECT id, key, field, area, state, reader, description, resolution
+             FROM known_gaps WHERE id > ? ORDER BY id""", (written,))]
+    check("every hold in harvest/held.txt is an open known_gaps row, word for word, "
+          "after the written ones, and no other row follows them",
+          got == want and not not_races,
+          "; ".join(not_races) or f"{len(got)} row(s) after #{written}, {len(held)} hold(s)")
+    running = season_in_progress()
+    stale = [f"{h[0]} {h[1]} r{h[2]}" for h in held if h[1] not in (running, running + 1)]
+    check("a hold is of a race in the season being run, or its opening weekend's successor",
+          not stale, "; ".join(stale))
     open_ = con.execute("SELECT COUNT(*) FROM v_open_gaps").fetchone()[0]
     print(f"  [info] known_gaps: {open_} open, "
           + ", ".join(f"{n} {s}" for s, n in con.execute(
@@ -4820,9 +4867,14 @@ def the_full_classification():
     check("meta.coverage_note is what the counts say", note_ == _build.coverage_note(con.cursor()),
           note_[:80])
 
-    # known_gaps says qualifying is held for every completed race; hold it.
-    noqual = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
-        AND NOT EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id)""").fetchone()[0]
+    # known_gaps says qualifying is held for every completed race; hold it -
+    # bar a race whose qualifying the refresh is holding back (AF-90), which
+    # has an open known_gaps row of its own.
+    q_held = held_races("qualifying.txt")
+    noqual = sum(1 for r in con.execute("""SELECT r.year, r.round FROM races r
+        WHERE r.status = 'completed'
+        AND NOT EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id)""")
+        if tuple(r) not in q_held)
     check("every completed race has a qualifying classification", noqual == 0,
           f"{noqual} completed races without one")
 
@@ -4959,12 +5011,14 @@ def the_full_classification():
     # Fastest laps live in a column, and the F1DB file fills vacancies only,
     # so a floor on the count is one row wide. Per race instead: every
     # completed race carries a credit, bar the one known_gaps declares (2021
-    # Belgium, where no racing lap was run).
+    # Belgium, where no racing lap was run) and any whose fastest lap the
+    # refresh is holding back (AF-90), which has an open row of its own.
+    fl_held = held_races("fastest_laps.txt")
     uncredited = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
         WHERE r.status = 'completed'
           AND NOT EXISTS (SELECT 1 FROM race_entries e
                           WHERE e.race_id = r.id AND e.fastest_lap = 1)
-        ORDER BY r.year, r.round""")]
+        ORDER BY r.year, r.round""") if tuple(r) not in fl_held]
     check("every completed race carries a fastest-lap credit, bar 2021 Belgium",
           uncredited == [(2021, 12)], "; ".join(f"{y} r{r}" for y, r in uncredited[:4]))
     print(f"  [info] {ncls} race entries, {nqual} qualifying rows, "

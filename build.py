@@ -3662,6 +3662,20 @@ def _stage_30_derived_win_totals(b):
             reader, description, resolution)
             VALUES (?,?,?,?,?,?,?,?)""",
             (i, key, field, area, state, reader, desc, res))
+    # A race's rows the refresh held back (AF-90, [D-56]): one open row each,
+    # after the written ones, from harvest/held.txt. The rows themselves are
+    # already out of the harvest file; this is the record that they are
+    # missing and why. A hold that names no race is a hold of nothing.
+    next_id = max(g[0] for g in HV.KNOWN_GAPS) + 1
+    for k, held in enumerate(HV.load_held()):
+        race = cur.execute("SELECT name_used FROM races WHERE year = ? AND round = ?",
+                           held[1:3]).fetchone()
+        if race is None:
+            raise SystemExit(f"harvest/held.txt holds back {held[0]} for {held[1]} round "
+                             f"{held[2]}, which is not a race in the register")
+        cur.execute("""INSERT INTO known_gaps (id, key, field, area, state,
+            reader, description, resolution) VALUES (?,?,?,?,?,?,?,?)""",
+                    HV.held_gap(next_id + k, held, race[0]))
     # races_affected is left NULL here and measured in the final stage,
     # once the chassis links and the qualifying sheets it counts are loaded.
 

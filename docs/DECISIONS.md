@@ -1303,3 +1303,70 @@ What it costs: about 2,400 files and 84 MB per deploy. Cloudflare allows
 the 25 MiB per-file limit of D-47. The rows are `SELECT *`, so a column added
 to a table arrives without an edit — and a column removed disappears from the
 API without one, which is why the path is versioned.
+
+### D-56 · A refresh holds back one race's failing rows and publishes the rest — 2026-10-14 (`AF-90`, #969)
+One failed check in `verify.py` blocked the whole refresh. From 2026-10-11 to
+2026-10-14 Singapore 2026's race result, sprint result and standings passed
+every check and still went unpublished, because one row of its sprint
+qualifying sheet failed one (#965, fixed by `AF-88`, #967). Each new race
+can meet an edge case the checks have not seen, so this would recur, and
+every recurrence held back the whole race.
+
+Changing what the gate does is a maintainer's decision. The maintainer
+ruled on #969, 2026-10-14: hold back only failures attributable exactly to
+one race's newly fetched rows in one table, with a `known_gaps` row and the
+alarm left open; any failure that cannot be so attributed still fails the
+whole run.
+
+**How the attribution is made.** By experiment, not by reading failure
+messages. `tools/refresh_hold.py` builds and verifies the refresh as
+fetched. When that fails, each race the fetch added rows to in one of the
+per-race files, without changing or removing a row the commit held, is a
+candidate. Each is tried alone: its new rows left out, the hold written to
+`harvest/held.txt`, the build and every check run again. Exactly one
+candidate passing is the hold. None passing means the failure is not one
+race's rows. More than one passing means it is not attributable to any one
+of them. Either way the run fails whole. More than twelve candidates are
+not tried: that is a backfill, not a race weekend, and each try is a full
+build.
+
+Reading the failure lines was the option the item named first: "the first
+version may cover only the checks that already name a race in their
+failure line". It was not taken. A failure line that names a race says
+where the check looked, not what caused the failure, and the build's own
+refusals - the standings arithmetic, for one - are not lines of
+`verify.py` at all. The experiment needs neither. Whatever lands has passed
+the full suite against the database that goes out.
+
+**What the checks allow, and nothing more.** The checks that ask for a row
+of a held file at every completed race - qualifying's, and the fastest-lap
+credit's two - pass over a race named in `held.txt` for that file. Without that, a held qualifying sheet would fail its own hold.
+`verify.py` rebuilds each hold's `known_gaps` row from its line and
+compares it whole. It also refuses a hold outside the season being run and
+the one after it, whose opening weekend comes before any race of it is
+classified.
+`data/harvest.py` refuses more than one line, a file outside `HOLDABLE`,
+and a line without its row count or its reason.
+
+**A row that is removed, not closed.** `known_gaps` rows are never deleted.
+A hold is the exception. It is not a fact nobody holds; it records rows on
+their way. It is appended after the written rows, keyed
+`held-<year>-<round>-<file>`, and goes when the hold does. Ids in
+`known_gaps` were already declared unstable, and the key is what a reader
+cites.
+
+**Why a hold does not open a pull request every three hours.** Every
+refresh that rebuilds starts by emptying `held.txt`, so the held rows are
+tried again each run. When they still fail and nothing else moved, the
+harvest ends as the commit had it. The tool then puts back everything the
+build rewrote except the check date, and the run lands as a quiet morning.
+
+**What a hold records as failed.** The names of the checks `verify.py`
+failed, or that `build.py` refused the harvest, in a fixed phrase. A
+refusal message can quote harvest values. The hold's text is `known_gaps`
+prose, granted as the project's own writing (PM-47), so it never quotes
+one (licence and security review of #997). The run's log keeps it.
+
+**The alarm.** `refresh_hold.py` passes the hold to the `report` job, and a
+run that held rows keeps the `refresh-failing` issue open. That issue
+closes on the first run that lands with nothing held back.
