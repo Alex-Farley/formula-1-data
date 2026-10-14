@@ -10,6 +10,7 @@ Print the next item of the queue, or one named item, and nothing else.
     python3 .claude/skills/backlog-loop/next.py --list Now    # one line per open item in a status
     python3 .claude/skills/backlog-loop/next.py --next-id PD  # the next unused number for a prefix
     python3 .claude/skills/backlog-loop/next.py --skip AF-03,VD-26   # the next item after those
+    python3 .claude/skills/backlog-loop/next.py --group --max-size S # the next item no larger than S
 
 The queue is GitHub Issues on Alex-Farley/formula-1-data, ranked on the Lap
 Ledger project (users/Alex-Farley/projects/1). Since 2026-09-13; before that
@@ -69,6 +70,15 @@ Why a script and not `gh issue list`: the ranking lives on the board, not in
 the issue list, and reading it is two `gh` calls and a join. The output is
 one item - title, labels, body, the open decisions - for a few hundred
 tokens, which is what the fork should read before it opens anything.
+
+`--max-size S` passes over every item larger than the size named - and an
+unsized `?`, which may be anything - as the head, as a companion and in a
+tidy batch alike. The driver passes it when the usage check (loop_usage.py)
+finds too little of the 5-hour window left for a large item but enough for a
+small one; it is pacing, not grouping, so for that one fork it overrides
+D-20's "whatever is linked rides". An item named on the command line is
+printed whatever its size, since it has already been chosen; only what
+next.py chooses is capped `AF-108` `[D-55]`.
 
 `--next-id PD` reads every issue, open and closed, and prints the first
 number after the highest `PD-n` in use, so a new finding continues the
@@ -139,6 +149,7 @@ IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
 # take; the noise counter below is what stops a hot file proposing a crowd.
 THRESHOLD = 3        # below this a candidate is not worth a fork's attention
 TIDY = 5             # items in a tidy batch, the head among them `[D-54]`
+SIZES = ("XS", "S", "M", "L")  # smallest first; `?` is none of them
 NOISE = 4            # see below
 # A signal more items than this name is noise, dropped before scoring.
 # Measured over the 157 open items on 2026-09-14, the queue is bimodal: 149
@@ -422,6 +433,20 @@ def size_of(row):
     return next((lb[6:] for lb in row["labels"] if lb.startswith("size: ")), "?")
 
 
+def over(row, cap):
+    """Whether a row is larger than `--max-size` allows. An unsized row may
+    be anything, so a cap passes over it."""
+    if cap is None:
+        return False
+    size = size_of(row)
+    return size not in SIZES or SIZES.index(size) > SIZES.index(cap)
+
+
+def too_large(ranked, cap):
+    """The ids `--max-size` adds to the skip list."""
+    return {r["ident"] for r in ranked if over(r, cap)}
+
+
 def eligible(row, skip):
     # `waits` is read with .get: a queue cached before AF-85 has no such key,
     # and a row with no count is a row nothing was recorded as blocking.
@@ -645,6 +670,13 @@ def main(argv):
             sys.exit("--skip needs a comma-separated list of ids")
         skip = {s.strip() for s in argv[at + 1].split(",") if s.strip()}
         argv = argv[:at] + argv[at + 2:]
+    cap = None
+    if "--max-size" in argv:
+        at = argv.index("--max-size")
+        if at + 1 >= len(argv) or argv[at + 1] not in SIZES:
+            sys.exit(f"--max-size needs one of {', '.join(SIZES)}")
+        cap = argv[at + 1]
+        argv = argv[:at] + argv[at + 2:]
     group = "--group" in argv
     if group:
         argv = [a for a in argv if a != "--group"]
@@ -670,6 +702,11 @@ def main(argv):
         allow_cache=bool(argv) and not group and not listing,
         bodies=want_bodies)
     decisions = [r for r in ranked if "decision" in r["labels"]]
+    # The cap is a skip of everything too large, so the head, its companions
+    # and a tidy batch all pass over the same rows. A head named in argv is
+    # looked up whatever the skip list says, so it is printed regardless.
+    if cap:
+        skip |= too_large(ranked, cap)
     everything = ranked + in_progress + unplaced
 
     if argv[:1] == ["--list"]:
@@ -700,6 +737,7 @@ def main(argv):
         head = first_eligible(ranked, skip)
         if head is None:
             sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked, waiting or in progress"
+                     + (f", at size {cap} or smaller" if cap else "")
                      + (f"; {len(unplaced)} unplaced (--list unplaced)" if unplaced else ""))
         heads = [head]
 

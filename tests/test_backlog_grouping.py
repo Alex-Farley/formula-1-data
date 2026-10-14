@@ -552,5 +552,26 @@ class IssueFormIsWellFormed(unittest.TestCase):
                          ["source", "size", "what", "where", "kind"])
 
 
+class SizeCap(unittest.TestCase):
+    """`--max-size`, which the driver passes when the usage check leaves room
+    for a small item only `[D-55]`: everything larger is skipped wherever
+    next.py chooses - head, companion and tidy batch - and an unsized item,
+    which may be anything, is skipped with it."""
+
+    def setUp(self):
+        self.ranked = [xs_row(1, "Now", size="M"), xs_row(2, "Now", size="?"),
+                       xs_row(3, "Now", size="S"), xs_row(4, "Now"), xs_row(5, "Next", size="L")]
+
+    def test_the_cap_and_what_it_passes_over(self):
+        self.assertEqual(next_py.too_large(self.ranked, "S"), {"TL-01", "TL-02", "TL-05"})
+        self.assertEqual(next_py.too_large(self.ranked, "XS"), {"TL-01", "TL-02", "TL-03", "TL-05"})
+        self.assertEqual(next_py.too_large(self.ranked, "L"), {"TL-02"})
+        self.assertEqual(next_py.too_large(self.ranked, None), set())
+
+    def test_the_head_under_a_cap_is_the_first_small_enough(self):
+        skip = next_py.too_large(self.ranked, "S")
+        self.assertEqual(next_py.first_eligible(self.ranked, skip)["ident"], "TL-03")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -20,10 +20,15 @@ WHAT IT DOES
     headless, with no MCP servers (D-18), reads the first line of what it
     returns - the driver's contract, MERGED / SKIPPED / DECIDE / STOP / LIMIT
     - and on a usage limit sleeps until the reset and starts a fresh session
-    with the same target and the run's skip list. Everything else ends the
-    run: a STOP is a person's, and a result with no contract line is not a
+    with the same target and the run's skip list. A PAUSE is the same without
+    the dead session: the manager's usage check (loop_usage.py) found too
+    little left for an item, so this sleeps until the time it names and
+    starts again. Everything else ends the run: a STOP is a person's, and a result with no contract line is not a
     merge. A DECIDE reaches this script only as the result of a one-item run,
     because under `until-paused` the manager carries on past it (D-52).
+
+    Before each session it runs the same usage check itself, and sleeps
+    through a WAIT rather than start a session only to pause it (D-55).
 
     It never merges, reviews or edits anything. The manager drives, the fork
     (backlog-item) does the item, and this only decides whether to start the
@@ -49,6 +54,7 @@ ENVIRONMENT
     LOOP_MAX_RESTARTS     consecutive limits with no work between them before
                           giving up; default 6
     LOOP_KEEP_MCP=1       keep the account's MCP servers (off by default, D-18)
+    LOOP_USAGE_*          the usage check's thresholds; loop_usage.py says which
 
 EXIT
     0  MERGED - the one item (`next` or an id) landed
@@ -69,33 +75,24 @@ import subprocess
 import sys
 import time
 
-try:
-    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-except ImportError:  # pragma: no cover - Python 3.8 and older
-    ZoneInfo = None
-    ZoneInfoNotFoundError = Exception
-
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(HERE)  # behind the stdlib
+# The reset reading is shared with the usage check, which reads the same
+# "resets Oct 19, 2:59pm (Europe/London)" out of /usage.
+import loop_usage  # noqa: E402  (a sibling script, not an installed package)
+from loop_usage import EPOCH, RESET, reset_at  # noqa: E402,F401  (reset_at: tests and callers read it here)
+
 AGENT = "backlog-manager"
 PACES = ("fast", "balanced", "thorough")
 PERMISSION_MODE = "auto"
-CONTRACT = re.compile(r"^(MERGED #\d+ \S+|SKIPPED \S+:.*|DECIDE \S+:.*|STOP:.*|LIMIT:.*)$")
+CONTRACT = re.compile(r"^(MERGED #\d+ \S+|SKIPPED \S+:.*|DECIDE \S+:.*|STOP:.*|LIMIT:.*|PAUSE:.*)$")
 SKIPS = re.compile(r"^Skipped:\s*(\S.*)$", re.M)
 ITEM_ID = re.compile(r"^[A-Z]{2,4}-\d+$")
-# "You've hit your session limit · resets 1:30pm (Europe/London)" was the
-# wording on 2026-09-13; a fork's own line is "LIMIT: resets <the same>".
-# A date appears when the reset is not today: "resets Sep 27, 3am (...)".
-RESET = re.compile(
-    r"resets\s+(?:(?P<mon>[A-Z][a-z]{2})\s+(?P<day>\d{1,2}),?\s+(?:at\s+)?)?"
-    r"(?P<h>\d{1,2})(?::(?P<m>\d{2}))?\s*(?P<ap>[ap]m)\b(?:\s*\((?P<tz>[^)]+)\))?",
-    re.I,
-)
-EPOCH = re.compile(r"limit reached\|(\d{10})\b", re.I)
+# The manager's own pause: "PAUSE: until 2026-10-14T21:59+00:00 - <why>",
+# the time loop_usage.py printed in its WAIT line.
+UNTIL = re.compile(r"\buntil\s+(\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d)?(?:[+-]\d\d:\d\d)?)")
 LIMIT_WORDS = re.compile(r"\b(usage|session|weekly|5-hour)\s+limit\b|\blimit reached\b", re.I)
-MONTHS = {m: i for i, m in enumerate(
-    ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
 FALLBACK_WAIT = dt.timedelta(minutes=30)
-JUST_PASSED = dt.timedelta(minutes=15)
 # A session that returns a limit sooner than this after starting did no work:
 # the limit had not lifted. Those are what LOOP_MAX_RESTARTS counts, and each
 # one doubles the wait from BACKOFF, so a reset that is late is not retried
@@ -118,53 +115,18 @@ def parse_args(argv):
     return target, pace
 
 
-def zone(name):
-    if name and ZoneInfo is not None:
-        try:
-            return ZoneInfo(name.strip())
-        except (ZoneInfoNotFoundError, ValueError):
-            pass
-    return dt.datetime.now().astimezone().tzinfo
-
-
-def reset_at(text, now=None):
-    """The moment a limit message says the allowance comes back, or None.
-
-    `now` is an aware datetime (tests pass one). A time with no date is the
-    nearest occurrence of that clock reading in the named zone that is not
-    more than fifteen minutes past - one within those fifteen minutes is now,
-    read a little after it was written, and that holds across midnight too. A
-    reading that would put the reset more than eight days out is not trusted."""
-    text = text or ""
-    now = now or dt.datetime.now(dt.timezone.utc)
-    e = EPOCH.search(text)
-    if e:
-        when = dt.datetime.fromtimestamp(int(e.group(1)), dt.timezone.utc)
-        return max(when, now) if when - now <= dt.timedelta(days=8) else None
-    m = RESET.search(text)
+def until_at(text, now):
+    """The time a PAUSE line names, or None. One with no zone is UTC, and a
+    time already past is now."""
+    m = UNTIL.search(text or "")
     if not m:
         return None
-    tz = zone(m.group("tz"))
-    now = now.astimezone(tz)
-    hour = int(m.group("h")) % 12 + (12 if m.group("ap").lower() == "pm" else 0)
-    minute = int(m.group("m") or 0)
-    if hour > 23 or minute > 59:
+    try:
+        when = dt.datetime.fromisoformat(m.group(1))
+    except ValueError:
         return None
-    if m.group("mon"):
-        month = MONTHS.get(m.group("mon").lower())
-        if not month:
-            return None
-        try:
-            when = now.replace(month=month, day=int(m.group("day")), hour=hour, minute=minute,
-                               second=0, microsecond=0)
-        except ValueError:
-            return None
-        if when < now - dt.timedelta(days=1):
-            when = when.replace(year=when.year + 1)
-    else:
-        today = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        when = next(c for c in (today - dt.timedelta(days=1), today, today + dt.timedelta(days=1))
-                    if c >= now - JUST_PASSED)
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=dt.timezone.utc)
     if when - now > dt.timedelta(days=8):
         return None
     return max(when, now)
@@ -173,7 +135,7 @@ def reset_at(text, now=None):
 def classify(stdout, returncode):
     """(kind, line, skips) from what `claude -p --output-format json` printed.
 
-    kind is MERGED, SKIPPED, DECIDE, STOP, LIMIT or NONE. A usage limit arrives in
+    kind is MERGED, SKIPPED, DECIDE, STOP, LIMIT, PAUSE or NONE. A usage limit arrives in
     one of two forms, as it does for the driver: the manager's own LIMIT
     line, or text naming a limit and a reset - the CLI's error for a session
     the limit killed, or a manager that repeated the error instead of writing
@@ -253,6 +215,16 @@ def main(argv):
     print(f"Loop: {target} at {pace}, supervised. The manager shows nothing until it returns; "
           f"its forks' stages appear in {log_path()} - `tail -f` it from another terminal.")
     while True:
+        # Look before starting: a session started with too little left would
+        # only pause, or die mid-item on the limit (D-55).
+        now = dt.datetime.now(dt.timezone.utc)
+        usage, code = loop_usage.check(now, claude)
+        progress(f"usage: {usage[:200]}")
+        if code == loop_usage.EXIT["WAIT"]:
+            when = until_at(usage, now) or now + FALLBACK_WAIT
+            print(f"supervise: {usage}")
+            sleep_until(when + dt.timedelta(minutes=1))
+            continue
         progress(f"manager started: {target} {pace}" + (f" --skip {','.join(skips)}" if skips else ""))
         started = dt.datetime.now(dt.timezone.utc)
         run = subprocess.run(command(claude, target, pace, skips, keep_mcp),
@@ -286,6 +258,20 @@ def main(argv):
             note = f"{note} - resuming at {when.astimezone().isoformat(timespec='minutes')}"
             print(f"supervise: usage limit, {note}")
             progress(f"usage limit, {note}")
+            sleep_until(when)
+            continue
+        if kind == "PAUSE":
+            # The manager stopped before a fork because the usage check said
+            # wait: no limit was hit, so this is not one of the limits
+            # LOOP_MAX_RESTARTS counts - and no work was done either, so it
+            # leaves the count of those as it found it.
+            now = dt.datetime.now(dt.timezone.utc)
+            when = until_at(line, now)
+            note = "pause" if when else "pause, time not readable"
+            when = (when or now + FALLBACK_WAIT) + dt.timedelta(minutes=1)
+            note = f"{note} - resuming at {when.astimezone().isoformat(timespec='minutes')}"
+            print(f"supervise: usage {note}")
+            progress(f"usage {note}")
             sleep_until(when)
             continue
         if kind == "MERGED":

@@ -29,7 +29,8 @@ ever reports back to you. Never end a turn to wait for something.
 
 Arguments: a pace (`fast`, `balanced`, `thorough`; default `balanced`) and a
 target (`next` or an item id; default `next`), optionally `--skip A,B` for
-ids this run has already skipped. If you were not invoked by the
+ids this run has already skipped, and optionally `--max-size S`, which the
+driver adds when its usage check leaves room only for a small item `[D-55]`. If you were not invoked by the
 `backlog-loop` driver, by the `backlog-manager` agent that runs its
 procedure unattended `[D-42]`, or by a person typing `/backlog-item`, return
 `STOP: not invoked by the loop` and do nothing.
@@ -66,6 +67,14 @@ reviewed again on the same head `[D-23]`.
    correctness, then integrity and licensing, functional, security,
    architecture, accessibility, UX, throughput — read `--list` for that
    status, choose, and say in the PR why that item came first.
+
+   Given `--max-size S`, pass it to every `next.py` call that chooses —
+   `--group` above all — which then passes over anything larger, and an
+   unsized `?`, as head, companion or tidy item alike. When `next.py` exits
+   1 under it, nothing in the queue is small enough: return
+   `PAUSE: no open item at or under size S`, with nothing claimed. An open
+   PR or worktree inherited from an earlier fork is finished whatever its
+   size; the cap governs what is started, not what is already half-done.
 
    **Never page through the issue list or the board.** `next.py` does it for
    a few hundred tokens, which is the point of it. Open an issue only to work
@@ -558,6 +567,7 @@ The last thing you write. Its first line is exactly one of:
 
     MERGED #<N> <ID>                          (a group is one PR: VD-33+AX-13)
     SKIPPED <ID>: <reason in one clause>
+    PAUSE: no open item at or under size <S>  (only under --max-size)
     DECIDE <ID>: <the question in one clause>
     STOP: <reason in one clause>
     LIMIT: resets <time as the limit message gave it>
