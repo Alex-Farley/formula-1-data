@@ -147,6 +147,7 @@ class TheGapRow(unittest.TestCase):
         self.assertEqual(gap[:5], (21, "held-2030-17-f1db-pit-stops", "pit_stops",
                                    "the pit stops of the 2030 Test Grand Prix", "open"))
         self.assertIn("the 1 row F1DB", gap[6])
+        self.assertIn("What they failed: a check", gap[6])
         self.assertIn("The pit stops of the 2030 Test Grand Prix are held back", gap[5])
         self.assertIn("added once they pass.", gap[5])
 
@@ -154,7 +155,6 @@ class TheGapRow(unittest.TestCase):
         gap = HV.held_gap(21, ("qualifying.txt", 2030, 17, 2, "a check"), "Test Grand Prix")
         self.assertIn("classification of the 2030 Test Grand Prix is held back", gap[5])
         self.assertIn("added once it passes.", gap[5])
-        self.assertIn("What they failed: a check", gap[6])
 
     def test_its_key_is_one_a_reader_can_type(self):
         for f in HV.HOLDABLE:

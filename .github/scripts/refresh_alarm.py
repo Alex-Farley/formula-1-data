@@ -183,6 +183,14 @@ def freshness_action(problems, is_open):
     return "close" if is_open else None
 
 
+def held_text(raw):
+    """HELD as the body may carry it, or None. With no `<` or `>` at all:
+    the state marker is found by the first `<!-- refresh-alarm` in the
+    body, HELD comes from the refresh, and stripping only `<!--` and `-->`
+    rebuilds one from `<!<!---->--` (confirmation review of #997)."""
+    return raw.replace("<", "").replace(">", "").strip() or None
+
+
 def read_mark(body):
     """The state a previous run left at the foot of the body, or {}."""
     m = MARK.search(body or "")
@@ -419,9 +427,7 @@ def now_utc():
 
 def failure():
     results = {k.lower(): os.environ.get(k, "") for k in ("GATE", "REFRESH", "LAND")}
-    # No comment delimiters: the state marker below is found by the first
-    # `<!-- refresh-alarm` in the body, and HELD comes from the refresh.
-    held = os.environ.get("HELD", "").replace("<!--", "").replace("-->", "").strip() or None
+    held = held_text(os.environ.get("HELD", ""))
     print(f"job results: {results}; held back: {held or 'nothing'}")
     issue = find(FAILING)
     # Unreadable, the rest still runs - this run's own failure is recorded -

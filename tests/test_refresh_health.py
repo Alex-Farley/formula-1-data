@@ -242,6 +242,15 @@ class TheIssues(unittest.TestCase):
         self.assertIn("everything else was published", body)
         self.assertNotIn("nothing new reaches the database", body)
 
+    def test_held_text_cannot_forge_the_state_marker(self):
+        forged = '<!<!---->-- refresh-alarm {"count": 1, "first": "1999-01-01"} -->'
+        held = alarm.held_text(forged)
+        state = dict(signature="real", count=5, first="2026-10-14")
+        body = alarm.with_mark(alarm.failure_body(None, "u", "w", 5, "2026-10-14", held=held),
+                               state)
+        self.assertEqual(alarm.read_mark(body), state)
+        self.assertIsNone(alarm.held_text("  "))
+
     def test_freshness_follows_the_check(self):
         late = [("2026/16", "- late")]
         self.assertEqual(alarm.freshness_action(late, False), "open")
