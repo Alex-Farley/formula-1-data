@@ -23,10 +23,13 @@ A row's key is the strings before its number, joined by dots, so the harvest
 file named after the figure is not part of it. The file is parsed, never
 imported: running verify.py's module body would open the database.
 
-Fails closed. A FLOOR name assigned in any other shape - unpacked, indexed,
-augmented, a row whose number comes first or that has none - and two floors
-with one key are an error, exit 2, never a floor skipped: a floor this cannot
-read is one a change could lower in silence. Teach it the shape, or rename.
+Refuses what it cannot read. A FLOOR name assigned in any other shape -
+unpacked, indexed, augmented, a row whose number comes first or that has none
+- and two floors with one key are an error, exit 2, never a floor skipped: a
+floor this cannot read is one a change could lower in silence. Teach it the
+shape, or rename. It reads assignments only: a floor changed through an
+attribute, a method call (`FLOORS.append`) or a loop target is not seen, and
+verify.py holds none of those today.
 
 Prints one line per floor lowered or removed, `<key> <old> <new>`, with
 `removed` for a floor that is gone, since a deleted floor guards nothing.
@@ -151,7 +154,7 @@ def ruled(body, key, was, now):
     """Whether one line of `body` names this floor, its change and a ruling."""
     shown = "removed" if now is None else str(now)
     floor = re.compile(r"(?<![\w.])" + re.escape(key) + r"\s+" + re.escape(str(was))
-                       + r"\s*(?:->|→)\s*" + re.escape(shown) + r"(?![\w.])")
+                       + r"\s*(?:->|→)\s*" + re.escape(shown) + r"(?!\w|\.\w)")
     return any(re.search(r"floor", line, re.I) and RULING.search(line) and floor.search(line)
                for line in body.splitlines())
 

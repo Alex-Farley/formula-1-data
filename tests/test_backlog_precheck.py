@@ -385,7 +385,9 @@ class Floors(unittest.TestCase):
 
     def test_a_ruling_for_a_column_floor_does_not_cover_its_table(self):
         # grep -w counts "." as a word boundary, so the first version took a
-        # ruling for chassis.weight_kg as one for the chassis row floor.
+        # ruling for chassis.weight_kg as one for the chassis row floor. End to
+        # end: the values differ here too, so the key's own bound is pinned by
+        # FloorShapes' ruling test, not this one.
         head = VERIFY.format(extra="pass").replace("1153", "1100")
         body = "Floor lowered: chassis.weight_kg 201 -> 200, ruled on #838\\n"
         code, out = self.run_in(self.floor_repo(head), says(body))
@@ -453,6 +455,14 @@ class Floors(unittest.TestCase):
             self.assertIn("no PR body read: GraphQL: API rate limit", out, items)
             self.assertEqual(code, 1, out)
 
+    def test_a_body_floors_py_cannot_read_fails_with_its_reason(self):
+        # The second floors.py call, the one handed the body, failing: a byte
+        # that is not UTF-8 is enough.
+        code, out = self.run_in(self.floor_repo(self.LOWERED), says("Body \\377\\n"))
+        self.assertIn("could not be read for floor rulings: floors.py:", out)
+        self.assertNotIn("floor ?", out)
+        self.assertEqual(code, 1, out)
+
     def test_the_extractor_reads_the_real_verify_py(self):
         # A refactor of verify.py that hid its floors from floors.py would
         # leave this check comparing nothing with nothing, and passing.
@@ -507,6 +517,10 @@ class FloorShapes(unittest.TestCase):
         self.assertFalse(self.f.ruled(ok.replace("Floor lowered", "Lowered"), "chassis", 1153, 1100))
         self.assertFalse(self.f.ruled(ok.replace("chassis", "x.chassis"), "chassis", 1153, 1100))
         self.assertFalse(self.f.ruled(ok.replace("1100", "11000"), "chassis", 1153, 1100))
+        self.assertFalse(self.f.ruled(ok.replace("1100", "1100.5"), "chassis", 1153, 1100))
+        # A sentence may end on the change.
+        self.assertTrue(self.f.ruled("Ruled on #838: floor chassis 1153 -> 1100.",
+                                     "chassis", 1153, 1100))
         self.assertFalse(self.f.ruled("Floor lowered: chassis 1153 -> 1100\nruled on #838",
                                       "chassis", 1153, 1100))
 

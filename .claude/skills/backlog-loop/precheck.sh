@@ -190,9 +190,10 @@ if [ -n "$vchanged" ]; then
     printf '%s\n' "$body" >"$bodyf"
     why=""
     [ "$prrc" -ne 0 ] && why=" (no PR body read: $bodyerr)"
-    low=$(python3 "$floors" "$oldv" "$newv" --body "$bodyf" 2>"$errf") || \
-      low="? ? ? unread"
-    while read -r key was now verdict; do
+    if ! low=$(python3 "$floors" "$oldv" "$newv" --body "$bodyf" 2>"$errf"); then
+      say FAIL "the PR body could not be read for floor rulings: $(head -1 "$errf" | cut -c1-60)"; fail=1; low=""
+    fi
+    [ -n "$low" ] && while read -r key was now verdict; do
       [ "$now" = "removed" ] && what="removed (was $was)" || what="lowered $was -> $now"
       if [ "$verdict" = ruled ]; then
         say ok "verify.py floor $key $what, and the PR body names its ruling"
