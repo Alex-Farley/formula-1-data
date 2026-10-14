@@ -3475,18 +3475,22 @@ def practice_and_sprint_qualifying():
 
     # The laps of the drivers who went through, which no band holds: every
     # SQ3 driver's SQ2 lap is quicker than every SQ2 eliminee's (the gaps
-    # of #707's third review). Three drivers are published with an SQ2 lap
+    # of #707's third review). Four drivers are published with an SQ2 lap
     # quicker than drivers who went through, and none of them was eliminated
-    # in SQ2 (LV-08): each went through to SQ3, set no time there and is
-    # classified in SQ3's places - Alonso 9th at Qatar 2023, Leclerc 10th at
-    # Austria 2024, Bearman 10th at Sao Paulo 2024. The Wikipedia article on
-    # each of those Grands Prix gives the driver "No time" in SQ3 in its
-    # sprint qualifying classification (2023_Qatar_Grand_Prix,
-    # 2024_Austrian_Grand_Prix, 2024_S%C3%A3o_Paulo_Grand_Prix). This check
+    # in SQ2 (LV-08, AF-88): each went through to SQ3, set no time there and
+    # is classified in SQ3's places - Alonso 9th at Qatar 2023, Leclerc 10th
+    # at Austria 2024, Bearman 10th at Sao Paulo 2024, Hadjar 9th at
+    # Singapore 2026. The Wikipedia article on each of those Grands Prix
+    # gives the driver "No time" in SQ3 in its sprint qualifying
+    # classification (2023_Qatar_Grand_Prix, 2024_Austrian_Grand_Prix,
+    # 2024_S%C3%A3o_Paulo_Grand_Prix, 2026_Singapore_Grand_Prix). This check
     # reads a driver with no SQ3 lap as an SQ2 eliminee, so each is declared
     # as published, one row each, so the rest of each sheet is still held
-    # (review of #712). Why each set no SQ3 time none of the three says.
-    SQ_CUT_EXCEPTIONS = {(2023, 17, "alonso"), (2024, 11, "leclerc"), (2024, 21, "bearman")}
+    # (review of #712). Gasly, 10th at Singapore 2026 with no SQ3 time
+    # either, has an SQ2 lap slower than every driver who went through, so
+    # is not declared. Why each set no SQ3 time none of the four says.
+    SQ_CUT_EXCEPTIONS = {(2023, 17, "alonso"), (2024, 11, "leclerc"), (2024, 21, "bearman"),
+                         (2026, 17, "hadjar")}
     cut_bad = []
     for (yr, rnd), sheet in sq_sheets.items():
         through = [secs(q2) for _p, _d, _q1, q2, q3, _g, _i in sheet if q3 and q2]
