@@ -31,7 +31,8 @@ class ReadsTheContractLine(unittest.TestCase):
         for line, kind in (("MERGED #664 DA-36", "MERGED"), ("MERGED #12 VD-33+AX-13", "MERGED"),
                            ("SKIPPED AF-9: gh unreachable", "SKIPPED"), ("STOP: two consecutive skips", "STOP"),
                            ("DECIDE PD-52: whether the licence record may say bare facts", "DECIDE"),
-                           ("LIMIT: resets 1:30pm (Europe/London)", "LIMIT")):
+                           ("LIMIT: resets 1:30pm (Europe/London)", "LIMIT"),
+                           ("PAUSE: until 2026-10-14T21:59+00:00 - session 95% used", "PAUSE")):
             self.assertEqual(sup.classify(result(line + "\nstock-take"), 0)[0], kind, line)
 
     def test_the_first_line_decides_not_a_later_one(self):
@@ -106,6 +107,23 @@ class ReadsTheResetTime(unittest.TestCase):
         self.assertIsNone(sup.reset_at("resets soon", self.NOW))
         self.assertIsNone(sup.reset_at("no time here", self.NOW))
         self.assertIsNone(sup.reset_at("resets Dec 25, 3am (UTC)", self.NOW))  # three months out
+
+
+class ReadsThePauseTime(unittest.TestCase):
+    NOW = dt.datetime(2026, 10, 14, 12, 0, tzinfo=UTC)
+
+    def test_the_time_the_usage_check_printed(self):
+        when = sup.until_at("PAUSE: until 2026-10-14T21:59+00:00 - session 95% used", self.NOW)
+        self.assertEqual(when, dt.datetime(2026, 10, 14, 21, 59, tzinfo=UTC))
+
+    def test_a_time_with_no_zone_is_utc_and_one_past_is_now(self):
+        self.assertEqual(sup.until_at("WAIT until 2026-10-14T13:00 - x", self.NOW).hour, 13)
+        self.assertEqual(sup.until_at("PAUSE: until 2026-10-14T11:00+00:00", self.NOW), self.NOW)
+
+    def test_unreadable_or_implausible_is_none(self):
+        self.assertIsNone(sup.until_at("PAUSE: until the reset", self.NOW))
+        self.assertIsNone(sup.until_at("PAUSE: until 2026-12-25T00:00+00:00", self.NOW))
+        self.assertIsNone(sup.until_at("PAUSE: until 2026-13-45T00:00+00:00", self.NOW))
 
 
 class TheCommandItRuns(unittest.TestCase):

@@ -462,6 +462,59 @@ whole suite on every push and stays one of the four checks that never
 slide, so nothing reaches `main` less tested; what moves is where a fork
 spends its own minutes.
 
+### D-55 · The loop reads the plan's usage before each item — 2026-10-14 (`AF-108`, #991)
+Until this the loop met a usage limit only by hitting it. `supervise.py`
+read the message a dead session left, slept until the reset and started
+again `[D-42]`, but a fork the limit killed mid-item left a half-done
+worktree or pull request for the next fork to rediscover, and the
+orientation it had paid for was gone. Nothing looked ahead: the loop could
+start an M item with 5 % of the 5-hour window left, and spend a week's
+allowance in two days. The maintainer asked for the loop to pace itself so
+that limits are not hit mid-item while as much of each window as possible is
+still used.
+
+`claude -p /usage --output-format json` is a local command at
+`total_cost_usd` 0 (probed 2026-10-14, Claude Code 2.1.299, a subscription
+login), and its `result` names both windows: `Current session: 25% used ·
+resets Oct 14, 10:59pm (Europe/London)` and the same for `Current week (all
+models)`. The structured forms - the status line's `rate_limits`, the Agent
+SDK's usage report - do not reach a headless `claude -p`, so the text is
+read, and only whole: a label, a percentage from 0 to 100 and a reset the
+limit reader already accepts, or nothing. A report that cannot be read is
+`UNKNOWN`, and the loop carries on as before, reacting to a limit; a
+reworded report must never become a figure.
+
+`loop_usage.py` decides, and the driver runs it before every fork, which is
+the only place between items — under `until-paused` one manager session
+drives many forks, so a check in `supervise.py` alone would run once per
+session. `supervise.py` runs it too, before each session, so as not to start
+one only for it to pause.
+
+- **The 5-hour window:** 20 points or more left, any item; 7 or more, an XS
+  or S item only, through `next.py --max-size S`; less, wait for the reset.
+  The middle rung is what uses the end of a window rather than sleeping
+  through it. It overrides `[D-20]`'s "whatever is linked rides" for that one
+  fork, because a linked M companion is the cost the cap exists to avoid. A
+  fork that finds nothing small enough returns `PAUSE:`, with nothing
+  claimed.
+- **The weekly window** is spread evenly to its reset: the elapsed fraction
+  of the week's allowance plus 10 points of slack, and ahead of that the
+  loop waits until the pace catches up. While a race falls between two days
+  ago and the weekly reset, 10 points are held back for the refresh work a
+  race weekend brings, read from the `sessions` table; an unreadable f1.db
+  keeps the reserve.
+- **The thresholds are starting values**, taken from the sizes in the item
+  (an S fork about 73,000 tokens, an M about 188,000, reviewer passes
+  40,000–130,000 `[D-24]`) and not from a measured percentage per token.
+  Every decision is written to `progress.log` under `usage` with the figures
+  it used, so that a week of them calibrates the four `LOOP_USAGE_*`
+  settings. Change a default from that log, not from a feeling.
+- **A pause is a new contract line for the manager**, `PAUSE: until <time>`,
+  which `supervise.py` sleeps through without counting it among the limits
+  its restart cap counts: no session died and no work was lost.
+- **Nothing here is a control.** A figure can stop the loop starting work; it
+  cannot change a check, a review, the permission mode or what is merged.
+
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four
 rungs of `PD-02` whose diffs a single pass would have read for the price of

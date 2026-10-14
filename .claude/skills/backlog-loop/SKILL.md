@@ -23,7 +23,8 @@ The rules are in `CLAUDE.md`; the per-item procedure, the pace table and
 what never slides are in `.claude/skills/backlog-item/SKILL.md`, which is
 their only normative copy; the scripts the fork uses are in this folder: `start-check.sh` (what it
 checks before it starts), `next.py` (reads the queue), `file.py` (writes to
-it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`, and
+it), `loop_usage.py` (reads the plan's usage before each fork),
+`precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`, and
 `progress.sh`, which the fork calls at each stage to append one line to
 `.claude/loop/progress.log` - the only view of the fork a person has.
 
@@ -48,9 +49,24 @@ Two words, either order, both optional.
    fork returns, and that the fork's stages appear in that file -
    `tail -f .claude/loop/progress.log` from a terminal. Nothing else
    before the fork: a fork that looks stalled gets killed `[D-17]`.
-2. Invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
+2. Read the plan's usage: `python3 .claude/skills/backlog-loop/loop_usage.py`.
+   It costs no model turn and a few seconds, and its first word decides
+   `[D-55]`:
+   - `GO` or `UNKNOWN`: invoke the fork as below. `UNKNOWN` means usage
+     could not be read, and the loop reacts to a limit when one arrives, as
+     it did before the check existed.
+   - `SMALL`: invoke the fork with `--max-size S` added to its args, so it
+     takes only an XS or S item. Keep the session reset the line names.
+   - `WAIT until <time> - <why>`: start no fork. Interactively, schedule a
+     wake-up for one minute after `<time>` that reinvokes this skill with
+     the same arguments, as for a limit below, then stop. Run as the
+     `backlog-manager` agent, schedule nothing: return
+     `PAUSE: until <time> - <why>`, and `supervise.py` sleeps until then.
+
+   Then invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
-   this run has skipped any. Do not do any of the fork's work
+   this run has skipped any, and `--max-size S` when the check said
+   `SMALL`. Do not do any of the fork's work
    here, and do not read the board or the issue list to "check" first -
    `next.py` inside the fork does that for a few hundred tokens.
 3. Read the **first line** of the result and act on it:
@@ -85,6 +101,9 @@ Two words, either order, both optional.
      GitHub's secondary rate limiter refusing the board read, which no fork
      can record around and no poll can shorten `[D-27]`. Neither is worth a
      second fork; say which one it was.
+   - `PAUSE: <why>`: the fork was given `--max-size S` and nothing in the
+     queue was that small. Nothing is claimed or half-done. Treat it as
+     `WAIT until <the session reset the SMALL line named>` in step 2.
    - `LIMIT: resets <time>`, **or the Skill tool returning an error that
      names a usage or session limit** (`You've hit your session limit ·
      resets 1:30pm (Europe/London)` was the wording on 2026-09-13; a fork
@@ -136,7 +155,9 @@ reads is in the repository `[D-42]`. It always runs `--permission-mode
 auto`, because auto mode's refusal to merge a PR with no recorded verdict is
 a control, and an account without auto mode runs the loop by hand. Its own
 lines go to `.claude/loop/progress.log` beside the forks', under the id
-`supervisor`.
+`supervisor`; it runs the usage check before each session and sleeps through
+a `WAIT` rather than start one, and the check's own lines from step 2 appear
+under `usage`, with the figures each decision used.
 
 ## Running it cheaply
 

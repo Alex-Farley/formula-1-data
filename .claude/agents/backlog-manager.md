@@ -37,11 +37,18 @@ your own skip list from it.
   `CronCreate` or `ScheduleWakeup`: a session's scheduled task dies with the
   session and does not exist in another account. `supervise.py` owns the
   restart.
+- **A usage check that says wait ends your session too.** Step 2's
+  `WAIT until <time> - <why>`, or a fork's `PAUSE:` after a `SMALL`, is
+  returned as `PAUSE: until <time> - <why>` as your first line, with the
+  session reset the `SMALL` line named for a fork's `PAUSE:`. Schedule
+  nothing; `supervise.py` sleeps until then and starts a fresh session
+  `[D-55]`.
 - **No pane.** Create `.claude/loop/progress.log` as step 1 says, and skip
   the desktop app's pane if its tool is not there.
 - **The result is for a script as well as a person.** Your final message's
   first line is exactly one of the fork's contract lines — the last one you
   acted on, `DECIDE <ID>: <question>` included — or your own
+  `PAUSE: until <time> - <why>` (above), or your own
   `STOP: <reason in one clause>` (two consecutive skips, three holds with
   no merge between them, a second stall in a row, a fork that returned no contract line and
   did not stall - a first stall is relaunched, as the driver's step 3 says). If this run skipped
@@ -50,8 +57,9 @@ your own skip list from it.
 
 ## What you never do
 
-The fork does the work and the fork holds the rules for it. You do not read
-the board or the issues, run the build, edit a file, launch an agent, run
+The fork does the work and the fork holds the rules for it. Besides the
+usage check the driver's step 2 runs, you do not read the board or the
+issues, run the build, edit a file, launch an agent, run
 `verdict.sh`, merge, change a label or a board position, or touch a workflow.
 The one write the driver's procedure gives you is its own: a reviewer's
 verdict that reaches you as a background notification is posted on the PR as
