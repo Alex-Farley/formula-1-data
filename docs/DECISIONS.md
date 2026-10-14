@@ -427,6 +427,41 @@ own pull request with the whole fixed cost paid again, which is the outcome
 grouping exists to prevent and the reason the queue was not reducing. The
 bound is the diff, not a number.
 
+Amended 2026-10-14 by D-54, which adds a tidy lane beside it for `XS` items;
+D-20 stands for everything else.
+
+### D-54 · A tidy lane for XS items, and local web tests by page — 2026-10-14 (`AF-107`, #990)
+From the 2026-10-14 efficiency review. Of 66 `S` items merged since
+2026-09-26 the median changed 186 lines over 6 files, and only 8 changed 40
+or fewer. Those few — a wording fix, a comment, one data row, one declared
+exception such as `AF-88` — each paid the whole fixed cost alone, because
+D-20 lets an item ride only with a head it shares code with: a worktree,
+`make all`, the web build and tests, a pull request, a reviewer's orientation
+at 40,000–130,000 tokens a pass `[D-24]`, and a CI run.
+
+The maintainer reviewed D-20 and chose, of keeping it, adding a lane beside
+it, or loosening its same-file test, the lane. An item of about thirty
+changed lines or fewer is labelled `size: XS`. When the head is one, up to
+four more `XS` items from its status or the one below ride with it in one
+pull request, five at most, whether or not they are linked, and take one
+review pass. Every gate is unchanged: the Opus first pass for each area the
+batch touches, the four checks, the precheck, the licence and security
+triggers. The diff has to read as a list of separate small changes, one
+section per item in the PR body. An item that grows past the limit leaves
+the batch, status back. D-20 is not loosened: everything that is not `XS`
+groups only by what it shares with the head, and an `XS` head that carries a
+linked companion larger than `XS` is a group under D-20, not a batch, since a
+batch holds `XS` items only.
+
+Decided at the same time: before a push, the local web tests are the smoke
+sections of the pages a change reaches (`npm run test:page`), with the unit
+and convention tests, and the whole suite runs locally only when the change
+touches `web/scripts/prerender.js`, a shared component or library, or the
+styles — the places one edit reaches every page. CI's `web` job runs the
+whole suite on every push and stays one of the four checks that never
+slide, so nothing reaches `main` less tested; what moves is where a fork
+spends its own minutes.
+
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four
 rungs of `PD-02` whose diffs a single pass would have read for the price of

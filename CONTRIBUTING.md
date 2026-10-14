@@ -160,7 +160,12 @@ make lint       # Ruff, Biome, actionlint — what CI's lint job runs; see ruff.
 Add `QUIET=1` to any make target — `make ci QUIET=1` — for failures, warnings
 and a count instead of one line per check; the front end's equivalents are
 `npm test -- --quiet` and, for one page's smoke sections, `npm run test:page
--- /drivers`. Same checks, same exit codes, a fortieth of the output.
+-- /drivers`. Same checks, same exit codes, a fortieth of the output. Before a
+push, the pages a change reaches are enough locally (`--only` before each
+further route), and the whole suite is for a change to
+`web/scripts/prerender.js`, a shared component or the styles, or anything
+else every page passes through; CI's `web` job runs all of it on every push
+`[D-54]`.
 
 `verify.py` must exit 0. Commit the regenerated `f1.db` and `f1_compat.json` —
 CI fails if the committed export does not match a fresh build. `f1_database.json`
@@ -213,6 +218,9 @@ free number, counting closed issues and `docs/LANDED.md` too.
 
 **Size** is what it costs, not how much it matters:
 
+- `size: XS` — about thirty changed lines or fewer: a wording fix, a comment,
+  one data row, one declared exception. Up to five ride in one *tidy batch*,
+  related or not, with one review and every gate `[D-54]`.
 - `size: S` — one sitting. A component, a query, a copy change.
 - `size: M` — a few sittings, shippable in pieces.
 - `size: L` — needs a plan first, and probably a decision that is not obvious.
@@ -254,7 +262,7 @@ saying why, because what was declined and why is what a later critique has
 to argue against. Nothing is deleted.
 
 **Filing.** `python3 .claude/skills/backlog-loop/file.py new <prefix>
-"<title>" --size <S|M|L|?> --body "<what is wrong, where, and what would
+"<title>" --size <XS|S|M|L|?> --body "<what is wrong, where, and what would
 fix it>" --where "<the paths it would touch>"` numbers the item, labels it
 and puts it on the board (under *Someday*, unless `--status` says otherwise;
 `--decision` for a question). **Filing is not ranking** `[D-36]`: an item

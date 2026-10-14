@@ -45,6 +45,7 @@ body:
       label: Size
       description: What it costs, not how much it matters.
       options:
+        - "XS — about thirty changed lines or fewer: rides in a tidy batch"
         - "S — one sitting: a component, a query, a copy change"
         - "M — a few sittings, shippable in pieces"
         - "L — needs a plan first, and probably a decision that is not obvious"

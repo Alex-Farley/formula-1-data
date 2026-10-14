@@ -287,8 +287,8 @@ def tracked(path):
 def new(a):
     if a.prefix not in SOURCE:
         sys.exit(f"unknown prefix {a.prefix}; one of {', '.join(sorted(SOURCE))}")
-    if a.size not in ("S", "M", "L", "?"):
-        sys.exit("--size is S, M, L or ?")
+    if a.size not in ("XS", "S", "M", "L", "?"):
+        sys.exit("--size is XS, S, M, L or ?")
     ident = subprocess.run([sys.executable, os.path.join(HERE, "next.py"), "--next-id", a.prefix],
                            capture_output=True, text=True, check=True).stdout.strip()
     body = open(a.body_file, encoding="utf-8").read() if a.body_file else (a.body or "")

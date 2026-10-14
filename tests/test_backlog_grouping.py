@@ -323,6 +323,68 @@ class GroupingProposals(unittest.TestCase):
         self.assertIn("AX-13", [r["ident"] for _, r, _ in rows])
 
 
+
+def xs_row(n, status, size="XS", labels=(), waits=0):
+    ident = f"TL-{n:02d}"
+    return {"number": n, "ident": ident, "title": f"{ident}: Item {n}.", "status": status,
+            "labels": [f"size: {size}", *labels], "waits": waits, "body": ""}
+
+
+class TidyLane(unittest.TestCase):
+    """The tidy batch `[D-54]`: up to five XS items in one PR, linked or not.
+
+    Rows are built by hand rather than added to QUEUE above, because that
+    fixture's scores depend on rank adjacency, and an item inserted into it
+    moves every case measured against it."""
+
+    def setUp(self):
+        self.ranked = [xs_row(1, "Now"), xs_row(2, "Now", size="S"), xs_row(3, "Now"),
+                       xs_row(4, "Now", labels=["blocked"]), xs_row(5, "Now", labels=["decision"]),
+                       xs_row(6, "Next", waits=1), xs_row(7, "Next"), xs_row(8, "Next"),
+                       xs_row(9, "Next"), xs_row(10, "Next"), xs_row(11, "Someday")]
+        self.head = self.ranked[0]
+
+    def batch(self, head=None, skip=(), taken=None):
+        head = head or self.head
+        taken = {head["number"]} if taken is None else taken
+        return [r["ident"] for r in next_py.tidy_batch(head, self.ranked, set(skip), taken)]
+
+    def test_five_at_most_in_queue_order_from_the_heads_band(self):
+        # TL-02 is S, TL-04 blocked, TL-05 a decision, TL-06 waiting; TL-10
+        # would be the sixth, and TL-11 is two statuses down.
+        self.assertEqual(self.batch(), ["TL-03", "TL-07", "TL-08", "TL-09"])
+
+    def test_only_an_xs_head_opens_a_batch(self):
+        self.assertEqual(self.batch(head=self.ranked[1]), [])
+
+    def test_the_skip_list_and_the_items_already_named_count(self):
+        self.assertEqual(self.batch(skip={"TL-03"}), ["TL-07", "TL-08", "TL-09", "TL-10"])
+        # `next.py --group TL-01 TL-07` names two: three more fit.
+        self.assertEqual(self.batch(taken={1, 7}), ["TL-03", "TL-08", "TL-09"])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            next_py.show_tidy(self.head, self.ranked, set(), {1, 7}, ["TL-07"])
+        self.assertIn("next.py TL-01 TL-07 TL-03 TL-08 TL-09\n", out.getvalue())
+
+    def test_a_someday_head_draws_from_someday_alone(self):
+        self.assertEqual(self.batch(head=self.ranked[-1]), [])
+
+    def test_the_printer_names_the_batch_and_not_one_item_one_pr(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            next_py.show_companions(self.head, self.ranked, set(), {1})
+            next_py.show_tidy(self.head, self.ranked, set(), {1})
+        text = out.getvalue()
+        self.assertNotIn("One item, one PR", text)
+        self.assertIn("Tidy batch for TL-01", text)
+        self.assertIn("next.py TL-01 TL-03 TL-07 TL-08 TL-09", text)
+
+    def test_a_head_that_is_not_xs_prints_no_batch(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            next_py.show_tidy(self.ranked[1], self.ranked, set(), {2})
+        self.assertEqual(out.getvalue(), "")
+
 class WhereTheWorkLands(unittest.TestCase):
     """`file.py new --where` through `signals()`, and the spelling it needs.
 
