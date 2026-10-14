@@ -153,4 +153,39 @@ if [ $# -gt 0 ]; then
     printf '%s\n' "$log" | grep -q "$item" && say ok "a commit names $item" || say WARN "no commit message names $item"
   done
 fi
+# 7. a floor in verify.py lowered or removed names the maintainer's ruling
+# (AF-103). The floors - rows a bulk table holds, times a harvested column is
+# filled - are raised when a harvest legitimately adds and never lowered
+# without one; #935 lowered one, 3911 to 3910, and only the reviewer saw it.
+# floors.py says which; this compares the branch's verify.py with the one at
+# the commit it left main at, so a floor main has raised since does not read
+# as this branch lowering it. The PR body carries a line per floor naming it,
+# the word "floor" and the ruling, an issue or a decision:
+#   Floor lowered: article_images.race_id 3916 -> 3910, ruled on #838
+# That the ruling exists is for the reviewer; this makes sure one is named.
+vchanged=$(git diff --name-only origin/main...HEAD -- verify.py 2>/dev/null)
+if [ -n "$vchanged" ]; then
+  oldv=$(mktemp); newv=$(mktemp)
+  trap 'rm -f "$errf" "$oldv" "$newv"' EXIT
+  git show "$(git merge-base origin/main HEAD):verify.py" >"$oldv" 2>/dev/null
+  # Absent at HEAD is every floor gone, which is what an empty file says.
+  git show HEAD:verify.py >"$newv" 2>/dev/null
+  low=$(python3 "$(dirname "${BASH_SOURCE[0]}")/floors.py" "$oldv" "$newv" 2>"$errf"); frc=$?
+  if [ $frc -ne 0 ]; then
+    say FAIL "verify.py's floors could not be compared: $(head -1 "$errf" | cut -c1-60)"; fail=1
+  elif [ -z "$low" ]; then say ok "no verify.py floor lowered"
+  else
+    if [ -z "${body+x}" ]; then body=$(gh pr view --json body --jq .body 2>"$errf"); prrc=$?; fi
+    why=""
+    [ "$prrc" -ne 0 ] && why=" (no PR body read: $(head -1 "$errf" | cut -c1-40))"
+    while read -r key was now; do
+      [ "$now" = "-" ] && what="removed (was $was)" || what="lowered $was -> $now"
+      if printf '%s\n' "$body" | grep -i 'floor' | grep -wF -- "$key" | grep -qE '(#[0-9]+|\bD-[0-9]+)\b'; then
+        say ok "verify.py floor $key $what, and the PR body names its ruling"
+      else
+        say FAIL "verify.py floor $key $what with no ruling named$why - a PR body line naming it, 'floor' and the ruling (#n or D-nn), or put it back"; fail=1
+      fi
+    done <<<"$low"
+  fi
+fi
 if [ $fail = 0 ]; then echo "precheck: ready for review"; else echo "precheck: fix before asking a reviewer"; exit 1; fi

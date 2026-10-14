@@ -4906,6 +4906,8 @@ def the_full_classification():
     # standings.txt deleted - 34,498 rows gone - passed every gate. Each
     # figure is the count at v2.22; raise one when a harvest legitimately adds
     # rows, never lower it. A harvest that shrinks has to be looked at.
+    # precheck.sh refuses a lowered or removed floor, here or anywhere a name
+    # holds FLOOR, unless the PR body names it and the ruling (AF-103).
     FLOORS = (
         ("race_entries", 27482), ("qualifying", 26997), ("standings", 34563),
         ("pit_stops", 22481), ("sprint_results", 590), ("season_entrants", 1925),

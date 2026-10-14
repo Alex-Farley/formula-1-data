@@ -24,11 +24,13 @@ WHY THIS FILE EXISTS
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRECHECK = os.path.join(ROOT, ".claude", "skills", "backlog-loop", "precheck.sh")
+FLOORS = os.path.join(ROOT, ".claude", "skills", "backlog-loop", "floors.py")
 
 WORKING = '''#!/bin/sh
 case "$1 $2" in
@@ -301,6 +303,133 @@ class Precheck(unittest.TestCase):
         code, out = self.run_with(alarm("Refs #2910\\n"), "AF-12")
         self.assertIn("does not name alarm #291", out)
         self.assertEqual(code, 1, out)
+
+
+# verify.py's floors (AF-103), at the commit the branch left main at.
+VERIFY = """def checks(con):
+    FLOORS = (
+        ("standings", 34563), ("engines", 424),
+    )
+    COLUMN_FLOORS = (
+        ("article_images", "race_id", 3916, "harvest/race_images.txt"),
+    )
+    FLOOR = 60
+    {extra}
+"""
+
+
+def says(body):
+    """A working gh whose PR body is `body`."""
+    return WORKING.replace("printf 'Body.\\n\\nCloses #291\\n'", f"printf '{body}'")
+
+
+class Floors(unittest.TestCase):
+    """A floor lowered or removed in verify.py names the maintainer's ruling.
+
+    #935 lowered `article_images.race_id` from 3911 to 3910 and only the
+    reviewer saw it; the floors are never lowered without a ruling."""
+
+    run_in = Precheck.run_in
+
+    def floor_repo(self, head, main=None):
+        """verify.py as VERIFY on the commit the branch left, `head` on the
+        branch, and - when given - `main` on an origin/main that moved since."""
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        git(d, "init", "-q")
+        git(d, "config", "user.email", "t@example.invalid")
+        git(d, "config", "user.name", "T")
+
+        def commit(text, message):
+            with open(os.path.join(d, "verify.py"), "w", encoding="utf-8") as f:
+                f.write(text)
+            git(d, "add", "-A")
+            git(d, "commit", "-q", "-m", message)
+
+        commit(VERIFY.format(extra="pass"), "base")
+        git(d, "branch", "-q", "base")
+        if main is not None:
+            commit(main, "main moved")
+        git(d, "update-ref", "refs/remotes/origin/main", "HEAD")
+        git(d, "checkout", "-q", "-b", "work", "base")
+        commit(head, "AF-12: a change")
+        return d
+
+    LOWERED = VERIFY.format(extra="pass").replace("3916", "3910")
+
+    def test_a_lowered_floor_with_no_ruling_fails(self):
+        code, out = self.run_in(self.floor_repo(self.LOWERED), says("Body.\\n"))
+        self.assertIn("floor article_images.race_id lowered 3916 -> 3910 with no ruling named", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_lowered_floor_whose_ruling_is_named_passes(self):
+        for ruling in ("#838", "D-53"):
+            body = f"Body.\\n\\nFloor lowered: article_images.race_id 3916 -> 3910, ruled on {ruling}\\n"
+            code, out = self.run_in(self.floor_repo(self.LOWERED), says(body))
+            self.assertIn("names its ruling", out)
+            self.assertEqual(code, 0, out)
+
+    def test_a_ruling_for_another_floor_does_not_cover_this_one(self):
+        body = "Floor lowered: standings, ruled on #838\\n"
+        code, out = self.run_in(self.floor_repo(self.LOWERED), says(body))
+        self.assertIn("article_images.race_id lowered", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_line_naming_the_floor_with_no_reference_is_not_a_ruling(self):
+        body = "Floor lowered: article_images.race_id, the maintainer agreed\\n"
+        code, out = self.run_in(self.floor_repo(self.LOWERED), says(body))
+        self.assertEqual(code, 1, out)
+
+    def test_a_removed_floor_is_a_lowered_one(self):
+        # A deleted floor guards nothing at all.
+        head = VERIFY.format(extra="pass").replace('("engines", 424),', "")
+        code, out = self.run_in(self.floor_repo(head), says("Body.\\n"))
+        self.assertIn("floor engines removed (was 424)", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_scalar_floor_is_read_by_its_function(self):
+        head = VERIFY.format(extra="pass").replace("FLOOR = 60", "FLOOR = 59")
+        code, out = self.run_in(self.floor_repo(head), says("Body.\\n"))
+        self.assertIn("floor checks:FLOOR lowered 60 -> 59", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_raised_floor_passes(self):
+        head = VERIFY.format(extra="pass").replace("34563", "34600")
+        code, out = self.run_in(self.floor_repo(head), says("Body.\\n"))
+        self.assertIn("no verify.py floor lowered", out)
+        self.assertEqual(code, 0, out)
+
+    def test_a_floor_main_raised_since_is_not_this_branch_lowering_it(self):
+        # Against origin/main's tip, the branch's untouched 3916 would read as
+        # lowering main's 3920; against the commit it left, it changed nothing.
+        main = VERIFY.format(extra="pass").replace("3916", "3920")
+        head = VERIFY.format(extra="x = 1")
+        code, out = self.run_in(self.floor_repo(head, main=main), says("Body.\\n"))
+        self.assertIn("no verify.py floor lowered", out)
+        self.assertEqual(code, 0, out)
+
+    def test_the_body_already_read_for_the_items_serves_the_floors_too(self):
+        body = "Body.\\n\\nCloses #291\\nFloor lowered: article_images.race_id, ruled on #838\\n"
+        code, out = self.run_in(self.floor_repo(self.LOWERED), says(body), "AF-12")
+        self.assertIn("names its ruling", out)
+        self.assertEqual(code, 0, out)
+
+    def test_an_unreadable_pr_body_still_fails_a_lowered_floor(self):
+        # Fail closed: a floor nobody can see a ruling for stays refused.
+        code, out = self.run_in(self.floor_repo(self.LOWERED), REFUSING)
+        self.assertIn("no PR body read", out)
+        self.assertEqual(code, 1, out)
+
+    def test_the_extractor_reads_the_real_verify_py(self):
+        # A refactor of verify.py that hid its floors from floors.py would
+        # leave this check comparing nothing with nothing, and passing.
+        r = subprocess.run([sys.executable, FLOORS, "--list", os.path.join(ROOT, "verify.py")],
+                           capture_output=True, text=True, check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        keys = {line.split()[0] for line in r.stdout.splitlines()}
+        for key in ("standings", "race_entries", "article_images.race_id",
+                    "chassis.weight_kg", "records_are_derived:FLOOR"):
+            self.assertIn(key, keys)
 
 
 if __name__ == "__main__":
