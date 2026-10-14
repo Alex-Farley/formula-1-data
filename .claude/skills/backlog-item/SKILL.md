@@ -154,7 +154,8 @@ they are not one change, and that sentence goes in the pull request.
   a `SKIPPED`.
 
 **Every issue set to *In progress* leaves it by exactly one of five routes**,
-and a group accounts for each of its own: merged (`Done`), blocked (status
+and a group accounts for each of its own: merged (`Done`, or *Now* for an
+alarm, which is still open — *After the merge* says why), blocked (status
 back), held on a decision (status back), stopped or skipped (status back), or
 dropped from the group (status back). An issue left at *In progress* is one `next.py` never returns, so it
 is out of the queue until a person moves it by hand.
@@ -220,6 +221,10 @@ line could not be written; say so in the stock-take and carry on.
 - **The issue:** `file.py status <n> "In progress"` for every issue in the
   group when the worktree opens; `Closes #<n>` on its own line for each in
   the PR body, which is the record of what was done and what was left.
+  **Except an alarm** — an issue labelled `refresh-failing` or
+  `results-late`, which refresh.yml opens as an item and closes itself on
+  the first run that proves the fix: the PR says `Refs #<n>`, never a
+  closing keyword, and its body says how to work it `AF-89`.
   Anything discovered is filed as its own issue — `file.py new <prefix>
   "<title>" --size <S|M|L|?> --body "..."` — never left in a note, a PR
   comment or a TODO.
@@ -227,7 +232,8 @@ line could not be written; say so in the stock-take and carry on.
 ## Before asking for review
 
 `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID> [<ITEM-ID>...]` from
-the worktree root, naming every id in the group. It refuses conflict markers,
+the worktree root, naming every id in the group; an item with no id, which
+`next.py` names `#<n>`, is given as `#<n>` `CR-75`. It refuses conflict markers,
 scripts that do not parse, duplicated imports and a PR body that does not
 close every item's issue, and warns about an artefact that moved without a
 source change. Half the FAIL rounds it was written for were one of these, and
@@ -416,7 +422,10 @@ above is the only one `[D-44]`.
   conflict in a source file or in prose stops it with the file named, for a
   person. Rerun the web tests before pushing. Merge PRs one at a time.
 - **After the merge:** `file.py status <n> Done` for every issue in the
-  group, remove the worktree, delete the branch, `git pull`.
+  group, remove the worktree, delete the branch, `git pull`. An alarm is
+  still open, so it is not *Done*: start the run that proves the fix with
+  `gh workflow run refresh.yml`, and put its status back to *Now*, where it
+  waits to be closed by that run or taken again from a later failing one.
 
 ## Stop conditions, and holding instead
 

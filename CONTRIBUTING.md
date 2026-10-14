@@ -244,7 +244,10 @@ for the record. The body is what a fork reads; a ruling left only in a
 comment has been re-filed as undecided three times `[D-43]`.
 
 **Landing.** The pull request body carries `Closes #n` on its own line, so
-the merge closes the issue and the board moves it to *Done*. The PR is the
+the merge closes the issue and the board moves it to *Done*. The one
+exception is refresh.yml's alarm issue (`refresh-failing`, `results-late`):
+the workflow closes it on the run that proves the fix, so a PR says
+`Refs #n`. The PR is the
 record of what was done; the issue is not edited to say so. **Declining** is
 a normal outcome: the issue is closed as *not planned* with one comment
 saying why, because what was declined and why is what a later critique has

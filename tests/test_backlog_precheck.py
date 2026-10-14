@@ -54,6 +54,23 @@ exit 1
 CLOSES_NOTHING = REFUSING_ISSUES_ONLY.replace("Closes #291\\n", "nothing here\\n")
 EMPTY_BODY = WORKING.replace("printf 'Body.\\n\\nCloses #291\\n'", "printf ''")
 
+# An issue named by number (CR-75): `gh issue view` answers for it, with the
+# number when it is an open issue and nothing when it is not.
+BY_NUMBER = WORKING.replace('"issue list") echo \'291\' ;;', '"issue view") echo \'291\' ;;')
+NOT_AN_ISSUE = '''#!/bin/sh
+case "$1 $2" in
+  "pr view") printf 'Body.\\n\\nCloses #291\\n'; exit 0 ;;
+esac
+echo "GraphQL: Could not resolve to an issue or pull request with the number of 291." >&2
+exit 1
+'''
+
+
+def alarm(body):
+    """refresh.yml's alarm: the issue answers with "!" after its number."""
+    return WORKING.replace("echo '291'", "echo '291!'").replace(
+        "printf 'Body.\\n\\nCloses #291\\n'", f"printf '{body}'")
+
 CLEAN_RUFF = '#!/bin/sh\nexit 0\n'
 ANGRY_RUFF = '#!/bin/sh\necho "x.py:1:1: F821 undefined name"\nexit 1\n'
 # Complains unless `f1` is among the paths it was handed. ruff.toml includes
@@ -250,6 +267,40 @@ class Precheck(unittest.TestCase):
         code, out = self.run_with(WORKING, "")
         self.assertNotIn("is issue", out)
         self.assertEqual(code, 0, out)
+
+    def test_an_issue_named_by_number_is_checked_by_number(self):
+        for name in ("#291", "291"):
+            code, out = self.run_with(BY_NUMBER, name)
+            self.assertIn(f"{name} is issue #291", out)
+            self.assertIn("the PR closes #291", out)
+            self.assertEqual(code, 0, out)
+
+    def test_a_number_that_is_no_issue_fails_rather_than_warns(self):
+        code, out = self.run_with(NOT_AN_ISSUE, "#291")
+        self.assertIn("#291 is not an open issue", out)
+        self.assertNotIn("unchecked", out)
+        self.assertEqual(code, 1, out)
+
+    def test_an_alarm_referred_to_passes(self):
+        code, out = self.run_with(alarm("Body.\\n\\nRefs #291\\n"), "AF-12")
+        self.assertIn("a refresh.yml alarm", out)
+        self.assertIn("refers to #291 without closing it", out)
+        self.assertEqual(code, 0, out)
+
+    def test_an_alarm_closed_by_the_pr_fails_wherever_the_keyword_is(self):
+        # GitHub closes on the keyword mid-sentence too, so this reads the
+        # whole body, where an ordinary item's check reads line starts.
+        for body in ("Closes #291\\n", "This fixes #291 at last.\\n", "Resolved: #291\\n",
+                     "Closes  #291\\n", "Fixes Alex-Farley/formula-1-data#291\\n",
+                     "Closes https://github.com/Alex-Farley/formula-1-data/issues/291\\n"):
+            code, out = self.run_with(alarm(body), "AF-12")
+            self.assertIn("would close alarm #291", out, body)
+            self.assertEqual(code, 1, out)
+
+    def test_an_alarm_the_pr_never_names_fails(self):
+        code, out = self.run_with(alarm("Refs #2910\\n"), "AF-12")
+        self.assertIn("does not name alarm #291", out)
+        self.assertEqual(code, 1, out)
 
 
 if __name__ == "__main__":
