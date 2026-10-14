@@ -197,10 +197,14 @@ def next_ident(titles, prefix=PREFIX):
     """The next unused id for `prefix` among these issue titles, the rule
     `next.py --next-id` keeps. That also reads docs/LANDED.md, which this
     job does not check out; the archive's AF entries stop at AF-04, below
-    every AF issue, so for this prefix the titles alone give the same."""
+    every AF issue, so for this prefix the titles alone give the same.
+
+    None when no title carries the prefix. This repository has used AF ids
+    for years, so a list without one is a list that did not read whole, and
+    numbering from it would hand out `AF-01` again."""
     used = [int(m.group(1)) for t in titles
             for m in [re.match(rf"^{prefix}-(\d+): ", t)] if m]
-    return f"{prefix}-{(max(used) + 1 if used else 1):02d}"
+    return f"{prefix}-{max(used) + 1:02d}" if used else None
 
 
 def number_of(url):
@@ -218,6 +222,13 @@ PICKING_UP = (
     "worked. Name it in the pull request as `Refs #n`. Work from the latest run's "
     "log. If the cause is upstream - F1DB has not published yet - there is nothing "
     "to fix here: mark it blocked and leave it to close itself.")
+# What "nothing to fix yet" means for the failure alarm, whose fix is proved
+# only by a later run. One run at a time is all refresh.yml allows, and a
+# second queued behind the first proves nothing the first does not.
+NOT_YET = (
+    " If no run has failed since the fix merged, there is nothing to fix yet: "
+    "if a run of refresh.yml is queued or in progress, leave this to it; if none "
+    "is, start one with `gh workflow run refresh.yml`. Either way, skip the item.")
 
 
 def failure_body(failing, run_url, when, count, first, refusal=None):
@@ -244,9 +255,7 @@ def failure_body(failing, run_url, when, count, first, refusal=None):
         "first run after it that hands its change to the pull request that merges "
         "itself once CI passes, while CI is not refusing that pull request. The run's "
         "log says why; `docs/UPSTREAM.md` says how to check the sync by hand.",
-        PICKING_UP.format(proof="lands") + " If no run has failed since your fix "
-        "merged, there is nothing to fix yet: start one with `gh workflow run "
-        "refresh.yml` and read its result."]
+        PICKING_UP.format(proof="lands") + NOT_YET]
     return "\n\n".join(parts)
 
 
@@ -293,7 +302,8 @@ def open_issue(kind, body):
     except (ValueError, KeyError, TypeError):
         ident = None
     if ident is None:
-        print(f"::warning::no item id for the alarm, the issue list was unreadable: {out.stderr.strip()}")
+        print("::warning::no item id for the alarm: the issue list was unreadable or held "
+              f"no {PREFIX} id ({out.stderr.strip() or 'no error'})")
     title = f"{ident}: {kind['title']}" if ident else kind["title"]
     url = gh("issue", "create", "--title", title, "--label", kind["label"],
              "--body", body).stdout.strip()

@@ -290,7 +290,9 @@ class Precheck(unittest.TestCase):
     def test_an_alarm_closed_by_the_pr_fails_wherever_the_keyword_is(self):
         # GitHub closes on the keyword mid-sentence too, so this reads the
         # whole body, where an ordinary item's check reads line starts.
-        for body in ("Closes #291\\n", "This fixes #291 at last.\\n", "Resolved: #291\\n"):
+        for body in ("Closes #291\\n", "This fixes #291 at last.\\n", "Resolved: #291\\n",
+                     "Closes  #291\\n", "Fixes Alex-Farley/formula-1-data#291\\n",
+                     "Closes https://github.com/Alex-Farley/formula-1-data/issues/291\\n"):
             code, out = self.run_with(alarm(body), "AF-12")
             self.assertIn("would close alarm #291", out, body)
             self.assertEqual(code, 1, out)

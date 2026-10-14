@@ -154,7 +154,8 @@ they are not one change, and that sentence goes in the pull request.
   a `SKIPPED`.
 
 **Every issue set to *In progress* leaves it by exactly one of five routes**,
-and a group accounts for each of its own: merged (`Done`), blocked (status
+and a group accounts for each of its own: merged (`Done`, or *Now* for an
+alarm, which is still open — *After the merge* says why), blocked (status
 back), held on a decision (status back), stopped or skipped (status back), or
 dropped from the group (status back). An issue left at *In progress* is one `next.py` never returns, so it
 is out of the queue until a person moves it by hand.

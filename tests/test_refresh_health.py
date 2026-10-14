@@ -374,8 +374,10 @@ class AnAlarmIsAnItemOfTheQueue(unittest.TestCase):
                                  ("--add-label", "size: ?")])
 
     def test_an_unreadable_issue_list_costs_the_id_and_not_the_alarm(self):
-        create = self.created(self.opened(list_rc=1))
-        self.assertEqual(create[create.index("--title") + 1], "The refresh from F1DB is failing")
+        for kw in (dict(list_rc=1), dict(titles="[]"), dict(titles="not json")):
+            create = self.created(self.opened(**kw))
+            self.assertEqual(create[create.index("--title") + 1],
+                             "The refresh from F1DB is failing", kw)
 
     def test_a_label_that_cannot_be_added_does_not_stop_the_assignee(self):
         calls = self.opened(edit_rc=("--add-label",))
@@ -387,8 +389,10 @@ class AnAlarmIsAnItemOfTheQueue(unittest.TestCase):
 
     def test_next_ident(self):
         self.assertEqual(alarm.next_ident(["AF-09: a", "PD-40: b", "AF-88: c", "AF-x: d"]), "AF-89")
-        self.assertEqual(alarm.next_ident([]), "AF-01")
-        self.assertEqual(alarm.next_ident(["The refresh from F1DB is failing"]), "AF-01")
+        # No AF id at all is a list that did not read whole, not a fresh
+        # start: numbering from it would reuse AF-01.
+        self.assertIsNone(alarm.next_ident([]))
+        self.assertIsNone(alarm.next_ident(["The refresh from F1DB is failing"]))
 
     def test_both_bodies_tell_whoever_picks_it_up_not_to_close_it(self):
         for body in (alarm.failure_body(["x"], "u", "w", 1, "2026-10-14"),

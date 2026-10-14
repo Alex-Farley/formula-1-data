@@ -116,10 +116,11 @@ if [ $# -gt 0 ]; then
       say ok "$item is issue #$n, a refresh.yml alarm that the workflow closes"
       if [ -n "$body" ]; then
         # GitHub closes on a keyword anywhere in the body, not only at the
-        # start of a line, so the refusal reads the whole of it.
-        if printf '%s\n' "$body" | grep -qiE "\b(close[sd]?|fix(e[sd])?|resolve[sd]?):? #$n\b"; then
+        # start of a line, and on `owner/repo#n` or the issue's URL as well
+        # as `#n`, so the refusal reads the whole of it in all three forms.
+        if printf '%s\n' "$body" | grep -qiE "\b(close[sd]?|fix(e[sd])?|resolve[sd]?):?[[:space:]]+([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#|https?://[^[:space:]]*/issues/|#)$n\b"; then
           say FAIL "the PR body would close alarm #$n on merge; refresh.yml closes it - say 'Refs #$n' instead"; fail=1
-        elif printf '%s\n' "$body" | grep -qE "#$n\b"; then say ok "the PR refers to #$n without closing it"
+        elif printf '%s\n' "$body" | grep -qE "(#|/issues/)$n\b"; then say ok "the PR refers to #$n without closing it"
         else say FAIL "the PR body does not name alarm #$n ('Refs #$n' on its own line)"; fail=1; fi
       fi
     else
