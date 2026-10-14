@@ -88,9 +88,10 @@ class WhatFailed(unittest.TestCase):
     def test_a_verify_that_crashed_says_so(self):
         self.assertEqual(RH.failures("verify.py", 1, "", "Traceback"), ["verify.py exited 1"])
 
-    def test_a_build_refusal_is_its_last_line(self):
-        self.assertEqual(RH.failures("build.py", 1, "loading\n", "standings: wrong\n"),
-                         ["build.py refused: standings: wrong"])
+    def test_a_build_refusal_is_named_and_never_quoted(self):
+        # Its message can quote harvest values; this text is granted prose.
+        got = RH.failures("build.py", 1, "loading\n", "standings: max-verstappen 25\n")
+        self.assertEqual(got, ["build.py refused the harvest (exit 1; the run's log has why)"])
 
     def test_a_field_carries_no_pipe_and_no_line_break(self):
         self.assertEqual(RH.one_line("a|b\nc  d"), "a/b c d")
@@ -146,6 +147,13 @@ class TheGapRow(unittest.TestCase):
         self.assertEqual(gap[:5], (21, "held-2030-17-f1db-pit-stops", "pit_stops",
                                    "the pit stops of the 2030 Test Grand Prix", "open"))
         self.assertIn("the 1 row F1DB", gap[6])
+        self.assertIn("The pit stops of the 2030 Test Grand Prix are held back", gap[5])
+        self.assertIn("added once they pass.", gap[5])
+
+    def test_a_single_thing_held_reads_in_the_singular(self):
+        gap = HV.held_gap(21, ("qualifying.txt", 2030, 17, 2, "a check"), "Test Grand Prix")
+        self.assertIn("classification of the 2030 Test Grand Prix is held back", gap[5])
+        self.assertIn("added once it passes.", gap[5])
         self.assertIn("What they failed: a check", gap[6])
 
     def test_its_key_is_one_a_reader_can_type(self):

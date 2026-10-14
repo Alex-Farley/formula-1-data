@@ -31,7 +31,7 @@ WHAT IT DOES
        file, write the hold to held.txt (so the build records it as an open
        known_gaps row), and run the three commands again.
     4. If EXACTLY ONE candidate passes, that is the refresh: its rows stay
-       out, held.txt names them and the checks they failed. If none passes,
+       out, held.txt names them and what they failed. If none passes,
        the failure is not one race's rows in one file; if more than one
        does, it is not attributable to one of them. Either way the harvest
        is put back as fetched and the run fails whole, as it always did.
@@ -153,8 +153,13 @@ def held_line(file_, race, added, failed):
 
 
 def failures(script, returncode, stdout, stderr):
-    """What failed, as names: verify.py's own list of failed checks, or the
-    line a build step refused on."""
+    """What failed, as names: verify.py's own list of failed checks, or that
+    a build step refused - in a fixed phrase, never its message. A refusal
+    can quote harvest values, and this text goes into known_gaps prose that
+    is granted as the project's own writing (PM-47) and into the alarm's
+    body; the run's log keeps the message whole. When a build step refuses,
+    verify.py never ran, so this is the first thing that failed, not every
+    check that would have."""
     if script == "verify.py":
         lines = stdout.splitlines()
         if any("CHECK(S) FAILED:" in line for line in lines):
@@ -164,8 +169,7 @@ def failures(script, returncode, stdout, stderr):
             if names:
                 return names
         return [f"verify.py exited {returncode}"]
-    last = [line for line in (stderr or stdout).splitlines() if line.strip()]
-    return [f"{script} refused: {one_line(last[-1] if last else f'exit {returncode}', 300)}"]
+    return [f"{script} refused the harvest (exit {returncode}; the run's log has why)"]
 
 
 # ---------------------------------------------------------------- the effects

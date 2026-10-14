@@ -87,8 +87,8 @@ fetch has just added for one race to one of the per-race files
 sprint qualifying, practice, standings, pit stops, fastest laps). If
 exactly one such set, left out, lets everything else pass every check,
 those rows stay out of the harvest, `harvest/held.txt` names them and the
-checks they failed, the build makes that line an open `known_gaps` row, and
-the rest of the refresh lands. If none does, or more than one, the run
+checks they failed (or that the build refused them), the build makes that
+line an open `known_gaps` row, and the rest of the refresh lands. If none does, or more than one, the run
 fails whole as before. The checks are not loosened: what lands passed
 `verify.py`, and the one allowance it makes - a held race need not have
 rows of the file it is held from - is tied to a line of `held.txt` and its

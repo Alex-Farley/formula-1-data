@@ -2713,19 +2713,20 @@ def load_fastest_laps():
 HELD_FILE = os.path.join(HERE, "..", "harvest", "held.txt")
 
 # The F1DB files a race's new rows can be held back from: each one's
-# known_gaps `field`, and what its rows are of, as a reader is told. The
+# known_gaps `field`, what its rows are of, as a reader is told, and the
+# verb that agrees with it. The
 # per-race files tools/f1db_fetch.py writes, and no other - the calendar
 # files (race dates, layouts, grands prix) describe the race before it is
 # run, and a hold is for what the race weekend produced.
 HOLDABLE = {
-    "race_results.txt": ("race_entries", "race classification"),
-    "sprint_results.txt": ("sprint_results", "sprint classification"),
-    "qualifying.txt": ("qualifying", "qualifying classification"),
-    "sprint_qualifying.txt": ("sprint_qualifying", "sprint qualifying classification"),
-    "practice.txt": ("practice", "practice classifications"),
-    "standings.txt": ("standings", "championship standings after the race"),
-    "f1db_pit_stops.txt": ("pit_stops", "pit stops"),
-    "fastest_laps.txt": ("race_entries.fastest_lap", "fastest lap"),
+    "race_results.txt": ("race_entries", "race classification", "is"),
+    "sprint_results.txt": ("sprint_results", "sprint classification", "is"),
+    "qualifying.txt": ("qualifying", "qualifying classification", "is"),
+    "sprint_qualifying.txt": ("sprint_qualifying", "sprint qualifying classification", "is"),
+    "practice.txt": ("practice", "practice classifications", "are"),
+    "standings.txt": ("standings", "championship standings after the race", "are"),
+    "f1db_pit_stops.txt": ("pit_stops", "pit stops", "are"),
+    "fastest_laps.txt": ("race_entries.fastest_lap", "fastest lap", "is"),
 }
 
 
@@ -2759,15 +2760,17 @@ def held_gap(gap_id, held, race_name):
     held.txt. One function, so build.py writes it and verify.py rebuilds it
     and compares the two whole."""
     file_, year, round_, rows, failed = held
-    field, what = HOLDABLE[file_]
+    field, what, verb = HOLDABLE[file_]
+    they, them = ("it", "it") if verb == "is" else ("they", "them")
     count = f"{rows} row" + ("" if rows == 1 else "s")
     key = f"held-{year}-{round_}-" + file_[:-len(".txt")].replace("_", "-")
     return (
         gap_id, key, field, f"the {what} of the {year} {race_name}", "open",
-        f"The {what} of the {year} {race_name} is held back. F1DB has published it, "
-        "but it failed a check this database makes, so it is left out rather than "
-        "published unchecked. Everything else about the race is published as "
-        "normal, and this is added once it passes.",
+        f"The {what} of the {year} {race_name} {verb} held back. F1DB has published "
+        f"{them}, but {they} failed a check this database makes, so {they} {verb} left "
+        "out rather than published unchecked. Everything else about the race is "
+        f"published as normal, and {they} {verb} added once {they} pass"
+        + ("es." if verb == "is" else "."),
         f"Held by refresh.yml (tools/refresh_hold.py, AF-90): leaving out the {count} "
         f"F1DB had just added to harvest/{file_} for {year} round {round_}, and only "
         f"those, let the rest of the refresh pass every check. What they failed: {failed}",

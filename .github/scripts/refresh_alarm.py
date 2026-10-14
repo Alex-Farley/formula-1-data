@@ -419,7 +419,9 @@ def now_utc():
 
 def failure():
     results = {k.lower(): os.environ.get(k, "") for k in ("GATE", "REFRESH", "LAND")}
-    held = os.environ.get("HELD", "").strip() or None
+    # No comment delimiters: the state marker below is found by the first
+    # `<!-- refresh-alarm` in the body, and HELD comes from the refresh.
+    held = os.environ.get("HELD", "").replace("<!--", "").replace("-->", "").strip() or None
     print(f"job results: {results}; held back: {held or 'nothing'}")
     issue = find(FAILING)
     # Unreadable, the rest still runs - this run's own failure is recorded -

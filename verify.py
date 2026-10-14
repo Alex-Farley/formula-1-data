@@ -1326,9 +1326,11 @@ def pole_position_and_fastest_lap():
     # Rebuilt here from the line and compared whole, so a hold cannot be
     # recorded without the row, the row cannot outlive the hold, and the
     # passes the coverage checks give a held race (held_races()) follow
-    # from a row a reader is shown. Only for the season being run: a
-    # refresh adds rows to no other, so a hold of an older race is not one
-    # the refresh made.
+    # from a row a reader is shown. Only for the season being run, or the
+    # one after it: a refresh adds rows to no other, so a hold of an older
+    # race is not one the refresh made. The season after, because a season
+    # is "being run" only once a race of it is classified, and the opening
+    # weekend's practice and qualifying arrive before that.
     hv = harvest_module()
     held = hv.load_held()
     written = max(g[0] for g in hv.KNOWN_GAPS)
@@ -1347,8 +1349,10 @@ def pole_position_and_fastest_lap():
           "after the written ones, and no other row follows them",
           got == want and not not_races,
           "; ".join(not_races) or f"{len(got)} row(s) after #{written}, {len(held)} hold(s)")
-    stale = [f"{h[0]} {h[1]} r{h[2]}" for h in held if h[1] != season_in_progress()]
-    check("a hold is of a race in the season being run", not stale, "; ".join(stale))
+    running = season_in_progress()
+    stale = [f"{h[0]} {h[1]} r{h[2]}" for h in held if h[1] not in (running, running + 1)]
+    check("a hold is of a race in the season being run, or its opening weekend's successor",
+          not stale, "; ".join(stale))
     open_ = con.execute("SELECT COUNT(*) FROM v_open_gaps").fetchone()[0]
     print(f"  [info] known_gaps: {open_} open, "
           + ", ".join(f"{n} {s}" for s, n in con.execute(

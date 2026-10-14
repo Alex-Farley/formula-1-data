@@ -1342,7 +1342,9 @@ the full suite against the database that goes out.
 of a held file at every completed race - qualifying's, and the fastest-lap
 credit's two - pass over a race named in `held.txt` for that file. Without that, a held qualifying sheet would fail its own hold.
 `verify.py` rebuilds each hold's `known_gaps` row from its line and
-compares it whole. It also refuses a hold outside the season being run.
+compares it whole. It also refuses a hold outside the season being run and
+the one after it, whose opening weekend comes before any race of it is
+classified.
 `data/harvest.py` refuses more than one line, a file outside `HOLDABLE`,
 and a line without its row count or its reason.
 
@@ -1358,6 +1360,12 @@ refresh that rebuilds starts by emptying `held.txt`, so the held rows are
 tried again each run. When they still fail and nothing else moved, the
 harvest ends as the commit had it. The tool then puts back everything the
 build rewrote except the check date, and the run lands as a quiet morning.
+
+**What a hold records as failed.** The names of the checks `verify.py`
+failed, or that `build.py` refused the harvest, in a fixed phrase. A
+refusal message can quote harvest values. The hold's text is `known_gaps`
+prose, granted as the project's own writing (PM-47), so it never quotes
+one (licence and security review of #997). The run's log keeps it.
 
 **The alarm.** `refresh_hold.py` passes the hold to the `report` job, and a
 run that held rows keeps the `refresh-failing` issue open. That issue
