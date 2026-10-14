@@ -283,13 +283,55 @@ line could not be written; say so in the stock-take and carry on.
 
 ## Before asking for review
 
-`bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID> [<ITEM-ID>...]` from
-the worktree root, naming every id in the group; an item with no id, which
-`next.py` names `#<n>`, is given as `#<n>` `CR-75`. It refuses conflict markers,
-scripts that do not parse, duplicated imports and a PR body that does not
-close every item's issue, and warns about an artefact that moved without a
-source change. Half the FAIL rounds it was written for were one of these, and
-it costs a few hundred tokens against a reviewer's tens of thousands `[D-24]`.
+**First, read your own diff once against what first passes fail on most**
+`AF-104`. It is a self-check, not a review: the fresh independent review
+still runs on every PR, and nothing here is recorded as a verdict. Each
+question is a class that failed more than one first pass, with PRs where it
+did; each answered here is a fix, a push, a CI run and a confirmation not
+spent.
+The list is re-derived now and then from the verdicts `[D-23]` puts on each
+PR as a comment, kept to ten, and a class leaves it when a test or the
+precheck comes to cover it — as a lowered `verify.py` floor (#935) did.
+
+1. **Does any sentence I wrote state more than its source, or the code,
+   says?** An "every", a "never", a cause, a date, an article read for what
+   it does not say. #912, #915, #681, #689.
+2. **Does every comment, docstring, doc line and PR-body claim about what I
+   changed still hold** — the ones I did not touch included? Search for the
+   old wording and the fact. #905, #829, #754, #899, #769, #836.
+3. **Can each check and test I added fail?** One that reuses the predicate
+   it checks, reads the wrong element, asserts the exit but not the effect,
+   or passes on an empty set guards nothing. #735, #730, #815, #813, #783.
+4. **Can a figure I show or store be NULL, and does it then read as not
+   established** — an em dash, "none recorded" — not 0 or "did not happen"?
+   A `COALESCE`, a `?? 0` and `IN (NULL)` included. #779, #831, #932, #737.
+5. **Where I cut, rank or take the first row, what does a tie do?** #825,
+   #932.
+6. **Does the static page say, and order, what the app does**, so nothing
+   moves or vanishes at the handover? #808, #821, #832, #906.
+7. **Does it hold at 320 to 400 px** — a clipped label, a box out of its
+   figure, an offset right only on a desktop? #948, #817, #828, #875.
+8. **Have I read every ruling on the item and on each item it names** — a
+   `Decided` paragraph, the maintainer's comments — and done what it says?
+   #686, #769.
+9. **Is every figure in my prose one the database or its own sums bear
+   out**, and a `{{fig:name}}` where it counts this database's rows
+   `[D-39]`? #932, #682.
+10. **Does it keep the build's other promises** — ids that are not
+    renumbered, `F1_LOCAL_TIMING=1` warning where the rule says warn, a test
+    that does not depend on the committed `f1.db` or on where it runs?
+    #937, #739, #805.
+
+Then `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID> [<ITEM-ID>...]`
+from the worktree root, naming every id in the group; an item with no id,
+which `next.py` names `#<n>`, is given as `#<n>` `CR-75`. It refuses conflict
+markers, scripts that do not parse, duplicated imports, a PR body that does
+not close every item's issue, and a `verify.py` floor lowered or removed
+without a PR-body line naming it, its change and its ruling — `Floor lowered:
+article_images.race_id 3916 -> 3910, ruled on #838` `AF-103` — and warns
+about an artefact that moved without a source change. Half the FAIL rounds
+it was written for were one of these, and it costs a few hundred tokens
+against a reviewer's tens of thousands `[D-24]`.
 
 The reviewer checklists' mechanical items are **tests now, not review**:
 `tests/test_conventions.py` in `make ci` and `web/test/conventions.mjs` in
