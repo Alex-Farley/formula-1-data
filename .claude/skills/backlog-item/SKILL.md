@@ -359,8 +359,24 @@ reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
   fix or anything else — reviewer and model, verdict, blocking findings one
   line each `[D-23]`.
 
-Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
-`check (3.12)`, `web` **and `lint`** green — the four *Never slides* names. **Merging deploys lapledger.org.** In auto
+Then the merge, only with the PASS and `check (3.9)`, `check (3.12)`, `web`
+**and `lint`** green — the four *Never slides* names. It is three commands,
+each gated on the one before:
+
+    python3 .claude/skills/backlog-loop/merge-step.py before N
+    gh pr merge N --merge
+    python3 .claude/skills/backlog-loop/merge-step.py after N
+
+`before` lets an open refresh PR merge first — fresh data outranks any loop
+item — waiting up to nine minutes a call, exit 5 to call it again; a refresh
+not merged an hour after its last push is stuck, and is not waited on
+`AF-105`. It exits 3 when main has moved under the branch, a refresh having
+merged included: that is *Main moved under the branch* below, then CI again,
+then `before` again. **A refused `gh pr merge` is not a merge**, and the
+answer to one is never the post-merge steps: `after` reads the PR's state
+back from GitHub and does nothing unless it is `MERGED` `AF-99`. Never delete
+a PR's remote branch by hand — the repository deletes it on merge, and a
+hand deletion closes the PR unmerged. **Merging deploys lapledger.org.** In auto
 mode the merge is refused as *Merge Without Review* until a verdict is a
 comment on the PR, which `[D-23]` already puts there; a refusal means the
 record is missing, and the answer is to record it, never to route around it.
@@ -421,11 +437,15 @@ above is the only one `[D-44]`.
   README or licence-statement conflict that is only figure spans moving. A
   conflict in a source file or in prose stops it with the file named, for a
   person. Rerun the web tests before pushing. Merge PRs one at a time.
-- **After the merge:** `file.py status <n> Done` for every issue in the
-  group, remove the worktree, delete the branch, `git pull`. An alarm is
-  still open, so it is not *Done*: start the run that proves the fix with
-  `gh workflow run refresh.yml`, and put its status back to *Now*, where it
-  waits to be closed by that run or taken again from a later failing one.
+- **After the merge:** `merge-step.py after <PR>`, and only once `gh pr
+  merge` has returned. It refuses, exit 1, unless the PR reads `MERGED`;
+  then it sets every issue the body closes to *Done*, removes the worktree
+  and the local branch, and pulls `main` in the primary checkout. An alarm
+  is still open, so it is not *Done*: for a `Refs #<n>` naming an open
+  alarm it puts the status back to *Now*, where it waits to be closed by the
+  run that proves the fix or taken again from a later failing one, and
+  starts that run with `gh workflow run refresh.yml`. Exit 2 names a step
+  that failed after the merge; every step is idempotent, so run it again.
 
 ## Stop conditions, and holding instead
 
