@@ -79,7 +79,8 @@ reviewed again on the same head `[D-23]`.
    **Never page through the issue list or the board.** `next.py` does it for
    a few hundred tokens, which is the point of it. Open an issue only to work
    on it. **A board position is a person's:** a fork's only board writes are
-   `file.py status` changes, and it never runs `file.py rank` — that is for
+   `file.py status` changes and what `file.py new` and `file.py flake` set
+   when they file or record, and it never runs `file.py rank` — that is for
    a person, or a session a person has told what order to put things in —
    nor moves an item to fit a theory of how it got there `[D-42]` `[D-43]`.
 2. **Reread the item against the code as it is now.** It may be stale, landed
@@ -518,6 +519,14 @@ above is the only one `[D-44]`.
   foreground with the Bash tool's maximum timeout
   (600000 ms) and run it again if the tool times out first. Empty output from
   `gh` is pending.
+- **A 2 on a check the diff cannot reach is rerun once, and recorded first**
+  `AF-106`: `file.py flake "<the failing test's line, as the job printed
+  it>" <the failed run's URL>`, then `gh run rerun <run-id> --failed`, then
+  `ci-wait.sh` again. The record names the test that failed — a smoke
+  check's `FAIL [Section] message` line, a unit test's name — never the job
+  (`web`, `check (3.12)`) it failed in. `CONTRIBUTING.md` under *The queue*
+  says what the record does. A check the diff can reach is not a flake but a
+  finding, and a second failure on the rerun is read as one too.
 - **A slow build is waited on the same way**, in the foreground. A tool call
   past 600 s does not trip the `no progress for 600s` watchdog, which watches
   the model's response stream, not your tools: every kill so far came after a
