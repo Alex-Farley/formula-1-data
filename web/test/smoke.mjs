@@ -191,9 +191,12 @@ let passed = 0
 let skipped = 0
 let matched = 0
 let current = ''
+// The section goes on every FAIL line, quiet or not: `file.py flake` knows a
+// flaky check by this line, and CI prints the long form while a local run
+// prints the quiet one, so the two have to read the same (AF-106).
 const fail = (message) => {
   failures.push(`${current}: ${message}`)
-  console.log(`  FAIL  ${QUIET ? `[${current}] ` : ''}${message}`)
+  console.log(`  FAIL  [${current}] ${message}`)
 }
 const pass = (message) => {
   passed += 1

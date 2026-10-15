@@ -47,6 +47,14 @@ class FindingTheIssue(unittest.TestCase):
         self.assertIsNone(file_py.flake_issue([issue(5, "a b")], "a"))
         self.assertIsNone(file_py.flake_issue([issue(5, "a")], "a b"))
 
+    def test_what_a_log_puts_in_front_of_the_check_is_not_part_of_it(self):
+        line = "[Landing  (the offset)] " + CHECK
+        for copied in ("  FAIL  " + line,
+                       "web\tRun the tests\t2026-10-14T09:12:33.4567890Z   FAIL  " + line):
+            self.assertEqual(file_py.flake_check(copied), " ".join(line.split()), copied)
+        # FAIL inside a check's own words is the check's.
+        self.assertEqual(file_py.flake_check("a run that says FAIL twice"), "a run that says FAIL twice")
+
     def test_spacing_in_the_check_is_not_a_different_check(self):
         self.assertEqual(file_py.flake_issue([issue(7, CHECK)], "  " + CHECK.replace(" ", "\n  ", 1))["number"], 7)
 
@@ -71,9 +79,10 @@ class Counting(unittest.TestCase):
 
 
 class Recording(unittest.TestCase):
-    def run_it(self, issues, comments=(), run=RUN, check=CHECK, prefix="PM", board=None):
+    def run_it(self, issues, comments=(), run=RUN, check=CHECK, prefix="PM", board=None, fresh_board=None):
         self.calls, self.statuses, self.filed = [], [], []
         board = {7, 1001} if board is None else board
+        fresh_board = board if fresh_board is None else fresh_board
 
         def gh(*args, as_json=False):
             self.calls.append(args)
@@ -92,7 +101,8 @@ class Recording(unittest.TestCase):
         out = io.StringIO()
         with mock.patch.object(file_py, "gh", gh), \
                 mock.patch.object(file_py, "new", new), \
-                mock.patch.object(file_py, "item_ids", lambda fresh=False: dict.fromkeys(board, "ID")), \
+                mock.patch.object(file_py, "item_ids",
+                                  lambda fresh=False: dict.fromkeys(fresh_board if fresh else board, "ID")), \
                 mock.patch.object(file_py, "set_status", lambda n, s: self.statuses.append((n, s))), \
                 contextlib.redirect_stdout(out):
             file_py.flake(a)
@@ -108,6 +118,9 @@ class Recording(unittest.TestCase):
         self.assertEqual(self.calls[0][0], "api")
         self.assertIn("labels=flaky", self.calls[0][2])
         self.assertIn("state=all", self.calls[0][2])
+        # The listing endpoint returns pull requests too; one labelled flaky
+        # and quoting a check line is not that check's issue.
+        self.assertIn("select(.pull_request == null)", self.calls[0][-1])
 
     def test_a_first_flake_files_one_issue_labelled_flaky_under_someday(self):
         said = self.run_it([])
@@ -167,6 +180,28 @@ class Recording(unittest.TestCase):
         self.run_it([issue(7, CHECK)], board=set())
         self.assertEqual(self.statuses, [(7, "Someday")])
         self.assertEqual(self.writes(), [])
+
+    def test_an_issue_the_cache_misses_but_the_board_holds_is_left_where_it_is(self):
+        self.run_it([issue(7, CHECK)], board=set(), fresh_board={7})
+        self.assertEqual(self.statuses, [])
+
+    def test_a_reopen_whose_status_write_was_refused_is_finished_at_now(self):
+        reopened = [{"body": f"{file_py.FLAKED} {OTHER} - 2 times now. Reopened: it was closed, and so on."}]
+        self.run_it([issue(7, CHECK)], comments=reopened, run=OTHER)
+        self.assertEqual(self.writes(), [])
+        self.assertEqual(self.statuses, [(7, "Now")])
+
+    def test_a_reopen_that_commented_but_did_not_reopen_is_finished(self):
+        reopened = [{"body": f"{file_py.FLAKED} {OTHER} - 2 times now. Reopened: it was closed, and so on."}]
+        self.run_it([issue(7, CHECK, "CLOSED")], comments=reopened, run=OTHER)
+        self.assertEqual(self.writes(), [("issue", "reopen", "7", "--repo", file_py.REPO)])
+        self.assertEqual(self.statuses, [(7, "Now")])
+
+    def test_a_run_recorded_before_the_issue_closed_reopens_nothing(self):
+        # Evidence from before the fix that closed it.
+        said = self.run_it([issue(7, CHECK, "CLOSED")], run=RUN)
+        self.assertEqual((self.writes(), self.statuses, self.filed), ([], [], []))
+        self.assertIn("recorded before it closed", said)
 
     def test_a_flake_after_the_issue_closed_reopens_it_at_now(self):
         said = self.run_it([issue(7, CHECK, "CLOSED")], run=OTHER)

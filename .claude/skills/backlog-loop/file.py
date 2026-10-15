@@ -406,11 +406,13 @@ def decided(a):
 
 
 def flake_check(check):
-    """The check as it is recorded: one line, and without the `FAIL` the
-    smoke test's quiet form prints in front of it, so a check copied with or
-    without that word is the same check. The `[Section]` that follows it is
-    kept - it is part of what tells one check from another."""
-    return re.sub(r"^FAIL(\s+|$)", "", one_line(check))
+    """The check as it is recorded: one line, and without what a log puts in
+    front of it - the `FAIL` the smoke test prints, and the job, step and
+    timestamp `gh run view --log-failed` adds before that - so a line copied
+    with or without them is the same check. The `[Section]` the smoke test
+    prints after `FAIL` is kept: it is part of what tells one check from
+    another."""
+    return re.sub(r"^(?:\S.*?\d{4}-\d\d-\d\dT[\d:.]+Z\s+)?FAIL(?:\s+|$)", "", one_line(check))
 
 
 def flake_marker(check):
@@ -442,9 +444,9 @@ def run_id(url):
 
 
 def recorded(records, run):
-    """Is this run already one of the records? A run is its id, whatever job,
-    attempt or query its address carried."""
-    return any(re.search(rf"/actions/runs/{run}(?!\d)", r) for r in records)
+    """The records already made of this run - none, or the one. A run is its
+    id, whatever job, attempt or query its address carried."""
+    return [r for r in records if re.search(rf"/actions/runs/{run}(?!\d)", r)]
 
 
 def on_board(number):
@@ -469,7 +471,7 @@ def flake(a):
     # search index: an issue filed minutes ago can be missing from that, and
     # the next record of the same check would file a second issue.
     listed = gh("api", "--paginate", f"repos/{REPO}/issues?labels={FLAKY}&state=all&per_page=100",
-                "--jq", ".[] | {number, state, body}")
+                "--jq", ".[] | select(.pull_request == null) | {number, state, body}")
     issues = [json.loads(line) for line in listed.splitlines() if line.strip()]
     for i in issues:
         i["state"] = (i.get("state") or "").upper()
@@ -492,8 +494,14 @@ def flake(a):
     # Run again for a run already recorded - a fork restarted between the
     # record and the rerun, or a status write refused after the comment
     # landed - writes no second record: it only finishes the status.
-    again = recorded(records, run)
+    own = recorded(records, run)
+    again = bool(own)
     reopen = hit.get("state") != "OPEN"
+    if reopen and again and not any("Reopened:" in r for r in own):
+        # Recorded while the issue was open, and the issue closed by a fix
+        # since: evidence from before the fix, which reopens nothing.
+        print(f"#{number} is closed, and this run was recorded before it closed: nothing written")
+        return
     if not again:
         note = f"{FLAKED} {a.run} - {len(records) + 1} times now."
         if reopen:
@@ -503,6 +511,9 @@ def flake(a):
             gh("issue", "comment", str(number), "--repo", REPO, "--body", note)
         records.append(note)
     elif reopen:
+        # This run's own record is the one that reopened the issue, and the
+        # reopen itself did not land (`gh issue reopen --comment` comments
+        # first): finish it.
         gh("issue", "reopen", str(number), "--repo", REPO)
     count = len(records)
     urgent = count >= FLAKE_LIMIT or reopen or any("Reopened:" in r for r in records)

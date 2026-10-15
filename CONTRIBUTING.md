@@ -291,14 +291,14 @@ be rerun, by a person or the loop, but never unrecorded:
 
 files one issue per check, labelled `flaky`, the first time, and comments the
 run and the count on that same issue every time after. The check is the test
-that failed — a smoke check's `[Section] message`, with or without the
-`FAIL` in front of it — not the job; the same run recorded twice is one
-record. The third record moves it to *Now*, where the check is fixed — or
-rewritten to wait on the
-condition it means rather than on a timeout, as `openPalette()` in
-`web/test/smoke.mjs` was — rather than rerun on; a check that flakes again
-after its issue closed reopens it. A rerun nobody wrote down is how a flake
-fails a fourth time with nobody knowing it failed the first three `AF-106`.
+that failed — a smoke check's `FAIL [Section] message` line, which reads the
+same in CI's log and a local `--quiet` run — not the job; the same run
+recorded twice is one record. The third record moves it to *Now*, where the
+check is fixed — or rewritten to wait on the condition it means rather than
+on a timeout, as `openPalette()` in `web/test/smoke.mjs` was — rather than
+rerun on; a check that flakes again after its issue closed reopens it. A
+rerun nobody wrote down is how a flake fails a fourth time with nobody
+knowing it failed the first three `AF-106`.
 
 **Say where the work lands.** The file paths an item would touch, written as
 `**Where:** web/src/pages/Glossary.jsx, web/src/queries/glossary.js` — the
