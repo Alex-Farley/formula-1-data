@@ -764,6 +764,51 @@ try {
         .catch(() => false),
       'and hands focus to the new heading rather than stranding it on <body>',
     )
+
+    // The same route change with the next frame forced ahead of the render
+    // that removes the palette. The router commits the new page, Page.jsx
+    // finds focus still inside the palette and waits; the palette goes in a
+    // LATER render, the one CloseSearchOnNavigate asks for. Page.jsx used to
+    // look again after one frame, and nothing promises that render lands
+    // inside one: a frame that came first found the palette still standing,
+    // kept its hands off, and left the reader on <body> once it went - which
+    // is just how the check above failed once on #975 before passing on a
+    // rerun (AF-106).
+    // Here the first frame asked for runs at once, inside the request, so
+    // that order is the only one there is; the real one is back after it.
+    await openPalette(held)
+    await held.evaluate(() => {
+      const frame = window.requestAnimationFrame
+      window.__frame = frame
+      window.requestAnimationFrame = (callback) => {
+        window.requestAnimationFrame = frame
+        callback(performance.now())
+        return 0
+      }
+      window.history.pushState({}, '', '/constructors')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await held.waitForFunction(
+      () => document.querySelector('#root main h1')?.textContent.includes('Constructors'),
+      null,
+      { timeout: 20000 },
+    )
+    truthy(
+      await held
+        .waitForFunction(
+          () =>
+            !document.querySelector('.palette') &&
+            document.activeElement === document.querySelector('#root main h1'),
+          null,
+          { timeout: 5000 },
+        )
+        .then(() => true)
+        .catch(() => false),
+      'and still does when the next frame comes before the render that removes the palette',
+    )
+    await held.evaluate(() => {
+      window.requestAnimationFrame = window.__frame
+    })
     await held.close()
 
     /*

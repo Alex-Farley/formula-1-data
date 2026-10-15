@@ -185,21 +185,32 @@ function useFocusOnNavigation() {
     // reader wins.
     //
     // A route change now also CLOSES the palette (AF-60, App.jsx's
-    // CloseSearchOnNavigate), and React removes it in the commit after this
+    // CloseSearchOnNavigate), and React removes it in a commit after this
     // effect - so at this instant focus is still inside a dialog that is about
     // to stop existing, and bailing out for good would drop the reader on
-    // <body> with the page changed under them. Look again after the next
-    // frame, by which time that commit has landed: a dialog still standing
-    // keeps focus, one that has gone hands it over like any other navigation.
-    // A frame rather than a microtask, because a microtask can run before
-    // React has re-rendered and would read the palette as still open.
-    if (document.activeElement?.closest('[role="dialog"]')) {
-      const frame = requestAnimationFrame(() => {
-        if (!document.activeElement?.closest('[role="dialog"]')) {
-          ref.current?.focus({ preventScroll: true })
-        }
+    // <body> with the page changed under them. So wait for that dialog to
+    // leave the document, however long that takes: one standing keeps focus,
+    // and one that has gone hands it over like any other navigation - unless
+    // its leaving put focus somewhere on purpose, as the palette's own
+    // dismiss() does, rather than on <body> where a removed element leaves it.
+    //
+    // It waited one animation frame, and nothing promises that React's
+    // re-render lands inside one: a frame that came first would find the
+    // palette still standing, keep its hands off for good, and leave the
+    // reader on <body> once the palette went - which is just how the smoke
+    // check of this failed once on #975 before passing on a rerun (AF-106).
+    // A mutation watch fires on the removal itself, whenever it lands, and
+    // stops at the next navigation or when the page goes.
+    const dialog = document.activeElement?.closest('[role="dialog"]')
+    if (dialog) {
+      const watch = new MutationObserver(() => {
+        if (dialog.isConnected) return
+        watch.disconnect()
+        const at = document.activeElement
+        if (!at || at === document.body) ref.current?.focus({ preventScroll: true })
       })
-      return () => cancelAnimationFrame(frame)
+      watch.observe(document.body, { childList: true, subtree: true })
+      return () => watch.disconnect()
     }
     ref.current?.focus({ preventScroll: true })
     return undefined

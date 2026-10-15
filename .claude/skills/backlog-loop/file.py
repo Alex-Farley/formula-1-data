@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Write to the queue: file an item, move one between statuses, mark one,
-record a ruling on one, make one wait on another, or rank one within its
-status.
+record a ruling on one, make one wait on another, rank one within its
+status, or record the rerun of a flaky check.
 
     python3 .claude/skills/backlog-loop/file.py new PD "Title." --size S --status Next --body-file note.md
     python3 .claude/skills/backlog-loop/file.py new AF "Title." --size M --body "one paragraph" --decision
@@ -15,6 +15,7 @@ status.
     python3 .claude/skills/backlog-loop/file.py decided 123 "option B; A and C stay rejected because ..."
     python3 .claude/skills/backlog-loop/file.py rank 123 --top          # or --bottom, --after 45, --before 45
     python3 .claude/skills/backlog-loop/file.py rank 724 723 720 --after 45   # a run, in that order
+    python3 .claude/skills/backlog-loop/file.py flake "the check, as the job printed it" https://github.com/Alex-Farley/formula-1-data/actions/runs/123
 
 The queue is GitHub Issues ranked on the Lap Ledger project; the conventions
 are in CONTRIBUTING.md under *The queue*. Filing an item by hand is four
@@ -78,6 +79,17 @@ three times; one read and one write per move ten seconds apart did 30 writes
 with no refusal `AF-81` `[D-27]`. A run cut short by a refusal says what is not
 yet in place, and the same command run again once the refusal's cause has
 cleared finishes it, because what already sits in place is not written twice.
+
+`flake` records a rerun of a failed check, before the rerun is asked for:
+one issue per check, labelled `flaky`, found again by the check's own text
+on a `**Check:**` line, so every later rerun of the same check lands on the
+same issue as a `**Flaked:**` comment carrying its run and its count. The
+first is filed under *Someday* like any discovered item; the
+`FLAKE_LIMIT`th moves it to *Now*, where the check is fixed or rewritten to
+wait on its condition rather than a timeout; one that flakes again after
+its issue was closed reopens it, at *Now*, since the fix did not hold. A
+rerun that passed and was never written down is how a flake fails a fourth
+time with nobody knowing it failed the first three `AF-106`.
 """
 import datetime
 import argparse
@@ -137,6 +149,13 @@ REFUSED = gh_preflight.DO_NOT_RETRY
 # Seconds between two writes of one `rank` run: the spacing that placed 30
 # items without a refusal `AF-81`.
 RANK_SPACING = 10
+# The label every flaky check's issue carries, and the record that moves one
+# to *Now*: the issue asked for a check that flakes three times to be fixed
+# `AF-106`.
+FLAKY = "flaky"
+FLAKE_LIMIT = 3
+FLAKED = "**Flaked:**"
+RUN_URL = re.compile(rf"^https://github\.com/{re.escape(REPO)}/actions/runs/\d+(/job/\d+)?/?$")
 
 
 def gh(*args, as_json=False):
@@ -297,6 +316,7 @@ def new(a):
     body = where_line(body, a.where)
 
     labels = [f"source: {SOURCE[a.prefix]}", f"size: {a.size}"] + (["decision"] if a.decision else [])
+    labels += list(getattr(a, "labels", None) or [])
     args = ["issue", "create", "--repo", REPO, "--title", f"{ident}: {a.title}", "--body", body]
     for lb in labels:
         args += ["--label", lb]
@@ -304,6 +324,7 @@ def new(a):
     number = int(url.rsplit("/", 1)[1])
     set_status(number, a.status)
     print(f"#{number} {ident}")
+    return number
 
 
 def mark(a, label, comment_prefix):
@@ -376,6 +397,68 @@ def decided(a):
     if body != old:
         gh("issue", "comment", str(a.number), "--repo", REPO, "--body", f"**Decided:** {ruling}")
     print(f"#{a.number} decided")
+
+
+def flake_marker(check):
+    """The line that names the check on its issue. A double-backtick span, so
+    a check whose own text holds a backtick still reads as one span."""
+    return f"**Check:** `` {one_line(check)} ``"
+
+
+def flake_issue(issues, check):
+    """The issue already recording `check` - an open one before a closed one,
+    the oldest first - or None. A whole `**Check:**` line, not a substring:
+    one check's text is often the start of another's."""
+    marker = flake_marker(check)
+    hits = [i for i in issues
+            if any(line.strip() == marker for line in (i.get("body") or "").splitlines())]
+    hits.sort(key=lambda i: (i.get("state") != "OPEN", i["number"]))
+    return hits[0] if hits else None
+
+
+def flake_count(comments):
+    """How many reruns an issue already records: the one its body was filed
+    with, and one for each `**Flaked:**` comment since."""
+    return 1 + sum(1 for c in comments if (c.get("body") or "").startswith(FLAKED))
+
+
+def flake(a):
+    if a.prefix not in SOURCE:
+        sys.exit(f"unknown prefix {a.prefix}; one of {', '.join(sorted(SOURCE))}")
+    check = one_line(a.check)
+    if not check:
+        sys.exit("name the check: its failing line as the job printed it")
+    if not RUN_URL.match(a.run):
+        sys.exit(f"the run is the failed run's address, https://github.com/{REPO}/actions/runs/<id>")
+    issues = gh("issue", "list", "--repo", REPO, "--label", FLAKY, "--state", "all", "--limit", "1000",
+                "--json", "number,state,body", as_json=True)
+    hit = flake_issue(issues, check)
+    if hit is None:
+        body = (f"{flake_marker(check)}\n\n{FLAKED} {a.run} - the first time.\n\n"
+                "This check failed on something its change could not reach, and the failed run was "
+                "repeated. Every later rerun of the same check is recorded here, with its run, by "
+                "`file.py flake`; the third moves this to *Now*, to be fixed or rewritten to wait on "
+                "the condition it means rather than on a timeout (AF-106).")
+        title = check if len(check) <= 80 else check[:79].rstrip() + "…"
+        number = new(argparse.Namespace(
+            prefix=a.prefix, title=f"Flaky check: {title}", size="?", status="Someday", body=body,
+            body_file=None, where=a.where, decision=False, labels=[FLAKY]))
+        print(f"#{number} flaked 1 time")
+        return
+    number = hit["number"]
+    seen = gh("issue", "view", str(number), "--repo", REPO, "--json", "comments", as_json=True)
+    count = flake_count(seen.get("comments") or []) + 1
+    reopen = hit.get("state") != "OPEN"
+    note = f"{FLAKED} {a.run} - {count} times now."
+    if reopen:
+        gh("issue", "reopen", str(number), "--repo", REPO, "--comment",
+           note + " Reopened: it was closed, and the check has failed the same way since.")
+    else:
+        gh("issue", "comment", str(number), "--repo", REPO, "--body", note)
+    if reopen or count >= FLAKE_LIMIT:
+        set_status(number, "Now")
+    print(f"#{number} flaked {count} times" + (", reopened" if reopen else "")
+          + (", at Now: fix it, or make it wait on its condition" if reopen or count >= FLAKE_LIMIT else ""))
 
 
 BLOCKED_BY = """mutation($issue: ID!, $blocker: ID!) {
@@ -526,6 +609,11 @@ def main():
     where.add_argument("--bottom", action="store_true")
     where.add_argument("--after", type=int, metavar="N")
     where.add_argument("--before", type=int, metavar="N")
+    f = sub.add_parser("flake")
+    f.add_argument("check", help="the failing check, as the job printed it")
+    f.add_argument("run", help="the failed run's address")
+    f.add_argument("--prefix", default="PM", help="the id prefix a new issue is filed under")
+    f.add_argument("--where", help="the test file that holds the check")
     a = p.parse_args()
     if a.cmd == "new":
         new(a)
@@ -544,6 +632,8 @@ def main():
         blocked_by(a)
     elif a.cmd == "rank":
         rank(a)
+    elif a.cmd == "flake":
+        flake(a)
 
 
 if __name__ == "__main__":
