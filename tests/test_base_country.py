@@ -36,7 +36,8 @@ class BaseCountry(unittest.TestCase):
     def test_refuses_the_spellings_cr77_found(self):
         for base in ("Send, Surrey, UK", "Huntingdon, UK",
                      "Kannapolis, United States", "Rye, United States",
-                     "Maranello", "Maranello, Italian", "Maranello, "):
+                     "Maranello", "Maranello, Italian", "Maranello, ",
+                     "Maranello,Italy", "Maranello, Italy ", "Maranello,  Italy"):
             with self.subTest(base=base):
                 self.assertEqual(verify.base_country_faults([("x", base)], REGISTRY),
                                  [f"x: {base!r}"])
