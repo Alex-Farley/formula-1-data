@@ -9042,8 +9042,11 @@ try {
       // a pixel by clip-path and still counts in an ancestor's scroll width:
       // left in, it read the box around a race's table scroller as some
       // 500 px over at 320, where nothing showed. It is set aside while the
-      // page is read, and put back.
-      const hidden = [...document.body.querySelectorAll('*')].filter((el) => el instanceof HTMLElement && getComputedStyle(el).clipPath !== 'none')
+      // page is read, and put back. Only a clip on a box a pixel or less
+      // wide is that kind; a clip on a visible box is read like any other.
+      const hidden = [...document.body.querySelectorAll('*')].filter(
+        (el) => el instanceof HTMLElement && getComputedStyle(el).clipPath !== 'none' && el.getBoundingClientRect().width <= 1,
+      )
       const display = hidden.map((el) => el.style.display)
       for (const el of hidden) el.style.display = 'none'
       const out = []
@@ -9073,8 +9076,11 @@ try {
     const read = async (target, width) => {
       await target.setViewportSize({ width, height: 900 })
       // The app redraws a chart from its width, a frame or two after the
-      // resize; the static page has no script to wait for.
+      // resize; the static page has no script to wait for. Both wait for
+      // the web fonts: at `load` they are still arriving, and text read in
+      // the fallback faces runs over by other amounts and in other boxes.
       if (target === page) await target.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      await target.evaluate(() => document.fonts.ready)
       return target.evaluate(overflowing)
     }
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: WIDTHS[0], height: 900 } })
@@ -9098,7 +9104,12 @@ try {
           for (const [half, found] of [['app', halves[0]], ['static', halves[1]]]) {
             const undeclared = []
             for (const what of found.out) {
-              const known = DECLARED.findIndex(([names, on]) => what.includes(names) && (on === null || on === route))
+              // The box itself, not the child named after it, and whole names
+              // from the end of its chain: `a > b` is not `a > blockquote`.
+              const box = what.split(' by ')[0].split(' > ')
+              const known = DECLARED.findIndex(
+                ([names, on]) => names.split(' > ').every((name, i, all) => box.at(i - all.length) === name) && (on === null || on === route),
+              )
               if (known >= 0) {
                 used.add(known)
                 declared += 1
