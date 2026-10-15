@@ -33,7 +33,9 @@ ids this run has already skipped, and optionally `--max-size S`, which the
 driver adds when its usage check leaves room only for a small item `[D-55]`. If you were not invoked by the
 `backlog-loop` driver, by the `backlog-manager` agent that runs its
 procedure unattended `[D-42]`, or by a person typing `/backlog-item`, return
-`STOP: not invoked by the loop` and do nothing.
+`STOP: not invoked by the loop` and do nothing. The one other caller is
+`fix-refresh.yml`, which follows *Unattended: the refresh fixer* below
+instead of this section `[D-57]`.
 
 First, `bash .claude/skills/backlog-loop/start-check.sh`. It prints the open
 pull requests and the worktrees, and **refuses, exit 2, when the primary
@@ -627,3 +629,71 @@ then a stock-take of at most five lines: what merged, what is open, issues
 filed, decisions filed, what `next.py` now prints as next. No reviewer
 report, no build output, no narrative — the PR, its comment and the issues
 hold those. A result that says it is waiting for anything is not a result.
+
+## Unattended: the refresh fixer
+
+`.github/workflows/fix-refresh.yml` runs this procedure headless on one open
+`refresh-failing` alarm, the item its prompt names `[D-57]`. Where this
+section and the rest of the file differ, this section wins; the rest holds
+as written - a fact needs a source, the self-check under *Before asking for
+review*, never weaken a control. There is no *Starting*, no *Before an
+item* step 1, no grouping, no pace and no result line: the item is given.
+
+**What the job does for you, and so what you never do.** Your job holds a
+GitHub token that only reads. So: no `file.py`, no board, no
+`progress.sh`, no worktree - the checkout is yours - and no commit, push or
+`gh` write. Edit the tree and leave it uncommitted. You launch no reviewer.
+Once you finish, the workflow puts the harvest back, rebuilds, checks what
+you changed with `.github/scripts/fix_refresh.py`, opens the pull request
+with `Refs #<n>`, has a fresh `data-integrity-reviewer` review it in a job
+you never see, comments the verdict and, on a PASS, turns on auto-merge,
+which waits for the four required checks. Do not run npm: nothing is
+installed for it, and CI's `web` and `lint` jobs gate the merge.
+
+**What an unattended fix may change** - what a refresh failure warrants,
+and nothing that is a check's logic, a workflow's control or the licence
+classification. `fix_refresh.py` refuses the rest:
+
+- `verify.py`: its comments, and the literal values of its `*_EXCEPTIONS`
+  sets, which only grow. A declared exception is a set member with its
+  source in the comment above it, as AF-88's was.
+- `data/*.py` other than `data/harvest.py`; `data/current.py` anywhere but
+  `SOURCE_LICENCE`. A `discrepancies` or `known_gaps` row is here.
+- `tools/f1db_fetch.py` and `tools/f1db_totals_fetch.py`, for a fetch fault.
+- `tests/test_*.py` for a test fault, except the tests that guard a control:
+  the conventions, the refresh's job boundary, the fixer's own, the loop's
+  and `verify.py`'s refusals.
+- The rebuilt artefacts and the README's figure spans, which the workflow
+  regenerates.
+
+No new file. A fix that needs anything else is held.
+
+**The order.**
+
+1. Read the alarm, `gh issue view <n>`, and the run it names, `gh run view
+   <id> --log-failed`. A refresh pull request CI refused fails in `ci.yml`'s
+   run on `refresh/f1db`, not in `refresh.yml`.
+2. Reproduce it: `python3 tools/f1db_fetch.py && python3
+   tools/f1db_totals_fetch.py`, then `make all QUIET=1`, which fails as the
+   run did. Keep scratch files in `$RUNNER_TEMP`, never in the checkout.
+3. Find the source before the line of code: rule 3 of *Before an item*.
+4. Fix, within the list above.
+5. Prove it against the harvest you fetched: `make all QUIET=1` and `python3
+   -m unittest discover -s tests` pass. Then `python3
+   .github/scripts/fix_refresh.py check` reports nothing an unattended fix
+   may not land.
+6. Write `pr.md` in the outcome directory the prompt names: a title line that
+   opens with the alarm's id, a blank line, then the body - what failed, the
+   source and what it says, what changed, file by file. No closing keyword:
+   the alarm closes on the run that proves the fix (`AF-89`).
+
+**Holding.** When no source settles the fact, or the fix needs a path or a
+change outside the list, or anything a person must decide: write `hold.md`
+instead - what must be decided, and what the item does under each answer.
+Nothing of the tree is packed. The workflow posts it on the alarm as
+**Decision needed:** and labels it `decision`, which the fixer and the
+loop both pass over until a person answers. Never both files.
+
+The review is held to the same rule as the loop's: a recorded FAIL, or no
+verdict, leaves the pull request open and unmerged for the loop or a person,
+whose fork reads its comments first and fixes the FAIL `[D-23]`.

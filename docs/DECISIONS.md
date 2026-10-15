@@ -1180,6 +1180,10 @@ The workflow's history is in git and in its runs. The `ci-review` label and
 the repository's Claude secrets are settings, not files, and go with the
 maintainer's say-so rather than with this change.
 
+**Partly reversed, 2026-10-14** (#970): a Claude credential comes back to
+Actions for one job, fixing a failing refresh, and nothing else `[D-57]`.
+The CI review stays removed.
+
 ### D-45 · The refresh lands by pull request, not by push — 2026-09-28
 `refresh.yml` committed straight to `main` with `GITHUB_TOKEN`. Once the
 repository went public, branch protection on `main` began to require
@@ -1370,3 +1374,76 @@ one (licence and security review of #997). The run's log keeps it.
 **The alarm.** `refresh_hold.py` passes the hold to the `report` job, and a
 run that held rows keeps the `refresh-failing` issue open. That issue
 closes on the first run that lands with nothing held back.
+
+### D-57 · A failing refresh is fixed by a GitHub Action, without a person — 2026-10-15 (`AF-91`, #970)
+A failing refresh waited for a person, or for a loop run a person started.
+The loop does not always run and the maintainer cannot always log in, so
+Singapore 2026 sat unpublished for three days and nine failing runs behind
+a one-line declared exception (#965, fixed by `AF-88`, #967).
+
+The maintainer chose, on #970 on 2026-10-14, a GitHub Action over an
+always-on machine running `make loop` and over a Claude Code cloud routine:
+it runs without the maintainer or a machine, and it lives in the
+repository rather than in an account `[D-42]`. The credential is the
+maintainer's Claude subscription, a `CLAUDE_CODE_OAUTH_TOKEN` secret made
+with `claude setup-token`, because it uses credit already paid for and a
+refresh fix is small and occasional. Its accepted costs: it shares the
+maintainer's usage limits and is tied to one account. Workload Identity
+Federation is wired through the same inputs and four repository variables,
+so moving to platform credit later is a settings change. This partly
+reverses `[D-44]`, for refresh failures only.
+
+**What it is.** `.github/workflows/fix-refresh.yml` starts when a run of
+`refresh.yml` completes, because the alarm itself is written with
+`GITHUB_TOKEN`, whose events start no workflow. Its gate works an open
+`refresh-failing` alarm once, unless a person starts it again by hand. It
+does not work an alarm labelled `decision` or `blocked`, or one that an open
+pull request already names. The fixer follows *Unattended: the refresh fixer*
+in `backlog-item/SKILL.md`. It ends in one of two ways. It opens a pull
+request with `Refs #n`. Or it holds the item: the question goes on the
+alarm as **Decision needed:**, labelled `decision`.
+
+**The jobs are split by what each holds, as `refresh.yml`'s are (`AF-78`,
+`[D-45]`).** The two jobs that run an agent hold the Claude credential and a
+`GITHUB_TOKEN` that only reads. The three that hold the refresh App's token
+run no agent and no package manager. The fixer cannot push, comment or
+merge, and it never sees the job that reviews it. That review job is
+`data-integrity-reviewer` on Opus, at the pull request's head, recording by
+`verdict.sh` `[D-40]` and given one respawn. Its verdict is commented on
+the pull request `[D-23]`. Only a PASS turns on auto-merge, and only for the
+reviewed head (`--match-head-commit`). Auto-merge waits for the four
+required checks.
+
+The item asked that the agent never get a permission mode that skips auto
+mode's refusal to merge without a recorded verdict `[D-42]`. Here neither
+agent has a token that could merge at all, and both run in the default mode
+with an allowlist. The control is structural.
+
+**What may cross is decided by a script, not by the agent's judgement.**
+`.github/scripts/fix_refresh.py` reuses `refresh_tree.py`'s pack and apply
+with a rule of its own. The item limits an unattended fix to what a refresh
+failure warrants, and never a check's logic, a workflow's controls or the
+licence classification. A path list cannot tell a declared exception in
+`verify.py` from a change to its logic, because AF-88's exception was a line
+in `verify.py`. So the script compares syntax trees. `verify.py` may change
+only in comments and in the literal values of its `*_EXCEPTIONS` sets. Each
+of those sets may only grow, so a declared deviation is never quietly taken
+away. `data/current.py` may change anywhere but `SOURCE_LICENCE`. Code in
+`data/`, `build.py`, the workflows and the tests that guard a control are a
+person's.
+
+**What a FAIL leaves.** There is no fix round inside the run. A recorded
+FAIL, or no verdict after the respawn, leaves the pull request open and
+unmerged on a `claude/` branch. The loop inherits it there and fixes the FAIL
+first, as it would any fork's. The reviewer's brief says so: there is no fix
+round after a PASS here, so anything that must change before the merge is a
+FAIL.
+
+**Not yet established.** None of this has run: there was no credential and
+no failing alarm when it was written. Not probed: that `claude-code-action`
+v1.0.236 runs `--agent data-integrity-reviewer` with that agent's own
+instructions as the session's, and whether the action's actor check passes on
+a `workflow_run` started by a schedule (the scheduled runs' actor is the
+maintainer). A run started by hand against an open alarm (Actions, *fix a
+failing refresh*, *Run workflow*) is how it is first established, and any
+correction belongs in this entry.

@@ -123,6 +123,19 @@ alarm with no status as *Now*, below what a person placed there. Neither is
 closed by a pull request: a fix says `Refs #n`, and the next run that proves
 it closes the issue.
 
+**A failing refresh is worked without a person (AF-91).** When a refresh
+run completes with a `refresh-failing` issue open, `fix-refresh.yml` runs
+Claude Code on it once. The fixer diagnoses the failure from the run and
+reproduces it with a fresh fetch. It finds a source, and makes the fix an
+unattended fix may make: a declared exception, a `discrepancies` or
+`known_gaps` row, or a fetch or test fault. Then it opens a pull request,
+which a separate reviewer job reviews. On a PASS it merges once CI's four
+checks pass, and the first refresh after it that lands with nothing held
+back closes the alarm. Where no source settles
+the fact, the question goes on the alarm, labelled `decision`. A FAIL leaves
+the pull request open for the loop. It needs the `CLAUDE_CODE_OAUTH_TOKEN`
+secret, and without it the workflow does nothing. `[D-57]` says the rest.
+
 **Checking the sync by hand.** Look at the check date in the site's footer
 or on `/changes`: it is the last morning a refresh got as far as fetching
 F1DB, and a date more than a day old means runs are failing - the Actions

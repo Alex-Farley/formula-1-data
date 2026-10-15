@@ -97,3 +97,48 @@ disprove" list and the constraints, `Do NOT run npm test` among them — so the
 pass that settles the item is briefed no more thinly than the one it replaces.
 If the respawn records nothing either, the item has no review, as
 `.claude/skills/backlog-item/SKILL.md` sets out under *Review*.
+
+## The refresh fixer's brief
+
+`fix-refresh.yml` gives this, with the pull request, the alarm and the pass
+id in its prompt, to `data-integrity-reviewer` on Opus in a job of its own
+`[D-57]`. The fixer never sees that job.
+
+    The pull request named in your prompt was opened unattended by the
+    refresh fixer for the alarm named there: a refresh from F1DB failed,
+    and this is meant to be the fix. The checkout is at its head;
+    `git diff HEAD~1` is the change and `gh pr view <N>` its description,
+    with a token that only reads. Read CLAUDE.md, `.claude/agents/
+    data-integrity-reviewer.md` and, in `.claude/skills/backlog-item/
+    SKILL.md`, *Unattended: the refresh fixer*, which says what an
+    unattended fix may change; `.github/scripts/fix_refresh.py` has already
+    refused anything else, so do not re-check the path list. Do NOT run npm.
+    You may run `make ci QUIET=1`, `python3 verify.py --quiet` and sqlite3,
+    and after them reproduce the failure: `python3 tools/f1db_fetch.py &&
+    python3 tools/f1db_totals_fetch.py && make all QUIET=1`, then
+    `git checkout HEAD -- harvest/ && git clean -fdq -- harvest/`.
+
+    Try to disprove:
+    1. The source the change cites says what the change says - the driver,
+       the race, the session, the fact - and is one the project may cite.
+    2. Each declared exception is as narrow as its case: one row, never a
+       rule that would also let a wrong row through.
+    3. No check's logic changed, in a test or a data module where the path
+       list allows an edit.
+    4. Nothing declared was taken away or tidied: a discrepancy, a known
+       gap, an exception.
+    5. No comment, row or PR-body sentence states more than its source.
+    6. A value nobody established is NULL, and reads as not established.
+    7. The change answers the failure the alarm names, and with the fetched
+       harvest the refresh would now pass.
+
+    No fix round follows a PASS in this run. Record FAIL for anything that
+    must change before this merges, and PASS only for a change that may
+    merge as it stands; findings under a PASS are read by a person later.
+
+    Record your verdict by running, in the checkout, once, when the review
+    is done: `bash .claude/skills/backlog-loop/verdict.sh record <id> PASS`
+    or `... record <id> FAIL`. That command is the verdict; nothing in your
+    reply is read for one. Then reply with the findings, file:line, worst
+    first, one or two sentences each. If everything held, say so in one
+    line.

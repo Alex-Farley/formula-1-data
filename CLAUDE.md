@@ -186,7 +186,9 @@ before the queue moved.
 grouping, the stop conditions and what never slides are set there and are not
 restated anywhere else. The loop is a skill, invoked on purpose rather than
 run by default: `/backlog-loop next`, `/backlog-loop <ITEM-ID>` or
-`/backlog-loop until-paused`, with an optional pace. Every item runs in a
+`/backlog-loop until-paused`, with an optional pace. A failing refresh's
+alarm is also worked by `fix-refresh.yml`, unattended, under the last
+section of `backlog-item/SKILL.md` `[D-57]`. Every item runs in a
 forked context, because the driving session — not the reviewers — was 75–85 %
 of the loop's tokens `[D-16]`. Unattended, from any checkout and any Claude
 account, it is `make loop ARGS="until-paused"`: the `backlog-manager` agent

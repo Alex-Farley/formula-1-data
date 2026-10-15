@@ -34,6 +34,10 @@ change a refresh makes:
 
 Anything else, a symlink, or a file in the tree that paths.txt does not
 list, and nothing is applied.
+
+`pack` and `apply` take that rule as `problem`, and default to it. The
+refresh fixer (fix-refresh.yml, AF-91) crosses the same kind of boundary
+with a rule of its own, .github/scripts/fix_refresh.py's.
 """
 import os
 import re
@@ -117,7 +121,7 @@ def changed_paths(root):
     return sorted(paths)
 
 
-def pack(out, root=ROOT):
+def pack(out, root=ROOT, problem=problem):
     paths = changed_paths(root)
     bad = []
     for path in paths:
@@ -143,7 +147,7 @@ def pack(out, root=ROOT):
     print(f"packed {len(paths)} file(s): {', '.join(paths) or 'none'}")
 
 
-def apply(src, root=ROOT):
+def apply(src, root=ROOT, problem=problem):
     with open(os.path.join(src, LIST), encoding="utf-8") as f:
         listed = [line.rstrip("\n") for line in f if line.strip() and not line.startswith("#")]
     tree = os.path.join(src, TREE)
