@@ -61,6 +61,12 @@ DOCUMENTS = (os.path.join(ROOT, "ATTRIBUTION.md"),)
 # the figure spans are: a statement runs over line breaks, and two on a line
 # stay two.
 SPAN = re.compile(r"<!-- credit:([a-z0-9_,]+) -->(.*?)<!-- /credit -->", re.DOTALL)
+# Anything that looks like a credit marker. A marker SPAN does not read - a
+# space after the colon, a capital, a lost closing tag - would otherwise drop
+# its statement from the check without a word.
+MARKER = re.compile(r"<!--\s*/?\s*credit", re.IGNORECASE)
+# The key a row with no source_id is counted under.
+UNRESOLVED = "rows with no source_id"
 LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 
 # Above this share of a table's rows, a source must be named wherever the
@@ -140,7 +146,7 @@ def cited(con, table, names):
     out = Counter()
     for sid, k in rows:
         if k:
-            out[names.get(sid)] += k
+            out[UNRESOLVED if sid is None else names.get(sid)] += k
     return out
 
 
@@ -151,7 +157,12 @@ def faults(con, documents):
     for path, text in documents.items():
         doc = os.path.relpath(path, ROOT) if os.path.isabs(path) else path
         credited = defaultdict(set)   # (heading, table) -> names
-        for heading, tables, said in statements(text):
+        spans = statements(text)
+        markers = len(MARKER.findall(text))
+        if markers != 2 * len(spans):
+            out.append(f"{doc}: {markers} credit markers, which is not an opening "
+                       f"and a closing one for each of the {len(spans)} spans read")
+        for heading, tables, said in spans:
             found += 1
             where = f"{doc}" + (f", {heading}" if heading else "")
             if not tables:
@@ -174,7 +185,9 @@ def faults(con, documents):
             where = f"{doc}" + (f", {heading}" if heading else "")
             for name, k in sorted(counts.items(), key=lambda x: (-x[1], str(x[0]))):
                 if k / total > SHARE and name not in said:
-                    who = name if name else "a source registry entry no name in NAMES stands for"
+                    who = (name if name and name != UNRESOLVED else
+                           "no source" if name else
+                           "a source registry entry no name in NAMES stands for")
                     out.append(f"{where}: {who} is cited by {k:,} of {total:,} "
                                f"`{table}` rows and the credit does not name it")
     return found, out

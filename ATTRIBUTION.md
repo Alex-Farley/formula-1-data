@@ -24,8 +24,8 @@ the current position from the rows themselves.
 
 | Part | Source | Roughly how much |
 |---|---|---|
-| Race winners 1950–2026 | <!-- credit:race_entries -->Wikipedia season articles<!-- /credit --> | 1,161 races |
-| Pole position and fastest lap 1950–2026 | <!-- credit:race_entries -->Wikipedia season articles<!-- /credit --> | 1,161 / 1,160 |
+| Race winners 1950–2026 | Wikipedia season articles | 1,161 races |
+| Pole position and fastest lap 1950–2026 | Wikipedia season articles | 1,161 / 1,160 |
 | Race venues 1950–2026 | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | 1,161 |
 | Car specifications and design histories | <!-- credit:cars -->Wikipedia per-car articles<!-- /credit --> | 29 curated cars |
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
@@ -62,7 +62,14 @@ attribution text below crediting Wikipedia, F1DB, Wikimedia Commons or
 formula1.com, is a marked span naming the tables it is about, and
 `verify.py` fails where a source the words name is cited by none of those
 tables' rows, or where a source more than a tenth of a table's rows cite goes
-unnamed under the same heading (`tools/credit_sources.py`).
+unnamed under the same heading (`tools/credit_sources.py`). One cell is
+checked for less than it says: the circuit register's is checked for the
+layout timelines alone, because all 80 `circuits` rows cite formula1.com
+while the cell credits Wikipedia, and which of the two is right is open
+(`CR-68`, #775). Cells that credit some of a table's rows or columns — the
+race winners, pole and fastest lap, the chassis specifications, the claims
+notes, the career totals — are not marked, since a check on the whole table
+would pass them whatever they said.
 
 ## The obligation
 
@@ -335,7 +342,7 @@ for word, and the Parquet bundle's `README.txt` quotes that section, so a
 change here is a change to both; `tests/test_parquet_notice.py` fails if
 the two drift apart.
 
-> <!-- credit:cars,circuit_layouts,race_entries,drivers,team_radio -->Car and circuit data in this repository, each race's winner, pole position
+> Car and circuit data in this repository, <!-- credit:cars,circuit_layouts,race_entries,drivers,team_radio -->each race's winner, pole position
 > and fastest lap, some driver records and six team radio quotations are
 > derived from [Wikipedia](https://en.wikipedia.org/)<!-- /credit -->, licensed under
 > [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). <!-- credit:drivers,constructors,race_entries,sprint_results,practice,qualifying,sprint_qualifying,standings,pit_stops,chassis,engines,season_entrants,circuit_outlines -->Most driver

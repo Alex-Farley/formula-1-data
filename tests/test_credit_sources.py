@@ -141,6 +141,22 @@ class CreditSources(unittest.TestCase):
         self.assertEqual(len(bad), 1, bad)
         self.assertIn("a source registry entry no name in NAMES stands for", bad[0])
 
+    def test_a_marker_the_check_cannot_read_is_refused(self):
+        # A space after the colon: SPAN reads nothing, and without the count
+        # the statement would fall out of the check silently.
+        text = AGREES.replace("<!-- credit:glossary -->", "<!-- credit: glossary -->")
+        found, bad = self.faults(text)
+        self.assertEqual(found, 3)
+        self.assertEqual(bad, ["DOC: 8 credit markers, which is not an opening "
+                               "and a closing one for each of the 3 spans read"])
+
+    def test_a_row_with_no_source_is_counted_as_none(self):
+        self.con.executemany("INSERT INTO constructors VALUES (?, NULL)",
+                             [(i,) for i in range(100, 120)])
+        found, bad = self.faults(AGREES)
+        self.assertEqual(len(bad), 1, bad)
+        self.assertIn("no source is cited by 20 of 120 `constructors` rows", bad[0])
+
     def test_each_heading_is_its_own_statement(self):
         # F1DB is credited for `drivers` under one heading and not the other.
         text = AGREES + ("\n## Elsewhere\n\n<!-- credit:drivers -->formula1.com"
