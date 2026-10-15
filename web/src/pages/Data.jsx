@@ -11,6 +11,10 @@ import {
   DIGEST_NOTE,
   DOCUMENTS,
   DOCUMENTS_NOTE,
+  FACTS_DECLARATION,
+  FACTS_DECLARATION_NOTE,
+  FACTS_DECLARATION_URL,
+  FACTS_FILE,
   GUNZIP_NOTE,
   IN_THIS_TAB,
   IN_THIS_TAB_ANCHOR,
@@ -272,6 +276,13 @@ function Body({ data }) {
           <code>meta.project_prose_columns</code> names those columns inside the database.{' '}
           <Link to="/data/sources">Every source</Link>, what it is trusted for, and what each
           licence cost or bought.
+        </p>
+        <p className="measure">
+          {FACTS_FILE}{' '}
+          <a href={FACTS_DECLARATION_URL}>
+            <code>{FACTS_DECLARATION}</code>
+          </a>{' '}
+          {FACTS_DECLARATION_NOTE}
         </p>
       </Section>
 

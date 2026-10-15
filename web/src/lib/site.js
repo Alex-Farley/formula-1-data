@@ -601,6 +601,28 @@ export const REPOSITORY = 'https://github.com/Alex-Farley/formula-1-data'
  * running, and ahead of it between a merge and its deploy.
  */
 export const RAW_DATABASE_URL = `${REPOSITORY}/raw/main/f1.db`
+
+/**
+ * The facts artefact (PD-41, PD-55), in one set of words for /data's two
+ * renderers. f1-facts.db is a release asset that tools/facts_export.py builds
+ * (PD-54) and this host does not serve, so neither renderer links a download
+ * of it; what a reader can follow is the declaration it is built from, which
+ * names everything it leaves out. LICENSE-DATA and ATTRIBUTION.md say the
+ * same, at length, under *The facts artefact*.
+ */
+export const FACTS_FILE =
+  'f1.db as a whole is CC BY-SA 4.0. Its facts are also published alone, as f1-facts.db, ' +
+  'under CC BY 4.0 with no share-alike: f1.db less everything that stays share-alike \u2014 ' +
+  'chiefly the car specifications, circuit layouts and quotations taken from ' +
+  'Wikipedia, the prose not granted CC BY 4.0, and the register of Commons photographs ' +
+  '\u2014 with the race rows that cite a Wikipedia season article rebuilt from F1DB, so that ' +
+  'nothing Wikipedia made is in it. It is a release asset published beside f1.db rather than ' +
+  'a file served from here, and LICENSE-DATA states its terms.'
+
+export const FACTS_DECLARATION = 'tools/facts_artefact.py'
+export const FACTS_DECLARATION_URL = `${REPOSITORY}/blob/main/${FACTS_DECLARATION}`
+export const FACTS_DECLARATION_NOTE = 'names every table and column it leaves out, and why.'
+
 export const GUNZIP_NOTE = 'One gunzip gives the SQLite file:'
 
 /*
@@ -679,7 +701,7 @@ export const DOCUMENTS = [
   ],
   [
     'LICENSE-DATA',
-    'The terms the data is offered under \u2014 CC BY-SA 4.0, and CC BY 4.0 for the columns holding this project\u2019s own writing: its reading of each disagreement, its account of each gap and the prose of ten of its twelve reference tables \u2014 and why share-alike rather than something looser.',
+    'The terms the data is offered under \u2014 CC BY-SA 4.0; CC BY 4.0 for the columns holding this project\u2019s own writing: its reading of each disagreement, its account of each gap and the prose of ten of its twelve reference tables; and CC BY 4.0 for f1-facts.db, the facts alone \u2014 and why share-alike rather than something looser.',
   ],
 ]
 

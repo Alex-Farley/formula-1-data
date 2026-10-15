@@ -96,6 +96,10 @@ import {
   DOCUMENTS,
   DOCUMENTS_NOTE,
   ENTRIES_NOTE,
+  FACTS_DECLARATION,
+  FACTS_DECLARATION_NOTE,
+  FACTS_DECLARATION_URL,
+  FACTS_FILE,
   FOOTER_EM_DASH,
   FOOTER_PRIVACY,
   FOOTER_PRIVACY_LINK,
@@ -3997,6 +4001,8 @@ page({
         <code>meta.project_prose_columns</code> names those columns inside the database.
         ${link('data/sources', 'Every source')}, what it is
         trusted for, and what each licence cost or bought.</p>
+      <p class="measure">${esc(FACTS_FILE)} <a href="${esc(FACTS_DECLARATION_URL)}"><code>${esc(FACTS_DECLARATION)}</code></a>
+        ${esc(FACTS_DECLARATION_NOTE)}</p>
       <h2>Ask it something</h2>
       <p class="measure">${link('data/sql', 'The SQL console')} runs any read against the whole database in your
         browser &mdash; and a query&rsquo;s address is a link to it.</p>

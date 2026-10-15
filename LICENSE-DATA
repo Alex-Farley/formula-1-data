@@ -8,7 +8,8 @@ f1_compat.json, and the JSON files lapledger.org serves under /api/v1/
 (the rows of f1.db, one file per driver, constructor, circuit, season and
 race). The published files are copies of f1.db in other formats and
 carry its terms. It does not cover the code (see LICENSE), nor f1-geometry.db,
-whose terms are under *Circuit geometry* below. The views.sql in
+whose terms are under *Circuit geometry* below, nor f1-facts.db, which is
+CC BY 4.0 whole, under *The facts artefact* below. The views.sql in
 f1-parquet.zip is the views' SQL as schema.sql writes it, and like schema.sql
 it is also available under LICENSE (MIT).
 
@@ -34,7 +35,9 @@ Wikipedia text is licensed CC BY-SA 4.0, and that prose
 carries the same attribution and share-alike requirements with it. Rather
 than draw a line field-by-field, the whole data release is licensed CC BY-SA
 4.0 — with the one exception in the next section, where the line is drawn
-because nothing of Wikipedia's was found on the other side of it. See ATTRIBUTION.md
+because nothing of Wikipedia's was found on the other side of it. f1-facts.db
+is the line drawn table by table and column by column, as a file of its own
+(*The facts artefact*, below). See ATTRIBUTION.md
 for the source of every part of the data and the reasoning in full.
 
 ## The project's own writing — CC BY 4.0
@@ -83,6 +86,56 @@ Wikipedia article's wording, and it stays so until that field is rewritten.
 The glossary stays CC BY-SA while whether to grant it is an open question
 (PM-67): every definition in it reads as original, and the grant waits on a
 decision rather than on the evidence.
+
+## The facts artefact — f1-facts.db, CC BY 4.0
+
+f1-facts.db is f1.db less everything that stays share-alike. It is published
+as a release asset beside f1.db and f1-geometry.db, and it is offered whole
+under the Creative Commons Attribution 4.0 International License
+(CC BY 4.0), with no share-alike:
+
+    https://creativecommons.org/licenses/by/4.0/
+
+What it holds: the rows that cite F1DB, which its authors publish under
+CC BY 4.0 — among them the races, the full classification, qualifying,
+practice, the sprints, standings, pit stops, the driver, constructor,
+chassis, engine and entrant registers, and F1DB's circuit outlines; the rows
+that cite an official source for a fact — the FIA, formula1.com, a team, a
+circuit or a driver — which hold the fact and none of the source's prose;
+and this project's own writing granted CC BY 4.0 above.
+
+What it leaves out, and why — everything here that would carry a
+share-alike, or that this project has not granted:
+
+  - What was taken from Wikipedia (CC BY-SA 4.0): the car specifications
+    and design histories, the circuit layouts, the claims and driver note
+    sources that cite an article, and the six team radio quotations.
+  - The prose fields that stay CC BY-SA 4.0, some of them following a
+    Wikipedia article: the notes and descriptions on circuits, drivers,
+    constructors, seasons, races, regulations and qualifying formats, which
+    the prose pass measures and neither grant above reaches.
+  - The register of Wikimedia Commons photographs, each of which carries
+    its own licence, several of them share-alike.
+  - This project's own writing that neither grant above reaches: the
+    glossary, `technical_innovations`, and the source registry's account
+    of each source, among others.
+  - The values a recorded disagreement compares, and its status note: the
+    values come from whichever sources it compares, often an article, and
+    the note is not among the writing granted above. Its assessment is
+    carried, wherever the column it is about is carried.
+  - The circuit centrelines, which are ODbL and never in f1.db either, and
+    the four tables of FOM-owned timing, which are empty in f1.db too.
+
+The race rows f1.db takes from Wikipedia's season articles are not left
+out: they are rebuilt from F1DB, so that nothing Wikipedia made is in the
+file, and some of its values therefore differ from f1.db's. The file's own
+`meta` table states its terms and says where it differs, and
+tools/facts_artefact.py in the repository names every table and column it
+leaves out, with the reason for each. ATTRIBUTION.md gives the credit it
+carries.
+
+f1.db itself stays CC BY-SA 4.0 as above. Nothing share-alike is in
+f1-facts.db, so taking it takes none of f1.db's share-alike with it.
 
 ## Attribution
 
