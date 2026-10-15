@@ -5526,7 +5526,7 @@ def record_families(derived):
     return family_of
 
 
-def derive_records(cur):
+def derive_records(cur, leave_out=frozenset()):
     """The rows of `records`, each one a query over the tables the site's
     leaderboards read, so the two cannot disagree.
 
@@ -5538,7 +5538,16 @@ def derive_records(cur):
     finish needs race times it does not hold - is not here, and is declared in
     known_gaps rather than typed in from memory.
 
+    `leave_out` names records not to derive, for a database that does not
+    hold what their definitions read: tools/facts_export.py runs these on
+    the facts artefact, which has no circuit_layouts. A key named here that
+    no guard below skips is refused, rather than derived anyway.
+
     Returns the rows in the order they are numbered, as dicts."""
+    guarded = {"longest-circuit"}
+    if set(leave_out) - guarded:
+        raise SystemExit("derive_records: cannot leave out "
+                         + ", ".join(sorted(set(leave_out) - guarded)))
     q = lambda sql, *a: cur.execute(sql, a).fetchall()   # noqa: E731
     out = []
 
@@ -5941,22 +5950,23 @@ def derive_records(cur):
         f"and second - a margin of zero at that precision - and are set aside as ties. "
         + "; ".join(f"{race_name(r[5], r[6])}: {r[3]} over {r[4]}" for r in lead) + ".")
 
-    rows = q("""SELECT MAX(u.len) km, u.name, u.id FROM (
-                  SELECT c.length_km len, c.name, c.id FROM circuits c
-                  UNION ALL
-                  SELECT l.length_km, c.name, c.id FROM circuit_layouts l
-                    JOIN circuits c ON c.id = l.circuit_id) u
-                 WHERE u.len IS NOT NULL
-                   AND EXISTS (SELECT 1 FROM races r WHERE r.circuit_id = u.id
-                                  AND r.status = 'completed')
-                 GROUP BY u.id ORDER BY km DESC, u.name""")
-    lead = _leaders(rows)
-    add("longest-circuit", "races", "Longest circuit used for a championship race",
-        [(r[1], r[2]) for r in lead], "circuits", lead[0][0], "km",
-        f"{_num(lead[0][0])} km" + (" each" if len(lead) > 1 else ""),
-        "The greatest length_km held for a circuit that has staged a completed championship "
-        "race, over circuits (the current figures) and circuit_layouts (historic "
-        f"configurations, where held). Next: {_also(rows, lead, 1)}.")
+    if "longest-circuit" not in leave_out:
+        rows = q("""SELECT MAX(u.len) km, u.name, u.id FROM (
+                      SELECT c.length_km len, c.name, c.id FROM circuits c
+                      UNION ALL
+                      SELECT l.length_km, c.name, c.id FROM circuit_layouts l
+                        JOIN circuits c ON c.id = l.circuit_id) u
+                     WHERE u.len IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM races r WHERE r.circuit_id = u.id
+                                      AND r.status = 'completed')
+                     GROUP BY u.id ORDER BY km DESC, u.name""")
+        lead = _leaders(rows)
+        add("longest-circuit", "races", "Longest circuit used for a championship race",
+            [(r[1], r[2]) for r in lead], "circuits", lead[0][0], "km",
+            f"{_num(lead[0][0])} km" + (" each" if len(lead) > 1 else ""),
+            "The greatest length_km held for a circuit that has staged a completed championship "
+            "race, over circuits (the current figures) and circuit_layouts (historic "
+            f"configurations, where held). Next: {_also(rows, lead, 1)}.")
 
     rows = q("""SELECT e.grid, d.full_name, d.id, r.year, r.name_used
                   FROM race_entries e JOIN races r ON r.id = e.race_id

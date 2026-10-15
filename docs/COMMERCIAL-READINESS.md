@@ -652,8 +652,9 @@ already accepted it.
 ### The declared set
 
 `tools/facts_artefact.py` is the artefact's table and column set, and
-`verify.py`'s *THE FACTS ARTEFACT* section holds it; `PD-54` (#742) builds
-the file from it. Nothing in it lists the tables, or the columns of a table
+`verify.py`'s *THE FACTS ARTEFACT* section holds it; `tools/facts_export.py`
+(`PD-54`, #742) builds the file from it, `f1-facts.db`, which the release
+workflow publishes and git does not keep. Nothing in it lists the tables, or the columns of a table
 carried whole. Each is derived:
 
 - **Rows.** A table with `source_id` carries the rows whose source the

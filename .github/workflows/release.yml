@@ -75,6 +75,14 @@ jobs:
       - name: Export
         run: python3 export_json.py --compat
 
+      # The CC BY 4.0 facts artefact (PD-41, PD-54): f1.db less everything
+      # that stays share-alike, with the race rows that cite a Wikipedia
+      # season article rebuilt from F1DB. Built from the f1.db verified
+      # above; the script refuses a file that is not the set
+      # tools/facts_artefact.py declares, so a refusal stops the release.
+      - name: Build the facts artefact
+        run: python3 tools/facts_export.py
+
       # And the export's size for the notes below, measured from the files
       # uploaded rather than typed: the notes said "21 MB" from v2.x to v2.25,
       # when the export was 25 MB, because nothing read the file.
@@ -111,8 +119,8 @@ jobs:
       # the one file a reader could not check was the one they received.
       - name: Checksums
         run: |
-          sha256sum f1.db f1-geometry.db f1_database.json.gz f1_compat.json \
-            f1-parquet.zip schema.sql > SHA256SUMS
+          sha256sum f1.db f1-geometry.db f1-facts.db f1_database.json.gz \
+            f1_compat.json f1-parquet.zip schema.sql > SHA256SUMS
           cat SHA256SUMS
 
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
@@ -122,6 +130,7 @@ jobs:
           files: |
             f1.db
             f1-geometry.db
+            f1-facts.db
             f1_database.json.gz
             f1_compat.json
             f1-parquet.zip
@@ -135,6 +144,7 @@ jobs:
             |---|---|
             | `f1.db` | The SQLite database. Open it with any SQLite client. |
             | `f1-geometry.db` | Circuit centrelines, © OpenStreetMap contributors under ODbL 1.0. A separate file so its share-alike does not reach the rest — see below. `circuit_geometry` in `f1.db` is deliberately empty. |
+            | `f1-facts.db` | The facts alone, under CC BY 4.0: `f1.db` less everything that stays share-alike — the rows and prose taken from share-alike sources, and this project's writing not granted CC BY 4.0 — with the race rows that cite a Wikipedia season article rebuilt from F1DB. Its `meta` table states its terms, and `tools/facts_artefact.py` names everything it leaves out and why. |
             | `f1_database.json.gz` | Full JSON export of every table: ${{ steps.export.outputs.gz_mb }} MB compressed, ${{ steps.export.outputs.json_mb }} MB unpacked. Not kept in git — it does not delta-compress, and regenerates in about a second with `make export`. |
             | `f1_compat.json` | JSON in the original v1 key layout. |
             | `f1-parquet.zip` | Every table as Parquet, one file each — including the four the JSON export omits for size: `qualifying`, `practice`, `sprint_qualifying` and `pit_stops`. Columnar and compressed: pandas, polars and DuckDB read it directly. |
@@ -143,7 +153,8 @@ jobs:
 
             Data is CC BY-SA 4.0, except the columns of this project's own
             writing that `LICENSE-DATA` names, which are CC BY 4.0, and
-            `f1-parquet.zip` carries a `README.txt` stating both. Circuit
+            `f1-parquet.zip` carries a `README.txt` stating both.
+            `f1-facts.db` is CC BY 4.0 whole: it holds nothing share-alike. Circuit
             geometry is © OpenStreetMap
             contributors under ODbL 1.0, and ships as its own file rather
             than inside `f1.db` or the JSON export: two databases distributed
