@@ -2920,6 +2920,23 @@ def the_weekend_timetable():
     print(f"  [info] {len(rows)} sessions across {len(by_round)} weekends")
 
 
+def base_country_faults(rows, registry):
+    """Each constructor whose base does not end in a registry country.
+
+    rows      (id, base) pairs; a NULL base is not established and passes
+    registry  the country names of harvest/f1db_countries.txt
+
+    constructors.base is free text, "town[, county], country", and nothing
+    in the build renames inside it the way normalise_countries renames a
+    country column - so seven rows spelled their country "UK" or "United
+    States" beside the registry's "United Kingdom" and "United States of
+    America" (CR-77). A base's last comma-separated part is held to the
+    same vocabulary as the four country columns, or the eyebrow that drops
+    a base's country when it repeats the constructor's cannot drop it."""
+    return [f"{cid}: {base!r}" for cid, base in rows
+            if base is not None and base.rsplit(",", 1)[-1].strip() not in registry]
+
+
 @section('THE CONSTRUCTOR REGISTER')
 def the_constructor_register():
     _HV = harvest_module()
@@ -2965,6 +2982,11 @@ def the_constructor_register():
     _both |= set(_T.F1DB_CONSTRUCTORS) & set(_T.F1DB_CONSTRUCTOR_NON_MAPPING)
     check("no constructor is both admitted and aliased or excluded", not _both,
           "; ".join(sorted(_both)))
+    _base = base_country_faults(
+        con.execute("SELECT id, base FROM constructors ORDER BY id").fetchall(),
+        {name for _cid, name, _a3, _dem in _HV.load_f1db_countries()})
+    check("every constructor's base ends in a country the F1DB registry names",
+          not _base, "; ".join(_base[:6]))
     _admitted = con.execute("""SELECT COUNT(*) FROM constructors
         WHERE confidence = 'reference' AND source LIKE '%f1db%'""").fetchone()[0]
     print(f"  [info] {len(_ours)} constructors, {_admitted} of them admitted from "
