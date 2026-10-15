@@ -39,9 +39,12 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   `refresh-failing` or `results-late`. The workflow opens one as an item -
   an id, its labels, assigned - but cannot write a user-owned board, and the
   project's automation adds it with no status. So an open alarm with no
-  Status, or not on the board at all, is read as *Now*, below everything a
-  person placed there: filing is not ranking `[D-36]`. Any status a person
-  gives it is obeyed `AF-89`.
+  Status, or not on the board at all, is read as *Now* and put first in it,
+  above everything a person placed there, so the next fork takes it: fresh
+  data comes first, and a failing refresh is fixed by the loop or the
+  maintainer (ruled on #970 `AF-111`, which reverses `[D-36]` for alarms
+  alone). Any status a person gives it is obeyed, and keeps its board
+  place `AF-89`.
 
 `--group` prints a second block under the item: the open items, **of any
 size**, in the item's own status or the next one down, that share a file
@@ -381,27 +384,32 @@ def queue_rows(board, open_issues):
     """The open issues as rows, in board order: `board` is board_rows(),
     `open_issues` {number: the issue list's issue}.
 
-    An alarm with no status is given *Now*, and one the board does not hold
-    is added after every row that it does, so it lands at the foot of *Now*
-    either way: it is in the queue without having been ranked."""
+    The one exception to board order: an alarm with no status, and one the
+    board does not hold, is given *Now* and put ahead of every other row, so
+    it heads *Now* either way - those on the board in board order, then those
+    off it by number. An alarm a person gave a status is an ordinary row
+    `AF-89` `AF-111`."""
+    def alarm(issue):
+        return bool(ALARMS & {lb["name"] for lb in issue["labels"]})
+
     def row(n, status, waits, issue):
         m = ID.match(issue["title"])
-        labels = sorted(lb["name"] for lb in issue["labels"])
-        if not status and ALARMS & set(labels):
-            status = "Now"
         return dict(status=status, number=n, ident=m.group(1) if m else f"#{n}",
-                    title=issue["title"], labels=labels,
+                    title=issue["title"], labels=sorted(lb["name"] for lb in issue["labels"]),
                     body=issue.get("body") or "", url=issue["url"], waits=waits or 0)
-    rows, placed = [], set()
+    first, rows, placed = [], [], set()
     for n, status, *waits in board:
         issue = open_issues.get(n)
         if issue is None:
             continue
         placed.add(n)
-        rows.append(row(n, status, waits[0] if waits else 0, issue))
-    rows += [row(n, "", 0, issue) for n, issue in sorted(open_issues.items())
-             if n not in placed and ALARMS & {lb["name"] for lb in issue["labels"]}]
-    return rows
+        if not status and alarm(issue):
+            first.append(row(n, "Now", waits[0] if waits else 0, issue))
+        else:
+            rows.append(row(n, status, waits[0] if waits else 0, issue))
+    first += [row(n, "Now", 0, issue) for n, issue in sorted(open_issues.items())
+              if n not in placed and alarm(issue)]
+    return first + rows
 
 
 def show(row):
