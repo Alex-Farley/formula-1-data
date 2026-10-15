@@ -11,8 +11,9 @@ It covers every file the data is published as. `f1.db`, its compressed copy
 `f1_database.json`, released as `f1_database.json.gz`, and `f1_compat.json` —
 are the same data in different formats, under the same terms, which
 `LICENSE-DATA` states. The Parquet bundle carries a `README.txt` saying so,
-written from the database it describes. `f1-geometry.db` is the one file on
-other terms: ODbL, under *OpenStreetMap* below.
+written from the database it describes. Two files are on other terms:
+`f1-geometry.db`, ODbL, under *OpenStreetMap* below, and `f1-facts.db`,
+CC BY 4.0 whole, under *The facts artefact* below.
 
 `docs/COMMERCIAL-READINESS.md` is the companion to this file: where this one
 records what each source requires, that one records which rows were read
@@ -318,6 +319,64 @@ which is why the list is exactly this long, why a rewritten field of the ten
 tables waits for the pass to read it again, and why the glossary and
 `technical_innovations` are not on it.
 
+## The facts artefact — CC BY 4.0
+
+`f1-facts.db` is `f1.db` less everything that stays share-alike, published
+as a release asset beside `f1.db` and `f1-geometry.db` from the first
+release after v2.25, and offered whole
+under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (`PD-41`,
+#481). `LICENSE-DATA` says what it holds and what it leaves out, under
+*The facts artefact*. `tools/facts_artefact.py` names every table and column
+left out, with the reason for each, and `tools/facts_export.py` refuses to
+write a file that is not that set.
+
+Its rows cite three kinds of source, and only one of them asks for a credit:
+
+- **F1DB**, under CC BY 4.0, as *F1DB* above sets out, for the race record,
+  the registers and the circuit outlines. The race rows `f1.db` takes from
+  Wikipedia's season articles are rebuilt from F1DB here, so no row of it
+  cites Wikipedia.
+- **The official sources** the registry classes `facts-only` — the FIA,
+  formula1.com, and team, circuit and driver sites — for facts, with none
+  of their prose: the reading `docs/COMMERCIAL-READINESS.md` records under
+  *What was read*.
+- **This project**, for the writing granted under *What this project
+  wrote* above, and for its own identifiers and classifications.
+
+So the credit it carries is this project's and F1DB's. Its F1DB clause is
+the *Attribution text* below's wording for F1DB, so that the credit has one
+wording in both files:
+
+> Formula One data from [Lap Ledger](https://lapledger.org), licensed under
+> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The race
+> record and the registers are derived from
+> [F1DB](https://github.com/f1db/f1db), which its authors publish under
+> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as are F1DB's
+> circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y).
+> Formula 1, F1 and Grand Prix are trademarks of Formula One Licensing BV;
+> this project is unaffiliated with and unendorsed by Formula One or the FIA.
+
+The file states a shorter form of it in its own `meta` table, so that it
+carries its terms when it travels alone: `meta.attribution` names Lap Ledger
+and F1DB, each with its address, beside `meta.licence` and
+`meta.licence_url`, and `meta.rebuilt` says where the file's values differ
+from `f1.db`'s and why.
+
+CC BY 4.0 asks a reuser to identify the creators (§3(a)(1)(A)(i)). F1DB's
+README names Marcel Overdijk as its creator and core maintainer and Jules
+Roy for its circuit assets, and links its full list of contributors. The
+credit above names F1DB and links it, as `f1.db`'s credit does, and names
+Jules Roy for the outlines; `meta.attribution` names F1DB and links it.
+None of them names Marcel Overdijk. §3(a)(2) gives "providing a URI or
+hyperlink to a resource that includes the required information" as an
+example of what may be a reasonable way to meet the condition, and F1DB's
+README is such a resource. Whether the credit should name him as well is
+open (`PD-68`, #1020); this is not legal advice, and a reuser who names him
+outright loses nothing by doing so. The credit says
+the data is *derived from* F1DB, which is how it indicates, as §3(a)(1)(B)
+asks, that F1DB's data was changed on the way in; the changes made to the
+outlines are stated under *F1DB* above.
+
 ## Suggested arrangement
 
 Two licences, which is normal for a data project:
@@ -330,6 +389,8 @@ Two licences, which is normal for a data project:
   `f1_database.json` — under CC BY-SA 4.0, with attribution to Wikipedia
   contributors, except the columns under *What this project wrote*,
   which are CC BY 4.0. `views.sql` is also offered under MIT, as above.
+- **The facts artefact** — `f1-facts.db` — under CC BY 4.0, with the credit
+  under *The facts artefact*.
 
 Add a `LICENSE` for the code and a `LICENSE-DATA` for the data, and say which
 covers what in the README. I have deliberately not chosen for you.
