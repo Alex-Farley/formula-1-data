@@ -17,22 +17,23 @@ FACTS ARTEFACT section holds the declaration. This writes exactly that set
 and nothing else: it decides nothing about what goes out. Its own steps:
 
   schema    each carried table's CREATE TABLE as f1.db stores it, less the
-            columns left out, the table constraints that name one, and every
-            comment (schema.sql's commentary is about f1.db). The columns in
-            NULLABLE lose their NOT NULL. Indexes and views follow where every
-            table and column they read is carried; the rest are left out.
+            columns left out and the table constraints that name one. The
+            columns in NULLABLE lose their NOT NULL. Indexes and views follow
+            where every table and column they read is carried; the rest are
+            left out. Every comment goes from all of them: schema.sql's
+            commentary is about f1.db.
   rows      each table's declared rows, in key order, with rebuild()'s value
             in place of the stored one wherever it gives one.
   recount   the figures RECOUNTED names, counted again from the file's own
             rows by build.py's rule, so the file agrees with itself.
-  meta      the file's own: f1.db's version and build date, CC BY 4.0, and
-            what it is. f1.db's meta states f1.db's terms and is not carried.
+  meta      the file's own: f1.db's version, build date and current season,
+            CC BY 4.0, and what it is. f1.db's meta states f1.db's terms and is not carried.
 
 Then it opens what it wrote and refuses it - exit 1, nothing left at --out -
 unless its tables and columns are the declared set, every source_id a row
 cites names a source carried, each table holds the rows the declaration
-selects (records, counted again, aside), meta states CC BY 4.0, no key in it
-dangles and SQLite finds it sound.
+selects (records, counted again, aside), meta states CC BY 4.0 and holds
+every key a view reads, no key in it dangles and SQLite finds it sound.
 
 Why it is a release asset and not committed
 -------------------------------------------
@@ -115,6 +116,11 @@ def _name(kind, text):
 
 def _text(tokens):
     return "".join(t for _, t in tokens).strip()
+
+
+def _uncommented(sql):
+    """A statement without its comments: f1.db's are about f1.db."""
+    return _text(_tokens(sql))
 
 
 def split_table(sql):
@@ -220,7 +226,16 @@ def copy_rows(src, dst, table, d, rebuilt):
     in place of the stored ones. Returns the number written."""
     cols = d["columns"]
     where = f" WHERE {d['where']}" if d["where"] else ""
-    over = rebuilt.get(table, {})
+    # rebuild() keys a rebuilt row by its id and a claimed cell by the claim's
+    # row_key, which is TEXT: one row can be under both, so they are merged
+    # by the id as text, and two values for one cell are refused.
+    over = {}
+    for k, vals in rebuilt.get(table, {}).items():
+        merged = over.setdefault(str(k), {})
+        for c, v in vals.items():
+            if c in merged and merged[c] != v:
+                raise SystemExit(f"{table} {k}: rebuild() gives {c} two values")
+            merged[c] = v
     if over and "id" not in cols:
         raise SystemExit(f"{table}: rebuild() gives values by id, and the table carries none")
     stray = sorted({c for v in over.values() for c in v} - set(cols))
@@ -231,16 +246,14 @@ def copy_rows(src, dst, table, d, rebuilt):
     rows = []
     for row in src.execute(f'SELECT {", ".join(chr(34) + c + chr(34) for c in cols)} '
                            f'FROM "{table}"{where} ORDER BY {_order(src, table)}'):
-        vals = over.get(row[at["id"]]) if over else None
-        if vals is None and over:
-            vals = over.get(str(row[at["id"]]))
+        vals = over.get(str(row[at["id"]])) if over else None
         if vals is not None:
             row = list(row)
             for c, v in vals.items():
                 row[at[c]] = v
             applied.add(str(row[at["id"]]))
         rows.append(row)
-    unapplied = sorted({str(k) for k in over} - applied)
+    unapplied = sorted(set(over) - applied)
     if unapplied:
         raise SystemExit(f"{table}: rebuild() gives values for {len(unapplied)} rows the "
                          f"declaration does not carry: {', '.join(unapplied[:6])}")
@@ -322,10 +335,12 @@ RECORDS_READ = {
 
 # ------------------------------------------------------------- the file
 
-def _meta(src):
-    """The artefact's own meta: f1.db's version and build date, which it is
-    built from, and its own terms."""
-    held = dict(src.execute("SELECT key, value FROM meta WHERE key IN ('version', 'built')"))
+def _meta(src, records_out=()):
+    """The artefact's own meta: f1.db's version, build date and current
+    season, which it is built from (two views read the season), and its own
+    terms."""
+    held = dict(src.execute("SELECT key, value FROM meta "
+                            "WHERE key IN ('version', 'built', 'current_season')"))
     f1db = fa.f1db_source(src)
     name, url = src.execute("SELECT source, url FROM source_registry WHERE id = ?",
                             (f1db,)).fetchone()
@@ -333,6 +348,7 @@ def _meta(src):
         ("database_name", "F1 facts (the CC BY 4.0 subset of f1.db)"),
         ("version", held["version"]),
         ("built", held["built"]),
+        ("current_season", held["current_season"]),
         ("licence", LICENCE),
         ("licence_url", LICENCE_URL),
         ("attribution", f"Lap Ledger (https://lapledger.org), built from {name} ({url}, "
@@ -348,7 +364,10 @@ def _meta(src):
                     "tools/facts_artefact.py --diff, in a checkout of the same version, "
                     "lists each one. drivers.poles, drivers.fastest_laps, "
                     "constructors.poles and records are counted again from this file's "
-                    "own rows."),
+                    "own rows"
+                    + (f", and these records, whose definitions read a table this file "
+                       f"leaves out, are not in it: {', '.join(records_out)}."
+                       if records_out else ".")),
         ("declaration", "tools/facts_artefact.py names every table and column this file "
                         "leaves out, and why: https://github.com/Alex-Farley/"
                         "formula-1-data/blob/main/tools/facts_artefact.py"),
@@ -387,17 +406,23 @@ def write(src, path):
                               [n.split(".")[1] for n in NULLABLE if n.split(".")[0] == t]))
     for t in carried:
         report["tables"][t] = copy_rows(src, dst, t, decl[t], rebuilt)
-    dst.executemany("INSERT INTO meta VALUES (?, ?)", _meta(src))
 
     # An index on a column left out goes with it. Before the recount, which
-    # reads race_entries by driver and constructor.
+    # reads race_entries by driver and constructor. An index over an
+    # expression names no column for it, so it is created and kept where
+    # SQLite resolves every name the expression reads.
     for kind, name, t, sql in master:
         if kind != "index" or t not in carried:
             continue
         cols = [c[2] for c in src.execute(f'PRAGMA index_info("{name}")')]
-        if all(c in decl[t]["columns"] for c in cols):
-            dst.execute(sql)
+        if any(c is not None and c not in decl[t]["columns"] for c in cols):
+            continue
+        try:
+            dst.execute(_uncommented(sql))
             report["indexes"].append(name)
+        except sqlite3.OperationalError as e:
+            if "no such column" not in str(e):
+                raise
 
     # Views read the tables, so they come before the recount, which reads
     # v_standings_final. A view reading anything left out is left out; the
@@ -406,7 +431,7 @@ def write(src, path):
         if kind != "view":
             continue
         try:
-            dst.execute(sql)
+            dst.execute(_uncommented(sql))
             dst.execute(f'SELECT * FROM "{name}" LIMIT 0').fetchall()
             report["views"].append(name)
         except sqlite3.OperationalError as e:
@@ -416,6 +441,7 @@ def write(src, path):
             report["views_out"].append(name)
 
     report["records_out"] = recount(src, dst)
+    dst.executemany("INSERT INTO meta VALUES (?, ?)", _meta(src, report["records_out"]))
 
     dst.commit()
     dst.execute("VACUUM")
@@ -460,6 +486,14 @@ def check(src, path):
     licence = con.execute("SELECT value FROM meta WHERE key = 'licence'").fetchone()
     if not licence or licence[0] != LICENCE:
         bad.append(f"meta.licence is {licence and licence[0]!r}, not {LICENCE!r}")
+    # A view reading a meta key the file does not hold still resolves, and
+    # answers wrongly: v_current_grid reads current_season.
+    keys = {k for (k,) in con.execute("SELECT key FROM meta")}
+    for name, sql in con.execute("SELECT name, sql FROM sqlite_master WHERE type = 'view'"):
+        if re.search(r"\bmeta\b", sql):
+            lost = sorted(set(re.findall(r"\bkey\s*=\s*'([^']+)'", sql)) - keys)
+            if lost:
+                bad.append(f"view {name} reads meta keys the file does not hold: {lost}")
     fk = con.execute("PRAGMA foreign_key_check").fetchall()
     if fk:
         bad.append(f"{len(fk)} keys name a row the file does not hold: {fk[:4]}")
@@ -479,15 +513,20 @@ def main():
     args = ap.parse_args()
     src = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
     tmp = args.out + ".tmp"
+    # A refusal leaves no file at --out, not even an earlier build's, so
+    # nothing after it can take a stale copy for this one.
     try:
         report = write(src, tmp)
         bad = check(src, tmp)
     except BaseException:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+        for p in (tmp, args.out):
+            if os.path.exists(p):
+                os.remove(p)
         raise
     if bad:
-        os.remove(tmp)
+        for p in (tmp, args.out):
+            if os.path.exists(p):
+                os.remove(p)
         for b in bad:
             print(f"  FAIL {b}")
         raise SystemExit(f"facts artefact refused: {len(bad)} failures; nothing written")

@@ -68,6 +68,33 @@ class TheSchema(unittest.TestCase):
             fx.table_ddl(TABLE, COLUMNS, KEEP + ["nowhere"], ["entries", "races"])
 
 
+class TheRows(unittest.TestCase):
+    """rebuild() keys a rebuilt row by its id and a claimed cell by the
+    claim's TEXT row_key; both reach the same row."""
+
+    def setUp(self):
+        self.src = sqlite3.connect(":memory:")
+        self.src.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, a TEXT, b TEXT)")
+        self.src.executemany("INSERT INTO t VALUES (?,?,?)", [(1, "x", "claimed"), (2, "y", "z")])
+        self.dst = sqlite3.connect(":memory:")
+        self.dst.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, a TEXT, b TEXT)")
+        self.decl = {"columns": ["id", "a", "b"], "where": None}
+
+    def test_a_claimed_null_and_a_rebuilt_value_on_one_row_both_apply(self):
+        fx.copy_rows(self.src, self.dst, "t", self.decl, {"t": {1: {"a": "r"}, "1": {"b": None}}})
+        self.assertEqual(self.dst.execute("SELECT a, b FROM t WHERE id = 1").fetchone(), ("r", None))
+
+    def test_two_values_for_one_cell_are_refused(self):
+        with self.assertRaises(SystemExit):
+            fx.copy_rows(self.src, self.dst, "t", self.decl,
+                         {"t": {1: {"b": "r"}, "1": {"b": None}}})
+
+    def test_a_value_for_a_row_not_carried_is_refused(self):
+        with self.assertRaises(SystemExit):
+            fx.copy_rows(self.src, self.dst, "t", dict(self.decl, where="id = 2"),
+                         {"t": {1: {"a": "r"}}})
+
+
 class TheRecords(unittest.TestCase):
     def test_a_record_with_no_guard_cannot_be_left_out(self):
         import build
