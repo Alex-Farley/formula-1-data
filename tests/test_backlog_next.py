@@ -60,13 +60,14 @@ class QueueRows(unittest.TestCase):
         self.assertEqual(rows[0]["ident"], "#9")
 
     def test_alarms_head_now_board_held_in_board_order_then_off_board(self):
-        # Numbers run against the order promised, so sorting the alarms by
-        # number instead would fail: on the board #9 then #6, off it #4.
-        rows = self.rows([(1, "Now", 0), (9, "", 0), (6, "", 0)],
+        # The numbers follow neither the promised order nor its reverse, so
+        # sorting the alarms by number either way fails: on the board #6 then
+        # #9, off it #4.
+        rows = self.rows([(1, "Now", 0), (6, "", 0), (9, "", 0)],
                          [issue(1, "AF-01: a"), issue(4, "AF-95: alarm", "results-late"),
                           issue(6, "AF-96: alarm", "refresh-failing"),
                           issue(9, "AF-94: alarm", "refresh-failing")])
-        self.assertEqual(self.ranked(rows), [9, 6, 4, 1])
+        self.assertEqual(self.ranked(rows), [6, 9, 4, 1])
 
     def test_an_alarm_a_person_put_in_now_keeps_its_place(self):
         rows = self.rows([(1, "Now", 0), (2, "Now", 0), (3, "Now", 0)],
