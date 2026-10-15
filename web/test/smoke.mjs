@@ -8230,6 +8230,11 @@ try {
     const readBoth = (html) => {
       const read = (main) => {
         const flatten = (node) => (node?.textContent ?? '').replace(/\s+/g, ' ').trim()
+        const named = (h2) => {
+          const copy = h2.cloneNode(true)
+          for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
+          return flatten(copy)
+        }
         const header = main?.querySelector('article.page > header')
         return {
           header: [...(header?.children ?? [])].map((child) => `${child.tagName.toLowerCase()}.${child.classList[0] ?? ''} ${flatten(child)}`),
@@ -8243,11 +8248,7 @@ try {
               ? [...main.querySelectorAll('h2')].filter((h2) => h2.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).length
               : null
           })(),
-          sections: [...(main?.querySelectorAll('h2') ?? [])].map((h2) => {
-            const copy = h2.cloneNode(true)
-            for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
-            return flatten(copy)
-          }),
+          sections: [...(main?.querySelectorAll('h2') ?? [])].map(named),
           // What a screen reader's list of controls reads (DP-30, DP-31):
           // each disclosure's name - its face and the hidden name a fold
           // carries, the closed face only, as the open one is hidden while
@@ -8264,6 +8265,27 @@ try {
             (a.getAttribute('aria-label') ?? flatten(a)).replace(/\s+/g, ' ').trim(),
             a.getAttribute('href'),
           ]),
+          // AF-100: the words around the tables - every paragraph, figure
+          // note, quotation, list item and table footer outside the header,
+          // the tables and the tile strips, which are compared on their own -
+          // as [the h2 it falls under, or '' above the first, its text], in
+          // document order. The app prints a table's footer in a span under
+          // it, the static page in a paragraph. A block inside another is
+          // read as part of the outer one.
+          prose: (() => {
+            const BLOCKS = 'p, figcaption, blockquote, li, .table-foot > span'
+            const headings = [...(main?.querySelectorAll('h2') ?? [])]
+            const out = []
+            for (const block of main?.querySelectorAll(BLOCKS) ?? []) {
+              if (block.closest('article.page > header, table, dl.stats, summary')) continue
+              if (block.parentElement?.closest(BLOCKS)) continue
+              const words = flatten(block)
+              if (!words) continue
+              const above = headings.filter((h2) => h2.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).at(-1)
+              out.push([above ? named(above) : '', words])
+            }
+            return out
+          })(),
         }
       }
       const parsed = new DOMParser().parseFromString(html, 'text/html')
@@ -8438,6 +8460,128 @@ try {
     }
     for (const message of vocabularyWrong.slice(0, 8)) fail(message)
     if (vocabularyWrong.length > 8) fail(`\u2026and ${vocabularyWrong.length - 8} more`)
+
+    // THE WORDS AROUND THE TABLES (AF-100), section by section: the static
+    // tables are compared with the app's row for row in the next section,
+    // and the header, the tiles and the headings above, but the prose
+    // between them was not - and
+    // that is where the two halves drifted: "0 wins" where the app says
+    // nothing is established (#779), a note left in one renderer after its
+    // drawing moved (#829), a curated block only one renderer wrote (#906).
+    // A section is matched by its heading, so a declared move (`moved` in
+    // SECTIONS) is compared where each half put it, and a section only one
+    // half heads is the section check's business above, prose and all.
+    const SAYS_WHY = 'the static page says what needs a browser'
+    const SLICE = 'the static /races is a declared leading slice, and says so'
+    const AS_TABLE = 'the static half draws the chart as a table of its rows, which says how many and wears no colours'
+    const PROSE_DRIFT = '#1000'
+    const characteristics = (id) => one('SELECT characteristics FROM circuits WHERE id = ?', id)
+    const LEADERS_LINE = / The (?:fifteen|\d+) with the most(?:: those level with the fifteenth are all here)?\./
+    // What is declared, by route. `half` is the one that has the words, or
+    // 'both' for a section whose prose is set aside in each. `drop`: a
+    // paragraph only that half has, by its opening words or a pattern it
+    // matches. `trim`: a phrase that half adds to a paragraph both have, cut
+    // before the rest is compared. Neither: the whole section, which must
+    // still differ. Every declaration must still match, or it fails and asks
+    // to be deleted - but for `optional`, which the data decides.
+    const PROSE = {
+      '/seasons/2026': [
+        { half: 'app', section: '', drop: 'The grid: ', why: PROSE_DRIFT },
+        // While a round is next, and where its circuit has a trace.
+        { half: 'app', section: NEXT_HEADING, drop: 'Traced from OpenStreetMap', why: TRACE, optional: true },
+      ],
+      '/seasons/1976': [{ half: 'app', section: '', drop: 'The grid: ', why: PROSE_DRIFT }],
+      '/races': [{ half: 'static', section: '', drop: /^[\d,]+ championship Grands Prix\. The \d+ most recently run/, why: SLICE }],
+      '/races/1976/9': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
+      '/races/2027/1': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
+      '/compare': [{ half: 'static', section: '', drop: 'Choosing the two drivers needs JavaScript', why: SAYS_WHY }],
+      '/circuits/monza': [{ half: 'static', section: '', drop: characteristics('monza'), why: PROSE_DRIFT }],
+      '/circuits/monaco': [{ half: 'static', section: '', drop: characteristics('monaco'), why: PROSE_DRIFT }],
+      '/cars': [
+        { half: 'both', section: 'The cars with a page of their own', why: PROSE_DRIFT },
+        { half: 'static', section: 'The chassis register', drop: 'Every chassis that has started', why: PROSE_DRIFT },
+      ],
+      // The static page writes "Why it mattered" without its heading (#886),
+      // so its words fall under whichever heading is above them.
+      '/cars/mercedes-w11': [{ half: 'both', section: 'Two sources disagree about this car', why: DRIFT }],
+      '/cars/lotus-72': [
+        { half: 'both', section: '', why: DRIFT },
+        { half: 'app', section: 'Variants', drop: 'Every race entry names a variant', why: PROSE_DRIFT },
+      ],
+      '/cars/brabham-bt46': [{ half: 'both', section: '', why: DRIFT }],
+      '/cars/lotus-72b': [{ half: 'static', section: '', drop: 'One of the design family', why: PROSE_DRIFT }],
+      '/records': [
+        { half: 'static', section: LEADERBOARDS, trim: LEADERS_LINE, why: AS_TABLE },
+        { half: 'static', section: CONSTRUCTORS_HEADING, trim: LEADERS_LINE, why: AS_TABLE },
+        { half: 'app', section: CONSTRUCTORS_HEADING, trim: / Coloured as of each team’s last win: .*$/, why: AS_TABLE },
+      ],
+      '/data': ['', 'The files', 'As JSON', 'What explains it', 'How far to trust it', 'What you may do with it', 'Ask it something'].map(
+        (section) => ({ half: 'both', section, why: PROSE_DRIFT }),
+      ),
+      '/data/quality': [{ half: 'static', section: '', drop: 'A blank in this database is an unestablished fact', why: PROSE_DRIFT }],
+      '/data/sources': [{ half: 'static', section: 'The source registry', drop: 'Circuit outlines from F1DB', why: PROSE_DRIFT }],
+      '/data/sql': [{ half: 'static', section: '', drop: 'Running the console needs JavaScript', why: CONSOLE }],
+    }
+    const where = (route, section) => `${route} “${section || '(above the first heading)'}”`
+    const proseWrong = Object.keys(PROSE)
+      .filter((route) => !ROUTES.includes(route))
+      .map((route) => `${route} is declared in PROSE and never visited, so its declaration can never fail — add it to ROUTES`)
+    let paragraphs = 0
+    let proseDeclared = 0
+    for (const { route, fromStatic, fromApp } of drawn) {
+      const known = SECTIONS[route] ?? {}
+      const oneSided = new Set([...(known.app ?? []), ...(known.static ?? [])].map(([name]) => name))
+      // The citation names the address it was read at, and the static page
+      // was written for the site's, as the Citation section allows for.
+      const byHeading = (list, half) => {
+        const out = new Map()
+        for (const [section, words] of list) {
+          if (oneSided.has(section)) continue
+          out.set(section, [...(out.get(section) ?? []), half === 'static' ? words.replaceAll('https://lapledger.org', BASE) : words])
+        }
+        return out
+      }
+      const halves = { app: byHeading(fromApp.prose, 'app'), static: byHeading(fromStatic.prose, 'static') }
+      for (const d of PROSE[route] ?? []) {
+        proseDeclared += 1
+        const at = `${where(route, d.section)} (${d.half}, ${d.why})`
+        if (d.drop === undefined && d.trim === undefined) {
+          const [a, s] = [halves.app.get(d.section) ?? [], halves.static.get(d.section) ?? []]
+          if (a.join(' | ') === s.join(' | ')) proseWrong.push(`${at}: the two halves read the same now — delete it from PROSE`)
+          halves.app.delete(d.section)
+          halves.static.delete(d.section)
+          continue
+        }
+        const list = halves[d.half].get(d.section) ?? []
+        const matches = (words) => (d.drop instanceof RegExp ? d.drop.test(words) : words.startsWith(d.drop))
+        if (d.drop !== undefined) {
+          const i = list.findIndex(matches)
+          if (i >= 0) list.splice(i, 1)
+          else if (!d.optional) proseWrong.push(`${at}: no longer has the declared “${d.drop}” — delete it from PROSE`)
+        } else {
+          const trimmed = list.map((words) => words.replace(d.trim, ''))
+          if (trimmed.every((words, i) => words === list[i])) {
+            if (!d.optional) proseWrong.push(`${at}: no paragraph carries the declared ${d.trim} — delete it from PROSE`)
+          } else halves[d.half].set(d.section, trimmed)
+        }
+      }
+      for (const section of new Set([...halves.app.keys(), ...halves.static.keys()])) {
+        const [a, s] = [halves.app.get(section) ?? [], halves.static.get(section) ?? []]
+        paragraphs += Math.max(a.length, s.length)
+        const at = a.findIndex((words, i) => words !== s[i])
+        const differ = at >= 0 ? at : a.length < s.length ? a.length : -1
+        if (differ >= 0) {
+          proseWrong.push(
+            `${where(route, section)}, paragraph ${differ + 1} — app “${a[differ] ?? '(none)'}”, static “${s[differ] ?? '(none)'}”`,
+          )
+        }
+      }
+    }
+    if (proseWrong.length === 0) {
+      pass(`all ${drawn.length} routes say the same ${paragraphs} paragraphs, notes and list items, section by section, in both renderers, but the ${proseDeclared} declared`)
+    }
+    for (const message of proseWrong.slice(0, 8)) fail(message)
+    if (proseWrong.length > 8) fail(`…and ${proseWrong.length - 8} more`)
 
     // A DISCLOSURE OR A LINK SAYS WHAT IT OPENS (DP-30, DP-31): no two
     // disclosures on a page share a name, and no name is given to two links
