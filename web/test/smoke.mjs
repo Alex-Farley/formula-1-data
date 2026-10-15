@@ -83,6 +83,7 @@ import {
   DOCUMENTS,
   IN_THIS_TAB,
   IN_THIS_TAB_ANCHOR,
+  IN_THIS_TAB_HEADING,
   LABELS,
   MAINTAINER,
   NOT_YET_RUN,
@@ -5619,8 +5620,14 @@ try {
         }
       }
 
-      // What the footer cut is on /data, whole, in both renderers.
+      // What the footer cut is on /data, whole, in both renderers, and the
+      // address names the same heading in each: the app's id is on the
+      // section, the static page's on its h2.
       for (const [half, where, main] of [['app', page, '#root main'], ['static', plain, 'main']]) {
+        const named = await where
+          .$eval(`${main} #${IN_THIS_TAB_ANCHOR}`, (n) => (n.matches('h2') ? n : n.querySelector('h2'))?.textContent.trim())
+          .catch(() => null)
+        is(named, IN_THIS_TAB_HEADING, `/data, ${half}: #${IN_THIS_TAB_ANCHOR} names the account's heading`)
         const account = await where
           .$eval(`${main} #${IN_THIS_TAB_ANCHOR}`, (n) => n.closest('section').textContent.replace(/\s+/g, ' '))
           .catch(() => '')
@@ -5647,6 +5654,52 @@ try {
         .then(() => true)
         .catch(() => false)
       truthy(landed, "the footer's link scrolls the app to the account, not to the top of /data")
+
+      // And on /data itself, where the route does not change: from the top,
+      // the link still goes to the section. Clicked in the page, so the
+      // browser does not scroll to the footer first and land near it anyway.
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await page.$eval(`#root footer.sitefoot a[href="/data#${IN_THIS_TAB_ANCHOR}"]`, (a) => a.click())
+      const there = await page
+        .waitForFunction(
+          (id) => {
+            const box = document.getElementById(id)?.getBoundingClientRect()
+            return box && box.top >= -2 && box.top < window.innerHeight && window.scrollY > 0
+          },
+          IN_THIS_TAB_ANCHOR,
+          { timeout: 5000 },
+        )
+        .then(() => true)
+        .catch(() => false)
+      truthy(there, "and on /data itself, where the route does not change, the link still goes to the account")
+
+      // A cold arrival at the address: the static page puts the heading at
+      // the top, and the handover has to keep it there, though the app's
+      // /data above it is taller than the static page's. Narrow, where the
+      // difference is largest.
+      const cold = await page.context().newPage()
+      try {
+        await cold.setViewportSize({ width: 375, height: 700 })
+        await cold.goto(`${BASE}/data#${IN_THIS_TAB_ANCHOR}`, { waitUntil: 'load' })
+        await cold.waitForFunction(() => !document.getElementById('prerendered') && document.querySelector('#root main h1'), null, {
+          timeout: 30000,
+        })
+        const kept = await cold
+          .waitForFunction(
+            (id) => {
+              const node = document.getElementById(id)
+              const top = (node?.matches('h2') ? node : node?.querySelector('h2'))?.getBoundingClientRect().top
+              return top !== undefined && top >= -2 && top < window.innerHeight / 3
+            },
+            IN_THIS_TAB_ANCHOR,
+            { timeout: 5000 },
+          )
+          .then(() => true)
+          .catch(() => false)
+        truthy(kept, `a cold arrival at /data#${IN_THIS_TAB_ANCHOR} keeps the account's heading on screen through the handover`)
+      } finally {
+        await cold.close()
+      }
     } finally {
       await noJs.close()
     }

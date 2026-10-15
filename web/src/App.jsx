@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
 import { DateText } from './components/Dates.jsx'
 import Search from './components/Search.jsx'
@@ -104,7 +104,8 @@ const LANDING = (() => {
 
 /**
  * Send the reader to the top when the route changes, as a page load would —
- * or to the section the address names — and never on the arrival.
+ * or to the section the address names, on this page or another — and never
+ * on the arrival, which main.jsx's handOver() places.
  *
  * Boot renders this only once the database is open, which is the same instant
  * main.jsx's handOver() removes the prerendered page and puts back the offset
@@ -122,41 +123,66 @@ const LANDING = (() => {
  * and so dev's doubled StrictMode pass reaches the same answer as a build.
  */
 function ScrollToTop() {
-  const { pathname, hash } = useLocation()
+  const { pathname, search, hash, key } = useLocation()
+  const navigation = useNavigationType()
   const first = useRef(true)
-  // Read, not depended on: a fragment change on the same page is the
-  // browser's to scroll, and a Back from #x to no fragment must not jump the
-  // reader to the top.
-  const fragment = useRef(hash)
-  fragment.current = hash
+  // null, not the first address, so the first run is a route change like any
+  // other and the arrival rule below decides it.
+  const previous = useRef(null)
+  // `key` is new on every navigation, so the same link clicked twice runs
+  // this twice; it is depended on for the change it marks, not read.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: key marks a navigation
   useEffect(() => {
+    const was = previous.current
+    previous.current = { pathname, search }
+    if (was?.pathname === pathname) {
+      // A link to a section of the page already open - the footer's, read on
+      // /data itself - is a navigation the router makes and scrolls nothing
+      // for: a PUSH, or a REPLACE when the address is already the link's. A
+      // register or the console rewriting its own query is a REPLACE too, and
+      // is told apart by the query having changed: it must not pull the
+      // reader to a fragment on every keystroke. A fragment the browser
+      // navigated to itself, an in-page <a href="#x"> or Back and Forward, is
+      // a POP it has scrolled already, and Back to no fragment at all must not
+      // jump the reader to the top.
+      const linked = navigation === 'PUSH' || (navigation === 'REPLACE' && was.search === search)
+      return hash && linked ? seekFragment(hash) : undefined
+    }
     if (first.current && pathname === LANDING) return
     first.current = false
     window.scrollTo(0, 0)
-    // A link into another page's section - every footer's to /data's account
-    // of what leaves this tab (IA-31) - names a section the new page has not
-    // drawn yet: its rows arrive a frame or more after the route changes. So
-    // look for it each frame, for about two seconds, and go there once it is
-    // drawn; a fragment that never appears leaves the reader at the top, as
-    // before.
-    const id = fragment.current.slice(1)
-    if (!id) return
-    let frame = 0
-    let tries = 0
-    const seek = () => {
-      let target = null
-      try {
-        target = document.getElementById(decodeURIComponent(id))
-      } catch {
-        return
-      }
-      if (target) target.scrollIntoView()
-      else if (++tries < 120) frame = requestAnimationFrame(seek)
-    }
-    seek()
-    return () => cancelAnimationFrame(frame)
-  }, [pathname])
+    return hash ? seekFragment(hash) : undefined
+  }, [pathname, search, hash, key, navigation])
   return null
+}
+
+/**
+ * Scroll to the element a fragment names, once it is drawn.
+ *
+ * A link into another page's section - every footer's to /data's account of
+ * what leaves this tab (IA-31) - names a section the new page has not drawn
+ * yet: its rows arrive a frame or more after the route changes. So look for it
+ * each frame, for about two seconds, and go there once it is drawn; a fragment
+ * that never appears, or does not decode, leaves the reader where they are.
+ * html's scroll-padding-top keeps the target clear of the masthead. Returns
+ * the effect's cleanup.
+ */
+function seekFragment(hash) {
+  let id
+  try {
+    id = decodeURIComponent(hash.slice(1))
+  } catch {
+    return undefined
+  }
+  let frame = 0
+  let tries = 0
+  const seek = () => {
+    const target = document.getElementById(id)
+    if (target) target.scrollIntoView()
+    else if (++tries < 120) frame = requestAnimationFrame(seek)
+  }
+  seek()
+  return () => cancelAnimationFrame(frame)
 }
 
 /**
