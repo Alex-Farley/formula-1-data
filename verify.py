@@ -6521,6 +6521,23 @@ def readme_figures():
                   "" if s == a else f"the document says {s!r}")
 
 
+@section('THE CREDITS NAME THE SOURCES THE ROWS CITE')
+def credit_sources():
+    # The figures in the credits are spans, but which source supplied which
+    # table was typed prose, and it drifted: the attribution text named
+    # Wikipedia for the driver and constructor records with 733 of 915
+    # `drivers` rows citing F1DB and no `constructors` row citing Wikipedia
+    # (#773). Each statement is now a span naming its tables, and
+    # tools/credit_sources.py reads the sources its words name against the
+    # source_id of every row (AF-102).
+    cs = _tool("credit_sources")
+    found, bad = cs.faults(con, cs.read())
+    check("the credits mark their statements of source", found > 0,
+          f"{found} spans" if found else "no credit span in any document")
+    check("every credited source is cited by its tables, and every large one credited",
+          not bad, "; ".join(bad))
+
+
 @section('THE DATABASE STATES WHAT IT HOLDS IN ITS OWN PROSE')
 def prose_figures():
     # The README's discipline, turned on the prose inside the artefact.
