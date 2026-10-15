@@ -47,6 +47,7 @@ here is a number the build checked.
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
+| `f1-facts.db` | The facts artefact: `f1.db` less everything that stays share-alike, for release under CC BY 4.0. **Not committed** — `make export` writes it with `tools/facts_export.py` from the set `tools/facts_artefact.py` declares, and the release workflow publishes it beside `f1.db`. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. Served at `lapledger.org/schema.sql`, so a downloader can read what the tables mean. |
 | `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->40<!-- /fig --> named stages; `STAGES` is the schedule. |

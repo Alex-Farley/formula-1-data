@@ -78,6 +78,15 @@ web/public/
 # diff it is the point.
 f1_database.json
 
+# The CC BY 4.0 facts artefact tools/facts_export.py writes (PD-54), and the
+# second copy `make ci` builds to compare with it. A release asset for the
+# same reason: about 27 MB of SQLite at v2.25 that does not delta-compress,
+# and a pure function of f1.db, harvest/ and the code, all committed already.
+f1-facts.db
+f1-facts.db.tmp
+f1-facts.db.again
+f1-facts.db.again.tmp
+
 # Claude Code local settings (machine-specific, not shared)
 .claude/settings.local.json
 

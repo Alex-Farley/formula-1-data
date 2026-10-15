@@ -70,8 +70,9 @@ lint:                             ## Ruff, Biome and actionlint, as CI runs them
 audit:                            ## structural health report
 	$(call run,$(PYTHON) audit.py)
 
-export:                           ## regenerate the JSON exports
+export:                           ## regenerate the JSON exports and the facts artefact
 	$(call run,$(PYTHON) export_json.py --compat)
+	$(call run,$(PYTHON) tools/facts_export.py)
 
 check: build readme verify test   ## build, README figures, verify, unit tests (not what CI runs - see ci)
 
@@ -88,6 +89,11 @@ ci:                               ## exactly what ci.yml's Python job runs (QUIE
 	$(call run,$(PYTHON) audit.py)
 	$(call run,$(PYTHON) export_json.py --compat)
 	@test -s f1_database.json || { echo "the full export was not written"; exit 1; }
+	$(call run,$(PYTHON) tools/facts_export.py)
+	$(call run,$(PYTHON) tools/facts_export.py --out f1-facts.db.again)
+	@cmp -s f1-facts.db f1-facts.db.again \
+	  || { rm -f f1-facts.db.again; echo "the facts artefact is not byte-stable: two builds of it differ"; exit 1; }
+	@rm -f f1-facts.db.again
 	@git diff --quiet -- f1.db f1-geometry.db f1_compat.json README.md docs/COMMERCIAL-READINESS.md \
 	  || { echo "the committed artefacts do not match a fresh build - stage or commit the rebuild (README.md's and docs/COMMERCIAL-READINESS.md's figures included):"; \
 	       git diff --stat -- f1.db f1-geometry.db f1_compat.json README.md docs/COMMERCIAL-READINESS.md; exit 1; }
@@ -104,7 +110,7 @@ loop:                             ## run the backlog loop unattended (ARGS="unti
 	$(PYTHON) .claude/skills/backlog-loop/supervise.py $(ARGS)
 
 clean:                            ## remove built artefacts (not the sources)
-	rm -f f1.db f1_database.json f1_compat.json *.db.tmp
+	rm -f f1.db f1_database.json f1_compat.json f1-facts.db f1-facts.db.again *.db.tmp
 	find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 
 help:

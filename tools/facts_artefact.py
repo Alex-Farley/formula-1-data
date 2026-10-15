@@ -7,8 +7,9 @@ The CC BY 4.0 facts artefact's table and column set: piece 2 of PD-41 (PD-53, #7
 
 Reads:   f1.db; F1DB's files in harvest/; docs/prose_pass.tsv, through
          tools/prose_pass.py
-Writes:  nothing. PD-54 (#742) builds the file from what this declares, and
-         verify.py's THE FACTS ARTEFACT section holds the declaration.
+Writes:  nothing. tools/facts_export.py (PD-54, #742) builds the file from
+         what this declares, and verify.py's THE FACTS ARTEFACT section holds
+         the declaration.
 
 What the artefact is
 --------------------
@@ -63,8 +64,8 @@ introduced from F1DB's register. `differences()` says where that leaves the
 artefact unlike f1.db, which verify.py compares with what the rules predict.
 
 This is an analysis of what the artefact holds, not the artefact. It
-relicenses nothing: until PD-54 ships the file, every row in f1.db is
-CC BY-SA 4.0 as LICENSE-DATA says.
+relicenses nothing, and neither does writing the file: until a release
+publishes it, every row in f1.db is CC BY-SA 4.0 as LICENSE-DATA says.
 """
 import argparse
 import os
@@ -97,8 +98,8 @@ import prose_pass as _PP         # noqa: E402
 #   linkage  this project's link from the row to F1DB's own registers
 #   claimed  a value a `claims` row cites a source the artefact carries for,
 #            row by row, which verify.py holds
-#   counted  derived from the race rows, which PD-54 counts again from the
-#            artefact's own (RECOUNTED)
+#   counted  derived from the race rows, which tools/facts_export.py counts
+#            again from the artefact's own (RECOUNTED)
 #   null     not established on these rows: F1DB does not give it, and
 #            nothing is taken from the stored row instead
 #   cited    the row's source, which on a rebuilt row is F1DB
@@ -174,7 +175,8 @@ DRIVER_DIFFERENCES = {
 # source is recognised, the provenance of whole tables, and what a confidence
 # means. They are carried, less the prose UNGRANTED names, because a row's
 # source_id means nothing without them. `meta` is not carried: it states
-# f1.db's version, licence and coverage, and PD-54 writes the artefact's own.
+# f1.db's version, licence and coverage, and tools/facts_export.py writes the
+# artefact's own.
 APPARATUS = {
     "source_registry": "all", "source_patterns": "all", "table_provenance": "all",
     "provenance": "all",
@@ -246,9 +248,10 @@ SPANS = {
     "chassis": ("spec_source", "article", "published_poles"),
 }
 
-# Derived by build.py from the credit columns the artefact rebuilds. PD-54
-# counts them again from the artefact's own rows, so that the file agrees
-# with itself where F1DB's fastest laps differ from f1.db's.
+# Derived by build.py from the credit columns the artefact rebuilds.
+# tools/facts_export.py counts them again from the artefact's own rows, so
+# that the file agrees with itself where F1DB's fastest laps differ from
+# f1.db's.
 RECOUNTED = {
     "drivers.poles": "race_entries.pole",
     "drivers.fastest_laps": "race_entries.fastest_lap",
@@ -361,7 +364,7 @@ def declare(con):
         elif t in APPARATUS:
             rows, why = APPARATUS[t], "the database's description of itself"
             if rows == "none":
-                why = "states f1.db's own version and terms; PD-54 writes the artefact's"
+                why = "states f1.db's own version and terms; the artefact has its own"
         elif "source_id" in cols:
             rows, why = "by source", "the rows citing a source carried"
             ids = ",".join(str(i) for i in sorted(carried))

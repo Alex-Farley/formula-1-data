@@ -40,7 +40,9 @@ database must be a pure function of its sources `[D-01]`. Do not "fix" it.
 
 Three are committed: **`f1.db`**, **`f1-geometry.db`**, **`f1_compat.json`**.
 (`f1_database.json` is *not* — it is gitignored and published as a release
-asset instead, being some 25 MB (at v2.25) that does not delta-compress.)
+asset instead, being some 25 MB (at v2.25) that does not delta-compress.
+Nor is `f1-facts.db`, the CC BY 4.0 facts artefact `tools/facts_export.py`
+writes, for the same reason; CI builds it twice and compares the two.)
 
 `f1.db` and `f1-geometry.db` come from `build.py`; **`f1_compat.json` comes
 from `export_json.py --compat`**, which is why a rebuild alone does not

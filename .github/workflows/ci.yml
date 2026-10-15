@@ -149,6 +149,23 @@ jobs:
       - name: Regenerate the JSON exports
         run: python3 export_json.py --compat
 
+      # The CC BY 4.0 facts artefact (PD-54) is a release asset and not
+      # committed, so there is no committed copy to compare a fresh one
+      # with. It is built twice instead, in two processes - each with its
+      # own hash seed, so an order taken from a set or a dict shows - and
+      # the two must be the same bytes, as the committed databases are
+      # across rebuilds. tools/facts_export.py refuses a file that is not
+      # the declared set; this is what makes a release's copy one anybody
+      # can rebuild and digest.
+      - name: Build the facts artefact twice and compare
+        run: |
+          python3 tools/facts_export.py
+          python3 tools/facts_export.py --out f1-facts.db.again
+          if ! cmp f1-facts.db f1-facts.db.again; then
+            echo "::error::Two builds of the facts artefact differ: it is not byte-stable."
+            exit 1
+          fi
+
       # A committed artefact that does not match its sources is a stale
       # artefact. Fail rather than let the two drift apart.
       #
