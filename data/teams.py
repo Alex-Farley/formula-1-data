@@ -42,7 +42,7 @@ CONSTRUCTORS = [
     ("aston-martin", "Aston Martin", "Aston Martin Aramco Formula One Team", "United Kingdom", "Silverstone, United Kingdom", 1959, None,
      0, 0, 0, None, "silverstone", 1,
      "Two spells. Aston Martin entered the front-engined DBR4 and DBR5 in 1959-60, by which time the rear-engined Coopers had made them obsolete; the marque scored no points. The current entity is unrelated, dating from Lawrence Stroll's 2021 rebrand of Racing Point. Adrian Newey joined as team principal for 2026.", "medium"),
-    ("haas", "Haas F1 Team", "TGR Haas F1 Team", "United States", "Kannapolis, United States", 2016, None,
+    ("haas", "Haas F1 Team", "TGR Haas F1 Team", "United States", "Kannapolis, United States of America", 2016, None,
      0, 0, 0, None, "kannapolis", 1,
      "The first American constructor since 1986, and the first to run a customer-parts model built around Ferrari supply and Dallara manufacture.", "high"),
     ("racing-bulls", "Racing Bulls", "Visa Cash App Racing Bulls Formula One Team", "Italy", "Faenza, Italy", 1985, None,
@@ -186,7 +186,11 @@ CONSTRUCTORS = [
     ("surtees-team", "Surtees", "Team Surtees", "United Kingdom", "Edenbridge, United Kingdom", 1970, 1978,
      0, 0, 0, None, "surtees-chain", 0,
      "John Surtees's own constructor.", "medium"),
-    ("eagle", "Eagle", "Anglo American Racers", "United States", "Rye, United States", 1966, 1969,
+    # The base is the Formula One operation's, Anglo American Racers in Rye,
+    # East Sussex - "Rye, East Sussex, UK and Santa Ana, California, USA" in
+    # the Wikipedia article's infobox, whose lead says the team "set up shop
+    # in Rye, East Sussex". The row read "Rye, United States" until CR-77.
+    ("eagle", "Eagle", "Anglo American Racers", "United States", "Rye, United Kingdom", 1966, 1969,
      1, 0, 0, None, "eagle-chain", 0,
      "Dan Gurney won the 1967 Belgian GP in a car of his own construction — one of three men to do so, with Jack Brabham and Bruce McLaren.", "high"),
     ("porsche", "Porsche", "Porsche System Engineering", "Germany", "Stuttgart, Germany", 1957, 1964,

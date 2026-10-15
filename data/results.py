@@ -167,11 +167,11 @@ NEW_CONSTRUCTORS = [
     ("gordini", "Gordini", "Equipe Gordini", "Paris, France", 1950, "French",
      "Amedee Gordini's small team, chronically underfunded and known as "
      "'le sorcier' for extracting results from very little money.", "medium"),
-    ("connaught", "Connaught", "Connaught Engineering", "Send, Surrey, UK",
+    ("connaught", "Connaught", "Connaught Engineering", "Send, Surrey, United Kingdom",
      1952, "British",
      "British constructor whose Type B gave Britain one of its first "
      "significant Grand Prix results at Syracuse in 1955.", "medium"),
-    ("lola", "Lola", "Lola Cars", "Huntingdon, UK", 1962, "British",
+    ("lola", "Lola", "Lola Cars", "Huntingdon, United Kingdom", 1962, "British",
      "Eric Broadley's constructor, better known for sports and Indycars. "
      "Its 1962 Formula One car was run by the Bowmaker team for John "
      "Surtees, and the Lola name reappeared as a chassis supplier for "
@@ -185,11 +185,11 @@ NEW_CONSTRUCTORS = [
      "French",
      "Gerard Larrousse's team, which took a surprise podium at Suzuka in "
      "1990 with Aguri Suzuki - the first by a Japanese driver.", "medium"),
-    ("leyton", "Leyton House", "Leyton House Racing", "Bicester, UK", 1990,
+    ("leyton", "Leyton House", "Leyton House Racing", "Bicester, United Kingdom", 1990,
      "British",
      "The renamed March team, running Adrian Newey's designs. Ivan Capelli "
      "led the 1990 French Grand Prix until nine laps from the end.", "medium"),
-    ("onyx", "Onyx", "Onyx Grand Prix", "Littlehampton, UK", 1989, "British",
+    ("onyx", "Onyx", "Onyx Grand Prix", "Littlehampton, United Kingdom", 1989, "British",
      "Lasted a season and a half and took one podium, Johansson's third at "
      "Estoril in 1989.", "medium"),
     ("dallara", "Dallara", "BMS Scuderia Italia", "Varano de' Melegari, Italy",
@@ -197,7 +197,7 @@ NEW_CONSTRUCTORS = [
      "Better known now as a supplier of chassis to other series; ran its own "
      "Formula One entry through Scuderia Italia, taking two podiums.",
      "medium"),
-    ("footwork", "Footwork", "Footwork Arrows", "Milton Keynes, UK", 1991,
+    ("footwork", "Footwork", "Footwork Arrows", "Milton Keynes, United Kingdom", 1991,
      "British",
      "Arrows under its Japanese owner's name from 1991 to 1996. Held here as "
      "a separate register entry because that is how the results were "
