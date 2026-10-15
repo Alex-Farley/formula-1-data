@@ -775,7 +775,8 @@ The system is held by tests, not by memory.
 - NULL is never zero;
 - every table names its rows;
 - the fold at `FOLD_TO`;
-- `smoke.mjs` comparing every static table with the app's.
+- `smoke.mjs` comparing every static table with the app's, and, on the
+  routes its VD-79 section reads, the prose around them (AF-100).
 
 **The system's own tests, one each, so a drift fails the build.** Built in
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
