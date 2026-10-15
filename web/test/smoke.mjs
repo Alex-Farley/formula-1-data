@@ -771,9 +771,10 @@ try {
     // LATER render, the one CloseSearchOnNavigate asks for. Page.jsx used to
     // look again after one frame, and nothing promises that render lands
     // inside one: a frame that came first found the palette still standing,
-    // kept its hands off, and left the reader on <body> once it went - which
-    // is just how the check above failed once on #975 before passing on a
-    // rerun (AF-106).
+    // kept its hands off, and left the reader on <body> once it went. That is
+    // the failure the check above showed once on #975 before passing on a
+    // rerun; this order reproduces it, though what that runner did is not
+    // known (AF-106).
     // Here the first frame asked for runs at once, inside the request, so
     // that order is the only one there is; the real one is back after it.
     await openPalette(held)

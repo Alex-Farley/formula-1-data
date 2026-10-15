@@ -287,11 +287,14 @@ something its change could not reach — a timeout in code the pull request
 does not touch, a focus wait on a pull request that changed only data — may
 be rerun, by a person or the loop, but never unrecorded:
 
-    python3 .claude/skills/backlog-loop/file.py flake "<the failing check, as the job printed it>" <the failed run's URL>
+    python3 .claude/skills/backlog-loop/file.py flake "<the failing test's line, as the job printed it>" <the failed run's URL>
 
 files one issue per check, labelled `flaky`, the first time, and comments the
-run and the count on that same issue every time after. The third record
-moves it to *Now*, where the check is fixed — or rewritten to wait on the
+run and the count on that same issue every time after. The check is the test
+that failed — a smoke check's `[Section] message`, with or without the
+`FAIL` in front of it — not the job; the same run recorded twice is one
+record. The third record moves it to *Now*, where the check is fixed — or
+rewritten to wait on the
 condition it means rather than on a timeout, as `openPalette()` in
 `web/test/smoke.mjs` was — rather than rerun on; a check that flakes again
 after its issue closed reopens it. A rerun nobody wrote down is how a flake

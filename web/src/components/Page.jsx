@@ -197,8 +197,10 @@ function useFocusOnNavigation() {
     // It waited one animation frame, and nothing promises that React's
     // re-render lands inside one: a frame that came first would find the
     // palette still standing, keep its hands off for good, and leave the
-    // reader on <body> once the palette went - which is just how the smoke
-    // check of this failed once on #975 before passing on a rerun (AF-106).
+    // reader on <body> once the palette went. That is the failure the smoke
+    // check of this showed once on #975 before passing on a rerun; forcing
+    // the frame first reproduces it, though what that runner did is not
+    // known (AF-106).
     // A mutation watch fires on the removal itself, whenever it lands, and
     // stops at the next navigation or when the page goes.
     const dialog = document.activeElement?.closest('[role="dialog"]')

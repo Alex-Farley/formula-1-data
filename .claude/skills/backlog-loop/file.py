@@ -83,7 +83,9 @@ cleared finishes it, because what already sits in place is not written twice.
 `flake` records a rerun of a failed check, before the rerun is asked for:
 one issue per check, labelled `flaky`, found again by the check's own text
 on a `**Check:**` line, so every later rerun of the same check lands on the
-same issue as a `**Flaked:**` comment carrying its run and its count. The
+same issue as a `**Flaked:**` comment carrying its run and its count. A run
+already recorded is not recorded twice - the same command run again only
+finishes the status, and puts an issue that never reached the board on it. The
 first is filed under *Someday* like any discovered item; the
 `FLAKE_LIMIT`th moves it to *Now*, where the check is fixed or rewritten to
 wait on its condition rather than a timeout; one that flakes again after
@@ -155,7 +157,11 @@ RANK_SPACING = 10
 FLAKY = "flaky"
 FLAKE_LIMIT = 3
 FLAKED = "**Flaked:**"
-RUN_URL = re.compile(rf"^https://github\.com/{re.escape(REPO)}/actions/runs/\d+(/job/\d+)?/?$")
+# A run's address as GitHub links it: the run, an attempt of it, a job of
+# it, and the `?pr=` the pull request's Details link adds. The run id is
+# what a record is known by.
+RUN_URL = re.compile(rf"^https://github\.com/{re.escape(REPO)}/actions/runs/(\d+)"
+                     r"(?:/attempts/\d+)?(?:/job/\d+)?/?(?:\?[^#\s]*)?(?:#\S*)?$")
 
 
 def gh(*args, as_json=False):
@@ -399,10 +405,18 @@ def decided(a):
     print(f"#{a.number} decided")
 
 
+def flake_check(check):
+    """The check as it is recorded: one line, and without the `FAIL` the
+    smoke test's quiet form prints in front of it, so a check copied with or
+    without that word is the same check. The `[Section]` that follows it is
+    kept - it is part of what tells one check from another."""
+    return re.sub(r"^FAIL(\s+|$)", "", one_line(check))
+
+
 def flake_marker(check):
     """The line that names the check on its issue. A double-backtick span, so
     a check whose own text holds a backtick still reads as one span."""
-    return f"**Check:** `` {one_line(check)} ``"
+    return f"**Check:** `` {flake_check(check)} ``"
 
 
 def flake_issue(issues, check):
@@ -416,22 +430,49 @@ def flake_issue(issues, check):
     return hits[0] if hits else None
 
 
-def flake_count(comments):
-    """How many reruns an issue already records: the one its body was filed
-    with, and one for each `**Flaked:**` comment since."""
-    return 1 + sum(1 for c in comments if (c.get("body") or "").startswith(FLAKED))
+def flake_records(body, comments):
+    """Every rerun an issue records: the `**Flaked:**` line it was filed
+    with, and each `**Flaked:**` comment since, oldest first."""
+    first = [line.strip() for line in (body or "").splitlines() if line.strip().startswith(FLAKED)][:1]
+    return first + [c["body"] for c in comments if (c.get("body") or "").startswith(FLAKED)]
+
+
+def run_id(url):
+    return RUN_URL.match(url).group(1)
+
+
+def recorded(records, run):
+    """Is this run already one of the records? A run is its id, whatever job,
+    attempt or query its address carried."""
+    return any(re.search(rf"/actions/runs/{run}(?!\d)", r) for r in records)
+
+
+def on_board(number):
+    """Put an issue on the board under *Someday* when it is not there at all,
+    and leave it where it is when it is: a first record whose status write
+    was refused would otherwise sit off the queue until its third."""
+    if number in item_ids() or number in item_ids(fresh=True):
+        return
+    set_status(number, "Someday")
 
 
 def flake(a):
     if a.prefix not in SOURCE:
         sys.exit(f"unknown prefix {a.prefix}; one of {', '.join(sorted(SOURCE))}")
-    check = one_line(a.check)
+    check = flake_check(a.check)
     if not check:
         sys.exit("name the check: its failing line as the job printed it")
     if not RUN_URL.match(a.run):
         sys.exit(f"the run is the failed run's address, https://github.com/{REPO}/actions/runs/<id>")
-    issues = gh("issue", "list", "--repo", REPO, "--label", FLAKY, "--state", "all", "--limit", "1000",
-                "--json", "number,state,body", as_json=True)
+    run = run_id(a.run)
+    # The REST listing, not `gh issue list --label`, which goes through the
+    # search index: an issue filed minutes ago can be missing from that, and
+    # the next record of the same check would file a second issue.
+    listed = gh("api", "--paginate", f"repos/{REPO}/issues?labels={FLAKY}&state=all&per_page=100",
+                "--jq", ".[] | {number, state, body}")
+    issues = [json.loads(line) for line in listed.splitlines() if line.strip()]
+    for i in issues:
+        i["state"] = (i.get("state") or "").upper()
     hit = flake_issue(issues, check)
     if hit is None:
         body = (f"{flake_marker(check)}\n\n{FLAKED} {a.run} - the first time.\n\n"
@@ -447,18 +488,31 @@ def flake(a):
         return
     number = hit["number"]
     seen = gh("issue", "view", str(number), "--repo", REPO, "--json", "comments", as_json=True)
-    count = flake_count(seen.get("comments") or []) + 1
+    records = flake_records(hit.get("body"), seen.get("comments") or [])
+    # Run again for a run already recorded - a fork restarted between the
+    # record and the rerun, or a status write refused after the comment
+    # landed - writes no second record: it only finishes the status.
+    again = recorded(records, run)
     reopen = hit.get("state") != "OPEN"
-    note = f"{FLAKED} {a.run} - {count} times now."
-    if reopen:
-        gh("issue", "reopen", str(number), "--repo", REPO, "--comment",
-           note + " Reopened: it was closed, and the check has failed the same way since.")
-    else:
-        gh("issue", "comment", str(number), "--repo", REPO, "--body", note)
-    if reopen or count >= FLAKE_LIMIT:
+    if not again:
+        note = f"{FLAKED} {a.run} - {len(records) + 1} times now."
+        if reopen:
+            gh("issue", "reopen", str(number), "--repo", REPO, "--comment",
+               note + " Reopened: it was closed, and the check has failed the same way since.")
+        else:
+            gh("issue", "comment", str(number), "--repo", REPO, "--body", note)
+        records.append(note)
+    elif reopen:
+        gh("issue", "reopen", str(number), "--repo", REPO)
+    count = len(records)
+    urgent = count >= FLAKE_LIMIT or reopen or any("Reopened:" in r for r in records)
+    if urgent:
         set_status(number, "Now")
-    print(f"#{number} flaked {count} times" + (", reopened" if reopen else "")
-          + (", at Now: fix it, or make it wait on its condition" if reopen or count >= FLAKE_LIMIT else ""))
+    else:
+        on_board(number)
+    print(f"#{number} flaked {count} times" + (", this run already recorded" if again else "")
+          + (", reopened" if reopen else "")
+          + (", at Now: fix it, or make it wait on its condition" if urgent else ""))
 
 
 BLOCKED_BY = """mutation($issue: ID!, $blocker: ID!) {
