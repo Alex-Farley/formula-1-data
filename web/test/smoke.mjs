@@ -105,7 +105,10 @@ import {
   CONSTRUCTOR_WINS,
   CONSTRUCTORS_HEADING,
   DRIVER_POLES,
+  CONSTRUCTOR_WINS_FIGURE,
+  DRIVER_POLES_FIGURE,
   DRIVER_WINS,
+  DRIVER_WINS_FIGURE,
   HEADLINE,
   LEADERBOARDS,
   RECORDS as RECORDS_SQL,
@@ -8265,15 +8268,16 @@ try {
             (a.getAttribute('aria-label') ?? flatten(a)).replace(/\s+/g, ' ').trim(),
             a.getAttribute('href'),
           ]),
-          // AF-100: the words around the tables - every paragraph, figure
-          // note, quotation, list item and table footer outside the header,
-          // the tables and the tile strips, which are compared on their own -
-          // as [the h2 it falls under, or '' above the first, its text], in
-          // document order. The app prints a table's footer in a span under
-          // it, the static page in a paragraph. A block inside another is
-          // read as part of the outer one.
+          // AF-100: the words around the tables - every paragraph, note box,
+          // figure note, quotation, list item, note nav and table footer
+          // outside the header, the tables and the tile strips, which are
+          // compared on their own - as [the h2 it falls under, or '' above
+          // the first, its text], in document order. The app prints a
+          // table's footer in a span under it, the static page in a
+          // paragraph. A block inside another is read as part of the outer
+          // one, so a note box is read whole.
           prose: (() => {
-            const BLOCKS = 'p, figcaption, blockquote, li, .table-foot > span'
+            const BLOCKS = 'p, .note-box, nav.note, figcaption, blockquote, li, .table-foot > span'
             const headings = [...(main?.querySelectorAll('h2') ?? [])]
             const out = []
             for (const block of main?.querySelectorAll(BLOCKS) ?? []) {
@@ -8476,14 +8480,22 @@ try {
     const AS_TABLE = 'the static half draws the chart as a table of its rows, which says how many and wears no colours'
     const PROSE_DRIFT = '#1000'
     const characteristics = (id) => one('SELECT characteristics FROM circuits WHERE id = ?', id)
-    const LEADERS_LINE = / The (?:fifteen|\d+) with the most(?:: those level with the fifteenth are all here)?\./
+    const LEADERS_LINE = / The (?:fifteen|\d+) with the most(?:: those level with the fifteenth are all here)?\.$/
+    // A curated car's three paragraphs under "Why it mattered", which the
+    // static page writes without that heading (#886), so they fall under the
+    // heading above them; the app opens each on a bold label.
+    const whyItMattered = (id, section) =>
+      Object.values(db.prepare('SELECT concept, innovations, outcome FROM cars WHERE id = ?').get(id))
+        .filter(Boolean)
+        .map((words) => ({ half: 'static', section, drop: words.replace(/\s+/g, ' ').trim(), why: DRIFT }))
     // What is declared, by route. `half` is the one that has the words, or
     // 'both' for a section whose prose is set aside in each. `drop`: a
     // paragraph only that half has, by its opening words or a pattern it
-    // matches. `trim`: a phrase that half adds to a paragraph both have, cut
-    // before the rest is compared. Neither: the whole section, which must
-    // still differ. Every declaration must still match, or it fails and asks
-    // to be deleted - but for `optional`, which the data decides.
+    // matches. `trim`: a phrase that half adds to the paragraph opening
+    // with `at`, which both have, cut before the rest is compared. Neither:
+    // the whole section, which must still differ. Every declaration must
+    // still match - its paragraph there, its phrase in it - or it fails and
+    // asks to be deleted, but for `optional`, which the data decides.
     const PROSE = {
       '/seasons/2026': [
         { half: 'app', section: '', drop: 'The grid: ', why: PROSE_DRIFT },
@@ -8494,33 +8506,56 @@ try {
       '/races': [{ half: 'static', section: '', drop: /^[\d,]+ championship Grands Prix\. The \d+ most recently run/, why: SLICE }],
       '/races/1976/9': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
       '/races/2027/1': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
+      '/constructors/ferrari': [{ half: 'app', section: LABELS.provenance, drop: 'Trust the counted figures.', why: PROSE_DRIFT }],
       '/compare': [{ half: 'static', section: '', drop: 'Choosing the two drivers needs JavaScript', why: SAYS_WHY }],
       '/circuits/monza': [{ half: 'static', section: '', drop: characteristics('monza'), why: PROSE_DRIFT }],
-      '/circuits/monaco': [{ half: 'static', section: '', drop: characteristics('monaco'), why: PROSE_DRIFT }],
+      '/circuits/monaco': [
+        { half: 'static', section: '', drop: characteristics('monaco'), why: PROSE_DRIFT },
+        { half: 'app', section: 'Every race here', drop: 'No layout timeline for this circuit.', why: PROSE_DRIFT },
+      ],
       '/cars': [
         { half: 'both', section: 'The cars with a page of their own', why: PROSE_DRIFT },
         { half: 'static', section: 'The chassis register', drop: 'Every chassis that has started', why: PROSE_DRIFT },
+        { half: 'app', section: 'The chassis register', drop: '“Raced” is not the same as a car', why: PROSE_DRIFT },
       ],
-      // The static page writes "Why it mattered" without its heading (#886),
-      // so its words fall under whichever heading is above them.
-      '/cars/mercedes-w11': [{ half: 'both', section: 'Two sources disagree about this car', why: DRIFT }],
+      '/cars/mercedes-w11': whyItMattered('mercedes-w11', 'Two sources disagree about this car'),
       '/cars/lotus-72': [
-        { half: 'both', section: '', why: DRIFT },
+        ...whyItMattered('lotus-72', ''),
         { half: 'app', section: 'Variants', drop: 'Every race entry names a variant', why: PROSE_DRIFT },
+        { half: 'static', section: 'Variants', drop: /^\d+ wins can be traced to this (?:car|chassis); its article publishes/, why: PROSE_DRIFT },
       ],
-      '/cars/brabham-bt46': [{ half: 'both', section: '', why: DRIFT }],
-      '/cars/lotus-72b': [{ half: 'static', section: '', drop: 'One of the design family', why: PROSE_DRIFT }],
+      '/cars/brabham-bt46': whyItMattered('brabham-bt46', ''),
+      '/cars/lotus-72b': [
+        { half: 'static', section: '', drop: 'One of the design family', why: PROSE_DRIFT },
+        { half: 'static', section: '', drop: /^\d+ wins can be traced to this (?:car|chassis); its article publishes/, why: PROSE_DRIFT },
+      ],
       '/records': [
-        { half: 'static', section: LEADERBOARDS, trim: LEADERS_LINE, why: AS_TABLE },
-        { half: 'static', section: CONSTRUCTORS_HEADING, trim: LEADERS_LINE, why: AS_TABLE },
-        { half: 'app', section: CONSTRUCTORS_HEADING, trim: / Coloured as of each team’s last win: .*$/, why: AS_TABLE },
+        { half: 'static', section: LEADERBOARDS, at: DRIVER_WINS_FIGURE.note, trim: LEADERS_LINE, why: AS_TABLE },
+        { half: 'static', section: LEADERBOARDS, at: DRIVER_POLES_FIGURE.note, trim: LEADERS_LINE, why: AS_TABLE },
+        { half: 'static', section: CONSTRUCTORS_HEADING, at: CONSTRUCTOR_WINS_FIGURE.note, trim: LEADERS_LINE, why: AS_TABLE },
+        {
+          half: 'app',
+          section: CONSTRUCTORS_HEADING,
+          at: CONSTRUCTOR_WINS_FIGURE.note,
+          trim: / Coloured as of each team’s last win: [^.]*\.(?: A hollow bar has no colour on record\.)?$/,
+          why: AS_TABLE,
+        },
       ],
       '/data': ['', 'The files', 'As JSON', 'What explains it', 'How far to trust it', 'What you may do with it', 'Ask it something'].map(
         (section) => ({ half: 'both', section, why: PROSE_DRIFT }),
       ),
-      '/data/quality': [{ half: 'static', section: '', drop: 'A blank in this database is an unestablished fact', why: PROSE_DRIFT }],
-      '/data/sources': [{ half: 'static', section: 'The source registry', drop: 'Circuit outlines from F1DB', why: PROSE_DRIFT }],
-      '/data/sql': [{ half: 'static', section: '', drop: 'Running the console needs JavaScript', why: CONSOLE }],
+      '/data/quality': [
+        { half: 'static', section: '', drop: 'A blank in this database is an unestablished fact', why: PROSE_DRIFT },
+        { half: 'app', section: 'Career totals against published ones', drop: /^\d+ of \d+ drivers do not reconcile exactly/, why: PROSE_DRIFT },
+      ],
+      '/data/sources': [
+        { half: 'static', section: 'The source registry', drop: 'Circuit outlines from F1DB', why: PROSE_DRIFT },
+        { half: 'app', section: 'What a licence cost, or bought', drop: 'The ODbL obligation is confined to a separate file.', why: PROSE_DRIFT },
+      ],
+      '/data/sql': [
+        { half: 'static', section: '', drop: 'Running the console needs JavaScript', why: CONSOLE },
+        { half: 'app', section: '', drop: 'Nothing you type can break anything.', why: CONSOLE },
+      ],
     }
     const where = (route, section) => `${route} “${section || '(above the first heading)'}”`
     const proseWrong = Object.keys(PROSE)
@@ -8559,10 +8594,10 @@ try {
           if (i >= 0) list.splice(i, 1)
           else if (!d.optional) proseWrong.push(`${at}: no longer has the declared “${d.drop}” — delete it from PROSE`)
         } else {
-          const trimmed = list.map((words) => words.replace(d.trim, ''))
-          if (trimmed.every((words, i) => words === list[i])) {
-            if (!d.optional) proseWrong.push(`${at}: no paragraph carries the declared ${d.trim} — delete it from PROSE`)
-          } else halves[d.half].set(d.section, trimmed)
+          const i = list.findIndex((words) => words.startsWith(d.at))
+          const trimmed = i >= 0 ? list[i].replace(d.trim, '') : null
+          if (i >= 0 && trimmed !== list[i]) list[i] = trimmed
+          else if (!d.optional) proseWrong.push(`${at}: no paragraph opening “${d.at}” carries the declared ${d.trim} — delete it from PROSE`)
         }
       }
       for (const section of new Set([...halves.app.keys(), ...halves.static.keys()])) {

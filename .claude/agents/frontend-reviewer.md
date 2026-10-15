@@ -126,10 +126,10 @@ every `npm test` and in CI's `web` job:
   `web/`. Structural parity of the static tables with the app's is the smoke
   test's *Static tables* section (header, row count, every shown row on the
   routes it names); a new page structure, title or meta tag is still yours.
-  The prose around the tables — paragraphs, figure notes, list items and
-  table footers, section by section — is its *Both renderers* section, on the
-  routes in its `ROUTES` and but for what its `PROSE` declares (AF-100); a
-  page outside that list is still yours.
+  The prose around the tables — paragraphs, note boxes, figure notes, list
+  items and table footers, section by section — is its *Both renderers*
+  section, on the routes in its `ROUTES` and but for what its `PROSE`
+  declares (AF-100); a page outside that list is still yours.
 - **Item 8**, no `display: contents` in a stylesheet or a component.
 - **Item 10**, the router half only: `App.jsx` mounts a `BrowserRouter` and
   no `HashRouter`. Whether a NEW route in `App.jsx` is known to
