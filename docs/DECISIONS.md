@@ -262,6 +262,19 @@ it. The default is now *Someday*. An item arrives where nobody has judged it;
 promoting it is a person's act, and `--status Next` is still there for a
 caller that means it.
 
+**Reversed for refresh alarms alone — 2026-10-15 (`AF-111`, #970).** AF-89
+applied this rule to refresh.yml's alarm issues, which reach the board with
+no status: `next.py` read one as *Now* but put it at the foot, below
+everything a person had ranked there, so a failing refresh waited behind the
+whole of *Now* before a fork took it. Declining an unattended fixer (AF-91),
+the maintainer ruled on #970 that a failing refresh is fixed by the loop or
+the maintainer, and that an open alarm goes to the top of *Now* so the next
+fork takes it first: fresh data is the project's first priority, and since
+`[D-56]` a failure that is one race's rows publishes the rest, so what the
+alarm marks is the data still held back. An alarm with no status, or not on
+the board, now heads *Now*. A status a person gives one is still obeyed and
+keeps its board place. Every other item still arrives unranked.
+
 ---
 
 ## The loop

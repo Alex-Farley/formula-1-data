@@ -5,8 +5,8 @@ The rows are built by `queue_rows()`, a pure function of the board read and
 the issue read, so these tests need no GitHub. The case they exist for is
 refresh.yml's alarm (AF-89): the workflow opens it as an item but cannot
 write the board, so an alarm with no status - or not on the board at all -
-has to reach the queue under *Now* without outranking anything a person
-placed there, and a status a person gives it has to win.
+has to reach the queue at the top of *Now*, where the next fork takes it
+(AF-111), and a status a person gives it has to win.
 """
 import importlib.util
 import os
@@ -38,26 +38,42 @@ class QueueRows(unittest.TestCase):
     def rows(self, board, issues):
         return nxt.queue_rows(board, {i["number"]: i for i in issues})
 
-    def test_an_alarm_with_no_status_is_now_below_what_a_person_placed(self):
-        rows = self.rows([(1, "Now", 0), (2, "", 0), (3, "Now", 0)],
+    def ranked(self, rows):
+        return [r["number"] for s in nxt.QUEUE for r in rows if r["status"] == s]
+
+    def test_an_alarm_with_no_status_heads_now_above_what_a_person_placed(self):
+        rows = self.rows([(1, "Now", 0), (3, "Now", 0), (2, "", 0)],
                          [issue(1, "AF-01: a"), issue(2, "AF-94: alarm", "refresh-failing"),
                           issue(3, "AF-03: c")])
-        ranked = [r["number"] for s in nxt.QUEUE for r in rows if r["status"] == s]
-        # Board order within Now: the alarm keeps its place, which for an
-        # auto-added item is the foot of the board.
-        self.assertEqual(ranked, [1, 2, 3])
-        self.assertEqual(rows[1]["status"], "Now")
-        self.assertEqual(rows[1]["ident"], "AF-94")
+        # Auto-added, so at the foot of the board, and still first.
+        self.assertEqual(self.ranked(rows), [2, 1, 3])
+        self.assertEqual((rows[0]["status"], rows[0]["ident"]), ("Now", "AF-94"))
 
-    def test_an_alarm_off_the_board_is_added_at_the_foot_of_now(self):
+    def test_an_alarm_off_the_board_heads_now(self):
         rows = self.rows([(1, "Now", 0), (3, "Next", 0)],
                          [issue(1, "AF-01: a"), issue(3, "AF-03: c"),
                           issue(9, "Results are behind the calendar", "results-late")])
         self.assertEqual([(r["number"], r["status"]) for r in rows],
-                         [(1, "Now"), (3, "Next"), (9, "Now")])
+                         [(9, "Now"), (1, "Now"), (3, "Next")])
         # No id in the title - the id read failed when it opened - so it is
         # named by number, the form precheck.sh accepts (CR-75).
-        self.assertEqual(rows[2]["ident"], "#9")
+        self.assertEqual(rows[0]["ident"], "#9")
+
+    def test_alarms_head_now_board_held_in_board_order_then_off_board(self):
+        # The numbers follow neither the promised order nor its reverse, so
+        # sorting the alarms by number either way fails: on the board #6 then
+        # #9, off it #4.
+        rows = self.rows([(1, "Now", 0), (6, "", 0), (9, "", 0)],
+                         [issue(1, "AF-01: a"), issue(4, "AF-95: alarm", "results-late"),
+                          issue(6, "AF-96: alarm", "refresh-failing"),
+                          issue(9, "AF-94: alarm", "refresh-failing")])
+        self.assertEqual(self.ranked(rows), [6, 9, 4, 1])
+
+    def test_an_alarm_a_person_put_in_now_keeps_its_place(self):
+        rows = self.rows([(1, "Now", 0), (2, "Now", 0), (3, "Now", 0)],
+                         [issue(1, "AF-01: a"), issue(2, "AF-94: alarm", "refresh-failing"),
+                          issue(3, "AF-03: c")])
+        self.assertEqual(self.ranked(rows), [1, 2, 3])
 
     def test_a_status_a_person_gave_an_alarm_is_obeyed(self):
         rows = self.rows([(2, "Someday", 0), (4, "In progress", 0)],
