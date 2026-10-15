@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
-import { DOCUMENTS, IN_THIS_TAB, LABELS, REPLACED } from '../src/lib/site.js'
+import { DOCUMENTS, FOOTER_PRIVACY, FOOTER_PRIVACY_LINK, IN_THIS_TAB, LABELS, REPLACED } from '../src/lib/site.js'
 import { FOLD_NOUN, FOLD_TO, UNFOLDED } from '../src/lib/table.js'
 import { measurement } from '../scripts/measurement.js'
 import {
@@ -1323,8 +1323,10 @@ describe('the workflow can still stamp the check date it publishes (SD-25)', () 
  * The measurement tags, and the promise they cost (PD-0, #261).
  *
  * The site counts arrivals with a Cloudflare Web Analytics beacon that
- * prerender.js writes into every page, and it does that against a footer whose
- * whole purpose is to say where the reading happens.
+ * prerender.js writes into every page, and it does that against an account
+ * whose whole purpose is to say where the reading happens: IN_THIS_TAB, which
+ * was every page's footer and since IA-31 (#981) is /data's, linked from
+ * every footer by a line of its own.
  *
  * THE FIRST VERSION OF THIS BLOCK DID NOT CHECK WHAT IT SAID IT DID.
  *     Its beacon test was `assert.match(prerender, /spa:\s*false/)` - a grep
@@ -1444,7 +1446,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
     assert.match(tag, /data-cf-beacon='\{"token":"[A-Za-z0-9]+","spa":false\}'><\/script>$/)
   })
 
-  it('and the footer names what that buys: the address arrived on, counted once', () => {
+  it('and the account names what that buys: the address arrived on, counted once', () => {
     assert.match(IN_THIS_TAB, /the address you arrive on, counted once/)
     // "each page you open" was wider than `"spa": false` buys, and this
     // assertion had been relaxed to fit it — the guard following the prose
@@ -1452,36 +1454,45 @@ describe('what the pages send, and to whom (PD-0)', () => {
     assert.match(
       IN_THIS_TAB,
       /Moving between pages counts nothing further/,
-      'the footer no longer says that a route change sends nothing, which is what "spa": false is for',
+      'the account no longer says that a route change sends nothing, which is what "spa": false is for',
     )
     assert.match(
       IN_THIS_TAB,
       /the fonts, from Google/,
-      'the footer names what leaves and omits the fonts, which every page fetches from Google',
+      'the account names what leaves and omits the fonts, which every page fetches from Google',
     )
     // And, since #580, the half that sentence alone does not carry: the
     // address is the reader's own text on a searched register or the console.
     assert.match(
       IN_THIS_TAB,
       /kept in the address, so arriving at one of those, by reload or by a link, hands it over/,
-      'the footer no longer says that a search, a filter or a statement is in the address the beacon counts',
+      'the account no longer says that a search, a filter or a statement is in the address the beacon counts',
     )
   })
 
-  it('the footer claims only what the page leaves true', () => {
+  it('the account claims only what the page leaves true', () => {
     assert.doesNotMatch(
       IN_THIS_TAB,
       /[Nn]othing you look at/,
-      'the footer promises that nothing you look at is sent, and the beacon sends the page you opened',
+      'the account promises that nothing you look at is sent, and the beacon sends the page you opened',
     )
     // The clause this replaced. commons.wikimedia.org is fetched on a route
     // change to any page with photographs, so the absolute is not available.
     assert.doesNotMatch(
       IN_THIS_TAB,
       /asks the network for nothing/,
-      'the footer says a route change fetches nothing, and a photograph is fetched from Wikimedia',
+      'the account says a route change fetches nothing, and a photograph is fetched from Wikimedia',
     )
-    assert.match(IN_THIS_TAB, /Wikimedia Commons/, 'the footer does not name the photographs as something that leaves')
+    assert.match(IN_THIS_TAB, /Wikimedia Commons/, 'the account does not name the photographs as something that leaves')
+  })
+
+  it("and the footer's one line keeps to the moment, and its link says that something leaves (IA-31)", () => {
+    // The footer carries one line of the account and links the rest. A short
+    // form that dropped "as you type it", or a link named "privacy", would
+    // read as the absolute the account was rewritten to stop making.
+    assert.match(FOOTER_PRIVACY, /is sent as you type it\.$/, 'the footer line claims more than the moment')
+    assert.doesNotMatch(FOOTER_PRIVACY, /[Nn]othing (?:you look at|is sent|leaves)/, 'the footer line says nothing leaves')
+    assert.match(FOOTER_PRIVACY_LINK, /\bleave\b/, "the footer's link no longer says that something does leave")
   })
 
   it('neither token is written into the source; both come from the environment', () => {
@@ -1558,7 +1569,17 @@ describe('what the pages send, and to whom (PD-0)', () => {
     [
       'src/lib/site.js',
       /nothing you search for, sort or type is sent as you do it/,
-      'the footer: true of the moment, and the sentence after it names the address',
+      'the account on /data, the footer until IA-31: true of the moment, and the sentence after it names the address',
+    ],
+    [
+      'src/lib/site.js',
+      /nothing you search for is sent as you type it/,
+      "the footer's one line since IA-31: home's claim, and its link names what does leave",
+    ],
+    [
+      '../docs/MEASUREMENT.md',
+      /nothing you search for is sent\s*as you type it/,
+      "the account of the footer's one line, quoting it",
     ],
     ['src/queries/home.js', /nothing you search for is sent as you type it/, "home's standfirst: the same claim, narrower"],
     [
@@ -1575,7 +1596,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
     [
       '../docs/MEASUREMENT.md',
       /nothing further; and a search, a filter or a SQL statement is \*\*kept in the address\*\*/,
-      'the account of the footer, quoting it',
+      'the account of IN_THIS_TAB, quoting it',
     ],
     [
       'scripts/prerender.js',
@@ -1597,7 +1618,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
     [
       '../docs/MEASUREMENT.md',
       /nothing you search for, sort or type is sent \*\*as you do it\*\*/,
-      'the account of the footer, quoting it',
+      'the account of IN_THIS_TAB, quoting it',
     ],
     [
       '../docs/MEASUREMENT.md',

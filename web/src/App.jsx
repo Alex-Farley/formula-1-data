@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
 import { DateText } from './components/Dates.jsx'
 import Search from './components/Search.jsx'
@@ -11,11 +11,12 @@ import { useQuery } from './data/useQuery.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
 import { CHECKED_LABEL, LAST_CHECKED } from './lib/refresh.js'
 import {
-  COUNTED_TOTALS,
-  IN_THIS_TAB,
+  FOOTER_EM_DASH,
+  FOOTER_PRIVACY,
+  FOOTER_PRIVACY_LINK,
+  IN_THIS_TAB_ANCHOR,
   REPORT_ASK,
   REPORT_LINK,
-  REPORT_PROMISE,
   REPORT_URL,
 } from './lib/site.js'
 
@@ -103,7 +104,8 @@ const LANDING = (() => {
 
 /**
  * Send the reader to the top when the route changes, as a page load would —
- * and never on the arrival.
+ * or to the section the address names, on this page or another — and never
+ * on the arrival, which main.jsx's handOver() places.
  *
  * Boot renders this only once the database is open, which is the same instant
  * main.jsx's handOver() removes the prerendered page and puts back the offset
@@ -121,14 +123,66 @@ const LANDING = (() => {
  * and so dev's doubled StrictMode pass reaches the same answer as a build.
  */
 function ScrollToTop() {
-  const { pathname } = useLocation()
+  const { pathname, search, hash, key } = useLocation()
+  const navigation = useNavigationType()
   const first = useRef(true)
+  // null, not the first address, so the first run is a route change like any
+  // other and the arrival rule below decides it.
+  const previous = useRef(null)
+  // `key` is new on every navigation, so the same link clicked twice runs
+  // this twice; it is depended on for the change it marks, not read.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: key marks a navigation
   useEffect(() => {
+    const was = previous.current
+    previous.current = { pathname, search }
+    if (was?.pathname === pathname) {
+      // A link to a section of the page already open - the footer's, read on
+      // /data itself - is a navigation the router makes and scrolls nothing
+      // for: a PUSH, or a REPLACE when the address is already the link's. A
+      // register or the console rewriting its own query is a REPLACE too, and
+      // is told apart by the query having changed: it must not pull the
+      // reader to a fragment on every keystroke. A fragment the browser
+      // navigated to itself, an in-page <a href="#x"> or Back and Forward, is
+      // a POP it has scrolled already, and Back to no fragment at all must not
+      // jump the reader to the top.
+      const linked = navigation === 'PUSH' || (navigation === 'REPLACE' && was.search === search)
+      return hash && linked ? seekFragment(hash) : undefined
+    }
     if (first.current && pathname === LANDING) return
     first.current = false
     window.scrollTo(0, 0)
-  }, [pathname])
+    return hash ? seekFragment(hash) : undefined
+  }, [pathname, search, hash, key, navigation])
   return null
+}
+
+/**
+ * Scroll to the element a fragment names, once it is drawn.
+ *
+ * A link into another page's section - every footer's to /data's account of
+ * what leaves this tab (IA-31) - names a section the new page has not drawn
+ * yet: its rows arrive a frame or more after the route changes. So look for it
+ * each frame, for about two seconds, and go there once it is drawn; a fragment
+ * that never appears, or does not decode, leaves the reader where they are.
+ * html's scroll-padding-top keeps the target clear of the masthead. Returns
+ * the effect's cleanup.
+ */
+function seekFragment(hash) {
+  let id
+  try {
+    id = decodeURIComponent(hash.slice(1))
+  } catch {
+    return undefined
+  }
+  let frame = 0
+  let tries = 0
+  const seek = () => {
+    const target = document.getElementById(id)
+    if (target) target.scrollIntoView()
+    else if (++tries < 120) frame = requestAnimationFrame(seek)
+  }
+  seek()
+  return () => cancelAnimationFrame(frame)
 }
 
 /**
@@ -182,30 +236,34 @@ function Footer() {
   return (
     <footer className="sitefoot">
       <div className="sitefoot-inner">
+        {/* A line each, and the full account one link away (IA-31, #981):
+            this was a 170-word essay on every page. prerender.js's chrome()
+            writes the same four lines, and smoke.mjs holds the two to it. */}
         <div>
           <p>
-            {IN_THIS_TAB} {COUNTED_TOTALS}{' '}
-            <Link to="/data/quality">How far to trust it</Link> ·{' '}
+            {FOOTER_PRIVACY}{' '}
+            <Link to={{ pathname: '/data', hash: `#${IN_THIS_TAB_ANCHOR}` }}>{FOOTER_PRIVACY_LINK}</Link>.
+          </p>
+          <p>
+            {FOOTER_EM_DASH} <Link to="/data/quality">How far to trust it</Link> ·{' '}
             <Link to="/data/sql">write your own query</Link> ·{' '}
             <Link to="/changes">what changed</Link> ·{' '}
             <Link to="/about">who publishes this</Link>.
           </p>
           {/* The inbound channel. A reader who spots a wrong value is the
               adversarial cross-check this project cannot generate for itself,
-              and until now the site gave them nowhere to say so - no contact,
-              no report link, and an invisible issue tracker nobody had ever
-              opened an issue in. The promise is deliberately small and true:
-              a disagreement is recorded, not resolved by picking a side. */}
+              and until SD-04 the site gave them nowhere to say so. What
+              becomes of a report - recorded, not resolved by picking a side -
+              is REPORT_PROMISE, on /about, one link along this footer. */}
           <p>
-            {REPORT_ASK} <a href={REPORT_URL}>{REPORT_LINK}</a>. {REPORT_PROMISE}
+            {REPORT_ASK} <a href={REPORT_URL}>{REPORT_LINK}</a>.
           </p>
           <p className="faint">
             Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and
             registers from Wikipedia (CC BY-SA 4.0), circuit geometry ©{' '}
             <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL
             1.0), photographs from Wikimedia Commons under the licence shown with each.{' '}
-            {OUTLINE_CREDIT}. Full account on the{' '}
-            <Link to="/data/sources">sources page</Link>. Unaffiliated with
+            {OUTLINE_CREDIT}. <Link to="/data/sources">Full credits</Link>. Unaffiliated with
             Formula One, the FIA or any team.
           </p>
         </div>

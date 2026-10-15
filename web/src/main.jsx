@@ -81,9 +81,25 @@ function handOver() {
       // page. staticArrival() is the route of the static page ACTUALLY on
       // screen, which a held click now replaces rather than leaves behind
       // (IX-37).
-      const y = location.pathname === staticArrival() ? window.scrollY : 0
+      const here = location.pathname === staticArrival()
+      let y = here ? window.scrollY : 0
+      // Except where the address names a section the reader is looking at: a
+      // cold arrival at /data#what-leaves, or the footer's link to it clicked
+      // before the database opened (IA-31). The app's page above that section
+      // need not be the static page's height - /data's is 600 px taller at
+      // 1280 and 1,400 at 375 - so the same offset is somewhere else. Keep
+      // the section's heading where the reader sees it instead.
+      const id = here ? fragmentId() : ''
+      const heading = (node) => (node && !/^H[1-6]$/.test(node.tagName) ? node.querySelector('h1, h2, h3') : null) ?? node
+      const was = id
+        ? heading(document.getElementById('prerendered')?.querySelector(`#${CSS.escape(id)}`))?.getBoundingClientRect().top
+        : undefined
       document.getElementById('prerendered')?.remove()
       delete root.dataset.handover
+      if (was !== undefined && was > -window.innerHeight && was < window.innerHeight) {
+        const now = heading(document.getElementById(id))
+        if (now) y = Math.max(0, Math.round(now.getBoundingClientRect().top + window.scrollY - was))
+      }
       settle(y)
     }
     if (!pre) {

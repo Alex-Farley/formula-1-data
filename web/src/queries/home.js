@@ -135,8 +135,8 @@ export const SEASON_LEAD = `
  * Its last clause said "nothing you look at is sent anywhere" until the site
  * began counting arrivals (PD-0, #261). It now claims only what the searching
  * and the SQL are, which is the part of the sentence this page is about and
- * the part that is still true; the footer's IN_THIS_TAB carries the whole of
- * it, including the one thing that does leave.
+ * the part that is still true; IN_THIS_TAB carries the whole of it, including
+ * what does leave, on /data, where every page's footer links (IA-31).
  */
 export const LEDE =
   'Seventy-seven seasons of results, grids, championship tables and pit stops — from ' +

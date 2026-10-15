@@ -96,7 +96,12 @@ import {
   DOCUMENTS,
   DOCUMENTS_NOTE,
   ENTRIES_NOTE,
+  FOOTER_EM_DASH,
+  FOOTER_PRIVACY,
+  FOOTER_PRIVACY_LINK,
   IN_THIS_TAB,
+  IN_THIS_TAB_ANCHOR,
+  IN_THIS_TAB_HEADING,
   SOURCES_LINK,
   behindThisPage,
   citation,
@@ -1399,9 +1404,10 @@ const chrome = (body, crumbs, citeUrl, sources = null) => `
     }
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
-    <p>${esc(IN_THIS_TAB)} ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
-    <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
-    <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
+    <p>${esc(FOOTER_PRIVACY)} ${link(`data#${IN_THIS_TAB_ANCHOR}`, FOOTER_PRIVACY_LINK)}.</p>
+    <p>${esc(FOOTER_EM_DASH)} ${link('data/quality', 'How far to trust it')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
+    <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>.</p>
+    <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0), photographs from Wikimedia Commons under the licence shown with each. ${esc(OUTLINE_CREDIT)}. ${link('data/sources', 'Full credits')}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${dateHtml(META.built)}</dd><dt>${esc(CHECKED_LABEL)}</dt><dd>${dateHtml(LAST_CHECKED)}</dd><dt>Digest</dt><dd><code>${esc(MANIFEST.digest)}</code></dd></dl></div></footer>
 </div>`
 
@@ -3975,6 +3981,7 @@ page({
         career total derived from the race records differs from a published one, both are shown.
         ${link('data/quality', 'The full account')}: the ladder defined, every gap, every
         disagreement, and the reconciliation that runs on each build.</p>
+      <p class="measure">${esc(COUNTED_TOTALS)}</p>
       <h2>What you may do with it</h2>
       ${fields([
         ['Redistributable', `${(classes.yes ?? 0).toLocaleString()} sources — their rows may be passed on under the licence shown beside them.`],
@@ -4000,7 +4007,9 @@ page({
         championship&rsquo;s own grain &mdash; Cooper-Climax and Cooper-Maserati are two 1960 entries and not
         one &mdash; so count that side on <code>constructor_id</code> and <code>engine_id</code> together. The
         console&rsquo;s schema panel prints the commented schema of every table and view, which is where each
-        column says what it means.</p>`,
+        column says what it means.</p>
+      <h2 id="${esc(IN_THIS_TAB_ANCHOR)}">${esc(IN_THIS_TAB_HEADING)}</h2>
+      <p class="measure">${esc(IN_THIS_TAB)}</p>`,
     })
   }
 
