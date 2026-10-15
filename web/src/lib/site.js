@@ -616,8 +616,9 @@ export const FACTS_FILE =
   'chiefly the car specifications, circuit layouts and quotations taken from ' +
   'Wikipedia, the prose not granted CC BY 4.0, and the register of Commons photographs ' +
   '\u2014 with the race rows that cite a Wikipedia season article rebuilt from F1DB, so that ' +
-  'nothing Wikipedia made is in it. It is a release asset published beside f1.db rather than ' +
-  'a file served from here, and LICENSE-DATA states its terms.'
+  'nothing Wikipedia made is in it. It is a release asset published beside f1.db, from the ' +
+  'first release after v2.25, rather than a file served from here, and LICENSE-DATA states ' +
+  'its terms.'
 
 export const FACTS_DECLARATION = 'tools/facts_artefact.py'
 export const FACTS_DECLARATION_URL = `${REPOSITORY}/blob/main/${FACTS_DECLARATION}`

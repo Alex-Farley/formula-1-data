@@ -297,7 +297,7 @@ counted* — the race rows stored as they are, or rebuilt from F1DB — turns on
 it. Which of the other Wikipedia-touched sets counted there the artefact may
 carry (`claims` and `driver_note_sources` among them) was left open too. Both
 were measured, and ruled on 2026-10-08: *Decided: the route, the claims and
-the note sources*, below. **Nothing was offered under CC BY 4.0
+the note sources*, below. **No facts artefact was offered under CC BY 4.0
 until `PD-53` (#741), `PD-54` (#742) and `PD-55` (#743) shipped.** The last
 of them put the artefact's terms in `LICENSE-DATA` and `ATTRIBUTION.md`,
 under *The facts artefact*, and on `/data`; the offer is made by the first

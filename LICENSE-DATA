@@ -90,7 +90,8 @@ decision rather than on the evidence.
 ## The facts artefact — f1-facts.db, CC BY 4.0
 
 f1-facts.db is f1.db less everything that stays share-alike. It is published
-as a release asset beside f1.db and f1-geometry.db, and it is offered whole
+as a release asset beside f1.db and f1-geometry.db, from the first release
+after v2.25, and it is offered whole
 under the Creative Commons Attribution 4.0 International License
 (CC BY 4.0), with no share-alike:
 

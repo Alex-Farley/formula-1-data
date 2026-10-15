@@ -322,7 +322,8 @@ tables waits for the pass to read it again, and why the glossary and
 ## The facts artefact — CC BY 4.0
 
 `f1-facts.db` is `f1.db` less everything that stays share-alike, published
-as a release asset beside `f1.db` and `f1-geometry.db` and offered whole
+as a release asset beside `f1.db` and `f1-geometry.db` from the first
+release after v2.25, and offered whole
 under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (`PD-41`,
 #481). `LICENSE-DATA` says what it holds and what it leaves out, under
 *The facts artefact*. `tools/facts_artefact.py` names every table and column
@@ -333,8 +334,8 @@ Its rows cite three kinds of source, and only one of them asks for a credit:
 
 - **F1DB**, under CC BY 4.0, as *F1DB* above sets out, for the race record,
   the registers and the circuit outlines. The race rows `f1.db` takes from
-  Wikipedia's season articles are rebuilt from F1DB here, so Wikipedia is
-  not among its sources.
+  Wikipedia's season articles are rebuilt from F1DB here, so no row of it
+  cites Wikipedia.
 - **The official sources** the registry classes `facts-only` — the FIA,
   formula1.com, and team, circuit and driver sites — for facts, with none
   of their prose: the reading `docs/COMMERCIAL-READINESS.md` records under
@@ -363,13 +364,15 @@ from `f1.db`'s and why.
 
 CC BY 4.0 asks a reuser to identify the creators (§3(a)(1)(A)(i)). F1DB's
 README names Marcel Overdijk as its creator and core maintainer and Jules
-Roy for its circuit assets, and links its full list of contributors. Neither
-the credit above nor `meta.attribution` names Marcel Overdijk: both name F1DB
-and link it, which §3(a)(2) allows — the conditions may be met "by providing
-a URI or hyperlink to a resource that includes the required information",
-and F1DB's README is that resource. `f1.db`'s credit names F1DB the same
-way. That is this project's reading, not legal advice, and a reuser who
-would rather name him outright loses nothing by doing so. The credit says
+Roy for its circuit assets, and links its full list of contributors. The
+credit above names F1DB and links it, as `f1.db`'s credit does, and names
+Jules Roy for the outlines; `meta.attribution` names F1DB and links it.
+None of them names Marcel Overdijk. §3(a)(2) gives "providing a URI or
+hyperlink to a resource that includes the required information" as an
+example of what may be a reasonable way to meet the condition, and F1DB's
+README is such a resource. Whether the credit should name him as well is
+open (`PD-68`, #1020); this is not legal advice, and a reuser who names him
+outright loses nothing by doing so. The credit says
 the data is *derived from* F1DB, which is how it indicates, as §3(a)(1)(B)
 asks, that F1DB's data was changed on the way in; the changes made to the
 outlines are stated under *F1DB* above.
