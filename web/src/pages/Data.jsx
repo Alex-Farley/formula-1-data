@@ -6,11 +6,15 @@ import { currentProgress } from '../data/client.js'
 import { row, rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
 import {
+  COUNTED_TOTALS,
   CROSS_CHECKED,
   DIGEST_NOTE,
   DOCUMENTS,
   DOCUMENTS_NOTE,
   GUNZIP_NOTE,
+  IN_THIS_TAB,
+  IN_THIS_TAB_ANCHOR,
+  IN_THIS_TAB_HEADING,
   API_ENDPOINTS,
   API_HEADING,
   API_NOTE,
@@ -232,6 +236,9 @@ function Body({ data }) {
           shown. <Link to="/data/quality">The full account</Link>: the ladder defined, every gap,
           every disagreement, and the reconciliation that runs on each build.
         </p>
+        {/* Every page's footer said this until IA-31 (#981); it keeps a
+            shorter em dash line, and the whole rule is here. */}
+        <p className="measure">{COUNTED_TOTALS}</p>
       </Section>
 
       <Section
@@ -294,6 +301,13 @@ function Body({ data }) {
           panel prints the commented schema of every table and view, which is where each column
           says what it means.
         </p>
+      </Section>
+
+      {/* The account every page's footer carried until IA-31 (#981), and links
+          to now: the footer keeps one line of it. The anchor is what that
+          link names, so it is site.js's, not written here. */}
+      <Section id={IN_THIS_TAB_ANCHOR} title={IN_THIS_TAB_HEADING}>
+        <p className="measure">{IN_THIS_TAB}</p>
       </Section>
 
       <Onward {...ONWARD.data()} />

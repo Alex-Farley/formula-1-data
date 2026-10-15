@@ -170,8 +170,8 @@ in the `measurement` block of `/build-status.txt`. A malformed one is never
 fatal — an analytics token does not get to take the site down — and never
 silent either `[D-10]`. The beacon is written with `"spa": false` on purpose:
 one count per arrival and none for a route change, which is what *arrivals by
-landing page* asks for and what the footer's `IN_THIS_TAB` says it sends. The
-tags are built in `scripts/measurement.js` rather than inline, so
+landing page* asks for and what `IN_THIS_TAB`, the account on `/data` that
+every footer links to, says it sends. The tags are built in `scripts/measurement.js` rather than inline, so
 `test/conventions.mjs` can assert against the markup instead of grepping the
 script that writes it. `docs/MEASUREMENT.md` has the dashboard steps and the
 two numbers to read.

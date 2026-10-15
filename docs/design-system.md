@@ -510,6 +510,31 @@ carry it.
   page's sections, under the tiles. It costs about 40 px of the first screen.
   A page may add it; none is held to it.
 
+### Site footer — provisional (IA-31 #981)
+
+The same on every page, in both renderers: `Footer` in `App.jsx` and
+`chrome()` in `prerender.js`, from the strings in `lib/site.js`. It was
+some 230 words, most of them an essay on privacy, offline behaviour and em
+dashes, the same under every table. It is now four short lines and the
+database's facts:
+
+1. **Where the reading happens**, one line, and a link named for what it
+   opens, *What does leave, and when*, to the full account on `/data`
+   (*What leaves this tab*).
+2. **The em dash rule** in one sentence, then *How far to trust it · write
+   your own query · what changed · who publishes this*. The em dash line
+   stays until the rule stands beside every table that can show one
+   (AF-98 #980).
+3. ***Found something wrong? Report it.***
+4. **The credits**, faint: F1DB, Wikipedia, OpenStreetMap, Wikimedia
+   Commons and the circuit outlines, each with its licence, then *Full
+   credits* to `/data/sources` and the unaffiliated line.
+
+Beside them, the version, build, checked and digest list. A fifth line is
+not added here: a new explanation goes to `/data`, or beside what it
+explains, and the footer links it. `smoke.mjs` holds both renderers to the
+same lines and to the count.
+
 ### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-86 #884)
 
 | State | Rule |
@@ -671,6 +696,9 @@ puts the classification before the outline (visual defect 7).
   - a derived-against-published pair always says which the page shows (DA-43
     #751);
   - an open gap is linked to `/data/quality`.
+- **The footer explains nothing at length** (provisional, IA-31 #981): a
+  line and a link, never the account itself, which stands on `/data` or
+  beside what it explains. Its shape is §3's *Site footer*.
 - **Captions:** at most 50 words. A caption explains how to read the figure
   and does not repeat what the figure shows.
 - **Fold buttons and counts:** count the same unit in the heading and the

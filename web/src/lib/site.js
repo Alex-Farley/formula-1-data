@@ -205,7 +205,15 @@ export const ENTRIES_NOTE =
   'neither is corrected.'
 
 /**
- * What the footer promises about where the reading happens.
+ * The site's whole account of where the reading happens, and what leaves.
+ *
+ * MOVED 2026-10-15 (IA-31, #981). Until then this sentence was the footer of
+ * every page, with COUNTED_TOTALS after it: some 170 words, the same essay
+ * under every table. It is now the account /data gives under
+ * IN_THIS_TAB_HEADING, in both renderers and unchanged; every page's footer
+ * carries FOOTER_PRIVACY and a link to it. Everything below is the history
+ * of the sentence as the footer carried it, and still why each clause reads
+ * as it does.
  *
  * The app's footer has made both claims since the database first opened in
  * the browser; the static footer made only the first half of the first one,
@@ -292,6 +300,34 @@ export const IN_THIS_TAB =
 export const COUNTED_TOTALS =
   'Career totals are counted from the race records wherever the records can support it, and an em ' +
   'dash means nobody has established that figure \u2014 never zero.'
+
+/**
+ * The footer, as every page carries it since IA-31 (#981): a line each, and
+ * the full account one link away.
+ *
+ * The footer used to carry IN_THIS_TAB and COUNTED_TOTALS whole - some 130
+ * words, the same on every page, and most readers came for the results and
+ * never needed them there. Both now stand on /data, word for word: the first
+ * under IN_THIS_TAB_HEADING, at IN_THIS_TAB_ANCHOR, the second under *How far
+ * to trust it*.
+ *
+ * FOOTER_PRIVACY keeps only the half of IN_THIS_TAB that is true of the
+ * moment, the claim home's standfirst already makes, and its link says in
+ * its own words that something does leave. A short form that read as "nothing
+ * is sent" would be the absolute IN_THIS_TAB was rewritten to stop making
+ * (PD-0), so the link's name is part of the claim, not decoration.
+ *
+ * FOOTER_EM_DASH stays on every page because an em dash can appear on nearly
+ * every page, and a blank that is not explained is read as a zero (CD-04).
+ * It is COUNTED_TOTALS' second half in fewer words. When the rule stands
+ * beside every table that can show one, which is AF-98's (#980) pass, the
+ * footer can let it go.
+ */
+export const FOOTER_PRIVACY = 'It all runs in this tab, and nothing you search for is sent as you type it.'
+export const FOOTER_PRIVACY_LINK = 'What does leave, and when'
+export const IN_THIS_TAB_HEADING = 'What leaves this tab'
+export const IN_THIS_TAB_ANCHOR = 'what-leaves'
+export const FOOTER_EM_DASH = 'An em dash is a figure nobody has established, never a zero.'
 
 /**
  * How to cite a page. The page is named by its address, not its title: the

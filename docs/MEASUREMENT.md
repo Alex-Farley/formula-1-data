@@ -39,6 +39,11 @@ worth more than the measurement. Two changes keep it honest:
   search, a filter or a SQL statement is **kept in the address**, so arriving
   at one of those hands it over with the page.
 
+Since IA-31 (#981) that account stands on `/data`, under *What leaves this
+tab*, and the footer carries one line of it — nothing you search for is sent
+as you type it — with a link named for what does leave. The account itself
+did not change.
+
 That last clause is there because the first attempt at this sentence said
 "moving between pages asks the network for nothing", which is false — a route
 change to any page with a photograph fetches it from Wikimedia, handing them
@@ -63,7 +68,7 @@ whole of the honesty.
 
 They are one decision, and `web/test/conventions.mjs` holds them together: it
 calls `measurement()` and asserts against **the tag that will actually be
-written**, so dropping `"spa": false` fails, and it fails too if the footer
+written**, so dropping `"spa": false` fails, and it fails too if the account
 stops naming what that buys or goes back to either of the two wordings it has
 already outgrown.
 

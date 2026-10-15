@@ -79,7 +79,10 @@ import { lastTeamColour } from '../src/lib/liveries.js'
 import { handoverWords } from '../src/lib/handover.js'
 import {
   ABOUT,
+  COUNTED_TOTALS,
   DOCUMENTS,
+  IN_THIS_TAB,
+  IN_THIS_TAB_ANCHOR,
   LABELS,
   MAINTAINER,
   NOT_YET_RUN,
@@ -5581,6 +5584,72 @@ try {
       'and "Data" is one of them, where "Reference" was',
     )
 
+  })
+
+  /*
+   * IA-31 (#981): every page's footer was some 230 words, most of them an
+   * essay on privacy and em dashes, the same under every table. It is four short lines now, the same in both renderers -
+   * CD-31 found the two drifting once - and what it cut stands whole on /data,
+   * one link away. Read off a register and a deep page, not only off /data.
+   */
+  await section('/data  (the footer: four short lines in both renderers, and the account it links to)', async () => {
+    // Its paragraphs, not the version list beside them. Passed to the page as
+    // a function of its own, so it takes nothing from this scope.
+    const lines = (n) => [...n.querySelectorAll('.sitefoot-inner > div > p')].map((p) => p.textContent.replace(/\s+/g, ' ').trim())
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+    const plain = await noJs.newPage()
+    try {
+      for (const [route, heading] of [['/drivers/senna', 'Senna'], ['/data', 'Data']]) {
+        await go(route, heading)
+        const app = await page.$eval('#root footer.sitefoot', lines)
+        await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        const html = await plain.$eval('footer.sitefoot', lines)
+        is(JSON.stringify(html), JSON.stringify(app), `${route}: the static footer says what the app's does, line for line`)
+        is(app.length, 4, `${route}: the footer is four lines, beside the version list`)
+        const words = app.join(' ').split(' ').length
+        // Some 110 at IA-31, half of it the credits every page has to carry;
+        // the four lines and the essay together were about 230. The budget
+        // leaves room for a word, not for a paragraph.
+        truthy(words <= 120, `${route}: and short ones — ${words} words, of a budget of 120`)
+        truthy(!app.join(' ').includes(IN_THIS_TAB.slice(0, 60)), `${route}: and the account of what leaves is not in it`)
+        for (const [half, where, root] of [['app', page, '#root footer.sitefoot'], ['static', plain, 'footer.sitefoot']]) {
+          const hrefs = await where.$$eval(`${root} a`, (as) => as.map((a) => a.getAttribute('href')))
+          truthy(hrefs.includes(`/data#${IN_THIS_TAB_ANCHOR}`), `${route}, ${half}: it links the account of what leaves`)
+          truthy(hrefs.includes('/data/sources'), `${route}, ${half}: and the full credits`)
+        }
+      }
+
+      // What the footer cut is on /data, whole, in both renderers.
+      for (const [half, where, main] of [['app', page, '#root main'], ['static', plain, 'main']]) {
+        const account = await where
+          .$eval(`${main} #${IN_THIS_TAB_ANCHOR}`, (n) => n.closest('section').textContent.replace(/\s+/g, ' '))
+          .catch(() => '')
+        truthy(account.includes(IN_THIS_TAB), `/data, ${half}: the account of what leaves this tab is there, word for word`)
+        const body = await where.$eval(main, (n) => n.textContent.replace(/\s+/g, ' '))
+        truthy(body.includes(COUNTED_TOTALS), `/data, ${half}: and the rule for an em dash and the counted totals`)
+      }
+
+      // The link lands on the account, not on the top of /data: the app has
+      // to find a section its page has not drawn when the route changes.
+      await go('/drivers/senna', 'Senna')
+      await page.click(`#root footer.sitefoot a[href="/data#${IN_THIS_TAB_ANCHOR}"]`)
+      const landed = await page
+        .waitForFunction(
+          (id) => {
+            const box = document.getElementById(id)?.getBoundingClientRect()
+            // On screen, and the page moved to put it there: /data is long
+            // enough that its last section starts below the first screen.
+            return box && box.top >= -2 && box.top < window.innerHeight && window.scrollY > 0
+          },
+          IN_THIS_TAB_ANCHOR,
+          { timeout: 5000 },
+        )
+        .then(() => true)
+        .catch(() => false)
+      truthy(landed, "the footer's link scrolls the app to the account, not to the top of /data")
+    } finally {
+      await noJs.close()
+    }
   })
 
   await section('/data/quality', async () => {
