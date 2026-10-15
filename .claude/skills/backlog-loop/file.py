@@ -411,7 +411,8 @@ def flake_check(check):
     timestamp `gh run view --log-failed` adds before that - so a line copied
     with or without them is the same check. The `[Section]` the smoke test
     prints after `FAIL` is kept: it is part of what tells one check from
-    another."""
+    another. Only a smoke test's `FAIL` line is unwrapped this way; a unit
+    test's `FAIL:` line is not, and is recorded by the test's name."""
     return re.sub(r"^(?:\S.*?\d{4}-\d\d-\d\dT[\d:.]+Z\s+)?FAIL(?:\s+|$)", "", one_line(check))
 
 
