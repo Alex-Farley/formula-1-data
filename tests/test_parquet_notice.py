@@ -121,9 +121,12 @@ class Views(unittest.TestCase):
 
 class OneAttributionWording(unittest.TestCase):
     """LICENSE-DATA's Attribution section is ATTRIBUTION.md's *Attribution
-    text*, links dropped (CR-55). Two statements of one credit were how
-    the licence went on crediting Wikipedia for the race results after
-    v2.15 took the classification from F1DB."""
+    text*, links and credit markers dropped (CR-55). Two statements of one
+    credit were how the licence went on crediting Wikipedia for the race
+    results after v2.15 took the classification from F1DB. The markers are
+    tools/credit_sources.py's (AF-102), which checks the sources each
+    sentence names against the rows; this equality carries that check over
+    to LICENSE-DATA."""
 
     def attribution_text(self):
         path = os.path.join(os.path.dirname(P.LICENCE), "ATTRIBUTION.md")
@@ -139,11 +142,22 @@ class OneAttributionWording(unittest.TestCase):
         self.assertTrue(quoted, "ATTRIBUTION.md's Attribution text has no "
                                 "quoted block")
         text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", " ".join(quoted))
+        text = re.sub(r"<!-- /?credit(:[a-z0-9_,]+)? -->", "", text)
         return " ".join(text.split())
 
     def test_the_licence_states_the_attribution_text(self):
         _, attribution = P.licence_words()
         self.assertEqual(attribution, self.attribution_text())
+
+    def test_the_attribution_text_is_marked_for_the_credit_check(self):
+        # Dropping the markers is what lets the two texts compare equal; a
+        # quoted block that lost them would still compare equal and leave
+        # the licence's credit unchecked.
+        with open(os.path.join(os.path.dirname(P.LICENCE), "ATTRIBUTION.md"),
+                  encoding="utf-8") as f:
+            text = f.read()
+        quoted = text.split("## Attribution text", 1)[1].split("\n## ", 1)[0]
+        self.assertGreaterEqual(quoted.count("<!-- credit:"), 4)
 
     def test_it_credits_every_bulk_source(self):
         text = self.attribution_text()
