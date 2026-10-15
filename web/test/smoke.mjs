@@ -30,9 +30,10 @@
  *     until an agent runs it after every edit to one page and reads all of it
  *     back: then it is the most expensive thing in the loop, and it says
  *     nothing about the page that changed that the rest does not drown. Boot
- *     always runs — it loads the app — and Console always runs, because it
- *     reports what the selected sections logged. A passing subset is not a
- *     passing site, and the summary says so.
+ *     always runs — it loads the app — and so does the width sweep, over the
+ *     routes the selected sections visited, and Console, because it reports
+ *     what the selected sections logged. A passing subset is not a passing
+ *     site, and the summary says so.
  *
  * The whole app is loaded ONCE and then navigated through its own router: a
  * page.goto per route would re-download the database and re-instantiate the
@@ -206,14 +207,16 @@ const note = (label) => {
 
 /**
  * One named group of checks. Runs unless --only was given and no pattern
- * matches the heading; Boot and Console run regardless. An exception inside
- * a section is that section's failure, not the end of the run: the sections
- * after it still report, which is what a reader fixing several things at
- * once needs. A throw can leave the page mid-state — a viewport not
+ * matches the heading; Boot, the width sweep and Console run regardless. An
+ * exception inside a section is that section's failure, not the end of the
+ * run: the sections after it still report, which is what a reader fixing
+ * several things at once needs. A throw can leave the page mid-state — a viewport not
  * restored, a palette left open — and a later failure caused that way is
  * still worth seeing, because the throw is reported first.
  */
-const ALWAYS = new Set(['Boot', 'Console'])
+// The width sweep (AF-101) runs over whatever routes the selected sections
+// visited, so it runs with them.
+const ALWAYS = new Set(['Boot', 'Every route fits its width  (320, 375, 768 and 1180, both renderers: AF-101)', 'Console'])
 const section = async (label, run) => {
   if (ONLY.length && !ALWAYS.has(label) && !ONLY.some((p) => label.toLowerCase().includes(p))) {
     skipped += 1
@@ -444,7 +447,11 @@ try {
         }
       })
 
+    // Every route the run has reached through go(), for the width sweep at its
+    // end (AF-101): what the selected sections visited is what it sweeps.
+    const visited = new Set()
     const go = async (route, heading) => {
+      visited.add(route)
       // <main> is a stable node — only what Routes renders inside it changes — so
       // "an h2 exists" is still true of the page being NAVIGATED AWAY FROM, and
       // settle() then finds that old page perfectly settled. Callers that pass a
@@ -8981,6 +8988,147 @@ try {
     }
   })
 
+  /*
+   * AF-101. A page that runs wider than its box at a phone's or a tablet's
+   * width was found by a reviewer on routes and widths nobody had chosen to
+   * test: the race classification at 768 and 1000 (#906, #944), a figure
+   * title clipped at 360 (#817), the footer grid at 1440 (#883), a hover box
+   * outside its figure at 400 (#875). So every route the sections above
+   * reached through go() is read here at four widths, in both renderers -
+   * the app after the handover and the static page as the server sent it,
+   * with no script - and held to two things: the document does not scroll
+   * sideways, and no element outside a horizontal scroller has content
+   * running past its own box. A scroller (overflow-x auto or scroll:
+   * `.table-scroll`, the schema's DDL) is where width is meant to go, so what
+   * is inside one is not read, nor what is inside a table, whose cells grow
+   * to their content and whose own width its container answers for. A box
+   * that ends its text in an ellipsis has said that it cuts. Everything else
+   * that overflows is named, innermost first, with the child that ran out of
+   * it where one did.
+   *
+   * It runs whatever --only selects, over the routes the selected sections
+   * visited, so a page's own run sweeps that page. One app navigation and one
+   * static load per route, the two halves side by side (and a navigation
+   * between, where a route differs from the one before only in its query or
+   * hash); each width after the first is a resize.
+   */
+  await section('Every route fits its width  (320, 375, 768 and 1180, both renderers: AF-101)', async () => {
+    const WIDTHS = [320, 375, 768, 1180]
+    // What runs past its box today, each with the item that will remove it:
+    // [what the finding names, the one route it is declared on or null for
+    // any, the item]. A page that scrolls sideways is declared only where
+    // the same read found a declared box running over and nothing
+    // undeclared. A declaration that matches nothing on a whole run fails,
+    // so the list cannot outlive its cause - whether the CSS was fixed or
+    // the data stopped reaching it; a subset may not visit the route, so it
+    // is not held to that.
+    const DECLARED = [
+      ['figure.photo > figcaption', null, '#1004'],
+      ['p.disagreement-why', null, '#1005'],
+      ['details.record-card-how > p', null, '#1005'],
+      ['div.board > a > b', null, '#1005'],
+      ['div.board > a > p', null, '#1005'],
+      ['header > h1', '/circuits/spa', '#1005'],
+      ['dl.stats > div', '/races/2021/12', '#1005'],
+    ]
+    const overflowing = () => {
+      const named = (el) => {
+        const own = (node) => `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}${[...node.classList].map((c) => `.${c}`).join('')}`
+        const chain = [own(el)]
+        for (let node = el.parentElement; node && chain.length < 3 && node !== document.body; node = node.parentElement) chain.unshift(own(node))
+        return chain.join(' > ')
+      }
+      // What is visually hidden - .sr-only, a skip link at rest - is cut to
+      // a pixel by clip-path and still counts in an ancestor's scroll width:
+      // left in, it read the box around a race's table scroller as some
+      // 500 px over at 320, where nothing showed. It is set aside while the
+      // page is read, and put back.
+      const hidden = [...document.body.querySelectorAll('*')].filter((el) => el instanceof HTMLElement && getComputedStyle(el).clipPath !== 'none')
+      const display = hidden.map((el) => el.style.display)
+      for (const el of hidden) el.style.display = 'none'
+      const out = []
+      // True when el, or something inside it, was reported, so that its
+      // ancestors - whose boxes the same content runs past - are not.
+      const walk = (el) => {
+        const style = getComputedStyle(el)
+        if (style.display === 'none') return false
+        if (style.overflowX === 'auto' || style.overflowX === 'scroll' || el.tagName === 'TABLE') return false
+        let inner = false
+        for (const child of el.children) if (child instanceof HTMLElement && walk(child)) inner = true
+        if (inner) return true
+        const over = el.scrollWidth - el.clientWidth
+        if (el.clientWidth === 0 || over <= 1 || style.textOverflow === 'ellipsis') return false
+        const edge = el.getBoundingClientRect().left + el.clientLeft + el.clientWidth
+        const child = [...el.children].find((c) => c.getBoundingClientRect().right > edge + 1)
+        out.push(`${named(el)} by ${over} px${child ? `, ${named(child).split(' > ').at(-1)} running out of it` : ''}`)
+        return true
+      }
+      walk(document.body)
+      const page = document.documentElement.scrollWidth - window.innerWidth
+      hidden.forEach((el, i) => {
+        el.style.display = display[i]
+      })
+      return { page, out }
+    }
+    const read = async (target, width) => {
+      await target.setViewportSize({ width, height: 900 })
+      // The app redraws a chart from its width, a frame or two after the
+      // resize; the static page has no script to wait for.
+      if (target === page) await target.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+      return target.evaluate(overflowing)
+    }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: WIDTHS[0], height: 900 } })
+    const plain = await noJs.newPage()
+    const routes = [...visited]
+    const wrong = []
+    const used = new Set()
+    let declared = 0
+    try {
+      for (const route of routes) {
+        await page.setViewportSize({ width: WIDTHS[0], height: 900 })
+        // go() knows a new page by its h1 changing; a route that differs
+        // from the one on screen only in its query or its hash may keep the
+        // same h1, and go() would wait out its ten seconds before reading
+        // it. A page of another kind in between makes the change visible.
+        const path = (to) => new URL(to, BASE).pathname
+        if (path(page.url()) === path(route)) await go(path(route) === '/about' ? '/' : '/about')
+        await Promise.all([go(route), plain.goto(`${BASE}${route}`, { waitUntil: 'load' })])
+        for (const width of WIDTHS) {
+          const halves = await Promise.all([read(page, width), read(plain, width)])
+          for (const [half, found] of [['app', halves[0]], ['static', halves[1]]]) {
+            const undeclared = []
+            for (const what of found.out) {
+              const known = DECLARED.findIndex(([names, on]) => what.includes(names) && (on === null || on === route))
+              if (known >= 0) {
+                used.add(known)
+                declared += 1
+              } else undeclared.push(what)
+            }
+            if (found.page > 0) {
+              if (undeclared.length === 0 && found.out.length > 0) declared += 1
+              else undeclared.unshift(`the page scrolls sideways by ${found.page} px`)
+            }
+            for (const what of undeclared) wrong.push(`${route} at ${width} (${half}): ${what}`)
+          }
+        }
+      }
+    } finally {
+      await noJs.close()
+      await page.setViewportSize({ width: 1280, height: 900 })
+    }
+    atLeast(routes.length, 1, `routes read at ${WIDTHS.join(', ')} px in both renderers`)
+    if (wrong.length === 0) pass(`none of them scrolls sideways or runs past a box outside a scroller${declared ? `, but the ${declared} declared` : ''}`)
+    else {
+      for (const message of wrong.slice(0, 12)) fail(message)
+      if (wrong.length > 12) fail(`…and ${wrong.length - 12} more`)
+    }
+    if (ONLY.length === 0) {
+      const gone = DECLARED.filter((_, i) => !used.has(i))
+      if (gone.length === 0) pass(`all ${DECLARED.length} declarations still match something, so none has outlived its cause`)
+      for (const [names, on, item] of gone) fail(`${names}${on ? ` on ${on}` : ''} is declared (${item}) and no longer runs past its box — remove the declaration`)
+    }
+  })
+
   // ------------------------------------------------------- console cleanliness
 
   await section('Console', async () => {
@@ -8998,8 +9146,9 @@ try {
 
 // A subset that passes is not a site that passes; the summary says so
 // rather than reading like a clean bill of health. A pattern that matched
-// nothing ran Boot and Console only, which is not a subset of anything the
-// caller asked for: a mistyped route must read red, not green.
+// nothing ran Boot, the width sweep and Console only, which is not a subset
+// of anything the caller asked for: a mistyped route must read red, not
+// green.
 if (ONLY.length && matched === 0) {
   fail(`--only ${ONLY.join(' ')} matched no section heading; \`--list\` prints them`)
 }
