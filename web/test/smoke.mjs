@@ -104,6 +104,7 @@ import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons
 import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
+import { TILE_STRIP_NAME } from '../src/lib/tiles.js'
 import { UNRESULTED } from '../src/queries/changes.js'
 import { EXAMPLES } from '../src/lib/questions.js'
 import {
@@ -1772,10 +1773,13 @@ try {
       is(body.split(answer.who).length - 1, 1, `the ${half} says who can still win once`)
       is(body.split(basis).length - 1, 1, `and what it was worked out from once`)
     }
-    const after = await page.$eval('#root main .stats', (strip) => strip.nextElementSibling?.textContent ?? '').catch(() => '')
+    // After the strip's named group (VD-88), which is what the markup puts the basis after.
+    const after = await page
+      .$eval('#root main .stats', (strip) => (strip.closest('[role="group"]') ?? strip).nextElementSibling?.textContent ?? '')
+      .catch(() => '')
     truthy(after.startsWith(basis), `the basis follows the tiles in the app — "${after.slice(0, 80)}"`)
     const staticAfter = unescaped(
-      ((html.split('<dl class="stats"')[1] ?? '').split('</dl>')[1]?.match(/^\s*<p class="faint">([\s\S]*?)<\/p>/)?.[1] ?? '').replace(/<[^>]+>/g, ''),
+      ((html.split('<dl class="stats"')[1] ?? '').split('</dl>')[1]?.match(/^\s*(?:<\/div>)?\s*<p class="faint">([\s\S]*?)<\/p>/)?.[1] ?? '').replace(/<[^>]+>/g, ''),
     )
     truthy(staticAfter.startsWith(basis), `and on the static page — "${staticAfter.slice(0, 80)}"`)
   })
@@ -2587,7 +2591,7 @@ try {
         // notes belong there (Season.jsx), and the static page once wrote a
         // car's story and a circuit's characteristics there, so the picture
         // fell below them before the handover and above them after it.
-        extra: tiles ? [...tiles.children].filter((n) => n !== strip).length : 0,
+        extra: tiles ? [...tiles.children].filter((n) => n !== strip && !n.contains(strip)).length : 0,
         lastRow: lastRow.map((b) => b.width),
         blank: strip && lastRow.length ? strip.getBoundingClientRect().right - Math.max(...lastRow.map((b) => b.right)) : 0,
         plot: box(slot?.querySelector('svg[role="img"][aria-label]')),
@@ -8511,6 +8515,15 @@ try {
           tiles: [...(main?.querySelectorAll('dl.stats') ?? [])].map((dl) =>
             [...dl.children].map((tile) => [flatten(tile.querySelector('dt')), flatten(tile.querySelector('dd'))]),
           ),
+          // Each strip's name, read off the group the <dl> stands in (VD-88):
+          // null for a strip with no such group around it.
+          stripNames: [...(main?.querySelectorAll('dl.stats') ?? [])].map((dl) =>
+            dl.parentElement?.getAttribute('role') === 'group' ? dl.parentElement.getAttribute('aria-label') : null,
+          ),
+          // The tiles drawn as a value nobody has established (VD-88), by label.
+          dashed: [...(main?.querySelectorAll('dl.stats > div') ?? [])]
+            .filter((tile) => flatten(tile.querySelector('dd > .empty')) === '\u2014')
+            .map((tile) => flatten(tile.querySelector('dt'))),
           // How many headings stand above the first tile strip (VD-83).
           beforeTiles: (() => {
             const strip = main?.querySelector('dl.stats')
@@ -8629,6 +8642,33 @@ try {
     }
     for (const { route, fromStatic, fromApp } of tilesWrong.slice(0, 6)) {
       fail(`${route}: tiles \u2014 app \u201c${tileText(fromApp.tiles, APP_TILES)}\u201d, static \u201c${tileText(fromStatic.tiles)}\u201d`)
+    }
+
+    // Every strip carries its name, in both halves (VD-88; section 3, Tile
+    // strip, and the aim in section 7).
+    const strips = drawn.flatMap(({ route, fromStatic, fromApp }) => [
+      ...fromStatic.stripNames.map((name) => [route, 'the static page', name]),
+      ...fromApp.stripNames.map((name) => [route, 'the app', name]),
+    ])
+    const unnamed = strips.filter(([, , name]) => name !== TILE_STRIP_NAME)
+    if (strips.length > 0 && unnamed.length === 0) {
+      pass(`all ${strips.length} tile strips on ${drawn.length} routes are a group named \u201c${TILE_STRIP_NAME}\u201d in both renderers`)
+    } else if (strips.length === 0) {
+      fail('no tile strip was read on any route, so none could be checked for its name')
+    }
+    for (const [route, half, name] of unnamed.slice(0, 6)) {
+      fail(`${route}, ${half}: a tile strip named ${name === null ? 'nothing' : `\u201c${name}\u201d`}, not \u201c${TILE_STRIP_NAME}\u201d`)
+    }
+
+    // A value nobody has established is the em dash, in both halves, and not
+    // a tile dropped (VD-88): no entry is credited with the 2021 Belgian Grand
+    // Prix's fastest lap.
+    // Read on its own rather than added to ROUTES, whose prose comparison
+    // differs on this round for a reason of its own (VD-101 #1027).
+    await go('/races/2021/12')
+    const [dashStatic, dashApp] = await page.evaluate(readBoth, await (await fetch(`${BASE}/races/2021/12`)).text())
+    for (const [half, read] of [['the static page', dashStatic], ['the app', dashApp]]) {
+      is((read?.dashed ?? []).join(', '), 'Fastest lap', `/races/2021/12, ${half}: the fastest lap nobody is credited with is an em dash tile`)
     }
 
     // The sections, in order (section 8, test 5), but what is declared.

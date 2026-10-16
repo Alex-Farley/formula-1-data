@@ -1,9 +1,9 @@
 import { createContext, Fragment, useEffect, useRef } from 'react'
 import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
-import { missing, text } from '../lib/format.js'
+import { EMPTY, missing, text } from '../lib/format.js'
 import { DateText, Dated } from './Dates.jsx'
-import { TILE_JOIN, tileSegments } from '../lib/tiles.js'
+import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../lib/tiles.js'
 import { arrived } from '../lib/handover.js'
 import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
 
@@ -318,9 +318,11 @@ export function FigurePart({ title, children }) {
  * A tile's value. A strip built as data in a queries/*.js module (VD-49)
  * names its links rather than holding <Link> elements, so that
  * scripts/prerender.js can draw the same strip; lib/tiles.js says what each
- * field means. A value that is already an element draws as it is.
+ * field means. A value that is already an element draws as it is, and one
+ * nobody has established is the em dash a table cell would draw.
  */
 const tileValue = (item) => {
+  if (unestablished(item)) return <span className="empty">{EMPTY}</span>
   if (item.date) return <DateText iso={item.value} />
   const drawn = tileSegments(item).map(({ label, href }, i) => (
     <Fragment key={i}>
@@ -331,10 +333,15 @@ const tileValue = (item) => {
   return item.quiet ? <span className="muted tile-quiet">{drawn}</span> : drawn
 }
 
-/** Headline figures. A value of null is dropped rather than shown as a dash —
- *  an empty stat tile is noise, where an empty table cell is information. */
+/**
+ * Headline figures. A tile whose value is null is a figure nobody has
+ * established and shows the em dash, as a table cell does (VD-88); a tile
+ * that does not apply to the page is not in `items`, or is a null there,
+ * and is skipped. lib/tiles.js says which is which. The strip is named
+ * TILE_STRIP_NAME on a group around it, as prerender.js's stats() names it.
+ */
 export function Stats({ items }) {
-  const shown = items.filter((item) => item && item.value !== null && item.value !== undefined && item.value !== '')
+  const shown = items.filter(Boolean)
   if (shown.length === 0) return null
   // VD-28: two ranks, and only where a page has asked for them. A strip with
   // no `lead` keeps the one rank it has always had, so this changes the pages
@@ -344,25 +351,28 @@ export function Stats({ items }) {
   // The count, for app.css to choose the columns from (VD-79): one row where
   // the strip fits, rows of equal count where it does not.
   return (
-    <dl className="stats" data-ranked={ranked ? '' : undefined} style={{ '--tiles': shown.length }}>
-      {shown.map((item) => {
-        const { label, note, lead, kind } = item
-        // `kind="name"` is a value that is a person, a team or a place rather
-        // than a figure. The display face is condensed and drawn for numerals;
-        // set a name in it at 25px and the tile reads as a headline, which is
-        // how three of five tiles on a race page came to be underlined names
-        // in display type. Names take the sans face at a reading size.
-        return (
-          <div key={label} data-lead={lead ? '' : undefined} data-kind={kind || undefined}>
-            <dt>{label}</dt>
-            <dd>
-              {tileValue(item)}
-              {note && <small>{note}</small>}
-            </dd>
-          </div>
-        )
-      })}
-    </dl>
+    // biome-ignore lint/a11y/useSemanticElements: a fieldset groups form controls, and these are figures
+    <div role="group" aria-label={TILE_STRIP_NAME}>
+      <dl className="stats" data-ranked={ranked ? '' : undefined} style={{ '--tiles': shown.length }}>
+        {shown.map((item) => {
+          const { label, note, lead, kind } = item
+          // `kind="name"` is a value that is a person, a team or a place rather
+          // than a figure. The display face is condensed and drawn for numerals;
+          // set a name in it at 25px and the tile reads as a headline, which is
+          // how three of five tiles on a race page came to be underlined names
+          // in display type. Names take the sans face at a reading size.
+          return (
+            <div key={label} data-lead={lead ? '' : undefined} data-kind={kind || undefined}>
+              <dt>{label}</dt>
+              <dd>
+                {tileValue(item)}
+                {note && <small>{note}</small>}
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
+    </div>
   )
 }
 

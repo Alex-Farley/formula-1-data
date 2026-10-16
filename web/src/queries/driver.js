@@ -697,7 +697,10 @@ export function strip(driver, derived) {
           note: missing(driver.title_years) ? undefined : yearList(driver.title_years),
         }
       : null,
-    { label: 'Best finish', value: derived.best ? `P${derived.best}` : null },
+    // A career never classified has no best finish, so it has no tile: left
+    // out rather than nulled, which would draw an em dash for a figure that
+    // does not apply (VD-88; lib/tiles.js).
+    derived.best ? { label: 'Best finish', value: `P${derived.best}` } : null,
     ...(placed ? [] : instead(derived, starts)),
   ].filter(Boolean)
 }
@@ -772,11 +775,13 @@ const instead = (derived, starts) => {
   const noLaps = derived.starts_without_laps ?? 0
   const unnamed = derived.entries_without_constructor ?? 0
   return [
-    {
-      label: 'Best grid',
-      value: missing(derived.best_grid) ? null : `P${derived.best_grid}`,
-      note: noGrid > 0 ? `${plural(noGrid, 'start')} with no grid recorded` : undefined,
-    },
+    missing(derived.best_grid)
+      ? null
+      : {
+          label: 'Best grid',
+          value: `P${derived.best_grid}`,
+          note: noGrid > 0 ? `${plural(noGrid, 'start')} with no grid recorded` : undefined,
+        },
     // Laps completed, added up. A lap count is per entry and 1,837 entries
     // carry none, so the note is the same shape as Best grid's.
     missing(derived.laps)
