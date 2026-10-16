@@ -16,7 +16,7 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.6%<!-- /fig --> of the <!-- fig:sourced_rows -->172,095<!-- /fig --> sourced rows carry a licence that permits
+Of the <!-- fig:sourced_rows -->172,095<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.4%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
@@ -31,7 +31,7 @@ committed database may not be published.
 
 ## What was read
 
-<!-- fig:facts_only_rows -->742<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->645<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->97<!-- /fig -->), the two sources whose
+In this database, <!-- fig:facts_only_rows -->742<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->645<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->97<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -312,7 +312,7 @@ on, and for a solicitor to check if they choose to ask one. **It is an
 analysis, not legal advice.** It relicenses nothing, releases nothing and
 changes nothing in `LICENSE-DATA`; the ruling above is what it informed.
 
-<!-- fig:wp_race_rows -->2,253<!-- /fig --> rows — <!-- fig:wp_races -->1,125<!-- /fig --> of `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries`, every
+In this database, <!-- fig:wp_race_rows -->2,253<!-- /fig --> rows — <!-- fig:wp_races -->1,125<!-- /fig --> of `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries`, every
 championship race from <!-- fig:wp_first_season -->1950<!-- /fig --> to <!-- fig:wp_last_season -->2024<!-- /fig --> and its winner — cite a Wikipedia season article.
 Wikipedia is a `yes` source, so they ship today under CC BY-SA and the class
 table counts them as redistributable. The question here is narrower: whether
@@ -399,8 +399,8 @@ reading, which rested on nothing more contestable than that facts are not
 copyright.
 
 **The same facts are held independently.** The right is against extraction
-from the protected database, not against the facts. F1DB classifies
-<!-- fig:wp_races_f1db -->1,125<!-- /fig --> of these <!-- fig:wp_races -->1,125<!-- /fig --> races, and the winner cross-check in `build.py`
+from the protected database, not against the facts. F1DB
+classifies <!-- fig:wp_races_f1db -->1,125<!-- /fig --> of these <!-- fig:wp_races -->1,125<!-- /fig --> races, and the winner cross-check in `build.py`
 refuses a race whole where the two disagree, so every winner on these rows is
 one F1DB states too, under CC BY 4.0. The rows as stored were still taken
 from Wikipedia: it is the facts, not these rows, that have a second source.
@@ -430,8 +430,8 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->167,211<!-- /fig --> of the <!-- fig:sourced_rows -->172,095<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,469<!-- /fig --> and the
-<!-- fig:facts_only_rows -->742<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
+cite Wikipedia: <!-- fig:edition_rows -->167,211<!-- /fig --> of the <!-- fig:sourced_rows -->172,095<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,469<!-- /fig --> and
+the <!-- fig:facts_only_rows -->742<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
 nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
 because §4(b) reaches the database holding the substantial portion and no
@@ -544,7 +544,7 @@ an analysis, not legal advice.
 
 ### The claims: bare facts, held as a check
 
-<!-- fig:wp_claims -->2,463<!-- /fig --> claims cite Wikipedia. Each is a value as an article publishes it, and
+Of the claims here, <!-- fig:wp_claims -->2,463<!-- /fig --> cite Wikipedia. Each is a value as an article publishes it, and
 each `claims` row is the field-grain record of a column of another table,
 which `verify.py` holds exactly to its claims:
 
@@ -575,7 +575,7 @@ with the ruling on the race rows.
 
 ### The note sources: citations backing this project's notes
 
-<!-- fig:wp_note_sources -->53<!-- /fig --> rows of `driver_note_sources` cite Wikipedia. Each is the URL of the
+In `driver_note_sources`, <!-- fig:wp_note_sources -->53<!-- /fig --> rows cite Wikipedia. Each is the URL of the
 driver article a Friday driver's note was checked against (LV-08): a
 citation, which takes nothing from the article. The notes they back are this
 project's writing, and the prose pass labels all <!-- fig:wp_notes_original -->53<!-- /fig --> of them original

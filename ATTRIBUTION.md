@@ -289,9 +289,9 @@ entry 18 records as written for this project (`PM-49`, #573):
 | `personnel.significance` | why each person in the register matters |
 | `engine_manufacturers.notes` | notes on each engine manufacturer |
 
-Every figure here is a span this build rewrites from the database itself:
-<!-- fig:prose_kb -->87 KB<!-- /fig --> between all of them, of which
-<!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
+Every figure here is a span this build rewrites from the database
+itself: <!-- fig:prose_kb -->87 KB<!-- /fig --> between all of them, of
+which <!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and
 none of Wikipedia's text is in these columns. A disagreement between two
