@@ -974,6 +974,73 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
   })
 })
 
+describe('a livery mark is hidden from assistive technology in both renderers (AF-59)', () => {
+  // The name a mark belongs to is always written beside it, so the mark is
+  // aria-hidden and its title is a pointer's tooltip. prerender.js hid it and
+  // LiveryMark.jsx did not, so whether a screen reader heard the tooltip
+  // depended on which half served the page. Every element whose class list
+  // holds `livery` itself - not livery-band or livery-series - is read.
+  const marks = [...sourceFiles(join(web, 'src'), /\.jsx$/), ...sourceFiles(join(web, 'scripts'), /\.m?js$/)].flatMap(
+    (file) =>
+      [...read(file).matchAll(/<i\b(?:=>|[^>])*>/g)]
+        .filter((m) => /\bclass(?:Name)?="livery(?:\s[^"]*)?"/.test(m[0]))
+        .map((m) => ({ file: rel(file), element: m[0] })),
+  )
+
+  it('the marks are found in the app and in the prerenderer', () => {
+    const files = new Set(marks.map(({ file }) => file))
+    assert.ok(files.has(join('src', 'components', 'LiveryMark.jsx')), [...files].join(', '))
+    assert.ok(files.has(join('scripts', 'prerender.js')), [...files].join(', '))
+  })
+
+  it('every one of them carries aria-hidden="true"', () => {
+    const shown = marks.filter(({ element }) => !/\baria-hidden="true"/.test(element)).map(({ file, element }) => `${file}: ${element}`)
+    assert.deepEqual(shown, [])
+  })
+})
+
+describe('a placeholder clears 4.5:1 on the fields it is drawn in (AX-27)', () => {
+  // Unstyled, a placeholder was the browser's #757575: 3.93:1 on the dark
+  // --panel the register filters sit on. The palette's field sits on
+  // --panel-raised, which is where --ink-faint falls short, so both are read.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const app = read(join(web, 'src', 'styles', 'app.css'))
+  const dark = css.indexOf("@media (prefers-color-scheme: dark)")
+  const stamped = css.indexOf(":root[data-theme='dark']")
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const rule = app.match(/\n::placeholder \{([^}]*)\}/)
+  const colour = rule?.[1].match(/(?:^|;|\n)\s*color:\s*var\(--([a-z0-9-]+)\)/)?.[1]
+
+  it('app.css styles ::placeholder with a token', () => assert.ok(colour, rule ? rule[0] : 'no ::placeholder rule'))
+
+  for (const [label, block] of [
+    ['light', css.slice(0, dark)],
+    ['dark (system)', css.slice(dark, stamped)],
+    ['dark (chosen)', css.slice(stamped)],
+  ]) {
+    it(`${label}: on --panel and --panel-raised`, () => {
+      const t = tokens(block)
+      const failing = ['panel', 'panel-raised']
+        .map((surface) => {
+          assert.ok(t[colour] && t[surface], `${label} block lacks --${colour} or --${surface}`)
+          return [surface, contrast(t[colour], t[surface])]
+        })
+        .filter(([, ratio]) => ratio < 4.5)
+        .map(([surface, ratio]) => `--${colour} on --${surface}: ${ratio.toFixed(2)}:1`)
+      assert.deepEqual(failing, [])
+    })
+  }
+})
+
 describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () => {
   // The light green was reference-palette slot 3 as published, #1baf7a, at
   // 2.82:1 on --panel, and charts/palette.js called every figure's data

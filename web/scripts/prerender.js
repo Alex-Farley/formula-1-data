@@ -147,6 +147,7 @@ import {
   TWO_FILES,
   UNCHECKED_MARK,
   UNCHECKED_NOTE,
+  NOT_FOUND_LEDE,
   titled,
 } from '../src/lib/site.js'
 import { EXPLAINED_FOOTER, EXPLAINED_SPAN, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
@@ -4502,9 +4503,10 @@ writeFileSync(
     html: chrome(
       structure(
         `<h1>${esc(NAMES.notFound().headline)}</h1>
-       <p class="lede">There is no page at this address. It may have been a typo, or a link to
-         something this database does not hold.</p>
-       <ul class="cards">${NAV.map(([to, label]) => `<li>${link(to, label)}</li>`).join('')}</ul>`,
+       <p class="lede">${esc(NOT_FOUND_LEDE)}</p>`,
+        // The way out is NotFound.jsx's <Onward>, from the same list, so the
+        // two renderers offer the same routes (IA-26).
+        onwardBand(ONWARD.notFound()),
       ),
       '',
     ),

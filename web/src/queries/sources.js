@@ -61,7 +61,7 @@ export const CONSEQUENCES = [
     source: 'OpenStreetMap',
     licence: 'ODbL 1.0',
     consequence:
-      'Share-alike plus a database right, so it is quarantined into a file of its own: the centrelines ship as f1-geometry.db, f1.db contains no OpenStreetMap data at all, and two databases side by side are a Collective Database rather than a derivative one. Your browser merges them to draw the maps.',
+      'Share-alike plus a database right, so it is quarantined into a file of its own: the centrelines ship as f1-geometry.db, f1.db contains no OpenStreetMap data at all, and two databases side by side are a Collective Database rather than a derivative one. Your browser merges them to read what each trace measures; the circuits are drawn from F1DB’s outlines.',
   },
   {
     source: 'Wikimedia Commons',

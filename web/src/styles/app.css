@@ -932,14 +932,6 @@ table {
   font-size: var(--size-4);
 }
 
-caption {
-  text-align: left;
-  padding: var(--space-5) var(--space-6);
-  color: var(--ink-soft);
-  font-size: var(--size-4);
-  border-bottom: 1px solid var(--rule);
-}
-
 thead th {
   /* Positioned, and above the .table-wrap[data-clipped] fade, so that a table
      clipped at its right edge keeps its last header label legible while its
@@ -1736,6 +1728,16 @@ tbody th.strong {
   background: var(--panel);
   color: var(--ink);
   min-width: 0;
+}
+
+/* A placeholder is text, and on the registers' filters it is the only
+   visible word saying what the field is for. Unstyled it was the browser's
+   #757575, 3.93:1 on the dark --panel (AX-27). --ink-soft clears 4.5:1 on
+   --panel and on the palette's --panel-raised in both themes; --ink-faint
+   does not on the second in dark. Opacity, because a browser may dim it. */
+::placeholder {
+  color: var(--ink-soft);
+  opacity: 1;
 }
 
 .filters input[type='search'] {

@@ -1,14 +1,14 @@
 import { Onward, Page } from '../components/Page.jsx'
 
 import { ONWARD } from '../lib/wayfinding.js'
-import { NAMES } from '../lib/site.js'
+import { NAMES, NOT_FOUND_LEDE } from '../lib/site.js'
 export default function NotFound() {
   return (
     <Page
       cite={false}
       title={NAMES.notFound().headline}
       documentName={NAMES.notFound().title}
-      lede="That address is not one this site has. Press Ctrl K, or Cmd K on a Mac, to search every driver, team, circuit, car, season and race at once — or pick up one of these."
+      lede={NOT_FOUND_LEDE}
     >
       <Onward {...ONWARD.notFound()} />
     </Page>

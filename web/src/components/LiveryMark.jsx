@@ -12,7 +12,9 @@ import { inColourEra } from '../lib/liveries.js'
  * (AF-16: the mark sits beside the name, so it draws the colour rather than
  * a legible substitute for it). The tooltip, `colour.title`, names the claims
  * made about the lead: whose reading the recognition is, and what the
- * sources say of the colour. An accent is drawn here and named only on the
+ * sources say of the colour. It is a pointer's tooltip only: the mark is
+ * aria-hidden, as scripts/prerender.js writes it, because the name it
+ * belongs to is always written beside it (AF-59). An accent is drawn here and named only on the
  * page band, where the clause that says whose reading it is fits beside it.
  * Without one it is a transparent spacer of the same width, so the names in
  * a column stay aligned and nothing grey pretends to be a colour - the
@@ -22,5 +24,5 @@ import { inColourEra } from '../lib/liveries.js'
  */
 export default function LiveryMark({ colour, title, year }) {
   if (!colour) return inColourEra(year) ? <i className="livery livery-none" aria-hidden="true" /> : null
-  return <i className="livery" style={colour.mark} title={title ?? colour.title} />
+  return <i className="livery" style={colour.mark} title={title ?? colour.title} aria-hidden="true" />
 }
