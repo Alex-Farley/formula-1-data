@@ -2323,12 +2323,17 @@ figure.photo[data-state='failed'] img {
   background: var(--panel-sunk);
 }
 
+/* A credit can carry a long unbroken string - a source URL - and the figure
+   is overflow: hidden, so a credit that ran past the caption's box lost its
+   end, and the credit is what the attribution rule requires be shown
+   (AF-109). It breaks anywhere rather than be cut. */
 figure.photo figcaption {
   padding: var(--space-4) var(--space-6) var(--space-5);
   font-size: var(--size-3);
   color: var(--ink-faint);
   border-top: 1px solid var(--rule);
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 figure.photo figcaption a {

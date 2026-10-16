@@ -16,6 +16,7 @@ WHY THIS FILE EXISTS
     re-read the moment GitHub disagrees with it.
 """
 import importlib.util
+import json
 import os
 import tempfile
 import unittest
@@ -45,17 +46,32 @@ class FakeGh:
     """`gh` as file.py calls it, counting what it was asked for."""
 
     def __init__(self, items=(291, 292), reject=(), error="could not resolve to a node",
-                 die_on=None):
+                 die_on=None, auto_added=(), add_error=None, lagging=False):
         self.items = {n: f"I_{n}" for n in items}
         self.reject = set(reject)      # item ids item-edit refuses, as a stale id would be
         self.error = error
+        # Issues the project's auto-add puts on the board just before
+        # file.py's item-add, which GitHub then refuses as a duplicate.
+        self.auto_added = set(auto_added)
+        self.add_error = add_error     # any other refusal of item-add
+        self.lagging = lagging         # item-list does not yet show what auto-add added
         self.die_on = die_on           # (verb, nth): that call ends the run, as gh() does
         self.calls = []
         self.fields = FIELDS
 
-    def try_(self, *args):
-        """`gh_try`: (succeeded, stderr)."""
+    def try_(self, *args, out=False):
+        """`gh_try`: (succeeded, stderr), or with `out` (succeeded, stderr, stdout)."""
         self.calls.append(args[:2])
+        if args[:2] == ("project", "item-add"):
+            number = int(args[args.index("--url") + 1].rsplit("/", 1)[1])
+            if self.add_error:
+                return False, self.add_error, ""
+            if number in self.auto_added:
+                if not self.lagging:
+                    self.items[number] = f"I_{number}"
+                return False, "Content already exists in this project (addProjectV2ItemById)", ""
+            self.items[number] = f"I_{number}"
+            return True, "", json.dumps({"id": self.items[number]})
         item = args[args.index("--id") + 1]
         if item in self.reject:
             return False, self.error
@@ -73,10 +89,6 @@ class FakeGh:
             return self.fields
         if head == ("project", "item-list"):
             return {"items": [{"id": i, "content": {"number": n}} for n, i in self.items.items()]}
-        if head == ("project", "item-add"):
-            number = int(args[args.index("--url") + 1].rsplit("/", 1)[1])
-            self.items[number] = f"I_{number}"
-            return {"id": self.items[number]}
         raise AssertionError(f"unexpected gh call {args}")
 
     def count(self, verb):
@@ -97,6 +109,11 @@ class SettingAStatus(CacheIsolated):
         self.addCleanup(setattr, file_py, "gh_try", file_py.gh_try)
         file_py.gh = fake
         file_py.gh_try = fake.try_
+        # gh_failed asks gh_preflight.unauthenticated(), which is a real
+        # `gh auth status` that the secondary limiter counts.
+        preflight = file_py.gh_preflight
+        self.addCleanup(setattr, preflight, "unauthenticated", preflight.unauthenticated)
+        preflight.unauthenticated = lambda: False
 
     def test_the_expensive_reads_happen_once_not_once_per_status(self):
         # A group of four costs eight status changes. Before the cache each
@@ -206,6 +223,44 @@ class SettingAStatus(CacheIsolated):
         self.assertEqual(fake.count("item-add"), 1)
         self.assertEqual(fake.edited, "I_999")
         self.assertIsNone(loop_cache.read("items", file_py.ITEMS_TTL))
+
+    def test_an_issue_the_boards_auto_add_got_to_first_still_gets_its_status(self):
+        # CR-92: `file.py new` on #1023 created the issue, the project's
+        # auto-add put it on the board, and the item-add GitHub then refused
+        # as a duplicate ended the run with the issue on no status.
+        fake = FakeGh(items=(291,), auto_added=(1023,))
+        self.use(fake)
+        file_py.set_status(1023, "Someday")
+        self.assertEqual(fake.count("item-add"), 1)       # not added twice
+        self.assertEqual(fake.count("item-list"), 2)      # it went and looked
+        self.assertEqual(fake.edited, "I_1023")
+
+    def test_any_other_refusal_of_an_add_ends_the_run_at_once(self):
+        fake = FakeGh(items=(291,), add_error="GraphQL: API rate limit already exceeded for user ID 1.")
+        self.use(fake)
+        with self.assertRaises(SystemExit):
+            file_py.set_status(1023, "Someday")
+        self.assertEqual(fake.count("item-add"), 1)
+        self.assertEqual(fake.count("item-list"), 1)
+        self.assertEqual(fake.count("item-edit"), 0)
+
+    def test_a_duplicate_refusal_that_is_also_a_rate_limit_is_not_retried(self):
+        fake = FakeGh(items=(291,), add_error=(
+            "Content already exists in this project; API rate limit already exceeded for user ID 1."))
+        self.use(fake)
+        with self.assertRaises(SystemExit):
+            file_py.set_status(1023, "Someday")
+        self.assertEqual(fake.count("item-add"), 1)
+        self.assertEqual(fake.count("item-list"), 1)
+
+    def test_a_board_that_has_not_caught_up_says_the_issue_has_no_status(self):
+        fake = FakeGh(items=(291,), auto_added=(1023,), lagging=True)
+        self.use(fake)
+        with self.assertRaises(SystemExit) as stopped:
+            file_py.set_status(1023, "Someday")
+        self.assertEqual(fake.count("item-add"), 2)       # once per pass, no more
+        self.assertEqual(fake.count("item-edit"), 0)
+        self.assertIn('file.py status 1023 "Someday"', str(stopped.exception.code))
 
     def test_a_status_the_board_will_never_have_is_refused_before_any_call(self):
         fake = FakeGh()

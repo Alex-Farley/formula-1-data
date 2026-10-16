@@ -148,6 +148,8 @@ ITEMS_TTL = 900
 # with `PM-44`, so `next.py` can name the same failure without a second copy
 # of it going quietly out of step with this one.
 REFUSED = gh_preflight.DO_NOT_RETRY
+# How GitHub refuses an item-add for an issue already on the board.
+ALREADY_ON_BOARD = re.compile(r"already exists in this project", re.I)
 # Seconds between two writes of one `rank` run: the spacing that placed 30
 # items without a refusal `AF-81`.
 RANK_SPACING = 10
@@ -170,24 +172,31 @@ def gh(*args, as_json=False):
     except FileNotFoundError:
         sys.exit(gh_preflight.note(gh_preflight.MISSING))
     if r.returncode:
-        said = r.stderr.strip() or f"gh {' '.join(args)} failed"
-        # gh's own message first, always - see next.py's gh() for why.
-        if gh_preflight.unauthenticated():
-            sys.exit(f"{said}\n{gh_preflight.note(gh_preflight.UNAUTH)}")
-        sys.exit(said)
+        gh_failed(r.stderr.strip() or f"gh {' '.join(args)} failed")
     return json.loads(r.stdout) if as_json else r.stdout.strip()
 
 
-def gh_try(*args):
+def gh_failed(said):
+    """End the run on a `gh` failure, gh's own message first, always - see
+    next.py's gh() for why."""
+    if gh_preflight.unauthenticated():
+        sys.exit(f"{said}\n{gh_preflight.note(gh_preflight.UNAUTH)}")
+    sys.exit(said)
+
+
+def gh_try(*args, out=False):
     """(succeeded, stderr), for the calls whose caller handles a failure
     itself: an `item-edit` against a cached id GitHub may no longer
-    recognise, and a `rank` write, which reports what it had not placed. The
-    caller decides, because most failures are not staleness and must not be
-    retried."""
+    recognise, an `item-add` the board's auto-add has already made, and a
+    `rank` write, which reports what it had not placed. The caller decides,
+    because most failures are not staleness and must not be retried. With
+    `out`, (succeeded, stderr, stdout)."""
     try:
         r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
     except FileNotFoundError:
         sys.exit(gh_preflight.note(gh_preflight.MISSING))
+    if out:
+        return r.returncode == 0, r.stderr.strip(), r.stdout
     return r.returncode == 0, r.stderr.strip()
 
 
@@ -237,9 +246,25 @@ def set_status(number, status):
         item = item_ids(fresh).get(number)
         if item is None:
             url = f"https://github.com/{REPO}/issues/{number}"
-            item = gh("project", "item-add", PROJECT, "--owner", OWNER, "--url", url, "--format", "json",
-                      as_json=True)["id"]
+            added, err, out = gh_try("project", "item-add", PROJECT, "--owner", OWNER, "--url", url,
+                                     "--format", "json", out=True)
             loop_cache.drop("items")
+            if not added:
+                # The project's own auto-add can put a new issue on the board
+                # between the cached item map and this call, and GitHub then
+                # refuses the add as a duplicate. That is staleness: the
+                # fresh pass re-reads the board, where the item should now be
+                # (CR-92). If the board's item list has not caught up even
+                # then, the issue is on the board with no status, and the run
+                # says so rather than leaving only GitHub's refusal.
+                if ALREADY_ON_BOARD.search(err) and not REFUSED.search(err):
+                    if not fresh:
+                        continue
+                    sys.exit(f"{err}\n#{number} is on the board, but the board's item list does not show it "
+                             f"yet, so it has no status. Run `file.py status {number} \"{status}\"` again "
+                             "in a minute.")
+                gh_failed(err or "gh project item-add failed")
+            item = json.loads(out)["id"]
         ok, err = gh_try("project", "item-edit", "--project-id", proj_id, "--id", item,
                          "--field-id", field_id, "--single-select-option-id", options[status])
         if ok:

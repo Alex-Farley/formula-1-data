@@ -9337,7 +9337,6 @@ try {
     // the data stopped reaching it; a subset may not visit the route, so it
     // is not held to that.
     const DECLARED = [
-      ['figure.photo > figcaption', null, '#1004'],
       ['p.disagreement-why', null, '#1005'],
       ['details.record-card-how > p', null, '#1005'],
       ['div.board > a > b', null, '#1005'],
@@ -9396,6 +9395,14 @@ try {
       if (target === page) await target.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
       await target.evaluate(() => document.fonts.ready)
       return target.evaluate(overflowing)
+    }
+    // A section that drives its own pages and never calls go() - Landing,
+    // for one - leaves nothing to sweep. Under --only that is the selection,
+    // not a defect, and is said out loud rather than failed (CR-88); a full
+    // run that visited nothing still fails the floor below.
+    if (ONLY.length && visited.size === 0) {
+      console.log(`  NOTE  [${current}] the selected sections visited no route through go(), so there was nothing to read`)
+      return
     }
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: WIDTHS[0], height: 900 } })
     const plain = await noJs.newPage()
