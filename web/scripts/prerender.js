@@ -968,7 +968,7 @@ const stats = (items) => {
     .map(
       ({ label, value, note, lead, kind }) =>
         `<div${lead ? ' data-lead=""' : ''}${kind ? ` data-kind="${esc(kind)}"` : ''}>` +
-        `<dt>${esc(label)}</dt><dd>${missing(value) ? `<span class="empty">${EMPTY}</span>` : value}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`,
+        `<dt>${esc(label)}</dt><dd>${unestablished({ value }) ? `<span class="empty">${EMPTY}</span>` : value}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`,
     )
     .join('')}</dl></div>`
 }
