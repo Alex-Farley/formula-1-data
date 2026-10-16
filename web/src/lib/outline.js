@@ -90,7 +90,7 @@ export const OUTLINE_REGISTER_NOTE = `${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE} ${OU
  * for the same layout and nine circuits disagree (Silverstone's 1950 layout
  * 4.649 v 4.711 km; Spa 19 v 21 turns).
  */
-export const OUTLINE_FIGURES_NOTE = 'The length in each heading is this register’s, from its own sources; the figures under its drawing are F1DB’s, and at some circuits the two disagree.'
+export const OUTLINE_FIGURES_NOTE = 'The length listed with each layout is this register’s, from its own sources; the figures under its drawing are F1DB’s, and at some circuits the two disagree.'
 
 /**
  * Where a timeline row's drawing would be, when the row names no F1DB
@@ -107,13 +107,16 @@ export const NO_DRAWING = 'This row names no F1DB outline'
 export const NO_TIMELINE_ROW = 'No timeline row names this drawing'
 
 /**
- * One entry of layoutTimeline() in words: the register's name for the layout
- * and its years, or, for a drawing no row names, the words saying so and the
- * years it was raced. The row's heading and the strip over the rows (PD-60)
- * both print the years, in both renderers; the strip names an unnamed
- * drawing in its own words, below.
+ * A timeline card's heading, in both renderers: the register's name for the
+ * layout, or, for a drawing no row names, the words saying so and the years
+ * it was raced. AX-26 took the years and the other facts out of a named
+ * row's heading into layoutFacts' list; an unnamed drawing keeps its years,
+ * after a comma, because the words alone are the same on every such card -
+ * three at Marina Bay and at Spa - and a heading list of identical lines
+ * tells a reader nothing. The strip over the rows (PD-60) prints the years
+ * beside every name, and names an unnamed drawing in its own words, below.
  */
-export const timelineName = ({ layout }) => (layout ? layout.layout_name : NO_TIMELINE_ROW)
+export const timelineName = (entry) => (entry.layout ? entry.layout.layout_name : `${NO_TIMELINE_ROW}, ${timelineYears(entry)}`)
 
 /**
  * The same name in the strip over the rows, which draws nothing, so a
@@ -123,6 +126,28 @@ export const NOT_IN_TIMELINE = 'An F1DB layout no timeline row names'
 export const timelineStripName = ({ layout }) => (layout ? layout.layout_name : NOT_IN_TIMELINE)
 export const timelineYears = ({ layout, outline }) =>
   layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year)
+
+/**
+ * AX-26: what a timeline card says under its heading, as a description list
+ * - the heading names the layout and nothing else, where it once ran the
+ * years, the length and the confidence pill into one accessible name with
+ * no separator between them, and held the pill's link inside it.
+ * The years always; the register's length and confidence only for a row of
+ * the register, since a drawing no row names has neither - F1DB's figures
+ * are under its drawing. A length the register does not hold is null, which
+ * both renderers print as the em dash for not established.
+ */
+export const LAYOUT_FACT_LABELS = { years: 'Years', length: 'Length', confidence: 'Confidence' }
+export const layoutFacts = (entry) => {
+  const facts = [{ label: LAYOUT_FACT_LABELS.years, value: timelineYears(entry) }]
+  if (!entry.layout) return facts
+  const { length_km: length, confidence } = entry.layout
+  return [
+    ...facts,
+    { label: LAYOUT_FACT_LABELS.length, value: length === null || length === undefined ? null : `${length} km` },
+    { label: LAYOUT_FACT_LABELS.confidence, value: confidence ?? null },
+  ]
+}
 
 /**
  * PD-60: the circuit page's layout history comes after its winners, as a

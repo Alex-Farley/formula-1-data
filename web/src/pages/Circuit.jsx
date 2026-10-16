@@ -7,14 +7,16 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
-import { number } from '../lib/format.js'
+import { EMPTY, number } from '../lib/format.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { canShow } from '../lib/commons.js'
 import {
   LAYOUT_CARDS,
+  LAYOUT_FACT_LABELS,
   NO_DRAWING,
   circuitOutlinesNote,
+  layoutFacts,
   layoutTimeline,
   layoutsCount,
   leadOutline,
@@ -188,12 +190,27 @@ function CircuitBody({ circuit, data }) {
                     <p className="outline-none">{NO_DRAWING}</p>
                   )}
                   <div>
-                    <h3>
-                      {timelineName(entry)}
-                      <span className="years">{timelineYears(entry)}</span>
-                      {layout?.length_km && <span className="years">{layout.length_km} km</span>}
-                      {layout && <Confidence value={layout.confidence} />}
-                    </h3>
+                    {/* AX-26: the heading is the layout's name and nothing
+                        else; its facts are a list under it, and the
+                        confidence pill - a link - is one of them, out of the
+                        heading. scripts/prerender.js draws the same. */}
+                    <h3>{timelineName(entry)}</h3>
+                    <dl className="layout-facts">
+                      {layoutFacts(entry).map(({ label, value }) => (
+                        <div key={label}>
+                          <dt>{label}</dt>
+                          <dd>
+                            {value === null ? (
+                              <span className="empty">{EMPTY}</span>
+                            ) : label === LAYOUT_FACT_LABELS.confidence ? (
+                              <Confidence value={value} />
+                            ) : (
+                              value
+                            )}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
                     {layout?.change_reason && <p>{layout.change_reason}</p>}
                   </div>
                 </article>

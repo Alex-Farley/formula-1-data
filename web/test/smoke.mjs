@@ -4841,6 +4841,34 @@ try {
     const staticTimeline = staticCircuit.slice(staticCircuit.indexOf('<div class="timeline layout-timeline">'))
     const staticRows = [...staticTimeline.matchAll(/<h3>(.*?)<\/h3>/g)].slice(0, timelineRows).map((m) => unescaped(m[1].replace(/<[^>]+>/g, '')))
     is(JSON.stringify(staticRows), JSON.stringify(appRows), 'the static page carries the same timeline rows, in the same words and order')
+    // AX-26: each row's heading is the layout's name and nothing else - no
+    // years, length or confidence link run into it - and its facts are a
+    // list under it, the same list in both halves.
+    const layoutNames = db
+      .prepare("SELECT layout_name FROM circuit_layouts WHERE circuit_id = 'silverstone'")
+      .all()
+      .map((r) => r.layout_name)
+    truthy(
+      layoutNames.length > 0 && layoutNames.every((name) => appRows.includes(name)),
+      'every register row of Silverstone is headed by its name alone',
+    )
+    truthy(
+      (await page.$$eval('#root main .layout-timeline > article h3', (n) => n.every((h) => h.children.length === 0))) &&
+        [...staticTimeline.matchAll(/<h3>(.*?)<\/h3>/g)].slice(0, timelineRows).every((m) => !m[1].includes('<')),
+      'no timeline heading holds a link or a span, in either half',
+    )
+    const appFacts = await page.$$eval('#root main .layout-timeline > article dl.layout-facts', (n) =>
+      n.map((dl) => [...dl.querySelectorAll('dt, dd')].map((c) => c.textContent).join('|')),
+    )
+    // A dd's text is its text nodes, read between the tags rather than by
+    // stripping them, which CodeQL reads as an incomplete sanitiser.
+    const textOf = (html) => [...html.matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')
+    const staticFacts = [...staticTimeline.matchAll(/<dl class="layout-facts">(.*?)<\/dl>/g)]
+      .slice(0, timelineRows)
+      .map((m) => [...m[1].matchAll(/<(dt|dd)>(.*?)<\/\1>/g)].map((d) => unescaped(textOf(d[2]))).join('|'))
+    is(appFacts.length, timelineRows, 'every timeline row lists its facts')
+    truthy(appFacts.every((f) => f.startsWith('Years|')), 'and each list opens on its years')
+    is(JSON.stringify(staticFacts), JSON.stringify(appFacts), 'the static page lists the same facts, in the same words and order')
     // AF-23/VD-44: the cards are all fitted to one box, so the page says they
     // are not to scale - in both renderers, from the one string.
     truthy(
@@ -4939,6 +4967,23 @@ try {
           monzaStatic.split(`<h3>${NO_TIMELINE_ROW.replace(/'/g, '&#39;')}`).length - 1 === unnamed,
         'the static page shows the same two gaps',
       )
+      // AX-26: with the years out of a named row's heading, no two cards on
+      // one circuit are headed alike unless the register itself names two
+      // layouts alike (Monza's two banked-oval rows): the drawings no row
+      // names - three at Marina Bay and at Spa - keep their years. Every
+      // circuit with a timeline, in the static half, which draws the
+      // headings from the same timelineName as the app.
+      const repeated = []
+      for (const { circuit_id: id } of db.prepare('SELECT DISTINCT circuit_id FROM circuit_layouts ORDER BY 1').all()) {
+        const html = await (await fetch(`${BASE}/circuits/${id}`)).text()
+        const cards = html.slice(html.indexOf('<div class="timeline layout-timeline">'))
+        const heads = [...cards.matchAll(/<h3>(.*?)<\/h3>/g)].map((m) => unescaped(m[1]))
+        const named = db.prepare('SELECT layout_name FROM circuit_layouts WHERE circuit_id = ?').all(id).map((r) => r.layout_name)
+        const twice = (list, h) => list.filter((x) => x === h).length > 1
+        repeated.push(...heads.filter((h, i) => heads.indexOf(h) !== i && !twice(named, h)).map((h) => `${id}: ${h}`))
+        if (id === 'marina-bay') truthy(heads.filter((h) => h.startsWith(NO_TIMELINE_ROW)).length > 1, 'Marina Bay still has two drawings no row names')
+      }
+      is(JSON.stringify(repeated), '[]', 'no two timeline cards on a circuit share a heading the register does not')
 
       // PD-60: who wins here comes before the layout history, which is a
       // strip of its rows with the cards closed behind it, then every race,
