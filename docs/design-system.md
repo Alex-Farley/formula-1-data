@@ -320,7 +320,7 @@ and not yet the three charts (VD-73 #822).
   hover targets meet, each the full step wide.
 - **Held by** `smoke.mjs`, *The opening slot*: §8, test 14.
 
-### Tile strip (core) — built (VD-79, VD-81), but for its em dash and its name (VD-88 #887)
+### Tile strip (core) — built (VD-79, VD-81, VD-88)
 
 - **Job:** the handful of figures the page is about.
 - **Parts:** label (`--size-2` mono), figure (`--size-8`, or `--size-6` for a
@@ -349,11 +349,21 @@ and not yet the three charts (VD-73 #822).
   `lib/site.js`, which every strip reads (VD-81); §8's test 7 refuses a
   synonym.
 - **States:** a value not established is an em dash (**floor**: the NULL
-  rule). *Pending (VD-88 #887):* both renderers still drop a tile whose
-  value is null.
-- **Accessibility:** the strip is a `<dl>` with a name ("At a glance"),
-  either as an `aria-label` or as a visually hidden h2 (**aim**). *Pending
-  (VD-88 #887).*
+  rule), in `.empty` as a table cell's is. A tile that does not apply to
+  the page (the season's *Next session* with none to come, a Grand Prix's
+  *Still to come* with nothing scheduled, a career's *Best grid* with no
+  grid on record) is a different thing, and the strip says so by leaving
+  the tile out of its list rather than giving it a null value; `lib/tiles.js`
+  holds the rule for both renderers (VD-88). §8's test 5 holds one em dash
+  tile in both halves.
+- **Accessibility:** the strip is a `<dl>` with a name, "At a glance"
+  (**aim**), carried by a `role="group"` wrapper around it, because an
+  `aria-label` on a bare `<dl>` is not reliably exposed and `role="group"`
+  on the `<dl>` itself breaks its `<dt>`/`<dd>` pairs. A wrapper rather
+  than a hidden h2, so the strip adds no heading to the section list and
+  a page still opens on its tiles with no heading above them. The name is
+  `TILE_STRIP_NAME` in `lib/tiles.js`, and §8's test 5 reads it on every
+  strip in both halves (VD-88).
 
 ### Figure, and its `lead` variant (core) — built (VD-80)
 
@@ -762,7 +772,7 @@ control (VD-82).
 | Hover box opens on focus | **aim** | — |
 | Revealing content moves focus to the first revealed item | **aim** | `smoke.mjs` *An exhaustive list opens on its first ten* (VD-82): opening a fold puts focus on row 11's row header, on screen |
 | A disclosure's name says what it opens | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-81): no two disclosures, and no two stand-alone links to different places, share a name on a smoke route |
-| The tile strip carries a name | **aim** | — |
+| The tile strip carries a name | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-88): every strip on its routes is a group named "At a glance", in both halves |
 | Text 12 px or smaller is not also faint and longer than the small measure | **aim** (33–62 % of entity-page text is ≤12 px; zoom and reflow work, so this is not pressed against the design) | the measure tokens |
 | Target size of at least 24 px for controls and 6 px for chart marks | **aim** | — |
 | Line length of 45–75 characters | **aim** | the measure tokens |

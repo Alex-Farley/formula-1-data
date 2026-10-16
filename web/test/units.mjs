@@ -191,6 +191,7 @@ import {
   tiersOf,
 } from '../src/queries/records.js'
 import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
+import { unestablished } from '../src/lib/tiles.js'
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -666,6 +667,13 @@ describe('the disagreement aside', () => {
   })
 })
 
+describe('a tile nobody has established (VD-88)', () => {
+  it('is a null, an empty string or the em dash, and never a zero', () => {
+    for (const value of [null, undefined, '', '\u2014']) assert.equal(unestablished({ value }), true, String(value))
+    for (const value of [0, '0', 'P1', 'not yet run']) assert.equal(unestablished({ value }), false, String(value))
+  })
+})
+
 describe('the queries a page and the prerenderer share', () => {
   const by = (columns) => Object.fromEntries(columns.map((c) => [c.key, c]))
 
@@ -714,7 +722,13 @@ describe('the queries a page and the prerenderer share', () => {
       { first_season: 1963, last_season: 1976, titles: 0 },
       { entries: 96, seasons: 13, starts: 96, best: null },
     )
-    assert.equal(none.find((i) => i.label === 'Best finish').value, null)
+    // No classified finish, no tile: left out, which is how a strip says a
+    // tile does not apply, where a null value would draw an em dash (VD-88).
+    assert.equal(
+      none.find((i) => i.label === 'Best finish'),
+      undefined,
+      'no classified finish, no tile',
+    )
     assert.equal(
       none.find((i) => i.label === 'Titles'),
       undefined,

@@ -9,7 +9,14 @@
  * objects, and each renderer turns it into its own markup:
  *
  *   label  the tile's heading, text
- *   value  the figure or name, text or a number; a null drops the tile
+ *   value  the figure or name, text or a number. A null, an empty string or
+ *          the em dash is a value nobody has established, and the tile is
+ *          drawn with an em dash (VD-88): the floor of the NULL rule, as in a
+ *          table cell. A tile that does not apply to this page - the next
+ *          session of a season with none to come, a Grand Prix with no round
+ *          still to run - is not a tile with a null value but no tile: the
+ *          strip leaves it out, or puts a null in its place, which both
+ *          renderers skip
  *   note   the line under it, text
  *   kind   'name' for a person, a team or a place rather than a figure
  *   lead   the tile is one of the strip's lead figures (VD-28)
@@ -25,8 +32,21 @@
  *          (components/Dates.jsx, CD-57) and never as the string
  */
 
+import { EMPTY, missing } from './format.js'
+
 /** What sits between two linked names in one tile, as on every race list. */
 export const TILE_JOIN = ' / '
+
+/**
+ * The strip's accessible name, which both renderers give it (VD-88): the
+ * `<dl>` stands in a `role="group"` wrapper that carries it, because an
+ * aria-label on a bare `<dl>` is not reliably exposed and `role="group"` on
+ * the `<dl>` itself breaks its `<dt>`/`<dd>` pairs.
+ */
+export const TILE_STRIP_NAME = 'At a glance'
+
+/** A tile whose value nobody has established, drawn as an em dash (VD-88). */
+export const unestablished = (item) => missing(item.value) || item.value === EMPTY
 
 /**
  * A tile's value as the pieces a renderer draws in turn: each a label, and

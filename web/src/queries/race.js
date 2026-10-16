@@ -759,6 +759,10 @@ const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
  * A round not yet run has a Status tile where the result would be, and no
  * Entries tile while no entry is held (PD-47, UR-20): "0" on this site is a
  * positive claim that nobody entered.
+ *
+ * A round run with nobody on record against a name tile - no entry credited
+ * with the 2021 Belgian Grand Prix's fastest lap - draws that tile's em dash
+ * (VD-88), which is what an empty `linked()` value is to both renderers.
  */
 export const raceStrip = (race, entries, qualifying) => {
   const scheduled = race.status === 'scheduled'

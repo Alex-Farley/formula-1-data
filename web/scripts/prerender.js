@@ -53,6 +53,7 @@ import { fileURLToPath } from 'node:url'
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
 import {
+  EMPTY,
   dateSegments,
   finished,
   houseDate,
@@ -65,7 +66,7 @@ import {
   text as formatted,
   yearList,
 } from '../src/lib/format.js'
-import { TILE_JOIN, tileSegments } from '../src/lib/tiles.js'
+import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../src/lib/tiles.js'
 import {
   FOLD_LESS,
   FOLD_NOUN,
@@ -952,24 +953,24 @@ const fields = (pairs, { paired = false } = {}) => {
  * the database opened. Same element, same `data-lead` and `data-kind`, so
  * the two ranks VD-28 gave the app reach the static page too.
  *
- * A null is dropped rather than dashed, as it is there — an empty tile is
- * noise where an empty table cell is information. `value` is HTML, as
- * everywhere else in this file; `label` and `note` are text.
+ * A null value is a figure nobody has established and is the em dash, as
+ * it is there (VD-88); a null in place of a tile is a tile that does not
+ * apply, and is skipped. The strip is named TILE_STRIP_NAME on a group
+ * around it, as <Stats> names it. `value` is HTML, as everywhere else in
+ * this file; `label` and `note` are text.
  */
 const stats = (items) => {
-  const shown = items.filter(
-    (item) => item && item.value !== null && item.value !== undefined && item.value !== '',
-  )
+  const shown = items.filter(Boolean)
   if (!shown.length) return ''
   const ranked = shown.some((item) => item.lead)
   // The count app.css chooses the columns from, as <Stats> writes it (VD-79).
-  return `<dl class="stats"${ranked ? ' data-ranked=""' : ''} style="--tiles: ${shown.length}">${shown
+  return `<div role="group" aria-label="${esc(TILE_STRIP_NAME)}"><dl class="stats"${ranked ? ' data-ranked=""' : ''} style="--tiles: ${shown.length}">${shown
     .map(
       ({ label, value, note, lead, kind }) =>
         `<div${lead ? ' data-lead=""' : ''}${kind ? ` data-kind="${esc(kind)}"` : ''}>` +
-        `<dt>${esc(label)}</dt><dd>${value}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`,
+        `<dt>${esc(label)}</dt><dd>${unestablished({ value }) ? `<span class="empty">${EMPTY}</span>` : value}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`,
     )
-    .join('')}</dl>`
+    .join('')}</dl></div>`
 }
 
 /**
@@ -983,7 +984,9 @@ const stats = (items) => {
 const tiles = (items) =>
   stats(
     items.map((item) => {
-      if (!item || item.value === null || item.value === undefined || item.value === '') return null
+      if (!item) return null
+      // Not established: stats() draws the em dash, with no link to follow.
+      if (unestablished(item)) return { ...item, value: null }
       if (item.date) return { ...item, value: dateHtml(item.value) }
       const drawn = tileSegments(item)
         .map(({ label, href }) => {
