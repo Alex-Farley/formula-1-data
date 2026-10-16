@@ -350,7 +350,7 @@ wording in both files:
 > Formula One data from [Lap Ledger](https://lapledger.org), licensed under
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The race
 > record and the registers are derived from
-> [F1DB](https://github.com/f1db/f1db), which its authors publish under
+> [F1DB](https://github.com/f1db/f1db) by Marcel Overdijk, published under
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as are F1DB's
 > circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y).
 > Formula 1, F1 and Grand Prix are trademarks of Formula One Licensing BV;
@@ -358,21 +358,21 @@ wording in both files:
 
 The file states a shorter form of it in its own `meta` table, so that it
 carries its terms when it travels alone: `meta.attribution` names Lap Ledger
-and F1DB, each with its address, beside `meta.licence` and
+and F1DB, each with its address, and F1DB's creator, beside `meta.licence` and
 `meta.licence_url`, and `meta.rebuilt` says where the file's values differ
 from `f1.db`'s and why.
 
 CC BY 4.0 asks a reuser to identify the creators (§3(a)(1)(A)(i)). F1DB's
 README names Marcel Overdijk as its creator and core maintainer and Jules
 Roy for its circuit assets, and links its full list of contributors. The
-credit above names F1DB and links it, as `f1.db`'s credit does, and names
-Jules Roy for the outlines; `meta.attribution` names F1DB and links it.
-None of them names Marcel Overdijk. §3(a)(2) gives "providing a URI or
+credit above names F1DB and Marcel Overdijk and links F1DB, as `f1.db`'s
+credit does, and names Jules Roy for the outlines; `meta.attribution` names
+F1DB and Marcel Overdijk and links F1DB. §3(a)(2) gives "providing a URI or
 hyperlink to a resource that includes the required information" as an
 example of what may be a reasonable way to meet the condition, and F1DB's
-README is such a resource. Whether the credit should name him as well is
-open (`PD-68`, #1020); this is not legal advice, and a reuser who names him
-outright loses nothing by doing so. The credit says
+README is such a resource; the maintainer ruled on 2026-10-16 that the
+credit names him outright all the same (`PD-68`, #1020). This is not legal
+advice. The credit says
 the data is *derived from* F1DB, which is how it indicates, as §3(a)(1)(B)
 asks, that F1DB's data was changed on the way in; the changes made to the
 outlines are stated under *F1DB* above.
@@ -410,7 +410,7 @@ the two drift apart.
 > and constructor records, the full race classification, sprint results,
 > practice, qualifying and sprint qualifying, championship standings, pit
 > stops, and the chassis, engine and season-entrant register are derived from
-> [F1DB](https://github.com/f1db/f1db), which its authors publish under
+> [F1DB](https://github.com/f1db/f1db) by Marcel Overdijk, published under
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as are F1DB's
 > circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit -->. Circuit
 > centrelines, published separately as `f1-geometry.db`, are © OpenStreetMap

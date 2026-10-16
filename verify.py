@@ -5562,6 +5562,15 @@ def facts_artefact():
           not unclassified, "; ".join(unclassified[:4]))
     check("no table the facts artefact carries whole has a share-alike or barred provenance",
           not barred, "; ".join(barred))
+    # An authored table is carried when the grant covers every column the
+    # prose pass measures in it, which a table the pass does not measure
+    # passes on nothing; and the artefact's registry gives the authored
+    # source no share-alike on the strength of that grant (PD-67).
+    unmeasured = sorted(t for t, d in decl.items()
+                        if d["rows"] == "all" and t in tp and tp[t] in reg
+                        and reg[tp[t]]["authority"] == "authored" and not fa.measured(t))
+    check("every authored table the facts artefact carries is one the prose pass measures",
+          not unmeasured, ", ".join(unmeasured))
 
     # The rebuild: every share-alike row of a table it covers is rebuilt, so
     # none goes out as stored.
@@ -5822,6 +5831,9 @@ def facts_artefact():
                 notes["drivers' dates F1DB adds"] += 1
             elif t == "drivers" and (rid, c) in fa.DRIVER_DIFFERENCES:
                 notes["drivers F1DB describes otherwise (declared)"] += 1
+            elif t == "source_registry" and c == "share_alike" and theirs == 0 \
+                    and reg[rid]["authority"] == "authored":
+                notes["authored sources with no share-alike in the file (PD-67)"] += 1
             else:
                 unexplained.append(f"{t}.{c} {rid}: {ours!r} -> {theirs!r}")
     print("  [info] the facts artefact differs from f1.db: "

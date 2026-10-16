@@ -161,7 +161,7 @@ class OneAttributionWording(unittest.TestCase):
 
     def test_it_credits_every_bulk_source(self):
         text = self.attribution_text()
-        for name in ("Wikipedia", "F1DB", "Jules Roy", "OpenStreetMap",
+        for name in ("Wikipedia", "F1DB", "Marcel Overdijk", "Jules Roy", "OpenStreetMap",
                      "Wikidata", "Wikimedia Commons", "formula1.com",
                      "Formula One Licensing BV"):
             self.assertIn(name, text)

@@ -95,6 +95,35 @@ class TheRows(unittest.TestCase):
                          {"t": {1: {"a": "r"}}})
 
 
+class TheSelfDescription(unittest.TestCase):
+    """The file's own registry and provenance, read back from the file,
+    agree with what it holds and with its CC BY 4.0 (PD-67)."""
+
+    def setUp(self):
+        self.con = sqlite3.connect(":memory:")
+        self.con.execute("CREATE TABLE source_registry (id INTEGER PRIMARY KEY, "
+                         "share_alike INTEGER)")
+        self.con.execute("CREATE TABLE table_provenance (tbl TEXT, source_id INTEGER)")
+        self.con.execute("CREATE TABLE eras (id INTEGER)")
+        self.con.executemany("INSERT INTO source_registry VALUES (?, ?)", [(10, 0), (18, 0)])
+        self.con.execute("INSERT INTO table_provenance VALUES ('eras', 18)")
+
+    def test_a_file_that_agrees_with_itself_passes(self):
+        self.assertEqual(fx.self_description(self.con), [])
+
+    def test_a_row_about_a_table_the_file_does_not_hold_fails(self):
+        self.con.execute("INSERT INTO table_provenance VALUES ('glossary', 18)")
+        bad = fx.self_description(self.con)
+        self.assertEqual(len(bad), 1)
+        self.assertIn("glossary", bad[0])
+
+    def test_a_table_whose_source_the_file_calls_share_alike_fails(self):
+        self.con.execute("UPDATE source_registry SET share_alike = 1 WHERE id = 18")
+        bad = fx.self_description(self.con)
+        self.assertEqual(len(bad), 1)
+        self.assertIn("eras (18)", bad[0])
+
+
 class TheRecords(unittest.TestCase):
     def test_a_record_with_no_guard_cannot_be_left_out(self):
         import build

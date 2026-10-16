@@ -32,8 +32,10 @@ and nothing else: it decides nothing about what goes out. Its own steps:
 Then it opens what it wrote and refuses it - exit 1, nothing left at --out -
 unless its tables and columns are the declared set, every source_id a row
 cites names a source carried, each table holds the rows the declaration
-selects (records, counted again, aside), meta states CC BY 4.0 and holds
-every key a view reads, no key in it dangles and SQLite finds it sound.
+selects (records, counted again, aside), its table_provenance names only
+tables it holds and no source its own registry calls share-alike, meta
+states CC BY 4.0 and holds every key a view reads, no key in it dangles and
+SQLite finds it sound.
 
 Why it is a release asset and not committed
 -------------------------------------------
@@ -74,6 +76,10 @@ NULLABLE = {
 }
 
 LICENCE = "CC BY 4.0"
+# F1DB's creator, named in the credit as the maintainer ruled on PD-68
+# (#1020): CC BY 4.0 asks for the creators to be identified, and F1DB's
+# README names him as its creator and core maintainer.
+F1DB_CREATOR = "Marcel Overdijk"
 LICENCE_URL = "https://creativecommons.org/licenses/by/4.0/"
 
 
@@ -351,16 +357,18 @@ def _meta(src, records_out=()):
         ("current_season", held["current_season"]),
         ("licence", LICENCE),
         ("licence_url", LICENCE_URL),
-        ("attribution", f"Lap Ledger (https://lapledger.org), built from {name} ({url}, "
-                        "CC BY 4.0) and the other sources its rows cite: each row's "
+        ("attribution", f"Lap Ledger (https://lapledger.org), built from {name} by "
+                        f"{F1DB_CREATOR} ({url}, CC BY 4.0) and the other sources its rows cite: each row's "
                         "source_id names one in source_registry"),
         ("companion", "f1.db, the whole database, under CC BY-SA 4.0 as its LICENSE-DATA "
                       "says; this file is the part of it that may be offered under "
                       "CC BY 4.0"),
         ("rebuilt", "The rows of f1.db that cite a Wikipedia season article are rebuilt "
-                    "here from F1DB, and every race's pole and fastest-lap credits are "
-                    "derived from F1DB's grid, qualifying and fastest laps, so some "
-                    "values differ from f1.db's: python3 "
+                    "here from F1DB, every race's pole and fastest-lap credits are "
+                    "derived from F1DB's grid, qualifying and fastest laps, and "
+                    "source_registry gives this project's own source no share-alike, "
+                    "because the only writing of its own this file holds is offered "
+                    "under CC BY 4.0, so some values differ from f1.db's: python3 "
                     "tools/facts_artefact.py --diff, in a checkout of the same version, "
                     "lists each one. drivers.poles, drivers.fastest_laps, "
                     "constructors.poles and records are counted again from this file's "
@@ -452,6 +460,29 @@ def write(src, path):
 
 # ------------------------------------------------------------- the checks
 
+def self_description(con):
+    """Where the file's own registry and provenance, read from the file,
+    contradict it: a table_provenance row about a table it does not hold, or
+    naming a source its registry calls share-alike, which its CC BY 4.0 says
+    it holds none of (PD-67). [failure, ...]"""
+    tables = {t for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    if not {"table_provenance", "source_registry"} <= tables:
+        return []
+    bad = []
+    stray = sorted(t for (t,) in con.execute("SELECT tbl FROM table_provenance")
+                   if t not in tables)
+    if stray:
+        bad.append(f"table_provenance describes tables the file does not hold: {', '.join(stray)}")
+    alike = [f"{t} ({s})" for t, s in con.execute(
+        "SELECT p.tbl, p.source_id FROM table_provenance p "
+        "JOIN source_registry r ON r.id = p.source_id WHERE r.share_alike "
+        "ORDER BY p.tbl")]
+    if alike:
+        bad.append("table_provenance names a source the file's registry calls share-alike: "
+                   + ", ".join(alike))
+    return bad
+
+
 def check(src, path):
     """What the written file holds, read back from it: [failure, ...]."""
     decl = fa.declare(src)
@@ -480,6 +511,7 @@ def check(src, path):
                      if s not in carried_src]
             if stray:
                 bad.append(f"{t}: rows cite sources the artefact may not carry: {stray}")
+    bad += self_description(con)
     fom = sorted(tables & set(fa.FOM_TABLES))
     if fom:
         bad.append(f"FOM's timing tables are in the file: {', '.join(fom)}")
