@@ -4628,14 +4628,21 @@ def normalise_countries(cur):
     registry = {name: alpha3 for _cid, name, alpha3, _dem in HV.load_f1db_countries()}
     renamed = coded = 0
 
-    # Four columns name a country, not three: a driver's country of birth
-    # joined them with PD-17 and is held to the same vocabulary, because
+    # Five columns are held to the registry here: a driver's country of birth
+    # joined them with PD-17, and a Grand Prix's country with CR-89, because
     # "United States of America" on one column and "United States" on another
-    # is the same split this function exists to prevent, one table further in.
+    # is the same split this function exists to prevent, one table further
+    # in. grands_prix.country is the Grand Prix's own country, not its
+    # venue's: San Marino's ran at Imola, in Italy, and the circuit's own
+    # country says that. It is F1DB's country for the event where F1DB gives
+    # one. F1DB gives none for two: the European Grand Prix, which moved
+    # between countries and is NULL, and the Pacific, whose two editions both
+    # ran in Japan and which keeps Japan.
     for table, column in (("drivers", "nationality"),
                           ("drivers", "country_of_birth"),
                           ("constructors", "country"),
-                          ("circuits", "country")):
+                          ("circuits", "country"),
+                          ("grands_prix", "country")):
         for (value,) in cur.execute(
                 f'SELECT DISTINCT "{column}" FROM "{table}" '
                 f'WHERE "{column}" IS NOT NULL').fetchall():

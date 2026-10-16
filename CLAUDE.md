@@ -132,7 +132,7 @@ drift it exists to stop `[D-53]`.
 ## One country vocabulary
 
 The F1DB registry, with `COUNTRY_ALIASES` and `COUNTRY_EXCEPTIONS` in
-`build.py`. Three tables name a country and they must agree; the drivers page
+`build.py`. The columns `normalise_countries` holds to it must agree; the drivers page
 builds its filter from the distinct values, so a split vocabulary is visible
 to readers, not cosmetic.
 

@@ -46,8 +46,8 @@ moves rows — `tools/parquet_export.py` derives its columns this way and so sho
 anything new.
 
 **5. One country vocabulary.** The F1DB registry, with `COUNTRY_ALIASES`
-(`build.py:2458`) and `COUNTRY_EXCEPTIONS` (`build.py:2470`). Three tables name a
-country and they must agree; the drivers page builds its filter from the distinct
+and `COUNTRY_EXCEPTIONS` in `build.py`. The columns
+`normalise_countries` holds to it must agree; the drivers page builds its filter from the distinct
 values, so a split vocabulary is visible to readers rather than cosmetic. A new
 country value needs a registry entry, an alias or a declared exception.
 

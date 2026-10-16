@@ -58,15 +58,18 @@ GRANDS_PRIX = [
     ("detroit", "Detroit Grand Prix", "United States", [], ""),
     ("dallas", "Dallas Grand Prix", "United States", [],
      "A single running, in 1984, on a surface that broke up in 40 C heat."),
-    ("european", "European Grand Prix", "various", [],
+    # No country: the title moved from one to another, and F1DB gives it
+    # none. (The Pacific has none in F1DB either, but both its editions ran
+    # in Japan, so it keeps Japan - see normalise_countries in build.py.)
+    ("european", "European Grand Prix", None, [],
      "A movable title used to allow a second race in one country."),
-    ("san-marino", "San Marino Grand Prix", "San Marino (held at Imola, Italy)", [],
+    ("san-marino", "San Marino Grand Prix", "San Marino", [],
      "A second Italian race under a flag of convenience."),
     ("hungarian", "Hungarian Grand Prix", "Hungary", [],
      "The first Grand Prix held behind the Iron Curtain."),
     ("pacific", "Pacific Grand Prix", "Japan", [],
      "Run at TI Circuit Aida so Japan could stage two races."),
-    ("luxembourg", "Luxembourg Grand Prix", "Luxembourg (held at the Nurburgring, Germany)", [], ""),
+    ("luxembourg", "Luxembourg Grand Prix", "Luxembourg", [], ""),
     ("malaysian", "Malaysian Grand Prix", "Malaysia", [], ""),
     ("bahrain", "Bahrain Grand Prix", "Bahrain", [],
      "First Grand Prix in the Middle East. Hosted at Sepang in 2026."),
