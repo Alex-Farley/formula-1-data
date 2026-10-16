@@ -37,9 +37,11 @@ not reach is a failure in verify.py rather than a silent inclusion:
             keyed (NOT NULL) to a table left out is left out with it.
   columns   out of a carried table go: the prose the prose pass measures,
             unless granted; every column a `claims` row cites a share-alike
-            source for; the span of columns a per-row source column governs
-            (SPANS); and every column keyed to a table left out, found by
-            its foreign key, or declared in KEYED where the schema has none.
+            source for; the span of columns a per-row source column governs,
+            and that column (SPANS); and every column keyed to a table left
+            out, found by its foreign key, or declared in KEYED where the
+            schema has none. Of table_provenance, only the rows about a
+            table carried.
 
 Then three declarations, each with its reason, because they are judgements
 and not derivations:
@@ -50,7 +52,8 @@ and not derivations:
              drivers they name follow, because a race row naming a driver
              the artefact does not hold is not a row. Every column of these
              tables has to be classed, so a new one fails until it is.
-  APPARATUS  the tables in which the database describes itself.
+  APPARATUS  the tables in which the database describes itself, which in
+             the artefact describe the artefact.
   UNSOURCED  the tables with neither a source nor a provenance row.
   UNGRANTED  this project's own writing outside the prose pass that PM-47
              and PM-49 did not grant CC BY 4.0. It stays CC BY-SA in f1.db,
@@ -59,8 +62,9 @@ and not derivations:
 `rebuild()` computes every value the artefact holds that is not f1.db's as
 stored: the race rows' keys, names and circuits from F1DB's grand prix and
 layout, the winners' classification from F1DB's, the pole and fastest-lap
-credits on every row by rule from F1DB, and the drivers the season articles
-introduced from F1DB's register. `differences()` says where that leaves the
+credits on every row by rule from F1DB, the drivers the season articles
+introduced from F1DB's register, and the share_alike of this project's own
+source in the registry the artefact carries. `differences()` says where that leaves the
 artefact unlike f1.db, which verify.py compares with what the rules predict.
 
 This is an analysis of what the artefact holds, not the artefact. It
@@ -177,6 +181,15 @@ DRIVER_DIFFERENCES = {
 # source_id means nothing without them. `meta` is not carried: it states
 # f1.db's version, licence and coverage, and tools/facts_export.py writes the
 # artefact's own.
+#
+# In the artefact they describe the artefact, not f1.db (PD-67, #1018).
+# table_provenance keeps only its rows about a table carried (declare()). And
+# this project's own source reads no share-alike (rebuild()): in f1.db it is
+# share-alike for the writing that neither PM-47 nor PM-49 granted, which its
+# `licence` column explains and the artefact leaves out (UNGRANTED), and the
+# only writing of this project's the artefact carries is what they granted
+# CC BY 4.0. Carried as stored, the registry would call the file's own
+# authored tables share-alike, against its meta.licence.
 APPARATUS = {
     "source_registry": "all", "source_patterns": "all", "table_provenance": "all",
     "provenance": "all",
@@ -243,7 +256,8 @@ KEYED = {
 
 # A per-row source column and the span of columns, in schema order, that it
 # governs: chassis rows are F1DB's, and their specifications are the per-car
-# article's wherever spec_source names one.
+# article's wherever spec_source names one. The source column goes with its
+# span: it cites the article for values the artefact does not hold (PD-67).
 SPANS = {
     "chassis": ("spec_source", "article", "published_poles"),
 }
@@ -443,6 +457,8 @@ def declare(con):
             span = cols[cols.index(first):cols.index(last) + 1]
             for c in span:
                 drop[c] = f"the per-car article's specification, which {governs} cites"
+            drop[governs] = (f"cites the per-car article for {first}..{last}, which the "
+                             "artefact leaves out")
         refs = dict(_fks(con, t))
         refs.update({k.split(".", 1)[1]: v for k, v in KEYED.items()
                      if k.split(".", 1)[0] == t})
@@ -474,6 +490,12 @@ def declare(con):
         if spec["about"] and out.get(t, {}).get("rows") == "all":
             a, b = spec["about"]
             out[t]["where"] = f"{a} || '.' || {b} IN ({about})"
+    # table_provenance describes the tables the artefact holds; a row about
+    # one left out describes nothing in it (APPARATUS).
+    held = ", ".join(sorted(f"'{t}'" for t, d in out.items()
+                            if d["rows"] not in (None, "none")))
+    if out.get("table_provenance", {}).get("rows") == "all":
+        out["table_provenance"]["where"] = f"tbl IN ({held})"
     return out
 
 
@@ -589,9 +611,11 @@ def rebuild(con):
 
     Returns {table: {row id: {column: value}}}: the race rows citing a
     source the artefact cannot carry, rebuilt from F1DB; their winners; the
-    drivers they introduced; and the pole and fastest-lap credits on every
+    drivers they introduced; the pole and fastest-lap credits on every
     race entry, whatever the row's source, because the season harvest gave
-    them everywhere. A column not named for a row is the row's stored value.
+    them everywhere; and the share_alike of this project's own source in the
+    registry (APPARATUS). A column not named for a row is the row's stored
+    value.
     """
     src = F1DB(con)
     carried = carried_sources(con)
@@ -602,6 +626,11 @@ def rebuild(con):
         "SELECT f1db_layout_id, circuit_id FROM circuit_outlines").fetchall())
     out = {"races": {}, "race_entries": {}, "drivers": {}}
     cited = {"source": f1db_url, "source_id": f1db_id}
+    # The registry as the artefact states it: the only writing of its own the
+    # file holds is granted CC BY 4.0, so the authored source owes no
+    # share-alike in it (APPARATUS).
+    out["source_registry"] = {i: {"share_alike": 0} for i, s in registry(con).items()
+                              if s["authority"] == "authored" and s["share_alike"]}
     nulled = {(t, c) for t, d in declare(con).items() for c in d["nulled"]}
     for t, k, c in claimed_cells(con):
         if (t, c) in nulled:

@@ -97,7 +97,7 @@ under the Creative Commons Attribution 4.0 International License
 
     https://creativecommons.org/licenses/by/4.0/
 
-What it holds: the rows that cite F1DB, which its authors publish under
+What it holds: the rows that cite F1DB by Marcel Overdijk, published under
 CC BY 4.0 — among them the races, the full classification, qualifying,
 practice, the sprints, standings, pit stops, the driver, constructor,
 chassis, engine and entrant registers, and F1DB's circuit outlines; the rows
@@ -145,8 +145,8 @@ fastest lap, some driver records and six team radio quotations are derived
 from Wikipedia, licensed under CC BY-SA 4.0. Most driver and constructor
 records, the full race classification, sprint results, practice, qualifying
 and sprint qualifying, championship standings, pit stops, and the chassis,
-engine and season-entrant register are derived from F1DB, which its authors
-publish under CC BY 4.0, as are F1DB's circuit outlines, drawn by Jules Roy.
+engine and season-entrant register are derived from F1DB by Marcel Overdijk,
+published under CC BY 4.0, as are F1DB's circuit outlines, drawn by Jules Roy.
 Circuit centrelines, published separately as `f1-geometry.db`, are ©
 OpenStreetMap contributors, licensed under ODbL 1.0; their relation ids come
 from Wikidata (CC0). Car, circuit and race photographs are hosted on

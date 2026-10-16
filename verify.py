@@ -5822,6 +5822,9 @@ def facts_artefact():
                 notes["drivers' dates F1DB adds"] += 1
             elif t == "drivers" and (rid, c) in fa.DRIVER_DIFFERENCES:
                 notes["drivers F1DB describes otherwise (declared)"] += 1
+            elif t == "source_registry" and c == "share_alike" and theirs == 0 \
+                    and reg[rid]["authority"] == "authored":
+                notes["authored sources with no share-alike in the file (PD-67)"] += 1
             else:
                 unexplained.append(f"{t}.{c} {rid}: {ours!r} -> {theirs!r}")
     print("  [info] the facts artefact differs from f1.db: "

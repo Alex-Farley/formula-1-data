@@ -667,10 +667,11 @@ carried whole. Each is derived:
   only if `PM-49` granted it, so the glossary and `technical_innovations`
   stay out. A table every one of whose rows is keyed to a table left out —
   `car_seasons`, to `cars` — goes with it. A claim goes in only where its
-  source does and the column it is about does.
+  source does and the column it is about does, and a `table_provenance` row
+  only where the table it is about does.
 - **Columns.** Out go the prose the prose pass measures unless granted; the
   per-car article's specifications on `chassis`, the span `spec_source`
-  governs; every column keyed to a table left out; and this project's own
+  governs, and `spec_source` itself, which cites the article for them; every column keyed to a table left out; and this project's own
   writing that neither grant reaches — the source registry's account of each
   source, `drivers.provenance`, `records.detail` and the like, which stay
   CC BY-SA in `f1.db`. A column a claim cites Wikipedia for goes where every
@@ -698,8 +699,10 @@ each difference to be one a rule predicts: the fastest lap in a race where
 as shared and the season harvest credits to one driver; the shared drives'
 cells F1DB leaves blank; a credit F1DB does not state yet, which is NULL, not
 a 0; dates of birth and death F1DB states and `f1.db` does not hold yet
-(`PM-73`, #931); and one declared disagreement, Bertrand Gachot's nationality
-(`PM-72`, #930). The race keys, names, circuits, dates and pole credits agree
+(`PM-73`, #931); one declared disagreement, Bertrand Gachot's nationality
+(`PM-72`, #930); and the registry's `share_alike` for this project's own
+source, which the file states as none, because the only writing of this
+project's it holds is what `PM-47` and `PM-49` granted (`PD-67`, #1018). The race keys, names, circuits, dates and pole credits agree
 with `f1.db` on every rebuilt row, and the circuit of every race F1DB gives a
 layout for is that layout's, whatever the row cites. A discrepancy is carried
 with its assessment and without the two values it compares, which can be an
