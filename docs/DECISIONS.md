@@ -414,9 +414,10 @@ under each of the board's items, which is the expensive kind of read
 Every connected MCP server's tool schemas sit in the fixed prefix of every
 turn. The loop uses none of them.
 
-**Who pays** is the **fork**. `backlog-item/SKILL.md` names no
-`allowed-tools`, so it inherits the whole session tool set, and it is the
-longest-running context in the loop. The reviewers do not: all 13 agents in
+**Who pays** is the **fork**. It inherits the whole session tool set, and
+it is the longest-running context in the loop. That was first put down to
+`backlog-item/SKILL.md` naming no `allowed-tools`; `[D-32]` measured the
+key inert for a forked skill, so no frontmatter narrows it. The reviewers do not: all 13 agents in
 `.claude/agents/` carry `tools: Read, Grep, Glob, Bash`, which is an
 allowlist, so a connected MCP server costs a reviewer nothing. The wording
 here once said the schemas ride on "the fork and on every reviewer it

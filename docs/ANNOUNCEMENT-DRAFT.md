@@ -13,7 +13,8 @@ a second beat and is not drafted here.
 The maintainer's steps, in the order the 2026-09-24 ruling set:
 
 1. **Run the assistant-citation baseline first** (SD-21, #392, run inside
-   PD-Ø). The announcement is what that baseline is measured against, so it
+   PD-Ø; the method is in `MEASUREMENT.md` under *The third question*). The
+   announcement is what that baseline is measured against, so it
    has to be taken before the post exists.
 2. **Choose where to post.** Not chosen here, on purpose.
 3. **Recheck every figure** against the database being released. The ones

@@ -686,6 +686,10 @@ export const raceSentence = (race, winners, stage = 'awaited') => {
  * who won. lede() in queries/driver.js keeps its note as the override, and
  * can: a driver's note is a career written by hand, not an aside about one
  * of its facts.
+ *
+ * The note is held to the same figure rule as a driver's (AF-63):
+ * tools/lede_figures.py's pattern, checked in verify.py's CALENDAR section,
+ * fails the build on a race note that states a figure the page derives.
  */
 export const raceLede = (race, winners, stage = 'awaited') => {
   const sentence = raceSentence(race, winners, stage)
