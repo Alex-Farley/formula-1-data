@@ -652,7 +652,7 @@ puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81), but for the registers' columns (CD-58 #893); dates (CD-57) and session times (CD-59), but for a weekend in a sentence (CD-39 #499)
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81, the registers' columns in CD-58); dates (CD-57) and session times (CD-59), but for a weekend in a sentence (CD-39 #499)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -665,9 +665,10 @@ puts the classification before the outline (visual defect 7).
 
   These are CD-12's vocabulary, applied: `LABELS` in `lib/site.js`, and
   `REPLACED` beside it lists the words they replaced, which the tests
-  refuse. *Pending (CD-58 #893):* the `/constructors` and `/cars` register
-  columns still say *Entered*, *Raced* and *Race entries*, declared in the
-  test until that item moves them.
+  refuse. The `/constructors` and `/cars` register columns take them too
+  (CD-58): the constructors register's per-season bars, beside its
+  *Seasons* span, are *Season by season*, as the constructor page names its
+  table of the same seasons.
 - **A disclosure or a link says what it opens.** A disclosure that repeats
   on a page carries what it belongs to for a screen reader, as a fold
   carries its table's name: *How it is derived, Most Grand Prix wins*. A
@@ -872,7 +873,7 @@ VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
 7. **One vocabulary.** Tile labels and provenance headings come from one
    list, `LABELS` in `lib/site.js`, and a test refuses a synonym: in the
    source (`conventions.mjs`, *one vocabulary*), in any tile or column of
-   `queries/*.js` but the register columns declared until CD-58 (#893),
+   `queries/*.js` but the winners tables' *Span*, declared with its reason,
    where a strip that writes a word of the list as a literal fails too, and
    on the smoke routes in
    both halves (`smoke.mjs`), which also hold every entity page's eyebrow

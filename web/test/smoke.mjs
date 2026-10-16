@@ -5197,7 +5197,7 @@ try {
     }
 
     // IA-19: 1,153 rows opening on 1950, and no route at all to this year's
-    // chassis until now. The register's own Raced span is the test, because
+    // chassis until now. The register's own Seasons span is the test, because
     // season_entries carries the car as the team names it and will not join.
     {
       const season = one("SELECT value FROM meta WHERE key = 'current_season'")
@@ -8882,7 +8882,7 @@ try {
       '/cars': [
         { half: 'both', section: 'The cars with a page of their own', why: PROSE_DRIFT },
         { half: 'static', section: 'The chassis register', drop: 'Every chassis that has started', why: PROSE_DRIFT },
-        { half: 'app', section: 'The chassis register', drop: '“Raced” is not the same as a car', why: PROSE_DRIFT },
+        { half: 'app', section: 'The chassis register', drop: '“Seasons” is not the same as a car', why: PROSE_DRIFT },
       ],
       '/cars/mercedes-w11': whyItMattered('mercedes-w11', 'Two sources disagree about this car'),
       '/cars/lotus-72': [
