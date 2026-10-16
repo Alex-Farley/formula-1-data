@@ -645,10 +645,11 @@ class TheCitationStaysInStepWithTheBuild(unittest.TestCase):
     Two of these forbid a key rather than check one. CFF's `license` list is
     OR, not AND, so a list naming this repository's three licences would offer
     every part of it under any one of them, MIT included; a single id would be
-    a licence position, and PD-41 (#481) has not taken it. A `date-released`
-    has nothing in the tree to be checked against. Neither refusal is
-    permanent — SD-32 (#557) is where the first is settled — and both say in
-    the failure message what a person is being asked to decide.
+    a licence position, and SD-32 (#557) declined to take one: under D-51
+    (PD-41, #481) f1.db stays CC BY-SA 4.0 and f1-facts.db, published beside
+    it, is CC BY 4.0, so one id would misstate the data too. A
+    `date-released` has nothing in the tree to be checked against. Both say
+    in the failure message why the key is refused.
     """
 
     def raw(self):
@@ -739,9 +740,10 @@ class TheCitationStaysInStepWithTheBuild(unittest.TestCase):
                              "AND, so naming this repository's three offers every part of "
                              "it under any one of them, MIT included — rights this project "
                              "does not hold. Naming one instead is a licence position, and "
-                             "PD-41 (#481) has not taken it. SD-32 (#557) is where that is "
-                             "settled; until then the terms live in LICENSE, LICENSE-DATA "
-                             "and ATTRIBUTION.md")
+                             "SD-32 (#557) declined to take one: under D-51 f1.db stays CC "
+                             "BY-SA 4.0 and f1-facts.db, published beside it, is CC BY 4.0. "
+                             "The terms live in LICENSE, LICENSE-DATA and "
+                             "ATTRIBUTION.md")
 
     def test_no_release_date_is_claimed(self):
         # BUILT moves on a harvest refresh and VERSION only on a release, so a
@@ -753,3 +755,52 @@ class TheCitationStaysInStepWithTheBuild(unittest.TestCase):
                          "moves without VERSION, and no in-tree record says when a tag was "
                          "published, so this date cannot be checked and will misdate a "
                          "version sooner or later")
+
+
+class NoLineOpensOnAFigureSpan(unittest.TestCase):
+    """A figure span never starts a line of prose (CR-87).
+
+    CommonMark reads a line opening with `<!--` as an HTML block of type 2,
+    one that may interrupt a paragraph and ends on the line holding `-->`, so
+    a line starting `<!-- fig:name -->87 KB<!-- /fig --> of which` is cut out
+    of its sentence: the paragraph before it ends, the line renders as raw
+    HTML with no Markdown read inside it, and the rest of the sentence starts
+    a new paragraph. GitHub's renderer follows the same rule. A list item's
+    continuation line is the same case, and so is a paragraph's first line,
+    which has no line above to take a word from and is reworded instead.
+
+    A span standing alone on its line, its value beginning on the next, is
+    the other form and is allowed: `id_keys` and `open_centrelines` are whole
+    tables, and the comment ending its own line is what lets the table under
+    it render as one.
+    """
+
+    LEAD = re.compile(r"^[ \t>]*(?:(?:[-*+]|\d+[.)])[ \t]+)?<!-- fig:[a-z0-9_]+ -->(?![ \t]*$)")
+
+    def documents(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "readme_figures", os.path.join(ROOT, "tools", "readme_figures.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.DOCUMENTS, module.SPAN
+
+    def test_no_document_line_opens_on_a_span(self):
+        documents, span = self.documents()
+        self.assertTrue(documents, "readme_figures.DOCUMENTS is empty, so this checks nothing")
+        found = []
+        for path in documents:
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+            # A document with no spans would pass for the wrong reason.
+            self.assertTrue(span.search(text), f"{os.path.relpath(path, ROOT)} holds no figure span")
+            fenced = False
+            for number, line in enumerate(text.splitlines(), 1):
+                if re.match(r"^ {0,3}(```|~~~)", line):
+                    fenced = not fenced
+                elif not fenced and self.LEAD.match(line):
+                    found.append(f"{os.path.relpath(path, ROOT)}:{number}")
+        self.assertEqual(found, [], "a line opens on a figure span, which CommonMark reads as "
+                                    "an HTML block that cuts the line out of its paragraph. "
+                                    "Move the last word of the line above onto it, or reword "
+                                    "a paragraph's first line so it does not open on a figure")

@@ -26,8 +26,10 @@
 #     between f1.db and f1-geometry.db exists to keep. CFF cannot express
 #     the split, so this file does not pretend to: the terms are in LICENSE,
 #     LICENSE-DATA and ATTRIBUTION.md, and a single id here would be a
-#     licence position rather than a restatement — PD-41 (#481) is open on
-#     what that position is.
+#     licence position rather than a restatement. SD-32 (#557) declined to
+#     take one: under D-51 (PD-41, #481) f1.db stays CC BY-SA 4.0 and
+#     f1-facts.db, published beside it, is CC BY 4.0, so one id would
+#     misstate the data as well as the repository.
 #
 #     **No `date-released`.** BUILT moves on a harvest refresh and VERSION
 #     only on a release, so binding a release date to BUILT would sooner or

@@ -52,7 +52,9 @@ DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"),
 
 # <!-- fig:name -->value<!-- /fig -->. The value may run over a line break -
 # the centreline table is one figure - so DOTALL, and non-greedy so two spans
-# on a line stay two spans.
+# on a line stay two spans. A span never opens a line of prose: CommonMark
+# would read that line as an HTML block and cut it out of its paragraph
+# (tests/test_conventions.py, NoLineOpensOnAFigureSpan).
 SPAN = re.compile(r"<!-- fig:([a-z0-9_]+) -->(.*?)<!-- /fig -->", re.DOTALL)
 
 
