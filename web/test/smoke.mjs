@@ -4860,9 +4860,12 @@ try {
     const appFacts = await page.$$eval('#root main .layout-timeline > article dl.layout-facts', (n) =>
       n.map((dl) => [...dl.querySelectorAll('dt, dd')].map((c) => c.textContent).join('|')),
     )
+    // A dd's text is its text nodes, read between the tags rather than by
+    // stripping them, which CodeQL reads as an incomplete sanitiser.
+    const textOf = (html) => [...html.matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')
     const staticFacts = [...staticTimeline.matchAll(/<dl class="layout-facts">(.*?)<\/dl>/g)]
       .slice(0, timelineRows)
-      .map((m) => [...m[1].matchAll(/<(dt|dd)>(.*?)<\/\1>/g)].map((d) => unescaped(d[2].replace(/<[^>]+>/g, ''))).join('|'))
+      .map((m) => [...m[1].matchAll(/<(dt|dd)>(.*?)<\/\1>/g)].map((d) => unescaped(textOf(d[2]))).join('|'))
     is(appFacts.length, timelineRows, 'every timeline row lists its facts')
     truthy(appFacts.every((f) => f.startsWith('Years|')), 'and each list opens on its years')
     is(JSON.stringify(staticFacts), JSON.stringify(appFacts), 'the static page lists the same facts, in the same words and order')
