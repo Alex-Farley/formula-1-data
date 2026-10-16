@@ -545,8 +545,9 @@ above is the only one `[D-44]`.
   then it sets every issue the body closes to *Done*, removes the worktree
   and the local branch, and pulls `main` in the primary checkout. An alarm
   is still open, so it is not *Done*: for a `Refs #<n>` naming an open
-  alarm it puts the status back to *Now*, where it waits to be closed by the
-  run that proves the fix or taken again from a later failing one, and
+  alarm it puts the status back to *Now* — which an alarm heads, whoever set
+  it `AF-112` — where it waits to be closed by the run that proves the fix
+  or taken again from a later failing one, and
   starts that run with `gh workflow run refresh.yml`. Exit 2 names a step
   that failed after the merge; run it again, which repeats nothing but a
   refresh run, and that only queues behind the first.

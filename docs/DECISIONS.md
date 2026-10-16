@@ -307,6 +307,16 @@ alarm marks is the data still held back. An alarm with no status, or not on
 the board, now heads *Now*. A status a person gives one is still obeyed and
 keeps its board place. Every other item still arrives unranked.
 
+**Amended — 2026-10-15 (`AF-112`, #1015).** The loop writes *Now* on an
+alarm itself: `merge-step.py after` puts one back to *Now* when a fix
+merges, and a skip or a hold puts its status back. The board cannot tell
+that *Now* from a person's, so an alarm the loop had touched kept its board
+place, which for an auto-added issue is the foot of *Now*, and a second
+failure waited behind the whole of it. The maintainer chose to have any open
+alarm at *Now* head *Now*, whoever set it, over having the loop clear the
+status instead: dragging an alarm down inside *Now* no longer holds, and a
+person who wants one lower gives it *Next* or *Someday*, which are obeyed.
+
 ---
 
 ## The loop
