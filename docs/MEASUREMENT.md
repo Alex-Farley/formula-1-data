@@ -288,8 +288,32 @@ Then two follow-ons, both of which were waiting on this:
 1. the items under *Next* get re-ranked against real arrival data — the
    user-research walkthrough predicts a third of them turn out premature and a
    handful urgent;
-2. `SD-21` (#392) takes its answer-engine baseline, **the day before any
+2. the answer-engine baseline below is taken, **the day before any
    announcement** — otherwise there is nothing to compare the announcement to.
+
+## The third question: does an assistant's answer trace back here?
+
+Decided on `SD-21` (#392), 2026-09-30: Lap Ledger's positioning is **the
+Formula One record that says how much it can be trusted**, and *does an
+assistant's answer about F1 history trace back here?* counts as a success
+measure alongside the two numbers above. A model reading a page is the third
+reader `prerender.js` writes for, beside a reader without JavaScript and a
+crawler that does not run it.
+
+Neither instrument above can see it, so it is read by hand:
+
+- **The baseline.** Ask several assistants a fixed set of F1 history
+  questions whose answers this database holds and Wikipedia gets wrong or
+  vague, and record what each one cites. Take it **before** the first
+  announcement, then repeat the same set after it.
+- **Who takes it.** The maintainer: it is step 1 of publishing that
+  announcement, `SD-34` (#683), and of `ANNOUNCEMENT-DRAFT.md`. The loop
+  cannot query other assistants, and a baseline taken by the thing being
+  measured is not a baseline.
+- **What follows.** Whatever the baseline shows is missing from the page is
+  filed as an ordinary item in the queue. The ruling named the likeliest
+  as a machine-readable statement of how to cite the page, on the page
+  itself and not only in the app.
 
 ## Where this lives in the code
 

@@ -163,9 +163,11 @@ under `usage`, with the figures each decision used.
 
 - **Start the loop in a session with the connectors off.** Every connected
   MCP server's tool schemas sit in the fixed prefix of every turn, and the
-  fork inherits all of them because its frontmatter names no `allowed-tools`
-  `[D-18]`. The reviewers do not: every agent in `.claude/agents/` restricts
-  itself to `Read, Grep, Glob, Bash`, so an MCP server costs them nothing.
+  fork carries the session's whole tool set `[D-18]`: `allowed-tools` and
+  `disallowed-tools` in a skill's frontmatter were both measured inert for a
+  forked context `[D-32]`, so turning the connectors off is the lever. The
+  reviewers do not: every agent in `.claude/agents/` restricts itself to
+  `Read, Grep, Glob, Bash`, so an MCP server costs them nothing.
   The loop uses none of them either way.
 - The implementer's effort is the session's: set `CLAUDE_CODE_EFFORT_LEVEL`
   or `effortLevel` before starting, not during a run, because a change of
