@@ -64,8 +64,9 @@ stored: the race rows' keys, names and circuits from F1DB's grand prix and
 layout, the winners' classification from F1DB's, the pole and fastest-lap
 credits on every row by rule from F1DB, the drivers the season articles
 introduced from F1DB's register, and the share_alike of this project's own
-source in the registry the artefact carries. `differences()` says where that leaves the
-artefact unlike f1.db, which verify.py compares with what the rules predict.
+source in the registry the artefact carries. `differences()` says where that
+leaves the artefact unlike f1.db, which verify.py compares with what the rules
+predict.
 
 This is an analysis of what the artefact holds, not the artefact. It
 relicenses nothing, and neither does writing the file: until a release

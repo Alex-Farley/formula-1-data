@@ -129,8 +129,10 @@ share-alike, or that this project has not granted:
 
 The race rows f1.db takes from Wikipedia's season articles are not left
 out: they are rebuilt from F1DB, so that nothing Wikipedia made is in the
-file, and some of its values therefore differ from f1.db's. The file's own
-`meta` table states its terms and says where it differs, and
+file, and some of its values therefore differ from f1.db's. Its source
+registry gives this project's own source no share-alike, since the only
+writing of this project's it holds is what the grants above cover. The
+file's own `meta` table states its terms and says where it differs, and
 tools/facts_artefact.py in the repository names every table and column it
 leaves out, with the reason for each. ATTRIBUTION.md gives the credit it
 carries.
