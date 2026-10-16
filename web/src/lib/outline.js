@@ -90,7 +90,7 @@ export const OUTLINE_REGISTER_NOTE = `${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE} ${OU
  * for the same layout and nine circuits disagree (Silverstone's 1950 layout
  * 4.649 v 4.711 km; Spa 19 v 21 turns).
  */
-export const OUTLINE_FIGURES_NOTE = 'The length in each heading is this register’s, from its own sources; the figures under its drawing are F1DB’s, and at some circuits the two disagree.'
+export const OUTLINE_FIGURES_NOTE = 'The length listed with each layout is this register’s, from its own sources; the figures under its drawing are F1DB’s, and at some circuits the two disagree.'
 
 /**
  * Where a timeline row's drawing would be, when the row names no F1DB
@@ -123,6 +123,28 @@ export const NOT_IN_TIMELINE = 'An F1DB layout no timeline row names'
 export const timelineStripName = ({ layout }) => (layout ? layout.layout_name : NOT_IN_TIMELINE)
 export const timelineYears = ({ layout, outline }) =>
   layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year)
+
+/**
+ * AX-26: what a timeline card says under its heading, as a description list
+ * - the heading names the layout and nothing else, where it once ran the
+ * years, the length and the confidence pill into one accessible name with
+ * no separator between them, and held the pill's link inside it.
+ * The years always; the register's length and confidence only for a row of
+ * the register, since a drawing no row names has neither - F1DB's figures
+ * are under its drawing. A length the register does not hold is null, which
+ * both renderers print as the em dash for not established.
+ */
+export const LAYOUT_FACT_LABELS = { years: 'Years', length: 'Length', confidence: 'Confidence' }
+export const layoutFacts = (entry) => {
+  const facts = [{ label: LAYOUT_FACT_LABELS.years, value: timelineYears(entry) }]
+  if (!entry.layout) return facts
+  const { length_km: length, confidence } = entry.layout
+  return [
+    ...facts,
+    { label: LAYOUT_FACT_LABELS.length, value: length === null || length === undefined ? null : `${length} km` },
+    { label: LAYOUT_FACT_LABELS.confidence, value: confidence ?? null },
+  ]
+}
 
 /**
  * PD-60: the circuit page's layout history comes after its winners, as a

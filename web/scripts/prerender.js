@@ -427,9 +427,11 @@ import {
   OUTLINE_VIEWBOX,
   OUTLINES_NOTE,
   LAYOUT_CARDS,
+  LAYOUT_FACT_LABELS,
   NO_DRAWING,
   STATE_WORDS,
   circuitOutlinesNote,
+  layoutFacts,
   layoutTimeline,
   layoutsCount,
   leadOutline,
@@ -1252,7 +1254,22 @@ const confidencePill = (value) =>
 // the static page carries the register's history (AF-08) in the app's shape
 // rather than the two lists the app used to draw. PD-60: a strip of the rows
 // first, and the cards behind a disclosure, closed, as the app has them -
-// beside the lead drawing since VD-83, in a block of their own.
+// beside the lead drawing since VD-83, in a block of their own. AX-26: the
+// heading is the layout's name alone, and its facts a list under it, from
+// lib/outline.js's layoutFacts as the app draws them.
+const layoutFactList = (entry) =>
+  `<dl class="layout-facts">${layoutFacts(entry)
+    .map(
+      ({ label, value }) =>
+        `<div><dt>${esc(label)}</dt><dd>${
+          value === null
+            ? `<span class="empty">${EMPTY}</span>`
+            : label === LAYOUT_FACT_LABELS.confidence
+              ? confidencePill(value)
+              : esc(value)
+        }</dd></div>`,
+    )
+    .join('')}</dl>`
 const layoutRows = (circuit, entries) =>
   `<div><ol class="layout-strip">${entries
     .map((entry) => `<li><span class="years">${esc(timelineYears(entry))}</span> ${esc(timelineStripName(entry))}</li>`)
@@ -1263,9 +1280,7 @@ const layoutRows = (circuit, entries) =>
           entry.outline
             ? outlineCard(entry.outline.path, circuit, entry.outline.f1db_layout_id, outlineCaption(entry.outline))
             : `<p class="outline-none">${esc(NO_DRAWING)}</p>`
-        }<div><h3>${esc(timelineName(entry))}<span class="years">${esc(timelineYears(entry))}</span>${
-          entry.layout?.length_km ? `<span class="years">${esc(entry.layout.length_km)} km</span>` : ''
-        }${entry.layout ? confidencePill(entry.layout.confidence) : ''}</h3>${
+        }<div><h3>${esc(timelineName(entry))}</h3>${layoutFactList(entry)}${
           entry.layout?.change_reason ? `<p>${esc(entry.layout.change_reason)}</p>` : ''
         }</div></article>`,
     )

@@ -167,6 +167,7 @@ import {
   RUN,
   TO_COME,
   circuitOutlinesNote,
+  layoutFacts,
   layoutTimeline,
   layoutsCount,
   leadOutline,
@@ -1470,6 +1471,15 @@ describe('the circuit outlines (AF-03)', () => {
     // VD-83: the large lead sits in the timeline's section too, so it is named there.
     assert.ok(circuitOutlinesNote(8, true).includes(OUTLINE_LEAD_NOTE))
     assert.ok(!circuitOutlinesNote(1, true).includes(OUTLINE_LEAD_NOTE))
+  })
+  it("lists a timeline card's facts under its heading, and a missing length as not established (AX-26)", () => {
+    const facts = (entry) => layoutFacts(entry).map(({ label, value }) => `${label}=${value}`)
+    const row = { layout_name: 'Grand Prix circuit', from_year: 2010, to_year: null, length_km: 5.891, confidence: 'high' }
+    assert.deepEqual(facts({ layout: row, outline: null }), ['Years=2010–', 'Length=5.891 km', 'Confidence=high'])
+    // A length the register does not hold is null, never 0 or dropped.
+    assert.deepEqual(facts({ layout: { ...row, length_km: null }, outline: null })[1], 'Length=null')
+    // A drawing no row names has the outline's years and nothing of the register's.
+    assert.deepEqual(facts({ layout: null, outline: { first_year: 1955, last_year: 1961 } }), ['Years=1955–1961'])
   })
   it("folds a circuit's timeline and its outlines into one list, and hides neither side's gaps (IX-32)", () => {
     const layout = (id, from, drawn) => ({ id, from_year: from, f1db_layout_id: drawn })

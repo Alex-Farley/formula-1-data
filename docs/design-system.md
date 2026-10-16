@@ -505,13 +505,22 @@ carry it.
   comes from*, on every page type. They sat in five places until VD-83;
   `smoke.mjs` holds the place in both halves (§8, test 13).
 
-### Outline card (core) — pending (AX-26 #509)
+### Outline card (core) — built: the timeline card's heading (AX-26 #509); pending: the caption (CD-62 #1041)
 
 - **Parts:** the drawing on `--stage`, then a **heading or caption in words**:
   *Current layout, raced since 2010 · 5.891 km, 18 turns · outline: F1DB (CC
   BY 4.0), drawn by Jules Roy*. This replaces the schema line *F1DB layout
   silverstone-8 · …*, and the OpenStreetMap sentence appears only where a
-  trace is drawn (content C10; AX-26 #509).
+  trace is drawn (content C10; CD-62 #1041).
+- **A timeline card's heading** (built, AX-26): on a circuit's *Every layout
+  raced here*, the `h3` is the layout's name and nothing else. Its facts —
+  years, the register's length, the confidence pill — are a `<dl
+  class="layout-facts">` under it, each label beside its value and the
+  pairs in a row that wraps, an unheld length the em dash. A link or a run of figures
+  inside a heading reads as one string with no separators, and the pill's
+  link repeats once per card. `lib/outline.js`'s `layoutFacts` gives both
+  renderers the list; `smoke.mjs` holds the heading and the list in both
+  halves.
 
 ### Provenance and citation (core) — built: the name (VD-81); pending: the citation (CD-46 #631)
 
