@@ -350,7 +350,10 @@ export const ONWARD = {
         ? {
             to: `/drivers/${winners[0].driver_id}`,
             label: winners[0].driver,
-            hint: `Has won here ${plural(winners[0].wins, 'time', 'times')} — more than anyone.`,
+            // As ONWARD.grandPrix: level with someone is not "more than anyone".
+            hint: `Has won here ${plural(winners[0].wins, 'time', 'times')} — ${
+              winners[1]?.wins === winners[0].wins ? 'a record shared with others' : 'more than anyone'
+            }.`,
           }
         : null,
         { to: '/circuits', label: 'All circuits', hint: 'Eighty venues, by races held.' },

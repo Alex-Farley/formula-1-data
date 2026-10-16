@@ -3033,8 +3033,12 @@ page({
     // Lotus, so a count of zero would be a figure nobody established. Joined,
     // so a team with neither figure gets no stray ". ." in its description.
     const teamFigures = [
-      teamDerived.entries > 0 ? `${formatted(teamDerived.wins ?? 0)} wins` : '',
-      c.constructors_titles ? `${c.constructors_titles} constructors' titles` : '',
+      teamDerived.entries > 0
+        ? `${formatted(teamDerived.wins ?? 0)} ${teamDerived.wins === 1 ? 'win' : 'wins'}`
+        : '',
+      c.constructors_titles
+        ? `${c.constructors_titles} constructors' ${c.constructors_titles === 1 ? 'title' : 'titles'}`
+        : '',
     ]
       .filter(Boolean)
       .join(', ')
@@ -4014,8 +4018,8 @@ page({
         browser &mdash; and a query&rsquo;s address is a link to it.</p>
       <p class="measure">Where a view exists, start from it. <code>standings</code> keeps a row after every round
         and more than one source&rsquo;s reading of each, so the obvious query over it answers with the season
-        several times over. <code>v_standings_final</code> folds both away: the end-of-season rows, one
-        source&rsquo;s reading of each entrant. What it does not fold is the constructors&rsquo;
+        several times over. <code>v_standings_final</code> folds both away: each season&rsquo;s table as it
+        finished, or as it stands, one source&rsquo;s reading of each entrant. What it does not fold is the constructors&rsquo;
         championship&rsquo;s own grain &mdash; Cooper-Climax and Cooper-Maserati are two 1960 entries and not
         one &mdash; so count that side on <code>constructor_id</code> and <code>engine_id</code> together. The
         console&rsquo;s schema panel prints the commented schema of every table and view, which is where each

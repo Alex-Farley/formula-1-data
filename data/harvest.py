@@ -684,16 +684,17 @@ KNOWN_GAPS = [
      "completed. This is a true null, not missing data.",
      "Nothing to fix - the absence is correct."),
 
-    (9, "qualifying-before-1996", "qualifying.q1", "qualifying session detail before 1996, and sector times",
+    (9, "qualifying-before-1996", "qualifying.q1", "qualifying session detail before 2006, and sector times",
      "open",
      "No sector times, tyre compounds or qualifying session detail before "
-     "1996. A pre-1996 qualifying session was a single time, so there are "
-     "no Q1, Q2 or Q3 figures to hold; sector times were never published "
+     "2006. Before the knockout format a qualifying result is held as a single "
+     "time, so there are no Q1, Q2 or Q3 figures to hold; sector times were never published "
      "before the live-timing era.",
      "Qualifying is held for every completed race - but its SHAPE "
      "changes. Before the knockout format a session is a single time, so q1, "
-     "q2 and q3 are NULL and there is nothing to put in them; from 1996 the "
-     "three segments are recorded and `time` is NULL instead. Neither is "
+     "q2 and q3 are NULL and there is nothing to put in them; from 2006, the "
+     "first knockout season, the three segments are recorded and `time` is "
+     "NULL instead. Neither is "
      "back-filled from the other, and verify.py fails the build if a row "
      "ever carries both. What is missing throughout is sector times, tyre "
      "compound and the lap a time was set on, none of which was published "

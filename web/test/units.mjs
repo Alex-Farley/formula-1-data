@@ -143,7 +143,7 @@ import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructo
 import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, recordFigures } from '../src/queries/constructor.js'
 import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
 import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
-import { raceSteps } from '../src/lib/wayfinding.js'
+import { ONWARD, raceSteps } from '../src/lib/wayfinding.js'
 import { NEIGHBOURS as RACE_NEIGHBOURS } from '../src/queries/race.js'
 import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
@@ -3073,5 +3073,18 @@ describe('one eyebrow rule: the page type, then the facts that identify the enti
     } finally {
       db.close()
     }
+  })
+})
+
+describe("a circuit's onward band says a shared record is shared (CR-50)", () => {
+  const winner = (driver_id, wins) => ({ driver_id, driver: driver_id, wins })
+  const hint = (winners) => ONWARD.circuit({ races: [], winners }).items.find((item) => item?.to?.startsWith('/drivers/')).hint
+
+  it('a lone record is more than anyone', () => {
+    assert.equal(hint([winner('a', 5), winner('b', 4)]), 'Has won here 5 times — more than anyone.')
+    assert.equal(hint([winner('a', 1)]), 'Has won here 1 time — more than anyone.')
+  })
+  it('a record level with another driver is shared, not more than anyone', () => {
+    assert.equal(hint([winner('a', 5), winner('b', 5), winner('c', 2)]), 'Has won here 5 times — a record shared with others.')
   })
 })
