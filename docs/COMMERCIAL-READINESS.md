@@ -312,7 +312,7 @@ on, and for a solicitor to check if they choose to ask one. **It is an
 analysis, not legal advice.** It relicenses nothing, releases nothing and
 changes nothing in `LICENSE-DATA`; the ruling above is what it informed.
 
-Of the rows here, <!-- fig:wp_race_rows -->2,253<!-- /fig --> — <!-- fig:wp_races -->1,125<!-- /fig --> of `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries`, every
+In this database, <!-- fig:wp_race_rows -->2,253<!-- /fig --> rows — <!-- fig:wp_races -->1,125<!-- /fig --> of `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries`, every
 championship race from <!-- fig:wp_first_season -->1950<!-- /fig --> to <!-- fig:wp_last_season -->2024<!-- /fig --> and its winner — cite a Wikipedia season article.
 Wikipedia is a `yes` source, so they ship today under CC BY-SA and the class
 table counts them as redistributable. The question here is narrower: whether

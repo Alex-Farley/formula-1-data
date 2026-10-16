@@ -775,7 +775,11 @@ class NoLineOpensOnAFigureSpan(unittest.TestCase):
     it render as one.
     """
 
-    LEAD = re.compile(r"^[ \t>]*(?:(?:[-*+]|\d+[.)])[ \t]+)?<!-- fig:[a-z0-9_]+ -->(?![ \t]*$)")
+    # The closing `<!-- /fig -->` opens an HTML block just as the opening
+    # comment does, so a line starting on it with text after is the same fault.
+    LEAD = re.compile(r"^[ \t>]*(?:(?:[-*+]|\d+[.)])[ \t]+)?<!-- (?:fig:[a-z0-9_]+|/fig) -->(?![ \t]*$)")
+    # A fence closes only on a run of its own character at least as long.
+    FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 
     def documents(self):
         import importlib.util
@@ -794,11 +798,16 @@ class NoLineOpensOnAFigureSpan(unittest.TestCase):
                 text = f.read()
             # A document with no spans would pass for the wrong reason.
             self.assertTrue(span.search(text), f"{os.path.relpath(path, ROOT)} holds no figure span")
-            fenced = False
+            fence = None
             for number, line in enumerate(text.splitlines(), 1):
-                if re.match(r"^ {0,3}(```|~~~)", line):
-                    fenced = not fenced
-                elif not fenced and self.LEAD.match(line):
+                m = self.FENCE.match(line)
+                if fence is None and m:
+                    fence = m.group(1)
+                elif fence is not None:
+                    if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) \
+                            and not line.strip()[len(m.group(1)):].strip():
+                        fence = None
+                elif self.LEAD.match(line):
                     found.append(f"{os.path.relpath(path, ROOT)}:{number}")
         self.assertEqual(found, [], "a line opens on a figure span, which CommonMark reads as "
                                     "an HTML block that cuts the line out of its paragraph. "
