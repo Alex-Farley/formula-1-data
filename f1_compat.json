@@ -508,7 +508,7 @@
     },
     {
       "round": 4,
-      "country": "United States",
+      "country": "United States of America",
       "city": "Miami Gardens, Florida",
       "dates": "01-03 May 2026",
       "circuit_name": "Miami International Autodrome",
@@ -648,7 +648,7 @@
     },
     {
       "round": 18,
-      "country": "United States",
+      "country": "United States of America",
       "city": "Austin, Texas",
       "dates": "23-25 Oct 2026",
       "circuit_name": "Circuit of The Americas",
@@ -678,7 +678,7 @@
     },
     {
       "round": 21,
-      "country": "United States",
+      "country": "United States of America",
       "city": "Las Vegas, Nevada",
       "dates": "19-21 Nov 2026",
       "circuit_name": "Las Vegas Strip Circuit",
