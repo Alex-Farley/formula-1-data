@@ -217,9 +217,10 @@ Every text block is one of five kinds. Its kind sets its width.
    a footer band with a hairline as wide as the box. Its lines stop at the
    measure. The band matches the table, and the text stays legible.
    The figure's band is VD-80's and the table's VD-86's: both renderers
-   print a table's source line in its footer band, its lines stopping at
-   `--measure-small`, and `smoke.mjs` (*Both renderers draw one page*)
-   fails one left under its box in either half.
+   print a table's source line in its footer band, a figure's numbers
+   included, its lines stopping at `--measure-small`, and `smoke.mjs`
+   (*Both renderers draw one page*) fails one left under its table or its
+   figure in either half.
 3. **A framed note** (disagreement, citation, *Where this comes from*) is a
    box: **the box spans its column**, and its lines stop at the measure (the
    citation's at `--measure-small`). A note box has one edge, its left rule,
@@ -752,7 +753,7 @@ control (VD-82).
 |---|---|---|
 | WCAG A/AA on the ten smoke routes | **floor** | axe-core in `web/test/smoke.mjs` (and 0 violations on 104 runs across 26 routes on 2026-10-06) |
 | Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); `smoke.mjs` *Sorting* focuses a sort button and a console example from the keyboard and reads the ring (VD-82) |
-| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it |
+| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. A block wholly to the right of an earlier one is a column read after it, and may start higher. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it |
 | Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
 | Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27) |
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |
@@ -832,8 +833,9 @@ VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
    on a left or right edge that is not a grid line, the measure or the full
    width. This is the test that would have caught 5–6 October. The same
    walk, at 400 too, fails a block drawn to the left of an earlier sibling
-   on its row or above it in its column, but the opening slot beside the
-   header (§6): DOM order is reading order (§7).
+   on its row or above it in its column, a column to the right being read
+   after the one to its left, and the opening slot beside the header
+   declared (§6): DOM order is reading order (§7).
 5. **One page, two renderers.** On every smoke route, the static page's
    section headings and their order equal the app's, and so do its header,
    child for child, and its tile strips (`smoke.mjs`, *Both renderers draw

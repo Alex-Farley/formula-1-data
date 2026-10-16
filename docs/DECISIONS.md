@@ -250,14 +250,15 @@ what the system promises, so it was the maintainer's ruling under §8's
 *Changing or reversing*.
 
 The maintainer ruled on #947, 2026-10-14: the third, as best for
-accessibility. A bounded box is a nested scroller, which traps touch and
-magnifier users, and the Back contract (IX-46) would have had to restore its
-scroll as well as the page's. A follower is a scroll-linked effect on the
-main thread that lags on a phone, and either keeps something laid over a
-focused cell. A screen reader announces a cell's column from its `th`
-wherever that is drawn, so the heads' position costs it nothing. What it
-costs is a sighted reader of a wide table on a phone, who loses the column
-names once the heads scroll away; that is VD-99 (#972), an item of its own.
+accessibility. The ruling's reasons: no nested scroller to trap touch or
+magnifier users, nothing laid over a focused cell, and a screen reader
+announces a cell's column from its `th` whatever its position. The item
+had also counted the other options' costs: a bounded box would have made
+the Back contract (IX-46) restore the box's scroll as well as the page's,
+and a follower is a scroll-linked effect on the main thread that lags on a
+phone. What the third costs is a sighted reader of a wide table on a phone,
+who loses the column names once the heads scroll away; that is VD-99
+(#972), an item of its own.
 
 `smoke.mjs` (*Sticky column heads*) holds all three cases: heads under the
 masthead on a table that fits, at the top of the box on a figure's numbers,

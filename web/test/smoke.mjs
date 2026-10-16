@@ -2796,8 +2796,9 @@ try {
      * VD-86), at 400 as well: among the blocks of one container, a later one
      * never stands to the left of an earlier one on its row, nor above it in
      * its column. A later block wholly to the right is a column read after
-     * the one before it - the opening slot beside the header and tiles - and
-     * may start higher. A grid placement or an `order` that lifted a block
+     * the one before it, and may start higher; the opening slot, declared
+     * below, is the one block excused for starting above an earlier block
+     * it is not wholly right of. A grid placement or an `order` that lifted a block
      * above earlier markup would put it first for the eye and last for a
      * screen reader or the Tab key.
      */
@@ -8520,13 +8521,9 @@ try {
           sections: [...(main?.querySelectorAll('h2') ?? [])].map(named),
           // A table's source line under its box rather than in its band
           // (VD-86): the paragraph either half used to print there.
-          // A figure's numbers are a table too, and the line under them is
-          // the figure's, in its own frame (VD-80).
-          loose: [
-            ...(main?.querySelectorAll(
-              '.table-wrap:not(.figure .table-wrap) + p.source-note, .table-wrap:not(.figure .table-wrap) + p.faint',
-            ) ?? []),
-          ].map(flatten),
+          // A figure's numbers are a table too, and theirs is in their band;
+          // on a figure, a loose line could also follow the figure itself.
+          loose: [...(main?.querySelectorAll('.table-wrap + p.source-note, .table-wrap + p.faint, figure.figure + p.source-note, figure.figure + p.faint') ?? [])].map(flatten),
           // What a screen reader's list of controls reads (DP-30, DP-31):
           // each disclosure's name - its face and the hidden name a fold
           // carries, the closed face only, as the open one is hidden while

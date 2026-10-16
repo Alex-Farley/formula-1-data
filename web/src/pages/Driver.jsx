@@ -176,9 +176,12 @@ function ThisSeason({ name, rows: calendar, standings }) {
     <Section title={thisSeasonHeading(calendar)} note={thisSeasonLine(calendar, standings)}>
       <Figure
         note={thisSeasonFigureNote(toCome, inColour ? colourSource(placed.map((d) => d.colour)) : null, mixed)}
+        // The footer is the table's source line, so it goes in the band of
+        // the numbers, as the static page prints it under its table (VD-86).
         table={{
           rows: run,
           columns: THIS_SEASON_COLUMNS.map((column) => ({ ...column, ...THIS_SEASON_APP[column.key] })),
+          footer,
         }}
       >
         <DotPlot
@@ -205,7 +208,6 @@ function ThisSeason({ name, rows: calendar, standings }) {
           label={`Finishing position in each round of ${season} for ${name}`}
         />
       </Figure>
-      {footer && <p className="source-note">{footer}</p>}
     </Section>
   )
 }

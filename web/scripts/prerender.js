@@ -1063,10 +1063,13 @@ const timeline = (milestones) =>
  * open here rather than behind the app's disclosure, because there is no
  * chart above it to be the thing on display.
  */
-const figure = (name, figureNote, body, { plot = '', footer } = {}) =>
+// What the numbers hold that the plot does not draw is their table's own
+// source line, in that table's band (`footer` on fromColumns), as Figure.jsx
+// passes `table.footer` to DataTable (VD-86); the figure prints none of its own.
+const figure = (name, figureNote, body, { plot = '' } = {}) =>
   `<figure class="figure" aria-label="${esc(name)}">${plot ? `<div class="figure-body">${plot}</div>` : ''}<p class="figure-note"><span>${esc(
     figureNote,
-  )}</span></p>${body}${note(footer)}</figure>`
+  )}</span></p>${body}</figure>`
 
 /*
  * Grid to flag (PD-30), drawn: charts/GridFlag.jsx's elements and classes,
@@ -1196,9 +1199,8 @@ const pitSection = (race, entryRows, pits, span) => {
   const rows = stintRows(entryRows, pits)
   if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
   const pairs = pitPairs(entryRows, pits)
-  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure }), {
+  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure, footer: stintsUnbarred(unbarredOf(entryRows, pits)) }), {
     plot: stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows)),
-    footer: stintsUnbarred(unbarredOf(entryRows, pits)),
   })}${
     pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs, {}, { unfolded: UNFOLDED.subject, footer: PIT_ORDER_NOTE })}` : ''
   }`
@@ -2664,9 +2666,9 @@ const page = ({
                 gridFlagNote(flag),
                 fromColumns(
                   GRID_FLAG_COLUMNS,
-                  flag.map((r) => r.entry), {}, { unfolded: UNFOLDED.figure },
+                  flag.map((r) => r.entry), {}, { unfolded: UNFOLDED.figure, footer: gridFlagUndrawn(undrawnOf(entryRows)) },
                 ),
-                { plot: gridFlagSvg(gridFlagLayout(entryRows), gridFlagLabel(flag)), footer: gridFlagUndrawn(undrawnOf(entryRows)) },
+                { plot: gridFlagSvg(gridFlagLayout(entryRows), gridFlagLabel(flag)) },
               )}</section>`
             : ''
         }
