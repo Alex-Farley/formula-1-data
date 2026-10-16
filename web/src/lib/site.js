@@ -90,6 +90,11 @@ export const NAMES = {
   notFound: () => named('No such page'),
 }
 
+/** The 404's lede, read by NotFound.jsx and scripts/prerender.js, so the
+ * static page says what the app does above the same onward band (IA-26). */
+export const NOT_FOUND_LEDE =
+  'That address is not one this site has. Press Ctrl K, or Cmd K on a Mac, to search every driver, team, circuit, car, season and race at once — or pick up one of these.'
+
 /**
  * The line above a page's h1, for the seven kinds of entity page (VD-79,
  * DP-03): read by the page and by scripts/prerender.js, so both renderers

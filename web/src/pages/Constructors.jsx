@@ -31,6 +31,7 @@ const APP = {
             className="livery"
             style={colour ? { '--livery': colour.css } : undefined}
             title={colour ? `${colour.name} — the racing colour of ${row.country}` : 'no racing colour recorded'}
+            aria-hidden="true"
           />
           <Link to={`/constructors/${row.id}`}>{name}</Link>
         </>
