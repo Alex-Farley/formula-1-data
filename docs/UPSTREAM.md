@@ -119,8 +119,8 @@ Both issues are opened as items of the queue (AF-89): assigned to the
 repository's owner, so GitHub tells them, and given an `AF-n` id and the
 labels `file.py new` would, so the backlog loop takes them. The job cannot
 write the Lap Ledger board, which is user-owned; `next.py` reads an open
-alarm with no status as *Now*, above what a person placed there, so the
-next loop fork takes it first. Neither is
+alarm with no status as *Now*, and puts it and any alarm at *Now* above what
+a person placed there, so the next loop fork takes it first. Neither is
 closed by a pull request: a fix says `Refs #n`, and the next run that proves
 it closes the issue.
 

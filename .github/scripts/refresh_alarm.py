@@ -23,8 +23,9 @@ AN ITEM OF THE QUEUE (AF-89)
     issue to the board with no status, and this job's token cannot write a
     user-owned board at all; `next.py` reads an open alarm with no status,
     or not on the board, as *Now*, at the top of it, so the next loop fork
-    takes it first (AF-111, ruled on #970). A person who gives it a status
-    is obeyed.
+    takes it first (AF-111, ruled on #970). One at *Now* heads it too,
+    whoever set it (AF-112): a person who wants it lower gives it *Next* or
+    *Someday*, which is obeyed.
 
     The id costs an issue-list read. If that read fails the alarm opens
     without one rather than not at all - a person told is the half that

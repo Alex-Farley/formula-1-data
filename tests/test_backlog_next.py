@@ -6,7 +6,9 @@ the issue read, so these tests need no GitHub. The case they exist for is
 refresh.yml's alarm (AF-89): the workflow opens it as an item but cannot
 write the board, so an alarm with no status - or not on the board at all -
 has to reach the queue at the top of *Now*, where the next fork takes it
-(AF-111), and a status a person gives it has to win.
+(AF-111). So does one at *Now*, whoever set it, because the loop writes *Now*
+on an alarm it has touched and the board cannot tell that from a person
+(AF-112); *Next*, *Someday* and *In progress* are obeyed.
 """
 import importlib.util
 import os
@@ -69,17 +71,31 @@ class QueueRows(unittest.TestCase):
                           issue(9, "AF-94: alarm", "refresh-failing")])
         self.assertEqual(self.ranked(rows), [6, 9, 4, 1])
 
-    def test_an_alarm_a_person_put_in_now_keeps_its_place(self):
-        rows = self.rows([(1, "Now", 0), (2, "Now", 0), (3, "Now", 0)],
+    def test_an_alarm_at_now_heads_now_whoever_set_it(self):
+        # merge-step.py writes *Now* on an alarm after a fix merges, and the
+        # issue is auto-added, so it sits at the foot of *Now*; if the next
+        # refresh fails again it must still be taken first (AF-112).
+        rows = self.rows([(1, "Now", 0), (3, "Now", 0), (2, "Now", 0)],
                          [issue(1, "AF-01: a"), issue(2, "AF-94: alarm", "refresh-failing"),
                           issue(3, "AF-03: c")])
-        self.assertEqual(self.ranked(rows), [1, 2, 3])
+        self.assertEqual(self.ranked(rows), [2, 1, 3])
+        self.assertEqual(rows[0]["status"], "Now")
 
-    def test_a_status_a_person_gave_an_alarm_is_obeyed(self):
-        rows = self.rows([(2, "Someday", 0), (4, "In progress", 0)],
-                         [issue(2, "AF-94: alarm", "refresh-failing"),
+    def test_alarms_at_now_and_with_no_status_head_now_in_board_order(self):
+        rows = self.rows([(1, "Now", 0), (7, "", 0), (2, "Now", 0)],
+                         [issue(1, "AF-01: a"), issue(2, "AF-94: alarm", "refresh-failing"),
+                          issue(7, "AF-97: alarm", "results-late")])
+        self.assertEqual(self.ranked(rows), [7, 2, 1])
+
+    def test_a_status_other_than_now_on_an_alarm_is_obeyed(self):
+        rows = self.rows([(1, "Next", 0), (5, "Next", 0), (3, "Someday", 0),
+                          (2, "Someday", 0), (4, "In progress", 0)],
+                         [issue(1, "AF-01: a"), issue(5, "AF-96: alarm", "refresh-failing"),
+                          issue(3, "AF-03: c"), issue(2, "AF-94: alarm", "refresh-failing"),
                           issue(4, "AF-95: alarm", "results-late")])
-        self.assertEqual([r["status"] for r in rows], ["Someday", "In progress"])
+        self.assertEqual([(r["number"], r["status"]) for r in rows],
+                         [(1, "Next"), (5, "Next"), (3, "Someday"), (2, "Someday"),
+                          (4, "In progress")])
 
     def test_an_ordinary_issue_with_no_status_stays_unplaced(self):
         rows = self.rows([(5, "", 0)], [issue(5, "AF-05: filed in the web UI")])

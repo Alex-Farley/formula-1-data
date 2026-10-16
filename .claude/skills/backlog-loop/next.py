@@ -43,8 +43,12 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   above everything a person placed there, so the next fork takes it: fresh
   data comes first, and a failing refresh is fixed by the loop or the
   maintainer (ruled on #970 `AF-111`, which reverses `[D-36]` for alarms
-  alone). Any status a person gives it is obeyed, and keeps its board
-  place `AF-89`.
+  alone). An open alarm whose status is *Now* heads *Now* too, whoever set
+  it: the loop writes *Now* on one after a fix merges and when it puts a
+  status back, and cannot be told from a person by the board, so dragging
+  an alarm down inside *Now* does not hold (decided 2026-10-15 `AF-112`).
+  To push one down, give it *Next* or *Someday*; those, and *In progress*,
+  are obeyed and keep their board place `AF-89`.
 
 `--group` prints a second block under the item: the open items, **of any
 size**, in the item's own status or the next one down, that share a file
@@ -113,7 +117,8 @@ QUEUE = ("Now", "Next", "Someday")
 CACHE_TTL = 120
 ID = re.compile(r"^([A-Z]{2}-[0-9Ø]+): ")
 # refresh_alarm.py's two labels. An open issue carrying one is in the queue
-# under *Now* until a person says otherwise - see the docstring.
+# at the top of *Now* until a person moves it out of *Now* - see the
+# docstring.
 ALARMS = frozenset({"refresh-failing", "results-late"})
 # The three signals a group is proposed on, read out of a title and body.
 # A path or a route is a claim about where the work lands; a cross-reference
@@ -384,11 +389,11 @@ def queue_rows(board, open_issues):
     """The open issues as rows, in board order: `board` is board_rows(),
     `open_issues` {number: the issue list's issue}.
 
-    The one exception to board order: an alarm with no status, and one the
-    board does not hold, is given *Now* and put ahead of every other row, so
-    it heads *Now* either way - those on the board in board order, then those
-    off it by number. An alarm a person gave a status is an ordinary row
-    `AF-89` `AF-111`."""
+    The one exception to board order: an alarm with no status or with *Now*,
+    and one the board does not hold, is given *Now* and put ahead of every
+    other row, so it heads *Now* whoever set it - those on the board in
+    board order, then those off it by number. An alarm at any other status
+    is an ordinary row `AF-89` `AF-111` `AF-112`."""
     def alarm(issue):
         return bool(ALARMS & {lb["name"] for lb in issue["labels"]})
 
@@ -403,7 +408,7 @@ def queue_rows(board, open_issues):
         if issue is None:
             continue
         placed.add(n)
-        if not status and alarm(issue):
+        if status in ("", None, "Now") and alarm(issue):
             first.append(row(n, "Now", waits[0] if waits else 0, issue))
         else:
             rows.append(row(n, status, waits[0] if waits else 0, issue))
