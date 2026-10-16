@@ -48,9 +48,10 @@ header and the handover), VD-80 (#867, one figure grammar), VD-81 (#868,
 one vocabulary), VD-82 (#869, one reveal control, with sort and fold in
 the address), VD-83 (#870, one section order per page type) and VD-84
 (#871, the opening slot and the middle type register) are built: all seven.
-VD-86 (#884) holds the core rules none of the seven named. **A step's pull request moves
-the sections it builds from pending to built**, in this file, in the same
-change.
+VD-86 (#884) built the core rules none of the seven named, but for the
+Loading, Empty and Error states, which are VD-100's (#1023). **A step's
+pull request moves the sections it builds from pending to built**, in this
+file, in the same change.
 
 ---
 
@@ -127,7 +128,7 @@ role and not a number:
 | Between blocks in a section; the gutter | `--space-8` (24) |
 | Between a heading and its block | `--space-6` (12) |
 | Inside a tile or frame | `--space-6` / `--space-7` |
-| Between card siblings (photos, onward cards, record cards, outline cards) | `--space-6` (12). Pending: the card grids still use several gaps (VD-86 #884) |
+| Between card siblings (photos, onward cards, record cards, outline cards, the outline strip) | `--space-6` (12), at every width; `conventions.mjs` holds every card grid to it (VD-86) |
 
 ### Type — built: the scale and the middle register (VD-84)
 
@@ -205,7 +206,7 @@ Both themes keep their measured contrast (the figures are in the
 Every recurring block, with its job, its parts, its widths and its states.
 **Core** unless marked **A**.
 
-### The text-width rule (core, asked for on #843) — built (VD-78), but for kind 2's band
+### The text-width rule (core, asked for on #843) — built (VD-78, VD-80, VD-86)
 
 Every text block is one of five kinds. Its kind sets its width.
 
@@ -215,8 +216,10 @@ Every text block is one of five kinds. Its kind sets its width.
    line, the "same on every row" line) is drawn **inside the box's frame**:
    a footer band with a hairline as wide as the box. Its lines stop at the
    measure. The band matches the table, and the text stays legible.
-   The figure's band is built (VD-80). *Pending:* a table's source line
-   still sits under its box at `--measure-small` until VD-86 (#884).
+   The figure's band is VD-80's and the table's VD-86's: both renderers
+   print a table's source line in its footer band, its lines stopping at
+   `--measure-small`, and `smoke.mjs` (*Both renderers draw one page*)
+   fails one left under its box in either half.
 3. **A framed note** (disagreement, citation, *Where this comes from*) is a
    box: **the box spans its column**, and its lines stop at the measure (the
    citation's at `--measure-small`). A note box has one edge, its left rule,
@@ -384,7 +387,7 @@ and not yet the three charts (VD-73 #822).
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
-### Table (core) — built (VD-82, AX-21, VD-84, VD-89), but for sticky heads on a table wider than its box (VD-98 #947); provisional: a table that fits its box (IX-45 #848)
+### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -392,12 +395,15 @@ and not yet the three charts (VD-73 #822).
   - sticky column heads (VD-89): under the masthead on a table that fits
     its box, which DataTable marks `data-fits` and whose scroller then goes,
     so the page holds them; at the top of the box on a figure's numbers,
-    which scroll in a box of their own. A table wider than its box keeps
-    its scroller, a scroll container in both axes that never moves
-    vertically, and its heads stay at its top until VD-98 (#947) is
-    decided. `smoke.mjs` (*Sticky column heads*) holds all three;
+    which scroll in a box of their own. **A table wider than its box has
+    no sticky heads** (VD-98, `[D-57]`): it keeps its scroller, a scroll
+    container in both axes that never moves vertically, and each way of
+    holding the heads anyway cost a nested scroller or a script. What a
+    phone reader loses by it is VD-99 (#972). `smoke.mjs` (*Sticky column
+    heads*) holds all three;
   - a footer band holding the source line on the left and *Copy* and *CSV*
-    on the right;
+    on the right; the static page's band holds the line alone, as the two
+    buttons need a script (VD-86);
   - the **fold**.
 - **The fold is the one reveal control.** It applies to any table over 25
   rows (`FOLD_OVER`) unless the table opts out with a reason. Its button
@@ -457,7 +463,7 @@ and not yet the three charts (VD-73 #822).
   in both halves, their classification and qualifying sheets (*the
   classification and the qualifying sheets fit their box*).
 
-### Notes, attached notes and the disagreement box (core) — built (VD-78), but for the source line's band
+### Notes, attached notes and the disagreement box (core) — built (VD-78, VD-86)
 
 | Block | Kind (text rule) | Frame |
 |---|---|---|
@@ -475,11 +481,13 @@ footer band, naming the row, so it is text that belongs to a box (kind 2).
 The mark is in the column's `text` too, so both renderers and a copied file
 carry it.
 
-### Photo strip (core) — built: the place (VD-83); pending: the columns (VD-86 #884)
+### Photo strip (core) — built: the place (VD-83) and the columns (VD-86)
 
 - **Job:** what something looked like, credited.
 - **Parts:** photo cards on column multiples: 4 to a row from 1180, 2 from
-  768, 1 below. That removes today's 5 + 1 orphan. Each photograph is
+  768, 1 below, in both halves. That removed the 5 + 1 orphan auto-fill
+  drew at 1440; `smoke.mjs` (*The photo strip*) counts the first row at
+  six widths, either side of each breakpoint. Each photograph is
   credited through `CommonsCredit` and **fails closed**: no attribution, no
   image (**floor**, the one attribution rule).
 - **Place:** after the page's own sections and straight before *Where this
@@ -535,7 +543,7 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
-### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-86 #884)
+### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-100 #1023)
 
 | State | Rule |
 |---|---|
@@ -706,9 +714,9 @@ puts the classification before the outline (visual defect 7).
 
 ## 6. Interaction rules (core) — built in part
 
-Built: the keyboard floor, but for reading order, a floor no test holds
-yet (VD-86 #884); nothing moving at the handover (VD-79); and state in the
-address and the one reveal control (VD-82).
+Built: the keyboard floor, reading order included (VD-86); nothing moving
+at the handover (VD-79); and state in the address and the one reveal
+control (VD-82).
 
 - **Keyboard (floor):**
   - every control is reachable;
@@ -744,7 +752,7 @@ address and the one reveal control (VD-82).
 |---|---|---|
 | WCAG A/AA on the ten smoke routes | **floor** | axe-core in `web/test/smoke.mjs` (and 0 violations on 104 runs across 26 routes on 2026-10-06) |
 | Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); `smoke.mjs` *Sorting* focuses a sort button and a console example from the keyboard and reads the ring (VD-82) |
-| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor**, not yet enforced | pending (VD-86 #884): the edge test also checks order |
+| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it |
 | Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
 | Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27) |
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |
@@ -809,7 +817,7 @@ The system is held by tests, not by memory.
 **The system's own tests, one each, so a drift fails the build.** Built in
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
 Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12. Built in
-VD-83: 13. Built in VD-84: 14.
+VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -822,7 +830,10 @@ VD-83: 13. Built in VD-84: 14.
 4. **Edges land on the grid.** `smoke.mjs` measures each top-level block of
    `main` on the driver, race and circuit pages at 1440 and 1024, and fails
    on a left or right edge that is not a grid line, the measure or the full
-   width. This is the test that would have caught 5–6 October.
+   width. This is the test that would have caught 5–6 October. The same
+   walk, at 400 too, fails a block drawn to the left of an earlier sibling
+   on its row or above it in its column, but the opening slot beside the
+   header (§6): DOM order is reading order (§7).
 5. **One page, two renderers.** On every smoke route, the static page's
    section headings and their order equal the app's, and so do its header,
    child for child, and its tile strips (`smoke.mjs`, *Both renderers draw
@@ -883,6 +894,11 @@ VD-83: 13. Built in VD-84: 14.
     target 6 px wide at 1180, a team over `SLOT_MARKS` has no slot, and a
     page with nothing for it keeps its header and tiles the page's width
     (`smoke.mjs`, *The opening slot*).
+15. **One card gap and one photo strip.** Every card grid in `app.css` -
+    the photo strip, the record, onward and outline cards, the outline
+    strip - gaps its cards by `--space-6` at every width
+    (`conventions.mjs`), and the photo strip holds 4 to a row from 1180, 2
+    from 768 and 1 below, in both halves (`smoke.mjs`, *The photo strip*).
 
 ### How a change to the system is made
 

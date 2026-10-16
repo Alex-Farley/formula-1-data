@@ -171,8 +171,8 @@ function Body({ data }) {
           rowKey={(row) => row.confidence}
           sortable={false}
           columns={withRenders(PROVENANCE_COLUMNS, PROVENANCE_APP)}
+          footer={LADDER_NOTE}
         />
-        <p className="source-note">{LADDER_NOTE}</p>
       </Section>
 
       <Section title="How the database is distributed across it">

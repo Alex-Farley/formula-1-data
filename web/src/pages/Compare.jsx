@@ -155,7 +155,10 @@ function Pair({ data }) {
           columns={careerColumns(nameA, nameB)}
           footer={COMPARE_CAVEAT}
         />
-        <p className="source-note">
+        {/* A plain paragraph, as under the driver page's team-mates: these
+            are two links on, not a source line, and a table's source line
+            is in its band (COMPARE_CAVEAT above). */}
+        <p>
           The whole of each career: <Link to={`/drivers/${driverA.id}`}>{nameA}</Link> ·{' '}
           <Link to={`/drivers/${driverB.id}`}>{nameB}</Link>
         </p>

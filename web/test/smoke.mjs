@@ -2791,6 +2791,15 @@ try {
      * column line of the grid tokens.css names, and ends on one, at the
      * measure or at the full width. Measured at 1440 (12 columns) and 1024
      * (8), in the app and in the static page, which share the stylesheet.
+     *
+     * The same walk holds DOM order to reading order (section 7's floor,
+     * VD-86), at 400 as well: among the blocks of one container, a later one
+     * never stands to the left of an earlier one on its row, nor above it in
+     * its column. A later block wholly to the right is a column read after
+     * the one before it - the opening slot beside the header and tiles - and
+     * may start higher. A grid placement or an `order` that lifted a block
+     * above earlier markup would put it first for the eye and last for a
+     * screen reader or the Tab key.
      */
     const readEdges = (scope) => {
       const main = document.querySelector(scope)
@@ -2810,7 +2819,9 @@ try {
       const OPEN = 'header, section, .split, .with-outline, .slot'
       const name = (n) => n.tagName.toLowerCase() + [...n.classList].map((c) => `.${c}`).join('')
       const blocks = []
+      const misordered = []
       const walk = (node, trail) => {
+        const earlier = []
         for (const child of node.children) {
           const s = getComputedStyle(child)
           const b = child.getBoundingClientRect()
@@ -2818,6 +2829,20 @@ try {
           if (!shown || child.matches('.sr-only')) continue
           const path = trail ? `${trail} > ${name(child)}` : name(child)
           blocks.push({ path, left: b.left - L, right: b.right - L })
+          // Declared: version A's opening slot stands beside the header and
+          // above the tiles that come before it in the markup, and is read
+          // header, tiles, slot - the order section 6 keeps and section 7
+          // rules correct (#843). Beside the header, and only there.
+          const beside = child.matches('.slot') && earlier.some((e) => e.header && b.left >= e.right - 1 && b.top < e.bottom - 1)
+          for (const a of earlier) {
+            const leftOf = b.right <= a.left + 1 && b.top < a.bottom - 1
+            const lifted = !beside && b.left < a.right - 1 && b.right > a.left + 1 && b.top < a.top - 1
+            if (leftOf || lifted) {
+              misordered.push(`${path} is ${leftOf ? 'left of' : 'above'} ${a.path}, which comes before it`)
+              break
+            }
+          }
+          earlier.push({ path, top: b.top, bottom: b.bottom, left: b.left, right: b.right, header: child.matches('header') })
           if (child.matches(OPEN)) walk(child, path)
         }
       }
@@ -2829,6 +2854,7 @@ try {
         measure: probe('--measure'),
         small: probe('--measure-small'),
         blocks,
+        misordered,
       }
     }
     const COLUMNS = { 1440: 12, 1024: 8 }
@@ -2865,7 +2891,19 @@ try {
           is(got.columns, COLUMNS[width], `${route} at ${width}, ${half}: the grid has ${COLUMNS[width]} columns`)
           atLeast(got.blocks.length, 8, `${route} at ${width}, ${half}: blocks measured`)
           is(off(got).join(' · '), '', `${route} at ${width}, ${half}: every block starts on a column line and ends on one, at the measure or at the full width`)
+          is(got.misordered.join(' · '), '', `${route} at ${width}, ${half}: every block is read in the order it is drawn`)
         }
+      }
+      // A phone's one column is where an `order` or a grid row would show.
+      await page.setViewportSize({ width: 400, height: 900 })
+      await plain.setViewportSize({ width: 400, height: 900 })
+      await settle()
+      for (const [half, got] of [
+        ['the app', await page.evaluate(readEdges, '#root main')],
+        ['the static page', await plain.evaluate(readEdges, '#prerendered main')],
+      ]) {
+        atLeast(got.blocks.length, 8, `${route} at 400, ${half}: blocks measured`)
+        is(got.misordered.join(' · '), '', `${route} at 400, ${half}: every block is read in the order it is drawn`)
       }
     }
     await noJs.close()
@@ -2919,6 +2957,54 @@ try {
       row.map(() => 0).join(' '),
       '/records: opening the first card’s derivation leaves its neighbours’ disclosures where they were',
     )
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  await section('The photo strip  (four to a row from 1180, two from 768, one below, in both halves: VD-86)', async () => {
+    /*
+     * docs/design-system.md section 3, *Photo strip*. The strip was auto-fill
+     * from 230 px, which put six photographs in a row of five and one at
+     * 1440. It is on column multiples now, and both halves draw it from the
+     * same rules, the static page's own ceiling on a card gone with it.
+     */
+    const team = db
+      .prepare('SELECT id, name FROM constructors WHERE constructors_titles > 0 ORDER BY constructors_titles DESC, id')
+      .all()
+      .find((c) => db.prepare(CONSTRUCTOR_IMAGES).all(c.id).filter(canShow).length >= PHOTOGRAPHS_SHOWN)
+    if (!team) {
+      fail(`no constructor with a title has ${PHOTOGRAPHS_SHOWN} photographs to read the strip on`)
+      return
+    }
+    const route = `/constructors/${team.id}`
+    // The cards of the strip's first row, and how many it holds in all.
+    const firstRow = (scope) => {
+      const cards = [...document.querySelector(scope).querySelectorAll('.photo-grid')[0].children]
+      const top = cards[0].getBoundingClientRect().top
+      return { row: cards.filter((card) => Math.abs(card.getBoundingClientRect().top - top) < 1).length, all: cards.length }
+    }
+    await go(route, team.name)
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+    for (const [width, perRow] of [
+      [1440, 4],
+      [1180, 4],
+      [1179, 2],
+      [768, 2],
+      [767, 1],
+      [400, 1],
+    ]) {
+      await page.setViewportSize({ width, height: 900 })
+      await plain.setViewportSize({ width, height: 900 })
+      for (const [half, got] of [
+        ['the app', await page.evaluate(firstRow, '#root main')],
+        ['the static page', await plain.evaluate(firstRow, '#prerendered main')],
+      ]) {
+        is(got.all, PHOTOGRAPHS_SHOWN, `${route} at ${width}, ${half}: the strip draws its ${PHOTOGRAPHS_SHOWN}`)
+        is(got.row, perRow, `${route} at ${width}, ${half}: ${perRow} to a row`)
+      }
+    }
+    await noJs.close()
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 
@@ -4559,9 +4645,11 @@ try {
       position: getComputedStyle(w.querySelector('thead th')).position,
       page: document.documentElement.scrollWidth <= innerWidth,
     }))
+    // A table that scrolls sideways has no sticky heads, by ruling (VD-98,
+    // docs/DECISIONS.md D-57): no nested scroller, nothing over a focused cell.
     truthy(
       !wide.fits && wide.position !== 'sticky' && wide.page,
-      `a table wider than its box keeps its scroller and its heads at its top, and the page does not scroll sideways (${JSON.stringify(wide)})`,
+      `a table wider than its box keeps its scroller and has no sticky heads, and the page does not scroll sideways (${JSON.stringify(wide)})`,
     )
     // WCAG 2.4.11 on a phone, where the masthead wraps to two rows: a focused
     // link is brought to rest below it, not behind it.
@@ -8430,6 +8518,15 @@ try {
               : null
           })(),
           sections: [...(main?.querySelectorAll('h2') ?? [])].map(named),
+          // A table's source line under its box rather than in its band
+          // (VD-86): the paragraph either half used to print there.
+          // A figure's numbers are a table too, and the line under them is
+          // the figure's, in its own frame (VD-80).
+          loose: [
+            ...(main?.querySelectorAll(
+              '.table-wrap:not(.figure .table-wrap) + p.source-note, .table-wrap:not(.figure .table-wrap) + p.faint',
+            ) ?? []),
+          ].map(flatten),
           // What a screen reader's list of controls reads (DP-30, DP-31):
           // each disclosure's name - its face and the hidden name a fold
           // carries, the closed face only, as the open one is hidden while
@@ -8450,10 +8547,10 @@ try {
           // figure note, quotation, list item, note nav and table footer
           // outside the header, the tables and the tile strips, which are
           // compared on their own - as [the h2 it falls under, or '' above
-          // the first, its text], in document order. The app prints a
-          // table's footer in a span under it, the static page in a
-          // paragraph. A block inside another is read as part of the outer
-          // one, so a note box is read whole.
+          // the first, its text], in document order. Both halves print a
+          // table's footer in a span in its band (VD-86). A block inside
+          // another is read as part of the outer one, so a note box is read
+          // whole.
           prose: (() => {
             const BLOCKS = 'p, .note-box, nav.note, figcaption, blockquote, li, .table-foot > span'
             const headings = [...(main?.querySelectorAll('h2') ?? [])]
@@ -8516,6 +8613,15 @@ try {
       const at = fromApp.header.findIndex((child, i) => child !== fromStatic.header[i])
       fail(`${route}: header child ${at + 1} \u2014 app \u201c${fromApp.header[at] ?? '(none)'}\u201d, static \u201c${fromStatic.header[at] ?? '(none)'}\u201d`)
     }
+
+    // A table's source line is drawn in its footer band, in both halves
+    // (docs/design-system.md section 3, the text-width rule, kind 2).
+    const loose = drawn.flatMap(({ route, fromStatic, fromApp }) => [
+      ...fromStatic.loose.map((words) => `${route}, the static page: \u201c${words}\u201d`),
+      ...fromApp.loose.map((words) => `${route}, the app: \u201c${words}\u201d`),
+    ])
+    if (loose.length === 0) pass(`on all ${drawn.length} routes, no table's source line sits under its box in either renderer`)
+    for (const message of loose.slice(0, 6)) fail(`a source line under its table rather than in its band \u2014 ${message}`)
 
     // The tile strips, label and value (DP-02).
     const tileText = (strips, dropped = new Set()) =>

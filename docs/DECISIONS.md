@@ -232,6 +232,37 @@ What a feature cannot do alone is change or reverse a rule, or relax a floor
 check: that takes an entry here and the maintainer's ruling, as the
 system's §8 says.
 
+### D-57 · A table that scrolls sideways has no sticky heads — 2026-10-14 (`VD-98`, #947)
+The design system listed sticky column heads as a part of every table.
+VD-89 (#901) made them stick on a table that fits its box: DataTable marks
+it `data-fits`, its scroller goes, and the page holds the heads under the
+masthead. A table wider than its box cannot do that. It scrolls sideways
+inside `.table-scroll`, which is a scroll container in both axes that never
+moves vertically, so `position: sticky` holds to it and the heads stay at
+the table's top. That is most long tables below 768 px, and the register
+from 768 to 1180.
+
+Three ways to keep them were on the item: a bounded box, the wide table's
+scroller made to scroll vertically too, at most a screen less the masthead
+tall; a follower, a script moving the heads with the page's scroll; or
+taking sticky heads out for a table that scrolls sideways. Each changes
+what the system promises, so it was the maintainer's ruling under §8's
+*Changing or reversing*.
+
+The maintainer ruled on #947, 2026-10-14: the third, as best for
+accessibility. A bounded box is a nested scroller, which traps touch and
+magnifier users, and the Back contract (IX-46) would have had to restore its
+scroll as well as the page's. A follower is a scroll-linked effect on the
+main thread that lags on a phone, and either keeps something laid over a
+focused cell. A screen reader announces a cell's column from its `th`
+wherever that is drawn, so the heads' position costs it nothing. What it
+costs is a sighted reader of a wide table on a phone, who loses the column
+names once the heads scroll away; that is VD-99 (#972), an item of its own.
+
+`smoke.mjs` (*Sticky column heads*) holds all three cases: heads under the
+masthead on a table that fits, at the top of the box on a figure's numbers,
+and not sticky on a table wider than its box.
+
 ---
 
 ## The queue
