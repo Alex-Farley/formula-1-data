@@ -58,8 +58,9 @@ GRANDS_PRIX = [
     ("detroit", "Detroit Grand Prix", "United States", [], ""),
     ("dallas", "Dallas Grand Prix", "United States", [],
      "A single running, in 1984, on a surface that broke up in 40 C heat."),
-    # No country: the title moved from one to another. F1DB, whose registry
-    # the country columns are held to, gives it none either.
+    # No country: the title moved from one to another, and F1DB gives it
+    # none. (The Pacific has none in F1DB either, but both its editions ran
+    # in Japan, so it keeps Japan - see normalise_countries in build.py.)
     ("european", "European Grand Prix", None, [],
      "A movable title used to allow a second race in one country."),
     ("san-marino", "San Marino Grand Prix", "San Marino", [],

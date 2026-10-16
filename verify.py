@@ -2931,8 +2931,9 @@ def base_country_faults(rows, registry):
     country column - so seven rows spelled their country "UK" or "United
     States" beside the registry's "United Kingdom" and "United States of
     America" (CR-77). A base's last comma-separated part is held to the
-    same vocabulary as the five country columns, or the eyebrow that drops
-    a base's country when it repeats the constructor's cannot drop it. The
+    same vocabulary as the five columns normalise_countries holds to the
+    registry, or the eyebrow that drops a base's country when it repeats
+    the constructor's cannot drop it. The
     part is taken as it stands after the last ", ", unstripped, because
     that eyebrow matches the exact suffix: "Kannapolis,United States of
     America" or a trailing space would pass a stripped test and still show
