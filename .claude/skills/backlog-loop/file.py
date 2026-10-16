@@ -253,9 +253,16 @@ def set_status(number, status):
                 # The project's own auto-add can put a new issue on the board
                 # between the cached item map and this call, and GitHub then
                 # refuses the add as a duplicate. That is staleness: the
-                # fresh pass reads the board and finds the item (CR-92).
-                if not fresh and ALREADY_ON_BOARD.search(err) and not REFUSED.search(err):
-                    continue
+                # fresh pass re-reads the board, where the item should now be
+                # (CR-92). If the board's item list has not caught up even
+                # then, the issue is on the board with no status, and the run
+                # says so rather than leaving only GitHub's refusal.
+                if ALREADY_ON_BOARD.search(err) and not REFUSED.search(err):
+                    if not fresh:
+                        continue
+                    sys.exit(f"{err}\n#{number} is on the board, but the board's item list does not show it "
+                             f"yet, so it has no status. Run `file.py status {number} \"{status}\"` again "
+                             "in a minute.")
                 gh_failed(err or "gh project item-add failed")
             item = json.loads(out)["id"]
         ok, err = gh_try("project", "item-edit", "--project-id", proj_id, "--id", item,
