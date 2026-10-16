@@ -137,8 +137,7 @@ export default function Changes() {
       </Section>
 
       <Section title={HISTORY_HEADING}>
-        <DataTable unfolded={UNFOLDED.reference} columns={RELEASE_COLUMNS} rows={RELEASES} />
-        <p className="faint">{HISTORY_NOTE}</p>
+        <DataTable unfolded={UNFOLDED.reference} columns={RELEASE_COLUMNS} rows={RELEASES} footer={HISTORY_NOTE} />
       </Section>
 
       <Onward {...ONWARD.changes({ latest })} />

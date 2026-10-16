@@ -1831,6 +1831,30 @@ describe('the design system holds its grid: widths, breakpoints and tokens (VD-7
     assert.deepEqual([...used].sort((a, b) => a - b), [...breakpoints.keys()].sort((a, b) => a - b), 'every breakpoint token is a query app.css turns on')
   })
 
+  // docs/design-system.md section 2, *Spacing*: card siblings are one gap
+  // apart (VD-86). The design pass counted five - photographs 12, onward
+  // cards 10, the outline strip 8, the outline grid 16, record cards 12 and 8
+  // on a phone. Every rule for a card grid, at every width, gaps them by
+  // --space-6, and each grid has a gap to read, so a renamed class fails
+  // here rather than passing on nothing.
+  it('every card grid gaps its cards by --space-6, at every width (VD-86)', () => {
+    const CARD_GRIDS = ['.photo-grid', '.record-cards', '.onward > div', '.outline-grid', '.outline-strip', '#prerendered .cards']
+    const gaps = new Map(CARD_GRIDS.map((selector) => [selector, []]))
+    for (const m of app.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selectors = m[1].split(',').map((part) => part.trim())
+      for (const selector of selectors) {
+        if (!gaps.has(selector)) continue
+        for (const gap of m[2].matchAll(/(?<=[{;\s])((?:row-|column-)?gap)\s*:\s*([^;]+?)\s*;/g)) {
+          gaps.get(selector).push(`app.css:${lineOf(app, m.index + m[1].length)} ${gap[1]}: ${gap[2]}`)
+        }
+      }
+    }
+    const none = CARD_GRIDS.filter((selector) => gaps.get(selector).length === 0)
+    assert.deepEqual(none, [], `a card grid with no gap in app.css to read: ${none.join(', ')}`)
+    const off = [...gaps.values()].flat().filter((line) => !line.endsWith(': var(--space-6)'))
+    assert.deepEqual(off, [], `a card grid off the one gap:\n  ${off.join('\n  ')}`)
+  })
+
   // VD-60 (#615): fifteen inline style literals sat outside the scales,
   // where the stylesheet tests could not see them, and an inline style also
   // outranks every rule, so a page's gap could not be changed from app.css.

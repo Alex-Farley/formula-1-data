@@ -973,11 +973,12 @@ thead th.num {
  * `data-fits`, its scroller goes, the box clips rather than hides (`clip`
  * makes no scroll container, and still rounds the corners), and its heads
  * stop under the masthead, whose height App measures. A table wider than its
- * box keeps its scroller and its heads at its top: a sticky head inside a
- * horizontal scroller would be held by that scroller, which never moves
- * vertically. A figure's numbers already scroll in a box of their own
- * (below), and the figure clips what overflows it, so they are left out
- * here and stick to the top of that box instead.
+ * box keeps its scroller and has no sticky heads, by ruling (VD-98,
+ * docs/DECISIONS.md D-57): a sticky head inside a horizontal scroller would
+ * be held by that scroller, which never moves vertically, and each way round
+ * that costs a nested scroller or a script. A figure's numbers already
+ * scroll in a box of their own (below), and the figure clips what overflows
+ * it, so they are left out here and stick to the top of that box instead.
  */
 .table-wrap[data-fits]:not(.figure .table-wrap) {
   overflow: clip;
@@ -1312,7 +1313,6 @@ tbody th.record-derivation {
 @media (width < 768px) {
   .record-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-4);
   }
 }
 
@@ -1655,6 +1655,14 @@ tbody th.strong {
   flex-wrap: wrap;
 }
 
+/* The table's source line (docs/design-system.md section 3, the text-width
+   rule, kind 2): text that belongs to the box, drawn in its footer band, whose
+   lines stop at the small measure as a figure note's do. It used to be a
+   .source-note under the box, at the same measure, outside its frame. */
+.table-foot > span {
+  max-width: var(--measure-small);
+}
+
 .table-foot button {
   font: inherit;
   border: 1px solid var(--rule-strong);
@@ -1958,8 +1966,10 @@ tbody th.strong {
   margin: var(--space-3) 0 0;
 }
 
-/* A source line belongs to the table or figure above it, and is set at the
-   small measure: four columns from --bp-desktop. */
+/* A source line set at the small measure: four columns from --bp-desktop.
+   A table's goes in its footer band (.table-foot above), not here; this is
+   for the lines no table's band holds - a photograph strip's link, a field
+   list's caveat, a disagreement's invitation. */
 .source-note {
   font-size: var(--size-3);
   color: var(--ink-faint);
@@ -2325,10 +2335,26 @@ figure.photo figcaption a {
   color: var(--ink-soft);
 }
 
+/* The photo strip on column multiples (docs/design-system.md section 3,
+   *Photo strip*): 4 to a row from --bp-desktop, 2 from --bp-tablet, 1 below.
+   It was auto-fill from 230 px, which put six photographs in a row of five
+   and one at 1440. Both halves of the site draw it with these rules. */
 .photo-grid {
   display: grid;
   gap: var(--space-6);
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (width >= 768px) {
+  .photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1180px) {
+  .photo-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* a card grid: four photographs to the row, the box spanning its column */
+  }
 }
 
 /* The rest of a strip past its six, behind a disclosure (PD-64). Closed by
@@ -2541,7 +2567,7 @@ figure.photo figcaption a {
 
 .outline-grid {
   display: grid;
-  gap: var(--space-7);
+  gap: var(--space-6);
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
@@ -2578,7 +2604,7 @@ figure.photo figcaption a {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
   grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
@@ -3795,7 +3821,7 @@ figure.figure > .figure-note:first-child {
 
 .onward > div {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-6);
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
@@ -3898,13 +3924,10 @@ a.button.secondary:hover {
    .source-note are the app's own rules and reach the static page unchanged —
    which is the point, since the reader is looking at this until the database
    opens and should not watch the page change shape when it does. The section's
-   own spacing comes from .section now, like every other block here; what is
-   left is the gap under the grid and a ceiling on a tile, since the grid is
-   auto-fill from 230px and a page with one photograph would otherwise stretch
-   it across the full measure. */
+   own spacing comes from .section now, like every other block here, and the
+   columns are the app's; what is left is the gap under the grid. */
 #prerendered .photo-grid {
   margin: 0 0 var(--space-6);
-  grid-template-columns: repeat(auto-fill, minmax(230px, 320px)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 #prerendered .photo-grid + .source-note {
@@ -3915,7 +3938,7 @@ a.button.secondary:hover {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-5);
+  gap: var(--space-6);
   padding: 0;
   margin: 0 0 var(--space-8);
 }
