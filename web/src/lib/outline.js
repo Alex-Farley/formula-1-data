@@ -107,13 +107,16 @@ export const NO_DRAWING = 'This row names no F1DB outline'
 export const NO_TIMELINE_ROW = 'No timeline row names this drawing'
 
 /**
- * One entry of layoutTimeline() in words: the register's name for the layout
- * and its years, or, for a drawing no row names, the words saying so and the
- * years it was raced. The row's heading and the strip over the rows (PD-60)
- * both print the years, in both renderers; the strip names an unnamed
- * drawing in its own words, below.
+ * A timeline card's heading, in both renderers: the register's name for the
+ * layout, or, for a drawing no row names, the words saying so and the years
+ * it was raced. AX-26 took the years and the other facts out of a named
+ * row's heading into layoutFacts' list; an unnamed drawing keeps its years,
+ * after a comma, because the words alone are the same on every such card -
+ * three at Marina Bay and at Spa - and a heading list of identical lines
+ * tells a reader nothing. The strip over the rows (PD-60) prints the years
+ * beside every name, and names an unnamed drawing in its own words, below.
  */
-export const timelineName = ({ layout }) => (layout ? layout.layout_name : NO_TIMELINE_ROW)
+export const timelineName = (entry) => (entry.layout ? entry.layout.layout_name : `${NO_TIMELINE_ROW}, ${timelineYears(entry)}`)
 
 /**
  * The same name in the strip over the rows, which draws nothing, so a

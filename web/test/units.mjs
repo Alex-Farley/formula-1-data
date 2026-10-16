@@ -162,6 +162,7 @@ import {
 import { teamsByDriver } from '../src/queries/season.js'
 import {
   NEXT,
+  NO_TIMELINE_ROW,
   OUTLINE_FIGURES_NOTE,
   OUTLINE_LEAD_NOTE,
   RUN,
@@ -175,6 +176,7 @@ import {
   outlineFigures,
   roundShortName,
   roundStates,
+  timelineName,
 } from '../src/lib/outline.js'
 import { THUMB_WIDTH, attribution, canShow, fileLinkName, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { GRACE_DAYS, LATE_NOTE, lateDays, lateLine, lateNotice, lateRaces, raceDay, readerDay } from '../src/lib/refresh.js'
@@ -1480,6 +1482,11 @@ describe('the circuit outlines (AF-03)', () => {
     assert.deepEqual(facts({ layout: { ...row, length_km: null }, outline: null })[1], 'Length=null')
     // A drawing no row names has the outline's years and nothing of the register's.
     assert.deepEqual(facts({ layout: null, outline: { first_year: 1955, last_year: 1961 } }), ['Years=1955–1961'])
+    // Its heading carries those years, so two such cards are not headed alike.
+    const unnamed = (first, last) => timelineName({ layout: null, outline: { first_year: first, last_year: last } })
+    assert.equal(unnamed(2008, 2012), `${NO_TIMELINE_ROW}, 2008–2012`)
+    assert.notEqual(unnamed(2008, 2012), unnamed(2013, 2014))
+    assert.equal(timelineName({ layout: row, outline: null }), 'Grand Prix circuit')
   })
   it("folds a circuit's timeline and its outlines into one list, and hides neither side's gaps (IX-32)", () => {
     const layout = (id, from, drawn) => ({ id, from_year: from, f1db_layout_id: drawn })

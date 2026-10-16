@@ -513,7 +513,9 @@ carry it.
   silverstone-8 · …*, and the OpenStreetMap sentence appears only where a
   trace is drawn (content C10; CD-62 #1041).
 - **A timeline card's heading** (built, AX-26): on a circuit's *Every layout
-  raced here*, the `h3` is the layout's name and nothing else. Its facts —
+  raced here*, the `h3` is the layout's name and nothing else — or, for a
+  drawing no row names, the words saying so and its years, so that no two
+  such cards are headed alike. Its facts —
   years, the register's length, the confidence pill — are a `<dl
   class="layout-facts">` under it, each label beside its value and the
   pairs in a row that wraps, an unheld length the em dash. A link or a run of figures

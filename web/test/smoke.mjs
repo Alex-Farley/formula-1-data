@@ -4964,6 +4964,23 @@ try {
           monzaStatic.split(`<h3>${NO_TIMELINE_ROW.replace(/'/g, '&#39;')}`).length - 1 === unnamed,
         'the static page shows the same two gaps',
       )
+      // AX-26: with the years out of a named row's heading, no two cards on
+      // one circuit are headed alike unless the register itself names two
+      // layouts alike (Monza's two banked-oval rows): the drawings no row
+      // names - three at Marina Bay and at Spa - keep their years. Every
+      // circuit with a timeline, in the static half, which draws the
+      // headings from the same timelineName as the app.
+      const repeated = []
+      for (const { circuit_id: id } of db.prepare('SELECT DISTINCT circuit_id FROM circuit_layouts ORDER BY 1').all()) {
+        const html = await (await fetch(`${BASE}/circuits/${id}`)).text()
+        const cards = html.slice(html.indexOf('<div class="timeline layout-timeline">'))
+        const heads = [...cards.matchAll(/<h3>(.*?)<\/h3>/g)].map((m) => unescaped(m[1]))
+        const named = db.prepare('SELECT layout_name FROM circuit_layouts WHERE circuit_id = ?').all(id).map((r) => r.layout_name)
+        const twice = (list, h) => list.filter((x) => x === h).length > 1
+        repeated.push(...heads.filter((h, i) => heads.indexOf(h) !== i && !twice(named, h)).map((h) => `${id}: ${h}`))
+        if (id === 'marina-bay') truthy(heads.filter((h) => h.startsWith(NO_TIMELINE_ROW)).length > 1, 'Marina Bay still has two drawings no row names')
+      }
+      is(JSON.stringify(repeated), '[]', 'no two timeline cards on a circuit share a heading the register does not')
 
       // PD-60: who wins here comes before the layout history, which is a
       // strip of its rows with the cards closed behind it, then every race,

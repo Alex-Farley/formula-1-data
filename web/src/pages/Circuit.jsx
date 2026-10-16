@@ -7,7 +7,7 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
-import { number } from '../lib/format.js'
+import { EMPTY, number } from '../lib/format.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { canShow } from '../lib/commons.js'
@@ -201,7 +201,7 @@ function CircuitBody({ circuit, data }) {
                           <dt>{label}</dt>
                           <dd>
                             {value === null ? (
-                              <span className="empty">—</span>
+                              <span className="empty">{EMPTY}</span>
                             ) : label === LAYOUT_FACT_LABELS.confidence ? (
                               <Confidence value={value} />
                             ) : (
