@@ -13,6 +13,7 @@
 import { seasonsRacedText } from '../charts/spark.js'
 import { span } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
+import { LABELS } from '../lib/site.js'
 
 /**
  * Most race entries first, then alphabetically, case-insensitively.
@@ -34,7 +35,7 @@ import { CURRENT_SEASON_SQL } from '../lib/season.js'
  * `seasons_raced` is every season with a race entry under this constructor,
  * comma-separated in no promised order, for the bar charts/spark.js draws
  * (VD-54) on an axis from `first_season` to `grid_season`. It is the race
- * records' account, the one Race entries counts, and not first_entry and
+ * records' account, the one Entries counts, and not first_entry and
  * last_entry: those date a team from its first entry of any kind, so Williams
  * is "1977–" for the March it ran that year and its bar starts in 1978, and
  * Rob Walker, who only ever raced other makers' cars, has a span and no bar.
@@ -62,11 +63,15 @@ export const CONSTRUCTOR_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Constructor' },
   { key: 'country', label: 'Country' },
   { key: 'base', label: 'Base', optional: true },
-  { key: 'first_entry', label: 'Entered', align: 'num', text: entered },
+  // The span and the count take LABELS' words, as the constructor's own
+  // tiles do (CD-58), so a figure keeps its name one click away.
+  { key: 'first_entry', label: LABELS.seasons, align: 'num', text: entered },
   // Every season it raced in, as bars on one axis (VD-54), drawn by
-  // charts/spark.js in both renderers; the cell's words are the runs.
-  { key: 'seasons_raced', label: 'Seasons raced', align: 'spark', sortable: false, text: seasonsRacedText },
-  { key: 'entries', label: 'Race entries', align: 'num', phone: true },
+  // charts/spark.js in both renderers; the cell's words are the runs. Named
+  // as the constructor page names its table of the same seasons, because
+  // *Seasons* is the span beside it (CD-58).
+  { key: 'seasons_raced', label: 'Season by season', align: 'spark', sortable: false, text: seasonsRacedText },
+  { key: 'entries', label: LABELS.entries, align: 'num', phone: true },
   { key: 'designs', label: 'Designs', align: 'num' },
   { key: 'wins', label: 'Wins', align: 'num', phone: true },
   { key: 'poles', label: 'Poles', align: 'num' },
@@ -75,7 +80,7 @@ export const CONSTRUCTOR_COLUMNS = [
 ]
 
 export const CONSTRUCTORS_FOOTER =
-  '“Race entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started. “Seasons raced” marks each season with a race entry under the constructor’s own name, from the first championship season at the left to this one at the right, so it can start later or stop sooner than “Entered” where a team raced under another name or in another maker’s car.'
+  '“Entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started. “Season by season” marks each season with a race entry under the constructor’s own name, from the first championship season at the left to this one at the right, so it can start later or stop sooner than “Seasons” where a team raced under another name or in another maker’s car.'
 
 /**
  * The page's lede, under its h1 in both renderers (VD-79): the app's words,

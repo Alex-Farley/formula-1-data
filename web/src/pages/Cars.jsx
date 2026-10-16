@@ -230,7 +230,7 @@ function Register({ rows }) {
   return (
     <>
       <Note>
-        <strong>“Raced” is not the same as a car's design life.</strong> These years are the
+        <strong>“Seasons” is not the same as a car's design life.</strong> These years are the
         seasons the chassis actually entered a championship race, which usually runs longer than
         the works team's own dates: privateers were still running the Ferrari 500 in 1957, years
         after Ferrari had moved on.

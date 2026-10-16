@@ -2248,17 +2248,14 @@ describe('one vocabulary: tile labels and provenance headings come from one list
   // A table's column is held to the list too, so a page and the register or
   // table one click away do not name one figure two ways: the record tiles
   // said *Holder* while /records' tables said it too, and both now say *Held
-  // by*; a Grand Prix's tile said *Span* and so did /grands-prix. Declared,
-  // with the reason: the /constructors and /cars register columns, outside
-  // VD-81's step until CD-58 (#893) moves them, and the winners tables'
-  // *Span*, which is the years from a first win to a last, not a span of
-  // seasons raced. A declaration no longer needed fails, so the list cannot
+  // by*; a Grand Prix's tile said *Span* and so did /grands-prix, and the
+  // /constructors and /cars registers said *Entered*, *Raced* and *Race
+  // entries* until CD-58 (#893). Declared, with the reason: the winners
+  // tables' *Span*, which is the years from a first win to a last, not a span
+  // of seasons raced. A declaration no longer needed fails, so the list cannot
   // outlive its cause.
   const WIN_SPAN = 'the years from a first win to a last, not the seasons raced'
   const DECLARED = {
-    'src/queries/constructors.js': { Entered: '#893', 'Race entries': '#893' },
-    'src/queries/cars.js': { Raced: '#893' },
-    'src/queries/car.js': { Raced: '#893' },
     'src/queries/circuit.js': { Span: WIN_SPAN },
     'src/queries/grandprix.js': { Span: WIN_SPAN },
   }

@@ -13,7 +13,7 @@
  */
 import { span, text } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
-import { LANDMARK } from '../lib/site.js'
+import { LABELS, LANDMARK } from '../lib/site.js'
 
 /**
  * The curated cars, with a photograph where one has been matched. These are
@@ -50,7 +50,7 @@ export const GALLERY_COLUMNS = [
  * season_entries carries the car as the team names it - "W17" against the
  * register's "F1 W17", "MAC-26" against "CA01" - so there is no key to join
  * on, while first_year and last_year are the very years this row already
- * prints in its Raced column.
+ * prints in its Seasons column.
  */
 export const CHASSIS = `
   SELECT ch.id, ch.name, ch.full_name, ch.constructor_id, k.name AS constructor,
@@ -76,7 +76,7 @@ export const chassisName = (name, row) => (row.landmark ? `${text(name)} ${LANDM
 export const CHASSIS_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Chassis', text: chassisName },
   { key: 'constructor', rowHeader: true, label: 'Constructor' },
-  { key: 'first_year', label: 'Raced', align: 'num', text: (_, row) => span(row.first_year, row.last_year), phone: true },
+  { key: 'first_year', label: LABELS.seasons, align: 'num', text: (_, row) => span(row.first_year, row.last_year), phone: true },
   { key: 'engine_name', label: 'Engine', align: 'prose' },
   { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },
   { key: 'wheelbase_mm', label: 'Wheelbase (mm)', align: 'num' },
