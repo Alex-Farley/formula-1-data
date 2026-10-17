@@ -16,7 +16,7 @@
 import { EMPTY, finished, missing, number, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { FOLD_NOUN } from '../lib/table.js'
-import { PRACTICE_SESSIONS } from './race.js'
+import { PRACTICE_SESSIONS, carName } from './race.js'
 import { LABELS } from '../lib/site.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
@@ -141,7 +141,10 @@ export const BY_SEASON = `
          COALESCE(SUM(e.fastest_lap = 1), 0)      AS fastest_laps,
          SUM(COALESCE(e.points, 0))  AS points,
          MIN(e.finish_position)      AS best,
-         group_concat(DISTINCT k.name) AS teams
+         -- The entry's own designation where no constructor is resolved:
+         -- queries/race.js carName's rule in SQL, so an Indianapolis 500
+         -- entry that records its car names it here as on the race page (AF-68).
+         group_concat(DISTINCT COALESCE(k.name, e.entrant)) AS teams
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
     LEFT JOIN constructors k ON k.id = e.constructor_id
@@ -203,7 +206,7 @@ export const RESULTS = `
   SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
          e.grid_text, e.grid, e.position_text, e.finish_position, e.status,
          e.points, e.fastest_lap, e.shared_drive, e.laps_completed,
-         k.id AS constructor_id, k.name AS constructor, k.country AS constructor_country,
+         k.id AS constructor_id, k.name AS constructor, k.country AS constructor_country, e.entrant,
          e.chassis_id, ch.name AS chassis
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
@@ -615,7 +618,8 @@ export const teamMatesFooter = (name) =>
 export const ENTRY_COLUMNS = [
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
-  { key: 'constructor', label: 'Constructor' },
+  // The entry's own designation where no constructor is resolved (AF-68).
+  { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)) },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
   { key: 'grid_text', label: 'Grid', align: 'num' },
   { key: 'position_text', label: 'Result', align: 'num', text: (_, row) => result(row), glossary: 'results' },

@@ -3591,6 +3591,68 @@ try {
     )
   })
 
+  await section('/seasons/1950 and /drivers/parsons  (the Indianapolis 500 names its car off the race page too)', async () => {
+    /*
+     * AF-64 made the race page name the car of a winner with no constructor
+     * row; the season calendar and the driver page read their own queries and
+     * still dashed it, so a reader saw an em dash become "Kurtis
+     * Kraft-Offenhauser" one click later (AF-68). Each table is read in both
+     * halves, by the cell under its column in the row for the race.
+     */
+    const car = one(
+      `SELECT e.entrant FROM race_entries e JOIN races r ON r.id = e.race_id
+        WHERE r.year = 1950 AND r.round = 3 AND e.finish_position = 1 AND e.driver_id = 'parsons'`,
+    )
+    truthy(car, `the winning entry names a car — "${car}"`)
+
+    // [heading, the column that finds the row, its value, the column read]
+    const cellUnder = (root, [heading, keyColumn, key, column]) => {
+      const h2 = [...root.querySelectorAll('h2')].find((h) => h.textContent.trim().startsWith(heading))
+      if (!h2) return `no heading "${heading}"`
+      const table = [...root.querySelectorAll('table')].find(
+        (t) => h2.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+      if (!table) return `no table under "${heading}"`
+      // A sorted column's button carries its arrow in the header's text.
+      const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.replace(/[\u25b2\u25bc\s]+$/, '').trim())
+      const at = (label) => heads.indexOf(label)
+      const row = [...table.querySelectorAll('tbody tr')].find((tr) => tr.children[at(keyColumn)]?.textContent.trim() === key)
+      if (!row) return `no row with ${keyColumn} ${key} under "${heading}"`
+      return row.children[at(column)]?.textContent.trim() ?? `no ${column} column under "${heading}"`
+    }
+    const served = async (route, reads) => {
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      return page.evaluate(
+        `(${JSON.stringify(reads)}).map((read) => (${cellUnder.toString()})(new DOMParser().parseFromString(${JSON.stringify(html)}, 'text/html').getElementById('prerendered'), read))`,
+      )
+    }
+
+    const calendar = ['The calendar', 'R', '3', 'Constructor']
+    await go('/seasons/1950', '1950')
+    is(await page.$eval('#root main', cellUnder, calendar), car, "/seasons/1950: the calendar's Constructor cell names the car on round 3")
+    is((await served('/seasons/1950', [calendar]))[0], car, 'and the static calendar names it rather than an em dash')
+
+    const bySeason = ['Season by season', 'Season', '1950', 'Constructor']
+    const everyEntry = ['Every entry', 'Season', '1950', 'Constructor']
+    const wins = ['Wins', 'Season', '1950', 'Constructor']
+    await go('/drivers/parsons', 'Parsons')
+    await page.waitForFunction(
+      () => [...document.querySelectorAll('#root main h2')].some((h) => h.textContent.startsWith('Every entry')),
+      null,
+      { timeout: 20000 },
+    )
+    is(await page.$eval('#root main', cellUnder, everyEntry), car, '/drivers/parsons: "Every entry" names the car of the 1950 win')
+    is(await page.$eval('#root main', cellUnder, bySeason), car, 'and "Season by season" names it for 1950')
+    is(
+      await page.$eval('#root main', cellUnder, ['Where each championship finished', 'Season', '1950', 'Constructor']),
+      car,
+      "and so does the championship chart's table, where no constructor is resolved that season",
+    )
+    const [staticSeason, staticWins] = await served('/drivers/parsons', [bySeason, wins])
+    is(staticSeason, car, 'and the static "Season by season" names it')
+    is(staticWins, car, 'and the static "Wins" names it')
+  })
+
   await section('/races/2021/10  (pole is not the fastest qualifier)', async () => {
     await go('/races/2021/10')
     const front = await page.content()

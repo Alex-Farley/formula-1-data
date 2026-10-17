@@ -22,6 +22,7 @@ import { SEASON_IMAGES } from '../queries/photographs.js'
 import {
   CALENDAR,
   CALENDAR_COLUMNS,
+  winningCar,
   CALENDAR_FOOTER,
   CONSTRUCTORS_FINAL_COLUMNS,
   DRIVERS_FINAL_COLUMNS,
@@ -105,7 +106,7 @@ const calendarRenders = (year) => ({
       ) : row.winning_team_id ? (
         <Link to={`/constructors/${row.winning_team_id}`}>{name}</Link>
       ) : (
-        cell(name)
+        cell(winningCar(row))
       ),
   },
 })

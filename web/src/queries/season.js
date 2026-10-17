@@ -18,6 +18,7 @@
 import { EMPTY, missing, number, points, raceDates, text } from '../lib/format.js'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
+import { carName } from './race.js'
 
 export const SEASON = `
   SELECT s.*, d.full_name AS champion, t.name AS champion_team_name,
@@ -33,6 +34,8 @@ export const SEASON = `
 /**
  * The calendar, with each round's winner, winning car, pole and fastest lap
  * counted from the race records. Two winners in one cell is a shared drive.
+ * `winning_entrant` is there for winningCar() below: the car of a winner
+ * with no constructor row (AF-68).
  */
 export const CALENDAR = `
   SELECT r.round, r.name_used, r.date_iso, r.date_from, r.date_to, r.status, r.sprint, r.circuit_id, c.name AS circuit,
@@ -48,6 +51,8 @@ export const CALENDAR = `
            WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winning_team_id,
          (SELECT k.country FROM race_entries e JOIN constructors k ON k.id = e.constructor_id
            WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winning_team_country,
+         (SELECT e.entrant FROM race_entries e
+           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winning_entrant,
          (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
             JOIN drivers d ON d.id = e.driver_id
            WHERE e.race_id = r.id AND e.pole = 1)                 AS pole,
@@ -600,13 +605,23 @@ export const roundWinner = (name, row) => (row.status !== 'completed' ? NOT_YET_
  */
 export const roundResult = (value, row) => (row.status !== 'completed' ? '' : text(value))
 
+/**
+ * The winning car, by the rule the race page names it with (queries/race.js
+ * carName, AF-64): the constructor where one is resolved, else the entry's
+ * own designation. The eleven Indianapolis 500s that counted from 1950 to
+ * 1960 have no constructor row, so this column dashed a car the race page one
+ * click on names as "Kurtis Kraft-Offenhauser" (AF-68).
+ */
+export const winningCar = (row) =>
+  carName({ constructor_id: row.winning_team_id, constructor: row.winning_team, entrant: row.winning_entrant })
+
 export const CALENDAR_COLUMNS = [
   { key: 'round', label: 'R', align: 'num' },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix', text: roundName },
   { key: 'circuit', label: 'Circuit' },
   { key: 'date_iso', label: 'Dates', date: 'race' },
   { key: 'winner', label: 'Winner', text: roundWinner },
-  { key: 'winning_team', label: 'Constructor', text: roundResult },
+  { key: 'winning_team', label: 'Constructor', text: (_, row) => roundResult(winningCar(row), row) },
   { key: 'pole', label: 'Pole', text: roundResult },
   { key: 'fastest', label: 'Fastest lap', text: roundResult },
 ]

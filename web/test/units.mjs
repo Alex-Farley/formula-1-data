@@ -102,6 +102,7 @@ import {
   strip,
   thisSeasonHeading,
   thisSeasonLine,
+  ENTRY_COLUMNS,
 } from '../src/queries/driver.js'
 import {
   constructorsFooter,
@@ -111,6 +112,8 @@ import {
   roundName,
   roundResult,
   roundWinner,
+  winningCar,
+  CALENDAR_COLUMNS,
   seasonLede,
   standingsHeading,
   stillRunning,
@@ -1100,6 +1103,20 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(roundResult(null, { status: 'completed' }), EMPTY)
     assert.equal(roundResult(null, { status: 'scheduled' }), '')
     assert.equal(roundResult('Red Bull Racing', { status: 'scheduled' }), '')
+    // The winning car by carName's rule (AF-68): the constructor where one is
+    // resolved, the entry's own designation where none is, and the em dash
+    // only where neither is held.
+    const indy = { status: 'completed', winning_team_id: null, winning_team: null, winning_entrant: 'Kurtis Kraft-Offenhauser' }
+    assert.equal(winningCar(indy), 'Kurtis Kraft-Offenhauser')
+    assert.equal(winningCar({ ...indy, winning_team_id: 'ferrari', winning_team: 'Ferrari' }), 'Ferrari')
+    assert.equal(roundResult(winningCar({ ...indy, winning_entrant: null }), indy), EMPTY)
+    const carCell = CALENDAR_COLUMNS.find((c) => c.key === 'winning_team').text
+    assert.equal(carCell(null, indy), 'Kurtis Kraft-Offenhauser')
+    assert.equal(carCell(null, { ...indy, status: 'scheduled' }), '')
+    const entryCar = ENTRY_COLUMNS.find((c) => c.key === 'constructor').text
+    assert.equal(entryCar(null, { constructor_id: null, constructor: null, entrant: 'Watson-Offenhauser' }), 'Watson-Offenhauser')
+    assert.equal(entryCar('Lotus', { constructor_id: 'lotus', constructor: 'Lotus', entrant: 'Rob Walker' }), 'Lotus')
+    assert.equal(entryCar(null, { constructor_id: null, constructor: null, entrant: null }), EMPTY)
     // Why a constructors' table is empty: before 1958 it did not exist, and
     // on a calendar nobody has raced it has not happened yet (CD-32).
     assert.equal(noConstructorsNote(1952, false).body, 'It was not contested until 1958.')
