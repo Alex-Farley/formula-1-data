@@ -108,6 +108,43 @@ export const LINEAGE = `
 `
 
 /**
+ * The registry entries behind the rows this page prints, for the citation's
+ * second sentence (CD-46, as CD-08 did for races and drivers; site.js's
+ * behindThisPage says what it reads): the constructor's own row, every entry
+ * it made and the race each was in - the tiles, the season table and the
+ * wins are all counted from them - every chassis in *Cars built*, and every
+ * standings row the championship column is read from, by the rule
+ * DRIVER_SOURCES gives for the same view. The lineage is a table with no
+ * `source_id`; its whole-table entry in `table_provenance` stands for its
+ * rows, read only where the app draws the chain (more than one name in it).
+ * The static page does not draw it yet and names it all the same: the
+ * sentence cites the address the two share, and is one sentence in both.
+ * A name joined in only to label a row - a circuit, a driver - is the
+ * label's, not a fact this page states, as on a driver's page. Photographs
+ * and the disagreements each say where they come from beside them.
+ */
+export const CONSTRUCTOR_SOURCES = `
+  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT source_id FROM constructors WHERE id = ?1
+     UNION SELECT source_id FROM race_entries WHERE constructor_id = ?1
+     UNION SELECT r.source_id FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.constructor_id = ?1
+     UNION SELECT source_id FROM chassis WHERE constructor_id = ?1
+     UNION SELECT t.source_id FROM standings t
+            WHERE t.table_type = 'constructors' AND t.constructor_id = ?1
+              AND (t.basis = 'final'
+                   OR NOT EXISTS (SELECT 1 FROM standings f
+                                   WHERE f.year = t.year AND f.table_type = 'constructors'
+                                     AND f.basis = 'final'))
+     UNION SELECT p.source_id FROM table_provenance p
+            WHERE p.tbl = 'constructor_lineage'
+              AND (SELECT COUNT(*) FROM constructor_lineage l
+                    WHERE l.chain_id = (SELECT lineage_chain FROM constructors WHERE id = ?1)) > 1)
+   ORDER BY s.priority, s.id
+`
+
+/**
  * The season-by-season rows with the championship position joined on, newest
  * first — the order the app's table opens in, so the static page prints them
  * as they come. Where a season carries two standings rows (an engine split),

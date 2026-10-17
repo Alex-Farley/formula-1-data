@@ -79,6 +79,27 @@ export const WINNERS = `
    ORDER BY wins DESC, driver
 `
 
+/**
+ * The registry entries behind the rows this page prints, for the citation's
+ * second sentence (CD-46; site.js's behindThisPage says what it reads): every
+ * edition, run or booked, and every entry classified first in one - the
+ * winner and the car in the editions table and *Most wins* are read from
+ * those. The event's own row - its name, country and note - is a table with
+ * no `source_id`, so its whole-table entry in `table_provenance` stands for
+ * it. A venue's name is a label, not a fact this page states.
+ */
+export const GRAND_PRIX_SOURCES = `
+  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT p.source_id FROM table_provenance p
+            WHERE p.tbl = 'grands_prix' AND EXISTS (SELECT 1 FROM grands_prix WHERE id = ?1)
+     UNION SELECT source_id FROM races WHERE gp_id = ?1
+     UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.gp_id = ?1 AND e.finish_position = 1)
+   ORDER BY s.priority, s.id
+`
+
 /** A venue's years here, or "not yet run" for one the event is booked at and has not raced. */
 export const circuitYears = (_, row) =>
   row.first_year === null || row.first_year === undefined

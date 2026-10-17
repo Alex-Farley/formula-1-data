@@ -524,13 +524,16 @@ carry it.
   renderers the list; `smoke.mjs` holds the heading and the list in both
   halves.
 
-### Provenance and citation (core) — built: the name (VD-81); pending: the citation (CD-46 #631)
+### Provenance and citation (core) — built: the name (VD-81), the citation on race, driver, constructor, circuit, car, Grand Prix and season pages (CD-08, CD-46); pending: the citation on a record's page (CD-63 #1046)
 
 - **One name, *Where this comes from*,** on every page type, from
   `LABELS.provenance` in both renderers. It had three names, and "On the
   record" collided with `/records` (VD-81).
-- **The citation** carries the *Behind this page* sentence on every page type
-  (CD-46 #631). It is a framed note under the text rule.
+- **The citation** carries the *Behind this page* sentence on a page about
+  one thing - a race, a driver, a constructor, a circuit, a car, a Grand Prix,
+  a season, and once CD-63 lands a record: the registry entries the page's
+  rows resolve to, each with its terms, from the page's own `*_SOURCES` query
+  (CD-08, CD-46). It is a framed note under the text rule.
 
 ### Keep going, and On this page
 

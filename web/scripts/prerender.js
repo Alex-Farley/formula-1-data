@@ -218,7 +218,9 @@ import {
   NOT_RUN_STANDINGS,
   REMAINING,
   SEASON,
+  SEASON_SOURCES,
   STANDINGS as SEASON_STANDINGS,
+  TITLE_SOURCES,
   WON_HERE,
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
@@ -228,6 +230,7 @@ import {
   nextLine,
   noConstructorsNote,
   seasonLede,
+  seasonSources,
   standingsHeading,
   stillRunning,
   titleAnswer,
@@ -331,6 +334,7 @@ import {
 } from '../src/queries/race.js'
 import {
   BY_SEASON as TEAM_BY_SEASON,
+  CONSTRUCTOR_SOURCES,
   DERIVED as TEAM_DERIVED,
   DESIGNS,
   DESIGN_COLUMNS,
@@ -346,6 +350,7 @@ import {
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
+  CIRCUIT_SOURCES,
   GRANDS_PRIX as CIRCUIT_GRANDS_PRIX,
   LAYOUTS as CIRCUIT_LAYOUTS,
   RACES as CIRCUIT_RACES,
@@ -369,6 +374,7 @@ import {
   EDITIONS as GP_EDITIONS,
   EDITION_COLUMNS as GP_EDITION_COLUMNS,
   GRAND_PRIX,
+  GRAND_PRIX_SOURCES,
   WINNERS as GP_WINNERS,
   WINNER_COLUMNS as GP_WINNER_COLUMNS,
   editionCar,
@@ -378,6 +384,7 @@ import {
   AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER as CAR_AMBIGUOUS_FOOTER,
   CAR as CAR_ROW,
+  CAR_SOURCES,
   CAR_DISAGREEMENTS,
   ENTRIES as CAR_ENTRIES,
   IMAGES as CAR_IMAGES,
@@ -2381,6 +2388,7 @@ const page = ({
     page({
       path: `seasons/${year}`,
       lastmod: LAST_RUN.season.get(String(year)),
+      sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES), { answer, remaining: one(REMAINING, year) ?? null }),
       title: NAMES.season(year).title,
       description: s.champion
         ? `${s.champion} won the ${year} Formula One World Championship for ${s.champion_team_name ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
@@ -3061,6 +3069,7 @@ page({
     page({
       path: `constructors/${c.id}`,
       lastmod: LAST_RUN.constructor.get(c.id),
+      sources: all(CONSTRUCTOR_SOURCES, c.id),
       title: NAMES.constructor(c.name).title,
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${yearRun(c.first_entry, c.last_entry, 'present')}. ${
@@ -3220,6 +3229,7 @@ page({
     page({
       path: `circuits/${c.id}`,
       lastmod: LAST_RUN.circuit.get(c.id),
+      sources: all(CIRCUIT_SOURCES, c.id),
       title: NAMES.circuit(c.name).title,
       description: summarise(
         `${c.official_name ?? c.name}${c.locality ? `, ${c.locality}` : ''}${c.country ? `, ${c.country}` : ''}. ${
@@ -3352,6 +3362,7 @@ page({
     page({
       path: `grands-prix/${id}`,
       lastmod: LAST_RUN.grandPrix.get(id),
+      sources: all(GRAND_PRIX_SOURCES, id),
       title: NAMES.grandPrix(gp.name).title,
       description: summarise(
         `The ${gp.name}: ${gp.held} ${gp.held === 1 ? 'edition' : 'editions'} run${
@@ -3550,6 +3561,7 @@ page({
       path: `cars/${at}`,
       canonical: at === c.id ? null : `cars/${c.id}`,
       lastmod: LAST_RUN.car.get(at),
+      sources: all(CAR_SOURCES, at),
       title: NAMES.car(name).title,
       image: photos.image,
       description: summarise(
@@ -3633,6 +3645,7 @@ page({
       path: `cars/${ch.id}`,
       canonical: address.slice(1),
       lastmod: LAST_RUN.car.get(ch.id),
+      sources: all(CAR_SOURCES, ch.id),
       title: NAMES.car(name).title,
       image: photos.image,
       description: summarise(

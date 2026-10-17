@@ -250,6 +250,46 @@ export const SEASONS = `
    ORDER BY cs.year
 `
 
+/**
+ * The registry entries behind the rows this page prints, for the citation's
+ * second sentence (CD-46; site.js's behindThisPage says what it reads): every
+ * chassis the page covers - VARIANTS' set - the curated car CAR finds, every
+ * entry those chassis made and the race each was in, and for each season in
+ * *Seasons that cannot be attributed* the claim its other chassis are read
+ * from: build.py files the entry lists' reading in `claims`, as a race's note
+ * is filed (RACE_SOURCES). A constructor's or a driver's name is a label, not
+ * a fact this page states, and the photograph carries its own credit beside
+ * it. Args: [the address's id].
+ */
+export const CAR_SOURCES = `
+  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT source_id FROM chassis
+            WHERE id = ?1
+               OR (car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1))
+     UNION SELECT source_id FROM cars
+            WHERE id = (SELECT id FROM cars
+                         WHERE id = (SELECT car_id FROM chassis WHERE id = ?1) OR id = ?1
+                         LIMIT 1)
+     UNION SELECT e.source_id FROM race_entries e
+            WHERE e.chassis_id IN (
+                    SELECT id FROM chassis
+                     WHERE id = ?1
+                        OR (car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1)))
+     UNION SELECT r.source_id FROM races r JOIN race_entries e ON e.race_id = r.id
+            WHERE e.chassis_id IN (
+                    SELECT id FROM chassis
+                     WHERE id = ?1
+                        OR (car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1)))
+     UNION SELECT c.source_id FROM claims c
+             JOIN car_seasons cs ON c.tbl = 'car_seasons' AND c.field = 'other_chassis'
+                                AND c.row_key = cs.car_id || '|' || cs.year
+            WHERE cs.corroborated = 0
+              AND (cs.car_id = (SELECT car_id FROM chassis WHERE id = ?1) OR cs.car_id = ?1))
+   ORDER BY s.priority, s.id
+`
+
 /* ---------------------------------------------------------------- columns */
 
 export const VARIANT_COLUMNS = [

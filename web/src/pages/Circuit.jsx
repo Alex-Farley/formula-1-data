@@ -31,6 +31,7 @@ import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../
 import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import {
   CIRCUIT,
+  CIRCUIT_SOURCES,
   GEOMETRY,
   GRANDS_PRIX,
   LAYOUTS,
@@ -116,6 +117,7 @@ export default function Circuit() {
     winners: [WINNERS, [id]],
     teams: [TEAMS, [id]],
     grandsPrix: [GRANDS_PRIX, [id]],
+    sources: [CIRCUIT_SOURCES, [id]],
   })
 
   return (
@@ -243,6 +245,7 @@ function CircuitBody({ circuit, data }) {
       title={NAMES.circuit(circuit.name).headline}
       trail={TRAIL.circuit(circuit.id, circuit.name)}
       lede={circuit.notes}
+      sources={rows(data, 'sources')}
       aside={
         photograph && (
           <div className="page-photo">

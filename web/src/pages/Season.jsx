@@ -47,7 +47,9 @@ import {
   NOT_RUN_STANDINGS,
   REMAINING,
   SEASON,
+  SEASON_SOURCES,
   STANDINGS,
+  TITLE_SOURCES,
   WON_HERE,
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
@@ -58,6 +60,7 @@ import {
   noConstructorsNote,
   progressionNote,
   seasonLede,
+  seasonSources,
   standingsHeading,
   stillRunning,
   teamsByDriver,
@@ -321,6 +324,8 @@ export default function Season() {
     next: [NEXT_ROUND, [Number(year)]],
     wonHere: [WON_HERE, [Number(year)]],
     nextTrace: [NEXT_TRACE, [Number(year)]],
+    sources: [SEASON_SOURCES, [Number(year)]],
+    titleSources: [TITLE_SOURCES],
   })
 
   return (
@@ -533,6 +538,10 @@ function SeasonBody({ year, season, data }) {
       documentName={NAMES.season(year).title}
       trail={TRAIL.season(year)}
       lede={opening}
+      sources={seasonSources(rows(data, 'sources'), rows(data, 'titleSources'), {
+        answer,
+        remaining: data.remaining.rows[0] ?? null,
+      })}
       aside={
         <Stepper {...seasonSteps(neighbours)} />
       }

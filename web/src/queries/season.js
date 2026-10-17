@@ -349,6 +349,14 @@ export const WON_HERE = `
    LIMIT ${WON_HERE_LIMIT}
 `
 
+/** The ids of the races WON_HERE prints, chosen as it chooses them, for SEASON_SOURCES. */
+const WON_HERE_RACES = `
+  SELECT r.id FROM races r
+   WHERE r.circuit_id = (SELECT circuit_id FROM (${NEXT_ROUND})) AND r.status = 'completed'
+   ORDER BY r.year DESC, r.round DESC
+   LIMIT ${WON_HERE_LIMIT}
+`
+
 /**
  * The next venue's OpenStreetMap trace, where it has one: queries/circuit.js
  * GEOMETRY for the one circuit the section is about. Nothing in f1.db - the
@@ -360,6 +368,91 @@ export const NEXT_TRACE = `
   WITH next AS (${NEXT_ROUND})
   SELECT g.* FROM circuit_geometry g WHERE g.circuit_id = (SELECT circuit_id FROM next)
 `
+
+/**
+ * The registry entries behind the rows this page prints, for the citation's
+ * second sentence (CD-46, as CD-08 did for races and drivers; site.js's
+ * behindThisPage says what it reads). The season's own row; every round on
+ * the calendar; every entry in those rounds - the calendar's winner, pole and
+ * fastest lap, the grid's count and the colour beside a driver's name are all
+ * read from them; every standings row the tables are read from, by the rule
+ * DRIVER_SOURCES gives for the same view (a finished table's final rows, and
+ * for one not finished every source's running rows), and the running rows
+ * the title-race chart and the round the tables stand after are read from,
+ * chosen as STANDINGS chooses them; and every entrant.
+ *
+ * Three more only where the page prints them. The entry list (CURRENT_GRID)
+ * and the past winners at the next venue (WON_HERE) are each in their
+ * section; the timetable is read on the page of a season with a round still
+ * to run, by the next round's section and by the app's next-session tile,
+ * which is the one thing here that depends on the clock, so the whole
+ * season's sessions are named rather than the ones still ahead. The entry
+ * list has no `source_id`, so its whole-table entry in `table_provenance`
+ * stands for its rows.
+ *
+ * The points-system rows are TITLE_SOURCES, and seasonSources() adds them
+ * where the page reads them: titleAnswer() decides whether the arithmetic is
+ * printed on more than SQL can say. `id` and `priority` come back for that
+ * merge. A name joined in to label a row is the label's, as on a
+ * driver's page; outlines and photographs carry their own credit beside them.
+ */
+export const SEASON_SOURCES = `
+  SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT source_id FROM seasons WHERE year = ?1
+     UNION SELECT source_id FROM races WHERE year = ?1
+     UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ?1
+     UNION SELECT t.source_id FROM standings t
+            WHERE t.year = ?1
+              AND (t.basis = 'final'
+                   OR NOT EXISTS (SELECT 1 FROM standings f
+                                   WHERE f.year = t.year AND f.table_type = t.table_type
+                                     AND f.basis = 'final'))
+     UNION SELECT t.source_id FROM standings t
+            WHERE t.year = ?1 AND t.basis = 'running'
+              AND t.source = (SELECT source FROM standings
+                               WHERE year = ?1 AND basis = 'running'
+                               GROUP BY source
+                               ORDER BY COUNT(DISTINCT after_round) DESC, MAX(after_round) DESC, source
+                               LIMIT 1)
+     UNION SELECT source_id FROM season_entrants WHERE year = ?1
+     UNION SELECT p.source_id FROM table_provenance p
+            WHERE p.tbl = 'season_entries' AND EXISTS (SELECT 1 FROM season_entries WHERE year = ?1)
+     UNION SELECT x.source_id FROM sessions x JOIN races r ON r.id = x.race_id
+            WHERE r.year = ?1
+              AND EXISTS (SELECT 1 FROM races y WHERE y.year = ?1 AND y.status <> 'completed')
+     UNION SELECT w.source_id FROM races w
+            WHERE w.id IN (${WON_HERE_RACES})
+     UNION SELECT e.source_id FROM race_entries e
+            WHERE e.finish_position = 1 AND e.race_id IN (${WON_HERE_RACES}))
+   ORDER BY s.priority, s.id
+`
+
+/** The points-system rows REMAINING reads: a table with no `source_id`, so its `table_provenance` entry. */
+export const TITLE_SOURCES = `
+  SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (SELECT source_id FROM table_provenance WHERE tbl = 'points_systems')
+   ORDER BY s.priority, s.id
+`
+
+/**
+ * SEASON_SOURCES, with TITLE_SOURCES joined in where the page prints what
+ * the points system says: the title arithmetic, where `answer` -
+ * titleAnswer()'s result, which both renderers print when it is not null -
+ * says it is printed; and a rule that dropped scores, which the title
+ * chart's note says (progressionNote) on a season that ran under one. Both
+ * renderers pass `remaining`, REMAINING's row, whether or not the static page
+ * draws the chart, so the sentence is one sentence. One entry per source, in
+ * the registry's order.
+ */
+export const seasonSources = (sources, title, { answer, remaining }) => {
+  const dropped = remaining?.dropped_scores
+  if (!answer && (missing(dropped) || dropped === EVERY_RESULT_COUNTS)) return sources
+  const byId = new Map([...sources, ...title].map((s) => [s.id, s]))
+  return [...byId.values()].sort((a, b) => a.priority - b.priority || a.id - b.id)
+}
 
 export const NEXT_HEADING = 'The next round'
 export const WON_HERE_HEADING = 'Won here before'

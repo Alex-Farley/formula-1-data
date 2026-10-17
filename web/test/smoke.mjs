@@ -66,10 +66,13 @@ import {
   NEXT_HEADING,
   NEXT_ROUND,
   REMAINING,
+  SEASON_SOURCES,
   STANDINGS as SEASON_STANDINGS,
+  TITLE_SOURCES,
   WON_HERE,
   WON_HERE_HEADING,
   latestRound,
+  seasonSources,
   standingsHeading,
   titleAnswer,
   titleHeading,
@@ -101,7 +104,7 @@ import {
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
-import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
+import { CAR_SOURCES, ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
 import { TILE_STRIP_NAME } from '../src/lib/tiles.js'
@@ -126,7 +129,9 @@ import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/t
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
-import { PHOTOGRAPH as CIRCUIT_PHOTOGRAPH, photographAlt as circuitPhotographAlt } from '../src/queries/circuit.js'
+import { CIRCUIT_SOURCES, PHOTOGRAPH as CIRCUIT_PHOTOGRAPH, photographAlt as circuitPhotographAlt } from '../src/queries/circuit.js'
+import { CONSTRUCTOR_SOURCES } from '../src/queries/constructor.js'
+import { GRAND_PRIX_SOURCES } from '../src/queries/grandprix.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -6518,7 +6523,23 @@ try {
   // sentence - checked on routes whose titles differ between the renderers,
   // which is why the citation names the address and not the title.
   await section('Citation', async () => {
-    for (const [route, heading] of [['/seasons/2026', '2026'], ['/races/1988/13', 'Portuguese Grand Prix'], ['/drivers/senna', 'Ayrton Senna']]) {
+    // Each page names the sources behind its rows, each with its terms, read
+    // here from the registry rather than from the sentence: a race and a
+    // driver since CD-08, the other entity pages since CD-46 - Alpine draws a
+    // lineage, Monza a layout timeline, and the Lotus 72 covers four
+    // variants, so each reaches a table the others do not.
+    const routes = [
+      ['/seasons/2026', '2026', SEASON_SOURCES, [2026]],
+      ['/seasons/1988', '1988', SEASON_SOURCES, [1988]],
+      ['/races/1988/13', 'Portuguese Grand Prix', RACE_SOURCES, [1988, 13]],
+      ['/drivers/senna', 'Ayrton Senna', DRIVER_SOURCES, ['senna']],
+      ['/constructors/alpine', 'Alpine', CONSTRUCTOR_SOURCES, ['alpine']],
+      ['/circuits/monza', 'Autodromo Nazionale Monza', CIRCUIT_SOURCES, ['monza']],
+      ['/cars/lotus-72', 'Lotus 72', CAR_SOURCES, ['lotus-72']],
+      ['/grands-prix/british', 'British Grand Prix', GRAND_PRIX_SOURCES, ['british']],
+    ]
+    const registry = db.prepare('SELECT source FROM source_registry').all().map((s) => s.source)
+    for (const [route, heading, sources, args] of routes) {
       await go(route, heading)
       const appCite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
       const html = await (await fetch(`${BASE}${route}`)).text()
@@ -6527,21 +6548,38 @@ try {
         .replace(/<[^>]+>/g, '')
         .replace(/&amp;/g, '&')
       is(staticCite.replace('https://lapledger.org', BASE), appCite, `the citation on ${route} is one sentence in both renderers`)
-      // CD-08: a race or a driver names the sources behind its rows, each
-      // with its terms, read here from the registry rather than from the
-      // sentence; a season page passes none and says nothing of the kind.
-      const behind =
-        route === '/races/1988/13'
-          ? db.prepare(RACE_SOURCES).all(1988, 13)
-          : route === '/drivers/senna'
-            ? db.prepare(DRIVER_SOURCES).all('senna')
-            : []
+      // A season adds the points system's entry where it prints what that
+      // system says, worked out here as the two pages work it out.
+      const behind = route.startsWith('/seasons/')
+        ? (() => {
+            const [year] = args
+            const drivers = db.prepare(SEASON_FINAL).all(year).filter((r) => r.table_type === 'drivers')
+            const remaining = db.prepare(REMAINING).get(year) ?? null
+            const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
+            const answer =
+              !champion && drivers.length >= 2
+                ? titleAnswer({ drivers, remaining, afterRound: latestRound(db.prepare(SEASON_STANDINGS).all(year)) })
+                : null
+            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining })
+          })()
+        : db.prepare(sources).all(...args)
+      truthy(behind.length > 0, `${route} has rows that resolve to a source`)
       truthy(
-        behind.length ? behind.every((s) => appCite.includes(`${s.source} (${licenceTerms(s)})`)) : !appCite.includes('Behind this page'),
-        behind.length
-          ? `the citation on ${route} names its ${behind.length} sources and their terms`
-          : `the citation on ${route} names no sources, for a page that passes none`,
+        behind.every((s) => appCite.includes(`${s.source} (${licenceTerms(s)})`)),
+        `the citation on ${route} names its ${behind.length} sources and their terms`,
       )
+      // And nothing else.
+      const extra = registry.filter((name) => !behind.some((s) => s.source === name) && appCite.includes(`${name} (`))
+      is(extra.join(' | '), '', `the citation on ${route} names no source its rows do not resolve to`)
+    }
+    // 1988 ran under a rule that dropped scores, which the title chart's
+    // note says, so the points system's entry is behind that page whatever
+    // seasonSources() makes of it.
+    {
+      const [{ source }] = db.prepare(TITLE_SOURCES).all()
+      await go('/seasons/1988', '1988')
+      const cite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
+      truthy(cite.includes(`${source} (`), `the citation on /seasons/1988 names ${source}, the dropped-scores rule's source`)
     }
     // A current driver's page prints the whole calendar, entered or not, so
     // every one of those races' sources is behind it (review of CD-08: on
