@@ -195,6 +195,7 @@ import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER, SEASONS_LEDE } from '../s
 import {
   CALENDAR,
   CALENDAR_COLUMNS,
+  winningCar,
   CALENDAR_FOOTER,
   CONSTRUCTORS_FINAL_COLUMNS,
   DRIVERS_FINAL_COLUMNS,
@@ -2355,7 +2356,7 @@ const page = ({
     // more em dashes said a fact was missing about a race that has not
     // happened (CD-37). queries/season.js roundResult is the rule.
     winning_team: (name, row) =>
-      row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(name),
+      row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(winningCar(row)),
   }, { unfolded: UNFOLDED.subject, footer: CALENDAR_FOOTER })}`
     const seasonStandings = `
   <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
@@ -2809,7 +2810,7 @@ const page = ({
   })
 
   const winsOf = db.prepare(
-    `SELECT rr.year, rr.round, rr.gp_name, rr.constructor_id, rr.constructor
+    `SELECT rr.year, rr.round, rr.gp_name, rr.constructor_id, rr.constructor, rr.entrant
        FROM race_results rr WHERE rr.winner_id = ? ORDER BY rr.year, rr.round`,
   )
   const constructorsOf = db.prepare(DRIVER_CONSTRUCTORS)
@@ -2923,7 +2924,7 @@ const page = ({
                 wins.map((w) => [
                   link(`seasons/${w.year}`, w.year),
                   link(`races/${w.year}/${w.round}`, w.gp_name),
-                  w.constructor_id ? link(`constructors/${w.constructor_id}`, teams[w.constructor_id] ?? w.constructor) : text(w.constructor),
+                  w.constructor_id ? link(`constructors/${w.constructor_id}`, teams[w.constructor_id] ?? w.constructor) : text(carName(w)),
                 ]),
                 // The race is its season and its Grand Prix, as on every race list.
                 // An exhaustive list, folded as the app's are (VD-69).

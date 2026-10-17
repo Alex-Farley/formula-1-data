@@ -13,6 +13,7 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
 import { EYEBROWS, ENTRIES_NOTE, LABELS, NAMES } from '../lib/site.js'
 import { FOLD_NOUN } from '../lib/table.js'
+import { carName } from '../queries/race.js'
 import { colourForEntry, colourSource, driverBandNote, lastTeamColour } from '../lib/liveries.js'
 import {
   BY_SEASON,
@@ -96,6 +97,8 @@ const ENTRY_APP = {
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
   name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
   constructor: {
+    // Sorts on what the cell says, so an Indianapolis 500's car is not a NULL (AF-68).
+    sort: (row) => carName(row),
     render: (name, row) => (
       <>
         <LiveryMark
@@ -107,7 +110,7 @@ const ENTRY_APP = {
           })}
           year={row.year}
         />
-        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(carName(row))}
       </>
     ),
   },
@@ -295,14 +298,19 @@ function DriverBody({ driver, data }) {
   const seasons = useMemo(() => seasonRows(bySeason, standings), [bySeason, standings])
   const teams = useMemo(() => teamsBySeason(rows(data, 'seasonTeams')), [data])
   // Each championship dot in the team that season finished with (AF-47),
-  // from the same lastTeamColour() the season table's marks read.
+  // from the same lastTeamColour() the season table's marks read. A season
+  // with no constructor resolved on any entry - an Indianapolis 500, as a
+  // rule - names the car as "Season by season" does, from BY_SEASON's
+  // `teams`: then the entries' own designation where one is recorded, and
+  // NULL where none is (AF-68).
   const finishes = useMemo(
     () =>
       standings.map((s) => {
         const raced = teams.get(s.year)
-        return { ...s, constructor: raced?.[0]?.constructor ?? null, colour: lastTeamColour(raced, s.year).colour }
+        const car = raced?.[0]?.constructor ?? bySeason.find((b) => b.year === s.year)?.teams ?? null
+        return { ...s, constructor: car, colour: lastTeamColour(raced, s.year).colour }
       }),
-    [standings, teams],
+    [standings, teams, bySeason],
   )
   const seasonColumns = useMemo(() => {
     const app = seasonApp(teams)
