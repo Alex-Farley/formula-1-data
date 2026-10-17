@@ -16,6 +16,7 @@ import { CONSTRUCTOR_IMAGES } from '../queries/photographs.js'
 import {
   BY_SEASON,
   CONSTRUCTOR,
+  CONSTRUCTOR_SOURCES,
   DERIVED,
   DESIGNS,
   DESIGN_COLUMNS,
@@ -78,6 +79,7 @@ export default function Constructor() {
     designs: [DESIGNS, [id]],
     lineage: [LINEAGE, [id]],
     images: [CONSTRUCTOR_IMAGES, [id]],
+    sources: [CONSTRUCTOR_SOURCES, [id]],
   })
 
   return (
@@ -145,6 +147,7 @@ function ConstructorBody({ constructor, data }) {
       title={NAMES.constructor(constructor.name).headline}
       trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
+      sources={rows(data, 'sources')}
       aside={
         <LiveryScheme colour={identity} note={constructorBandNote(constructor, lastSeason, livery, identity)} />
       }

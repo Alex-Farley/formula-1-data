@@ -15,6 +15,7 @@ import {
   EDITIONS,
   EDITION_COLUMNS,
   GRAND_PRIX,
+  GRAND_PRIX_SOURCES,
   editionCar,
   WINNERS,
   WINNER_COLUMNS,
@@ -92,6 +93,7 @@ export default function GrandPrix() {
     circuits: [CIRCUITS, [id]],
     editions: [EDITIONS, [id]],
     winners: [WINNERS, [id]],
+    sources: [GRAND_PRIX_SOURCES, [id]],
   })
 
   return (
@@ -119,7 +121,7 @@ function GrandPrixBody({ gp, data }) {
   const editions = rows(data, 'editions')
   const winners = rows(data, 'winners')
   return (
-    <Page eyebrow={EYEBROWS.grandPrix(gp.country)} title={NAMES.grandPrix(gp.name).headline} trail={TRAIL.grandPrix(gp.id, gp.name)} lede={gp.notes}>
+    <Page eyebrow={EYEBROWS.grandPrix(gp.country)} title={NAMES.grandPrix(gp.name).headline} trail={TRAIL.grandPrix(gp.id, gp.name)} lede={gp.notes} sources={rows(data, 'sources')}>
       <Section>
         {/* queries/grandprix.js's strip, which the static page draws too (VD-71). */}
         <Stats items={grandPrixStrip(gp)} />

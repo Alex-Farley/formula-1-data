@@ -162,7 +162,7 @@ import {
   liveryPrimary,
   winnerColour,
 } from '../src/lib/liveries.js'
-import { teamsByDriver } from '../src/queries/season.js'
+import { seasonSources, teamsByDriver } from '../src/queries/season.js'
 import {
   NEXT,
   NO_TIMELINE_ROW,
@@ -2531,6 +2531,19 @@ describe('the sources behind a page (CD-08)', () => {
     assert.match(behindThisPage([fom, wiki, f1db]).before, /\(facts only\), Wikipedia .* and F1DB/)
     assert.equal(behindThisPage([]), null)
     assert.equal(behindThisPage(undefined), null)
+  })
+
+  // CD-46: a season's page names the points system's entry only where it
+  // prints the title arithmetic, merged into the registry's order once.
+  it("joins the title arithmetic's source in only where the answer is printed", () => {
+    const fom7 = { id: 7, priority: 7, source: 'F1 results archive' }
+    const f1db10 = { id: 10, priority: 10, source: 'F1DB' }
+    const written = { id: 18, priority: 18, source: 'Written for this project from general knowledge' }
+    const formula1 = { id: 3, priority: 3, source: 'Formula1.com' }
+    const base = [fom7, f1db10]
+    assert.deepEqual(seasonSources(base, [written], null), base)
+    assert.deepEqual(seasonSources(base, [written], { who: 'x' }).map((s) => s.id), [7, 10, 18])
+    assert.deepEqual(seasonSources(base, [formula1, f1db10], { who: 'x' }).map((s) => s.id), [3, 7, 10])
   })
 })
 

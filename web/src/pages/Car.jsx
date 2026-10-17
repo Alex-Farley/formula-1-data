@@ -15,6 +15,7 @@ import {
   AMBIGUOUS_FOOTER,
   CAR,
   CAR_DISAGREEMENTS,
+  CAR_SOURCES,
   ENTRIES,
   IMAGES,
   NO_ENTRIES,
@@ -83,6 +84,7 @@ export default function Car() {
     entries: [ENTRIES, [id]],
     seasons: [SEASONS, [id, id]],
     disagreements: [CAR_DISAGREEMENTS, [id]],
+    sources: [CAR_SOURCES, [id]],
   })
 
   return (
@@ -150,6 +152,7 @@ function CarBody({ id, chassis, variants, data }) {
       trail={TRAIL.car(chassis.id, name)}
       canonical={carAddress(id, car)}
       lede={car?.story}
+      sources={rows(data, 'sources')}
     >
       {/* The tiles directly under the h1, on every car (VD-83): this year's
           chassis used to open on its photographs (PD-49), with the figures

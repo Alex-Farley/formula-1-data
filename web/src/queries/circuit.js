@@ -146,6 +146,32 @@ export const GRANDS_PRIX = `
 `
 
 /**
+ * The registry entries behind the rows this page prints, for the citation's
+ * second sentence (CD-46; site.js's behindThisPage says what it reads): the
+ * circuit's own row, every race run or booked here, and every entry
+ * classified first in one of them - the winner column, *Most wins here* and
+ * the constructors' wins are each read from those. The layout timeline is a
+ * table with no `source_id`; its whole-table entry in `table_provenance`
+ * stands for its rows, read only where the page draws them. The outlines,
+ * the centreline and the photograph each carry their own credit beside them,
+ * as on a race's page, and an event's name in the line above the races is a
+ * label, not a fact this page states.
+ */
+export const CIRCUIT_SOURCES = `
+  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT source_id FROM circuits WHERE id = ?1
+     UNION SELECT source_id FROM races WHERE circuit_id = ?1
+     UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.circuit_id = ?1 AND e.finish_position = 1
+     UNION SELECT p.source_id FROM table_provenance p
+            WHERE p.tbl = 'circuit_layouts'
+              AND EXISTS (SELECT 1 FROM circuit_layouts WHERE circuit_id = ?1))
+   ORDER BY s.priority, s.id
+`
+
+/**
  * The race list's heading and count, as both renderers write them (SD-38).
  * The list holds every race at the venue, the ones still to run among them,
  * so "Every race held here 62" sat beside the tile's "Championship races 61"
