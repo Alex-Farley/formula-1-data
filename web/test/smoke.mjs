@@ -1784,7 +1784,7 @@ try {
       .catch(() => '')
     truthy(after.startsWith(basis), `the basis follows the tiles in the app — "${after.slice(0, 80)}"`)
     const staticAfter = unescaped(
-      ((html.split('<dl class="stats"')[1] ?? '').split('</dl>')[1]?.match(/^\s*(?:<\/div>)?\s*<p class="faint">([\s\S]*?)<\/p>/)?.[1] ?? '').replace(/<[^>]+>/g, ''),
+      ((html.split('<dl class="stats"')[1] ?? '').split('</dl>')[1]?.match(/^\s*(?:<\/div>)?\s*<p class="faint">([\s\S]*?)<\/p>/)?.[1] ?? '').replace(/[<>]/g, ''),
     )
     truthy(staticAfter.startsWith(basis), `and on the static page — "${staticAfter.slice(0, 80)}"`)
   })
