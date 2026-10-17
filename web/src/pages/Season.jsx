@@ -538,7 +538,10 @@ function SeasonBody({ year, season, data }) {
       documentName={NAMES.season(year).title}
       trail={TRAIL.season(year)}
       lede={opening}
-      sources={seasonSources(rows(data, 'sources'), rows(data, 'titleSources'), answer)}
+      sources={seasonSources(rows(data, 'sources'), rows(data, 'titleSources'), {
+        answer,
+        remaining: data.remaining.rows[0] ?? null,
+      })}
       aside={
         <Stepper {...seasonSteps(neighbours)} />
       }

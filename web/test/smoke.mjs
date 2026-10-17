@@ -72,6 +72,7 @@ import {
   WON_HERE,
   WON_HERE_HEADING,
   latestRound,
+  seasonSources,
   standingsHeading,
   titleAnswer,
   titleHeading,
@@ -6529,6 +6530,7 @@ try {
     // variants, so each reaches a table the others do not.
     const routes = [
       ['/seasons/2026', '2026', SEASON_SOURCES, [2026]],
+      ['/seasons/1988', '1988', SEASON_SOURCES, [1988]],
       ['/races/1988/13', 'Portuguese Grand Prix', RACE_SOURCES, [1988, 13]],
       ['/drivers/senna', 'Ayrton Senna', DRIVER_SOURCES, ['senna']],
       ['/constructors/alpine', 'Alpine', CONSTRUCTOR_SOURCES, ['alpine']],
@@ -6546,19 +6548,38 @@ try {
         .replace(/<[^>]+>/g, '')
         .replace(/&amp;/g, '&')
       is(staticCite.replace('https://lapledger.org', BASE), appCite, `the citation on ${route} is one sentence in both renderers`)
-      const behind = db.prepare(sources).all(...args)
+      // A season adds the points system's entry where it prints what that
+      // system says, worked out here as the two pages work it out.
+      const behind = route.startsWith('/seasons/')
+        ? (() => {
+            const [year] = args
+            const drivers = db.prepare(SEASON_FINAL).all(year).filter((r) => r.table_type === 'drivers')
+            const remaining = db.prepare(REMAINING).get(year) ?? null
+            const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
+            const answer =
+              !champion && drivers.length >= 2
+                ? titleAnswer({ drivers, remaining, afterRound: latestRound(db.prepare(SEASON_STANDINGS).all(year)) })
+                : null
+            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining })
+          })()
+        : db.prepare(sources).all(...args)
       truthy(behind.length > 0, `${route} has rows that resolve to a source`)
       truthy(
         behind.every((s) => appCite.includes(`${s.source} (${licenceTerms(s)})`)),
         `the citation on ${route} names its ${behind.length} sources and their terms`,
       )
-      // And nothing else. A season's page adds the points system's entry
-      // where it prints the title arithmetic, which titleAnswer() decides on
-      // more than SQL can say (seasonSources), so there it may be named and
-      // need not be.
-      const may = new Set(route.startsWith('/seasons/') ? db.prepare(TITLE_SOURCES).all().map((s) => s.source) : [])
-      const extra = registry.filter((name) => !behind.some((s) => s.source === name) && !may.has(name) && appCite.includes(`${name} (`))
+      // And nothing else.
+      const extra = registry.filter((name) => !behind.some((s) => s.source === name) && appCite.includes(`${name} (`))
       is(extra.join(' | '), '', `the citation on ${route} names no source its rows do not resolve to`)
+    }
+    // 1988 ran under a rule that dropped scores, which the title chart's
+    // note says, so the points system's entry is behind that page whatever
+    // seasonSources() makes of it.
+    {
+      const [{ source }] = db.prepare(TITLE_SOURCES).all()
+      await go('/seasons/1988', '1988')
+      const cite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
+      truthy(cite.includes(`${source} (`), `the citation on /seasons/1988 names ${source}, the dropped-scores rule's source`)
     }
     // A current driver's page prints the whole calendar, entered or not, so
     // every one of those races' sources is behind it (review of CD-08: on

@@ -2388,7 +2388,7 @@ const page = ({
     page({
       path: `seasons/${year}`,
       lastmod: LAST_RUN.season.get(String(year)),
-      sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES), answer),
+      sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES), { answer, remaining: one(REMAINING, year) ?? null }),
       title: NAMES.season(year).title,
       description: s.champion
         ? `${s.champion} won the ${year} Formula One World Championship for ${s.champion_team_name ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`

@@ -116,7 +116,9 @@ export const LINEAGE = `
  * standings row the championship column is read from, by the rule
  * DRIVER_SOURCES gives for the same view. The lineage is a table with no
  * `source_id`; its whole-table entry in `table_provenance` stands for its
- * rows, read only where the page draws the chain (more than one name in it).
+ * rows, read only where the app draws the chain (more than one name in it).
+ * The static page does not draw it yet and names it all the same: the
+ * sentence cites the address the two share, and is one sentence in both.
  * A name joined in only to label a row - a circuit, a driver - is the
  * label's, not a fact this page states, as on a driver's page. Photographs
  * and the disagreements each say where they come from beside them.

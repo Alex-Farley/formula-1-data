@@ -2534,16 +2534,21 @@ describe('the sources behind a page (CD-08)', () => {
   })
 
   // CD-46: a season's page names the points system's entry only where it
-  // prints the title arithmetic, merged into the registry's order once.
-  it("joins the title arithmetic's source in only where the answer is printed", () => {
+  // prints what that system says - the title arithmetic, or a rule that
+  // dropped scores - merged into the registry's order once.
+  it("joins the points system's source in only where the page prints what it says", () => {
     const fom7 = { id: 7, priority: 7, source: 'F1 results archive' }
     const f1db10 = { id: 10, priority: 10, source: 'F1DB' }
     const written = { id: 18, priority: 18, source: 'Written for this project from general knowledge' }
     const formula1 = { id: 3, priority: 3, source: 'Formula1.com' }
     const base = [fom7, f1db10]
-    assert.deepEqual(seasonSources(base, [written], null), base)
-    assert.deepEqual(seasonSources(base, [written], { who: 'x' }).map((s) => s.id), [7, 10, 18])
-    assert.deepEqual(seasonSources(base, [formula1, f1db10], { who: 'x' }).map((s) => s.id), [3, 7, 10])
+    const every = { dropped_scores: 'Every result counts' }
+    const best = { dropped_scores: 'Varied: typically best n from each half of the season' }
+    assert.deepEqual(seasonSources(base, [written], { answer: null, remaining: every }), base)
+    assert.deepEqual(seasonSources(base, [written], { answer: null, remaining: null }), base)
+    assert.deepEqual(seasonSources(base, [written], { answer: { who: 'x' }, remaining: every }).map((s) => s.id), [7, 10, 18])
+    assert.deepEqual(seasonSources(base, [written], { answer: null, remaining: best }).map((s) => s.id), [7, 10, 18])
+    assert.deepEqual(seasonSources(base, [formula1, f1db10], { answer: { who: 'x' }, remaining: every }).map((s) => s.id), [3, 7, 10])
   })
 })
 

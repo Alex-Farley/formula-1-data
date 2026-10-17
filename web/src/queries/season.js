@@ -390,10 +390,10 @@ export const NEXT_TRACE = `
  * list has no `source_id`, so its whole-table entry in `table_provenance`
  * stands for its rows.
  *
- * The points-system rows behind the title arithmetic are TITLE_SOURCES, and
- * seasonSources() adds them where the arithmetic is printed: titleAnswer()
- * decides that on more than SQL can say. `id` and `priority` come back for
- * that merge. A name joined in to label a row is the label's, as on a
+ * The points-system rows are TITLE_SOURCES, and seasonSources() adds them
+ * where the page reads them: titleAnswer() decides whether the arithmetic is
+ * printed on more than SQL can say. `id` and `priority` come back for that
+ * merge. A name joined in to label a row is the label's, as on a
  * driver's page; outlines and photographs carry their own credit beside them.
  */
 export const SEASON_SOURCES = `
@@ -429,7 +429,7 @@ export const SEASON_SOURCES = `
    ORDER BY s.priority, s.id
 `
 
-/** The points-system rows the title arithmetic reads (REMAINING): a table with no `source_id`, so its `table_provenance` entry. */
+/** The points-system rows REMAINING reads: a table with no `source_id`, so its `table_provenance` entry. */
 export const TITLE_SOURCES = `
   SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
@@ -438,12 +438,18 @@ export const TITLE_SOURCES = `
 `
 
 /**
- * SEASON_SOURCES, with TITLE_SOURCES joined in where `answer` - titleAnswer()'s
- * result, which both renderers print when it is not null - says the page
- * prints the arithmetic. One entry per source, in the registry's order.
+ * SEASON_SOURCES, with TITLE_SOURCES joined in where the page prints what
+ * the points system says: the title arithmetic, where `answer` -
+ * titleAnswer()'s result, which both renderers print when it is not null -
+ * says it is printed; and a rule that dropped scores, which the title
+ * chart's note says (progressionNote) on a season that ran under one. Both
+ * renderers pass `remaining`, REMAINING's row, whether or not the static page
+ * draws the chart, so the sentence is one sentence. One entry per source, in
+ * the registry's order.
  */
-export const seasonSources = (sources, title, answer) => {
-  if (!answer) return sources
+export const seasonSources = (sources, title, { answer, remaining }) => {
+  const dropped = remaining?.dropped_scores
+  if (!answer && (missing(dropped) || dropped === EVERY_RESULT_COUNTS)) return sources
   const byId = new Map([...sources, ...title].map((s) => [s.id, s]))
   return [...byId.values()].sort((a, b) => a.priority - b.priority || a.id - b.id)
 }
