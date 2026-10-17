@@ -9120,10 +9120,13 @@ try {
       // esc() in prerender.js writes exactly these five entities, and the
       // app's textContent has the characters themselves. &amp; last, so an
       // escaped ampersand does not turn into a second round of decoding.
-      const decode = (html) =>
-        unescaped(html.replace(/<[^>]+>/g, ''))
+      const decode = (html) => {
+        const doc = new DOMParser().parseFromString(html, 'text/html')
+        const text = doc.body?.textContent ?? ''
+        return unescaped(text)
           .replace(/\s+/g, ' ')
           .trim()
+      }
 
       // The first table after the h2 given, or the page's first table: its
       // headers, and every row.
