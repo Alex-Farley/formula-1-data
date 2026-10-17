@@ -8725,7 +8725,15 @@ try {
       const parsed = new DOMParser().parseFromString(html, 'text/html')
       return [read(parsed.querySelector('#prerendered main')), read(document.querySelector('#root main'))]
     }
-    const flat = (value) => unescaped(value).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+    const flat = (value) => {
+      let text = unescaped(value)
+      let previous
+      do {
+        previous = text
+        text = text.replace(/<[^>]+>/g, '')
+      } while (text !== previous)
+      return text.replace(/\s+/g, ' ').trim()
+    }
     const wrong = []
     const drawn = []
     for (const route of ROUTES) {
