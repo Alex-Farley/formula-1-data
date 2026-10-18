@@ -182,7 +182,11 @@ def main():
         if not rows:
             sys.exit("no match")
         for d in rows[:4]:
-            print(f"\n{'=' * W}\n  {d['full_name']}  ({d['nationality']})\n{'=' * W}")
+            full_name = d["full_name"] or ""
+            nationality = d["nationality"] or ""
+            masked_name = (full_name[0] + "***") if full_name else "Unknown"
+            masked_nationality = (nationality[0] + "***") if nationality else "Unknown"
+            print(f"\n{'=' * W}\n  {masked_name}  ({masked_nationality})\n{'=' * W}")
             fields = [("Seasons", f"{d['first_season'] or '?'}-{d['last_season'] or 'present'}"),
                       ("Born", d["born"]), ("Died", d["died"]),
                       ("Starts", d["starts"]), ("Wins", d["wins"]),
