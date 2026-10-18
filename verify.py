@@ -31,6 +31,7 @@ import re
 import sqlite3
 import sys
 from collections import Counter
+from urllib.parse import urlparse
 
 
 def _tool(name):
@@ -40,6 +41,15 @@ def _tool(name):
     if tools not in sys.path:
         sys.path.insert(0, tools)
     return importlib.import_module(name)
+
+
+def _is_formula1_source(source):
+    """True if source is a URL whose hostname is formula1.com or its subdomain."""
+    host = urlparse(source).hostname
+    if not host:
+        return False
+    host = host.lower()
+    return host == "formula1.com" or host.endswith(".formula1.com")
 
 
 def _lede_figures():
@@ -522,7 +532,7 @@ def standings():
         by_src = counted.get((yr_, kind_, eid_), {})
         best = max((n for n in by_src.values() if n is not None), default=None)
         kept = by_src.get(src_)
-        official = [s for s, n in by_src.items() if n == best and "formula1.com" in s]
+        official = [s for s, n in by_src.items() if n == best and _is_formula1_source(s)]
         if best is not None and (kept != best or (official and src_ not in official)):
             stale.append(f"{yr_} {kind_} {eid_}: kept {src_} at round {kept}, "
                          f"another source stands after round {best}")
