@@ -8188,7 +8188,15 @@ try {
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const found = /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1] ?? null
       const tagged = found === null ? null : unescaped(found)
-      const commons = tagged?.includes('commons.wikimedia.org') ? tagged : null
+      let commons = null
+      if (tagged) {
+        try {
+          const parsed = new URL(tagged)
+          if (parsed.hostname === 'commons.wikimedia.org') commons = tagged
+        } catch {
+          commons = null
+        }
+      }
       if (confirmed) {
         shownCards += 1
         const file = encodeURIComponent(confirmed.file_name.replace(/^File:/, '').replace(/ /g, '_'))
