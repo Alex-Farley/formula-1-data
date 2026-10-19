@@ -25,27 +25,27 @@ the current position from the rows themselves.
 
 | Part | Source | Roughly how much |
 |---|---|---|
-| Race winners 1950–2026 | Wikipedia season articles | 1,161 races |
-| Pole position and fastest lap 1950–2026 | Wikipedia season articles | 1,161 / 1,160 |
-| Race venues 1950–2026 | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | 1,161 |
-| Car specifications and design histories | <!-- credit:cars -->Wikipedia per-car articles<!-- /credit --> | 29 curated cars |
+| Race winners <!-- fig:wp_first_season -->1950<!-- /fig -->–<!-- fig:wp_last_season -->2024<!-- /fig --> | Wikipedia season articles | <!-- fig:wp_races -->1,125<!-- /fig --> races |
+| Pole position and fastest lap 1950–2026 | Wikipedia season articles | <!-- fig:poles -->1,166<!-- /fig --> / <!-- fig:fl_credit_races -->1,165<!-- /fig --> races |
+| Race venues 1950–2026 | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | <!-- fig:races_run -->1,166<!-- /fig --> races run |
+| Car specifications and design histories | <!-- credit:cars -->Wikipedia per-car articles<!-- /credit --> | <!-- fig:cars -->29<!-- /fig --> curated cars |
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
-| **Full race classification 1950–2026** | <!-- credit:race_entries -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | 27,555 entries, 1,161 races |
-| **Qualifying 1950–2026** | <!-- credit:qualifying -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | 26,975 rows |
-| **Championship standings, every round** | <!-- credit:standings -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | 34,495 rows |
-| Pit stops | <!-- credit:pit_stops -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | 22,472 |
-| Chassis, engine and season-entrant register | <!-- credit:chassis,engines,season_entrants -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | 1,153 chassis, 424 engines, 1,925 entrant rows |
-| Circuit outlines, and the layout each race ran | <!-- credit:circuit_outlines -->[F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit --> | 160 layouts, 1,172 races |
-| Circuit register and layout timelines | <!-- credit:circuit_layouts -->Wikipedia per-circuit articles<!-- /credit --> | 80 circuits, 49 layouts |
-| Car photographs (references and credits, not images) | <!-- credit:article_images -->[Wikimedia Commons](https://commons.wikimedia.org/)<!-- /credit --> | 623 articles |
+| **Full race classification 1950–2026** | <!-- credit:race_entries -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:race_entries -->27,570<!-- /fig --> entries, <!-- fig:races_classified -->1,166<!-- /fig --> races |
+| **Qualifying 1950–2026** | <!-- credit:qualifying -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:qualifying -->27,083<!-- /fig --> rows |
+| **Championship standings, every round** | <!-- credit:standings -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:standings -->34,666<!-- /fig --> rows |
+| Pit stops | <!-- credit:pit_stops -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:pit_stops -->22,623<!-- /fig --> |
+| Chassis, engine and season-entrant register | <!-- credit:chassis,engines,season_entrants -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:chassis -->1,153<!-- /fig --> chassis, <!-- fig:engines -->424<!-- /fig --> engines, <!-- fig:season_entrants -->1,925<!-- /fig --> entrant rows |
+| Circuit outlines, and the layout each race ran | <!-- credit:circuit_outlines -->[F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit --> | <!-- fig:circuit_outlines -->160<!-- /fig --> layouts, <!-- fig:outline_races -->1,172<!-- /fig --> races |
+| Circuit register and layout timelines | <!-- credit:circuit_layouts -->Wikipedia per-circuit articles<!-- /credit --> | <!-- fig:circuits -->80<!-- /fig --> circuits, <!-- fig:wp_layouts -->51<!-- /fig --> layouts |
+| Car photographs (references and credits, not images) | <!-- credit:article_images -->[Wikimedia Commons](https://commons.wikimedia.org/)<!-- /credit --> | <!-- fig:images -->623<!-- /fig --> articles |
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
-| Notable team radio transcripts | <!-- credit:team_radio -->Wikipedia per-race articles<!-- /credit --> | 6 |
+| Notable team radio transcripts | <!-- credit:team_radio -->Wikipedia per-race articles<!-- /credit --> | <!-- fig:notable_radio -->6<!-- /fig --> |
 | Why a finisher inside the paid places scored nothing | Wikipedia per-race articles, cited row by row in `claims`; the notes are written for this project | <!-- fig:wp_entry_notes -->13<!-- /fig --> entries |
 | 2026 season, entry list, standings, calendar | <!-- credit:season_entries,sessions,standings,races -->formula1.com<!-- /credit --> | current season |
 | How each grid was set, from 1996 | <!-- credit:qualifying_formats -->The FIA Sporting Regulations of each season from 2009, and formula1.com's history of qualifying formats before that<!-- /credit -->; the facts only, with notes written for this project | every season from 1996 |
-| Career totals (entries, starts, podiums, points) | formula1.com driver pages | 7 drivers at `verified` |
+| Career totals (entries, starts, podiums, points) | formula1.com driver pages | <!-- fig:drivers_verified -->7<!-- /fig --> drivers at `verified` |
 | Background lines for the drivers who only ran in Friday practice | <!-- credit:driver_note_sources -->Each driver's own Wikipedia article<!-- /credit -->, cited row by row in `driver_note_sources`; the lines are written for this project, and labelled in `docs/prose_pass.tsv` | <!-- fig:wp_note_sources -->53<!-- /fig --> drivers |
-| Regulations, safety, technical, glossary, eras | <!-- credit:glossary,eras,engine_eras,governance,safety_milestones,technical_innovations,points_systems,tyre_suppliers,constructor_lineage,grands_prix,personnel,engine_manufacturers -->Written for this project from general knowledge<!-- /credit -->. Since v2.16 this is a named provenance — `authored`, `source_registry` entry 18 — and everything carrying it sits at `medium`, because nothing here can contradict it | 13 tables, 357 rows |
+| Regulations, safety, technical, glossary, eras | <!-- credit:glossary,eras,engine_eras,governance,safety_milestones,technical_innovations,points_systems,tyre_suppliers,constructor_lineage,grands_prix,personnel,engine_manufacturers -->Written for this project from general knowledge<!-- /credit -->. Since v2.16 this is a named provenance — `authored`, `source_registry` entry 18 — and everything carrying it sits at `medium`, because nothing here can contradict it | <!-- fig:authored_tables -->12<!-- /fig --> tables, <!-- fig:authored_rows -->342<!-- /fig --> rows |
 
 Every row carries a `confidence` value and most carry a `source` URL. The
 `source_registry` table records which sources are treated as authoritative.
@@ -109,13 +109,13 @@ This is the most permissive licence of any bulk source used here, and since
 v2.15 it is the single most important fact about this repository's data.
 
 **The absence of a non-commercial clause is why the full classification
-ships.** `race_entries`, `qualifying`, `standings` and F1DB's `pit_stops` —
-111,497 rows between them — are built from `harvest/race_results.txt`,
-`harvest/qualifying.txt`, `harvest/standings.txt` and
-`harvest/f1db_pit_stops.txt`, all generated from F1DB. The same facts are
-available from Jolpica-F1 under CC BY-NC-SA and were loaded locally and never
-committed for seven versions on exactly that basis. Nothing about the data
-changed; the licence did.
+ships.** `race_entries`, `qualifying`, `standings` and F1DB's `pit_stops`
+— <!-- fig:classification_rows -->111,942<!-- /fig --> rows between them — are
+built from `harvest/race_results.txt`, `harvest/qualifying.txt`,
+`harvest/standings.txt` and `harvest/f1db_pit_stops.txt`, all generated from
+F1DB. The same facts are available from Jolpica-F1 under CC BY-NC-SA and
+were loaded locally and never committed for seven versions on exactly that
+basis. Nothing about the data changed; the licence did.
 
 ### Wikipedia — CC BY-SA 4.0
 
@@ -234,8 +234,8 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of 117,000 rows that have nothing to do
-with them.
+centrelines would set the licence of <!-- fig:rows -->177,485<!-- /fig --> rows that
+have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
 **`f1-geometry.db`**, and the two files are published side by side. ODbL
@@ -458,7 +458,7 @@ non-commercial use, and this project neither redistributes it nor ships it.
 committed database and are filled only when *you* run the loader.
 
 `pit_stops` and `team_radio` are **not** empty, and the difference matters.
-Both hold rows from elsewhere — 22,472 pit stops from F1DB under CC BY 4.0,
+Both hold rows from elsewhere — <!-- fig:pit_stops -->22,623<!-- /fig --> pit stops from F1DB under CC BY 4.0,
 and six radio exchanges quoted from Wikipedia race articles — so the rule for
 them is by SOURCE, not by emptiness: a `pit_stops` row from anything but
 `f1db`, or a `team_radio` row sourced `fastf1`, is FOM's and may not be

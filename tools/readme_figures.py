@@ -253,11 +253,21 @@ class Figures:
     def outline_circuits(self):
         return n(self.one("SELECT COUNT(DISTINCT circuit_id) FROM circuit_outlines"))
 
+    def outline_races(self):
+        # Races drawn by the layout F1DB gives them, the calendar ahead included.
+        return n(self.count("races", "f1db_layout_id IS NOT NULL"))
+
     def cars(self):
         return n(self.count("cars"))
 
     def chassis(self):
         return n(self.count("chassis"))
+
+    def engines(self):
+        return n(self.count("engines"))
+
+    def season_entrants(self):
+        return n(self.count("season_entrants"))
 
     def regulation_changes(self):
         return n(self.count("regulation_changes"))
@@ -309,6 +319,12 @@ class Figures:
 
     def pit_stops(self):
         return n(self.count("pit_stops"))
+
+    def classification_rows(self):
+        # The four tables ATTRIBUTION.md says the CC BY classification ships
+        # as, each counted whole and summed.
+        return n(sum(self.count(t) for t in
+                     ("race_entries", "qualifying", "standings", "pit_stops")))
 
     def season_entries(self):
         return n(self.count("season_entries"))
@@ -484,6 +500,9 @@ class Figures:
     def races_classified(self):
         return n(self.one("""SELECT COUNT(DISTINCT race_id) FROM race_entries
                              WHERE finish_position IS NOT NULL"""))
+
+    def drivers_verified(self):
+        return n(self.count("drivers", "confidence = 'verified'"))
 
     def podiums_compared(self):
         return n(self.count("drivers", "podiums_external IS NOT NULL"))
@@ -674,6 +693,19 @@ class Figures:
     # The share of the grant that is entry 18's prose (PM-49): the granted
     # columns of the tables whose provenance is the project's own writing,
     # found by the registry's authority as verify.py finds them.
+    def _authored(self):
+        # The tables table_provenance gives the authored source, which is
+        # what the credit span on ATTRIBUTION.md's authored row names.
+        return [t for (t,) in self.con.execute(
+            "SELECT p.tbl FROM table_provenance p JOIN source_registry s "
+            "ON s.id = p.source_id WHERE s.authority = 'authored'")]
+
+    def authored_tables(self):
+        return n(len(self._authored()))
+
+    def authored_rows(self):
+        return n(sum(self.count(t) for t in self._authored()))
+
     def prose_authored_kb(self):
         granted = self.meta("project_prose_columns").split(", ")
         authored = {t for (t,) in self.con.execute(
