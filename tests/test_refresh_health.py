@@ -428,13 +428,17 @@ class AnAlarmIsAnItemOfTheQueue(unittest.TestCase):
     def test_both_bodies_say_to_skip_it_while_the_proof_is_pending(self):
         # AF-113: an alarm heads *Now* again once its fix merges, so the
         # next fork takes it before the run that would close it.
-        for body, since in ((alarm.failure_body(["x"], "u", "w", 1, "2026-10-14"),
-                             "failed"),
-                            (alarm.freshness_body("late", "u"), "found a race late")):
-            self.assertIn(f"If no run has {since} since the fix merged", body)
+        failure = alarm.failure_body(["x"], "u", "w", 1, "2026-10-14")
+        late = alarm.freshness_body("late", "u")
+        self.assertIn("If no run has failed since the fix merged", failure)
+        # The run after a working fix still finds the race late: its results
+        # reach `main` only when the refresh pull request merges.
+        self.assertIn("until a run that started after the results reached `main` "
+                      "still finds the race late", late)
+        self.assertNotIn("If no run has failed", late)
+        for body in (failure, late):
             self.assertIn("is queued or in progress, leave this to it", body)
-            self.assertIn("Either way, skip the item.", body)
-            self.assertNotIn("{since}", body)
+            self.assertTrue(body.endswith("Either way, skip the item."), body[-80:])
 
 
 if __name__ == "__main__":

@@ -239,14 +239,24 @@ PICKING_UP = (
     "worked. Name it in the pull request as `Refs #n`. Work from the latest run's "
     "log. If the cause is upstream - F1DB has not published yet - there is nothing "
     "to fix here: mark it blocked and leave it to close itself.")
-# What "nothing to fix yet" means for either alarm, whose fix is proved only
-# by a later run: {since} is what that run would have to find to keep it
-# open. One run at a time is all refresh.yml allows, and a second queued
-# behind the first proves nothing the first does not.
-NOT_YET = (
-    " If no run has {since} since the fix merged, there is nothing to fix yet: "
+# What "nothing to fix yet" means for each alarm, whose fix is proved only by
+# a later run. One run at a time is all refresh.yml allows, and a second
+# queued behind the first proves nothing the first does not.
+NOT_YET_THEN = (
     "if a run of refresh.yml is queued or in progress, leave this to it; if none "
     "is, start one with `gh workflow run refresh.yml`. Either way, skip the item.")
+NOT_YET = " If no run has failed since the fix merged, there is nothing to fix yet: " + NOT_YET_THEN
+# The results-late alarm is proved later than that (AF-113). `report` reads
+# f1.db as it was at the run's own commit, and the results a run fetches reach
+# `main` only through the refresh pull request it opens, which land-refresh.sh
+# sets to merge itself once CI passes - so the run after a working fix still
+# finds the race late, and only a run that starts after that merge can close it.
+NOT_YET_LATE = (
+    " Once a fix has merged, there is nothing to fix yet until a run that started "
+    "after the results reached `main` still finds the race late: each run reads "
+    "the database as it was when it started, so the run that fetches the results "
+    "finds the race late too, and the refresh pull request carrying them merges "
+    "itself only once CI passes. Until then, " + NOT_YET_THEN)
 
 
 def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
@@ -289,8 +299,7 @@ def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
         "itself once CI passes, holding nothing back, while CI is not refusing that "
         "pull request. The run's "
         "log says why; `docs/UPSTREAM.md` says how to check the sync by hand.",
-        PICKING_UP.format(proof="lands with nothing held back")
-        + NOT_YET.format(since="failed")]
+        PICKING_UP.format(proof="lands with nothing held back") + NOT_YET]
     return "\n\n".join(parts)
 
 
@@ -303,8 +312,7 @@ def freshness_body(report, run_url):
         "kept by refresh.yml's `report` job, which runs "
         "`.github/scripts/refresh_health.py` on every run and closes this issue on the "
         "first run that finds no race late.\n\n"
-        + PICKING_UP.format(proof="finds no race late")
-        + NOT_YET.format(since="found a race late"))
+        + PICKING_UP.format(proof="finds no race late") + NOT_YET_LATE)
 
 
 # ---------------------------------------------------------------- the effects
