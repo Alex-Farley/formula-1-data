@@ -26,8 +26,8 @@ the current position from the rows themselves.
 | Part | Source | Roughly how much |
 |---|---|---|
 | Race winners <!-- fig:wp_first_season -->1950<!-- /fig -->–<!-- fig:wp_last_season -->2024<!-- /fig --> | Wikipedia season articles | <!-- fig:wp_races -->1,125<!-- /fig --> races |
-| Pole position and fastest lap 1950–2026 | Wikipedia season articles | <!-- fig:poles -->1,166<!-- /fig --> / <!-- fig:fl_credit_races -->1,165<!-- /fig --> races |
-| Race venues 1950–2026 | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | <!-- fig:races_run -->1,166<!-- /fig --> races run |
+| Pole position and fastest lap <!-- fig:wp_poles_first -->1950<!-- /fig -->–<!-- fig:wp_poles_last -->2026<!-- /fig --> | Wikipedia season articles | <!-- fig:wp_pole_races -->1,161<!-- /fig --> / <!-- fig:wp_fl_races -->1,160<!-- /fig --> races |
+| Race venues <!-- fig:wp_venues_first -->1950<!-- /fig -->–<!-- fig:wp_venues_last -->2026<!-- /fig --> | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | <!-- fig:wp_venue_races -->1,161<!-- /fig --> races |
 | Car specifications and design histories | <!-- credit:cars -->Wikipedia per-car articles<!-- /credit --> | <!-- fig:cars -->29<!-- /fig --> curated cars |
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
 | **Full race classification 1950–2026** | <!-- credit:race_entries -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:race_entries -->27,570<!-- /fig --> entries, <!-- fig:races_classified -->1,166<!-- /fig --> races |
@@ -35,7 +35,7 @@ the current position from the rows themselves.
 | **Championship standings, every round** | <!-- credit:standings -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:standings -->34,666<!-- /fig --> rows |
 | Pit stops | <!-- credit:pit_stops -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:pit_stops -->22,623<!-- /fig --> |
 | Chassis, engine and season-entrant register | <!-- credit:chassis,engines,season_entrants -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:chassis -->1,153<!-- /fig --> chassis, <!-- fig:engines -->424<!-- /fig --> engines, <!-- fig:season_entrants -->1,925<!-- /fig --> entrant rows |
-| Circuit outlines, and the layout each race ran | <!-- credit:circuit_outlines -->[F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit --> | <!-- fig:circuit_outlines -->160<!-- /fig --> layouts, <!-- fig:outline_races -->1,172<!-- /fig --> races |
+| Circuit outlines, and the layout each race ran | <!-- credit:circuit_outlines -->[F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit --> | <!-- fig:circuit_outlines -->160<!-- /fig --> layouts, <!-- fig:outline_races -->1,166<!-- /fig --> races |
 | Circuit register and layout timelines | <!-- credit:circuit_layouts -->Wikipedia per-circuit articles<!-- /credit --> | <!-- fig:circuits -->80<!-- /fig --> circuits, <!-- fig:wp_layouts -->51<!-- /fig --> layouts |
 | Car photographs (references and credits, not images) | <!-- credit:article_images -->[Wikimedia Commons](https://commons.wikimedia.org/)<!-- /credit --> | <!-- fig:images -->623<!-- /fig --> articles |
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
@@ -65,7 +65,7 @@ formula1.com, is a marked span naming the tables it is about, and
 tables' rows, or where a source more than a tenth of a table's rows cite goes
 unnamed under the same heading (`tools/credit_sources.py`). One cell is
 checked for less than it says: the circuit register's is checked for the
-layout timelines alone, because all 80 `circuits` rows cite formula1.com
+layout timelines alone, because all <!-- fig:circuits -->80<!-- /fig --> `circuits` rows cite formula1.com
 while the cell credits Wikipedia, and which of the two is right is open
 (`CR-68`, #775). Cells that credit some of a table's rows or columns — the
 race winners, pole and fastest lap, the chassis specifications, the claims
@@ -203,7 +203,7 @@ claims it was uploaded on somebody else's permission, and one whose only
 credit is Commons' own boilerplate ("Own work"), which names nobody. The category's title is a fact
 about where Commons files things; nothing of Commons' text is copied.
 
-There is **no single licence** covering these files. Across the 623 article rows there are
+There is **no single licence** covering these files. Across the <!-- fig:images -->623<!-- /fig --> article rows there are
 sixteen distinct licence strings — CC BY-SA at 1.0, 2.0, 2.5, 3.0 and 4.0,
 CC BY at 2.0, 2.5, 3.0 and 4.0, CC0, public domain, and national variants such
 as CC BY-SA 2.0 de and CC BY-SA 3.0 nl. So there is no blanket credit line you
