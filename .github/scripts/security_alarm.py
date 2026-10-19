@@ -20,12 +20,20 @@ NOTICE, FILE, NEVER ACT
 ONE ISSUE PER GROUP, NEVER ONE PER RUN
     A group is one rule in one file for code scanning, one package for
     Dependabot, and every secret-scanning alert together. An alert is
-    already filed when its address appears in the body of any open issue -
-    one this job opened, or a person's, or a `decision` listing alerts to
-    dismiss - and is never filed twice while that issue is open. A new
-    alert in a group whose issue is still open is added to that issue's
-    body, which is otherwise left as it is, and a comment says so. The
-    group's issue is found by the marker at the foot of its body.
+    already filed when its address appears in the body of an open issue
+    this job opened, or one the owner, a member or a collaborator wrote -
+    a `decision` listing alerts to dismiss, say - and is never filed twice
+    while that issue is open. A new alert in a group whose issue is still
+    open is added to that issue's body, which is otherwise left as it is,
+    and a comment says so. The group's issue is found by the marker at the
+    foot of its body, and only in an issue this job opened.
+
+ONLY THE REPOSITORY'S OWN ISSUES COUNT
+    The repository is public, so anyone can open an issue, name alerts in
+    it or copy a marker into it - the marker is a hash of a public rule id
+    and path, and the secrets' is a constant. An issue by anyone else
+    neither holds an alert back nor is written to and labelled by this job,
+    and next.py places by a severity label only an issue this job opened.
 
 WHERE IT GOES IN THE QUEUE
     `source: security`, `size: ?`, an `SC-n` id, and one severity label:
@@ -44,7 +52,12 @@ A SECRET IS NAMED, NEVER DESCRIBED
     The repository is public and so is every issue. A secret-scanning
     issue gives only the alerts' addresses, which only someone with access
     to the alerts can open: not the kind of secret, not where it is, never
-    the value the API returns beside it.
+    the value the API returns beside it. A code-scanning alert is filed
+    with its rule and file, because the code it points at is public
+    already, except one about a workflow - a rule under `actions/`, or a
+    file under `.github/` - which is given by its address alone like a
+    secret: an injection into a workflow is not announced before it is
+    fixed.
 
 A CHECK THAT CANNOT SEE
     Each kind is read on its own. A kind the token may not read, or that is
@@ -63,6 +76,12 @@ import subprocess
 import sys
 
 PREFIX = "SC"
+# The workflow token's login in the REST API: the author of every issue
+# this job opens.
+BOT = "github-actions[bot]"
+# The author associations whose issues may hold an alert back. A bot's is
+# CONTRIBUTOR, so it is matched by login instead.
+TRUSTED = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
 SOURCE = "source: security"
 QUEUE_LABELS = (SOURCE, "size: ?")
 SEVERITY_LABELS = {
@@ -110,6 +129,12 @@ def clean(text, limit=160):
     return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
 
 
+def withheld(rule_id, path):
+    """Whether a code-scanning alert is about a workflow, and so is given
+    by its address alone."""
+    return str(rule_id or "").startswith("actions/") or str(path or "").startswith(".github/")
+
+
 def key(*parts):
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
@@ -129,9 +154,14 @@ def groups(alerts):
         path = clean(location.get("path") or "an unknown file")
         name = clean(rule.get("description") or rule.get("id") or "an unnamed rule", 100)
         level, stated = code_severity(a)
+        k = key("code-scanning", str(rule.get("id")), path)
+        if withheld(rule.get("id"), location.get("path")):
+            add(k, "code-scanning", "Code scanning: an alert about a workflow", level, stated,
+                a["number"], a["html_url"], "")
+            found[k]["withheld"] = True
+            continue
         line = f"`{path}:{location.get('start_line', '?')}` - {clean(rule.get('id'))}"
-        add(key("code-scanning", str(rule.get("id")), path), "code-scanning",
-            f"Code scanning: {name}, in {path}", level, stated,
+        add(k, "code-scanning", f"Code scanning: {name}, in {path}", level, stated,
             a["number"], a["html_url"], line)
     for a in alerts.get("dependabot", []):
         dep = a.get("dependency") or {}
@@ -152,6 +182,13 @@ def groups(alerts):
     return found
 
 
+def trusted(issue):
+    """Whether an issue speaks for the repository: this job's own, or one
+    by the owner, a member or a collaborator."""
+    return ((issue.get("user") or {}).get("login") == BOT
+            or issue.get("author_association") in TRUSTED)
+
+
 def referenced(bodies, repo):
     """{(kind, number)} for every alert address in these bodies. Read as a
     number, so alert 1 is not found inside the address of alert 12."""
@@ -169,12 +206,14 @@ def severity(alerts):
 
 def plan(found, issues, repo):
     """[(action, key, group, new_alerts, issue)]: 'open' for a group no open
-    issue holds the marker of, 'add' for one whose issue is open, in each
-    case only for alerts no open issue mentions. Highest severity first, by
-    the new alerts' severity."""
-    seen = referenced([i.get("body") for i in issues], repo)
+    issue of this job's holds the marker of, 'add' for one whose issue is
+    open, in each case only for alerts no trusted open issue mentions.
+    Highest severity first, by the new alerts' severity."""
+    seen = referenced([i.get("body") for i in issues if trusted(i)], repo)
     owner = {}
     for i in issues:
+        if (i.get("user") or {}).get("login") != BOT:
+            continue
         for m in MARK.finditer(i.get("body") or ""):
             owner.setdefault(m.group(1), i)
     steps = []
@@ -223,6 +262,11 @@ def body(k, group, alerts, repo, run_url):
                      "else, and that is the maintainer's to do: the loop marks this `decision` "
                      "and does not take it. Nothing about the secret goes in this issue or in a "
                      "pull request: the repository is public.")
+    elif group.get("withheld"):
+        parts.append("**A workflow.** Its rule and file are left out of this issue, which is "
+                     "public: open the alert, which only someone with access to the "
+                     "repository's alerts can. Say no more about it in a pull request than "
+                     "the fix needs until the fix has merged.")
     parts += [
         "**For whoever picks this up.** It is an item of the queue. A real alert is fixed "
         "under the usual review, with `Closes #n` in the pull request; the alert closes "
@@ -238,10 +282,15 @@ def body(k, group, alerts, repo, run_url):
     return "\n\n".join(parts) + f"\n\n<!-- security-alert {k} -->\n"
 
 
-def added(old, new, run_url):
+def added(old, new, run_url, raised=None):
     """The issue's body with these alerts added above its marker, and
-    everything a person wrote in it left as it was."""
+    everything a person wrote in it left as it was. `raised` is the level
+    these alerts raise the issue to, if they do; the block says so, since
+    the severity line above it keeps the level the issue was opened at."""
     lines = f"**Added by {run_url}:**\n" + alert_lines(new)
+    if raised:
+        lines += (f"\n\n**Severity:** raised to {raised} by these. The `security: {raised}` "
+                  "label places this in the queue while no person has given it a status.")
     m = None
     for m in MARK.finditer(old):
         pass
@@ -295,23 +344,30 @@ def main():
         for label, colour, description in [(SOURCE, "5319E7", "Security alerts; filed by security.yml"),
                                            *SEVERITY_LABELS.values()]:
             gh("label", "create", label, "--color", colour, "--description", description, "--force")
-        out = gh("issue", "list", "--state", "all", "--label", SOURCE, "--limit", "1000",
-                 "--json", "title", check=False)
-        number = None if out.returncode else next_number(t["title"] for t in json.loads(out.stdout))
+        # Every issue's title, read through the REST listing like the open
+        # issues above: `gh issue list --label` goes through the search
+        # index, which can miss an SC issue filed minutes ago and hand its id
+        # out again, and would miss one whose label was taken off. The same
+        # titles `next.py --next-id SC` reads.
+        out = gh("api", "--paginate", "--jq", ".[] | select(.pull_request == null) | .title",
+                 f"repos/{repo}/issues?state=all&per_page=100", check=False)
+        number = None if out.returncode else next_number(out.stdout.splitlines())
         if number is None:
             print(f"::warning::no item id for the new issues: {out.stderr.strip()}")
     for action, k, group, new, issue in steps:
         if action == "add":
-            gh("issue", "edit", str(issue["number"]), "--body",
-               added(issue["body"], new, run_url))
-            gh("issue", "comment", str(issue["number"]), "--body",
-               f"{len(new)} more open alert(s) in this group, added to the body by {run_url}.")
-            # A higher severity raises the issue; next.py reads the highest
-            # label it carries. A lower one changes nothing.
+            # A higher severity adds its label; next.py reads the highest
+            # label an issue carries, and only while it has no status. A
+            # lower one changes nothing.
             have = [lv for lv, (name, *_) in SEVERITY_LABELS.items()
                     if name in {lb["name"] for lb in issue.get("labels", [])}]
             level = severity(new)[0]
-            if all(RANK[level] > RANK[h] for h in have):
+            raised = level if all(RANK[level] > RANK[h] for h in have) else None
+            gh("issue", "edit", str(issue["number"]), "--body",
+               added(issue["body"], new, run_url, raised))
+            gh("issue", "comment", str(issue["number"]), "--body",
+               f"{len(new)} more open alert(s) in this group, added to the body by {run_url}.")
+            if raised:
                 gh("issue", "edit", str(issue["number"]), "--add-label", SEVERITY_LABELS[level][0])
             done.append(f"#{issue['number']}: added {len(new)}")
             continue

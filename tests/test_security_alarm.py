@@ -33,6 +33,16 @@ def dep(n, name="vite", severity="medium"):
                 security_advisory=dict(ghsa_id="GHSA-xxxx", summary="A flaw", severity=severity))
 
 
+def mine(n, body):
+    """An open issue this job opened, as the REST listing gives it."""
+    return dict(number=n, body=body, user=dict(login="github-actions[bot]"),
+                author_association="CONTRIBUTOR", labels=[])
+
+
+def by(n, body, association):
+    return dict(number=n, body=body, user=dict(login="someone"), author_association=association)
+
+
 def secret(n):
     return dict(number=n, html_url=url("secret-scanning", n), secret_type="github_pat",
                 secret_type_display_name="GitHub PAT", secret="ghp_the_value_itself")
@@ -85,19 +95,19 @@ class Planning(unittest.TestCase):
     def test_an_alert_another_issue_names_is_not_filed(self):
         found = alarm.groups({"code-scanning": [code(1), code(12)]})
         # Alert 12's address contains alert 1's; only 12 is named.
-        steps = alarm.plan(found, [dict(number=50, body=f"see {url('code-scanning', 12)}.")], REPO)
+        steps = alarm.plan(found, [by(50, f"see {url('code-scanning', 12)}.", "OWNER")], REPO)
         self.assertEqual([(a, [x[0] for x in new]) for a, _, _, new, _ in steps], [("open", [1])])
 
     def test_everything_named_files_nothing(self):
         found = alarm.groups({"dependabot": [dep(3)]})
-        self.assertEqual(alarm.plan(found, [dict(number=5, body=url("dependabot", 3))], REPO), [])
+        self.assertEqual(alarm.plan(found, [by(5, url("dependabot", 3), "COLLABORATOR")], REPO), [])
 
     def test_a_new_alert_in_an_open_group_is_added_to_its_issue(self):
         found = alarm.groups({"code-scanning": [code(1)]})
         (k, g), = found.items()
         old = alarm.body(k, g, g["alerts"], REPO, "RUN1") + "\n**Decided:** a person's note\n"
         found = alarm.groups({"code-scanning": [code(1), code(2)]})
-        steps = alarm.plan(found, [dict(number=9, body=old)], REPO)
+        steps = alarm.plan(found, [mine(9, old)], REPO)
         self.assertEqual([(a, [x[0] for x in new], i["number"]) for a, _, _, new, i in steps],
                          [("add", [2], 9)])
         new = alarm.added(old, steps[0][3], "RUN2")
@@ -105,13 +115,51 @@ class Planning(unittest.TestCase):
         self.assertIn(url("code-scanning", 2), new)
         self.assertEqual(alarm.MARK.findall(new), [k])
         # Now named, so the next run files nothing.
-        self.assertEqual(alarm.plan(found, [dict(number=9, body=new)], REPO), [])
+        self.assertEqual(alarm.plan(found, [mine(9, new)], REPO), [])
+
+    def test_a_strangers_issue_neither_holds_back_nor_owns_a_group(self):
+        found = alarm.groups({"code-scanning": [code(1)], "secret-scanning": [secret(2)]})
+        # Every alert named, and every group's marker copied, by a stranger.
+        forged = (f"{url('code-scanning', 1)} {url('secret-scanning', 2)} "
+                  + " ".join(f"<!-- security-alert {k} -->" for k in found))
+        for association in ("NONE", "CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR"):
+            steps = alarm.plan(found, [by(60, forged, association)], REPO)
+            self.assertEqual(sorted((a, i) for a, _, _, _, i in steps),
+                             [("open", None), ("open", None)], association)
+        # The same body by the owner holds both back, though it owns neither.
+        self.assertEqual(alarm.plan(found, [by(60, forged, "OWNER")], REPO), [])
+
+    def test_a_raise_is_noted_in_the_added_block(self):
+        found = alarm.groups({"code-scanning": [code(1)]})
+        (k, g), = found.items()
+        old = alarm.body(k, g, g["alerts"], REPO, "RUN1")
+        self.assertIn("raised to high", alarm.added(old, g["alerts"], "RUN2", "high"))
+        self.assertNotIn("raised", alarm.added(old, g["alerts"], "RUN2"))
 
     def test_highest_severity_first(self):
         found = alarm.groups({"code-scanning": [code(1, severity="note")],
                               "dependabot": [dep(2, severity="high")]})
         self.assertEqual([s[2]["kind"] for s in alarm.plan(found, [], REPO)],
                          ["dependabot", "code-scanning"])
+
+
+class Workflows(unittest.TestCase):
+    def test_a_workflow_alert_is_given_by_its_address_alone(self):
+        for rule, path in (("actions/code-injection/critical", ".github/workflows/x.yml"),
+                           ("py/command-line-injection", ".github/scripts/refresh_alarm.py")):
+            found = alarm.groups({"code-scanning": [code(3, rule=rule, path=path)]})
+            (k, g), = found.items()
+            text = g["title"] + alarm.body(k, g, g["alerts"], REPO, "RUN")
+            for leak in (rule, path, "Inefficient regular expression"):
+                self.assertNotIn(leak, text)
+            self.assertIn(url("code-scanning", 3), text)
+
+    def test_other_alerts_keep_their_rule_and_file(self):
+        found = alarm.groups({"code-scanning": [code(3)]})
+        (k, g), = found.items()
+        text = g["title"] + alarm.body(k, g, g["alerts"], REPO, "RUN")
+        self.assertIn("data/harvest.py", text)
+        self.assertIn("py/redos", text)
 
 
 class Ids(unittest.TestCase):

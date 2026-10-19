@@ -329,6 +329,14 @@ alert) heads *Now* under the alarms, `security: medium` goes to the foot of
 *Next* and `security: low` to the foot of *Someday*. Unlike an alarm's, a
 status anyone gives one is obeyed, *Now* included: the job never writes
 *Now* back. Nothing in it dismisses an alert; that stays the maintainer's.
+Because the repository is public, only its own issues count: an alert is
+held back only by an issue the job opened or the owner, a member or a
+collaborator wrote, the job adds to and labels only its own, and `next.py`
+places by a severity label only an issue the job opened. A code-scanning
+alert is filed in public with its rule and file, since the code it points
+at is public already — except one about a workflow, which, like a secret,
+is given by its address alone, so an injection is not announced before it
+is fixed.
 
 ---
 
