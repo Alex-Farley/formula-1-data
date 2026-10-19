@@ -401,7 +401,6 @@ export function label(column) {
     .replace(/\bKg\b/g, 'kg')
     .replace(/\bBhp\b/g, 'bhp')
     .replace(/\bCc\b/g, 'cc')
-    .replace(/\bQ1\b/g, 'Q1')
     .replace(/\bSql\b/g, 'SQL')
     .replace(/\bPct\b/g, '%')
 }

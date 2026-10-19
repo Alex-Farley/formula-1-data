@@ -424,62 +424,6 @@ RACE_LAYOUTS = [
     ("bahrain", "outer", 2020, 16),      # Sakhir GP, a week after the Bahrain GP
 ]
 
-# Grands Prix as events, distinct from the circuits that host them
-GRANDS_PRIX = [
-    ("british", "British Grand Prix", "United Kingdom", 1950, None, "Silverstone, Aintree, Brands Hatch",
-     "Held every year since 1950 — one of only two events with an unbroken run.", "high"),
-    ("italian", "Italian Grand Prix", "Italy", 1950, None, "Monza, Imola",
-     "The other event held every season since 1950. All but one at Monza.", "high"),
-    ("monaco", "Monaco Grand Prix", "Monaco", 1950, None, "Circuit de Monaco",
-     "Part of the Triple Crown of motorsport. Missing only 1951-54 and 2020.", "high"),
-    ("belgian", "Belgian Grand Prix", "Belgium", 1950, None, "Spa-Francorchamps, Zolder, Nivelles", "", "high"),
-    ("french", "French Grand Prix", "France", 1950, 2022, "Reims, Rouen, Charade, Le Mans, Paul Ricard, Dijon, Magny-Cours",
-     "The oldest Grand Prix of all, first run in 1906. Absent from the calendar since 2022.", "high"),
-    ("german", "German Grand Prix", "Germany", 1951, 2019, "Nurburgring, AVUS, Hockenheim", "", "high"),
-    ("spanish", "Spanish Grand Prix", "Spain", 1951, None, "Pedralbes, Jarama, Montjuic, Jerez, Catalunya, Madrid", "", "high"),
-    ("dutch", "Dutch Grand Prix", "Netherlands", 1952, None, "Zandvoort", "Ran 1952-1985 and returned in 2021.", "high"),
-    ("us", "United States Grand Prix", "United States", 1959, None, "Sebring, Riverside, Watkins Glen, Detroit, Phoenix, Indianapolis, Austin", "", "high"),
-    ("japanese", "Japanese Grand Prix", "Japan", 1976, None, "Fuji, Suzuka", "", "high"),
-    ("brazilian", "Brazilian / Sao Paulo Grand Prix", "Brazil", 1973, None, "Interlagos, Jacarepagua", "", "high"),
-    ("canadian", "Canadian Grand Prix", "Canada", 1967, None, "Mosport, Mont-Tremblant, Circuit Gilles-Villeneuve", "", "high"),
-    ("australian", "Australian Grand Prix", "Australia", 1985, None, "Adelaide, Albert Park", "", "high"),
-    ("hungarian", "Hungarian Grand Prix", "Hungary", 1986, None, "Hungaroring", "First Grand Prix behind the Iron Curtain.", "high"),
-    ("austrian", "Austrian Grand Prix", "Austria", 1964, None, "Zeltweg, Osterreichring, A1-Ring, Red Bull Ring", "", "high"),
-    ("mexican", "Mexican / Mexico City Grand Prix", "Mexico", 1963, None, "Magdalena Mixhuca, Hermanos Rodriguez", "", "high"),
-    ("argentine", "Argentine Grand Prix", "Argentina", 1953, 1998, "Buenos Aires", "", "high"),
-    ("south-african", "South African Grand Prix", "South Africa", 1962, 1993, "East London, Kyalami", "", "high"),
-    ("swiss", "Swiss Grand Prix", "Switzerland", 1950, 1954, "Bremgarten", "Ended with Switzerland's ban on circuit racing.", "high"),
-    ("san-marino", "San Marino Grand Prix", "San Marino", 1981, 2006, "Imola",
-     "A second Italian race under a flag of convenience.", "high"),
-    ("european", "European Grand Prix", None, 1983, 2016, "Brands Hatch, Donington, Jerez, Nurburgring, Valencia, Baku",
-     "A movable title used to allow a second race in one country.", "high"),
-    ("pacific", "Pacific Grand Prix", "Japan", 1994, 1995, "TI Circuit Aida", "", "high"),
-    ("luxembourg", "Luxembourg Grand Prix", "Luxembourg", 1997, 1998, "Nurburgring", "", "high"),
-    ("malaysian", "Malaysian Grand Prix", "Malaysia", 1999, 2017, "Sepang", "", "high"),
-    ("bahrain", "Bahrain Grand Prix", "Bahrain", 2004, None, "Sakhir, Sepang", "First Grand Prix in the Middle East. Hosted at Sepang in 2026.", "verified"),
-    ("chinese", "Chinese Grand Prix", "China", 2004, None, "Shanghai", "", "high"),
-    ("turkish", "Turkish Grand Prix", "Turkey", 2005, 2027, "Istanbul Park",
-     "Returns as round 17 of 2027 under a five-year agreement, subject to FIA circuit homologation.", "high"),
-    ("singapore", "Singapore Grand Prix", "Singapore", 2008, None, "Marina Bay", "The sport's first night race.", "high"),
-    ("abu-dhabi", "Abu Dhabi Grand Prix", "United Arab Emirates", 2009, None, "Yas Marina", "", "high"),
-    ("korean", "Korean Grand Prix", "South Korea", 2010, 2013, "Yeongam", "", "high"),
-    ("indian", "Indian Grand Prix", "India", 2011, 2013, "Buddh", "", "high"),
-    ("russian", "Russian Grand Prix", "Russia", 2014, 2021, "Sochi", "Contract terminated after the invasion of Ukraine.", "high"),
-    ("azerbaijan", "Azerbaijan Grand Prix", "Azerbaijan", 2017, None, "Baku City Circuit", "", "high"),
-    ("saudi", "Saudi Arabian Grand Prix", "Saudi Arabia", 2021, None, "Jeddah Corniche", "", "high"),
-    ("qatar", "Qatar Grand Prix", "Qatar", 2021, None, "Lusail", "", "high"),
-    ("miami", "Miami Grand Prix", "United States", 2022, None, "Miami International Autodrome", "", "high"),
-    ("emilia-romagna", "Emilia-Romagna Grand Prix", "Italy", 2020, None, "Imola", "Imola's return under a new name.", "high"),
-    ("las-vegas", "Las Vegas Grand Prix", "United States", 2023, None, "Las Vegas Strip Circuit", "", "high"),
-    # formula1.com's 2026 race pages give Madrid the Spanish Grand Prix
-    # (round 14, Gran Premio de Espana) and Barcelona this name (round 7,
-    # Gran Premio de Barcelona-Catalunya), as F1DB does. The 2027 calendar
-    # has no Barcelona round, but whether the event returns is not
-    # established, so last_gp stays open rather than being closed at 2026.
-    ("barcelona-catalunya", "Barcelona-Catalunya Grand Prix", "Spain", 2026, None, "Catalunya",
-     "New for 2026, when the Spanish Grand Prix moved to Madrid.", "verified"),
-]
-
 
 # ---------------------------------------------------------------------
 # Wikidata entity and OpenStreetMap relation for each circuit whose shape

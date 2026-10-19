@@ -246,6 +246,21 @@ NOT_YET = (
     " If no run has failed since the fix merged, there is nothing to fix yet: "
     "if a run of refresh.yml is queued or in progress, leave this to it; if none "
     "is, start one with `gh workflow run refresh.yml`. Either way, skip the item.")
+# The results-late alarm is proved later than that (AF-113). `report` reads
+# f1.db as it was at the run's own commit, and the results a run fetches reach
+# `main` only through the refresh pull request it opens, which land-refresh.sh
+# sets to merge itself once CI passes - so the run after a working fix still
+# finds the race late, and only a run that starts after that merge can close it.
+NOT_YET_LATE = (
+    " Once a fix has merged, there is nothing to fix yet until a run that started "
+    "after the results reached `main` still finds the race late: each run reads "
+    "the database as it was when it started, so the run that fetches the results "
+    "finds the race late too, and the refresh pull request carrying them merges "
+    "itself only once CI passes. Until then, if a run of refresh.yml is queued or "
+    "in progress, or the refresh pull request carrying the results is open, leave "
+    "this to them: a run started before that pull request merges proves nothing, "
+    "and restarts its CI. If neither is, start one with `gh workflow run "
+    "refresh.yml`. Either way, skip the item.")
 
 
 def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
@@ -301,7 +316,7 @@ def freshness_body(report, run_url):
         "kept by refresh.yml's `report` job, which runs "
         "`.github/scripts/refresh_health.py` on every run and closes this issue on the "
         "first run that finds no race late.\n\n"
-        + PICKING_UP.format(proof="finds no race late"))
+        + PICKING_UP.format(proof="finds no race late") + NOT_YET_LATE)
 
 
 # ---------------------------------------------------------------- the effects

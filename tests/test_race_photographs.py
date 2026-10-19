@@ -12,6 +12,7 @@ WHY THIS FILE EXISTS
 """
 import os
 import sys
+import time
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -81,6 +82,31 @@ class OnePhotographOnce(unittest.TestCase):
                 ("File:Felipe Massa 2010 Italy 2.jpg",
                  "File:Felipe Massa 2010 Italy 2(cropped).jpg")):
             self.assertEqual(H.race_twin_key(a), H.race_twin_key(b), (a, b))
+
+    def test_the_key_strips_every_trailing_marker_and_nothing_else(self):
+        # Each expected key is what the pattern before CR-96 returned.
+        for name, key in (
+                ("File:A 909-5855 (cropped2).jpg", "a 909-5855"),
+                ("File:B 911-3161 restored.jpg", "b 911-3161"),
+                ("File:C 1967 (crop 2) (Restored).jpg", "c 1967"),
+                ("File:D 1967 restored (cropped).jpg", "d 1967"),
+                ("File:E_1967_edited-cropped3.jpg", "e_1967"),
+                ("File:F 1967 (cropped) .jpg", "f 1967 (cropped)"),
+                ("File:G 1967recrop.jpg", "g 1967recrop"),
+                ("File:H 1967 cropped 2.jpg", "h 1967 cropped 2"),
+                ("File:I (2).jpg", "i (2)"),
+                ("File:J 1967 (retouched )(  edited  12  ).jpg", "j 1967"),
+                ("File:K - Cropped.JPG", "k")):
+            self.assertEqual(H.race_twin_key(name), key, name)
+
+    def test_a_crafted_name_cannot_make_the_key_backtrack(self):
+        # The pattern before CR-96 took two seconds over this at ten repeats,
+        # four to five times longer with each one added; thirty must take
+        # well under a second.
+        name = "File:X" + "(crop    )" * 30 + "!.jpg"
+        started = time.monotonic()
+        self.assertEqual(H.race_twin_key(name), name[5:-4].lower())
+        self.assertLess(time.monotonic() - started, 1.0)
 
     def test_numbered_shots_are_not_versions(self):
         self.assertNotEqual(H.race_twin_key("File:Surtees at 1967 Dutch Grand Prix.jpg"),

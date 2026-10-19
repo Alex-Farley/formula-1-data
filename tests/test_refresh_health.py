@@ -425,6 +425,23 @@ class AnAlarmIsAnItemOfTheQueue(unittest.TestCase):
             self.assertIn("`Refs #n`", body)
             self.assertNotIn("{proof}", body)
 
+    def test_both_bodies_say_to_skip_it_while_the_proof_is_pending(self):
+        # AF-113: an alarm heads *Now* again once its fix merges, so the
+        # next fork takes it before the run that would close it.
+        failure = alarm.failure_body(["x"], "u", "w", 1, "2026-10-14")
+        late = alarm.freshness_body("late", "u")
+        self.assertIn("If no run has failed since the fix merged", failure)
+        # The run after a working fix still finds the race late: its results
+        # reach `main` only when the refresh pull request merges.
+        self.assertIn("until a run that started after the results reached `main` "
+                      "still finds the race late", late)
+        self.assertNotIn("If no run has failed", late)
+        self.assertIn("is queued or in progress, leave this to it", failure)
+        # Nor is a run worth starting while the refresh pull request waits.
+        self.assertIn("or the refresh pull request carrying the results is open", late)
+        for body in (failure, late):
+            self.assertTrue(body.endswith("Either way, skip the item."), body[-80:])
+
 
 if __name__ == "__main__":
     unittest.main()

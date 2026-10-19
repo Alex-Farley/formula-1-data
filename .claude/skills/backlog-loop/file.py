@@ -178,7 +178,12 @@ def gh(*args, as_json=False):
 
 def gh_failed(said):
     """End the run on a `gh` failure, gh's own message first, always - see
-    next.py's gh() for why."""
+    next.py's gh() for why. A limiter refusal ends it without asking
+    `unauthenticated()`, as next.py's run() does: that is a `gh auth status`
+    the limiter counts, and against the limiter it answers "no credential"
+    whatever the truth (CR-95)."""
+    if gh_preflight.LIMITER.search(said):
+        sys.exit(f"{said}\n{gh_preflight.limit_note()}")
     if gh_preflight.unauthenticated():
         sys.exit(f"{said}\n{gh_preflight.note(gh_preflight.UNAUTH)}")
     sys.exit(said)

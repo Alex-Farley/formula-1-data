@@ -404,5 +404,34 @@ class TheCacheItself(CacheIsolated):
         loop_cache.drop("queue")                     # must not raise
 
 
+class AGhFailure(unittest.TestCase):
+    def ending(self, said, unauthenticated):
+        preflight = file_py.gh_preflight
+        self.addCleanup(setattr, preflight, "unauthenticated", preflight.unauthenticated)
+        preflight.unauthenticated = unauthenticated
+        with self.assertRaises(SystemExit) as caught:
+            file_py.gh_failed(said)
+        return str(caught.exception.code)
+
+    def test_a_limiter_refusal_spends_no_call_asking_about_the_credential(self):
+        # CR-95: `unauthenticated()` is a `gh auth status` the limiter counts,
+        # and it answers "no credential" against the limiter whatever the
+        # truth. The stub raises if it is called; the message is the proof.
+        def asked():
+            raise AssertionError("spent a call on a refused API")
+        said = self.ending("You have exceeded a secondary rate limit", asked)
+        self.assertTrue(said.startswith("You have exceeded a secondary rate limit\n"))
+        self.assertIn("extends the refusal", said)
+        self.assertNotIn(file_py.gh_preflight.UNAUTH, said)
+
+    def test_any_other_failure_still_asks_and_names_the_credential(self):
+        calls = []
+        said = self.ending("HTTP 401: Bad credentials",
+                           lambda: calls.append(1) or True)
+        self.assertEqual(calls, [1])
+        self.assertIn(file_py.gh_preflight.UNAUTH, said)
+        self.assertNotIn("extends the refusal", said)
+
+
 if __name__ == "__main__":
     unittest.main()
