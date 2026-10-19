@@ -4613,6 +4613,23 @@ COUNTRY_EXCEPTIONS = {
         "As Italy/UK.",
     "Germany/Switzerland":
         "As Italy/UK.",
+    # Engine manufacturers (CR-94). Spelled "United Kingdom" in full, as the
+    # registry spells it; the constructors' "UK" above predates the column
+    # being held here and is left as it was declared.
+    "United Kingdom/United States":
+        "Ford Cosworth: an engine manufacturer recorded against two "
+        "countries, a British engine builder's name joined to an American "
+        "carmaker's. The registry names one country per row and cannot say "
+        "this.",
+    "Austria/United Kingdom":
+        "As United Kingdom/United States: Red Bull Powertrains, the engine "
+        "maker of a team recorded as Austrian and based in Milton Keynes.",
+    # People (CR-94).
+    "South Africa/United Kingdom":
+        "Gordon Murray: a person recorded with two nationalities. The "
+        "registry names one country per row and cannot say this.",
+    "Italy/Switzerland":
+        "As South Africa/United Kingdom: Mattia Binotto.",
 }
 
 
@@ -4628,8 +4645,9 @@ def normalise_countries(cur):
     registry = {name: alpha3 for _cid, name, alpha3, _dem in HV.load_f1db_countries()}
     renamed = coded = 0
 
-    # Five columns are held to the registry here: a driver's country of birth
-    # joined them with PD-17, and a Grand Prix's country with CR-89, because
+    # Seven columns are held to the registry here: a driver's country of birth
+    # joined them with PD-17, a Grand Prix's country with CR-89, and an engine
+    # manufacturer's country and a person's nationality with CR-94, because
     # "United States of America" on one column and "United States" on another
     # is the same split this function exists to prevent, one table further
     # in. grands_prix.country is the Grand Prix's own country, not its
@@ -4642,7 +4660,9 @@ def normalise_countries(cur):
                           ("drivers", "country_of_birth"),
                           ("constructors", "country"),
                           ("circuits", "country"),
-                          ("grands_prix", "country")):
+                          ("grands_prix", "country"),
+                          ("engine_manufacturers", "country"),
+                          ("personnel", "nationality")):
         for (value,) in cur.execute(
                 f'SELECT DISTINCT "{column}" FROM "{table}" '
                 f'WHERE "{column}" IS NOT NULL').fetchall():
