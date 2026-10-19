@@ -49,8 +49,9 @@ warning, not a refusal.
 An open `claude/` PR or a leftover worktree does **not** refuse: that is the
 inheritance to finish from where it stopped, and **its comments are read
 before anything else** — a recorded `FAIL` nobody has fixed is fixed, never
-reviewed again on the same head `[D-23]`. An open PR for the item you were
-given is landed as *Landing* says, whether or not you were given `--land`.
+reviewed again on the same head `[D-23]`. An inherited open PR is landed
+as *Landing* says, whether or not you were given `--land`, and is not handed
+over again.
 
 ## Before an item
 
@@ -488,10 +489,11 @@ above is the only one `[D-44]`.
 
 An item runs in two forks when its first review leaves anything to fix
 `[D-58]`: the one that implemented it opens the PR and has it reviewed, and
-a fresh one lands it. What follows the PR was about a quarter of a fork's
-turns and a third of the context it read, at whatever context implementing
-had built up - peaks of 90,000-256,000 tokens; a fork that started from an
-open PR did the same work at a peak of about 55,000.
+a fresh one lands it. What follows the PR was about 30 % of a fork's turns
+and 36 % of the context it read, each turn carrying whatever implementing
+had built up - peaks of 86,000-256,000 tokens; a fork that starts from an
+open PR starts small - one that inherited a PR with only the merge left
+peaked at 55,000.
 
 - **When.** Once the first pass, with its one respawn if it needed one, has
   recorded a verdict and the comment is on the PR: if there is anything to
@@ -655,7 +657,7 @@ non-critical credential — with `file.py blocked <n> "<what>"`, and leave the
 repository clean: no worktree, no open PR, no half-edited file.
 
 **Put every issue's status back before you stop, skip or hold**, the head and each
-companion — except on the two returns that declare otherwise above, a
+companion — except on the two of these returns that *Grouping* exempts, a
 `LIMIT:` and the limiter refusing the board, where the call that would put it
 back is the call being refused. An item left at *In progress* for any other
 reason is one `next.py` never returns, and that is the one way this loop

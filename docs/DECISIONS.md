@@ -583,17 +583,22 @@ happened on a smaller scale. A fork builds context while it implements - the
 issue, the code it reads, build output, the diff - and then spends its review,
 fix, confirmation and CI turns carrying all of it.
 
-**Before**, from the fork transcripts, the ten forks that ran from 2026-10-16
-to 2026-10-19 (CR-87, AF-59, CD-48, SD-21, AX-26, CD-58, AF-68, CD-46, CR-96,
-CR-94): peak context 90,000-201,000 tokens, median about 116,000; 980 turns
-reading 94.8 M tokens of context, of which the 263 turns after `gh pr create`
-read 31.5 M - 27 % of the turns, 33 % of the context, at about 120,000 a turn.
-The week's largest went further: AF-90 peaked at 256,000, VD-86 at 246,000,
-AF-91 at 242,000, PD-54 at 221,000. The two forks that inherited an open PR
-after a limit - #1007 (`AF-106`) and #1042 (`AX-26`) - finished review, CI
-and merge at a peak of about 55,000-57,000; AX-26's took 14 turns and 0.7 M.
-These are context figures, not session points, which the transcripts do not
-hold.
+**Before**, from the fork transcripts, counting each API response once (a
+transcript writes one response as several lines, each repeating its usage):
+every fork that opened a pull request from VD-86 on 2026-10-16 to CR-94 on
+2026-10-19, sixteen of them. Peak context 86,000-246,000 tokens, median
+about 118,000. Their 1,002 turns read about 108 M tokens of context; the 293
+turns after `gh pr create` read about 38.5 M - 29 % of the turns and 36 % of
+the context, about 131,000 a turn. Earlier forks that week went further:
+AF-90 peaked at 256,000, AF-91 at 242,000, PD-54 at 221,000.
+
+What a fresh fork costs to start from an open PR has been seen only for a
+fork with nothing left to do but merge. The two that inherited a PR after a
+limit, #1007 (`AF-106`) and #1042 (`AX-26`), found the reviews passed and the
+fix pushed, read the PR and merged it; AX-26's peaked at 55,000 in 8 turns
+and 0.42 M. What a landing fork that fixes, confirms and waits on CI costs
+has not been measured, and is what the after figures show. All of these are
+context figures, not session points, which the transcripts do not hold.
 
 **The split.** The fork that implements opens the PR, runs the first review
 and records its verdict, and returns `OPENED #<N> <ID>`; the driver starts a
@@ -623,11 +628,11 @@ context boundary, not a control.
 - **The manager never ends on `OPENED`**, and `supervise.py` reads one as no
   contract line: a manager that stopped there left an item half-done. A limit
   or a pause between the two forks leaves the PR open and claimed, and the
-  inheritance rule that produced the 55,000 figures lands it.
+  inheritance rule lands it.
 
-**After.** The same figures for the first ten items to land under the split,
-peak context per fork and context read after the PR, set against the ten
-above, and the session points each item cost, read from the `usage` lines
+**After.** The same figures, counted the same way, for the first ten items
+to land under the split, peak context per fork and context read after the
+PR, set against the sixteen above, and the session points each item cost, read from the `usage` lines
 `[D-55]` writes to `progress.log` before every fork. If quality or cost is
 worse, this is reverted; the measurement is `AF-123` (#1071).
 

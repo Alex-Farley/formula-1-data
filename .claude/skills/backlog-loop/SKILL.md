@@ -10,8 +10,8 @@ disable-model-invocation: true
 This skill stays in the session a person started and stays small. It does
 not read the queue, open an issue, run the build or launch a reviewer. Every
 item runs in **`backlog-item`**, a forked skill in
-`.claude/skills/backlog-item/`, whose context is discarded when the item is
-merged, skipped or stopped. An item whose review leaves something to fix
+`.claude/skills/backlog-item/`, whose context is discarded when it returns -
+the item merged, skipped, held or stopped, or handed over. An item whose review leaves something to fix
 takes two forks: one implements it and opens the pull request, and a fresh
 one lands it `[D-58]`. What comes back here from each is one contract line
 and a stock-take of at most five lines.
