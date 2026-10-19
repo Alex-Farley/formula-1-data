@@ -146,6 +146,7 @@ class Planning(unittest.TestCase):
 class Workflows(unittest.TestCase):
     def test_a_workflow_alert_is_given_by_its_address_alone(self):
         for rule, path in (("actions/code-injection/critical", ".github/workflows/x.yml"),
+                           ("actions/untrusted-checkout/high", "action.yml"),
                            ("py/command-line-injection", ".github/scripts/refresh_alarm.py")):
             found = alarm.groups({"code-scanning": [code(3, rule=rule, path=path)]})
             (k, g), = found.items()
@@ -153,6 +154,15 @@ class Workflows(unittest.TestCase):
             for leak in (rule, path, "Inefficient regular expression"):
                 self.assertNotIn(leak, text)
             self.assertIn(url("code-scanning", 3), text)
+
+    def test_every_workflow_alert_shares_one_marker(self):
+        # A marker hashed from rule and file would name them to a dictionary.
+        found = alarm.groups({"code-scanning": [
+            code(3, rule="actions/code-injection/critical", path=".github/workflows/a.yml"),
+            code(4, rule="actions/untrusted-checkout/high", path=".github/workflows/b.yml")]})
+        (k, g), = found.items()
+        self.assertEqual(k, alarm.key("code-scanning", "workflow"))
+        self.assertEqual([a[0] for a in g["alerts"]], [3, 4])
 
     def test_other_alerts_keep_their_rule_and_file(self):
         found = alarm.groups({"code-scanning": [code(3)]})

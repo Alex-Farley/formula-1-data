@@ -19,7 +19,8 @@ NOTICE, FILE, NEVER ACT
 
 ONE ISSUE PER GROUP, NEVER ONE PER RUN
     A group is one rule in one file for code scanning, one package for
-    Dependabot, and every secret-scanning alert together. An alert is
+    Dependabot, every secret-scanning alert together, and every
+    code-scanning alert about a workflow together. An alert is
     already filed when its address appears in the body of an open issue
     this job opened, or one the owner, a member or a collaborator wrote -
     a `decision` listing alerts to dismiss, say - and is never filed twice
@@ -57,7 +58,9 @@ A SECRET IS NAMED, NEVER DESCRIBED
     already, except one about a workflow - a rule under `actions/`, or a
     file under `.github/` - which is given by its address alone like a
     secret: an injection into a workflow is not announced before it is
-    fixed.
+    fixed. Its marker is the same for every such alert, because one hashed
+    from its rule and file would name them to anyone who tried the few
+    `actions/` rules against the few workflows.
 
 A CHECK THAT CANNOT SEE
     Each kind is read on its own. A kind the token may not read, or that is
@@ -154,14 +157,15 @@ def groups(alerts):
         path = clean(location.get("path") or "an unknown file")
         name = clean(rule.get("description") or rule.get("id") or "an unnamed rule", 100)
         level, stated = code_severity(a)
-        k = key("code-scanning", str(rule.get("id")), path)
         if withheld(rule.get("id"), location.get("path")):
+            # One key for them all: see the docstring.
+            k = key("code-scanning", "workflow")
             add(k, "code-scanning", "Code scanning: an alert about a workflow", level, stated,
                 a["number"], a["html_url"], "")
             found[k]["withheld"] = True
             continue
         line = f"`{path}:{location.get('start_line', '?')}` - {clean(rule.get('id'))}"
-        add(k, "code-scanning", f"Code scanning: {name}, in {path}", level, stated,
+        add(key("code-scanning", str(rule.get("id")), path), "code-scanning", f"Code scanning: {name}, in {path}", level, stated,
             a["number"], a["html_url"], line)
     for a in alerts.get("dependabot", []):
         dep = a.get("dependency") or {}
@@ -348,7 +352,8 @@ def main():
         # issues above: `gh issue list --label` goes through the search
         # index, which can miss an SC issue filed minutes ago and hand its id
         # out again, and would miss one whose label was taken off. The same
-        # titles `next.py --next-id SC` reads.
+        # titles `next.py --next-id SC` reads from the issues, though it also
+        # reads docs/LANDED.md, which holds no SC entry.
         out = gh("api", "--paginate", "--jq", ".[] | select(.pull_request == null) | .title",
                  f"repos/{repo}/issues?state=all&per_page=100", check=False)
         number = None if out.returncode else next_number(out.stdout.splitlines())
