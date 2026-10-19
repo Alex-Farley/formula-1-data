@@ -7,14 +7,14 @@ disable-model-invocation: true
 
 # The backlog loop: the driver
 
-This skill stays in the session a person started and stays small. It does
-not read the queue, open an issue, run the build or launch a reviewer. Every
-item runs in **`backlog-item`**, a forked skill in
-`.claude/skills/backlog-item/`, whose context is discarded when it returns -
-the item merged, skipped, held or stopped, or handed over. An item whose review leaves something to fix
-takes two forks: one implements it and opens the pull request, and a fresh
-one lands it `[D-58]`. What comes back here from each is one contract line
-and a stock-take of at most five lines.
+This skill stays in the session a person started and stays small. It does not
+read the queue, open an issue, run the build or launch a reviewer. Every item
+runs in **`backlog-item`**, a forked skill in `.claude/skills/backlog-item/`,
+whose context is discarded when it returns - the item merged, skipped, held or
+stopped, or handed over. An item whose review leaves something to fix takes
+two forks: one implements it and opens the pull request, and a fresh one lands
+it `[D-58]`. What comes back here from each is one contract line and a
+stock-take of at most five lines.
 
 Why: the driving session, not the reviewers, was 75-85 % of the loop's
 tokens, because everything it had ever read stayed in context for the rest of

@@ -592,12 +592,14 @@ turns after `gh pr create` read about 38.5 M - 29 % of the turns and 36 % of
 the context, about 131,000 a turn. Earlier forks that week went further:
 AF-90 peaked at 256,000, AF-91 at 242,000, PD-54 at 221,000.
 
-What a fresh fork costs to start from an open PR has been seen only for a
-fork with nothing left to do but merge. The two that inherited a PR after a
-limit, #1007 (`AF-106`) and #1042 (`AX-26`), found the reviews passed and the
-fix pushed, read the PR and merged it; AX-26's peaked at 55,000 in 8 turns
-and 0.42 M. What a landing fork that fixes, confirms and waits on CI costs
-has not been measured, and is what the after figures show. All of these are
+What a fresh fork costs from an open PR has been seen a few times. The two
+that inherited a PR after a limit this month, #1007 (`AF-106`) and #1042
+(`AX-26`), found the reviews passed and the fix pushed, read the PR and
+merged it: peaks of 57,000 and 55,000, in 9 and 8 turns. Two on 2026-09-17,
+for `AF-40` and `AF-42`, inherited a PR with fix and CI work still to do:
+peaks of 96,000 and 71,000, in 43 and 27 turns, 3.3 M and 1.5 M. Two are
+too few to call a landing fork's cost; the after figures are what measure
+it. All of these are
 context figures, not session points, which the transcripts do not hold.
 
 **The split.** The fork that implements opens the PR, runs the first review
@@ -630,11 +632,12 @@ context boundary, not a control.
   or a pause between the two forks leaves the PR open and claimed, and the
   inheritance rule lands it.
 
-**After.** The same figures, counted the same way, for the first ten items
-to land under the split, peak context per fork and context read after the
-PR, set against the sixteen above, and the session points each item cost, read from the `usage` lines
-`[D-55]` writes to `progress.log` before every fork. If quality or cost is
-worse, this is reverted; the measurement is `AF-123` (#1071).
+**After.** The same figures, counted the same way, for the first ten items to
+land under the split, peak context per fork and context read after the PR, set
+against the sixteen above, and the session points each item cost, read from
+the `usage` lines `[D-55]` writes to `progress.log` before every fork. If
+quality or cost is worse, this is reverted; the measurement is `AF-123`
+(#1071).
 
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four

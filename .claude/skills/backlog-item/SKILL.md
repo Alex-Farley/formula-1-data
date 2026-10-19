@@ -207,11 +207,11 @@ is out of the queue until a person moves it by hand.
 There are three exceptions, and each leaves the group *at* *In progress* on
 purpose. A handover: an `OPENED` return leaves it there because the landing
 fork takes the item from the open PR. A usage limit: a `LIMIT:` return leaves
-it there because the next fork picks the work up from the open PR and needs
-to see it is taken. And **the secondary rate limiter refusing the board**: there the status cannot be
-put back, because putting it back *is* a board write and the board is what is
-being refused. Say so in the `STOP:` line, so a person reading it knows the
-item is claimed and why nothing moved it.
+it there because the next fork picks the work up from the open PR and needs to
+see it is taken. And **the secondary rate limiter refusing the board**: there
+the status cannot be put back, because putting it back *is* a board write and
+the board is what is being refused. Say so in the `STOP:` line, so a person
+reading it knows the item is claimed and why nothing moved it.
 
 Until a PR exists the only record of the group is the board — the branch is
 named for the head alone — so a fork inheriting a worktree reads `next.py`'s
@@ -489,11 +489,10 @@ above is the only one `[D-44]`.
 
 An item runs in two forks when its first review leaves anything to fix
 `[D-58]`: the one that implemented it opens the PR and has it reviewed, and
-a fresh one lands it. What follows the PR was about 30 % of a fork's turns
-and 36 % of the context it read, each turn carrying whatever implementing
-had built up - peaks of 86,000-256,000 tokens; a fork that starts from an
-open PR starts small - one that inherited a PR with only the merge left
-peaked at 55,000.
+a fresh one lands it. In the sixteen forks D-58 counts, what followed the
+PR was 29 % of a fork's turns and 36 % of the context it read, each turn
+carrying whatever implementing had built up - peaks of 86,000-246,000
+tokens. Forks that inherited an open PR peaked at 55,000-96,000.
 
 - **When.** Once the first pass, with its one respawn if it needed one, has
   recorded a verdict and the comment is on the PR: if there is anything to
@@ -516,17 +515,17 @@ peaked at 55,000.
 
 ### Landing (`--land <N>`)
 
-Run `start-check.sh` as *Starting* says, then skip *Before an item* and
-*Doing the item*: the item was chosen, claimed and built. Read, in this
-order, and nothing else first: the PR body and its comments (`gh pr view <N>
+Run `start-check.sh` as *Starting* says, then skip *Before an item* and *Doing
+the item*: the item was chosen, claimed and built. Read, in this order, and
+nothing else first: the PR body and its comments (`gh pr view <N>
 --comments`); the diff, in the PR's worktree, which `start-check.sh` lists —
 `git fetch origin <branch> && git worktree add <scratchpad>/wt-<slug>
-<branch>` when it is gone; and the issue only for what a comment names. Then go on from *Review*
-where the verdict comment left it — fix, precheck, confirmation, CI, merge.
-Every rule there applies as written: the fix is to this diff, the
-confirmation is a fresh agent on the model the pace table names, and nothing
-merges without a recorded `PASS`. A landing fork does not hand over again;
-it returns any line *The result* allows except `OPENED`.
+<branch>` when it is gone; and the issue only for what a comment names. Then
+go on from *Review* where the verdict comment left it — fix, precheck,
+confirmation, CI, merge. Every rule there applies as written: the fix is to
+this diff, the confirmation is a fresh agent on the model the pace table
+names, and nothing merges without a recorded `PASS`. A landing fork does not
+hand over again; it returns any line *The result* allows except `OPENED`.
 
 ## Keeping the cost down
 
