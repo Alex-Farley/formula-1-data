@@ -2451,16 +2451,29 @@ RACE_PHOTOGRAPH_ELSEWHERE = re.compile(
 # (cropped2).jpg" and "X restored.jpg" beside them. race_twin_key() is what
 # they share, and a race keeps one of them - the first derivative by title,
 # an editor's framing of the subject, or the original where there is none.
-_TWIN_TAIL = re.compile(
-    r"(\s*\(\s*(cropped|crop|restored|retouched|edited)\s*\d*\s*\)"
-    r"|[\s_-]+(cropped|crop|restored|retouched|edited)\d*)+$", re.I)
+#
+# The markers are any run of "(cropped)", "(crop 2)", " restored", "_edited"
+# and the like at the end of the name. They are matched on the name reversed,
+# from its first character, so the pattern is anchored and every step of it
+# is unambiguous: a file name is outside input, and the unreversed pattern,
+# a repeated group in which a run of spaces could be split more than one way
+# ("\s*\d*\s*"), can be made to backtrack exponentially (CR-96). The
+# optional newline first is where "$" would have matched, before a final
+# one; .strip() drops it either way.
+_TWIN_WORDS_REVERSED = r"(?:depporc|porc|derotser|dehcuoter|detide)"
+_TWIN_TAILS_REVERSED = re.compile(
+    r"\A\n?(?:\)\s*(?:\d+\s*)?" + _TWIN_WORDS_REVERSED + r"\s*\(\s*"
+    r"|\d*" + _TWIN_WORDS_REVERSED + r"[\s_-]+)+", re.I)
 
 
 def race_twin_key(file_name):
     """The photograph a file is a version of: its name without the extension
     and without a trailing crop, restoration or edit marker, folded."""
     base = re.sub(r"\.[A-Za-z0-9]+$", "", file_name.removeprefix("File:"))
-    return _TWIN_TAIL.sub("", base).strip().lower()
+    tails = _TWIN_TAILS_REVERSED.match(base[::-1])
+    if tails:
+        base = base[:len(base) - tails.end()]
+    return base.strip().lower()
 
 
 # A credit line is what the page shows beside the photograph, and Commons

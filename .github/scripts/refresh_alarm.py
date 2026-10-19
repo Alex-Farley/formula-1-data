@@ -239,11 +239,12 @@ PICKING_UP = (
     "worked. Name it in the pull request as `Refs #n`. Work from the latest run's "
     "log. If the cause is upstream - F1DB has not published yet - there is nothing "
     "to fix here: mark it blocked and leave it to close itself.")
-# What "nothing to fix yet" means for the failure alarm, whose fix is proved
-# only by a later run. One run at a time is all refresh.yml allows, and a
-# second queued behind the first proves nothing the first does not.
+# What "nothing to fix yet" means for either alarm, whose fix is proved only
+# by a later run: {since} is what that run would have to find to keep it
+# open. One run at a time is all refresh.yml allows, and a second queued
+# behind the first proves nothing the first does not.
 NOT_YET = (
-    " If no run has failed since the fix merged, there is nothing to fix yet: "
+    " If no run has {since} since the fix merged, there is nothing to fix yet: "
     "if a run of refresh.yml is queued or in progress, leave this to it; if none "
     "is, start one with `gh workflow run refresh.yml`. Either way, skip the item.")
 
@@ -288,7 +289,8 @@ def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
         "itself once CI passes, holding nothing back, while CI is not refusing that "
         "pull request. The run's "
         "log says why; `docs/UPSTREAM.md` says how to check the sync by hand.",
-        PICKING_UP.format(proof="lands with nothing held back") + NOT_YET]
+        PICKING_UP.format(proof="lands with nothing held back")
+        + NOT_YET.format(since="failed")]
     return "\n\n".join(parts)
 
 
@@ -301,7 +303,8 @@ def freshness_body(report, run_url):
         "kept by refresh.yml's `report` job, which runs "
         "`.github/scripts/refresh_health.py` on every run and closes this issue on the "
         "first run that finds no race late.\n\n"
-        + PICKING_UP.format(proof="finds no race late"))
+        + PICKING_UP.format(proof="finds no race late")
+        + NOT_YET.format(since="found a race late"))
 
 
 # ---------------------------------------------------------------- the effects
