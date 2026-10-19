@@ -1,6 +1,6 @@
 ---
 name: backlog-manager
-description: The backlog loop's manager, run as the main thread of a session - `claude --agent backlog-manager`, or unattended under `.claude/skills/backlog-loop/supervise.py` (`make loop`). Drives one forked backlog-item per item and reads back its contract line. Never launched through the Agent tool, never a reviewer, never merges.
+description: The backlog loop's manager, run as the main thread of a session - `claude --agent backlog-manager`, or unattended under `.claude/skills/backlog-loop/supervise.py` (`make loop`). Drives a forked backlog-item for each item - two when its review leaves a fix - and reads back each one's contract line. Never launched through the Agent tool, never a reviewer, never merges.
 # No `tools:` and no `model:`, both on purpose. The fork this agent invokes
 # needs Agent, Edit and Write, and whether a forked skill inherits a
 # main-thread agent's allowlist is not established - an allowlist here could
@@ -47,7 +47,8 @@ your own skip list from it.
   the desktop app's pane if its tool is not there.
 - **The result is for a script as well as a person.** Your final message's
   first line is exactly one of the fork's contract lines — the last one you
-  acted on, `DECIDE <ID>: <question>` included — or your own
+  acted on, `DECIDE <ID>: <question>` included, and never `OPENED`, on which
+  you start the landing fork — or your own
   `PAUSE: until <time> - <why>` (above), or your own
   `STOP: <reason in one clause>` (two consecutive skips, three holds with
   no merge between them, a second stall in a row, a fork that returned no contract line and

@@ -575,6 +575,62 @@ one only for it to pause.
 - **Nothing here is a control.** A figure can stop the loop starting work; it
   cannot change a check, a review, the permission mode or what is merged.
 
+### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065)
+The maintainer's usage report of 2026-10-18 put 43 % of usage at more than
+150,000 tokens of context, and the item forks were most of it. `[D-16]` stopped
+the driving context growing across items; inside an item the same thing
+happened on a smaller scale. A fork builds context while it implements - the
+issue, the code it reads, build output, the diff - and then spends its review,
+fix, confirmation and CI turns carrying all of it.
+
+**Before**, from the fork transcripts, the ten forks that ran from 2026-10-16
+to 2026-10-19 (CR-87, AF-59, CD-48, SD-21, AX-26, CD-58, AF-68, CD-46, CR-96,
+CR-94): peak context 90,000-201,000 tokens, median about 116,000; 980 turns
+reading 94.8 M tokens of context, of which the 263 turns after `gh pr create`
+read 31.5 M - 27 % of the turns, 33 % of the context, at about 120,000 a turn.
+The week's largest went further: AF-90 peaked at 256,000, VD-86 at 246,000,
+AF-91 at 242,000, PD-54 at 221,000. The two forks that inherited an open PR
+after a limit - #1007 (`AF-106`) and #1042 (`AX-26`) - finished review, CI
+and merge at a peak of about 55,000-57,000; AX-26's took 14 turns and 0.7 M.
+These are context figures, not session points, which the transcripts do not
+hold.
+
+**The split.** The fork that implements opens the PR, runs the first review
+and records its verdict, and returns `OPENED #<N> <ID>`; the driver starts a
+fresh fork with `--land <N>`, which reads the PR, its comments and the diff
+and does the rest. Everything else about an item is unchanged: the reviewer
+is chosen and briefed by the fork that knows the change, every gate and
+verdict rule applies to the landing fork as written, and the split moves a
+context boundary, not a control.
+
+- **What the landing fork needs and the PR did not hold:** the non-blocking
+  findings, which a PASS also has fixed, the pass id and model, the routes the
+  brief named, and anything the implementer knows that a fixer would need.
+  The first pass's verdict comment `[D-23]` now carries them, which is better
+  record-keeping in any case.
+- **When not to split.** The item asked whether an XS batch or a one-round PASS
+  still saves enough. What decides is not the size but whether anything is
+  left to change: a PASS with no finding to fix leaves a few turns of CI wait
+  and merge - about six at, say, 150,000 tokens, some 0.9 M of cache reads -
+  against a fresh fork's start of writing perhaps 50,000 tokens of new cache
+  and some ten turns of reading at that size. That is an estimate, and close
+  to even, so the fork that implemented lands a clean PASS itself and hands
+  over everything else. A fix round is where the split pays: an edit, a
+  rebuild, a push, a confirmation and a CI wait, each turn at the
+  implementer's context.
+- **A first pass that settled nothing** after its one respawn is not handed
+  over: it is *Not a PASS*, and the fork that wrote the brief deals with it.
+- **The manager never ends on `OPENED`**, and `supervise.py` reads one as no
+  contract line: a manager that stopped there left an item half-done. A limit
+  or a pause between the two forks leaves the PR open and claimed, and the
+  inheritance rule that produced the 55,000 figures lands it.
+
+**After.** The same figures for the first ten items to land under the split,
+peak context per fork and context read after the PR, set against the ten
+above, and the session points each item cost, read from the `usage` lines
+`[D-55]` writes to `progress.log` before every fork. If quality or cost is
+worse, this is reverted; the measurement is `AF-123` (#1071).
+
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four
 rungs of `PD-02` whose diffs a single pass would have read for the price of

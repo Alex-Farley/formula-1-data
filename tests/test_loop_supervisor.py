@@ -35,6 +35,11 @@ class ReadsTheContractLine(unittest.TestCase):
                            ("PAUSE: until 2026-10-14T21:59+00:00 - session 95% used", "PAUSE")):
             self.assertEqual(sup.classify(result(line + "\nstock-take"), 0)[0], kind, line)
 
+    def test_a_fork_handover_is_not_a_result(self):
+        # OPENED is the first of an item's two forks; the manager lands the PR
+        # before it returns, so a manager that ends on one has not (D-58).
+        self.assertEqual(sup.classify(result("OPENED #1070 AF-122\nstock-take"), 0)[0], "NONE")
+
     def test_the_first_line_decides_not_a_later_one(self):
         # A stock-take that mentions a merge is not a merge.
         self.assertEqual(sup.classify(result("Waiting on CI.\nMERGED #1 AF-1 earlier"), 0)[0], "NONE")
