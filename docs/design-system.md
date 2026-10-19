@@ -235,6 +235,15 @@ column in the opening band.
 The result: **two text edges per page, both grid lines**, where there were
 seven.
 
+**A string with no break in it** (provisional, AF-110 #1005) - an address, a
+SQL name, an API path, a word wider than its column - breaks where it must
+rather than run past its box: `overflow-wrap: anywhere` on prose, code and a
+name tile that hold one, `break-word` on the page's heading, which breaks
+only a word that cannot fit a line of its own. A tile's figure is given
+neither: `anywhere` there split "2017" into "201" and "7". The width sweep
+in `smoke.mjs` (*Every route fits its width*, AF-101) fails a box that a
+string runs past.
+
 ### Page header (core) — built (VD-79, VD-81)
 
 - **Job:** say what this page is, and how to move along a sequence.

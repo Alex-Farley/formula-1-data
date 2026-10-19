@@ -9497,14 +9497,8 @@ try {
     // so the list cannot outlive its cause - whether the CSS was fixed or
     // the data stopped reaching it; a subset may not visit the route, so it
     // is not held to that.
-    const DECLARED = [
-      ['p.disagreement-why', null, '#1005'],
-      ['details.record-card-how > p', null, '#1005'],
-      ['div.board > a > b', null, '#1005'],
-      ['div.board > a > p', null, '#1005'],
-      ['header > h1', '/circuits/spa', '#1005'],
-      ['dl.stats > div', '/races/2021/12', '#1005'],
-    ]
+    // None today: AF-110 (#1005) removed the six it was written with.
+    const DECLARED = []
     const overflowing = () => {
       const named = (el) => {
         const own = (node) => `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}${[...node.classList].map((c) => `.${c}`).join('')}`
@@ -9617,7 +9611,7 @@ try {
     }
     if (ONLY.length === 0) {
       const gone = DECLARED.filter((_, i) => !used.has(i))
-      if (gone.length === 0) pass(`all ${DECLARED.length} declarations still match something, so none has outlived its cause`)
+      if (gone.length === 0 && DECLARED.length > 0) pass(`all ${DECLARED.length} declarations still match something, so none has outlived its cause`)
       for (const [names, on, item] of gone) fail(`${names}${on ? ` on ${on}` : ''} is declared (${item}) and no longer runs past its box — remove the declaration`)
     }
   })
