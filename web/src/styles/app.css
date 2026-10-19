@@ -3325,8 +3325,8 @@ figure.figure > .figure-note:first-child {
 }
 
 /* An endpoint's path - /api/v1/races/2026/15.json - has no break in it, and
-   a card is 210 px at its narrowest (AF-110). Only the code breaks anywhere,
-   not the card's count, so a figure is never split. */
+   a card is 210 px at its narrowest (AF-110). The card's paragraph and its
+   code break anywhere; its count does not, so a figure is never split. */
 .board p,
 .board code {
   overflow-wrap: anywhere;
