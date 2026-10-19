@@ -284,6 +284,14 @@ line could not be written; say so in the stock-take and carry on.
   `results-late`, which refresh.yml opens as an item and closes itself on
   the first run that proves the fix: the PR says `Refs #<n>`, never a
   closing keyword, and its body says how to work it `AF-89`.
+  **A security alert** — an issue labelled `source: security`, which
+  security.yml files — is an ordinary item and closes by `Closes #<n>`
+  when the alert is real. One that is a false positive or in test code is
+  never dismissed by a fork: only the maintainer dismisses an alert, so it
+  is held as *Stop conditions* says, the `file.py decision` naming each
+  alert, the reason and the `gh api` command its body gives. A secret is
+  held the same way, real or not, and nothing about it goes in a PR
+  `AF-121`.
   Anything discovered is filed as its own issue — `file.py new <prefix>
   "<title>" --size <XS|S|M|L|?> --body "..."` — never left in a note, a PR
   comment or a TODO.

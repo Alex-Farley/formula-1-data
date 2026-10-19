@@ -117,5 +117,76 @@ class QueueRows(unittest.TestCase):
             self.assertIn(f'"{label}"', precheck)
 
 
+def sc(n, title, *labels, author="app/github-actions"):
+    """An issue as security.yml opens it: `source: security`, by the
+    workflow's token as `gh issue list --json author` names it."""
+    i = issue(n, title, "source: security", *labels)
+    i["author"] = dict(login=author, is_bot=author == "app/github-actions")
+    return i
+
+
+class SecurityRows(unittest.TestCase):
+    """security.yml's issues reach the board with no status too, and are
+    read by their severity label until a person gives them one (AF-121)."""
+    def rows(self, board, issues):
+        return nxt.queue_rows(board, {i["number"]: i for i in issues})
+
+    def ranked(self, rows):
+        return [(r["number"], r["status"]) for s in nxt.QUEUE for r in rows if r["status"] == s]
+
+    def test_each_severity_goes_where_the_ruling_says(self):
+        rows = self.rows([(1, "Now", 0), (2, "Next", 0), (3, "Someday", 0),
+                          (10, "", 0), (11, "", 0), (12, "", 0), (13, "", 0)],
+                         [issue(1, "AF-01: a"), issue(2, "AF-02: b"), issue(3, "AF-03: c"),
+                          sc(10, "SC-01: low", "security: low"),
+                          sc(11, "SC-02: high", "security: high"),
+                          sc(12, "SC-03: medium", "security: medium"),
+                          issue(13, "AF-94: alarm", "refresh-failing")])
+        # The alarm first, then the high alert above what a person placed in
+        # *Now*; medium and low at the foot of theirs.
+        self.assertEqual(self.ranked(rows), [(13, "Now"), (11, "Now"), (1, "Now"),
+                                             (2, "Next"), (12, "Next"),
+                                             (3, "Someday"), (10, "Someday")])
+
+    def test_off_the_board_is_read_by_its_label_too(self):
+        rows = self.rows([(1, "Now", 0)],
+                         [issue(1, "AF-01: a"), sc(7, "SC-04: x", "security: high"),
+                          sc(8, "SC-05: y", "security: low")])
+        self.assertEqual(self.ranked(rows), [(7, "Now"), (1, "Now"), (8, "Someday")])
+
+    def test_the_highest_label_decides(self):
+        rows = self.rows([(4, "", 0)],
+                         [sc(4, "SC-06: z", "security: low", "security: high")])
+        self.assertEqual(self.ranked(rows), [(4, "Now")])
+
+    def test_a_status_is_obeyed(self):
+        rows = self.rows([(1, "Now", 0), (5, "Someday", 0), (6, "Now", 0)],
+                         [issue(1, "AF-01: a"), sc(5, "SC-07: x", "security: high"),
+                          sc(6, "SC-08: y", "security: low")])
+        self.assertEqual(self.ranked(rows), [(1, "Now"), (6, "Now"), (5, "Someday")])
+
+    def test_only_an_issue_security_yml_opened_is_placed_by_its_label(self):
+        # A stranger's issue, and one of the job's without `source: security`,
+        # are ordinary rows: off the board they are not in the queue, and on
+        # it with no status they are unplaced - neither heads *Now*.
+        stranger = sc(20, "SC-09: x", "security: high", author="someone")
+        unsourced = issue(21, "SC-10: y", "security: high")
+        unsourced["author"] = dict(login="app/github-actions", is_bot=True)
+        rows = self.rows([(1, "Now", 0), (21, "", 0)],
+                         [issue(1, "AF-01: a"), stranger, unsourced])
+        self.assertEqual(self.ranked(rows), [(1, "Now")])
+        self.assertEqual([(r["number"], r["status"]) for r in rows if r["number"] == 21],
+                         [(21, "")])
+        # The same issue by the job is placed.
+        rows = self.rows([(1, "Now", 0)], [issue(1, "AF-01: a"), sc(20, "SC-09: x", "security: high")])
+        self.assertEqual(self.ranked(rows), [(20, "Now"), (1, "Now")])
+
+    def test_the_labels_are_the_ones_security_alarm_writes(self):
+        alarm = load("security_alarm", SCRIPTS)
+        self.assertEqual({label for label, _ in nxt.SEVERITY},
+                         {name for name, *_ in alarm.SEVERITY_LABELS.values()})
+        self.assertEqual([status for _, status in nxt.SEVERITY], list(nxt.QUEUE))
+
+
 if __name__ == "__main__":
     unittest.main()

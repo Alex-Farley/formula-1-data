@@ -134,7 +134,7 @@ SOURCE = {
     "VD": "visual design", "CD": "content design", "IA": "information architecture",
     "DA": "data architecture", "SD": "service design", "UR": "user research",
     "PM": "project record", "AF": "maintainer", "CR": "code review",
-    "LV": "live data", "WK": "Wikipedia survey",
+    "LV": "live data", "WK": "Wikipedia survey", "SC": "security",
 }
 STATUSES = ("Now", "Next", "Someday", "In progress", "Done")
 HERE = os.path.dirname(os.path.abspath(__file__))

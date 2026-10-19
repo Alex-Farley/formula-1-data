@@ -209,6 +209,7 @@ label. Nothing else is required.
 | `CR-n` | `source: code review` | code review (whole-codebase engineering review) |
 | `LV-n` | `source: live data` | live and current-season data |
 | `WK-n` | `source: Wikipedia survey` | what Wikipedia tabulates and the database cannot yet |
+| `SC-n` | `source: security` | an open code-scanning, Dependabot or secret-scanning alert, filed by `security.yml` |
 
 A critique's own numbering carries straight over: finding 4 of the product
 critique is `PD-04`, and stays `PD-04` however the board is ordered. A second
@@ -255,7 +256,10 @@ comment has been re-filed as undecided three times `[D-43]`.
 the merge closes the issue and the board moves it to *Done*. The one
 exception is refresh.yml's alarm issue (`refresh-failing`, `results-late`):
 the workflow closes it on the run that proves the fix, so a PR says
-`Refs #n`. The PR is the
+`Refs #n`. An issue `security.yml` files for an open alert closes by
+`Closes #n` like any other; it arrives labelled `security: high`, `medium`
+or `low`, which places it under *Now*, *Next* or *Someday* until a person
+gives it a status, and only the maintainer dismisses an alert. The PR is the
 record of what was done; the issue is not edited to say so. **Declining** is
 a normal outcome: the issue is closed as *not planned* with one comment
 saying why, because what was declined and why is what a later critique has

@@ -1,0 +1,65 @@
+name: security alerts
+
+# Code-scanning, Dependabot and secret-scanning alerts were seen only by
+# whoever opened the Security tab: on 2026-10-18 sixteen code-scanning alerts
+# were open and untriaged, two of them real (#1063). This job files an item
+# of the queue for every group of open alerts that no open issue of the
+# repository's own already mentions, labelled by severity so next.py can
+# place it, and the loop
+# triages it from there (AF-121). It notices and files; it never dismisses
+# an alert and never changes code. .github/scripts/security_alarm.py says
+# the rest.
+#
+# Weekly, at a minute nobody else picked (AF-01), and after each CodeQL run
+# on main finishes, so an alert a push raises can be filed the same day.
+# CodeQL here is GitHub's default setup, listed among this repository's
+# workflows as `CodeQL` (dynamic/github-code-scanning/codeql); no run of
+# this file has yet shown that workflow_run fires for it, so the weekly
+# schedule is the floor either way. workflow_run runs this file as it is on
+# main, and the `branches` filter keeps it to runs on main.
+on:
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_run:
+    workflows: [CodeQL]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One at a time, so two runs close together cannot both find a group
+# unfiled and both open an issue for it.
+concurrency:
+  group: security-alerts
+  cancel-in-progress: false
+
+jobs:
+  # The workflow's own token, with the two scopes it needs: security-events
+  # to read the code-scanning and Dependabot alerts, issues to file them.
+  # Secret-scanning alerts are read with the same token and the step fails
+  # when it may not read them, which security_alarm.py prefers to a watch
+  # that reports nothing open because it cannot look. No npm and no App
+  # token: it checks out one file and runs it.
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      security-events: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts/security_alarm.py
+          sparse-checkout-cone-mode: false
+
+      - name: File the open alerts nobody has
+        run: python3 -B .github/scripts/security_alarm.py
