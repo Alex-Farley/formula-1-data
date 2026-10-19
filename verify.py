@@ -5199,7 +5199,7 @@ def the_full_classification():
 #
 # The empty tables are checked for being EMPTY. pit_stops and team_radio are
 # checked by SOURCE, because both legitimately hold rows from elsewhere:
-# 22,472 pit stops from F1DB under CC BY, and six radio exchanges quoted from
+# F1DB's pit stops under CC BY, and six radio exchanges quoted from
 # Wikipedia articles.
 # ---------------------------------------------------------------------------
 @section('REDISTRIBUTION')

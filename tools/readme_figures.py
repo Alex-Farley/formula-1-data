@@ -253,11 +253,23 @@ class Figures:
     def outline_circuits(self):
         return n(self.one("SELECT COUNT(DISTINCT circuit_id) FROM circuit_outlines"))
 
+    def outline_races(self):
+        # Races run that F1DB gives a layout: ATTRIBUTION.md says "the layout
+        # each race ran", which a round still to come has not.
+        return n(self.count("races", "f1db_layout_id IS NOT NULL "
+                                     "AND status = 'completed'"))
+
     def cars(self):
         return n(self.count("cars"))
 
     def chassis(self):
         return n(self.count("chassis"))
+
+    def engines(self):
+        return n(self.count("engines"))
+
+    def season_entrants(self):
+        return n(self.count("season_entrants"))
 
     def regulation_changes(self):
         return n(self.count("regulation_changes"))
@@ -309,6 +321,12 @@ class Figures:
 
     def pit_stops(self):
         return n(self.count("pit_stops"))
+
+    def classification_rows(self):
+        # The four tables ATTRIBUTION.md says the CC BY classification ships
+        # as, each counted whole and summed.
+        return n(sum(self.count(t) for t in
+                     ("race_entries", "qualifying", "standings", "pit_stops")))
 
     def season_entries(self):
         return n(self.count("season_entries"))
@@ -484,6 +502,9 @@ class Figures:
     def races_classified(self):
         return n(self.one("""SELECT COUNT(DISTINCT race_id) FROM race_entries
                              WHERE finish_position IS NOT NULL"""))
+
+    def drivers_verified(self):
+        return n(self.count("drivers", "confidence = 'verified'"))
 
     def podiums_compared(self):
         return n(self.count("drivers", "podiums_external IS NOT NULL"))
@@ -671,6 +692,19 @@ class Figures:
         granted = self.meta("project_prose_columns").split(", ")
         return f"{round(sum(self._prose_chars(c) for c in granted) / 1024)} KB"
 
+    def _authored(self):
+        # The tables table_provenance gives the authored source, which is
+        # what the credit span on ATTRIBUTION.md's authored row names.
+        return [t for (t,) in self.con.execute(
+            "SELECT p.tbl FROM table_provenance p JOIN source_registry s "
+            "ON s.id = p.source_id WHERE s.authority = 'authored'")]
+
+    def authored_tables(self):
+        return n(len(self._authored()))
+
+    def authored_rows(self):
+        return n(sum(self.count(t) for t in self._authored()))
+
     # The share of the grant that is entry 18's prose (PM-49): the granted
     # columns of the tables whose provenance is the project's own writing,
     # found by the registry's authority as verify.py finds them.
@@ -783,6 +817,43 @@ class Figures:
 
     def wp_fastest_laps(self):
         return n(self.count("race_entries", f"{self._WP_RACE} AND fastest_lap = 1"))
+
+    # What the season-article harvests credit (CR-91). harvest/poles.txt and
+    # harvest/venues.txt are read by hand and stop at the last round read;
+    # the races after take their pole from F1DB's grid 1, their fastest lap
+    # from F1DB and their circuit from formula1.com's calendar, so a count
+    # of every race would credit those to Wikipedia. These are the races in
+    # this database a harvest row credits - the pole, the fastest lap, the
+    # venue - and the seasons the harvest spans.
+    def _harvest(self, which):
+        cache = self.__dict__.setdefault("_hv", {})
+        if which not in cache:
+            sys.path.insert(0, ROOT)
+            from data import harvest as HV
+            rows = HV.load_poles() if which == "poles" else HV.load_venues()
+            cache[which] = rows
+        return cache[which]
+
+    def _harvest_races(self, which, field, sql):
+        keys = {(h["year"], h["round"]) for h in self._harvest(which) if h[field]}
+        return n(sum(1 for k in self.con.execute(sql) if tuple(k) in keys))
+
+    def wp_pole_races(self):
+        return self._harvest_races("poles", "pole", """SELECT DISTINCT r.year, r.round
+            FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.pole = 1""")
+
+    def wp_fl_races(self):
+        return self._harvest_races("poles", "fastest_lap", """SELECT DISTINCT r.year, r.round
+            FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.fastest_lap = 1""")
+
+    def wp_venue_races(self):
+        return self._harvest_races("venues", "circuit_id",
+                                   "SELECT year, round FROM races WHERE circuit_id IS NOT NULL")
+
+    def wp_poles_first(self):  return str(min(h["year"] for h in self._harvest("poles")))
+    def wp_poles_last(self):   return str(max(h["year"] for h in self._harvest("poles")))
+    def wp_venues_first(self): return str(min(h["year"] for h in self._harvest("venues")))
+    def wp_venues_last(self):  return str(max(h["year"] for h in self._harvest("venues")))
 
     def wp_dependent_rows(self):
         # Rows keyed to a Wikipedia-cited race that do not themselves cite
