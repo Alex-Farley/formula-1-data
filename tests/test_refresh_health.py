@@ -436,8 +436,10 @@ class AnAlarmIsAnItemOfTheQueue(unittest.TestCase):
         self.assertIn("until a run that started after the results reached `main` "
                       "still finds the race late", late)
         self.assertNotIn("If no run has failed", late)
+        self.assertIn("is queued or in progress, leave this to it", failure)
+        # Nor is a run worth starting while the refresh pull request waits.
+        self.assertIn("or the refresh pull request carrying the results is open", late)
         for body in (failure, late):
-            self.assertIn("is queued or in progress, leave this to it", body)
             self.assertTrue(body.endswith("Either way, skip the item."), body[-80:])
 
 

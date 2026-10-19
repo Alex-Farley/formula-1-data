@@ -239,13 +239,13 @@ PICKING_UP = (
     "worked. Name it in the pull request as `Refs #n`. Work from the latest run's "
     "log. If the cause is upstream - F1DB has not published yet - there is nothing "
     "to fix here: mark it blocked and leave it to close itself.")
-# What "nothing to fix yet" means for each alarm, whose fix is proved only by
-# a later run. One run at a time is all refresh.yml allows, and a second
-# queued behind the first proves nothing the first does not.
-NOT_YET_THEN = (
+# What "nothing to fix yet" means for the failure alarm, whose fix is proved
+# only by a later run. One run at a time is all refresh.yml allows, and a
+# second queued behind the first proves nothing the first does not.
+NOT_YET = (
+    " If no run has failed since the fix merged, there is nothing to fix yet: "
     "if a run of refresh.yml is queued or in progress, leave this to it; if none "
     "is, start one with `gh workflow run refresh.yml`. Either way, skip the item.")
-NOT_YET = " If no run has failed since the fix merged, there is nothing to fix yet: " + NOT_YET_THEN
 # The results-late alarm is proved later than that (AF-113). `report` reads
 # f1.db as it was at the run's own commit, and the results a run fetches reach
 # `main` only through the refresh pull request it opens, which land-refresh.sh
@@ -256,7 +256,11 @@ NOT_YET_LATE = (
     "after the results reached `main` still finds the race late: each run reads "
     "the database as it was when it started, so the run that fetches the results "
     "finds the race late too, and the refresh pull request carrying them merges "
-    "itself only once CI passes. Until then, " + NOT_YET_THEN)
+    "itself only once CI passes. Until then, if a run of refresh.yml is queued or "
+    "in progress, or the refresh pull request carrying the results is open, leave "
+    "this to them: a run started before that pull request merges proves nothing, "
+    "and restarts its CI. If neither is, start one with `gh workflow run "
+    "refresh.yml`. Either way, skip the item.")
 
 
 def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
