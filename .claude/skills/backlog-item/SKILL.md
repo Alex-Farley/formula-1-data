@@ -1,7 +1,7 @@
 ---
 name: backlog-item
-description: One item from the queue (GitHub Issues, ranked on the Lap Ledger project), start to merge, in a forked context - the per-item procedure of /backlog-loop. Arguments are <pace> and <next | ITEM-ID>. Invoked by the backlog-loop skill; a person may also run it directly for one item.
-argument-hint: "<fast | balanced | thorough> <next | ITEM-ID>"
+description: One item from the queue (GitHub Issues, ranked on the Lap Ledger project), start to merge, in a forked context - the per-item procedure of /backlog-loop. Arguments are <pace> and <next | ITEM-ID>, and --land <PR> for the fork that lands a pull request another one opened. Invoked by the backlog-loop skill; a person may also run it directly for one item.
+argument-hint: "<fast | balanced | thorough> <next | ITEM-ID> [--land <PR>]"
 context: fork
 # Probed 2026-09-16 and it appears to do nothing: a fork runs at the
 # session's effort, and `effort: banana` here loads without a warning.
@@ -30,7 +30,9 @@ ever reports back to you. Never end a turn to wait for something.
 Arguments: a pace (`fast`, `balanced`, `thorough`; default `balanced`) and a
 target (`next` or an item id; default `next`), optionally `--skip A,B` for
 ids this run has already skipped, and optionally `--max-size S`, which the
-driver adds when its usage check leaves room only for a small item `[D-55]`. If you were not invoked by the
+driver adds when its usage check leaves room only for a small item `[D-55]`,
+and `--land <N>`, which makes you the fork that lands pull request `<N>`
+(*Handing over at the pull request*). If you were not invoked by the
 `backlog-loop` driver, by the `backlog-manager` agent that runs its
 procedure unattended `[D-42]`, or by a person typing `/backlog-item`, return
 `STOP: not invoked by the loop` and do nothing.
@@ -47,7 +49,9 @@ warning, not a refusal.
 An open `claude/` PR or a leftover worktree does **not** refuse: that is the
 inheritance to finish from where it stopped, and **its comments are read
 before anything else** — a recorded `FAIL` nobody has fixed is fixed, never
-reviewed again on the same head `[D-23]`.
+reviewed again on the same head `[D-23]`. An inherited open PR is landed
+as *Landing* says, whether or not you were given `--land`, and is not handed
+over again.
 
 ## Before an item
 
@@ -200,13 +204,14 @@ back), held on a decision (status back), stopped or skipped (status back), or
 dropped from the group (status back). An issue left at *In progress* is one `next.py` never returns, so it
 is out of the queue until a person moves it by hand.
 
-There are two exceptions, and both leave the group *at* *In progress* on
-purpose. A usage limit: a `LIMIT:` return leaves it there because the next
-fork picks the work up from the open PR and needs to see it is taken. And
-**the secondary rate limiter refusing the board**: there the status cannot be
-put back, because putting it back *is* a board write and the board is what is
-being refused. Say so in the `STOP:` line, so a person reading it knows the
-item is claimed and why nothing moved it.
+There are three exceptions, and each leaves the group *at* *In progress* on
+purpose. A handover: an `OPENED` return leaves it there because the landing
+fork takes the item from the open PR. A usage limit: a `LIMIT:` return leaves
+it there because the next fork picks the work up from the open PR and needs to
+see it is taken. And **the secondary rate limiter refusing the board**: there
+the status cannot be put back, because putting it back *is* a board write and
+the board is what is being refused. Say so in the `STOP:` line, so a person
+reading it knows the item is claimed and why nothing moved it.
 
 Until a PR exists the only record of the group is the board — the branch is
 named for the head alone — so a fork inheriting a worktree reads `next.py`'s
@@ -227,8 +232,9 @@ appends one line to `.claude/loop/progress.log`. It is the only view of you a
 person has, and a fork that looks stalled gets killed `[D-17]`. Write one — a
 few words, never a report — at each of: item chosen; group formed (ids, or
 none); worktree open; `make all` green; web tests green; PR opened; reviewer
-launched (agent, model); verdict; fix pushed; confirmation launched; CI wait
-entered; CI green; merged; and any skip or stop with its reason. Before the
+launched (agent, model); verdict; handed over; landing started (in the
+landing fork); fix pushed; confirmation launched; CI wait entered; CI green;
+merged; and any skip or stop with its reason. Before the
 item is known, use the target you were given as the id. It exits 1 if the
 line could not be written; say so in the stock-take and carry on.
 
@@ -452,7 +458,8 @@ reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
   once; you cannot outlive the reset.
 - **Record the verdict as a PR comment the moment it arrives**, before the
   fix or anything else — reviewer and model, verdict, blocking findings one
-  line each `[D-23]`.
+  line each `[D-23]`. On a first pass the same comment is the handover
+  below, and carries what that section lists.
 
 Then the merge, only with the PASS and `check (3.9)`, `check (3.12)`, `web`
 **and `lint`** green — the four *Never slides* names. It is three commands,
@@ -477,6 +484,48 @@ comment on the PR, which `[D-23]` already puts there; a refusal means the
 record is missing, and the answer is to record it, never to route around it.
 There is no CI review to ask for: `review.yml` was removed, and the review
 above is the only one `[D-44]`.
+
+## Handing over at the pull request
+
+An item runs in two forks when its first review leaves anything to fix
+`[D-58]`: the one that implemented it opens the PR and has it reviewed, and
+a fresh one lands it. In the sixteen forks D-58 counts, what followed the
+PR was 29 % of a fork's turns and 36 % of the context it read, each turn
+carrying whatever implementing had built up - peaks of 86,000-246,000
+tokens. Forks that inherited an open PR peaked at 55,000-96,000.
+
+- **When.** Once the first pass, with its one respawn if it needed one, has
+  recorded a verdict and the comment is on the PR: if there is anything to
+  change on this diff — a `FAIL`, or a `PASS` with a finding to fix here —
+  write the progress line and return `OPENED #<N> <ID>` (a group's id as in
+  `MERGED`). No fix, no precheck, no CI wait first. A `PASS` with nothing to
+  change is landed by this fork, CI wait and merge included: what is left is
+  a few turns of waiting, about what a fresh fork's start would cost. A
+  first pass that settled nothing after its respawn stays here too: that is
+  *Not a PASS* under *Review*, and this fork deals with it.
+- **What goes across is on the PR, and nothing else does.** The landing fork
+  never sees this context. The first pass's verdict comment carries, beyond
+  `[D-23]`'s lines: every finding with file:line, blocking or not, since a
+  PASS's findings are fixed too; the pass id, the reviewer and its model;
+  the routes the brief named; and anything a fixer needs that the PR body
+  does not say — a trade made, a check run by hand, a finding to be carried
+  and why.
+- **`OPENED` leaves the group at *In progress***, the first of the three
+  exceptions under *Grouping*.
+
+### Landing (`--land <N>`)
+
+Run `start-check.sh` as *Starting* says, then skip *Before an item* and *Doing
+the item*: the item was chosen, claimed and built. Read, in this order, and
+nothing else first: the PR body and its comments (`gh pr view <N>
+--comments`); the diff, in the PR's worktree, which `start-check.sh` lists —
+`git fetch origin <branch> && git worktree add <scratchpad>/wt-<slug>
+<branch>` when it is gone; and the issue only for what a comment names. Then
+go on from *Review* where the verdict comment left it — fix, precheck,
+confirmation, CI, merge. Every rule there applies as written: the fix is to
+this diff, the confirmation is a fresh agent on the model the pace table
+names, and nothing merges without a recorded `PASS`. A landing fork does not
+hand over again; it returns any line *The result* allows except `OPENED`.
 
 ## Keeping the cost down
 
@@ -607,7 +656,7 @@ non-critical credential — with `file.py blocked <n> "<what>"`, and leave the
 repository clean: no worktree, no open PR, no half-edited file.
 
 **Put every issue's status back before you stop, skip or hold**, the head and each
-companion — except on the two returns that declare otherwise above, a
+companion — except on the two of these returns that *Grouping* exempts, a
 `LIMIT:` and the limiter refusing the board, where the call that would put it
 back is the call being refused. An item left at *In progress* for any other
 reason is one `next.py` never returns, and that is the one way this loop
@@ -618,6 +667,7 @@ loses work.
 The last thing you write. Its first line is exactly one of:
 
     MERGED #<N> <ID>                          (a group is one PR: VD-33+AX-13)
+    OPENED #<N> <ID>                          (the review left a fix; a landing fork takes it)
     SKIPPED <ID>: <reason in one clause>
     PAUSE: no open item at or under size <S>  (only under --max-size)
     DECIDE <ID>: <the question in one clause>
