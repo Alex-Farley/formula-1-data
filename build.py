@@ -4563,8 +4563,9 @@ GEOMETRY_DB = os.path.join(HERE, "f1-geometry.db")
 BUILD_GEOMETRY_DB = GEOMETRY_DB + ".tmp"
 # --------------------------------------------------------------- countries
 #
-# Three tables name a country - drivers.nationality, constructors.country and
-# circuits.country - and until now they did not agree on how. The register
+# When this was written, three columns named a country - drivers.nationality,
+# constructors.country and circuits.country - and they did not agree on how
+# (seven are held now; normalise_countries names them). The register
 # held 116 drivers from the "United States of America" and 42 from the
 # "United States", which are the same place; seven countries were coded twice
 # (Germany as GER and DEU, the Netherlands as NED and NLD); and ten
