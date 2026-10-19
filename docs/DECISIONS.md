@@ -317,6 +317,19 @@ alarm at *Now* head *Now*, whoever set it, over having the loop clear the
 status instead: dragging an alarm down inside *Now* no longer holds, and a
 person who wants one lower gives it *Next* or *Someday*, which are obeyed.
 
+**Extended to security alerts by severity — 2026-10-19 (`AF-121`, #1064).**
+On 2026-10-18 sixteen code-scanning alerts had sat open and untriaged, two
+of them real (#1063), because an alert is seen only by whoever opens the
+Security tab. The maintainer ruled on #1064 that alerts are checked
+regularly and the important ones become issues, the way the refresh alarm
+works: `security.yml` files one issue per group of open alerts, and the loop
+triages it. Its token cannot write the board either, so a label carries the
+placement: with no status, `security: high` (a secret, a critical or high
+alert) heads *Now* under the alarms, `security: medium` goes to the foot of
+*Next* and `security: low` to the foot of *Someday*. Unlike an alarm's, a
+status anyone gives one is obeyed, *Now* included: the job never writes
+*Now* back. Nothing in it dismisses an alert; that stays the maintainer's.
+
 ---
 
 ## The loop

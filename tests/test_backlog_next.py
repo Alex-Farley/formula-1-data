@@ -117,5 +117,52 @@ class QueueRows(unittest.TestCase):
             self.assertIn(f'"{label}"', precheck)
 
 
+class SecurityRows(unittest.TestCase):
+    """security.yml's issues reach the board with no status too, and are
+    read by their severity label until a person gives them one (AF-121)."""
+    def rows(self, board, issues):
+        return nxt.queue_rows(board, {i["number"]: i for i in issues})
+
+    def ranked(self, rows):
+        return [(r["number"], r["status"]) for s in nxt.QUEUE for r in rows if r["status"] == s]
+
+    def test_each_severity_goes_where_the_ruling_says(self):
+        rows = self.rows([(1, "Now", 0), (2, "Next", 0), (3, "Someday", 0),
+                          (10, "", 0), (11, "", 0), (12, "", 0), (13, "", 0)],
+                         [issue(1, "AF-01: a"), issue(2, "AF-02: b"), issue(3, "AF-03: c"),
+                          issue(10, "SC-01: low", "security: low"),
+                          issue(11, "SC-02: high", "security: high"),
+                          issue(12, "SC-03: medium", "security: medium"),
+                          issue(13, "AF-94: alarm", "refresh-failing")])
+        # The alarm first, then the high alert above what a person placed in
+        # *Now*; medium and low at the foot of theirs.
+        self.assertEqual(self.ranked(rows), [(13, "Now"), (11, "Now"), (1, "Now"),
+                                             (2, "Next"), (12, "Next"),
+                                             (3, "Someday"), (10, "Someday")])
+
+    def test_off_the_board_is_read_by_its_label_too(self):
+        rows = self.rows([(1, "Now", 0)],
+                         [issue(1, "AF-01: a"), issue(7, "SC-04: x", "security: high"),
+                          issue(8, "SC-05: y", "security: low")])
+        self.assertEqual(self.ranked(rows), [(7, "Now"), (1, "Now"), (8, "Someday")])
+
+    def test_the_highest_label_decides(self):
+        rows = self.rows([(4, "", 0)],
+                         [issue(4, "SC-06: z", "security: low", "security: high")])
+        self.assertEqual(self.ranked(rows), [(4, "Now")])
+
+    def test_a_status_is_obeyed(self):
+        rows = self.rows([(1, "Now", 0), (5, "Someday", 0), (6, "Now", 0)],
+                         [issue(1, "AF-01: a"), issue(5, "SC-07: x", "security: high"),
+                          issue(6, "SC-08: y", "security: low")])
+        self.assertEqual(self.ranked(rows), [(1, "Now"), (6, "Now"), (5, "Someday")])
+
+    def test_the_labels_are_the_ones_security_alarm_writes(self):
+        alarm = load("security_alarm", SCRIPTS)
+        self.assertEqual({label for label, _ in nxt.SEVERITY},
+                         {name for name, *_ in alarm.SEVERITY_LABELS.values()})
+        self.assertEqual([status for _, status in nxt.SEVERITY], list(nxt.QUEUE))
+
+
 if __name__ == "__main__":
     unittest.main()

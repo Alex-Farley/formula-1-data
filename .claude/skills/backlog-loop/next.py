@@ -49,6 +49,12 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   an alarm down inside *Now* does not hold (decided 2026-10-15 `AF-112`).
   To push one down, give it *Next* or *Someday*; those, and *In progress*,
   are obeyed and keep their board place `AF-89`.
+- and security.yml's issues, which reach the board the same way, labelled
+  by severity. One with no Status, or not on the board, is read by its
+  label: `security: high` as *Now*, under the alarms and above everything
+  a person placed there; `security: medium` as *Next* and `security: low`
+  as *Someday*, at their foot. The highest label it carries decides. Once
+  it has a status, the status is obeyed (ruled on #1064 `AF-121`).
 
 `--group` prints a second block under the item: the open items, **of any
 size**, in the item's own status or the next one down, that share a file
@@ -120,6 +126,10 @@ ID = re.compile(r"^([A-Z]{2}-[0-9Ø]+): ")
 # at the top of *Now* until a person moves it out of *Now* - see the
 # docstring.
 ALARMS = frozenset({"refresh-failing", "results-late"})
+# security_alarm.py's severity labels, highest first, and the status an
+# issue carrying one is read as while it has none - see the docstring.
+SEVERITY = (("security: high", "Now"), ("security: medium", "Next"),
+            ("security: low", "Someday"))
 # The three signals a group is proposed on, read out of a title and body.
 # A path or a route is a claim about where the work lands; a cross-reference
 # is one item's author saying the two belong together. Nothing else scores
@@ -393,28 +403,47 @@ def queue_rows(board, open_issues):
     and one the board does not hold, is given *Now* and put ahead of every
     other row, so it heads *Now* whoever set it - those on the board in
     board order, then those off it by number. An alarm at any other status
-    is an ordinary row `AF-89` `AF-111` `AF-112`."""
+    is an ordinary row `AF-89` `AF-111` `AF-112`.
+
+    A security issue with no status, or off the board, is read by its
+    highest severity label: `security: high` heads *Now* under the alarms,
+    medium and low go to the foot of *Next* and *Someday*. With a status it
+    is an ordinary row `AF-121`."""
     def alarm(issue):
         return bool(ALARMS & {lb["name"] for lb in issue["labels"]})
+
+    def severity(issue):
+        names = {lb["name"] for lb in issue["labels"]}
+        return next((status for label, status in SEVERITY if label in names), None)
 
     def row(n, status, waits, issue):
         m = ID.match(issue["title"])
         return dict(status=status, number=n, ident=m.group(1) if m else f"#{n}",
                     title=issue["title"], labels=sorted(lb["name"] for lb in issue["labels"]),
                     body=issue.get("body") or "", url=issue["url"], waits=waits or 0)
-    first, rows, placed = [], [], set()
+    first, urgent, rows, last, placed = [], [], [], [], set()
     for n, status, *waits in board:
         issue = open_issues.get(n)
         if issue is None:
             continue
         placed.add(n)
+        waiting = waits[0] if waits else 0
         if status in ("", None, "Now") and alarm(issue):
-            first.append(row(n, "Now", waits[0] if waits else 0, issue))
+            first.append(row(n, "Now", waiting, issue))
+        elif status in ("", None) and severity(issue):
+            read = severity(issue)
+            (urgent if read == "Now" else last).append(row(n, read, waiting, issue))
         else:
-            rows.append(row(n, status, waits[0] if waits else 0, issue))
-    first += [row(n, "Now", 0, issue) for n, issue in sorted(open_issues.items())
-              if n not in placed and alarm(issue)]
-    return first + rows
+            rows.append(row(n, status, waiting, issue))
+    for n, issue in sorted(open_issues.items()):
+        if n in placed:
+            continue
+        if alarm(issue):
+            first.append(row(n, "Now", 0, issue))
+        elif severity(issue):
+            read = severity(issue)
+            (urgent if read == "Now" else last).append(row(n, read, 0, issue))
+    return first + urgent + rows + last
 
 
 def show(row):

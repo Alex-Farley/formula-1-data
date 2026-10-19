@@ -58,13 +58,14 @@ security header being loosened (`unsafe-eval`, a new script origin, a
 wildcard), and `not_found_handling` or `html_handling` changes that would
 answer a missing asset with HTML and a 200.
 
-**4. Workflows run with the least they need.** Four files in
+**4. Workflows run with the least they need.** Five files in
 `.github/workflows/`. Check, on any diff to one:
 
 - `permissions:` is set at the top and is no wider than the job needs. Today
   `ci.yml` and `refresh.yml` are `contents: read`, `pages.yml` adds
-  `pages: write` and `id-token: write`, and `release.yml` has
-  `contents: write`. A widening needs a reason in the diff.
+  `pages: write` and `id-token: write`, `release.yml` has
+  `contents: write`, and `security.yml`'s one job adds `issues: write` and
+  `security-events: read`. A widening needs a reason in the diff.
 - No `pull_request_target`, and no `workflow_run` that checks out and runs a
   pull request's head: either hands a fork's code this repository's token.
 - No untrusted expression inside a `run:` script — `github.event.*.title`,
