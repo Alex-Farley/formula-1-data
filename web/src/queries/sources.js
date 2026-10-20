@@ -100,6 +100,18 @@ export const LICENCE_COLUMNS = [
   { key: 'licence_url', label: 'Terms', text: (url) => (url ? host(url) : text(null)) },
 ]
 
+/**
+ * The closing section, "Using this data", in both renderers (VD-87): what a
+ * reader may do with what they take, then the outlines' credit and the
+ * trademark line. The static page had the credit under the source registry
+ * and no section of its own for it.
+ */
+export const USING_TITLE = 'Using this data'
+export const USING_THIS_DATA =
+  'You are welcome to. Carry the licence with whatever you take: attribute F1DB for the race records, keep share-alike on anything derived from Wikipedia prose, and treat a traced centreline as OpenStreetMap under ODbL — that obligation travels with it.'
+export const UNAFFILIATED =
+  'This site is unaffiliated with Formula One, the FIA, or any team. Formula One, F1 and Grand Prix are trademarks of their respective owners and are used here descriptively.'
+
 export const LICENCES_NOTE =
   'Commons files do not share one licence, so each photograph carries its own — which is why the credit always travels with the picture.'
 

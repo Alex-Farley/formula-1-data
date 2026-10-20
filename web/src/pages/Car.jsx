@@ -21,9 +21,12 @@ import {
   NO_ENTRIES,
   NO_SPECIFICATION,
   SEASONS,
+  SPECIFICATION_NOTE,
   VARIANTS,
   VARIANTS_FOOTER,
   VARIANT_COLUMNS,
+  WHY_PARAGRAPHS,
+  WHY_TITLE,
   carAddress,
   carFacts,
   carPageName,
@@ -34,6 +37,7 @@ import {
   entryResult,
   publishedWins,
   specificationFields,
+  specificationTitle,
   specified,
   winsNote,
 } from '../queries/car.js'
@@ -165,24 +169,19 @@ function CarBody({ id, chassis, variants, data }) {
 
       <Slot>{photographs.lead && <CommonsImage image={photographs.lead} width={PHOTOGRAPH_WIDTH} />}</Slot>
 
+      {/* This section and the specification are drawn by the static page too,
+          from the same labels in queries/car.js (VD-87). */}
       {car && (
-        <Section title="Why it mattered">
+        <Section title={WHY_TITLE}>
           <div className="split">
             <div>
-              {car.concept && (
-                <p>
-                  <strong>The idea.</strong> {car.concept}
-                </p>
-              )}
-              {car.innovations && (
-                <p>
-                  <strong>New on this car.</strong> {car.innovations}
-                </p>
-              )}
-              {car.outcome && (
-                <p>
-                  <strong>What it did.</strong> {car.outcome}
-                </p>
+              {WHY_PARAGRAPHS.map(
+                ([key, label]) =>
+                  car[key] && (
+                    <p key={key}>
+                      <strong>{label}</strong> {car[key]}
+                    </p>
+                  ),
               )}
             </div>
             <Fields
@@ -215,7 +214,7 @@ function CarBody({ id, chassis, variants, data }) {
         </Section>
       )}
 
-      <Section title={several ? `Specification — ${chassis.name}` : 'Specification'}>
+      <Section title={specificationTitle(several, chassis)}>
         {hasSpecification ? (
           <>
             <div className="split">
@@ -223,10 +222,9 @@ function CarBody({ id, chassis, variants, data }) {
               <Fields items={specEngine} />
             </div>
             <p className="source-note">
-              A blank is a figure nobody published for this car. Where several teams quote the same
-              number in a season it is usually the rule they were all built to rather than a
-              measurement, so it is kept with the{' '}
-              <Link to="/reference/eras">regulation limits</Link> instead of here.
+              {SPECIFICATION_NOTE[0]}
+              <Link to="/reference/eras">{SPECIFICATION_NOTE[1]}</Link>
+              {SPECIFICATION_NOTE[2]}
             </p>
           </>
         ) : (

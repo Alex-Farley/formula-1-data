@@ -3639,7 +3639,6 @@ try {
 
     const bySeason = ['Season by season', 'Season', '1950', 'Constructor']
     const everyEntry = ['Every entry', 'Season', '1950', 'Constructor']
-    const wins = ['Wins', 'Season', '1950', 'Constructor']
     await go('/drivers/parsons', 'Parsons')
     await page.waitForFunction(
       () => [...document.querySelectorAll('#root main h2')].some((h) => h.textContent.startsWith('Every entry')),
@@ -3653,9 +3652,9 @@ try {
       car,
       "and so does the championship chart's table, where no constructor is resolved that season",
     )
-    const [staticSeason, staticWins] = await served('/drivers/parsons', [bySeason, wins])
+    const [staticSeason, staticEntries] = await served('/drivers/parsons', [bySeason, everyEntry])
     is(staticSeason, car, 'and the static "Season by season" names it')
-    is(staticWins, car, 'and the static "Wins" names it')
+    is(staticEntries, car, 'and the static "Every entry" names it')
   })
 
   await section('/races/2021/10  (pole is not the fastest qualifier)', async () => {
@@ -8151,6 +8150,38 @@ try {
         filesHeld.length ? ` — ${filesHeld.slice(0, 5).join(', ')}` : ''
       }`,
     )
+    /*
+     * VD-87: a recorded disagreement stands between sections as a child of
+     * the page, as <Disagreement> does in the app (app.css draws
+     * `.page > .disagreement`), and opens on its own heading. prerender.js's
+     * sectioned() once started a section at the h2 inside the aside, so the
+     * browser closed the aside empty and the readings fell into a plain
+     * section beneath it, unboxed. Comparing headings and prose cannot see
+     * that; where the aside sits in the markup can.
+     */
+    const asides = []
+    const misplaced = []
+    for (const file of served) {
+      const html = readFileSync(file, 'utf8')
+      const route = `/${relative(distDir, dirname(file))}`
+      const article = html.indexOf('<article class="page">')
+      for (const match of html.matchAll(/<aside class="disagreement"[^>]*>/g)) {
+        asides.push(route)
+        const before = article < 0 ? '' : html.slice(article, match.index)
+        const depth = (before.match(/<section\b/g) ?? []).length - (before.match(/<\/section>/g) ?? []).length
+        const inside = html.slice(match.index + match[0].length, html.indexOf('</aside>', match.index))
+        if (article < 0 || article > match.index || depth !== 0 || !/^\s*<h2>/.test(inside) || /<\/?section\b/.test(inside)) {
+          misplaced.push(route)
+        }
+      }
+    }
+    atLeast(asides.length, 1, 'prerendered pages carrying a recorded disagreement')
+    truthy(
+      misplaced.length === 0,
+      `every one of the ${asides.length} disagreements is a child of the page, whole, and opens on its own heading${
+        misplaced.length ? ` — not on ${misplaced.length}: ${misplaced.slice(0, 5).join(', ')}` : ''
+      }`,
+    )
     const missingCard = served
       .map((file) => ({ file, html: readFileSync(file, 'utf8') }))
       .filter(({ html }) => !/<meta property="og:image" content="[^"]+"/.test(html))
@@ -8582,66 +8613,21 @@ try {
     // static season page carries no such tile (Season.jsx).
     const APP_TILES = new Set(['Next session'])
     // The section headings each half has that the other does not, or has
-    // elsewhere (`moved`), by route. VD-73 (#822) is the lead charts; VD-87
-    // (#886) the rest of the static sections; the trace sections are drawn
-    // by the browser from f1-geometry.db, which the static half never reads
-    // ([D-07]); and the console's static page is not the console.
+    // elsewhere (`moved`), by route. VD-73 (#822) is the lead charts; the
+    // trace sections are drawn by the browser from f1-geometry.db, which the
+    // static half never reads ([D-07]); and the console's static page is not
+    // the console. VD-87 (#886) brought the rest into line.
     const LEAD = '#822'
-    const DRIFT = '#886'
     const TRACE = '[D-07]'
     const CONSOLE = 'the console'
-    const eras = db.prepare('SELECT era_name FROM eras ORDER BY from_year').all().map((e) => e.era_name)
     const SECTIONS = {
       '/seasons/2026': { app: [[titleHeading(true), LEAD]] },
       '/seasons/1976': { app: [[titleHeading(false), LEAD]] },
-      '/drivers/senna': {
-        app: [
-          ['Where each championship finished', LEAD],
-          ['Every entry', DRIFT],
-        ],
-        static: [['Wins', DRIFT]],
-      },
+      '/drivers/senna': { app: [['Where each championship finished', LEAD]] },
       '/constructors/ferrari': { app: [['Wins by season', LEAD]] },
       '/circuits': { app: [['The traced centrelines', TRACE]] },
       '/circuits/monza': { app: [['Traced and measured', TRACE]] },
       '/circuits/monaco': { app: [['Traced and measured', TRACE]] },
-      '/cars/lotus-72': {
-        app: [
-          ['Why it mattered', DRIFT],
-          ['Specification — 72B', DRIFT],
-        ],
-      },
-      '/cars/mercedes-w11': {
-        app: [
-          ['Why it mattered', DRIFT],
-          ['Specification', DRIFT],
-        ],
-        moved: [['Two sources disagree about this car', DRIFT]],
-      },
-      '/cars/brabham-bt46': {
-        app: [
-          ['Why it mattered', DRIFT],
-          ['Specification', DRIFT],
-        ],
-      },
-      '/cars/lotus-72b': {
-        app: [
-          ['Why it mattered', DRIFT],
-          ['Specification', DRIFT],
-        ],
-      },
-      '/records': {
-        app: ['Champions', 'Who won the decade', 'How often pole becomes a win', 'Grand slams'].map((h) => [h, DRIFT]),
-      },
-      '/reference/eras': {
-        app: [['Ten eras', DRIFT]],
-        static: eras.map((name) => [name, DRIFT]),
-      },
-      '/data/quality': {
-        app: [['How the database is distributed across it', DRIFT]],
-        moved: [['The confidence ladder', DRIFT]],
-      },
-      '/data/sources': { app: [['Using this data', DRIFT]] },
       '/data/sql': {
         app: [
           ['Try one of these', CONSOLE],
@@ -8963,13 +8949,6 @@ try {
     const PROSE_DRIFT = '#1000'
     const characteristics = (id) => one('SELECT characteristics FROM circuits WHERE id = ?', id)
     const LEADERS_LINE = / The (?:fifteen|\d+) with the most(?:: those level with the fifteenth are all here)?\.$/
-    // A curated car's three paragraphs under "Why it mattered", which the
-    // static page writes without that heading (#886), so they fall under the
-    // heading above them; the app opens each on a bold label.
-    const whyItMattered = (id, section) =>
-      Object.values(db.prepare('SELECT concept, innovations, outcome FROM cars WHERE id = ?').get(id))
-        .filter(Boolean)
-        .map((words) => ({ half: 'static', section, drop: words.replace(/\s+/g, ' ').trim(), why: DRIFT }))
     // What is declared, by route. `half` is the one that has the words, or
     // 'both' for a section whose prose is set aside in each. `drop`: a
     // paragraph only that half has, by its opening words or a pattern it
@@ -9000,17 +8979,8 @@ try {
         { half: 'static', section: 'The chassis register', drop: 'Every chassis that has started', why: PROSE_DRIFT },
         { half: 'app', section: 'The chassis register', drop: '“Seasons” is not the same as a car', why: PROSE_DRIFT },
       ],
-      '/cars/mercedes-w11': whyItMattered('mercedes-w11', 'Two sources disagree about this car'),
-      '/cars/lotus-72': [
-        ...whyItMattered('lotus-72', ''),
-        { half: 'app', section: 'Variants', drop: 'Every race entry names a variant', why: PROSE_DRIFT },
-        { half: 'static', section: 'Variants', drop: /^\d+ wins can be traced to this (?:car|chassis); its article publishes/, why: PROSE_DRIFT },
-      ],
-      '/cars/brabham-bt46': whyItMattered('brabham-bt46', ''),
-      '/cars/lotus-72b': [
-        { half: 'static', section: '', drop: 'One of the design family', why: PROSE_DRIFT },
-        { half: 'static', section: '', drop: /^\d+ wins can be traced to this (?:car|chassis); its article publishes/, why: PROSE_DRIFT },
-      ],
+      '/cars/lotus-72': [{ half: 'app', section: 'Variants', drop: 'Every race entry names a variant', why: PROSE_DRIFT }],
+      '/cars/lotus-72b': [{ half: 'static', section: '', drop: 'One of the design family', why: PROSE_DRIFT }],
       '/records': [
         { half: 'static', section: LEADERBOARDS, at: DRIVER_WINS_FIGURE.note, trim: LEADERS_LINE, why: AS_TABLE },
         { half: 'static', section: LEADERBOARDS, at: DRIVER_POLES_FIGURE.note, trim: LEADERS_LINE, why: AS_TABLE },
@@ -9027,11 +8997,9 @@ try {
         (section) => ({ half: 'both', section, why: PROSE_DRIFT }),
       ),
       '/data/quality': [
-        { half: 'static', section: '', drop: 'A blank in this database is an unestablished fact', why: PROSE_DRIFT },
         { half: 'app', section: 'Career totals against published ones', drop: /^\d+ of \d+ drivers do not reconcile exactly/, why: PROSE_DRIFT },
       ],
       '/data/sources': [
-        { half: 'static', section: 'The source registry', drop: 'Circuit outlines from F1DB', why: PROSE_DRIFT },
         { half: 'app', section: 'What a licence cost, or bought', drop: 'The ODbL obligation is confined to a separate file.', why: PROSE_DRIFT },
       ],
       '/data/sql': [
@@ -9184,7 +9152,12 @@ try {
           const clean = (node) => node.textContent.replace(/[▲▼]/g, '').replace(/\s+/g, ' ').trim()
           let scope = main
           if (heading) {
-            const h2 = [...main.querySelectorAll('h2')].find((h) => clean(h).startsWith(heading))
+            // The heading itself, or it and a count, before any heading it
+            // merely opens: "Champions" is not the "Championships" family.
+            const h2s = [...main.querySelectorAll('h2')]
+            const h2 =
+              h2s.find((h) => clean(h) === heading || clean(h).startsWith(`${heading} `)) ??
+              h2s.find((h) => clean(h).startsWith(heading))
             scope = h2?.closest('section') ?? h2?.parentElement ?? null
           }
           const wrap = [...(scope?.querySelectorAll('.table-wrap') ?? [])].find((n) => !n.closest('figure.figure'))
@@ -9253,8 +9226,15 @@ try {
       // LV-03: a practice-only driver across several seasons, whose sessions
       // the static page must list in the order the app sorts them.
       await same('/drivers/felipe-drugovich', 'Felipe Drugovich', 'Practice sessions')
+      // VD-87: every entry of a career, where the static page listed only the
+      // wins - Hamilton's run to several pages of the app's 100.
+      await same('/drivers/senna', 'Ayrton Senna', 'Every entry')
+      await same('/drivers/hamilton', 'Hamilton', 'Every entry')
       await same('/records', 'Records', 'Championships')
       await same('/records', 'Records', 'Wins')
+      // VD-87: the two tables after the families, which the static page left out.
+      await same('/records', 'Records', 'Champions')
+      await same('/records', 'Records', 'Grand slams')
 
       // Rung two: the seasons list, a season's calendar and its two standings
       // tables - headed by the shared rule, so the check asks for the heading

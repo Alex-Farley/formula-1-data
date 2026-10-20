@@ -14,6 +14,21 @@
 import { span, text } from '../lib/format.js'
 
 export const ERAS = 'SELECT * FROM eras ORDER BY from_year'
+
+/**
+ * The eras as one timeline section, in both renderers (VD-87): its heading,
+ * the note it carries where every era shares one tier, and the two labelled
+ * lines under each era's summary. The static page drew each era as an h2
+ * section of its own.
+ */
+export const ERAS_TITLE = 'Ten eras'
+export const erasTiers = (eras) => [...new Set(eras.map((e) => e.confidence))]
+export const erasNote = (tiers) =>
+  tiers.length === 1 ? `Each era carries the ${tiers[0]} tier: the boundaries are the conventional ones, not a measurement.` : null
+export const ERA_LINES = [
+  ['dominant_teams', 'Dominant:'],
+  ['defining_features', 'Technology:'],
+]
 export const ENGINES = 'SELECT * FROM engine_eras ORDER BY from_year, id'
 export const POINTS = 'SELECT * FROM points_systems ORDER BY from_year, id'
 // Newest first, as the app opens; within a year, in the order they were filed.

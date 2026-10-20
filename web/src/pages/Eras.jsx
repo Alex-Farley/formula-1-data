@@ -12,6 +12,8 @@ import {
   ENGINES,
   ENGINE_COLUMNS,
   ERAS,
+  ERAS_TITLE,
+  ERA_LINES,
   GOVERNANCE,
   GOVERNANCE_COLUMNS,
   INNOVATIONS,
@@ -28,6 +30,8 @@ import {
   TYRES,
   TYRE_COLUMNS,
   ERAS_LEDE,
+  erasNote,
+  erasTiers,
 } from '../queries/eras.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -101,19 +105,13 @@ function Body({ data }) {
   const [params, set] = useUrlState({ category: '' })
   const category = oneOf(params.category, chips)
   const shownRegulations = category ? regulations.filter((r) => r.category === category) : regulations
-  const eraTiers = [...new Set(eras.map((e) => e.confidence))]
+  const eraTiers = erasTiers(eras)
 
   return (
     <>
-      <Section
-        title="Ten eras"
-        count={`${eras.length}`}
-        note={
-          eraTiers.length === 1
-            ? `Each era carries the ${eraTiers[0]} tier: the boundaries are the conventional ones, not a measurement.`
-            : undefined
-        }
-      >
+      {/* queries/eras.js's heading, note and lines, which the static page
+          draws too (VD-87). */}
+      <Section title={ERAS_TITLE} count={`${eras.length}`} note={erasNote(eraTiers)}>
         <div className="timeline">
           {eras.map((era) => (
             <article key={era.id}>
@@ -123,15 +121,13 @@ function Body({ data }) {
                 {eraTiers.length > 1 && <Confidence value={era.confidence} />}
               </h3>
               <p>{era.summary}</p>
-              {era.dominant_teams && (
-                <p className="faint small">
-                  <strong>Dominant:</strong> {era.dominant_teams}
-                </p>
-              )}
-              {era.defining_features && (
-                <p className="faint small">
-                  <strong>Technology:</strong> {era.defining_features}
-                </p>
+              {ERA_LINES.map(
+                ([key, label]) =>
+                  era[key] && (
+                    <p key={key} className="faint small">
+                      <strong>{label}</strong> {era[key]}
+                    </p>
+                  ),
               )}
             </article>
           ))}

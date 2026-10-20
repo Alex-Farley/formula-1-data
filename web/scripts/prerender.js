@@ -389,10 +389,14 @@ import {
   ENTRIES as CAR_ENTRIES,
   IMAGES as CAR_IMAGES,
   NO_ENTRIES,
+  NO_SPECIFICATION,
   SEASONS as CAR_SEASONS,
+  SPECIFICATION_NOTE,
   VARIANTS,
   VARIANTS_FOOTER,
   VARIANT_COLUMNS,
+  WHY_PARAGRAPHS,
+  WHY_TITLE,
   carAddress,
   carFacts,
   carPageName,
@@ -402,13 +406,18 @@ import {
   winsNote,
   entryColumns,
   entryResult,
+  publishedWins,
   specificationFields,
+  specificationTitle,
+  specified,
   wholeOfOneChassis,
 } from '../src/queries/car.js'
 import {
   ENGINES,
   ENGINE_COLUMNS,
   ERAS,
+  ERAS_TITLE,
+  ERA_LINES,
   GOVERNANCE,
   GOVERNANCE_COLUMNS,
   INNOVATIONS,
@@ -425,6 +434,8 @@ import {
   TYRES,
   TYRE_COLUMNS,
   ERAS_LEDE,
+  erasNote,
+  erasTiers,
 } from '../src/queries/eras.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS, GLOSSARY_LEDE } from '../src/queries/glossary.js'
 import {
@@ -464,6 +475,9 @@ import {
   SOURCES_FOOTER,
   SOURCE_COLUMNS,
   SOURCES_LEDE,
+  UNAFFILIATED,
+  USING_THIS_DATA,
+  USING_TITLE,
 } from '../src/queries/sources.js'
 import {
   AMBIGUOUS as UNATTRIBUTED,
@@ -475,7 +489,12 @@ import {
   CHASSIS_COVERAGE_COLUMNS,
   CHASSIS_NOTE,
   CHASSIS_TITLE,
+  CONFIDENCE_MIX,
   DISCREPANCY_COLUMNS,
+  DISTRIBUTION_COLUMNS,
+  DISTRIBUTION_NOTE,
+  DISTRIBUTION_TITLE,
+  distribution,
   GAPS,
   GAP_COLUMNS,
   GAP_GROUPS,
@@ -503,6 +522,7 @@ import {
   DRIVER,
   DRIVER_CONSTRUCTORS,
   DRIVER_SOURCES,
+  ENTRY_COLUMNS as DRIVER_ENTRY_COLUMNS,
   RESULTS as DRIVER_RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
@@ -536,10 +556,15 @@ import {
   compareWith,
 } from '../src/queries/compare.js'
 import {
+  CHAMPIONS,
   CONSTRUCTOR_WINS,
   CONSTRUCTOR_WINS_COLUMNS,
   CONSTRUCTOR_WINS_FIGURE,
   CONSTRUCTORS_HEADING,
+  DECADES,
+  DECADE_COLUMNS,
+  DECADE_NOTE,
+  DECADE_TITLE,
   DERIVATION,
   DRIVER_POLES,
   DRIVER_POLES_COLUMNS,
@@ -547,21 +572,37 @@ import {
   DRIVER_WINS,
   DRIVER_WINS_COLUMNS,
   DRIVER_WINS_FIGURE,
+  GRAND_SLAM_COLUMNS,
+  GRAND_SLAM_NOTE,
+  GRAND_SLAMS,
+  GRAND_SLAMS_TITLE,
   HEADLINE,
   KEY_SHAPE,
   LEADERBOARDS,
+  POLE_TO_WIN,
+  POLE_TO_WIN_COLUMNS,
+  POLE_TO_WIN_NOTE,
+  POLE_TO_WIN_TITLE,
   RECORD,
   RECORDS,
   RECORDS_LEDE,
   TIER_AFTER,
+  TITLE_COLUMNS,
+  TITLES,
   asOfLine,
   asOfOf,
   cardExtras,
+  decadeCount,
+  decadeFigureTitle,
+  decadeLeaders,
+  decadeOptions,
   familiesLead,
   headlineRecords,
   holderPath,
+  latestDecade,
   leadersDrawn,
   leadersDrawnLine,
+  poleToWinRows,
   recordColumns,
   recordFamilies,
   recordPath,
@@ -2000,37 +2041,55 @@ const nameTables = (body) => {
  * adjacent — smoke.mjs reads that pair straight out of the HTML, and the
  * pair is also what PD-16 put there.
  *
- * A body that already opens on its own top-level <section> — the eras page,
- * which is a run of eras before it is a run of tables — carries the class
- * itself and is left alone; wrapping it would nest a section in a section
- * for no gain.
+ * A body that already opens on its own top-level <section> — a race page's
+ * tiles and classification, a car page's tiles — carries the class itself
+ * and is left alone; wrapping it would nest a section in a section for no
+ * gain.
  */
 // A race page's session-sheets disclosure (PD-57) also starts a block: it
 // has no h2 of its own at this depth, and Race.jsx renders it as a section
 // beside the others rather than inside the one before it.
-const SECTIONING = /<(\/?)(section|h2)\b|<details class="session-sheets">/g
+// A recorded disagreement is an <aside> with an h2 inside it, and the pages
+// render <Disagreement> between sections, as a child of the page itself
+// (app.css draws `.page > .disagreement`). So an aside at the top level is a
+// block of its own, written as it stands, and its h2 is its heading rather
+// than the start of a section. Before asides were counted, that h2 started a
+// section inside the open aside, and the browser closed the aside empty with
+// its contents in a plain section beneath it (VD-87).
+const SECTIONING = /<(\/?)(section|h2|aside)\b|<details class="session-sheets">/g
 
 const sectioned = (html) => {
   // A block starts at every h2 that is not already inside a section of its
-  // own. Depth is counted because an era's <h2> sits inside the era's
-  // <section> and is that section's heading, not the start of a new one.
+  // own. Depth is counted because a race's Classification <h2> sits inside
+  // its own <section> and is that section's heading, not the start of a new one.
+  // Each start is where a block begins and whether it is wrapped: an aside,
+  // and whatever follows one before the next h2 - a <Note> beside the
+  // disagreement in the app, which is not inside a section either - are
+  // written as they stand.
   const starts = []
   let depth = 0
   // matchAll rather than exec in a loop: the regex is module-scoped and
   // global, so a loop would carry its lastIndex from one page into the next.
   for (const match of html.matchAll(SECTIONING)) {
-    if (match[2] === 'section') depth += match[1] ? -1 : 1
-    else if (!match[1] && depth === 0) starts.push(match.index)
+    const [, close, tag] = match
+    if (tag === 'section' || tag === 'aside') {
+      if (tag === 'aside' && !close && depth === 0) starts.push({ at: match.index, bare: true })
+      depth += close ? -1 : 1
+      if (tag === 'aside' && close && depth === 0) starts.push({ at: html.indexOf('>', match.index) + 1, bare: true })
+    } else if (!close && depth === 0) starts.push({ at: match.index, bare: false })
   }
   // What comes before the first h2 is a block of its own — a strip of tiles
   // under the title is a titleless <Section> in the app too. A body whose
-  // opening run is already its own sections (the eras page) carries the class
+  // opening run is already its own sections (a race page, a car page) carries the class
   // itself and is left as written, since nesting one in another gains nothing.
-  const head = starts.length ? html.slice(0, starts[0]) : html
+  const head = starts.length ? html.slice(0, starts[0].at) : html
   const wrap = (part) => (part.trim() ? `<section class="section">${part}</section>` : '')
   return [
     head.includes('<section') ? head : wrap(head),
-    ...starts.map((at, i) => wrap(html.slice(at, i + 1 < starts.length ? starts[i + 1] : html.length))),
+    ...starts.map(({ at, bare }, i) => {
+      const part = html.slice(at, i + 1 < starts.length ? starts[i + 1].at : html.length)
+      return bare ? part : wrap(part)
+    }),
   ].join('')
 }
 
@@ -2800,7 +2859,6 @@ const page = ({
       WHERE d.subject = ? AND (d.status = 'open' OR (d.status = 'explained' AND d.status_note = '${EXPLAINED_SPAN}'))
       ORDER BY d.id`,
   )
-  const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
 
   page({
     path: 'drivers',
@@ -2817,10 +2875,6 @@ const page = ({
       }, { unfolded: UNFOLDED.register, footer: REGISTER_FOOTER })}`,
   })
 
-  const winsOf = db.prepare(
-    `SELECT rr.year, rr.round, rr.gp_name, rr.constructor_id, rr.constructor, rr.entrant
-       FROM race_results rr WHERE rr.winner_id = ? ORDER BY rr.year, rr.round`,
-  )
   const constructorsOf = db.prepare(DRIVER_CONSTRUCTORS)
   const resultsOf = db.prepare(DRIVER_RESULTS)
   const thisSeasonOf = db.prepare(THIS_SEASON)
@@ -2858,7 +2912,6 @@ const page = ({
             row.entry_id && row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : esc(THIS_SEASON_COLUMNS.find((c) => c.key === 'constructor').text(name, row)),
         }, { footer })}`
     })()
-    const wins = winsOf.all(id)
     // Driver.jsx's Team-mates table (PD-43): the same query with no second
     // driver, the same columns, the same footer, and no section where the
     // career had no team-mate.
@@ -2924,22 +2977,6 @@ const page = ({
               }, { fold: FOLD_NOUN.practice })}`
             : ''
         }
-        ${disagree(careerDisagreements.all(d.full_name), 'this career')}
-        ${
-          wins.length
-            ? `<h2>Wins</h2>${table(
-                ['Season', 'Grand Prix', 'Constructor'],
-                wins.map((w) => [
-                  link(`seasons/${w.year}`, w.year),
-                  link(`races/${w.year}/${w.round}`, w.gp_name),
-                  w.constructor_id ? link(`constructors/${w.constructor_id}`, teams[w.constructor_id] ?? w.constructor) : text(carName(w)),
-                ]),
-                // The race is its season and its Grand Prix, as on every race list.
-                // An exhaustive list, folded as the app's are (VD-69).
-                { rowHeaders: [true, true], fold: FOLD_NOUN.wins },
-              )}`
-            : ''
-        }
         ${
           seasons.length
             ? `<h2>Season by season</h2>${fromColumns(SEASON_COLUMNS, seasons, {
@@ -2957,6 +2994,22 @@ const page = ({
               <p>${link(comparePath(d.id), compareWith(d.full_name))}</p>`
             : ''
         }
+        ${
+          // Driver.jsx's Every entry (VD-87), where this page had a Wins table
+          // of its own: the same rows, newest first, and the same columns,
+          // under the team-mates and before any recorded disagreement.
+          practiceOnly
+            ? ''
+            : `${heading('Every entry', `${results.length.toLocaleString('en-GB')} ${results.length === 1 ? 'entry' : 'entries'}`)}${
+                fromColumns(DRIVER_ENTRY_COLUMNS, results, {
+                  year: (year) => link(`seasons/${year}`, year),
+                  name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+                  constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(carName(row))),
+                  chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
+                }, { fold: FOLD_NOUN.entries }) || EMPTY_STATE
+              }`
+        }
+        ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         <h2>${esc(LABELS.provenance)}</h2>
         ${
           pointsDiffer(d, derived)
@@ -3459,44 +3512,105 @@ page({
     raced.get(e.chassis_id).push(e)
   }
 
-  // The car page's tables read web/src/queries/car.js (PD-02, rung six):
-  // the variants of a multi-chassis design, the seasons whose results cannot
-  // be attributed, and every entry. A page for one chassis covers that
-  // chassis; a page for a car no chassis shares an id with covers them all,
-  // which is what VARIANTS resolves either way.
-  const carTables = (id, variants, entries) => {
+  // The car page as Car.jsx's CarBody draws it (VD-87), from the tiles to
+  // where it comes from, for a curated car and a chassis alike: the app has
+  // one component for both, and the static half had two lists of its own,
+  // with no *Why it mattered* heading, no *Specification* - the figures sat
+  // in the provenance list - and the disagreement before the paragraphs.
+  // The tables read web/src/queries/car.js (PD-02, rung six): the variants
+  // of a multi-chassis design, the seasons whose results cannot be
+  // attributed, and every entry. A page for one chassis covers that chassis;
+  // a page for a car no chassis shares an id with covers them all, which is
+  // what VARIANTS resolves either way. `car` is CAR's row - the curated car,
+  // or the one behind the chassis - and `at` the address.
+  //
+  // A field list here dashes a field nobody published, as <Fields> does,
+  // rather than dropping it as fields() alone would: these lists are the
+  // app's, field for field. A chassis with no specification at all has the
+  // one sentence in place of the fields (CD-37), as in the app.
+  const dashed = (pairs) =>
+    fields(pairs.map(([label, value]) => [label, value === null || value === undefined || value === '' ? `<span class="empty">${EMPTY}</span>` : value]))
+  const carBody = ({ id, at, variants, car, entries, photos, family = '' }) => {
+    const chassis = variants[0] ?? null
     const several = variants.length > 1
     const ambiguous = all(CAR_SEASONS, id, id).filter((s) => !s.corroborated)
     // Where the strip's derived wins and the article's figure differ, both
-    // and why, in Car.jsx's words and where it puts them: before the seasons
-    // that cannot be attributed, which are the reason (VD-49).
+    // and why, in Car.jsx's words and where it puts them: after the
+    // specification and before the seasons that cannot be attributed, which
+    // are the reason (VD-49).
     const wins = winsNote(variants, entries)
-    return `${
-      several
-        ? `<h2>Variants</h2>${fromColumns(VARIANT_COLUMNS, variants, {
-            name: (name, row) => link(`cars/${row.id}`, name),
-          }, { footer: VARIANTS_FOOTER })}`
-        : ''
-    }${wins ? noteBox(wins.head, wins.body) : ''}${
-      ambiguous.length
-        ? `<h2>Seasons that cannot be attributed</h2>${fromColumns(CAR_AMBIGUOUS_COLUMNS, ambiguous, {
-            year: (year) => link(`seasons/${year}`, year),
-          }, { footer: CAR_AMBIGUOUS_FOOTER })}`
-        : ''
-    }<h2>Every entry</h2>${
-      entries.length
-        ? fromColumns(entryColumns(several), entries, {
-            year: (year) => link(`seasons/${year}`, year),
-            name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
-            driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
-            chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name) : text(name)),
-            position_text: (value, row) =>
-              missing(row.finish_position)
-                ? `<span class="tag tag-dnf">${esc(entryResult(value, row))}</span>`
-                : `<b>${esc(entryResult(value, row))}</b>`,
-          }, { fold: FOLD_NOUN.entries })
-        : `<p class="measure">${esc(NO_ENTRIES)}</p>`
+    const facts = carFacts(chassis, car)
+    const { chassis: specChassis, engine: specEngine } = specificationFields(facts)
+    const specFields = (items) => dashed(items.map(({ label, value }) => [label, esc(value)]))
+    const why = car
+      ? `<h2>${esc(WHY_TITLE)}</h2><div class="split"><div>${WHY_PARAGRAPHS.map(([key, label]) =>
+          car[key] ? `<p><strong>${esc(label)}</strong> ${esc(car[key])}</p>` : '',
+        ).join('')}</div>${dashed([
+          ['Designers', esc(facts.designers)],
+          ['Supersedes', car.supersedes_id ? link(`cars/${car.supersedes_id}`, car.supersedes_id) : null],
+          ['Design life', esc(span(car.from_year, car.to_year))],
+          ['Confidence', confidencePill(car.confidence)],
+        ])}</div>`
+      : ''
+    const specification = `<h2>${esc(specificationTitle(several, chassis))}</h2>${
+      specified([...specChassis, ...specEngine])
+        ? `<div class="split">${specFields(specChassis)}${specFields(specEngine)}</div><p class="source-note">${esc(
+            SPECIFICATION_NOTE[0],
+          )}${link('reference/eras', SPECIFICATION_NOTE[1])}${esc(SPECIFICATION_NOTE[2])}</p>`
+        : `<p class="source-note">${esc(NO_SPECIFICATION)}</p>`
     }`
+    const external = (url) => (url ? `<a href="${esc(url)}">${esc(url)}</a>` : null)
+    return `
+      <section class="section">${tiles(carStrip(variants, car, entries))}</section>
+      ${photos.slot}
+      ${family}
+      ${why}
+      ${
+        several
+          ? `${heading('Variants', variants.length)}${fromColumns(VARIANT_COLUMNS, variants, {
+              name: (name, row) => link(`cars/${row.id}`, name),
+            }, { footer: VARIANTS_FOOTER })}`
+          : ''
+      }
+      ${specification}
+      ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
+      ${wins ? noteBox(wins.head, wins.body) : ''}
+      ${
+        ambiguous.length
+          ? `${heading('Seasons that cannot be attributed', ambiguous.length)}${fromColumns(CAR_AMBIGUOUS_COLUMNS, ambiguous, {
+              year: (year) => link(`seasons/${year}`, year),
+            }, { footer: CAR_AMBIGUOUS_FOOTER })}`
+          : ''
+      }
+      ${heading('Every entry', `${entries.length.toLocaleString('en-GB')} ${entries.length === 1 ? 'entry' : 'entries'}`)}${
+        entries.length
+          ? fromColumns(entryColumns(several), entries, {
+              year: (year) => link(`seasons/${year}`, year),
+              name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+              driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
+              chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name) : text(name)),
+              position_text: (value, row) =>
+                missing(row.finish_position)
+                  ? `<span class="tag tag-dnf">${esc(entryResult(value, row))}</span>`
+                  : `<b>${esc(entryResult(value, row))}</b>`,
+            }, { fold: FOLD_NOUN.entries })
+          : `<p class="measure">${esc(NO_ENTRIES)}</p>`
+      }
+      ${photos.html}
+      <h2>${esc(LABELS.provenance)}</h2>
+      ${dashed([
+        // The builder's name, without the app's colour mark, which a field
+        // list here does not draw.
+        ['Constructor', chassis?.constructor_id ? link(`constructors/${chassis.constructor_id}`, chassis.constructor ?? chassis.constructor_id) : null],
+        ['Predecessor', esc(chassis?.predecessor)],
+        ['Successor', esc(chassis?.successor)],
+        ['Races (published)', esc(number(chassis?.published_races))],
+        ['Wins (published)', esc(number(publishedWins(variants)))],
+        ['Poles (published)', esc(number(chassis?.published_poles))],
+        ['Confidence', confidencePill(chassis?.confidence)],
+        ['Specification source', external(chassis?.spec_source)],
+        ['Register source', external(chassis?.source)],
+      ])}`
   }
 
   page({
@@ -3534,29 +3648,13 @@ page({
     // After the page's own sections and before where they come from, where
     // Car.jsx and every other page type put it (VD-83).
     const photos = photographs(at)
-    // Where the car is one chassis, its figures are the ones Car.jsx prints,
-    // resolved by the same precedence (IA-28, IA-29): the chassis's where it
-    // has one, the curated row's where it does not. Every other curated page
-    // - a design of several variants - still prints its curated row.
+    // The description's engine and designers, where the car is one chassis,
+    // are the ones Car.jsx prints, resolved by the same precedence (IA-28,
+    // IA-29): the chassis's where it has one, the curated row's where it does
+    // not. Every other curated page - a design of several variants - still
+    // describes its curated row.
     const row = one(CAR_ROW, c.id, c.id)
-    const whole = wholeOfOneChassis(row)
-    const facts = whole ? carFacts(variants[0], row) : c
-    const specification = whole
-      ? (({ chassis: build, engine }) => [...build, ...engine].map(({ label, value }) => [label, text(value)]))(
-          specificationFields(facts),
-        )
-      : [
-          ['Engine', text(c.engine_name)],
-          ['Configuration', text(list([c.engine_config, c.capacity_cc ? `${c.capacity_cc} cc` : null, c.aspiration]))],
-          ['Power', c.power_bhp ? `${c.power_bhp} bhp${c.power_note ? ` (${c.power_note})` : ''}` : '—'],
-          ['Chassis', text(c.chassis_type)],
-          ['Gearbox', text(c.gearbox)],
-          ['Suspension', text(c.suspension)],
-          ['Brakes', text(c.brakes)],
-          ['Weight', c.weight_kg ? `${c.weight_kg} kg` : '—'],
-          ['Wheelbase', c.wheelbase_mm ? `${c.wheelbase_mm} mm` : '—'],
-          ['Tyres', text(c.tyres)],
-        ]
+    const facts = wholeOfOneChassis(row) ? carFacts(variants[0], row) : c
     page({
       path: `cars/${at}`,
       canonical: at === c.id ? null : `cars/${c.id}`,
@@ -3574,37 +3672,7 @@ page({
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
         ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced), title: NAMES.car(name).headline, lede: c.story })}
-        <section class="section">${tiles(carStrip(variants, row, carEntries))}</section>
-        ${photos.slot}
-        ${
-          // After the slot, as Car.jsx writes its photograph straight after
-          // the tiles and *Why it mattered* after that (VD-84): a block of
-          // its own, so below 1180 the photograph is where the app puts it.
-          (() => {
-            const why = `${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}${prose(c.concept)}${prose(c.innovations)}${prose(c.outcome)}`
-            return why.trim() ? `<section class="section">${why}</section>` : ''
-          })()
-        }
-        ${carTables(c.id, variants, carEntries)}
-        ${photos.html}
-        <h2>${esc(LABELS.provenance)}</h2>
-        ${fields([
-          // What the old opening list said that the strip above does not
-          // (VD-49). The strip is queries/car.js's, as the app's is, so its
-          // entries, wins and poles are counted from the race records; the
-          // curated row's own races, wins and poles, which the app prints
-          // nowhere and which part from the count on several of these cars,
-          // are no longer printed beside them as a second "Wins".
-          // The name, as the app prints it: the id was the storage model on
-          // the six most famous pages in the register (IA-06).
-          ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_name ?? c.constructor_id) : '—'],
-          ['Years', yearRun(c.from_year, c.to_year)],
-          ['Designers', text(facts.designers)],
-          ...specification,
-          // The curated row's grade of its own figures, which a page showing
-          // the chassis's does not print; nor does the app.
-          ['Specification confidence', whole ? null : text(c.spec_confidence)],
-        ])}`,
+        ${carBody({ id: c.id, at, variants, car: row, entries: carEntries, photos })}`,
     })
   }
 
@@ -3612,11 +3680,6 @@ page({
 
   // The rest of the register. `cars` ids are skipped because the loop above has
   // already written those pages from the richer curated row.
-  //
-  // Facts are passed RAW rather than through text(), so fields() drops the ones
-  // nothing is known for. 376 of these chassis carry no specification at all,
-  // and a page of twenty em dashes claims twenty times over that nobody has
-  // established a figure — which is true, and is not worth saying twenty times.
   const curated = new Set(cars.map((c) => c.id))
 
   const byId = new Map(cars.map((c) => [c.id, c]))
@@ -3666,37 +3729,19 @@ page({
           // own id (CAR in queries/car.js).
           lede: (ch.car_id && byId.get(ch.car_id)?.story) || null,
         })}
-        <section class="section">${tiles(carStrip(variants, carRow, carEntries))}</section>
-        ${photos.slot}
-        ${
+        ${carBody({
+          id: ch.id,
+          at: ch.id,
+          variants,
+          car: carRow,
+          entries: carEntries,
+          photos,
           // After the slot, which follows the tiles as Car.jsx writes it.
-          ch.car_id && curated.has(ch.car_id)
-            ? `<section class="section"><p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p></section>`
-            : ''
-        }
-        ${carTables(ch.id, variants, carEntries)}
-        ${photos.html}
-        <h2>${esc(LABELS.provenance)}</h2>
-        ${fields([
-          // What the old opening list said that the strip above does not
-          // (VD-49): the seasons, the entries and the wins are
-          // queries/car.js's tiles now, counted from the race records as the
-          // app's are, so the stored wins - which part from that count on
-          // some chassis - are no longer a second "Wins" beside them.
-          ['Constructor', ch.constructor_id ? link(`constructors/${ch.constructor_id}`, constructor) : null],
-          ['Designers', ch.designers],
-          ['Engine', ch.engine_name],
-          ['Configuration', list([ch.engine_config, ch.capacity_cc ? `${ch.capacity_cc} cc` : null, ch.aspiration]) || null],
-          ['Power', ch.power_bhp ? `${ch.power_bhp} bhp${ch.power_note ? ` (${ch.power_note})` : ''}` : null],
-          ['Chassis', ch.chassis_type],
-          ['Gearbox', ch.gearbox],
-          ['Brakes', ch.brakes],
-          ['Tyres', ch.tyres],
-          ['Weight', ch.weight_kg ? `${ch.weight_kg} kg` : null],
-          ['Wheelbase', ch.wheelbase_mm ? `${ch.wheelbase_mm} mm` : null],
-          ['Published wins', ch.published_wins === null ? null : num(ch.published_wins)],
-          ['Confidence', ch.confidence ? link('data/quality', ch.confidence) : text(ch.confidence)],
-        ])}`,
+          family:
+            ch.car_id && curated.has(ch.car_id)
+              ? `<section class="section"><p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p></section>`
+              : '',
+        })}`,
     })
   }
 }
@@ -3720,6 +3765,12 @@ page({
   // forty rows would put the families a screen or two lower here than in the
   // app. Each family's heading carries its section's address, which the line
   // under the headline cards links, as the app's does.
+  //
+  // VD-87: and after the families, the app's last four sections - the
+  // champions, the decade's leaders, how often pole becomes a win and the
+  // grand slams - where the static page used to stop. The decade is the one
+  // the app's chips open on, the latest, since choosing another needs the
+  // script; each figure carries its table, open, as the leaderboards' do.
   const records = all(RECORDS)
   const tiers = tiersOf(records)
   const asOf = asOfOf(records)
@@ -3754,6 +3805,10 @@ page({
     return figure(name, `${spec.note} ${leadersDrawnLine(drawn.length)}`, body)
   }
   const part = (title, body) => `<div class="figure-part"><h3>${esc(title)}</h3>${body}</div>`
+  const titles = all(TITLES)
+  const decades = all(DECADES)
+  const decade = latestDecade(decades)
+  const grandSlams = all(GRAND_SLAMS)
   const recordTable = (rows) =>
     fromColumns(recordColumns(records), rows, {
       record: (value, row) => link(recordPath(row), value),
@@ -3809,7 +3864,30 @@ page({
           (f) =>
             `<h2 id="${esc(f.anchor)}">${esc(f.family)} <span class="count">${f.rows.length}</span></h2>${recordTable(f.rows)}`,
         )
-        .join('')}`,
+        .join('')}
+      ${heading(CHAMPIONS, titles.length)}
+      ${fromColumns(TITLE_COLUMNS, titles, { full_name: (name, row) => link(`drivers/${row.id}`, name) }, { fold: FOLD_NOUN.champions })}
+      ${heading(DECADE_TITLE, decadeCount(decadeOptions(decades)))}
+      ${part(
+        decadeFigureTitle(decade),
+        figure(
+          decadeFigureTitle(decade),
+          DECADE_NOTE,
+          fromColumns(DECADE_COLUMNS, decadeLeaders(decades, decade), driverLink, { unfolded: UNFOLDED.figure }),
+        ),
+      )}
+      ${heading(POLE_TO_WIN_TITLE)}
+      ${figure(
+        POLE_TO_WIN_TITLE,
+        POLE_TO_WIN_NOTE,
+        fromColumns(POLE_TO_WIN_COLUMNS, poleToWinRows(all(POLE_TO_WIN)), {}, { unfolded: UNFOLDED.figure }),
+      )}
+      ${heading(GRAND_SLAMS_TITLE, grandSlams.length)}
+      ${noteBox(GRAND_SLAM_NOTE.head, GRAND_SLAM_NOTE.body)}
+      ${fromColumns(GRAND_SLAM_COLUMNS, grandSlams, {
+        year: (year) => link(`seasons/${year}`, year),
+        gp_name: (name, row) => link(`races/${row.year}/${row.round}`, name),
+      }, { fold: FOLD_NOUN.grandSlams })}`,
   })
 
   // One page per record, at its key (PD-27): the row, and the citation
@@ -3844,7 +3922,10 @@ page({
     })
   }
 
+  // The eras as Eras.jsx draws them, one timeline under one heading (VD-87),
+  // in the markup timeline() gives the safety milestones.
   const eras = all(ERAS)
+  const eraTiers = erasTiers(eras)
   page({
     path: 'reference/eras',
     title: NAMES.eras().title,
@@ -3853,18 +3934,18 @@ page({
     onward: ONWARD.eras(),
     body: `
       ${opening({ title: NAMES.eras().headline, lede: ERAS_LEDE })}
-      ${eras
+      ${heading(ERAS_TITLE, eras.length)}
+      ${erasNote(eraTiers) ? `<p class="note">${esc(erasNote(eraTiers))}</p>` : ''}
+      <div class="timeline">${eras
         .map(
-          (e) => `<section class="section">
-            <h2>${esc(e.era_name)} <span class="faint">${e.from_year}–${e.to_year ?? 'present'}</span></h2>
-            ${prose(e.summary)}
-            ${fields([
-              ['Dominant teams', text(e.dominant_teams)],
-              ['Defining features', text(e.defining_features)],
-            ])}
-          </section>`,
+          (e) =>
+            `<article><h3>${esc(e.era_name)}<span class="years">${esc(span(e.from_year, e.to_year))}</span>${
+              eraTiers.length > 1 ? confidencePill(e.confidence) : ''
+            }</h3><p>${esc(e.summary)}</p>${ERA_LINES.map(([key, label]) =>
+              e[key] ? `<p class="faint small"><strong>${esc(label)}</strong> ${esc(e[key])}</p>` : '',
+            ).join('')}</article>`,
         )
-        .join('')}
+        .join('')}</div>
       <h2>Engine formulae</h2>
       ${fromColumns(ENGINE_COLUMNS, all(ENGINES), {
         era_name: (name, row) =>
@@ -3919,12 +4000,15 @@ page({
       ${fromColumns(SOURCE_COLUMNS, sources, {
         source: (name, row) => (row.url && row.url !== 'None' ? `<a href="${esc(row.url)}">${esc(name)}</a>` : text(name)),
       }, { unfolded: UNFOLDED.reference, footer: SOURCES_FOOTER })}
-      <p class="measure">${esc(OUTLINES_NOTE)}</p>
       <h2>Photograph licences</h2>
       <p class="note">${esc(LICENCES_NOTE)}</p>
       ${fromColumns(LICENCE_COLUMNS, all(LICENCES), {
         licence: (name, row) => (row.licence_url ? `<a href="${esc(row.licence_url)}">${esc(name)}</a>` : text(name)),
-      }, { unfolded: UNFOLDED.reference })}`,
+      }, { unfolded: UNFOLDED.reference })}
+      <h2>${esc(USING_TITLE)}</h2>
+      <p class="measure">${esc(USING_THIS_DATA)}</p>
+      <p class="measure">${esc(OUTLINES_NOTE)}</p>
+      <p class="measure faint">${esc(UNAFFILIATED)}</p>`,
   })
 
   // The database's front door — the one crawlable surface that can carry the
@@ -4099,11 +4183,15 @@ page({
     onward: ONWARD.quality(),
     body: `
       ${opening({ title: NAMES.quality().headline, lede: QUALITY_LEDE })}
-      <p class="measure">A blank in this database is an unestablished fact, never a zero. These are
-        the gaps that are known and stated.</p>
-      ${GAP_GROUPS.map(gapGroup).join('')}
       <h2>The confidence ladder</h2>
       ${fromColumns(PROVENANCE_COLUMNS, all(PROVENANCE), {}, { unfolded: UNFOLDED.reference, footer: LADDER_NOTE })}
+      ${heading(DISTRIBUTION_TITLE)}
+      ${figure(
+        DISTRIBUTION_TITLE,
+        DISTRIBUTION_NOTE,
+        fromColumns(DISTRIBUTION_COLUMNS, distribution(all(CONFIDENCE_MIX)), {}, { unfolded: UNFOLDED.figure }),
+      )}
+      ${GAP_GROUPS.map(gapGroup).join('')}
       <h2>Disagreements kept rather than resolved</h2>
       <p class="note">${esc(DISCREPANCIES_NOTE)}</p>
       ${fromColumns(DISCREPANCY_COLUMNS, all(DISCREPANCIES), {}, { unfolded: UNFOLDED.reference })}

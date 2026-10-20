@@ -11,15 +11,18 @@ import Figure from '../charts/Figure.jsx'
 import BarChart from '../charts/BarChart.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { percent } from '../lib/format.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { colourForEntry, colourSource } from '../lib/liveries.js'
 import {
+  CHAMPIONS,
   CONSTRUCTOR_WINS,
   CONSTRUCTOR_WINS_COLUMNS,
   CONSTRUCTOR_WINS_FIGURE,
   CONSTRUCTORS_HEADING,
   DECADES,
+  DECADE_COLUMNS,
+  DECADE_NOTE,
+  DECADE_TITLE,
   DERIVATION,
   DRIVER_POLES,
   DRIVER_POLES_COLUMNS,
@@ -28,10 +31,15 @@ import {
   DRIVER_WINS_COLUMNS,
   DRIVER_WINS_FIGURE,
   GRAND_SLAM_COLUMNS,
+  GRAND_SLAM_NOTE,
   GRAND_SLAMS,
+  GRAND_SLAMS_TITLE,
   HEADLINE,
   LEADERBOARDS,
   POLE_TO_WIN,
+  POLE_TO_WIN_COLUMNS,
+  POLE_TO_WIN_NOTE,
+  POLE_TO_WIN_TITLE,
   RECORDS,
   RECORDS_LEDE,
   TIER_AFTER,
@@ -41,10 +49,16 @@ import {
   asOfOf,
   cardExtras,
   constructorWinsNote,
+  decadeCount,
+  decadeFigureTitle,
+  decadeLeaders,
+  decadeOptions as decadesOf,
   familiesLead,
   headlineRecords,
   holderPath,
+  latestDecade as latestOf,
   leadersDrawn,
+  poleToWinRows,
   recordColumns,
   recordFamilies,
   recordPath,
@@ -186,8 +200,8 @@ function Body({ data }) {
   const poleToWin = rows(data, 'poleToWin')
   const grandSlams = rows(data, 'grandSlams')
 
-  const decadeOptions = [...new Set(decades.map((d) => d.decade))].sort((a, b) => b - a)
-  const latestDecade = String(Math.max(...decades.map((d) => d.decade)))
+  const decadeOptions = decadesOf(decades)
+  const latestDecade = latestOf(decades)
 
   // The choice on this page, in the address (IA-08). The decade opens on
   // the most recent one, so that is its default and the address stays clean
@@ -244,7 +258,7 @@ function Body({ data }) {
   const winBars = leadersDrawn(driverWins, DRIVER_WINS_FIGURE.key)
   const poleBars = leadersDrawn(driverPoles, DRIVER_POLES_FIGURE.key)
 
-  const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
+  const decadeRows = decadeLeaders(decades, decade)
 
   return (
     <>
@@ -358,7 +372,10 @@ function Body({ data }) {
         </Section>
       ))}
 
-      <Section title="Champions" count={`${titles.length}`}>
+      {/* The four sections the static page draws too, from queries/records.js
+          (VD-87): with no script it shows the latest decade, which is the one
+          the chips open on. */}
+      <Section title={CHAMPIONS} count={`${titles.length}`}>
         <DataTable
           fold={FOLD_NOUN.champions}
           rows={titles}
@@ -369,7 +386,7 @@ function Body({ data }) {
         />
       </Section>
 
-      <Section title="Who won the decade" count={`${decadeOptions.length} decades`}>
+      <Section title={DECADE_TITLE} count={decadeCount(decadeOptions)}>
         <div className="filters">
           <Chips
             label="Choose a decade"
@@ -379,22 +396,8 @@ function Body({ data }) {
           />
         </div>
         {/* The decade the chips chose, named over its figure. */}
-        <FigurePart title={`Most wins, the ${decade}s`}>
-          <Figure
-            note="A decade is the ten seasons whose year begins with it; the 2020s are still running."
-            table={{
-              rows: decadeRows,
-              columns: [
-                {
-                  key: 'full_name',
-                  label: 'Driver',
-                  rowHeader: true,
-                  render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link>,
-                },
-                { key: 'wins', label: 'Wins', align: 'num' },
-              ],
-            }}
-          >
+        <FigurePart title={decadeFigureTitle(decade)}>
+          <Figure note={DECADE_NOTE} table={{ rows: decadeRows, columns: withApp(DECADE_COLUMNS, { full_name: driverLink }) }}>
             <BarChart
               data={decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
               label={`Drivers with the most wins in the ${decade}s`}
@@ -403,22 +406,8 @@ function Body({ data }) {
         </FigurePart>
       </Section>
 
-      <Section title="How often pole becomes a win">
-        <Figure
-          note="The share of races each season won from the front row's first slot. It says as much about how hard a car was to pass as about who was quickest on Saturday."
-          table={{
-            rows: poleToWin.map((r) => ({
-              ...r,
-              share: percent(r.pole_converted, r.races),
-            })),
-            columns: [
-              { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
-              { key: 'races', label: 'Races', align: 'num' },
-              { key: 'pole_converted', label: 'Won from pole', align: 'num' },
-              { key: 'share', label: 'Share', align: 'num' },
-            ],
-          }}
-        >
+      <Section title={POLE_TO_WIN_TITLE}>
+        <Figure note={POLE_TO_WIN_NOTE} table={{ rows: poleToWinRows(poleToWin), columns: POLE_TO_WIN_COLUMNS }}>
           <LineChart
             series={[
               {
@@ -436,11 +425,9 @@ function Body({ data }) {
         </Figure>
       </Section>
 
-      <Section title="Grand slams" count={`${grandSlams.length}`}>
+      <Section title={GRAND_SLAMS_TITLE} count={`${grandSlams.length}`}>
         <Note>
-          <strong>Pole, win and fastest lap in the same Grand Prix.</strong> The stricter definition
-          also asks for every lap led, which is not checked here — there is no lap-by-lap data for
-          most of these races — so this is the three-part version.
+          <strong>{GRAND_SLAM_NOTE.head}</strong> {GRAND_SLAM_NOTE.body}
         </Note>
         <DataTable
           fold={FOLD_NOUN.grandSlams}

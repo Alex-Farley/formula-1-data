@@ -201,7 +201,9 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // drew none of them, and none IS the zero. It counts <tr> in a document,
     // never a stored column, and the table pages as it always did.
     ['src/lib/handover.js', [1, 'rows a static table drew; a name it does not hold drew none']],
-    ['src/pages/Quality.jsx', [1, 'rows in a confidence class']],
+    // VD-87 moved it from Quality.jsx with the figure's rows, which the
+    // static page prints too: a rung no row sits on is counted, and holds none.
+    ['src/queries/quality.js', [1, 'rows in a confidence class']],
     ['src/pages/Data.jsx', [1, 'sources in a licence class']],
     // VD-49 moved the circuit's strip, and its one count with it, from
     // Circuit.jsx: v_circuits' seasons_used is a COUNT over the races held
@@ -2296,7 +2298,9 @@ describe('one vocabulary: tile labels and provenance headings come from one list
       /<Section title=\{LABELS\.provenance\}>/.test(read(file)),
     )
     assert.ok(pages.length >= 8, `the entity pages read it, ${pages.length} of them`)
-    assert.ok((read(prerender).match(/<h2>\$\{esc\(LABELS\.provenance\)\}<\/h2>/g) ?? []).length >= 9, 'and so does the static half')
+    // One per static page template that ends on it; a curated car and a
+    // chassis share one since VD-87, as Car.jsx draws both.
+    assert.ok((read(prerender).match(/<h2>\$\{esc\(LABELS\.provenance\)\}<\/h2>/g) ?? []).length >= 8, 'and so does the static half')
   })
 
   it('the list holds one word for each concept', () => {

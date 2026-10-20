@@ -11,6 +11,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { LABELS } from '../lib/site.js'
+import { percent } from '../lib/format.js'
 
 // A race holder is stored by races.id; the page needs year and round to
 // link it, so they ride along (NULL for every other holder).
@@ -308,6 +309,46 @@ export const TITLE_COLUMNS = [
   { key: 'wins', label: 'Wins', align: 'num' },
   { key: 'poles', label: 'Poles', align: 'num' },
 ]
+
+/*
+ * The four sections after the families, in both renderers (VD-87): the
+ * static page stopped at the families. Each heading, note and column list is
+ * here once; the app adds the links, the chips and the charts.
+ */
+export const CHAMPIONS = 'Champions'
+
+export const DECADE_TITLE = 'Who won the decade'
+export const decadeCount = (decades) => `${decades.length} decades`
+/** The decades on the page, newest first: the chips' options, in the app. */
+export const decadeOptions = (rows) => [...new Set(rows.map((d) => d.decade))].sort((a, b) => b - a)
+/** The decade the page opens on, and the one a page with no script shows: the latest. */
+export const latestDecade = (rows) => String(Math.max(...rows.map((d) => d.decade)))
+/** One decade's leaders, as many as the figure draws, in the view's order. */
+export const decadeLeaders = (rows, decade) => rows.filter((d) => String(d.decade) === decade).slice(0, 12)
+export const decadeFigureTitle = (decade) => `Most wins, the ${decade}s`
+export const DECADE_NOTE = 'A decade is the ten seasons whose year begins with it; the 2020s are still running.'
+export const DECADE_COLUMNS = [
+  { key: 'full_name', label: 'Driver', rowHeader: true },
+  { key: 'wins', label: 'Wins', align: 'num' },
+]
+
+export const POLE_TO_WIN_TITLE = 'How often pole becomes a win'
+export const POLE_TO_WIN_NOTE =
+  "The share of races each season won from the front row's first slot. It says as much about how hard a car was to pass as about who was quickest on Saturday."
+export const POLE_TO_WIN_COLUMNS = [
+  { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
+  { key: 'races', label: 'Races', align: 'num' },
+  { key: 'pole_converted', label: 'Won from pole', align: 'num' },
+  { key: 'share', label: 'Share', align: 'num' },
+]
+/** The figure's table rows: each season with its share, the em dash where no race was run. */
+export const poleToWinRows = (rows) => rows.map((r) => ({ ...r, share: percent(r.pole_converted, r.races) }))
+
+export const GRAND_SLAMS_TITLE = 'Grand slams'
+export const GRAND_SLAM_NOTE = {
+  head: 'Pole, win and fastest lap in the same Grand Prix.',
+  body: 'The stricter definition also asks for every lap led, which is not checked here — there is no lap-by-lap data for most of these races — so this is the three-part version.',
+}
 
 export const GRAND_SLAM_COLUMNS = [
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },

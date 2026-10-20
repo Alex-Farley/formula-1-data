@@ -14,7 +14,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { text } from '../lib/format.js'
+import { percent, text } from '../lib/format.js'
 
 export const PROVENANCE = 'SELECT * FROM provenance ORDER BY rank'
 export const GAPS = 'SELECT * FROM known_gaps ORDER BY id'
@@ -110,6 +110,30 @@ export const CONFIDENCE_MIX = `
 `
 
 export const LADDER = ['verified', 'high', 'reference', 'medium', 'unverified', 'catalogued']
+
+/**
+ * "How the database is distributed across it": CONFIDENCE_MIX's counts on
+ * the ladder's rungs, top first, as the figure's rows, which Quality.jsx
+ * plots and both renderers print as its table (VD-87). `catalogued` is a
+ * photograph-only rung (AF-42) that none of these tables can carry, so it
+ * would only ever be an empty row. A rung no row sits on is counted, and
+ * its count is 0.
+ */
+export const DISTRIBUTION_TITLE = 'How the database is distributed across it'
+export const DISTRIBUTION_NOTE =
+  'Across races, race entries, drivers, constructors, chassis, circuits and seasons. Most of it sits at “reference” because most of it is the F1DB race record, which a second source can check.'
+export const DISTRIBUTION_COLUMNS = [
+  { key: 'confidence', label: 'Confidence', rowHeader: true },
+  { key: 'rows', label: 'Rows', align: 'num' },
+  { key: 'share', label: 'Share', align: 'num' },
+]
+export const distribution = (mix) => {
+  const total = mix.reduce((sum, row) => sum + row.n, 0)
+  return LADDER.filter((name) => name !== 'catalogued').map((name) => {
+    const rows = mix.find((row) => row.confidence === name)?.n ?? 0
+    return { confidence: name, rows, share: percent(rows, total) }
+  })
+}
 
 /** Whether a row at this level may be quoted without a second look. */
 export const safeToQuote = (value) => (value ? 'yes' : 'not without checking')
