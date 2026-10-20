@@ -330,6 +330,27 @@ export const entryColumns = (several) => [
   { key: 'status', label: 'Out', text: entryOut },
 ]
 
+/*
+ * The two sections the static page had no heading for (VD-87): *Why it
+ * mattered*, the curated car's three paragraphs, each opening on its label,
+ * and *Specification*, named for the chassis where the page covers several,
+ * with the sentence under its fields. Car.jsx and scripts/prerender.js both
+ * read these.
+ */
+export const WHY_TITLE = 'Why it mattered'
+export const WHY_PARAGRAPHS = [
+  ['concept', 'The idea.'],
+  ['innovations', 'New on this car.'],
+  ['outcome', 'What it did.'],
+]
+export const specificationTitle = (several, chassis) => (several ? `Specification — ${chassis.name}` : 'Specification')
+/** The sentence under the fields, in three parts around its link to the regulation limits. */
+export const SPECIFICATION_NOTE = [
+  'A blank is a figure nobody published for this car. Where several teams quote the same number in a season it is usually the rule they were all built to rather than a measurement, so it is kept with the ',
+  'regulation limits',
+  ' instead of here.',
+]
+
 /**
  * What the Specification section says where there is no specification (CD-37).
  *
@@ -338,8 +359,9 @@ export const entryColumns = (several) => [
  * separate claims that nobody has established a figure, where the truth is
  * one claim about the car. The sentence replaces the fields rather than the
  * heading, so a reader who came looking for a specification is still told
- * where they are and what the answer is. The static half already drops a
- * field nothing is known for rather than dashing it.
+ * where they are and what the answer is. Both renderers print it, and
+ * where there is a specification both dash the fields nobody published
+ * (VD-87).
  */
 export const NO_SPECIFICATION =
   'No specification is published for this car: no chassis, engine, weight or dimension figure is ' +

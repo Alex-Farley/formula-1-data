@@ -8,7 +8,7 @@ import SubNav from '../components/SubNav.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { number, percent } from '../lib/format.js'
+import { number } from '../lib/format.js'
 
 import {
   AMBIGUOUS,
@@ -22,6 +22,9 @@ import {
   DISCREPANCIES,
   DISCREPANCIES_NOTE,
   DISCREPANCY_COLUMNS,
+  DISTRIBUTION_COLUMNS,
+  DISTRIBUTION_NOTE,
+  DISTRIBUTION_TITLE,
   GAPS,
   GAP_COLUMNS,
   GAP_GROUPS,
@@ -29,7 +32,6 @@ import {
   GEOMETRY_COVERAGE,
   GEOMETRY_FOOTER,
   IMAGES,
-  LADDER,
   LADDER_NOTE,
   MAINTAINER_NOTE,
   PHOTOGRAPHS_UNNAMED_NOTE,
@@ -43,6 +45,7 @@ import {
   UNVERIFIED_COLUMNS,
   UNVERIFIED_FOOTER,
   disagrees,
+  distribution,
   photographsCatalogued,
   QUALITY_LEDE,
 } from '../queries/quality.js'
@@ -151,14 +154,8 @@ function Body({ data }) {
   const images = data.images.rows[0] ?? {}
   const mix = rows(data, 'confidenceMix')
 
-  const total = mix.reduce((sum, row) => sum + row.n, 0)
-  // `catalogued` is a photograph-only rung (AF-42) and none of these tables can
-  // carry it, so the figure would only ever draw it as an empty row.
-  const ordered = LADDER.filter((name) => name !== 'catalogued').map((name) => ({
-    key: name,
-    value: mix.find((row) => row.confidence === name)?.n ?? 0,
-    label: name,
-  }))
+  // The figure's rows, which the static page prints as its table (VD-87).
+  const ladder = distribution(mix)
 
   const disagreeing = reconciliation.filter(disagrees)
 
@@ -175,24 +172,10 @@ function Body({ data }) {
         />
       </Section>
 
-      <Section title="How the database is distributed across it">
-        <Figure
-          note="Across races, race entries, drivers, constructors, chassis, circuits and seasons. Most of it sits at “reference” because most of it is the F1DB race record, which a second source can check."
-          table={{
-            rows: ordered.map((row) => ({
-              confidence: row.key,
-              rows: row.value,
-              share: percent(row.value, total),
-            })),
-            columns: [
-              { key: 'confidence', label: 'Confidence', rowHeader: true },
-              { key: 'rows', label: 'Rows', align: 'num' },
-              { key: 'share', label: 'Share', align: 'num' },
-            ],
-          }}
-        >
+      <Section title={DISTRIBUTION_TITLE}>
+        <Figure note={DISTRIBUTION_NOTE} table={{ rows: ladder, columns: DISTRIBUTION_COLUMNS }}>
           <ColumnChart
-            data={ordered}
+            data={ladder.map((row) => ({ key: row.confidence, value: row.rows, label: row.confidence }))}
             height={190}
             label="Number of rows at each level of the confidence ladder"
           />

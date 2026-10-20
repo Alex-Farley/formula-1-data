@@ -18,6 +18,9 @@ import {
   SOURCES_FOOTER,
   SOURCE_COLUMNS,
   SOURCES_LEDE,
+  UNAFFILIATED,
+  USING_THIS_DATA,
+  USING_TITLE,
 } from '../queries/sources.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -116,19 +119,12 @@ export default function Sources() {
                 />
               </Section>
 
-              <Section title="Using this data">
-                <p className="measure">
-                  You are welcome to. Carry the licence with whatever you take: attribute F1DB for
-                  the race records, keep share-alike on anything derived from Wikipedia prose, and
-                  treat a traced centreline as OpenStreetMap under ODbL — that obligation travels
-                  with it.
-                </p>
+              {/* The words are queries/sources.js's, which the static page
+                  prints too (VD-87). */}
+              <Section title={USING_TITLE}>
+                <p className="measure">{USING_THIS_DATA}</p>
                 <p className="measure">{OUTLINES_NOTE}</p>
-                <p className="measure faint">
-                  This site is unaffiliated with Formula One, the FIA, or any team. Formula One,
-                  F1 and Grand Prix are trademarks of their respective owners and are used here
-                  descriptively.
-                </p>
+                <p className="measure faint">{UNAFFILIATED}</p>
               </Section>
 
               <Onward {...ONWARD.sources()} />
