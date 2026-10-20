@@ -1,11 +1,9 @@
-import { useMemo, useState } from 'react'
-import { linear, niceDomain, ticks } from './scales.js'
+import { useState } from 'react'
+import { lineLayout } from './lineChart.js'
 import { seriesColour, seriesDash } from './palette.js'
 import { LineKey } from './Figure.jsx'
 import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
-
-const M = { top: 14, right: 58, bottom: 26, left: 44 }
 
 /**
  * One or more series over a continuous x — years, rounds, laps.
@@ -40,49 +38,12 @@ export default function LineChart({
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
 
-  const geometry = useMemo(() => {
-    const all = series.flatMap((s) => s.points)
-    if (all.length === 0) return null
-    const xs = all.map((p) => p.x)
-    const x = linear([Math.min(...xs), Math.max(...xs)], [M.left, width - M.right])
-    const y = linear(niceDomain(all.map((p) => p.y), { zero }), [height - M.bottom, M.top])
-    return { x, y }
-  }, [series, width, height, zero])
+  // The geometry, the crosshair's columns and which line ends carry a label
+  // are charts/lineChart.js's, which the static page draws from too (VD-73).
+  const layout = lineLayout({ series, width, height, format, formatX, zero })
 
-  if (!geometry) return null
-  const { x, y } = geometry
-
-  // One x per column of the crosshair. Series may not share every x — a
-  // constructor that entered half a season has half the rounds — so the union
-  // is what the pointer snaps to.
-  const columns = [...new Set(series.flatMap((s) => s.points.map((p) => p.x)))].sort((a, b) => a - b)
-
-  /**
-   * Which endpoints may carry a direct label.
-   *
-   * Lines converge at the right-hand edge far more often than they separate —
-   * a two-point championship is the whole reason to draw one of these — and
-   * two labels on top of each other are worse than none. Nudging them apart
-   * would detach a number from its line, so a label that would collide is
-   * simply dropped: the legend names the series and the crosshair gives every
-   * value on demand.
-   */
-  const labelled = new Set()
-  const ends = series
-    .map((s, i) => {
-      const sorted = [...s.points].sort((a, b) => a.x - b.x)
-      const last = sorted[sorted.length - 1]
-      return last ? { i, y: y(last.y) } : null
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.y - b.y)
-  let previous = -Infinity
-  for (const end of ends) {
-    if (end.y - previous >= 15) {
-      labelled.add(end.i)
-      previous = end.y
-    }
-  }
+  if (!layout) return null
+  const { x, y, columns } = layout
 
   const onMove = (event) => {
     const box = event.currentTarget.getBoundingClientRect()
@@ -104,38 +65,30 @@ export default function LineChart({
         role="img"
         aria-label={label}
       >
-        {ticks(y.domain, 4).map((value) => (
-          <g key={value}>
-            <line className="grid-line" x1={M.left} x2={width - M.right} y1={y(value)} y2={y(value)} />
-            <text className="axis-text" x={M.left - 8} y={y(value)} textAnchor="end" dominantBaseline="middle">
-              {format(value)}
+        {layout.yTicks.map((tick) => (
+          <g key={tick.value}>
+            <line className="grid-line" x1={layout.left} x2={layout.right} y1={tick.y} y2={tick.y} />
+            <text className="axis-text" x={layout.labelX} y={tick.y} textAnchor="end" dominantBaseline="middle">
+              {tick.text}
             </text>
           </g>
         ))}
 
-        {ticks(x.domain, Math.max(2, Math.floor(width / 110)), { integer: true }).map((value) => (
-          <text
-            key={value}
-            className="axis-text"
-            x={x(value)}
-            y={height - M.bottom + 15}
-            textAnchor="middle"
-          >
-            {formatX(value)}
+        {layout.xTicks.map((tick) => (
+          <text key={tick.value} className="axis-text" x={tick.x} y={layout.tickY} textAnchor="middle">
+            {tick.text}
           </text>
         ))}
 
         {hover !== null && (
-          <line className="grid-line" x1={x(hover)} x2={x(hover)} y1={M.top} y2={height - M.bottom} />
+          <line className="grid-line" x1={x(hover)} x2={x(hover)} y1={layout.top} y2={layout.bottom} />
         )}
 
-        {series.map((s, i) => {
-          const points = [...s.points].sort((a, b) => a.x - b.x)
-          const last = points[points.length - 1]
+        {layout.lines.map(({ s, i, points, path, end }) => {
           return (
             <g key={s.name} className={s.colour ? 'livery-series' : undefined} style={seriesStyle(s)}>
               <path
-                d={points.map((p, j) => `${j === 0 ? 'M' : 'L'}${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ')}
+                d={path}
                 fill="none"
                 stroke={seriesPaint(s, i)}
                 strokeWidth="2"
@@ -143,12 +96,12 @@ export default function LineChart({
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
-              {last && (
+              {end && (
                 <>
-                  <circle className="mark-ring" cx={x(last.x)} cy={y(last.y)} r="4" fill={seriesPaint(s, i)} />
-                  {labelled.has(i) && (
-                    <text className="value-text" x={x(last.x) + 9} y={y(last.y)} dominantBaseline="middle">
-                      {format(last.y)}
+                  <circle className="mark-ring" cx={end.x} cy={end.y} r="4" fill={seriesPaint(s, i)} />
+                  {end.text !== null && (
+                    <text className="value-text" x={end.x + 9} y={end.y} dominantBaseline="middle">
+                      {end.text}
                     </text>
                   )}
                 </>
@@ -176,7 +129,7 @@ export default function LineChart({
           risen above the plot's top, it ran out of the figure, which clips
           it, at every width (IX-44). */}
       {hover !== null && (
-        <Tooltip x={x(hover)} y={M.top} place="beside" onDismiss={() => setHover(null)} role="status">
+        <Tooltip x={x(hover)} y={layout.top} place="beside" onDismiss={() => setHover(null)} role="status">
           <b>{formatX(hover)}</b>
           {series.map((s, i) => {
             const point = s.points.find((p) => p.x === hover)

@@ -1905,7 +1905,14 @@ try {
       is(drawn.dots, placed, `a dot for each of the ${placed} rounds ${racer.full_name} was classified in`)
       is(drawn.rows, run, `and the table under it holds the ${run} rounds run`)
       const html = await served(`/drivers/${racer.id}`)
-      is(staticHeadings(html)[0], heading, 'the static page has the same section first among its headings')
+      // The career chart leads the static page too (VD-73), so the season
+      // follows it there as it does here.
+      const order = staticHeadings(html)
+      is(order[0], headings[0], 'the static page has the same section first among its headings')
+      truthy(
+        order.includes(heading) && order.indexOf(heading) > order.indexOf(CAREER_CHART) && order.includes(CAREER_CHART) === chart >= 0,
+        `and has “${heading}”${chart < 0 ? '' : ` after “${CAREER_CHART}”`}, as the app does`,
+      )
       truthy(
         html.indexOf('<dl class="stats"') >= 0 && html.indexOf('<dl class="stats"') < html.indexOf(`<h2>${heading}</h2>`),
         'after the career strip, as the app has it',
@@ -2298,9 +2305,9 @@ try {
    * in one order: the main table, then the long lists, then the photographs
    * (VD-83).
    * A season with a round still to run reads its next round and calendar
-   * before standings that are not final; a concluded one, who won first. The
-   * static page draws neither chart (VD-73, #822), so it is
-   * held to the order alone.
+   * before standings that are not final; a concluded one, who won first.
+   * The static page draws the chart too (VD-73), so both halves are held to
+   * the drawing and the order.
    */
   await section('/seasons and /constructors  (the chart leads, the photographs follow)', async () => {
     const readLead = ([root, chart]) => {
@@ -2351,8 +2358,7 @@ try {
       )
     const checkOrder = (route, got, order, optional) => {
       truthy(inOrder(got.app.blocks, order, optional), `${route}, the app: ${order.join(' → ')} — ${got.app.blocks.join(' · ')}`)
-      const plain = order.slice(1)
-      truthy(inOrder(got.served.blocks, plain, optional), `${route}, the static page: ${plain.join(' → ')} — ${got.served.blocks.join(' · ')}`)
+      truthy(inOrder(got.served.blocks, order, optional), `${route}, the static page: ${order.join(' → ')} — ${got.served.blocks.join(' · ')}`)
     }
 
     // The constructor with the most titles that has photographs to show.
@@ -2364,6 +2370,7 @@ try {
       const route = `/constructors/${team.id}`
       const got = await bothHalves(route, team.name, 'Wins by season')
       leads(route, 'Wins by season', got.app)
+      leads(`${route} (static)`, 'Wins by season', got.served)
       checkOrder(route, got, ['Wins by season', 'Season by season', 'Every win', 'Cars built', 'Photographs'])
     } else fail('no constructor with a title has photographs to read the order on')
 
@@ -2381,6 +2388,7 @@ try {
       const route = `/seasons/${done.year}`
       const got = await bothHalves(route, String(done.year), titleHeading(false))
       leads(route, titleHeading(false), got.app)
+      leads(`${route} (static)`, titleHeading(false), got.served)
       checkOrder(
         route,
         got,
@@ -2411,6 +2419,7 @@ try {
       const route = `/seasons/${live}`
       const got = await bothHalves(route, String(live), titleHeading(true))
       leads(route, titleHeading(true), got.app)
+      leads(`${route} (static)`, titleHeading(true), got.served)
       checkOrder(
         route,
         got,
@@ -2634,12 +2643,12 @@ try {
     // [route, the heading to wait for, what fills the slot, what the slot
     // follows in the markup, whether the static page draws it too]
     const cases = [
-      ['/drivers/fangio', name('drivers', 'fangio', 'full_name'), 'chart', 'tiles', false],
+      ['/drivers/fangio', name('drivers', 'fangio', 'full_name'), 'chart', 'tiles', true],
       // A recorded disagreement is the block straight after the chart; and
       // 61 seasons, near the most the slot can draw (SLOT_MARKS).
-      ['/constructors/mclaren', name('constructors', 'mclaren'), 'chart', 'tiles', false],
-      ['/seasons/1976', '1976', 'chart', 'tiles', false],
-      ...(live ? [[`/seasons/${live}`, String(live), 'chart', 'tiles', false]] : []),
+      ['/constructors/mclaren', name('constructors', 'mclaren'), 'chart', 'tiles', true],
+      ['/seasons/1976', '1976', 'chart', 'tiles', true],
+      ...(live ? [[`/seasons/${live}`, String(live), 'chart', 'tiles', true]] : []),
       [`/races/${race.year}/${race.round}`, race.name_used, 'outline', 'Classification', true],
       // Silverstone keeps its photograph in the header beside the outline.
       ['/circuits/silverstone', name('circuits', 'silverstone'), 'outline', 'tiles', true],
@@ -2787,6 +2796,88 @@ try {
       !bare.slot && !!bare.tiles && bare.tiles.width === bare.page.width && bare.header.width === bare.page.width,
       `/constructors/brawn, with nothing for the slot, keeps its header and its tiles the width of the page (${bare.tiles ? Math.round(bare.tiles.width) : 'none'} of ${Math.round(bare.page.width)})`,
     )
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
+   * VD-73: the three lead charts are drawn on the static page as well, from
+   * the layouts and the figures both halves read. What the static drawing
+   * must share with the app's, read from each: the plot's box, as tall as
+   * the app's at every width, so the band and everything under it stay put
+   * at the handover; as many marks - dots, columns, lines - in the same
+   * colours; the same legend; and the numbers behind the chart, row for
+   * row. Ferrari is the chart too wide for the slot, laid out at the
+   * column's width rather than the slot's.
+   */
+  await section('The lead charts on the static page  (the app’s box, marks and numbers: VD-73)', async () => {
+    const readChart = ([root, heading]) => {
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const h2 = [...document.querySelectorAll(`${root} h2`)].find((h) => clean(h) === heading)
+      const figure = h2?.closest('section')?.querySelector('figure.figure-lead')
+      const svg = figure?.querySelector('.figure-body svg[role="img"]')
+      if (!svg) return null
+      const paints = (nodes, attribute) =>
+        nodes.map((n) => {
+          const value = n.getAttribute(attribute) ?? ''
+          // var(--livery) is a colour per mark: read the pair it resolves from.
+          if (!value.includes('--livery')) return value
+          const owner = n.closest('.livery-series')
+          return owner ? `${owner.style.getPropertyValue('--livery-light')}/${owner.style.getPropertyValue('--livery-dark')}` : 'no pair'
+        })
+      return {
+        height: Math.round(svg.getBoundingClientRect().height),
+        width: Math.round(svg.getBoundingClientRect().width),
+        dots: paints([...svg.querySelectorAll('circle.mark-ring, circle.mark-hollow')], 'fill'),
+        halos: svg.querySelectorAll('circle.mark-halo').length,
+        columns: paints([...svg.querySelectorAll('path[fill]:not([fill="none"])')], 'fill'),
+        lines: paints([...svg.querySelectorAll('path[stroke]')], 'stroke').map(
+          (paint, i) => `${paint} ${svg.querySelectorAll('path[stroke]')[i].getAttribute('stroke-dasharray') ?? 'solid'}`,
+        ),
+        legend: [...figure.querySelectorAll(':scope > .legend > span')].map(clean),
+        rows: [...figure.querySelectorAll('details table tbody tr')].map((tr) => [...tr.children].map(clean).join(' | ')),
+        open: figure.querySelector('details')?.open ?? null,
+      }
+    }
+    const team = (id) => db.prepare('SELECT name FROM constructors WHERE id = ?').get(id).name
+    const cases = [
+      ['/drivers/hamilton', 'Hamilton', 'Where each championship finished'],
+      ['/constructors/mclaren', team('mclaren'), 'Wins by season'],
+      ['/constructors/ferrari', team('ferrari'), 'Wins by season'],
+      ['/seasons/1976', '1976', titleHeading(false)],
+    ]
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const [route, wait, heading] of cases) {
+      await go(route, wait)
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      for (const width of [1440, 400]) {
+        await page.setViewportSize({ width, height: 900 })
+        await plain.setViewportSize({ width, height: 900 })
+        await settle()
+        const app = await page.evaluate(readChart, ['#root main', heading])
+        const served = await plain.evaluate(readChart, ['#prerendered main', heading])
+        const at = `${route} at ${width}`
+        if (!app || !served) {
+          fail(`${at}: “${heading}” is drawn by ${app ? 'the app only' : served ? 'the static page only' : 'neither half'}`)
+          continue
+        }
+        truthy(
+          Math.abs(served.height - app.height) <= 1 && Math.abs(served.width - app.width) <= 1,
+          `${at}: the static plot's box is the app's — ${served.width}×${served.height} against ${app.width}×${app.height}`,
+        )
+        if (width !== 1440) continue
+        truthy(served.dots.length + served.columns.length > 0, `${at}: the static plot draws marks, not an empty frame`)
+        is(served.dots.join(', '), app.dots.join(', '), `${at}: the same dots in the same colours (${app.dots.length})`)
+        is(served.halos, app.halos, `${at}: the same titles ringed (${app.halos})`)
+        is(served.columns.join(', '), app.columns.join(', '), `${at}: the same columns in the same colour (${app.columns.length})`)
+        is(served.lines.join(', '), app.lines.join(', '), `${at}: the same lines in the same colours and dashes (${app.lines.length})`)
+        is(served.legend.join(' · '), app.legend.join(' · '), `${at}: the same legend`)
+        truthy(app.rows.length > 1, `${at}: the app's figure holds its numbers (${app.rows.length} rows)`)
+        is(served.rows.join(' / '), app.rows.join(' / '), `${at}: the static numbers behind the chart are the app's, row for row`)
+        is(served.open, false, `${at}: and behind the app's disclosure, closed`)
+      }
+    }
+    await noJs.close()
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 
@@ -8613,18 +8704,13 @@ try {
     // static season page carries no such tile (Season.jsx).
     const APP_TILES = new Set(['Next session'])
     // The section headings each half has that the other does not, or has
-    // elsewhere (`moved`), by route. VD-73 (#822) is the lead charts; the
-    // trace sections are drawn by the browser from f1-geometry.db, which the
-    // static half never reads ([D-07]); and the console's static page is not
-    // the console. VD-87 (#886) brought the rest into line.
-    const LEAD = '#822'
+    // elsewhere (`moved`), by route. The trace sections are drawn by the
+    // browser from f1-geometry.db, which the static half never reads
+    // ([D-07]); and the console's static page is not the console. VD-87
+    // (#886) brought the rest into line, and VD-73 the lead charts.
     const TRACE = '[D-07]'
     const CONSOLE = 'the console'
     const SECTIONS = {
-      '/seasons/2026': { app: [[titleHeading(true), LEAD]] },
-      '/seasons/1976': { app: [[titleHeading(false), LEAD]] },
-      '/drivers/senna': { app: [['Where each championship finished', LEAD]] },
-      '/constructors/ferrari': { app: [['Wins by season', LEAD]] },
       '/circuits': { app: [['The traced centrelines', TRACE]] },
       '/circuits/monza': { app: [['Traced and measured', TRACE]] },
       '/circuits/monaco': { app: [['Traced and measured', TRACE]] },

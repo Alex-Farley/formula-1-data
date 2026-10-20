@@ -10,7 +10,7 @@ import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.j
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
+import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
 import { EYEBROWS, ENTRIES_NOTE, LABELS, NAMES } from '../lib/site.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { carName } from '../queries/race.js'
@@ -43,7 +43,9 @@ import {
   careerStrip,
   teamsBySeason,
   roundsRun,
-  finishesFigureNote,
+  FINISHES_COLUMNS,
+  FINISHES_HEADING,
+  finishesFigure,
   thisSeasonFigureNote,
   thisSeasonFooter,
   thisSeasonHeading,
@@ -66,6 +68,17 @@ import SearchKey from '../components/SearchKey.jsx'
  * with and the tooltip names the others, exactly as the season standings do
  * (lib/liveries.js lastTeamColour). The text is BY_SEASON's, unchanged.
  */
+/**
+ * The championship chart's table, as queries/driver.js lists it, with the
+ * cell's markup. `render` and the column's `text` must agree: the fallback
+ * to `position` is the whole point of the cell, and a column whose render
+ * holds a fallback its `text` does not is a column that reads one way on the
+ * page and another in the file a reader takes away (IX-26).
+ */
+const finishesColumns = FINISHES_COLUMNS.map((column) =>
+  column.key === 'position_text' ? { ...column, render: (v, row) => cell(v ?? row.position) } : column,
+)
+
 const seasonApp = (teams) => ({
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
   teams: {
@@ -297,40 +310,13 @@ function DriverBody({ driver, data }) {
     : null
   const seasons = useMemo(() => seasonRows(bySeason, standings), [bySeason, standings])
   const teams = useMemo(() => teamsBySeason(rows(data, 'seasonTeams')), [data])
-  // Each championship dot in the team that season finished with (AF-47),
-  // from the same lastTeamColour() the season table's marks read. A season
-  // with no constructor resolved on any entry - an Indianapolis 500, as a
-  // rule - names the car as "Season by season" does, from BY_SEASON's
-  // `teams`: then the entries' own designation where one is recorded, and
-  // NULL where none is (AF-68).
-  const finishes = useMemo(
-    () =>
-      standings.map((s) => {
-        const raced = teams.get(s.year)
-        const car = raced?.[0]?.constructor ?? bySeason.find((b) => b.year === s.year)?.teams ?? null
-        return { ...s, constructor: car, colour: lastTeamColour(raced, s.year).colour }
-      }),
-    [standings, teams, bySeason],
-  )
+  // The championship chart, worked out in queries/driver.js so the static
+  // page draws the same dots (VD-73).
+  const career = useMemo(() => finishesFigure(driver, standings, teams, bySeason), [driver, standings, teams, bySeason])
   const seasonColumns = useMemo(() => {
     const app = seasonApp(teams)
     return SEASON_COLUMNS.map((column) => ({ ...column, ...app[column.key] }))
   }, [teams])
-  // WHICH DOTS WEAR A COLOUR (AF-55). Any that has one. The chart used to
-  // wear liveries only when EVERY dot had one, which silenced colour for
-  // precisely the careers most likely to be opened - Hamilton, Alonso,
-  // Button, Raikkonen, Schumacher all cross the declared 1968-2009 gap. A
-  // season that gap covers is now drawn hollow instead: outlined and
-  // unfilled, visibly a non-colour rather than a neutral that could be read
-  // as a team, which is the objection the old rule existed to answer.
-  //
-  // A chart NO dot of which has a colour keeps the plain neutral series, as
-  // every other chart on the site does: there are no liveries for a neutral
-  // to be misread against, and a page of outlines would say "missing" about
-  // a career where nothing is missing that the site records anywhere.
-  const plotted = finishes.filter((s) => typeof s.position === 'number')
-  const finishesInColour = plotted.some((s) => s.colour)
-  const finishesMixed = finishesInColour && !plotted.every((s) => s.colour)
   const differ = pointsDiffer(driver, derived)
   const thisSeason = rows(data, 'thisSeason')
   const teamMates = rows(data, 'teamMates')
@@ -379,58 +365,16 @@ function DriverBody({ driver, data }) {
         </Section>
       )}
 
-      {standings.length > 1 && (
-        <Section lead title="Where each championship finished">
-          <Figure
-            lead
-            note={finishesFigureNote(finishesInColour ? colourSource(plotted.map((s) => s.colour)) : null, finishesMixed)}
-            table={{
-              rows: finishes,
-              columns: [
-                { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
-                { key: 'constructor', label: 'Constructor' },
-                // The chart plots `position`; its table - the non-fallback source
-                // of the same numbers - must not dash a season the dot has placed.
-                //
-                // `text` as well as `render`, and they must agree: the fallback
-                // is the whole point of the cell, and a column whose render
-                // holds a fallback its `text` does not is a column that reads
-                // one way on the page and another in the file a reader takes
-                // away (IX-26). 21 drivers in 2025 alone have a null
-                // position_text and a position.
-                {
-                  key: 'position_text',
-                  label: 'Position',
-                  align: 'num',
-                  render: (v, row) => cell(v ?? row.position),
-                  text: (v, row) => valueText(v ?? row.position),
-                  glossary: 'results',
-                },
-                { key: 'points', label: 'Points', align: 'num' },
-              ],
-            }}
-          >
+      {career && (
+        <Section lead title={FINISHES_HEADING}>
+          <Figure lead note={career.note} table={{ rows: career.rows, columns: finishesColumns }}>
             <DotPlot
-              data={finishes.map((s) => ({
-                x: s.year,
-                y: s.position,
-                label: `${s.year}`,
-                colour: finishesInColour ? s.colour : null,
-                // Only where some other dot is coloured: see finishesInColour.
-                hollow: finishesInColour && !s.colour,
-                // The halo says nothing the dot does not: position 1 is what
-                // is already plotted at the top of the axis.
-                mark: s.position === 1,
-                // The team is named wherever its colour is read (clause 4 of AF-47).
-                note: `${s.position ? `P${s.position} · ${fmtPoints(s.points)} points` : 'no classified position'}${
-                  s.constructor ? ` · ${s.constructor}` : ''
-                }`,
-              }))}
-              yMax={Math.max(10, ...standings.map((s) => s.position ?? 0))}
-              format={(v) => `P${Math.round(v)}`}
-              formatX={(v) => String(Math.round(v))}
-              height={210}
-              label={`Championship finishing position by season for ${driver.full_name}`}
+              data={career.data}
+              yMax={career.yMax}
+              format={career.format}
+              formatX={career.formatX}
+              height={career.height}
+              label={career.label}
             />
           </Figure>
         </Section>

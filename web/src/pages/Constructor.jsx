@@ -27,13 +27,16 @@ import {
   WINS,
   WINS_FOOTER,
   WIN_COLUMNS,
+  WINS_FIGURE_COLUMNS,
+  WINS_HEADING,
   constructorSeasons,
   recordFigures,
   teamStrip,
+  winsFigure,
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
-import { EYEBROWS, LABELS, NAMES, SLOT_MARKS } from '../lib/site.js'
+import { EYEBROWS, LABELS, NAMES } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/constructor.js defines — the
@@ -114,11 +117,9 @@ function ConstructorBody({ constructor, data }) {
   const lineage = rows(data, 'lineage')
   const images = rows(data, 'images')
 
-  const winsBySeason = bySeason.filter((s) => s.wins > 0)
-  // The chart used to draw only these, on a band scale, so the pixels between
-  // 1990 and 1994 were as wide as those between 1996 and 1997 and a reader saw
-  // an unbroken run of wins. Every season entered goes on the axis now.
-  const seasonsAsc = [...bySeason].sort((a, b) => a.year - b.year)
+  // The wins chart, worked out in queries/constructor.js so the static page
+  // draws the same columns (VD-73).
+  const winsChart = winsFigure(constructor, bySeason)
   // The season they were last part of, which is the one the header's livery
   // is read from; the onward band picks it the same way (lib/wayfinding.js).
   const lastSeason = lastSeasonOf(bySeason)
@@ -164,31 +165,20 @@ function ConstructorBody({ constructor, data }) {
       {/* In the opening slot beside the header (VD-84), unless the team has
           entered more seasons than the slot can draw at a usable width
           (SLOT_MARKS); then it leads under the tiles at the full width. */}
-      {winsBySeason.length > 1 && (
-        <Section lead={seasonsAsc.length <= SLOT_MARKS} title="Wins by season">
-          <Figure
-            lead
-            note="Every season entered, winless ones included, so a drought is visible as a gap. A shared drive counts once, to the car."
-            table={{
-              rows: seasonsAsc,
-              columns: [
-                { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
-                { key: 'wins', label: 'Wins', align: 'num' },
-                { key: 'entries', label: 'Entries', align: 'num' },
-              ],
-            }}
-          >
+      {winsChart && (
+        <Section lead={winsChart.lead} title={WINS_HEADING}>
+          <Figure lead note={winsChart.note} table={{ rows: winsChart.rows, columns: WINS_FIGURE_COLUMNS }}>
             {/* VD-34: the team's own colour, falling back to the national
                 convention and then to the series palette. The pair, not the
                 base - a single-hue chart is read by colour against the panel,
                 which is the one surface AF-16 left the moved pair on. */}
             <ColumnChart
-              data={seasonsAsc.map((s) => ({ key: s.year, value: s.wins, label: String(s.year) }))}
-              labelEvery={Math.max(1, Math.ceil(seasonsAsc.length / 12))}
-              integer
-              height={200}
+              data={winsChart.data}
+              labelEvery={winsChart.labelEvery}
+              integer={winsChart.integer}
+              height={winsChart.height}
               colour={identity}
-              label={`Race wins per season for ${constructor.name}`}
+              label={winsChart.label}
             />
           </Figure>
         </Section>

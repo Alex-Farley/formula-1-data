@@ -200,6 +200,7 @@ import {
   CONSTRUCTORS_FINAL_COLUMNS,
   DRIVERS_FINAL_COLUMNS,
   DRIVERS_FINAL_FOOTER,
+  DRIVER_TEAMS,
   CURRENT_GRID,
   ENTRANTS,
   ENTRANT_CHASSIS,
@@ -220,6 +221,7 @@ import {
   SEASON,
   SEASON_SOURCES,
   STANDINGS as SEASON_STANDINGS,
+  TITLE_RACE_COLUMNS,
   TITLE_SOURCES,
   WON_HERE,
   WON_HERE_COLUMNS,
@@ -233,7 +235,9 @@ import {
   seasonSources,
   standingsHeading,
   stillRunning,
+  teamsByDriver,
   titleAnswer,
+  titleRaceFigure,
   titleStrip,
   wonHereNote,
 } from '../src/queries/season.js'
@@ -344,9 +348,12 @@ import {
   WINS as TEAM_WINS,
   WINS_FOOTER as TEAM_WINS_FOOTER,
   WIN_COLUMNS,
+  WINS_FIGURE_COLUMNS,
+  WINS_HEADING,
   constructorSeasons,
   recordFigures,
   teamStrip,
+  winsFigure,
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
@@ -523,15 +530,19 @@ import {
   DRIVER_CONSTRUCTORS,
   DRIVER_SOURCES,
   ENTRY_COLUMNS as DRIVER_ENTRY_COLUMNS,
+  FINISHES_COLUMNS,
+  FINISHES_HEADING,
   RESULTS as DRIVER_RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
+  SEASON_TEAMS,
   STANDINGS,
   TEAM_MATES,
   TEAM_MATE_COLUMNS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
   careerSentence,
+  finishesFigure,
   DRIVER_PRACTICE,
   PRACTICE_ONLY_NOTICE,
   PRACTICE_SESSION_COLUMNS,
@@ -547,6 +558,7 @@ import {
   thisSeasonHeading,
   thisSeasonLine,
   teamMatesFooter,
+  teamsBySeason,
 } from '../src/queries/driver.js'
 import {
   COMPARE_DESCRIPTION,
@@ -618,6 +630,10 @@ import {
 import { ONWARD, TRAIL, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
 import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
+import { dotPlotLayout } from '../src/charts/dotPlot.js'
+import { columnLayout } from '../src/charts/columnChart.js'
+import { lineLayout } from '../src/charts/lineChart.js'
+import { seriesColour, seriesDash } from '../src/charts/palette.js'
 import {
   STINT_HEADS,
   lateStops,
@@ -1112,7 +1128,8 @@ const timeline = (milestones) =>
  * Most drawings are not here — a React component reading a layout this
  * file has no way to run — and that is the whole of what the static half is
  * missing; grid to flag and the stints are drawn, from layouts both halves
- * share. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words: it is the
+ * share, and so are the three lead charts, which leadFigure() below frames
+ * as the app does, their numbers behind its disclosure. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words: it is the
  * copy of the figure that a keyboard, a screen reader and anything pasting
  * it elsewhere can actually use, and it is what both halves carry. It is
  * open here rather than behind the app's disclosure, because there is no
@@ -1243,6 +1260,173 @@ const stintsSvg = (layout, label) => {
     )
     .join('')}</svg></div>`
 }
+
+/*
+ * THE LEAD CHARTS (VD-73): a driver's championship finishes, a team's wins
+ * by season and a season's title race, drawn - DotPlot.jsx's, ColumnChart's
+ * and LineChart's elements and classes, from the layouts charts/dotPlot.js,
+ * columnChart.js and lineChart.js give both renderers, and from the figures
+ * queries/driver.js, constructor.js and season.js work out for both. Until
+ * these, the static page left the charts out, so the first screen changed
+ * shape at the handover and a reader with no database never saw the figure
+ * the page is laid out around.
+ *
+ * WHAT DOES NOT MATCH, AND WHY. The app draws at the width it measures; this
+ * half cannot measure, so it lays the drawing out at LEAD_WIDTH - a little
+ * over the 477 px the slot gives a plot at 1440 - or, for a chart that leads
+ * at the full width, COLUMN_WIDTH, the app's own width before it has
+ * measured; and it sets the plot's height to the app's (`.plot-static` in
+ * app.css). The box is the app's at every width, so nothing under it moves
+ * at the handover; the drawing inside is
+ * scaled down to fit a narrower one, text with it, and centred in a wider
+ * one, until the app replaces it at the width it occupies. The x-axis ticks
+ * are the ones that width allows. Nothing here answers a pointer or a key:
+ * the hover box and the arrow keys are the app's, and the numbers are in
+ * the table under the drawing in both halves.
+ */
+const LEAD_WIDTH = 480
+const COLUMN_WIDTH = 640
+
+// Two places are enough for a pixel; the layouts' own numbers run to
+// fifteen, which on a 77-column chart is most of the markup.
+const px = (value) => Number(value.toFixed(2))
+const tidy = (path) => path.replace(/\s+/g, ' ').replace(/-?\d+\.\d{3,}/g, (n) => String(px(Number(n))))
+
+// A colour pair as own.js hands it to an element: the two custom
+// properties `.livery-series` resolves per theme, and the class with them.
+const pairStyle = (colour) => esc(`--livery-light: ${colour.light}; --livery-dark: ${colour.dark}`)
+const ownAttrs = (colour) => (colour ? ` class="livery-series" style="${pairStyle(colour)}"` : '')
+
+// The <svg> every lead plot opens with: the app's viewBox at the width laid
+// out, its height, and its name.
+const plotSvg = (layout, label, body) =>
+  `<svg class="plot-static" style="--plot-height: ${layout.height}px" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" role="img" aria-label="${esc(label)}">${body}</svg>`
+
+const yAxis = (layout) =>
+  layout.yTicks
+    .map(
+      (tick) =>
+        `<g><line class="grid-line" x1="${px(layout.left)}" x2="${px(layout.right)}" y1="${px(tick.y)}" y2="${px(tick.y)}"/><text class="axis-text" x="${px(
+          layout.labelX,
+        )}" y="${px(tick.y)}" text-anchor="end" dominant-baseline="middle">${esc(tick.text)}</text></g>`,
+    )
+    .join('')
+
+const xAxis = (layout) =>
+  layout.xTicks
+    .map((tick) => `<text class="axis-text" x="${px(tick.x)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(tick.text)}</text>`)
+    .join('')
+
+/* DotPlot.jsx at rest: the halo on a flagged dot, then the dots, each in its
+   own colour's group where it has one, hollow in ink where it has none. */
+const dotPlotSvg = (chart, width) => {
+  const layout = dotPlotLayout({ ...chart, width })
+  if (!layout) return ''
+  const paint = (d) => (d.colour ? 'var(--livery)' : seriesColour(0))
+  const halos = layout.points
+    .filter(({ d }) => d.mark)
+    .map(
+      ({ d, cx, cy }) =>
+        `<g${d.colour ? ownAttrs(d.colour) : ''}><circle class="${d.hollow ? 'mark-halo mark-halo-hollow' : 'mark-halo'}" cx="${px(cx)}" cy="${px(cy)}" r="8.5" fill="none"${
+          d.hollow ? '' : ` stroke="${paint(d)}"`
+        }/></g>`,
+    )
+    .join('')
+  const dots = layout.points
+    .map(
+      ({ d, cx, cy }) =>
+        `<g${d.colour ? ownAttrs(d.colour) : ''}><circle class="${d.hollow ? 'mark-hollow' : 'mark-ring'}" cx="${px(cx)}" cy="${px(cy)}" r="4.5" fill="${
+          d.hollow ? 'none' : paint(d)
+        }"/></g>`,
+    )
+    .join('')
+  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${halos}${dots}`)}</div>`
+}
+
+/* ColumnChart.jsx at rest: the columns in the entity's colour, the peak's
+   value over it, and every labelEvery-th season under the axis. */
+const columnSvg = (chart, colour, width) => {
+  const layout = columnLayout({ ...chart, width })
+  if (!layout) return ''
+  const paint = colour ? 'var(--livery)' : seriesColour(0)
+  const columns = layout.columns
+    .map(
+      (c) =>
+        `<g><path d="${tidy(c.path)}" fill="${paint}"/>${
+          c.value !== null ? `<text class="value-text" x="${px(c.centre)}" y="${px(c.top - 6)}" text-anchor="middle">${esc(c.value)}</text>` : ''
+        }${c.label !== null ? `<text class="axis-text" x="${px(c.centre)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(c.label)}</text>` : ''}</g>`,
+    )
+    .join('')
+  const holder = colour ? ` class="plot-holder livery-series" style="${pairStyle(colour)}"` : ' class="plot-holder"'
+  return `<div${holder}>${plotSvg(layout, chart.label, `${yAxis(layout)}${columns}`)}</div>`
+}
+
+/* LineChart.jsx at rest: each line in its slot's dash, its end marked, and
+   the end's value where it does not collide with another's. */
+const lineSvg = (chart, width) => {
+  const layout = lineLayout({ ...chart, width })
+  if (!layout) return ''
+  const lines = layout.lines
+    .map(({ s, i, path, end }) => {
+      const stroke = s.colour ? 'var(--livery)' : seriesColour(i)
+      const dash = seriesDash(i)
+      return `<g${s.colour ? ownAttrs(s.colour) : ''}><path d="${path}" fill="none" stroke="${stroke}" stroke-width="2"${
+        dash ? ` stroke-dasharray="${dash}"` : ''
+      } stroke-linejoin="round" stroke-linecap="round"/>${
+        end
+          ? `<circle class="mark-ring" cx="${px(end.x)}" cy="${px(end.y)}" r="4" fill="${stroke}"/>${
+              end.text !== null ? `<text class="value-text" x="${px(end.x + 9)}" y="${px(end.y)}" dominant-baseline="middle">${esc(end.text)}</text>` : ''
+            }`
+          : ''
+      }</g>`
+    })
+    .join('')
+  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${lines}`)}</div>`
+}
+
+/* Figure.jsx's legend: a stroke in the series' dash for a line chart, as
+   its LineKey draws one, and only where there is more than one entry. */
+const legendHtml = (legend, marks) =>
+  legend && legend.length > 1
+    ? `<div class="legend">${legend
+        .map((entry, i) => {
+          const dash = seriesDash(i)
+          const key =
+            marks === 'line'
+              ? `<svg class="${entry.colour ? 'line-key livery-series' : 'line-key'}"${
+                  entry.colour ? ` style="${pairStyle(entry.colour)}"` : ''
+                } width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" focusable="false"><line x1="2" x2="18" y1="4" y2="4" stroke="${
+                  entry.colour ? 'var(--livery)' : seriesColour(i)
+                }" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/></svg>`
+              : entry.colour
+                ? `<i class="livery-series" style="${pairStyle(entry.colour)}; background: var(--livery)" aria-hidden="true"></i>`
+                : `<i style="background: ${seriesColour(i)}" aria-hidden="true"></i>`
+          return `<span>${key}${esc(entry.name)}</span>`
+        })
+        .join('')}</div>`
+    : ''
+
+/*
+ * A lead figure, as Section lead and Figure lead write it: the section in
+ * the opening slot (or, for a chart too wide for it, a section at the full
+ * width), its h2 naming the figure, the plot, the legend, the note under it
+ * as the figure's description, and the numbers behind a disclosure named as
+ * the app names it. The disclosure is the app's here, where figure() above
+ * leaves its table open: there is a drawing above it now to be the thing on
+ * display, and a table open in the slot would make the band the height of
+ * the table and move everything under it at the handover.
+ */
+// The tiles' own section, then the lead figure's beside it - written out,
+// since structure() leaves a body that opens on its own sections as it
+// stands rather than wrapping the tiles for it.
+const opened = (head, lead) => (lead ? `<section class="section">${head}</section>${lead}` : head)
+
+const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = null, marks = 'swatch', plot, table }) =>
+  `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2><figure class="figure figure-lead" aria-label="${esc(
+    name,
+  )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}</div>${legendHtml(legend, marks)}<p class="figure-note" id="lead-figure-note"><span>${esc(
+    figureNote,
+  )}</span></p><details><summary>The numbers behind this chart<span class="sr-only">, ${esc(name)}</span></summary>${table}</details></figure></section>`
 
 /*
  * The pit-stop section (PD-56), as Race.jsx renders it: the stint figure with
@@ -2368,7 +2552,8 @@ const page = ({
     // what the page opens with; the second whether its headings say final.
     const running = !s.drivers_champion && driversFinal.length >= 2
     const live = stillRunning(calendar)
-    const after = latestRound(all(SEASON_STANDINGS, year))
+    const standings = all(SEASON_STANDINGS, year)
+    const after = latestRound(standings)
     const run = calendar.filter((r) => r.status === 'completed').length
     const [lead, second] = driversFinal
     const teamLead = constructorsFinal[0] ?? null
@@ -2394,6 +2579,26 @@ const page = ({
           built: META.built,
         })
       : null
+    // The title race that leads the page (VD-73): Season.jsx's figure, from
+    // queries/season.js, in the slot after the tiles.
+    const race = titleRaceFigure({
+      year,
+      live,
+      drivers: driversFinal,
+      standings,
+      teams: teamsByDriver(all(DRIVER_TEAMS, year)),
+      dropped: one(REMAINING, year)?.dropped_scores,
+    })
+    const raceChart = race
+      ? leadFigure({
+          heading: race.heading,
+          note: race.note,
+          legend: race.legend,
+          marks: 'line',
+          plot: lineSvg(race, LEAD_WIDTH),
+          table: fromColumns(TITLE_RACE_COLUMNS, race.rows, {}, { unfolded: UNFOLDED.figure }),
+        })
+      : ''
     const entered =
       grid && grid.drivers !== null
         ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started`
@@ -2468,8 +2673,12 @@ const page = ({
       body: `
         ${opening({ eyebrow: EYEBROWS.season(s.rounds, run), title: NAMES.season(year).headline, lede: seasonLede(s.notes, answer?.who) })}
         ${stepperNav(seasonSteps(neighbours))}
-        ${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}
-        ${answer ? `<p class="faint">${dated(answer.basis)}</p>` : ''}
+        ${opened(
+          `${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}${
+            answer ? `<p class="faint">${dated(answer.basis)}</p>` : ''
+          }`,
+          raceChart,
+        )}
         ${nextSection}
         ${live ? seasonCalendar + seasonStandings : seasonStandings + seasonCalendar}
         ${
@@ -2879,6 +3088,7 @@ const page = ({
   const resultsOf = db.prepare(DRIVER_RESULTS)
   const thisSeasonOf = db.prepare(THIS_SEASON)
   const teamMatesOf = db.prepare(TEAM_MATES)
+  const seasonTeamsOf = db.prepare(SEASON_TEAMS)
 
   for (const { id } of register) {
     const d = one(DRIVER, id)
@@ -2933,6 +3143,18 @@ const page = ({
           team: lastTeam.constructor,
         })
       : null
+    // The championship chart that leads the page (VD-73): Driver.jsx's
+    // figure, from queries/driver.js, in the slot after the tiles. A Friday
+    // driver has no championship season to draw, and no tiles to follow.
+    const finishes = practiceOnly ? null : finishesFigure(d, standings, teamsBySeason(seasonTeamsOf.all(id)), bySeason)
+    const finishesChart = finishes
+      ? leadFigure({
+          heading: FINISHES_HEADING,
+          note: finishes.note,
+          plot: dotPlotSvg(finishes, LEAD_WIDTH),
+          table: fromColumns(FINISHES_COLUMNS, finishes.rows, {}, { unfolded: UNFOLDED.figure }),
+        })
+      : ''
     const career = practiceOnly ? practiceSentence(practice) : careerSentence(derived, constructors, d.titles)
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
@@ -2965,7 +3187,7 @@ const page = ({
         ${
           practiceOnly
             ? ''
-            : tiles(careerStrip(d, derived, thisSeason, standings))
+            : opened(tiles(careerStrip(d, derived, thisSeason, standings)), finishesChart)
         }
         ${thisSeasonSection}
         ${
@@ -3104,6 +3326,20 @@ page({
       : nationalEntry(c.country)
     const wins = all(TEAM_WINS, c.id)
     const designs = all(DESIGNS, c.id)
+    // The wins chart that leads the page (VD-73): Constructor.jsx's figure,
+    // from queries/constructor.js, in the team's colour, after the tiles -
+    // in the slot, or at the full width for a team of more seasons than the
+    // slot can draw (SLOT_MARKS), and then laid out at the column's width.
+    const winsChart = winsFigure(c, teamBySeason)
+    const winsSection = winsChart
+      ? leadFigure({
+          heading: WINS_HEADING,
+          slot: winsChart.lead,
+          note: winsChart.note,
+          plot: columnSvg(winsChart, identity, winsChart.lead ? LEAD_WIDTH : COLUMN_WIDTH),
+          table: fromColumns(WINS_FIGURE_COLUMNS, winsChart.rows, {}, { unfolded: UNFOLDED.figure }),
+        })
+      : ''
     // The description's figures. Wins are the derived count, as the Stats
     // strip gives them (CD-34), and only for a team with a race entry under
     // its own id: rob-walker has none, its wins being credited to Cooper and
@@ -3143,7 +3379,7 @@ page({
       body: `
         ${opening({ eyebrow: EYEBROWS.constructor(c.country, c.base), title: NAMES.constructor(c.name).headline, lede: c.notes })}
         ${liveryBand(identity, constructorBandNote(c, lastSeason, livery, identity))}
-        ${tiles(teamStrip(c, teamDerived))}
+        ${opened(tiles(teamStrip(c, teamDerived)), winsSection)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>
         ${
