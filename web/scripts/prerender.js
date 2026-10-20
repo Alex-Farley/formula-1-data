@@ -2049,29 +2049,47 @@ const nameTables = (body) => {
 // A race page's session-sheets disclosure (PD-57) also starts a block: it
 // has no h2 of its own at this depth, and Race.jsx renders it as a section
 // beside the others rather than inside the one before it.
-const SECTIONING = /<(\/?)(section|h2)\b|<details class="session-sheets">/g
+// A recorded disagreement is an <aside> with an h2 inside it, and the pages
+// render <Disagreement> between sections, as a child of the page itself
+// (app.css draws `.page > .disagreement`). So an aside at the top level is a
+// block of its own, written as it stands, and its h2 is its heading rather
+// than the start of a section. Before asides were counted, that h2 started a
+// section inside the open aside, and the browser closed the aside empty with
+// its contents in a plain section beneath it (VD-87).
+const SECTIONING = /<(\/?)(section|h2|aside)\b|<details class="session-sheets">/g
 
 const sectioned = (html) => {
   // A block starts at every h2 that is not already inside a section of its
   // own. Depth is counted because a race's Classification <h2> sits inside
   // its own <section> and is that section's heading, not the start of a new one.
+  // Each start is where a block begins and whether it is wrapped: an aside,
+  // and whatever follows one before the next h2 - a <Note> beside the
+  // disagreement in the app, which is not inside a section either - are
+  // written as they stand.
   const starts = []
   let depth = 0
   // matchAll rather than exec in a loop: the regex is module-scoped and
   // global, so a loop would carry its lastIndex from one page into the next.
   for (const match of html.matchAll(SECTIONING)) {
-    if (match[2] === 'section') depth += match[1] ? -1 : 1
-    else if (!match[1] && depth === 0) starts.push(match.index)
+    const [, close, tag] = match
+    if (tag === 'section' || tag === 'aside') {
+      if (tag === 'aside' && !close && depth === 0) starts.push({ at: match.index, bare: true })
+      depth += close ? -1 : 1
+      if (tag === 'aside' && close && depth === 0) starts.push({ at: html.indexOf('>', match.index) + 1, bare: true })
+    } else if (!close && depth === 0) starts.push({ at: match.index, bare: false })
   }
   // What comes before the first h2 is a block of its own — a strip of tiles
   // under the title is a titleless <Section> in the app too. A body whose
   // opening run is already its own sections (a race page, a car page) carries the class
   // itself and is left as written, since nesting one in another gains nothing.
-  const head = starts.length ? html.slice(0, starts[0]) : html
+  const head = starts.length ? html.slice(0, starts[0].at) : html
   const wrap = (part) => (part.trim() ? `<section class="section">${part}</section>` : '')
   return [
     head.includes('<section') ? head : wrap(head),
-    ...starts.map((at, i) => wrap(html.slice(at, i + 1 < starts.length ? starts[i + 1] : html.length))),
+    ...starts.map(({ at, bare }, i) => {
+      const part = html.slice(at, i + 1 < starts.length ? starts[i + 1].at : html.length)
+      return bare ? part : wrap(part)
+    }),
   ].join('')
 }
 

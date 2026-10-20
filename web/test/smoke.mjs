@@ -8150,6 +8150,38 @@ try {
         filesHeld.length ? ` — ${filesHeld.slice(0, 5).join(', ')}` : ''
       }`,
     )
+    /*
+     * VD-87: a recorded disagreement stands between sections as a child of
+     * the page, as <Disagreement> does in the app (app.css draws
+     * `.page > .disagreement`), and opens on its own heading. prerender.js's
+     * sectioned() once started a section at the h2 inside the aside, so the
+     * browser closed the aside empty and the readings fell into a plain
+     * section beneath it, unboxed. Comparing headings and prose cannot see
+     * that; where the aside sits in the markup can.
+     */
+    const asides = []
+    const misplaced = []
+    for (const file of served) {
+      const html = readFileSync(file, 'utf8')
+      const route = `/${relative(distDir, dirname(file))}`
+      const article = html.indexOf('<article class="page">')
+      for (const match of html.matchAll(/<aside class="disagreement"[^>]*>/g)) {
+        asides.push(route)
+        const before = article < 0 ? '' : html.slice(article, match.index)
+        const depth = (before.match(/<section\b/g) ?? []).length - (before.match(/<\/section>/g) ?? []).length
+        const inside = html.slice(match.index + match[0].length, html.indexOf('</aside>', match.index))
+        if (article < 0 || article > match.index || depth !== 0 || !/^\s*<h2>/.test(inside) || /<\/?section\b/.test(inside)) {
+          misplaced.push(route)
+        }
+      }
+    }
+    atLeast(asides.length, 1, 'prerendered pages carrying a recorded disagreement')
+    truthy(
+      misplaced.length === 0,
+      `every one of the ${asides.length} disagreements is a child of the page, whole, and opens on its own heading${
+        misplaced.length ? ` — not on ${misplaced.length}: ${misplaced.slice(0, 5).join(', ')}` : ''
+      }`,
+    )
     const missingCard = served
       .map((file) => ({ file, html: readFileSync(file, 'utf8') }))
       .filter(({ html }) => !/<meta property="og:image" content="[^"]+"/.test(html))
