@@ -612,8 +612,12 @@ CAR_CHASSIS = {
 # FIA International Court of Appeal's judgment of 4 May 2005 reads Article
 # 4.1 as 600 kg at all times during the event and says nothing of
 # qualifying; the 2004 rule was 605 kg in qualifying and 600 at all other
-# times: PM-78 (#1086). Until each is settled the figure is not withdrawn,
-# because this project does not withdraw a figure on a suspicion.
+# times: PM-78 (#1086). The same 605 stands for 2005 in the chassis register
+# against the Ferrari F2004M (`ferrari-f2004m`), which is not a row here and
+# is probably the "2005 carry-over" an earlier version of this comment
+# counted; it waits on PM-78 too, and on CR-101 (#1088). Until each is
+# settled the figure is not withdrawn, because this project does not
+# withdraw a figure on a suspicion.
 #
 #   car_id, field, withdrawn_value, reason
 # ---------------------------------------------------------------------
