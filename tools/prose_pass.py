@@ -251,6 +251,7 @@ READ = {
         "regulation_limits.note 2", "engine_eras.notes 6",
     ]),
     "stock": ("original", "the shared words are a stock phrase of English or of the sport", [
+        "regulation_limits.note 42",
         "drivers.notes chanoch-nissany", "drivers.notes michael-ammermuller",
         "drivers.notes brabham", "drivers.notes gurney", "drivers.notes gonzalez",
         "drivers.notes von-trips", "drivers.notes bryan", "drivers.notes flaherty",

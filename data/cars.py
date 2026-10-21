@@ -389,7 +389,7 @@ CARS = [
      "carbon-fibre and honeycomb composite monocoque, engine a fully stressed member",
      "Red Bull 7-speed semi-automatic",
      "Aluminium uprights with carbon-composite double wishbones; pushrod front, pullrod rear",
-     "carbon disc", 620.0, None, None, None, None,
+     "carbon disc", None, None, None, None, None,
      "Point the exhausts into the diffuser so the car makes downforce from engine gas as well as airflow",
      "The exhaust-blown diffuser, taken further than anyone else and eventually to off-throttle blowing, which kept the effect alive when the driver lifted",
      "Fifteen poles from nineteen races - the car was on another level over one lap and merely very good over a race distance. Vettel took the championship at the last round in Abu Dhabi having led the standings for exactly none of the season until it ended. Exhaust blowing was progressively restricted and then banned for 2014.",
@@ -405,7 +405,7 @@ CARS = [
      "moulded carbon-fibre and honeycomb composite monocoque",
      "Mercedes/Xtrac 8-speed sequential semi-automatic",
      "Carbon-fibre wishbones, pushrod front and pullrod rear, actuating torsion springs",
-     "carbon disc", 691.0, None, None, None, None,
+     "carbon disc", None, None, None, None, None,
      "Split the turbocharger in half and put the compressor at the front of the V and the turbine at the back, joined by a shaft through the vee",
      "The split-turbo layout, which shortened the intake path, cooled the charge air better and packaged the whole power unit tighter than anything else on the grid",
      "The 2014 hybrid rules were the biggest engine change since 1989 and Mercedes had understood them years earlier. The split turbo is the single decision that bought them the next eight constructors' championships: Ferrari and Renault had to redesign around it and were years catching up. Hamilton and Rosberg won 16 of 19 races and finished first and second in the championship.",
@@ -586,7 +586,7 @@ CAR_CHASSIS = {
 # Figures withdrawn from a car row because they turned out to describe the
 # regulations rather than the car.
 #
-# Four of the sixteen weights originally researched here were the season's
+# Six of the sixteen weights originally researched here were the season's
 # regulation minimum. That is not a transcription error - it is what most
 # published "weight" figures for a Formula One car actually are, because a
 # team builds to the limit and does not publish what it achieved. Storing one
@@ -598,10 +598,26 @@ CAR_CHASSIS = {
 # the removal is visible and reversible if a real measurement ever turns up.
 # The limits themselves are in data/technical.py REGULATION_LIMITS.
 #
-# Six more weights are almost certainly the same thing - R25 605, RB6 620,
-# W05 691, W11 746, RB19 798, and the 2005 carry-over - but this project does
-# not withdraw a figure on a suspicion. They stay until a SOURCED limit for
-# those seasons proves them, which is open work.
+# The first four were withdrawn against limits read from the history of the
+# regulations. The RB6's 620 and the W05's 691 were suspected for as long as
+# no limit for their seasons had a source, and were withdrawn once the 2010
+# and 2014 FIA Technical Regulations, read in Article 4.1, gave the same
+# figures (PM-13).
+#
+# Three suspects stay. The W11's 746 and the RB19's 798 are the 2020 and 2023
+# minimums in those seasons' Technical Regulations too, but recording the
+# two limits would also withdraw four chassis-register weights and take
+# chassis.weight_kg under its floor in verify.py, which is the maintainer's
+# to lower: PM-77 (#1085). The R25's 605 has no final 2005 issue read. The
+# FIA International Court of Appeal's judgment of 4 May 2005 reads Article
+# 4.1 as 600 kg at all times during the event and says nothing of
+# qualifying; the 2004 rule was 605 kg in qualifying and 600 at all other
+# times: PM-78 (#1086). The same 605 stands for 2005 in the chassis register
+# against the Ferrari F2004M (`ferrari-f2004m`), which is not a row here and
+# is probably the "2005 carry-over" an earlier version of this comment
+# counted; it waits on PM-78 too, and on CR-101 (#1088). Until each is
+# settled the figure is not withdrawn, because this project does not
+# withdraw a figure on a suspicion.
 #
 #   car_id, field, withdrawn_value, reason
 # ---------------------------------------------------------------------
@@ -620,6 +636,13 @@ WITHDRAWN = [
     ("ferrari-f2004", "weight_kg", 605.0,
      "605 kg is the 2004 minimum in qualifying trim, including driver and "
      "fuel. Every car on the 2004 grid was built to it."),
+    ("red-bull-rb6", "weight_kg", 620.0,
+     "620 kg is the 2010 minimum weight, car and driver, in Article 4.1 of "
+     "the 2010 Technical Regulations. It is not a measurement of the RB6."),
+    ("mercedes-w05", "weight_kg", 691.0,
+     "691 kg is the 2014 minimum weight, car and driver without fuel, in "
+     "Article 4.1 of the 2014 Technical Regulations. It is not a measurement "
+     "of the W05."),
 ]
 
 

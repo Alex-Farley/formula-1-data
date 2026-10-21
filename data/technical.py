@@ -147,8 +147,9 @@ SAFETY = [
 # source records the next change; where it does not, the row covers the one
 # year it was stated for and stops. Carrying a value forward across a change
 # the source does not mention would invent a limit. That is why the series
-# has holes - 1989-2003, 2005-2012, 2014-2016, 2018-2023 - and the holes are
-# the honest shape of what has been established, not an oversight.
+# has holes - 1989-2003, 2005-2009, 2011-2012, 2015-2016, 2018-2023 - and
+# the holes are the honest shape of what has been established, not an
+# oversight.
 #
 # `source` holds one document, and a span can rest on more than one. The
 # weekend rows are the case: each was read in every season's own Sporting
@@ -193,6 +194,16 @@ _SPORT = {
     2024: "https://www.fia.com/sites/default/files/fia_2024_formula_1_sporting_regulations_-_issue_7_-_2024-07-31.pdf",
     2025: "https://www.fia.com/system/files/documents/fia_2025_formula_1_sporting_regulations_-_issue_5_-_2025-04-30.pdf",
     2026: "https://www.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_b_sporting_-_iss_08_-_2026-08-05_7.pdf",
+}
+
+# The FIA Technical Regulations, read for the minimum weight in Article 4.1,
+# for the two seasons whose limit a curated car's weight was withdrawn
+# against (PM-13; the seasons still waiting are named in data/cars.py beside
+# WITHDRAWN). Each row covers its one season, because only that season's
+# issue was read.
+_TECH = {
+    2010: "https://argent.fia.com/web/fia-public.nsf/4ADA53A7369DCE8EC12576C700535E67/$FILE/1-2010%20TECHNICAL%20REGULATIONS%2023-06-2010.pdf",
+    2014: "https://www.fia.com/sites/default/files/regulation/file/1-2014%20TECHNICAL%20REGULATIONS%202014-01-23.pdf",
 }
 
 REGULATION_LIMITS = [
@@ -376,6 +387,19 @@ REGULATION_LIMITS = [
      "The same rule for Q1 (Article B2.4.3b.i) and SQ1 (Article "
      "B2.2.3b.i), with participation in the rest of the Competition still "
      "left to the stewards.", "reference", _SPORT[2026]),
+
+    # Two seasons of the minimum weight read from the FIA's own Technical
+    # Regulations (_TECH above). They sit at the end of the list rather than
+    # among the other weight rows so that no row before them is renumbered:
+    # a row's id is its place in this list. The view orders them by season.
+    (2010, 2010, "minimum_weight_kg", 620.0, "kg",
+     "The weight of the car with the driver in his racing apparel, at all "
+     "times during the Event (Articles 1.9 and 4.1 of the 2010 Technical "
+     "Regulations, 23 June 2010).", "reference", _TECH[2010]),
+    (2014, 2014, "minimum_weight_kg", 691.0, "kg",
+     "Car and driver, without fuel, at all times during the Event (Articles "
+     "1.9 and 4.1 of the 2014 Technical Regulations, 23 January 2014). The "
+     "first year of the hybrid power units.", "reference", _TECH[2014]),
 ]
 
 

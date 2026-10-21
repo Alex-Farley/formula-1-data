@@ -1467,9 +1467,10 @@ def _stage_14_a_regulation_figure_is_not_a(b):
     #     the cars quoting it need not overlap each other - 600 kg covers
     #     1995 to 2003. Requiring one year common to all of them made the
     #     test fire almost never. Counting per season also stops the reverse
-    #     error: 620 kg is quoted by fourteen constructors, but thirteen of
-    #     them are 2010 and the fourteenth is a 1955 Lancia, which keeps its
-    #     figure because in 1955 nobody else shared it.
+    #     error: 620 kg was quoted by fourteen constructors, thirteen of them
+    #     in 2010 and the fourteenth a 1955 Lancia, which keeps its figure
+    #     because in 1955 nobody else shared it. (The 2010 limit is sourced
+    #     now, so stage 13 clears that cluster first; the rule stands.)
     #   * Weight only. The test says "a figure a whole grid shares is the
     #     rule", which is sound only where a rule actually fixes that figure.
     #     Minimum weight has been fixed for the whole grid continuously since
