@@ -715,7 +715,7 @@ command without `--diff` the set, table by table.
 `f1.db` holds the same declaration read column by column, as `column_origin`
 (`DA-30`, #622): for each column, where its values come from — another
 column of the row, the claims, the prose the prose pass labels, this
-project's own record, a figure `build.py` computes, or not established —
+project's own record, a figure or record `build.py` computes, or not established —
 and which part of the
 declaration settled it. A column the declaration does not reach is not
 established, whatever its row cites: the table never reads a row's
