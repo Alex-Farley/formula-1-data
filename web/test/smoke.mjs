@@ -2828,7 +2828,11 @@ try {
         height: Math.round(svg.getBoundingClientRect().height),
         width: Math.round(svg.getBoundingClientRect().width),
         dots: paints([...svg.querySelectorAll('circle.mark-ring, circle.mark-hollow')], 'fill'),
-        halos: svg.querySelectorAll('circle.mark-halo').length,
+        // A ring is its class and its stroke: a hollow title (Hamilton 2008)
+        // is ringed in ink by class, with no stroke of its own.
+        halos: paints([...svg.querySelectorAll('circle.mark-halo')], 'stroke').map(
+          (paint, i) => `${svg.querySelectorAll('circle.mark-halo')[i].getAttribute('class')} ${paint || 'no stroke'}`,
+        ),
         columns: paints([...svg.querySelectorAll('path[fill]:not([fill="none"])')], 'fill'),
         lines: paints([...svg.querySelectorAll('path[stroke]')], 'stroke').map(
           (paint, i) => `${paint} ${svg.querySelectorAll('path[stroke]')[i].getAttribute('stroke-dasharray') ?? 'solid'}`,
@@ -2868,7 +2872,7 @@ try {
         if (width !== 1440) continue
         truthy(served.dots.length + served.columns.length > 0, `${at}: the static plot draws marks, not an empty frame`)
         is(served.dots.join(', '), app.dots.join(', '), `${at}: the same dots in the same colours (${app.dots.length})`)
-        is(served.halos, app.halos, `${at}: the same titles ringed (${app.halos})`)
+        is(served.halos.join(', '), app.halos.join(', '), `${at}: the same titles ringed, in the same rings (${app.halos.length})`)
         is(served.columns.join(', '), app.columns.join(', '), `${at}: the same columns in the same colour (${app.columns.length})`)
         is(served.lines.join(', '), app.lines.join(', '), `${at}: the same lines in the same colours and dashes (${app.lines.length})`)
         is(served.legend.join(' · '), app.legend.join(' · '), `${at}: the same legend`)
