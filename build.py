@@ -4481,6 +4481,16 @@ def _stage_35_link_race_entries_to_the_curated(b):
     print(f"  authored ceiling: {lowered} rows capped at 'medium' across "
           f"{len(authored)} tables")
 
+    # Where each column has its values from (DA-30, #622): the facts
+    # artefact's declaration, read column by column. Last, because it reads
+    # every table's columns, this one's included; verify.py derives it again
+    # and compares the whole table.
+    rows = _tool("facts_artefact").origins(con)
+    con.executemany("INSERT INTO column_origin (tbl, col, origin, via, rule) "
+                    "VALUES (?, ?, ?, ?, ?)", rows)
+    print(f"  column origins: {len(rows)} columns, "
+          f"{sum(1 for r in rows if r[2] is None)} not established")
+
     con.commit()
 
     # The ODbL centrelines leave f1.db here, before the VACUUM reclaims the

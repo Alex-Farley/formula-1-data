@@ -5866,6 +5866,86 @@ def facts_artefact():
           not (used & set(bad)), ", ".join(sorted(used & set(bad))))
 
 
+# ---------------------------------------------------------------------------
+# WHERE EACH COLUMN HAS ITS VALUES FROM
+#
+# DA-30 (#622). column_origin is the facts artefact's declaration read column
+# by column (tools/facts_artefact.py origins()), and the ruling of 2026-10-06
+# was that it state no origin that declaration has not established. So it is
+# derived again here and compared whole, and then held from outside the
+# derivation: the columns the declarations name are collected here from the
+# declarations themselves, and every other column must read NULL, so no
+# fallback to a row's source_id or a table's provenance row can creep in
+# behind them, whatever order origins() tries its rules in.
+# ---------------------------------------------------------------------------
+@section("WHERE EACH COLUMN HAS ITS VALUES FROM")
+def column_origin():
+    from data import current as _N
+    fa = _tool("facts_artefact")
+    stored = [tuple(r) for r in con.execute(
+        "SELECT tbl, col, origin, via, rule FROM column_origin")]
+    derived = [tuple(r) for r in fa.origins(con)]
+    extra = sorted(set(stored) - set(derived), key=repr)
+    missing = sorted(set(derived) - set(stored), key=repr)
+    check("column_origin is the facts artefact's declaration, derived again",
+          not extra and not missing,
+          "; ".join([f"stored {r}" for r in extra[:3]] + [f"derived {r}" for r in missing[:3]]))
+
+    # From PRAGMA, not from origins(): one row for every column, and none
+    # for a column that is not there.
+    order = {t: [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+             for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
+                                     "AND name NOT LIKE 'sqlite_%'")}
+    columns = {(t, c) for t, cs in order.items() for c in cs}
+    named = [(t, c) for t, c, *_ in stored]
+    twice = sorted({k for k in named if named.count(k) > 1})
+    odd = ([f"{t}.{c} has none" for t, c in sorted(columns - set(named))]
+           + [f"{t}.{c} is no column" for t, c in sorted(set(named) - columns)]
+           + [f"{t}.{c} twice" for t, c in twice])
+    check("column_origin has one row for every column of every table, and no other",
+          bool(columns) and not odd, ", ".join(odd[:6]))
+
+    # What the declarations name, read from them and not from origins().
+    reached = set()
+    for t, cs in order.items():
+        fks = {f[3]: f[2] for f in con.execute(f'PRAGMA foreign_key_list("{t}")')}
+        own = fa.UNSOURCED.get(t, {}).get("own", [])
+        for c in cs:
+            name = f"{t}.{c}"
+            if (t in fa.APPARATUS or fks.get(c) == "source_registry"
+                    or fks.get(c) in fa.APPARATUS
+                    or (c == "source" and "source_id" in cs)
+                    or name in fa.UNGRANTED or (t, c) in _N.CLAIM_FIELDS
+                    or c in fa.measured(t) or c in own or name in fa.granted()
+                    or name in fa.RECOUNTED or t in fa.RECOUNTED):
+                reached.add((t, c))
+    for t, (governs, first, last) in fa.SPANS.items():
+        reached.add((t, governs))
+        reached.update((t, c) for c in order[t][order[t].index(first):order[t].index(last) + 1])
+    origin = {(t, c): (o, via) for t, c, o, via, _ in stored}
+    unfounded = sorted(f"{t}.{c} ({o})" for (t, c), (o, _) in origin.items()
+                       if o is not None and (t, c) not in reached)
+    check("no column the declarations do not name has an origin",
+          bool(reached) and not unfounded, ", ".join(unfounded[:6]))
+
+    # `derived` is what build.py counts in f1.db, which RECOUNTED names; a
+    # class that describes the artefact's rebuilt rows (RESOURCED) is not
+    # read for f1.db's.
+    counted = sorted(f"{t}.{c}" for (t, c), (o, _) in origin.items()
+                     if o == "derived" and f"{t}.{c}" not in fa.RECOUNTED
+                     and t not in fa.RECOUNTED)
+    check("every derived origin is a figure RECOUNTED names", not counted,
+          ", ".join(counted[:6]))
+
+    # A `span` origin names a column of its own row.
+    bad = sorted(f"{t}.{c}" for (t, c), (o, via) in origin.items()
+                 if o == "span" and via not in order.get(t, ()))
+    check("every span origin names a column of its own table", not bad, ", ".join(bad[:6]))
+    held = dict(con.execute("SELECT COALESCE(origin, 'not established'), COUNT(*) "
+                            "FROM column_origin GROUP BY 1").fetchall())
+    print("  [info] column origins: " + ", ".join(f"{n} {k}" for k, n in sorted(held.items())))
+
+
 @section('ILLUSTRATION AND GEOMETRY')
 def illustration_and_geometry():
     # Two tables that hold pointers to things this repository does not contain:
