@@ -40,7 +40,9 @@
 #     **No `doi:`.** Nobody has minted one. Zenodo's GitHub integration is
 #     an account switch a maintainer flips, not something a build can do,
 #     and a DOI written down before it exists is a citation that resolves to
-#     nothing. SD-31 (#555) holds it.
+#     nothing. SD-42 (#1093) writes it in once one is minted. `.zenodo.json`
+#     beside this file pins what a Zenodo deposit would say about the work,
+#     including the licences, rather than leaving Zenodo to infer them.
 
 cff-version: 1.2.0
 message: If you use this database, please cite it as below.

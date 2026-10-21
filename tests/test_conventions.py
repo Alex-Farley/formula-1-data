@@ -15,6 +15,7 @@ verify.py declares its deviations: a new site fails until it is declared.
 The front end's equivalents are in web/test/conventions.mjs, where the
 front-end tools run them.
 """
+import json
 import os
 import re
 import shutil
@@ -755,6 +756,98 @@ class TheCitationStaysInStepWithTheBuild(unittest.TestCase):
                          "moves without VERSION, and no in-tree record says when a tag was "
                          "published, so this date cannot be checked and will misdate a "
                          "version sooner or later")
+
+
+class TheZenodoDepositSaysWhatTheCitationSays(unittest.TestCase):
+    """`.zenodo.json` pins what Zenodo publishes about each release once its
+    GitHub integration is switched on (SD-31, #555). Without it Zenodo reads
+    CITATION.cff, which states no licence, and supplies one itself: GitHub's
+    reading of the repository where there is one, and CC0, its default for a
+    dataset, where there is not. Neither is the terms this deposit is offered
+    under.
+
+    The two files describe one work, so the title, creator, description and
+    keywords are checked against CITATION.cff, the citation GitHub renders.
+    Zenodo's licence field holds a single licence, so it is `other-at`, Other
+    (Attribution), and the notes are checked for naming the terms of each
+    part.
+    """
+
+    def deposit(self):
+        doc = json.loads(read(".zenodo.json"))
+        self.assertIsInstance(doc, dict, ".zenodo.json is not a JSON object")
+        return doc
+
+    def cff(self):
+        return read("CITATION.cff")
+
+    def cff_block(self, key):
+        """The stripped lines indented under a top-level CITATION.cff key."""
+        out, inside = [], False
+        for line in self.cff().splitlines():
+            if re.match(rf"^{key}:", line):
+                inside = True
+            elif inside:
+                if line and not line[0].isspace():
+                    break
+                if line.strip():
+                    out.append(line.strip())
+        self.assertTrue(out, f"CITATION.cff has nothing under {key}, so .zenodo.json "
+                             "cannot be checked against it")
+        return out
+
+    def test_it_names_no_field_that_goes_stale(self):
+        # Zenodo takes the version and the publication date from the release
+        # it archives, so either written here would be wrong from the next
+        # release on; and a DOI is written nowhere before one is minted
+        # (SD-42, #1093).
+        for key in ("version", "publication_date", "doi"):
+            self.assertNotIn(key, self.deposit(),
+                             f".zenodo.json pins {key}, which Zenodo reads from the release "
+                             "or mints itself; a pinned copy names the wrong release, or a "
+                             "DOI that resolves to nothing")
+
+    def test_it_describes_the_work_citation_cff_does(self):
+        doc = self.deposit()
+        title = re.search(r'^title:\s*"([^"]+)"\s*$', self.cff(), re.M)
+        self.assertIsNotNone(title, "CITATION.cff's title is not a quoted string")
+        self.assertEqual(doc.get("title"), title.group(1),
+                         ".zenodo.json and CITATION.cff give the work different titles")
+        self.assertEqual(doc.get("description"),
+                         " ".join(line for line in self.cff_block("abstract") if line != ">-"),
+                         ".zenodo.json's description is not CITATION.cff's abstract")
+        keywords = [line[2:] for line in self.cff_block("keywords") if line.startswith("- ")]
+        self.assertEqual(doc.get("keywords"), keywords,
+                         ".zenodo.json and CITATION.cff list different keywords")
+        self.assertEqual(doc.get("upload_type"), "dataset",
+                         "CITATION.cff cites a dataset, and .zenodo.json deposits "
+                         "something else")
+
+    def test_its_creators_are_citation_cff_s_authors(self):
+        authors, family = [], None
+        for line in self.cff_block("authors"):
+            m = re.match(r"^-?\s*(family|given)-names:\s*(.+)$", line)
+            if m and m.group(1) == "family":
+                family = m.group(2)
+            elif m:
+                authors.append(f"{family}, {m.group(2)}")
+        self.assertTrue(authors, "CITATION.cff names no author by family and given name")
+        self.assertEqual([c.get("name") for c in self.deposit().get("creators", [])], authors,
+                         ".zenodo.json's creators are not CITATION.cff's authors")
+
+    def test_the_licence_is_no_single_licence_and_the_notes_carry_each(self):
+        doc = self.deposit()
+        self.assertEqual(doc.get("license"), "other-at",
+                         ".zenodo.json's licence is not Other (Attribution). Zenodo's field "
+                         "holds one licence, and this deposit holds MIT code, CC BY-SA 4.0 "
+                         "data and ODbL centrelines; one SPDX id offers the whole deposit "
+                         "under it, and leaving the field out lets Zenodo fill it in")
+        notes = doc.get("notes", "")
+        for named in ("MIT", "CC BY-SA 4.0", "CC BY 4.0", "ODbL 1.0", "LICENSE,",
+                      "LICENSE-DATA", "ATTRIBUTION.md", "f1-geometry.db", "f1-facts.db"):
+            self.assertIn(named, notes,
+                          f".zenodo.json's notes do not name {named}, so the deposit marked "
+                          "Other (Attribution) no longer says what the terms are")
 
 
 class NoLineOpensOnAFigureSpan(unittest.TestCase):
