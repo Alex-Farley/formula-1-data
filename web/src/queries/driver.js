@@ -18,6 +18,7 @@ import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { PRACTICE_SESSIONS, carName } from './race.js'
 import { LABELS } from '../lib/site.js'
+import { colourSource, lastTeamColour } from '../lib/liveries.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -291,6 +292,87 @@ export const finishesFigureNote = (source, hollow) =>
     'dot',
     'no season on this record has one',
   )}`
+
+/** The heading the championship chart leads a driver's page under. */
+export const FINISHES_HEADING = 'Where each championship finished'
+
+/**
+ * The championship chart's numbers, as Figure's table lays them out. The
+ * chart plots `position`, so its table - the non-fallback source of the same
+ * numbers - must not dash a season the dot has placed: 21 drivers in 2025
+ * alone have a null position_text and a position (IX-26). The app adds the
+ * cell's markup; what it says is `text`, which the static page prints.
+ */
+export const FINISHES_COLUMNS = [
+  { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
+  { key: 'constructor', label: 'Constructor' },
+  { key: 'position_text', label: 'Position', align: 'num', text: (v, row) => text(v ?? row.position), glossary: 'results' },
+  { key: 'points', label: 'Points', align: 'num' },
+]
+
+/**
+ * The championship chart, a dot per season (VD-73): everything DotPlot is
+ * given, worked out once for both renderers - Driver.jsx draws it in the
+ * app, scripts/prerender.js on the static page. Null for a career of fewer
+ * than two championship seasons, which has no chart.
+ *
+ * Each dot is in the team that season finished with (AF-47), from the same
+ * lastTeamColour() the season table's marks read. A season with no
+ * constructor resolved on any entry - an Indianapolis 500, as a rule - names
+ * the car as "Season by season" does, from BY_SEASON's `teams`: then the
+ * entries' own designation where one is recorded, and NULL where none is
+ * (AF-68).
+ *
+ * WHICH DOTS WEAR A COLOUR (AF-55). Any that has one. The chart used to
+ * wear liveries only when EVERY dot had one, which silenced colour for
+ * precisely the careers most likely to be opened - Hamilton, Alonso,
+ * Button, Raikkonen, Schumacher all cross the declared 1968-2009 gap. A
+ * season that gap covers is drawn hollow instead: outlined and unfilled,
+ * visibly a non-colour rather than a neutral that could be read as a team,
+ * which is the objection the old rule existed to answer. A chart NO dot of
+ * which has a colour keeps the plain neutral series, as every other chart on
+ * the site does: there are no liveries for a neutral to be misread against,
+ * and a page of outlines would say "missing" about a career where nothing is
+ * missing that the site records anywhere.
+ *
+ * `standings` is STANDINGS's rows, `teams` teamsBySeason() of SEASON_TEAMS's
+ * and `bySeason` BY_SEASON's.
+ */
+export function finishesFigure(driver, standings, teams, bySeason) {
+  if (standings.length <= 1) return null
+  const finishes = standings.map((s) => {
+    const raced = teams.get(s.year)
+    const car = raced?.[0]?.constructor ?? bySeason.find((b) => b.year === s.year)?.teams ?? null
+    return { ...s, constructor: car, colour: lastTeamColour(raced, s.year).colour }
+  })
+  const plotted = finishes.filter((s) => typeof s.position === 'number')
+  const inColour = plotted.some((s) => s.colour)
+  const mixed = inColour && !plotted.every((s) => s.colour)
+  return {
+    rows: finishes,
+    note: finishesFigureNote(inColour ? colourSource(plotted.map((s) => s.colour)) : null, mixed),
+    data: finishes.map((s) => ({
+      x: s.year,
+      y: s.position,
+      label: `${s.year}`,
+      colour: inColour ? s.colour : null,
+      // Only where some other dot is coloured: see WHICH DOTS above.
+      hollow: inColour && !s.colour,
+      // The halo says nothing the dot does not: position 1 is what is
+      // already plotted at the top of the axis.
+      mark: s.position === 1,
+      // The team is named wherever its colour is read (clause 4 of AF-47).
+      note: `${s.position ? `P${s.position} · ${points(s.points)} points` : 'no classified position'}${
+        s.constructor ? ` · ${s.constructor}` : ''
+      }`,
+    })),
+    yMax: Math.max(10, ...standings.map((s) => s.position ?? 0)),
+    format: (v) => `P${Math.round(v)}`,
+    formatX: (v) => String(Math.round(v)),
+    height: 210,
+    label: `Championship finishing position by season for ${driver.full_name}`,
+  }
+}
 
 /** The season-so-far chart's note: 50 words at the longest. A season is one year, so it draws liveries or national colours, never both. */
 export const thisSeasonFigureNote = (toCome, source, hollow) =>

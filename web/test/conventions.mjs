@@ -182,8 +182,10 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // race_entries, where SUM and COUNT are NULL only when no row matched
     // and none-matched IS the zero - a driver with no entry has no start,
     // not an unknown number of them. None reads a stored column.
-    ['src/queries/driver.js', [13, 'derived career counts; seasons with an entry; PD-15 substitutes']],
-    ['src/pages/Driver.jsx', [1, 'a chart ceiling; its sort keys are in lib/wayfinding.js']],
+    // VD-73 moved the championship chart's ceiling here from Driver.jsx, with
+    // the figure the static page draws too: a season with no position
+    // raises no ceiling, and the axis runs to P10 at the least.
+    ['src/queries/driver.js', [14, 'derived career counts; seasons with an entry; PD-15 substitutes; a chart ceiling']],
     // PD-43: /compare's careers table reads DERIVED, whose SUM of a
     // comparison is NULL only where no entry matched - a driver never
     // classified has no win - which is strip()'s reading above. One helper,
@@ -931,14 +933,16 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     }
     // Nobody outside the chart surfaces writes the pair onto an element at
     // all. own.js is the third: it is where VD-34 put the single-series
-    // colour, and the pair is exactly what a chart owes 3:1 on.
+    // colour, and the pair is exactly what a chart owes 3:1 on. prerender.js
+    // is the fourth since VD-73: the static page draws the three lead charts
+    // and their legend, the same surfaces, in the same pair.
     const writers = [...sourceFiles(join(web, 'src'), /\.jsx?$/), join(web, 'scripts', 'prerender.js')]
       .filter((file) => /--livery-(?:light|dark)\s*['"]?\s*:/.test(read(file)))
       .map(rel)
       .sort()
     assert.deepEqual(
       writers,
-      ['src/charts/Figure.jsx', 'src/charts/LineChart.jsx', 'src/charts/own.js'],
+      ['scripts/prerender.js', 'src/charts/Figure.jsx', 'src/charts/LineChart.jsx', 'src/charts/own.js'],
       'the moved pair is written outside the chart surfaces that owe 3:1',
     )
   })

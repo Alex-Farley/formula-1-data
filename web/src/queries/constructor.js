@@ -13,7 +13,7 @@
  */
 import { EMPTY, missing, number, points, span, text, yearList } from '../lib/format.js'
 import { derivedAndPublished } from './driver.js'
-import { LABELS } from '../lib/site.js'
+import { LABELS, SLOT_MARKS } from '../lib/site.js'
 
 export const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
 
@@ -61,6 +61,46 @@ export const BY_SEASON = `
    GROUP BY r.year
    ORDER BY r.year
 `
+
+/** The heading the wins chart leads a constructor's page under. */
+export const WINS_HEADING = 'Wins by season'
+
+/** The wins chart's numbers, as Figure's table lays them out. */
+export const WINS_FIGURE_COLUMNS = [
+  { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
+  { key: 'wins', label: 'Wins', align: 'num' },
+  { key: 'entries', label: 'Entries', align: 'num' },
+]
+
+/**
+ * The wins chart, a column per season (VD-73): everything ColumnChart is
+ * given, worked out once for both renderers - Constructor.jsx draws it in
+ * the app, scripts/prerender.js on the static page. Null for a team with a
+ * win in fewer than two seasons, which has no chart. `bySeason` is
+ * BY_SEASON's rows.
+ *
+ * The chart used to draw only the winning seasons, on a band scale, so the
+ * pixels between 1990 and 1994 were as wide as those between 1996 and 1997
+ * and a reader saw an unbroken run of wins. Every season entered goes on the
+ * axis. `lead`: the chart takes the opening slot beside the header (VD-84)
+ * unless the team has entered more seasons than the slot can draw at a
+ * usable width (SLOT_MARKS); then it leads under the tiles at the full
+ * width.
+ */
+export function winsFigure(constructor, bySeason) {
+  if (bySeason.filter((s) => s.wins > 0).length <= 1) return null
+  const seasons = [...bySeason].sort((a, b) => a.year - b.year)
+  return {
+    rows: seasons,
+    lead: seasons.length <= SLOT_MARKS,
+    note: 'Every season entered, winless ones included, so a drought is visible as a gap. A shared drive counts once, to the car.',
+    data: seasons.map((s) => ({ key: s.year, value: s.wins, label: String(s.year) })),
+    labelEvery: Math.max(1, Math.ceil(seasons.length / 12)),
+    integer: true,
+    height: 200,
+    label: `Race wins per season for ${constructor.name}`,
+  }
+}
 
 /**
  * The season's final table can legitimately hold two rows for one constructor:

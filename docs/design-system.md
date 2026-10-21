@@ -264,9 +264,8 @@ string runs past.
   class, from the same strings: `NAMES` and `EYEBROWS` in `lib/site.js`,
   each register's lede in its `queries/*.js` module, and the livery band's
   words from `bandWords()` in `lib/liveries.js`. VD-56 (#550) and VD-71
-  (#819) closed into it. VD-73 (#822), the static page's missing lead
-  charts, is the figure's and the slot's, not the header's: §8's test 5
-  declares its headings until it lands.
+  (#819) closed into it, and VD-73 (#822) the lead charts, which were the
+  figure's and the slot's rather than the header's.
   - One declared difference: `/data/sql`'s static page keeps its own lede,
     because it is not the console and has no examples or schema for the
     app's lede to point at.
@@ -308,8 +307,14 @@ the tiles below that. What fills it:
   drawing it twice.
 
 A picture is `<Slot>` in the app and `slot()` in `prerender.js`, the same
-`div.slot`; the static page draws the race's, the circuit's and the car's,
-and not yet the three charts (VD-73 #822).
+`div.slot`. A lead chart is `<Section lead>` in the app and `leadFigure()` in
+`prerender.js`, the same `section.slot`: the static page draws all three
+(VD-73) from the layouts in `charts/dotPlot.js`, `columnChart.js` and
+`lineChart.js` and the figures in `queries/driver.js`, `constructor.js` and
+`season.js`, which the app's components read too. It cannot measure, so it
+lays the drawing out at one width and gives the plot the app's height
+(`.plot-static`): the box is the app's at every width, and only the drawing
+inside it is scaled, until the app redraws it at the width it occupies.
 
 - **Order.** The slot is written after the tiles, a race's after its
   classification, and only the grid lifts it into the band, so a screen
@@ -327,7 +332,9 @@ and not yet the three charts (VD-73 #822).
   `lib/site.js`, 63 columns. Ferrari's 77 seasons lead under the tiles at
   the full width instead, and its header keeps the band. A column chart's
   hover targets meet, each the full step wide.
-- **Held by** `smoke.mjs`, *The opening slot*: §8, test 14.
+- **Held by** `smoke.mjs`, *The opening slot*: §8, test 14; and the static
+  lead charts by *The lead charts on the static page*, which holds each to
+  the app's plot box, marks, legend and numbers.
 
 ### Tile strip (core) — built (VD-79, VD-81, VD-88)
 
@@ -821,9 +828,9 @@ control (VD-82).
   - What keeps both: the static page draws or reserves the same opening.
     The prerenderer already draws three charts on the static race page, and
     VD-79 draws one page header and one tile strip in both renderers, and
-    swaps the two halves only once the app's page is drawn. The lead charts
-    the static driver, constructor and season pages still lack are VD-73
-    (#822).
+    swaps the two halves only once the app's page is drawn. The static
+    driver, constructor and season pages draw their lead charts in a box the
+    app's height (VD-73).
 - **Small type on tiles and eyebrows (10–11 px mono, tracked).**
   - What the design gains: the instrument-panel identity.
   - What accessibility gives up: legibility at low DPI.

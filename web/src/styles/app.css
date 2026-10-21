@@ -3153,6 +3153,17 @@ figure.figure > .figure-note:first-child {
   max-width: 100%;
 }
 
+/* A lead chart the static page draws (VD-73): the full width of its column,
+   as the app's, and the app's height whatever the width, so the slot is the
+   box the app will fill and nothing under it moves at the handover. The
+   drawing was laid out at one width (prerender.js says which), so inside
+   the box it keeps its proportions: scaled down in a narrower column, text
+   with it, and centred in a wider one, until the app draws it at the width
+   it occupies. */
+.figure svg.plot-static {
+  height: var(--plot-height);
+}
+
 /* The tooltip swatch beside a hollow dot's note: the same outline, at the
    size the filled swatch occupies, so the rows stay aligned. */
 .tooltip .row i.swatch-hollow {

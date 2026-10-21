@@ -1,12 +1,9 @@
-import { useMemo, useState } from 'react'
-import { band, linear, niceDomain, ticks } from './scales.js'
+import { useState } from 'react'
+import { columnLayout } from './columnChart.js'
 import { ownColour } from './own.js'
 import { seriesColour } from './palette.js'
 import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
-
-const M = { top: 16, right: 10, bottom: 30, left: 44 }
-const MAX_THICKNESS = 24
 
 /**
  * A magnitude per category, measured from a zero baseline.
@@ -37,18 +34,12 @@ export default function ColumnChart({
   const [hover, setHover] = useState(null)
   const own = ownColour(colour)
 
-  const geometry = useMemo(() => {
-    const keys = data.map((d) => d.key)
-    const x = band(keys, [M.left, width - M.right], 0.28)
-    const y = linear(niceDomain(data.map((d) => d.value)), [height - M.bottom, M.top])
-    return { x, y, keys }
-  }, [data, width, height])
+  // The geometry is charts/columnChart.js's, which the static page draws
+  // from too (VD-73), so the two halves place every column alike.
+  const layout = columnLayout({ data, width, height, format, labelEvery, labelPeak, integer })
 
-  if (data.length === 0) return null
-  const { x, y } = geometry
-  const thickness = Math.min(x.bandwidth, MAX_THICKNESS)
-  const peak = data.reduce((a, b) => (b.value > a.value ? b : a), data[0])
-  const radius = Math.min(4, thickness / 2)
+  if (!layout) return null
+  const { x, y } = layout
 
   const paint = own.paint ?? seriesColour(0)
 
@@ -58,21 +49,17 @@ export default function ColumnChart({
     // columns in another is a tooltip about some other chart.
     <div className={`plot-holder${own.className ? ` ${own.className}` : ''}`} style={own.style} ref={ref}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
-        {ticks(y.domain, 4, { integer }).map((value) => (
-          <g key={value}>
-            <line className="grid-line" x1={M.left} x2={width - M.right} y1={y(value)} y2={y(value)} />
-            <text className="axis-text" x={M.left - 8} y={y(value)} textAnchor="end" dominantBaseline="middle">
-              {format(value)}
+        {layout.yTicks.map((tick) => (
+          <g key={tick.value}>
+            <line className="grid-line" x1={layout.left} x2={layout.right} y1={tick.y} y2={tick.y} />
+            <text className="axis-text" x={layout.labelX} y={tick.y} textAnchor="end" dominantBaseline="middle">
+              {tick.text}
             </text>
           </g>
         ))}
 
-        {data.map((d, i) => {
-          const left = x.centre(d.key) - thickness / 2
-          const top = y(Math.max(0, d.value))
-          const bottom = y(0)
-          const tall = Math.abs(bottom - top)
-          const isPeak = labelPeak && d.key === peak.key
+        {layout.columns.map((column) => {
+          const { d } = column
           return (
             <g
               key={d.key}
@@ -85,27 +72,21 @@ export default function ColumnChart({
                   of many seasons keeps each one as wide as it can (§7's
                   minimum mark width, VD-84). */}
               <rect
-                x={x.centre(d.key) - x.step / 2}
-                y={M.top}
-                width={x.step}
-                height={height - M.bottom - M.top}
+                x={column.hit.x}
+                y={column.hit.y}
+                width={column.hit.width}
+                height={column.hit.height}
                 fill="transparent"
               />
-              <path
-                d={`M${left},${bottom} L${left},${top + radius} Q${left},${top} ${left + radius},${top}
-                    L${left + thickness - radius},${top} Q${left + thickness},${top} ${left + thickness},${top + radius}
-                    L${left + thickness},${bottom} Z`}
-                fill={paint}
-                opacity={hover && hover.key !== d.key ? 0.55 : 1}
-              />
-              {isPeak && tall > 14 && (
-                <text className="value-text" x={x.centre(d.key)} y={top - 6} textAnchor="middle">
-                  {format(d.value)}
+              <path d={column.path} fill={paint} opacity={hover && hover.key !== d.key ? 0.55 : 1} />
+              {column.value !== null && (
+                <text className="value-text" x={column.centre} y={column.top - 6} textAnchor="middle">
+                  {column.value}
                 </text>
               )}
-              {i % labelEvery === 0 && (
-                <text className="axis-text" x={x.centre(d.key)} y={height - M.bottom + 15} textAnchor="middle">
-                  {d.label ?? d.key}
+              {column.label !== null && (
+                <text className="axis-text" x={column.centre} y={layout.tickY} textAnchor="middle">
+                  {column.label}
                 </text>
               )}
             </g>

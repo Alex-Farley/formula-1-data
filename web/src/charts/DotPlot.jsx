@@ -1,11 +1,9 @@
 import { useState } from 'react'
-import { linear, ticks } from './scales.js'
+import { dotPlotLayout } from './dotPlot.js'
 import { ownColour } from './own.js'
 import { seriesColour } from './palette.js'
 import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
-
-const M = { top: 16, right: 14, bottom: 30, left: 40 }
 
 /**
  * One mark per event: a season of results, round by round.
@@ -75,16 +73,13 @@ export default function DotPlot({
   // on every render, and an object held from the last one would match none.
   const [active, setActive] = useState(null)
   const own = ownColour(colour)
-  const plotted = data.filter((d) => typeof d.y === 'number' && Number.isFinite(d.y))
-  if (plotted.length === 0) return null
+  // The geometry is charts/dotPlot.js's, which the static page draws from
+  // too (VD-73), so the two halves place every dot and tick alike.
+  const layout = dotPlotLayout({ data, width, height, yMax, invert, format, formatX })
+  if (!layout) return null
+  const { x, y } = layout
+  const plotted = layout.points.map((p) => p.d)
   const hover = active !== null && active < plotted.length ? plotted[active] : null
-
-  const xs = data.map((d) => d.x)
-  const top = yMax ?? Math.max(...plotted.map((d) => d.y))
-  const x = linear([Math.min(...xs), Math.max(...xs)], [M.left, width - M.right])
-  const y = invert
-    ? linear([1, top], [M.top, height - M.bottom])
-    : linear([0, top], [height - M.bottom, M.top])
 
   // The chart's own colour, or a point's where it carries one. A hollow
   // point carries neither: it is drawn in ink by `.mark-hollow`, and takes no
@@ -145,24 +140,19 @@ export default function DotPlot({
         onFocus={onFocus}
         onBlur={() => setActive(null)}
       >
-        {/* P1 is the one value this chart exists to show, and a step of 2 from
-            1 ticked 2, 4, 6... so the title-winning seasons sat above the top
-            gridline with nothing naming their value. Force 1 in, and drop a 2
-            that would crowd it. */}
-        {[...new Set([1, ...ticks([1, top], 4, { integer: true }).filter((v) => v > 2), top])]
-          .filter((v) => v >= 1 && v <= top)
-          .map((value) => (
-            <g key={value}>
-              <line className="grid-line" x1={M.left} x2={width - M.right} y1={y(value)} y2={y(value)} />
-              <text className="axis-text" x={M.left - 8} y={y(value)} textAnchor="end" dominantBaseline="middle">
-                {format(value)}
-              </text>
-            </g>
-          ))}
+        {/* P1 is always ticked: charts/dotPlot.js says why. */}
+        {layout.yTicks.map((tick) => (
+          <g key={tick.value}>
+            <line className="grid-line" x1={layout.left} x2={layout.right} y1={tick.y} y2={tick.y} />
+            <text className="axis-text" x={layout.labelX} y={tick.y} textAnchor="end" dominantBaseline="middle">
+              {tick.text}
+            </text>
+          </g>
+        ))}
 
-        {ticks(x.domain, Math.max(2, Math.floor(width / 90)), { integer: true }).map((value) => (
-          <text key={value} className="axis-text" x={x(value)} y={height - M.bottom + 15} textAnchor="middle">
-            {formatX(value)}
+        {layout.xTicks.map((tick) => (
+          <text key={tick.value} className="axis-text" x={tick.x} y={layout.tickY} textAnchor="middle">
+            {tick.text}
           </text>
         ))}
 

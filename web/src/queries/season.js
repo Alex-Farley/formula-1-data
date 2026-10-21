@@ -19,6 +19,7 @@ import { EMPTY, missing, number, points, raceDates, text } from '../lib/format.j
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { carName } from './race.js'
+import { colourForEntry } from '../lib/liveries.js'
 
 export const SEASON = `
   SELECT s.*, d.full_name AS champion, t.name AS champion_team_name,
@@ -563,6 +564,69 @@ export const progressionNote = (live, dropped) => {
   const who = `${live ? 'The three drivers placed highest so far' : 'The three drivers who finished highest'}, tracked from the opening round.`
   if (missing(dropped) || dropped === EVERY_RESULT_COUNTS) return who
   return `${who} Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend.`
+}
+
+/** The title race's numbers, as Figure's table lays them out. */
+export const TITLE_RACE_COLUMNS = [
+  { key: 'driver', label: 'Driver', rowHeader: true },
+  { key: 'round', label: 'After round', align: 'num', rowHeader: true },
+  { key: 'points', label: 'Points', align: 'num' },
+]
+
+/**
+ * The title race, as it actually ran (VD-73): everything LineChart and its
+ * Figure are given, worked out once for both renderers - Season.jsx draws it
+ * in the app, scripts/prerender.js on the static page. Null where fewer than
+ * two contenders have a line, which is no race to draw.
+ *
+ * Three series, because three is what the palette validates to and what a
+ * reader can follow at once - the eventual top three, tracked round by
+ * round. A points total that goes flat is a driver who scored nothing that
+ * weekend; it never falls, because a championship total cannot.
+ *
+ * Each line in its driver's team colour where the season has one (AF-04):
+ * the livery from 2010, the national colour before 1968, the neutral series
+ * palette between and wherever a colour is missing. Two drivers of one team
+ * share the colour; every line has its slot's dash as well (AX-16), so they
+ * are still two lines. A driver who changed teams wears the one they
+ * finished with. The chart wears liveries only when every contender has
+ * one: a mix of one papaya line and two neutral blues would read as a claim
+ * about the blues.
+ *
+ * `drivers` is FINAL's drivers' rows, `standings` STANDINGS's, `teams`
+ * teamsByDriver() of DRIVER_TEAMS's, `live` stillRunning() of the calendar,
+ * and `dropped` REMAINING's `dropped_scores`.
+ */
+export function titleRaceFigure({ year, live, drivers, standings, teams, dropped }) {
+  const contenders = drivers.slice(0, 3).filter((d) => d.driver_id)
+  const progression = contenders.map((driver) => {
+    const last = (teams.get(driver.driver_id) ?? [])[0]
+    return {
+      name: driver.entity,
+      colour: last ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor }) : null,
+      // STANDINGS holds the running table only; the season's end is FINAL,
+      // and drawing it here would put the final classification beside the
+      // last round's running total, which before 1991 is another figure.
+      points: standings
+        .filter((r) => r.table_type === 'drivers' && r.driver_id === driver.driver_id)
+        .sort((a, b) => a.after_round - b.after_round)
+        .map((r) => ({ x: r.after_round, y: r.points })),
+    }
+  })
+  if (progression.length <= 1) return null
+  const inColour = progression.every((s) => s.colour)
+  const series = progression.map((s) => ({ name: s.name, points: s.points, colour: inColour ? s.colour : null }))
+  return {
+    heading: titleHeading(live),
+    note: progressionNote(live, dropped),
+    legend: series.map((s) => ({ name: s.name, colour: s.colour })),
+    rows: series.flatMap((s) => s.points.map((p) => ({ driver: s.name, round: p.x, points: p.y }))),
+    series,
+    format: (v) => points(v),
+    formatX: (v) => `R${Math.round(v)}`,
+    height: 250,
+    label: `Championship points by round for the top three drivers of ${year}`,
+  }
 }
 
 /**

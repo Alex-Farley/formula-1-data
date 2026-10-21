@@ -13,7 +13,7 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
-import { points as fmtPoints, number } from '../lib/format.js'
+import { number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
@@ -49,6 +49,7 @@ import {
   SEASON,
   SEASON_SOURCES,
   STANDINGS,
+  TITLE_RACE_COLUMNS,
   TITLE_SOURCES,
   WON_HERE,
   WON_HERE_COLUMNS,
@@ -58,14 +59,13 @@ import {
   latestRound,
   nextLine,
   noConstructorsNote,
-  progressionNote,
   seasonLede,
   seasonSources,
   standingsHeading,
   stillRunning,
   teamsByDriver,
   titleAnswer,
-  titleHeading,
+  titleRaceFigure,
   titleStrip,
   wonHereNote,
 } from '../queries/season.js'
@@ -374,44 +374,13 @@ function SeasonBody({ year, season, data }) {
   const [lead, second] = driversFinal
   const teamLead = constructorsFinal[0] ?? null
 
-  /**
-   * The title race, as it actually ran.
-   *
-   * Three series, because three is what the palette validates to and what a
-   * reader can follow at once — the eventual top three, tracked round by
-   * round. A points total that goes flat is a driver who scored nothing that
-   * weekend; it never falls, because a championship total cannot.
-   */
-  const progression = useMemo(() => {
-    const contenders = driversFinal.slice(0, 3).filter((d) => d.driver_id)
-    // Each line in its driver's team colour where the season has one (AF-04):
-    // the livery from 2010, the national colour before 1968, the neutral
-    // series palette between and wherever a colour is missing. Two drivers
-    // of one team share the colour; every line has its slot's dash as well
-    // (AX-16), so they are still two lines. A driver who changed teams wears
-    // the one they finished with.
-    return contenders.map((driver) => {
-      const last = (teams.get(driver.driver_id) ?? [])[0]
-      const colour = last
-        ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor })
-        : null
-      return {
-        name: driver.entity,
-        colour,
-        // STANDINGS holds the running table only; the season's end is FINAL,
-        // and drawing it here would put the final classification beside the
-        // last round's running total, which before 1991 is another figure.
-        points: standings
-          .filter((r) => r.table_type === 'drivers' && r.driver_id === driver.driver_id)
-          .sort((a, b) => a.after_round - b.after_round)
-          .map((r) => ({ x: r.after_round, y: r.points })),
-      }
-    })
-  }, [driversFinal, standings, teams, year])
-  // The chart wears liveries only when every contender has one: a mix of
-  // one papaya line and two neutral blues would read as a claim about the
-  // blues.
-  const inColour = progression.length > 0 && progression.every((s) => s.colour)
+  // The title race, worked out in queries/season.js so the static page
+  // draws the same lines (VD-73).
+  const race = useMemo(
+    () =>
+      titleRaceFigure({ year, live, drivers: driversFinal, standings, teams, dropped: data.remaining.rows[0]?.dropped_scores }),
+    [year, live, driversFinal, standings, teams, data],
+  )
 
   const run = calendar.filter((r) => r.status === 'completed').length
   // A third state beside `running` and a concluded season: the calendar is
@@ -566,33 +535,10 @@ function SeasonBody({ year, season, data }) {
         )}
       </Section>
 
-      {progression.length > 1 && (
-        <Section lead title={titleHeading(live)}>
-          <Figure
-            lead
-            note={progressionNote(live, data.remaining.rows[0]?.dropped_scores)}
-            legend={progression.map((s) => ({ name: s.name, colour: inColour ? s.colour : null }))}
-            marks="line"
-            table={{
-              rows: progression.flatMap((s) => s.points.map((p) => ({ driver: s.name, round: p.x, points: p.y }))),
-              columns: [
-                { key: 'driver', label: 'Driver', rowHeader: true },
-                { key: 'round', label: 'After round', align: 'num', rowHeader: true },
-                { key: 'points', label: 'Points', align: 'num' },
-              ],
-            }}
-          >
-            <LineChart
-              series={progression.map((s) => ({
-                name: s.name,
-                points: s.points,
-                colour: inColour ? s.colour : null,
-              }))}
-              format={(v) => fmtPoints(v)}
-              formatX={(v) => `R${Math.round(v)}`}
-              height={250}
-              label={`Championship points by round for the top three drivers of ${year}`}
-            />
+      {race && (
+        <Section lead title={race.heading}>
+          <Figure lead note={race.note} legend={race.legend} marks="line" table={{ rows: race.rows, columns: TITLE_RACE_COLUMNS }}>
+            <LineChart series={race.series} format={race.format} formatX={race.formatX} height={race.height} label={race.label} />
           </Figure>
         </Section>
       )}
