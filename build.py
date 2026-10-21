@@ -4483,11 +4483,11 @@ def _stage_35_link_race_entries_to_the_curated(b):
 
     # Where each column has its values from (DA-30, #622): the facts
     # artefact's declaration, read column by column. Last, because it reads
-    # every table's columns, source_id included, and the claims; verify.py
-    # derives it again and compares the whole table.
+    # every table's columns, this one's included; verify.py derives it again
+    # and compares the whole table.
     rows = _tool("facts_artefact").origins(con)
-    con.executemany("INSERT INTO column_origin (tbl, col, origin, source_id, via, rule) "
-                    "VALUES (?, ?, ?, ?, ?, ?)", rows)
+    con.executemany("INSERT INTO column_origin (tbl, col, origin, via, rule) "
+                    "VALUES (?, ?, ?, ?, ?)", rows)
     print(f"  column origins: {len(rows)} columns, "
           f"{sum(1 for r in rows if r[2] is None)} not established")
 

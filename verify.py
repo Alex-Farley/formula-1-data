@@ -5873,29 +5873,30 @@ def facts_artefact():
 # by column (tools/facts_artefact.py origins()), and the ruling of 2026-10-06
 # was that it state no origin that declaration has not established. So it is
 # derived again here and compared whole, and then held from outside the
-# derivation: a column whose values are not its row's source's - the prose
-# the pass measures, a span another column cites, the claims, what UNGRANTED
-# names, a value rebuilt from F1DB even on a row citing a source carried -
-# never reads `row` or `table`, whatever order origins() tries its rules in.
+# derivation: the columns the declarations name are collected here from the
+# declarations themselves, and every other column must read NULL, so no
+# fallback to a row's source_id or a table's provenance row can creep in
+# behind them, whatever order origins() tries its rules in.
 # ---------------------------------------------------------------------------
 @section("WHERE EACH COLUMN HAS ITS VALUES FROM")
 def column_origin():
     from data import current as _N
     fa = _tool("facts_artefact")
     stored = [tuple(r) for r in con.execute(
-        "SELECT tbl, col, origin, source_id, via, rule FROM column_origin")]
+        "SELECT tbl, col, origin, via, rule FROM column_origin")]
     derived = [tuple(r) for r in fa.origins(con)]
-    extra = sorted(set(stored) - set(derived))
-    missing = sorted(set(derived) - set(stored))
+    extra = sorted(set(stored) - set(derived), key=repr)
+    missing = sorted(set(derived) - set(stored), key=repr)
     check("column_origin is the facts artefact's declaration, derived again",
           not extra and not missing,
           "; ".join([f"stored {r}" for r in extra[:3]] + [f"derived {r}" for r in missing[:3]]))
 
     # From PRAGMA, not from origins(): one row for every column, and none
     # for a column that is not there.
-    columns = {(t, c[1]) for (t,) in con.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
-        for c in con.execute(f'PRAGMA table_info("{t}")')}
+    order = {t: [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+             for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
+                                     "AND name NOT LIKE 'sqlite_%'")}
+    columns = {(t, c) for t, cs in order.items() for c in cs}
     named = [(t, c) for t, c, *_ in stored]
     twice = sorted({k for k in named if named.count(k) > 1})
     odd = ([f"{t}.{c} has none" for t, c in sorted(columns - set(named))]
@@ -5904,46 +5905,35 @@ def column_origin():
     check("column_origin has one row for every column of every table, and no other",
           bool(columns) and not odd, ", ".join(odd[:6]))
 
-    origin = {(t, c): (o, sid, via) for t, c, o, sid, via, _ in stored}
-    elsewhere = {}
-    for t, c in columns:
-        if c in fa.measured(t):
-            elsewhere[(t, c)] = "the prose pass measures it"
-        if f"{t}.{c}" in fa.UNGRANTED:
-            elsewhere[(t, c)] = "UNGRANTED names it"
-    for t, c in _N.CLAIM_FIELDS:
-        elsewhere[(t, c)] = "the claims cite its values"
-    cols_of = {}
-    for t, c in columns:
-        cols_of.setdefault(t, []).append(c)
+    # What the declarations name, read from them and not from origins().
+    reached = set()
+    for t, cs in order.items():
+        fks = {f[3]: f[2] for f in con.execute(f'PRAGMA foreign_key_list("{t}")')}
+        classes = fa.RESOURCED.get(t, {}).get("columns", {})
+        own = fa.UNSOURCED.get(t, {}).get("own", [])
+        for c in cs:
+            name = f"{t}.{c}"
+            if (t in fa.APPARATUS or fks.get(c) == "source_registry"
+                    or fks.get(c) in fa.APPARATUS
+                    or (c == "source" and "source_id" in cs)
+                    or name in fa.UNGRANTED or (t, c) in _N.CLAIM_FIELDS
+                    or c in fa.measured(t) or c in own or name in fa.granted()
+                    or name in fa.RECOUNTED or t in fa.RECOUNTED
+                    or classes.get(c) in ("counted", "project", "linkage")):
+                reached.add((t, c))
     for t, (governs, first, last) in fa.SPANS.items():
-        order = [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
-        for c in order[order.index(first):order.index(last) + 1]:
-            elsewhere[(t, c)] = f"{governs} cites it"
-    carried = fa.carried_sources(con)
-    for t, rows in fa.rebuild(con).items():
-        if "source_id" not in cols_of.get(t, ()):
-            continue
-        cited = dict(con.execute(f'SELECT id, source_id FROM "{t}"').fetchall())
-        for rid, vals in rows.items():
-            if cited.get(rid) in carried:
-                for c in vals:
-                    elsewhere.setdefault((t, c), "rebuilt from F1DB on a row citing a source carried")
-    wrong = sorted(f"{t}.{c} ({why})" for (t, c), why in elsewhere.items()
-                   if origin.get((t, c), (None,))[0] in ("row", "table"))
-    check("no column whose values are not its row's source's says they are",
-          bool(elsewhere) and not wrong, ", ".join(wrong[:6]))
+        reached.add((t, governs))
+        reached.update((t, c) for c in order[t][order[t].index(first):order[t].index(last) + 1])
+    origin = {(t, c): (o, via) for t, c, o, via, _ in stored}
+    unfounded = sorted(f"{t}.{c} ({o})" for (t, c), (o, _) in origin.items()
+                       if o is not None and (t, c) not in reached)
+    check("no column the declarations do not name has an origin",
+          bool(reached) and not unfounded, ", ".join(unfounded[:6]))
 
-    # Each origin says what the database holds: a `table` origin is the
-    # table's provenance row, a `row` origin a table whose rows cite one, a
-    # `span` origin a column of the same row.
-    tp = dict(con.execute("SELECT tbl, source_id FROM table_provenance").fetchall())
-    bad = [f"{t}.{c}" for (t, c), (o, sid, via) in origin.items()
-           if (o == "table" and tp.get(t) != sid)
-           or (o == "row" and (via != "source_id" or "source_id" not in cols_of.get(t, ())))
-           or (o == "span" and via not in cols_of.get(t, ()))]
-    check("every table, row and span origin names what its table holds", not bad,
-          ", ".join(sorted(bad)[:6]))
+    # A `span` origin names a column of its own row.
+    bad = sorted(f"{t}.{c}" for (t, c), (o, via) in origin.items()
+                 if o == "span" and via not in order.get(t, ()))
+    check("every span origin names a column of its own table", not bad, ", ".join(bad[:6]))
     held = dict(con.execute("SELECT COALESCE(origin, 'not established'), COUNT(*) "
                             "FROM column_origin GROUP BY 1").fetchall())
     print("  [info] column origins: " + ", ".join(f"{n} {k}" for k, n in sorted(held.items())))

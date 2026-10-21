@@ -517,16 +517,23 @@ def declare(con):
 
 # What origins() can say about a column (DA-30). It is where the source of
 # the column's values is recorded, and nothing about the terms on which
-# this project releases them.
-ORIGINS = ("row", "table", "span", "claims", "prose", "project", "derived")
+# this project releases them. There is no origin for "each row's own
+# source_id" or "the table's table_provenance source": those say where a
+# ROW came from, and nothing above establishes that a column's values are
+# its row's source's. A column the declarations do not reach is NULL.
+ORIGINS = ("span", "claims", "prose", "project", "derived")
+
+# The part of the declaration that settles a column, in the order tried.
+RULES = ("APPARATUS", "citation", "SPANS", "UNGRANTED", "CLAIM_FIELDS",
+         "prose pass", "UNSOURCED", "RECOUNTED", "RESOURCED", "unreached")
 
 
-def origins(con, decl=None, rebuilt=None):
-    """[(table, column, origin, source_id, via, rule)] for every column of
-    every table, in table and then schema order: the rows build.py writes to
-    column_origin and verify.py derives again (DA-30, #622).
+def origins(con, decl=None):
+    """[(table, column, origin, via, rule)] for every column of every table,
+    in table and then schema order: the rows build.py writes to column_origin
+    and verify.py derives again (DA-30, #622).
 
-    Each origin is one of the derivation's above, taken where it reaches the
+    Each origin is one of the declarations above, taken where it names the
     column, and the first of these that does settles it:
 
       APPARATUS     a table in which the database describes itself: project
@@ -547,32 +554,18 @@ def origins(con, decl=None, rebuilt=None):
       RECOUNTED     a figure build.py counts from other rows: derived
       RESOURCED     a rebuilt table's columns classed as counted (derived),
                     or as this project's classification or link (project)
-      rebuild       a column of a rebuilt table that rebuild() replaces on a
-                    row citing a source the artefact carries as stored:
-                    whatever its row cites, the value is not established as
-                    that source's, and the origin is NULL
-      source_id     a table whose rows cite their source: row, via source_id
-      table_provenance  a table with one source for every row: table, and
-                    the source_id
       unreached     none of the above: NULL, not established
 
-    Nothing here names a source the derivation has not found: a column
-    whose values are another source's than the one its row cites is span,
-    claims, prose or NULL, never row, which is the error the derivation from
-    source_id alone made about fifty columns (DA-30's ruling of 2026-10-06).
-    The upstream terms are the registry's, through source_id - the column's
-    here for table, each row's for row - and are not copied.
+    There is no fallback to a row's source_id or a table's table_provenance
+    row (the ruling of 2026-10-06: column_origin states no origin PD-53 has
+    not established). Those record where a row came from, and a column of
+    it may be counted by build.py, be this project's link, or hold another
+    source's values written over the row's, so a column none of the above
+    names is NULL, whatever its row cites. The upstream terms of a row's
+    values are the registry's, through the row's own source_id.
     """
     decl = decl or declare(con)
-    rebuilt = rebuilt if rebuilt is not None else rebuild(con)
-    carried = carried_sources(con)
-    tp = dict(con.execute("SELECT tbl, source_id FROM table_provenance").fetchall())
     claim_fields = set(_N.CLAIM_FIELDS)
-    replaced = {}
-    for t in RESOURCED:
-        cited = dict(con.execute(f'SELECT id, source_id FROM "{t}"').fetchall())
-        replaced[t] = {c for rid, vals in rebuilt.get(t, {}).items()
-                       if cited.get(rid) in carried for c in vals}
     out = []
     for t in sorted(decl):
         cols = [c for c, _ in _columns(con, t)]
@@ -585,36 +578,30 @@ def origins(con, decl=None, rebuilt=None):
         for c in cols:
             name = f"{t}.{c}"
             if t in APPARATUS:
-                row = ("project", None, None, "APPARATUS")
+                row = ("project", None, "APPARATUS")
             elif (c == governs or keyed.get(c) == "source_registry"
                   or (c == "source" and "source_id" in cols)):
-                row = ("project", None, None, "citation")
+                row = ("project", None, "citation")
             elif keyed.get(c) in APPARATUS:
-                row = ("project", None, None, "APPARATUS")
+                row = ("project", None, "APPARATUS")
             elif c in span:
-                row = ("span", None, governs, "SPANS")
+                row = ("span", governs, "SPANS")
             elif name in UNGRANTED:
-                row = ("project", None, None, "UNGRANTED")
+                row = ("project", None, "UNGRANTED")
             elif (t, c) in claim_fields:
-                row = ("claims", None, "claims", "CLAIM_FIELDS")
+                row = ("claims", "claims", "CLAIM_FIELDS")
             elif c in measured(t):
-                row = ("prose", None, None, "prose pass")
+                row = ("prose", None, "prose pass")
             elif t in UNSOURCED:
                 own = c in UNSOURCED[t]["own"] or name in granted()
-                row = ("project" if own else None, None, None, "UNSOURCED")
+                row = ("project" if own else None, None, "UNSOURCED")
             elif name in RECOUNTED or t in RECOUNTED:
-                row = ("derived", None, None, "RECOUNTED")
+                row = ("derived", None, "RECOUNTED")
             elif classes.get(c) in ("counted", "project", "linkage"):
                 row = ("derived" if classes[c] == "counted" else "project",
-                       None, None, "RESOURCED")
-            elif c in replaced.get(t, ()):
-                row = (None, None, None, "rebuild")
-            elif "source_id" in cols:
-                row = ("row", None, "source_id", "source_id")
-            elif t in tp:
-                row = ("table", tp[t], None, "table_provenance")
+                       None, "RESOURCED")
             else:
-                row = (None, None, None, "unreached")
+                row = (None, None, "unreached")
             out.append((t, c) + row)
     return out
 

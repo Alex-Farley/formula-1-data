@@ -713,11 +713,13 @@ timing tables are out by name.
 command without `--diff` the set, table by table.
 
 `f1.db` holds the same declaration read column by column, as `column_origin`
-(`DA-30`, #622): for each column, where its values come from — each row's
-source, the table's, another column of the row, the claims, this project's
-writing or its own record, a count, or not established — and which part of
-the declaration settled it. A column whose values are not its row's source's
-never reads as that source's, which `verify.py` holds. It records origins,
+(`DA-30`, #622): for each column, where its values come from — another
+column of the row, the claims, the prose the prose pass labels, this
+project's own record, a count, or not established — and which part of the
+declaration settled it. A column the declaration does not reach is not
+established, whatever its row cites: the table never reads a row's
+`source_id` as the origin of its columns, and `verify.py` holds that from
+the declarations rather than from the derivation. It records origins,
 not terms, and the artefact does not carry it, because some of the columns it
 describes are rebuilt or left out there.
 
