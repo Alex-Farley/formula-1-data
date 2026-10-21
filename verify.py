@@ -5909,7 +5909,6 @@ def column_origin():
     reached = set()
     for t, cs in order.items():
         fks = {f[3]: f[2] for f in con.execute(f'PRAGMA foreign_key_list("{t}")')}
-        classes = fa.RESOURCED.get(t, {}).get("columns", {})
         own = fa.UNSOURCED.get(t, {}).get("own", [])
         for c in cs:
             name = f"{t}.{c}"
@@ -5918,8 +5917,7 @@ def column_origin():
                     or (c == "source" and "source_id" in cs)
                     or name in fa.UNGRANTED or (t, c) in _N.CLAIM_FIELDS
                     or c in fa.measured(t) or c in own or name in fa.granted()
-                    or name in fa.RECOUNTED or t in fa.RECOUNTED
-                    or classes.get(c) in ("counted", "project", "linkage")):
+                    or name in fa.RECOUNTED or t in fa.RECOUNTED):
                 reached.add((t, c))
     for t, (governs, first, last) in fa.SPANS.items():
         reached.add((t, governs))
@@ -5929,6 +5927,15 @@ def column_origin():
                        if o is not None and (t, c) not in reached)
     check("no column the declarations do not name has an origin",
           bool(reached) and not unfounded, ", ".join(unfounded[:6]))
+
+    # `derived` is what build.py counts in f1.db, which RECOUNTED names; a
+    # class that describes the artefact's rebuilt rows (RESOURCED) is not
+    # read for f1.db's.
+    counted = sorted(f"{t}.{c}" for (t, c), (o, _) in origin.items()
+                     if o == "derived" and f"{t}.{c}" not in fa.RECOUNTED
+                     and t not in fa.RECOUNTED)
+    check("every derived origin is a figure RECOUNTED names", not counted,
+          ", ".join(counted[:6]))
 
     # A `span` origin names a column of its own row.
     bad = sorted(f"{t}.{c}" for (t, c), (o, via) in origin.items()

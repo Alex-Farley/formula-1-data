@@ -245,9 +245,10 @@ CREATE TABLE column_origin (
     --              Wikipedia by the prose pass, in docs/prose_pass.tsv
     --              rather than here
     --   project    this project's own record: a citation, a confidence tier,
-    --              an identifier, a state, a classification, a link or its
-    --              account of itself
-    --   derived    counted by build.py from other rows of this database
+    --              an identifier, a state, a classification, a link, its own
+    --              writing outside the prose pass, or its account of itself
+    --   derived    built by build.py from other rows of this database: a
+    --              count, or a record build.py defines and finds in them
     --   NULL       not established
     origin          TEXT CHECK (origin IN ('span', 'claims', 'prose', 'project', 'derived')),
     -- Where the source is recorded, for `span` and `claims`: the column of
@@ -256,11 +257,11 @@ CREATE TABLE column_origin (
     -- Which part of the declaration settled it, by the name
     -- tools/facts_artefact.py origins() gives it, so a reader can find the
     -- reason: 'APPARATUS', 'citation', 'SPANS', 'UNGRANTED', 'CLAIM_FIELDS',
-    -- 'prose pass', 'UNSOURCED', 'RECOUNTED', 'RESOURCED', or 'unreached'
-    -- (none of it reaches the column).
+    -- 'prose pass', 'UNSOURCED', 'RECOUNTED', or 'unreached' (none of it
+    -- reaches the column).
     rule            TEXT NOT NULL CHECK (rule IN ('APPARATUS', 'citation', 'SPANS',
                         'UNGRANTED', 'CLAIM_FIELDS', 'prose pass', 'UNSOURCED',
-                        'RECOUNTED', 'RESOURCED', 'unreached')),
+                        'RECOUNTED', 'unreached')),
     PRIMARY KEY (tbl, col),
     CHECK ((origin IS NOT NULL AND origin IN ('span', 'claims')) = (via IS NOT NULL)),
     CHECK ((origin IS 'claims') = (via IS 'claims')),

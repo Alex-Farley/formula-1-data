@@ -144,8 +144,10 @@ Inside f1.db, the `column_origin` table says where each column's values come
 from, as far as tools/facts_artefact.py's declaration establishes it:
 another column of the same row, the claims, this project's text that the
 prose pass labels against Wikipedia, this project's own record (a citation,
-a confidence tier, an identifier, a classification or a link), a count
-build.py makes, or not established. It records origins only.
+a confidence tier, an identifier, a state, a classification, a link, its
+own writing outside the prose pass, or its account of itself), a figure
+build.py computes from other rows, or not established. It records origins
+only.
 The terms a source's values come under are the source registry's; the table
 grants nothing, and changes nothing above. It is not in f1-facts.db, some of
 whose columns are rebuilt or left out.

@@ -525,7 +525,7 @@ ORIGINS = ("span", "claims", "prose", "project", "derived")
 
 # The part of the declaration that settles a column, in the order tried.
 RULES = ("APPARATUS", "citation", "SPANS", "UNGRANTED", "CLAIM_FIELDS",
-         "prose pass", "UNSOURCED", "RECOUNTED", "RESOURCED", "unreached")
+         "prose pass", "UNSOURCED", "RECOUNTED", "unreached")
 
 
 def origins(con, decl=None):
@@ -551,9 +551,8 @@ def origins(con, decl=None):
                     as this project's own and the prose PM-47 granted, and
                     not established (NULL) for the rest, which no
                     field-grain source records
-      RECOUNTED     a figure build.py counts from other rows: derived
-      RESOURCED     a rebuilt table's columns classed as counted (derived),
-                    or as this project's classification or link (project)
+      RECOUNTED     a figure build.py counts from other rows, and the
+                    records build.py defines and runs on them: derived
       unreached     none of the above: NULL, not established
 
     There is no fallback to a row's source_id or a table's table_provenance
@@ -561,8 +560,12 @@ def origins(con, decl=None):
     not established). Those record where a row came from, and a column of
     it may be counted by build.py, be this project's link, or hold another
     source's values written over the row's, so a column none of the above
-    names is NULL, whatever its row cites. The upstream terms of a row's
-    values are the registry's, through the row's own source_id.
+    names is NULL, whatever its row cites. Nor is RESOURCED read: its
+    classes say what each column is on a row the artefact rebuilds from
+    F1DB, not on f1.db's rows, where a driver's entries, starts and points,
+    for one, are stored as a source gave them rather than counted. The
+    upstream terms of a row's values are the registry's, through the row's
+    own source_id.
     """
     decl = decl or declare(con)
     claim_fields = set(_N.CLAIM_FIELDS)
@@ -574,7 +577,6 @@ def origins(con, decl=None):
         if t in SPANS:
             governs, first, last = SPANS[t]
             span = cols[cols.index(first):cols.index(last) + 1]
-        classes = RESOURCED.get(t, {}).get("columns", {})
         for c in cols:
             name = f"{t}.{c}"
             if t in APPARATUS:
@@ -597,9 +599,6 @@ def origins(con, decl=None):
                 row = ("project" if own else None, None, "UNSOURCED")
             elif name in RECOUNTED or t in RECOUNTED:
                 row = ("derived", None, "RECOUNTED")
-            elif classes.get(c) in ("counted", "project", "linkage"):
-                row = ("derived" if classes[c] == "counted" else "project",
-                       None, "RESOURCED")
             else:
                 row = (None, None, "unreached")
             out.append((t, c) + row)
