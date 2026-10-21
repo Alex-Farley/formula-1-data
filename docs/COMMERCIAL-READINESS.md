@@ -712,6 +712,15 @@ timing tables are out by name.
 `python3 tools/facts_artefact.py --diff` lists every difference, and the
 command without `--diff` the set, table by table.
 
+`f1.db` holds the same declaration read column by column, as `column_origin`
+(`DA-30`, #622): for each column, where its values come from — each row's
+source, the table's, another column of the row, the claims, this project's
+writing or its own record, a count, or not established — and which part of
+the declaration settled it. A column whose values are not its row's source's
+never reads as that source's, which `verify.py` holds. It records origins,
+not terms, and the artefact does not carry it, because some of the columns it
+describes are rebuilt or left out there.
+
 ---
 
 ## Decided: the history before the split stands

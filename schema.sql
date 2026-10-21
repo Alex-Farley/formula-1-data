@@ -213,6 +213,61 @@ CREATE TABLE claims (
     UNIQUE (tbl, row_key, field, source_id)
 );
 
+-- Where each column of this database has its values from (DA-30).
+--
+-- source_id says where a ROW came from, and a row is not always the grain
+-- of its columns: a chassis is an F1DB row whose specification is the car's
+-- Wikipedia article, named in spec_source; a race entry's pole and fastest
+-- lap are not always from the source its row cites; a circuit's notes are
+-- prose the prose pass measures against Wikipedia, whatever its row cites.
+-- Derived from source_id alone, as first proposed, this table would have
+-- stated a false origin for about fifty columns (measured 2026-09-26). It
+-- is derived instead from tools/facts_artefact.py's declaration of the
+-- facts artefact (PD-53), column by column, and says nothing that
+-- derivation has not established: where it reaches no origin, `origin` is
+-- NULL - not established.
+--
+-- One row per column of every table here, this one included. build.py
+-- writes it in its last stage and verify.py derives it again and compares
+-- the whole table.
+--
+-- It records ORIGINS. It states no licence on which this project releases
+-- anything and grants nothing: the terms a source's values come under are
+-- source_registry's, reached through source_id - this table's, for a
+-- `table` origin, and each row's own, for a `row` origin.
+CREATE TABLE column_origin (
+    tbl             TEXT NOT NULL,
+    col             TEXT NOT NULL,
+    --   row        each row's own source_id cites it
+    --   table      table_provenance names one source for every row: source_id
+    --   span       a column of the same row names its source: `via`
+    --   claims     a claims row names the source, value by value
+    --   prose      written for this project; the prose pass labels each value
+    --              against Wikipedia, in docs/prose_pass.tsv rather than here
+    --   project    this project's own record: a citation, a confidence tier,
+    --              an identifier, a classification or its account of itself
+    --   derived    counted by build.py from other rows of this database
+    --   NULL       not established
+    origin          TEXT CHECK (origin IN ('row', 'table', 'span', 'claims', 'prose',
+                                           'project', 'derived')),
+    source_id       INTEGER REFERENCES source_registry(id),
+    -- Where the source is recorded, for `row`, `span` and `claims`: the
+    -- column of the same row ('source_id', 'spec_source'), or 'claims'.
+    via             TEXT,
+    -- Which part of the derivation settled it, by the name
+    -- tools/facts_artefact.py origins() gives it, so a reader can find the
+    -- reason: 'source_id', 'table_provenance', 'SPANS', 'CLAIM_FIELDS',
+    -- 'prose pass', 'UNGRANTED', 'UNSOURCED', 'RECOUNTED', 'RESOURCED',
+    -- 'citation', 'APPARATUS', 'rebuild' (a value rebuilt from F1DB for the
+    -- facts artefact even on a row citing a source it carries, so not
+    -- established as that source's) or 'unreached' (nothing in it reaches
+    -- the column).
+    rule            TEXT NOT NULL,
+    PRIMARY KEY (tbl, col),
+    CHECK ((origin IS 'table') = (source_id IS NOT NULL)),
+    CHECK ((origin IS NOT NULL AND origin IN ('row', 'span', 'claims')) = (via IS NOT NULL))
+);
+
 -- ------------------------------------------------------------- people
 CREATE TABLE drivers (
     id              TEXT PRIMARY KEY,          -- slug, e.g. 'juan-manuel-fangio'

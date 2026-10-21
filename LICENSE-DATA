@@ -140,6 +140,14 @@ carries.
 f1.db itself stays CC BY-SA 4.0 as above. Nothing share-alike is in
 f1-facts.db, so taking it takes none of f1.db's share-alike with it.
 
+Inside f1.db, the `column_origin` table says where each column's values come
+from, as tools/facts_artefact.py's declaration finds it: each row's cited
+source, one source for the whole table, another column of the same row, the
+claims, this project's writing, or not established. It records origins only.
+The terms a source's values come under are the source registry's; the table
+grants nothing, and changes nothing above. It is not in f1-facts.db, some of
+whose columns are rebuilt or left out.
+
 ## Attribution
 
 Car and circuit data in this repository, each race's winner, pole position and

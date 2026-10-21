@@ -192,6 +192,9 @@ def main():
         # Without these the registry names sources nothing can be traced to.
         "source_patterns": dump(con, "source_patterns", "id"),
         "table_provenance": dump(con, "table_provenance", "tbl"),
+        # Where each column has its values from (DA-30), where source_id
+        # and table_provenance say it of rows and tables.
+        "column_origin": dump(con, "column_origin", "tbl, col"),
         # What each source gave for one fact of one row (PM-14): the
         # field-grain half of provenance, where the rows' own source_id is
         # the row-grain half.
