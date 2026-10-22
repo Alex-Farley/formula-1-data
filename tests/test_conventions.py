@@ -853,6 +853,21 @@ class TheZenodoDepositSaysWhatTheCitationSays(unittest.TestCase):
             self.assertIn(named, notes,
                           f".zenodo.json's notes do not name {named}, so the deposit marked "
                           "Other (Attribution) no longer says what the terms are")
+        # The OpenStreetMap centrelines are in the deposit twice: the harvest
+        # f1-geometry.db is built from, and the database itself. Both sit in
+        # the ODbL bullet, and the harvest in the CC BY-SA one only as its
+        # exception.
+        bullets = re.findall(r"<li>(.*?)</li>", notes)
+        odbl = [b for b in bullets if "ODbL 1.0" in b]
+        by_sa = [b for b in bullets if "CC BY-SA 4.0" in b]
+        self.assertEqual(len(odbl), 1, ".zenodo.json's notes have no single ODbL bullet")
+        self.assertEqual(len(by_sa), 1, ".zenodo.json's notes have no single CC BY-SA bullet")
+        for named in ("harvest/circuit_geometry.txt", "f1-geometry.db"):
+            self.assertIn(named, odbl[0],
+                          f".zenodo.json's notes do not put {named} under ODbL 1.0")
+        self.assertIn("harvest/ except harvest/circuit_geometry.txt", by_sa[0],
+                      ".zenodo.json's notes do not carve the OpenStreetMap centrelines "
+                      "out of harvest/'s CC BY-SA 4.0")
 
 
 class NoLineOpensOnAFigureSpan(unittest.TestCase):
