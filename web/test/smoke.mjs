@@ -1290,7 +1290,9 @@ try {
     const { lo, hi } = db.prepare('SELECT MIN(year) AS lo, MAX(year) AS hi FROM seasons').get()
     const expected = `${lo}–${hi} · every championship race`
     const strap = (n) => n.textContent
-    await go('/circuits', 'Circuits')
+    // Read where the shared page already is, without go(): the masthead is
+    // the same on every route, and the section after this one reads the
+    // overview's tiles off whatever page it finds.
     is(await page.$eval('#root .wordmark > span > span', strap), expected, "the app's masthead states the span the register holds")
     const noJs = await browser.newContext({ javaScriptEnabled: false })
     const plain = await noJs.newPage()
