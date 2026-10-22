@@ -102,7 +102,15 @@ jobs:
           ./actionlint -color
 
   check:
-    runs-on: ubuntu-latest
+    # PINNED, not `ubuntu-latest`, and only this job: the matrix holds the
+    # 3.9 floor README.md promises, and `actions/setup-python` has no 3.9 for
+    # Ubuntu 26.04, which `ubuntu-latest` resolved to for this repository's
+    # runs from 2026-10-22. `check (3.9)` then failed at its setup step,
+    # before any of the repository's code ran, and fail-fast cancelled
+    # `check (3.12)` with it (PM-79). Both versions run on the one image.
+    # The pin comes off when the floor is raised, which is the maintainer's
+    # decision, or has to move when GitHub retires this image.
+    runs-on: ubuntu-24.04
     # The build and every check run in well under a minute. A cap this far
     # above that never trips on a slow runner, and turns a hang into a failure
     # in minutes rather than letting it hold a runner for the default six
