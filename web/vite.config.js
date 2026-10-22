@@ -1,8 +1,9 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { everyPath } from './scripts/headers.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -53,6 +54,28 @@ const cloudflareHtmlHandling = () => ({
 
   configurePreviewServer(server) {
     const dist = join(here, 'dist')
+
+    /*
+     * The headers the host gives every path, read out of the _headers file
+     * the host is given (AF-76), since sirv reads no such file. The content
+     * security policy is served ENFORCED here where the host only reports
+     * it: a refusal in preview breaks what it refuses, so the smoke test
+     * fails on it rather than logging a warning nobody reads.
+     * scripts/headers.js says why the host reports for now. The per-path
+     * rules (cache, content types, the API's CORS) stay the host's.
+     */
+    const headersFile = join(dist, '_headers')
+    const everywhere = existsSync(headersFile)
+      ? everyPath(readFileSync(headersFile, 'utf8')).map(([name, value]) => [
+          name.replace(/^Content-Security-Policy-Report-Only$/i, 'Content-Security-Policy'),
+          value,
+        ])
+      : []
+    server.middlewares.use((_req, res, next) => {
+      for (const [name, value] of everywhere) res.setHeader(name, value)
+      next()
+    })
+
     server.middlewares.use((req, _res, next) => {
       const [pathname, search = ''] = (req.url ?? '/').split('?')
       if (req.method === 'GET' && pathname !== '/' && !pathname.endsWith('/') && !extname(pathname)) {
