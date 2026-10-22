@@ -84,6 +84,7 @@ here is a number the build checked.
 | `tools/parquet_export.py` | Writes every table as Parquet for the release bundle, with a `README.txt` stating its terms. Refuses a database carrying FOM timing, ODbL geometry or a row a local loader wrote. |
 | `tools/geometry_overlay.py` | Merges `f1-geometry.db` into a local `f1.db` (`--apply`) or takes it out again (`--remove`). |
 | `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
+| `docs/README.md` | What each file in `docs/` is for, and whether it is current. |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
 | `docs/LOCAL-SETUP.md` | Getting `/backlog-loop` running on your own machine, from nothing. |
