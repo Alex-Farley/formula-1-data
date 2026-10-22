@@ -219,7 +219,7 @@ publish something it may not, and it is closed (`PM-27`, #83): the fetch
 tool reads F1DB's licence file and stops when it is not the deed classified
 in `SOURCE_LICENCE`, so the refresh fails at the fetch and commits nothing.
 
-Which text governs is settled by the same reading (`PM-61`, #680). F1DB's
+Which F1DB text governs has been read too (`PM-61`, #680). F1DB's
 README, at v2026.14.0 (1e000821) and still at v2026.17.0 (3c980fd5),
 defines a link labelled `CC BY Plaintext` that points to the CC BY-SA 4.0
 legal code. The README never uses it: its licence statement says CC BY 4.0
