@@ -1561,20 +1561,44 @@ const outlineStrip = (year, calendar) => {
     .join('')}</ol><p class="faint outline-strip-note">${esc(OUTLINE_RULE)} ${esc(OUTLINE_BY)}.</p></div>`
 }
 
-/** A sentence trimmed to something a search result will not cut mid-word. */
-const summarise = (value, limit = 160) => {
+/**
+ * A sentence trimmed to something a search result will not cut mid-word.
+ *
+ * DESCRIPTION_LIMIT is about what a results page prints of a description
+ * before it cuts the rest off itself (CD-11). The entity pages' descriptions
+ * used to be summarised to 300, which left 509 of them longer than this, and
+ * where one was cut was the engine's choice rather than a sentence end.
+ */
+const DESCRIPTION_LIMIT = 155
+const summarise = (value, limit = DESCRIPTION_LIMIT) => {
   const flat = String(value ?? '').replace(/\s+/g, ' ').trim()
   if (flat.length <= limit) return flat
   // Cut at the last sentence end that fits, so a description never breaks
   // off mid-thought - Chris Amon's used to end on "Widely held to be the fi…".
-  // A word boundary with an ellipsis is the fallback, for a single sentence
-  // longer than half the room.
+  // A short whole sentence is kept over a longer cut one: the cut used to
+  // wait for half the room, which at this limit ended a record's description
+  // on "so a…". A word boundary with an ellipsis is the fallback, for a first
+  // sentence longer than the room.
   const sentence = flat.lastIndexOf('. ', limit - 1)
-  if (sentence >= limit / 2) return flat.slice(0, sentence + 1)
+  if (sentence > 0) return flat.slice(0, sentence + 1)
   return `${flat.slice(0, flat.lastIndexOf(' ', limit - 1))}…`
 }
 
 const list = (values) => values.filter(Boolean).join(', ')
+
+/**
+ * Whether a chassis name already names the team that built it (CD-11):
+ * "Haas VF-26" of Haas F1 Team, "Kick Sauber C45" of Sauber. Most of the
+ * register's descriptions read "Ferrari SF-26, entered by Ferrari", which
+ * says the name twice and calls the maker the entrant; one whose name does not
+ * say who built it - "Alfa Romeo C43" of Sauber - still does.
+ */
+const nameWords = (value) => String(value ?? '').toLowerCase().split(/[\s/]+/).filter(Boolean)
+const namesItsMaker = (name, maker) => {
+  const [first] = nameWords(name)
+  const [makerFirst] = nameWords(maker)
+  return nameWords(maker).includes(first) || nameWords(name).includes(makerFirst)
+}
 
 /**
  * A recorded source disagreement, rendered beside the fact it is about.
@@ -2861,7 +2885,7 @@ const page = ({
       path: `races/${r.year}/${r.round}`,
       lastmod: r.date_iso,
       title: NAMES.race(r.year, r.name_used).title,
-      description: summarise(description, 300),
+      description: summarise(description),
       trail: TRAIL.race(r.year, r.round, r.name_used),
       onward: ONWARD.race({ race: r, year: r.year, winners: raceWinners, neighbours }),
       sources: all(RACE_SOURCES, r.year, r.round),
@@ -3159,14 +3183,17 @@ const page = ({
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
     // cut mid-thought with an ellipsis, and the career alone is complete.
+    // The career is never the part cut: where name and career together run
+    // past the limit, the cut would leave "Will Stevens, United Kingdom." and
+    // nothing else, so they stand whole, longer than the limit (CD-11).
     const lead = `${d.full_name}${d.nationality ? `, ${d.nationality}` : ''}. ${career}`
-    const withNotes = summarise(`${lead} ${d.notes ?? ''}`, 300)
+    const withNotes = summarise(`${lead} ${d.notes ?? ''}`)
 
     page({
       path: `drivers/${d.id}`,
       lastmod: LAST_RUN.driver.get(d.id),
       title: NAMES.driver(d.full_name).title,
-      description: withNotes.endsWith('…') ? lead : withNotes,
+      description: withNotes.length < lead.length ? lead : withNotes,
       trail: TRAIL.driver(d.id, d.full_name),
       onward: ONWARD.driver({ results, bySeason }),
       sources: all(DRIVER_SOURCES, d.id),
@@ -3345,9 +3372,15 @@ page({
     // its own id: rob-walker has none, its wins being credited to Cooper and
     // Lotus, so a count of zero would be a figure nobody established. Joined,
     // so a team with neither figure gets no stray ". ." in its description.
+    // A team that never won says so in words rather than as "0 wins" (CD-11),
+    // over the championship races it entered: a SUM that is NULL is a team
+    // whose every entry went unclassified, and every race with entries has
+    // one at finish_position 1, so it too is a team that never won.
     const teamFigures = [
       teamDerived.entries > 0
-        ? `${formatted(teamDerived.wins ?? 0)} ${teamDerived.wins === 1 ? 'win' : 'wins'}`
+        ? teamDerived.wins > 0
+          ? `${formatted(teamDerived.wins)} ${teamDerived.wins === 1 ? 'win' : 'wins'}`
+          : `No win in ${formatted(teamDerived.races)} championship ${teamDerived.races === 1 ? 'race' : 'races'} entered`
         : '',
       c.constructors_titles
         ? `${c.constructors_titles} constructors' ${c.constructors_titles === 1 ? 'title' : 'titles'}`
@@ -3364,7 +3397,6 @@ page({
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${yearRun(c.first_entry, c.last_entry, 'present')}. ${
           teamFigures ? `${teamFigures}. ` : ''
         }${c.notes ?? ''}`,
-        300,
       ),
       trail: TRAIL.constructor(c.id, c.name),
       onward: ONWARD.constructor({ constructor: c, designs, bySeason: teamBySeason }),
@@ -3526,7 +3558,6 @@ page({
         }${c.turns ? `, ${c.turns} turns` : ''}${c.gp_count ? `, ${c.gp_count} championship Grands Prix` : ''}${
           c.first_gp ? ` from ${c.first_gp}` : ''
         }. ${c.characteristics ?? ''}`,
-        300,
       ),
       trail: TRAIL.circuit(c.id, c.name),
       onward: ONWARD.circuit({ races: racesHere, winners: winnersHere }),
@@ -3657,7 +3688,6 @@ page({
         `The ${gp.name}: ${gp.held} ${gp.held === 1 ? 'edition' : 'editions'} run${
           gp.first_held ? `, ${span(gp.first_held, gp.last_held)}` : ''
         }, at ${gp.circuits} ${gp.circuits === 1 ? 'circuit' : 'circuits'}. ${gp.notes ?? ''}`,
-        300,
       ),
       trail: TRAIL.grandPrix(id, gp.name),
       onward: ONWARD.grandPrix({ editions, winners }),
@@ -3891,23 +3921,23 @@ page({
     // describes its curated row.
     const row = one(CAR_ROW, c.id, c.id)
     const facts = wholeOfOneChassis(row) ? carFacts(variants[0], row) : c
+    const run = carRecord(variants, carEntries).raced
     page({
       path: `cars/${at}`,
       canonical: at === c.id ? null : `cars/${c.id}`,
       lastmod: LAST_RUN.car.get(at),
       sources: all(CAR_SOURCES, at),
-      title: NAMES.car(name).title,
+      title: NAMES.car(name, ...run).title,
       image: photos.image,
       description: summarise(
         `${name}, ${yearRun(c.from_year, c.to_year)}${facts.engine_name ? `, ${facts.engine_name}` : ''}${
           facts.designers ? `, designed by ${facts.designers}` : ''
         }. ${c.concept ?? c.story ?? ''}`,
-        300,
       ),
       trail: TRAIL.car(at, name),
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
-        ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced), title: NAMES.car(name).headline, lede: c.story })}
+        ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...run), title: NAMES.car(name).headline, lede: c.story })}
         ${carBody({ id: c.id, at, variants, car: row, entries: carEntries, photos })}`,
     })
   }
@@ -3939,26 +3969,26 @@ page({
     // A chassis that is the whole of a curated car is a copy of the car's
     // page, and says so (IA-06); queries/car.js holds the rule for both halves.
     const address = carAddress(ch.id, carRow)
+    const run = carRecord(variants, carEntries).raced
 
     page({
       path: `cars/${ch.id}`,
       canonical: address.slice(1),
       lastmod: LAST_RUN.car.get(ch.id),
       sources: all(CAR_SOURCES, ch.id),
-      title: NAMES.car(name).title,
+      title: NAMES.car(name, ...run).title,
       image: photos.image,
       description: summarise(
-        `${name}, ${constructor ? `entered by ${constructor}, ` : ''}${years}. ` +
+        `${name}, ${constructor && !namesItsMaker(name, constructor) ? `built by ${constructor}, ` : ''}${years}. ` +
           `${entries.length ? `${entries.length} championship ${entries.length === 1 ? 'entry' : 'entries'}` : 'No championship entry recorded'}` +
           `${ch.wins ? `, ${ch.wins} ${ch.wins === 1 ? 'win' : 'wins'}` : ''}` +
           `${ch.engine_name ? `. ${ch.engine_name} engine` : ''}.`,
-        300,
       ),
       trail: TRAIL.car(ch.id, name),
       onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
         ${opening({
-          eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced),
+          eyebrow: EYEBROWS.car(variants[0]?.constructor, ...run),
           title: NAMES.car(name).headline,
           // The design's story, where the chassis is one of a curated family:
           // Car.jsx reads the car behind a chassis as well as the car of its
@@ -4137,7 +4167,7 @@ page({
     page({
       path: recordPath(record),
       title: NAMES.record(record.record).title,
-      description: summarise(`${record.record}: ${record.holder}, ${record.value}. ${record.detail}`, 300),
+      description: summarise(`${record.record}: ${record.holder}, ${record.value}. ${record.detail}`),
       trail: TRAIL.record(record.key, record.record),
       onward: ONWARD.record({ record, holder }),
       body: `

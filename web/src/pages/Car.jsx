@@ -153,6 +153,7 @@ function CarBody({ id, chassis, variants, data }) {
     <Page
       eyebrow={EYEBROWS.car(chassis.constructor, raced[0], raced[1])}
       title={NAMES.car(name).headline}
+      documentName={NAMES.car(name, raced[0], raced[1]).title}
       trail={TRAIL.car(chassis.id, name)}
       canonical={carAddress(id, car)}
       lede={car?.story}

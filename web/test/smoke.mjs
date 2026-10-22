@@ -42,7 +42,7 @@
  */
 import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import {
   CHASSIS_NOTE,
@@ -8308,6 +8308,51 @@ try {
     } else {
       for (const { file } of naked.slice(0, 5)) fail(`no og:image: ${relative(distDir, file)}`)
       if (naked.length > 5) fail(`…and ${naked.length - 5} more pages with no og:image`)
+    }
+
+    /*
+     * What a search result prints of an entity page (CD-11). Its description
+     * is cut at a sentence end to what a results page shows, so none runs
+     * past 155 characters - a driver's is the one exception, its name and
+     * career standing whole where together they run longer, and it is not
+     * walked here; a constructor that never won says so in words rather than
+     * "0 wins"; a chassis is "built by" its maker, never "entered by" it, and
+     * only where its name does not already say who; and a car's title
+     * carries the span its eyebrow gives.
+     */
+    const SEARCH_LIMIT = 155
+    const ENTITY_KINDS = new Set(['cars', 'circuits', 'constructors', 'grands-prix', 'races', 'records'])
+    const described = { pages: 0, long: [], zero: [], entered: [], noWin: 0, builtBy: 0, cars: 0, spanless: [] }
+    for (const file of served) {
+      const parts = relative(distDir, dirname(file)).split(sep)
+      if (parts.length < 2 || !ENTITY_KINDS.has(parts[0])) continue
+      const html = readFileSync(file, 'utf8')
+      if (/name="robots" content="noindex"/.test(html)) continue
+      const route = `/${parts.join('/')}`
+      const description = unescaped(/<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '')
+      described.pages += 1
+      if (description.length > SEARCH_LIMIT) described.long.push(`${route} (${description.length})`)
+      if (/\b0 wins\b/.test(description)) described.zero.push(route)
+      if (/\bentered by\b/.test(description)) described.entered.push(route)
+      if (description.includes('. No win in ')) described.noWin += 1
+      if (description.includes(', built by ')) described.builtBy += 1
+      if (parts[0] === 'cars') {
+        described.cars += 1
+        const eyebrow = unescaped(/<p class="eyebrow">([^<]*)<\/p>/.exec(html)?.[1] ?? '').split(' · ').at(-1)
+        const title = unescaped(/<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '')
+        if (/^\d{4}/.test(eyebrow) && !title.includes(`(${eyebrow}) — `)) described.spanless.push(`${route}: ${title}`)
+      }
+    }
+    atLeast(described.pages, 2500, 'indexable entity pages whose description was read')
+    atLeast(described.noWin, 1, 'constructors whose description says they never won')
+    atLeast(described.builtBy, 1, 'chassis whose description names a maker their name does not')
+    for (const [list, what] of [
+      [described.long, `entity page descriptions run past ${SEARCH_LIMIT} characters`],
+      [described.zero, 'entity page descriptions read "0 wins"'],
+      [described.entered, 'entity page descriptions say a chassis was "entered by" its constructor'],
+      [described.spanless, `car page titles, of ${described.cars}, lack the span their eyebrow gives`],
+    ]) {
+      truthy(list.length === 0, `no ${what}${list.length ? ` — ${list.length}: ${list.slice(0, 5).join(', ')}` : ''}`)
     }
 
     /*
