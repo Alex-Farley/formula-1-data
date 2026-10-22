@@ -1282,6 +1282,25 @@ try {
   // D-48: the database as static JSON, one file per thing, written at build
   // time from the same f1.db. Every figure here is read out of the database,
   // so the files are held to it rather than to a number typed in the test.
+  await section('The masthead span  (both renderers, off the season register: SD-12)', async () => {
+    // The app's half was typed, and the static half derived, so the two agreed
+    // only until the next season was registered. Both now read the register:
+    // the app through the manifest's meta.coverage_seasons, the static page
+    // through its own query.
+    const { lo, hi } = db.prepare('SELECT MIN(year) AS lo, MAX(year) AS hi FROM seasons').get()
+    const expected = `${lo}–${hi} · every championship race`
+    const strap = (n) => n.textContent
+    // Read where the shared page already is, without go(): the masthead is
+    // the same on every route, and the section after this one reads the
+    // overview's tiles off whatever page it finds.
+    is(await page.$eval('#root .wordmark > span > span', strap), expected, "the app's masthead states the span the register holds")
+    const noJs = await browser.newContext({ javaScriptEnabled: false })
+    const plain = await noJs.newPage()
+    await plain.goto(`${BASE}/circuits`, { waitUntil: 'load' })
+    is(await plain.$eval('#prerendered .wordmark > span > span', strap), expected, "and so does the static page's")
+    await noJs.close()
+  })
+
   await section('The JSON API  (/api/v1)', async () => {
     const get = async (path) => {
       const response = await fetch(`${BASE}/api/v1/${path}`)
