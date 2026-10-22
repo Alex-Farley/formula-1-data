@@ -198,6 +198,12 @@ function Body({ data }) {
   const titles = rows(data, 'titles')
   const decades = rows(data, 'decades')
   const poleToWin = rows(data, 'poleToWin')
+  // The seasons the chart draws: a season that has run no race has no
+  // percentage, so its label is the plotted span, not the register's.
+  const wonFromPole = poleToWin
+    .filter((r) => r.races > 0)
+    .map((r) => ({ x: r.year, y: Math.round((r.pole_converted / r.races) * 1000) / 10 }))
+  const plotted = wonFromPole.length > 0 ? `, ${wonFromPole[0].x} to ${wonFromPole.at(-1).x}` : ''
   const grandSlams = rows(data, 'grandSlams')
 
   const decadeOptions = decadesOf(decades)
@@ -412,15 +418,13 @@ function Body({ data }) {
             series={[
               {
                 name: 'Won from pole',
-                points: poleToWin
-                  .filter((r) => r.races > 0)
-                  .map((r) => ({ x: r.year, y: Math.round((r.pole_converted / r.races) * 1000) / 10 })),
+                points: wonFromPole,
               },
             ]}
             format={(v) => `${v}%`}
             formatX={(v) => String(Math.round(v))}
             height={230}
-            label="Percentage of races each season won from pole position, 1950 to 2026"
+            label={`Percentage of races each season won from pole position${plotted}`}
           />
         </Figure>
       </Section>

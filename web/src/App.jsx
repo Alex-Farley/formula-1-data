@@ -8,6 +8,7 @@ import { Result } from './components/States.jsx'
 import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
 import { useQuery } from './data/useQuery.js'
+import { coverageYears, span } from './lib/format.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
 import { CHECKED_LABEL, LAST_CHECKED } from './lib/refresh.js'
 import {
@@ -60,6 +61,11 @@ const NAV = [
 ]
 
 function Wordmark() {
+  // The span is the database's, from the manifest: Boot draws Chrome only
+  // once the database is open, so the manifest is always in hand here, and
+  // scripts/prerender.js reads the same register for the static masthead.
+  // It was typed, and went stale a season at a time (SD-12).
+  const years = coverageYears(currentProgress().manifest?.coverage)
   return (
     <Link to="/" className="wordmark">
       {/* A chequered field, four by four, cropped to the panel with no
@@ -81,7 +87,7 @@ function Wordmark() {
       </svg>
       <span>
         <b>Lap Ledger</b>
-        <span>1950–2027 · every championship race</span>
+        <span>{span(years?.from, years?.to)} · every championship race</span>
       </span>
     </Link>
   )

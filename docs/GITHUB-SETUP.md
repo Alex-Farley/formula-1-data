@@ -80,11 +80,20 @@ Formula One Management's data, it is large, and it is meant to be loaded
 locally. Those tables are empty in a fresh build, so rebuilding before you
 commit is enough to keep them out.
 
-## Suggested repository description
+## Repository description
 
-> A normalised, queryable SQLite database of Formula One 1950–2026 — every
-> race winner, pole and fastest lap, every circuit, 29 landmark cars — built
-> from readable source modules and checked by its integrity tests.
+> Formula One since 1950 as one SQLite database: every championship race,
+> entry, qualifying session and standings table, cross-checked against
+> independent sources on every build, with every disagreement on the record.
+> Browse it at lapledger.org.
+
+It names the first season and no last one, on purpose. Nothing rebuilds the
+description, so an end year in it goes stale the day a season is added: it
+read 1950–2026 here and on GitHub after the database, the site and the README
+had all moved to 1950–2027 (SD-12). Those three are derived from the season
+register on every build — `meta.coverage_seasons`, which `verify.py` holds to
+it, is the database's own statement of the span. Set the description with
+`gh repo edit --description "..."`.
 
 Topics: `formula1`, `f1`, `motorsport`, `sqlite`, `dataset`, `open-data`,
 `sports-data`.
