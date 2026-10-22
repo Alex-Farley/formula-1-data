@@ -1,0 +1,19 @@
+{
+  "upload_type": "dataset",
+  "title": "Lap Ledger: a verified SQLite database of Formula One",
+  "creators": [
+    {
+      "name": "Farley, Alex"
+    }
+  ],
+  "description": "A normalised SQLite database of Formula One — championships, races, finishing orders, drivers, constructors, circuits, chassis and engines — built from public sources by a dependency-free Python build and gated by cross-checks that refuse a fact they cannot reconcile. The database is a pure function of its sources: it rebuilds byte-for-byte, so a published digest identifies exactly one file. Where two sources disagree the difference is published rather than reconciled, and where nobody has established a fact it is recorded as a gap instead of being invented. Race timing is deliberately absent — no licence on offer permits passing it on — which is about race timing rather than lap times, and about the licences available rather than about what anyone may lawfully do. The terms each part is offered under are in LICENSE, LICENSE-DATA and ATTRIBUTION.md; the circuit centrelines are a separate file under a separate licence.",
+  "license": "other-at",
+  "notes": "<p><strong>Licences.</strong> This deposit is the repository at a release tag, and the parts of it are offered under different terms. Zenodo's licence field holds one licence, and naming any one of these would offer the whole deposit under it, so it is marked Other (Attribution) and the terms are listed here, as LICENSE, LICENSE-DATA and ATTRIBUTION.md in the deposit state them:</p><ul><li><strong>The code</strong> (build.py, verify.py, audit.py, export_json.py, f1, tools/, schema.sql, harvest/append.py, and the CI, Makefile and packaging files): MIT, under LICENSE.</li><li><strong>The data</strong> (data/, harvest/ except harvest/circuit_geometry.txt, f1.db and f1_compat.json): CC BY-SA 4.0, under LICENSE-DATA, because it holds prose taken from or closely following Wikipedia articles; except the columns of this project's own writing that LICENSE-DATA names, which are CC BY 4.0.</li><li><strong>The circuit centrelines</strong> (harvest/circuit_geometry.txt, and f1-geometry.db, which is built from it): ODbL 1.0, © OpenStreetMap contributors. f1.db holds none of them.</li><li><strong>f1-facts.db</strong>, which is not in this deposit but published as a release asset beside f1.db: CC BY 4.0 whole.</li></ul><p>The credit the data carries is the <em>Attribution text</em> in ATTRIBUTION.md, which also records the source of every part of the data.</p>",
+  "keywords": [
+    "Formula One",
+    "motorsport",
+    "open data",
+    "SQLite",
+    "sports statistics"
+  ]
+}
