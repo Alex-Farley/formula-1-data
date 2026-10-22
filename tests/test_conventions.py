@@ -832,6 +832,10 @@ class TheZenodoDepositSaysWhatTheCitationSays(unittest.TestCase):
             elif m:
                 authors.append(f"{family}, {m.group(2)}")
         self.assertTrue(authors, "CITATION.cff names no author by family and given name")
+        self.assertEqual(sum(line.startswith("- ") for line in self.cff_block("authors")),
+                         len(authors),
+                         "CITATION.cff has an author not named by family and given name, "
+                         "which this check would pass over")
         self.assertEqual([c.get("name") for c in self.deposit().get("creators", [])], authors,
                          ".zenodo.json's creators are not CITATION.cff's authors")
 
@@ -844,7 +848,8 @@ class TheZenodoDepositSaysWhatTheCitationSays(unittest.TestCase):
                          "under it, and leaving the field out lets Zenodo fill it in")
         notes = doc.get("notes", "")
         for named in ("MIT", "CC BY-SA 4.0", "CC BY 4.0", "ODbL 1.0", "LICENSE,",
-                      "LICENSE-DATA", "ATTRIBUTION.md", "f1-geometry.db", "f1-facts.db"):
+                      "LICENSE-DATA", "ATTRIBUTION.md", "f1-geometry.db", "f1-facts.db",
+                      "harvest/circuit_geometry.txt"):
             self.assertIn(named, notes,
                           f".zenodo.json's notes do not name {named}, so the deposit marked "
                           "Other (Attribution) no longer says what the terms are")
