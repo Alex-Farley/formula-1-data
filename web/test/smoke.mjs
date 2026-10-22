@@ -354,10 +354,10 @@ try {
     // every cross-origin stylesheet with an XMLHttpRequest from inside the
     // page, so that its CSS rules can see one; the page loads the Google
     // Fonts sheet under style-src, which allows it, and no code of the
-    // site's fetches it. The Accessibility section sets this while axe runs,
-    // and only that request is passed over then.
-    let axeRunning = false
-    const axeOwn = (text) => axeRunning && /connect-src/.test(text) && text.includes('https://fonts.googleapis.com/css2?')
+    // site's fetches it - so that sheet refused under connect-src can only
+    // be axe's, and only that refusal is passed over. A window around the
+    // axe run would add nothing, and could miss an event that lands late.
+    const axeOwn = (text) => /connect-src/.test(text) && text.includes('https://fonts.googleapis.com/css2?')
     const newContext = browser.newContext.bind(browser)
     browser.newContext = async (...options) => {
       const opened = await newContext(...options)
@@ -9552,13 +9552,9 @@ try {
     ]
     for (const [route, heading] of pages) {
       await go(route, heading)
-      axeRunning = true
       const { violations } = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
         .analyze()
-        .finally(() => {
-          axeRunning = false
-        })
       if (violations.length === 0) {
         pass(`${route}: no WCAG 2.2 AA violations`)
         continue

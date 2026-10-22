@@ -21,6 +21,10 @@
  *     things a preview server never sees. Enforcing is then a one-word change
  *     to POLICY_HEADER.
  *
+ *     Only the policy waits. nosniff, Referrer-Policy and X-Frame-Options are
+ *     enforced on the host from AF-76 on, because none of them depends on
+ *     anything the smoke test cannot see.
+ *
  * What each source is for, so that nothing here outlives its reason:
  *
  *   'wasm-unsafe-eval'   sql.js compiling its wasm, in the worker

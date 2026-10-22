@@ -1538,11 +1538,12 @@ describe('what the pages send, and to whom (PD-0)', () => {
     const loads = Object.entries(HOSTS).filter(([, [use]]) => use === 'load').map(([host]) => host)
     assert.deepEqual(Object.keys(governs).sort(), loads.sort(), 'a load host has no directive named for it here')
     for (const [host, name] of Object.entries(governs)) assert.ok(allows(name, host), `${name} does not allow ${host}`)
-    // And no other origin under script-src: the one a missed escape would use.
+    // And no other source under script-src but quoted keywords and hashes:
+    // a host, a scheme or a wildcard is what a missed escape would use.
     assert.deepEqual(
-      directive('script-src').filter((source) => source.startsWith('https:')),
+      directive('script-src').filter((source) => !/^'.*'$/.test(source)),
       [BEACON_ORIGIN],
-      'script-src allows an origin other than the beacon',
+      'script-src allows a source other than the beacon and quoted keywords',
     )
   })
 
