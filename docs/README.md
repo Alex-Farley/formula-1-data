@@ -6,7 +6,7 @@ nothing here is needed to query the database.
 
 | File | What it is | Status |
 |---|---|---|
-| `ANNOUNCEMENT-DRAFT.md` | Drafts of the first release notes and announcement post, for the maintainer. | Draft: nothing in it has been published. |
+| `ANNOUNCEMENT-DRAFT.md` | Drafts of the next release's notes and the first announcement post, for the maintainer. | Draft: nothing in it has been published. |
 | `BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. Newest first. | Current, but written by hand, so its newest entry can lag the latest release. |
 | `COMMERCIAL-READINESS.md` | Which rows this project may publish, and the licence reading that rests on. | Current; `verify.py` checks every count it marks as a figure. |
 | `DECISIONS.md` | The full reason behind each `[D-nn]` rule in `CLAUDE.md`, `CONTRIBUTING.md` and the loop's skills. | Current. Nothing is deleted; a reversed decision says so. |
