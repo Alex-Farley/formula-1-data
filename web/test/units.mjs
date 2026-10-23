@@ -172,11 +172,14 @@ import {
   TO_COME,
   circuitOutlinesNote,
   layoutFacts,
+  layoutRaced,
   layoutTimeline,
   layoutsCount,
   leadOutline,
   outlineCaption,
   outlineFigures,
+  RACE_LAYOUT_NOTE,
+  raceLayoutNote,
   roundShortName,
   roundStates,
   timelineName,
@@ -1504,6 +1507,28 @@ describe('the circuit outlines (AF-03)', () => {
     assert.equal(unnamed(2008, 2012), `${NO_TIMELINE_ROW}, 2008–2012`)
     assert.notEqual(unnamed(2008, 2012), unnamed(2013, 2014))
     assert.equal(timelineName({ layout: row, outline: null }), 'Grand Prix circuit')
+  })
+  it("prints a race's layout with the register's figures, and says whose they are only beside F1DB's (AF-07)", () => {
+    const race = {
+      layout_name: 'Original long circuit',
+      layout_km: 7.96,
+      layout_turns: 26,
+      outline: 'M0 0',
+      outline_km: 7.873,
+      outline_turns: 26,
+    }
+    assert.equal(layoutRaced(race), 'Original long circuit · 7.96 km · 26 turns')
+    // A figure the register does not hold is left out, never printed as 0.
+    assert.equal(layoutRaced({ ...race, layout_turns: null }), 'Original long circuit · 7.96 km')
+    assert.equal(layoutRaced({ ...race, layout_km: null, layout_turns: null }), 'Original long circuit')
+    assert.equal(layoutRaced({ ...race, layout_name: null }), null)
+    assert.equal(raceLayoutNote(race), RACE_LAYOUT_NOTE)
+    // No note where one side has no figures to set against the other's.
+    assert.equal(raceLayoutNote({ ...race, outline: null }), null)
+    assert.equal(raceLayoutNote({ ...race, outline_km: null, outline_turns: null }), null)
+    assert.equal(raceLayoutNote({ ...race, layout_name: null, layout_km: null, layout_turns: null }), null)
+    // A length of 0 is a figure, not a missing one.
+    assert.equal(layoutRaced({ ...race, layout_km: 0, layout_turns: null }), 'Original long circuit · 0 km')
   })
   it("folds a circuit's timeline and its outlines into one list, and hides neither side's gaps (IX-32)", () => {
     const layout = (id, from, drawn) => ({ id, from_year: from, f1db_layout_id: drawn })

@@ -124,7 +124,7 @@ import {
   leadersDrawn,
   recordFamilies,
 } from '../src/queries/records.js'
-import { NO_DRAWING, NO_TIMELINE_ROW, OUTLINE_RULE } from '../src/lib/outline.js'
+import { LAYOUT_RACED, NO_DRAWING, NO_LAYOUT_RECORDED, NO_TIMELINE_ROW, OUTLINE_RULE, RACE_LAYOUT_NOTE } from '../src/lib/outline.js'
 import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -3195,6 +3195,73 @@ try {
       is(titles.some((t) => t.startsWith(RACE_PHOTOGRAPHS_TITLE)), false, `/races/${none.year}/${none.round} has none of its own, and claims none`)
       is(titles.some((t) => t.startsWith(RACE_CARS_TITLE)), true, 'and its cars are headed as the cars')
     } else pass('every race with a pictured car has photographs of its own')
+  })
+
+  /*
+   * AF-07. A race page's "Layout raced" is the register's layout for the
+   * season - the one-off the race names, or the timeline row covering its
+   * year - and its figures are the register's, beside a drawing captioned
+   * with F1DB's. It once matched the one-off alone, so a timeline round said
+   * no layout was recorded. The round is the first whose register length
+   * differs from F1DB's, found here by a join written out apart from the
+   * page's, and both halves must name the layout, give the register's
+   * length and say whose figures are whose; a round at a circuit with no
+   * timeline says so in both.
+   */
+  await section('/races  (the layout raced, and whose figures are whose: AF-07)', async () => {
+    const raced = db
+      .prepare(
+        `SELECT r.year, r.round, l.layout_name, l.length_km
+           FROM races r
+           JOIN circuit_layouts l ON l.circuit_id = r.circuit_id AND l.by_year = 1
+                                 AND r.year BETWEEN l.from_year AND COALESCE(l.to_year, 9999)
+           JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+          WHERE r.layout_key IS NULL AND l.length_km IS NOT NULL AND o.length_km IS NOT NULL
+            AND l.length_km <> o.length_km
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get()
+    const none = db
+      .prepare(
+        `SELECT r.year, r.round FROM races r
+          WHERE r.status = 'completed' AND r.circuit_id NOT IN (SELECT circuit_id FROM circuit_layouts)
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get()
+    truthy(raced && none, 'a round whose register length differs from F1DB\u2019s, and one at a circuit with no timeline')
+    const decode = (s) =>
+      s.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    const read = () =>
+      page.evaluate((label) => {
+        const main = document.querySelector('#root main')
+        const dt = [...main.querySelectorAll('dl.fields dt')].find((d) => d.textContent.trim() === label)
+        return {
+          value: dt?.nextElementSibling?.textContent.trim() ?? null,
+          notes: [...main.querySelectorAll('p.source-note')].map((p) => p.textContent.trim()),
+        }
+      }, LAYOUT_RACED)
+    const served = async (route) => {
+      const html = decode(await (await fetch(`${BASE}${route}`)).text())
+      const value = html.match(new RegExp(`<dt>${LAYOUT_RACED}</dt><dd>([^<]*)</dd>`))?.[1] ?? null
+      return { value, notes: [...html.matchAll(/<p class="source-note">([^<]*)<\/p>/g)].map((m) => m[1]) }
+    }
+    if (raced) {
+      const route = `/races/${raced.year}/${raced.round}`
+      await go(route)
+      for (const [half, got] of [['app', await read()], ['static', await served(route)]]) {
+        is(got.value?.split(' · ').slice(0, 2).join(' · '), `${raced.layout_name} · ${raced.length_km} km`, `${route}, ${half}: the register's layout and length`)
+        truthy(got.notes.includes(RACE_LAYOUT_NOTE), `${route}, ${half}: says the register's figures are not the drawing's`)
+        truthy(!got.notes.includes(NO_LAYOUT_RECORDED), `${route}, ${half}: does not say no layout is recorded`)
+      }
+    }
+    if (none) {
+      const route = `/races/${none.year}/${none.round}`
+      await go(route)
+      for (const [half, got] of [['app', await read()], ['static', await served(route)]]) {
+        truthy(got.notes.includes(NO_LAYOUT_RECORDED), `${route}, ${half}: says no layout is recorded`)
+        truthy(!got.notes.includes(RACE_LAYOUT_NOTE), `${route}, ${half}: and no note on figures it does not show`)
+      }
+    }
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
@@ -9136,8 +9203,6 @@ try {
       ],
       '/seasons/1976': [{ half: 'app', section: '', drop: 'The grid: ', why: PROSE_DRIFT }],
       '/races': [{ half: 'static', section: '', drop: /^[\d,]+ championship Grands Prix\. The \d+ most recently run/, why: SLICE }],
-      '/races/1976/9': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
-      '/races/2027/1': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
       '/constructors/ferrari': [{ half: 'app', section: LABELS.provenance, drop: 'Trust the counted figures.', why: PROSE_DRIFT }],
       '/compare': [{ half: 'static', section: '', drop: 'Choosing the two drivers needs JavaScript', why: SAYS_WHY }],
       '/circuits/monza': [{ half: 'static', section: '', drop: characteristics('monza'), why: PROSE_DRIFT }],
