@@ -24,6 +24,19 @@
  * what the page describes, and the interface says so rather than claiming
  * the team said it. Nothing in this file enters f1.db.
  *
+ * THE LICENCE (AF-19). The palette - the LIVERIES entries below - is CC
+ * BY-SA 4.0, not the MIT that web/package.json declares for the code. Most
+ * entries cite the sponsorship liveries article, and between them they take
+ * the main and additional colours of most of one of its tables. The
+ * maintainer's decision of 2026-09-14 (#301) treats that as a substantial
+ * portion under the licence's section 4(b), which makes the palette Adapted
+ * Material and puts share-alike on it; a handful of cited facts was the
+ * reading that covered the seven entries before AF-15, and it does not
+ * stretch this far. Two surfaces answer it: the constructor page's band
+ * names and links every Wikipedia article an entry cites, with the licence,
+ * where it printed a bare hostname (liveryCredit), and /data marks the
+ * palette CC BY-SA 4.0 (LIVERY_ARTICLE, LIVERY_LICENCE).
+ *
  * The hex is this palette's rendering of that named colour, not a
  * measurement. Each colour of a scheme carries its own `base`, and the
  * PRIMARY's base is what a mark draws - papaya is #ff8000 on every surface
@@ -1459,6 +1472,56 @@ export const sourceHost = (url) => {
   }
 }
 
+/** The licence Wikipedia's text is under, and so this palette (AF-19). */
+export const LIVERY_LICENCE = { text: 'CC BY-SA 4.0', href: 'https://creativecommons.org/licenses/by-sa/4.0/' }
+
+/** The article whose colour tables most entries adapt, as /data names it (AF-19). */
+export const LIVERY_ARTICLE = {
+  text: 'Formula One sponsorship liveries',
+  href: 'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
+}
+
+const isWikipedia = (url) => /(^|\.)wikipedia\.org$/.test(sourceHost(url))
+
+/** A Wikipedia article's title from its address: Formula_One_sponsorship_liveries -> Formula One sponsorship liveries. */
+const articleTitle = (url) => decodeURIComponent(new URL(url).pathname.replace(/^\/wiki\//, '')).replace(/_/g, ' ')
+
+/** Items joined as prose - a, b and c - where an item is a list of parts. */
+function joinParts(items) {
+  return items.flatMap((item, i) => [
+    ...(i === 0 ? [] : [i === items.length - 1 ? ' and ' : ', ']),
+    ...item,
+  ])
+}
+
+/**
+ * Where an entry was read from, as parts of a sentence: a string, or a link
+ * `{ text, href }`. A source off Wikipedia is its host, as it always was -
+ * those are facts read from a team's or formula1.com's page, and nothing of
+ * theirs is reproduced. A Wikipedia article is named and linked, and the
+ * licence with it, because CC BY-SA 4.0's attribution asks for the work's
+ * title and a link and the palette adapts the articles' tables (AF-19,
+ * decided on #301). Every article an entry cites is credited this way, not
+ * only the sponsorship liveries one, so that one source is never named two
+ * ways in a sentence.
+ */
+export function liveryCredit(livery) {
+  const hosts = [...new Set(livery.source.filter((url) => !isWikipedia(url)).map(sourceHost))].map((host) => [host])
+  const articles = [...new Set(livery.source.filter(isWikipedia))].map((url) => [{ text: articleTitle(url), href: url }])
+  const wikipedia = articles.length
+    ? [
+        [
+          "Wikipedia's ",
+          ...joinParts(articles),
+          articles.length === 1 ? ' article (' : ' articles (',
+          LIVERY_LICENCE,
+          ')',
+        ],
+      ]
+    : []
+  return joinParts([...hosts, ...wikipedia])
+}
+
 /**
  * The winning constructor's colour, for the mark under a calendar round in
  * the season strip (components/Outline.jsx and scripts/prerender.js draw the
@@ -1521,13 +1584,18 @@ export function driverBandNote(lastTeam, colour) {
 /**
  * A constructor's band sentence (VD-79, from Constructor.jsx). `livery` is
  * the liveryFor() entry of the last season it raced, or null where the band
- * shows the national convention instead.
+ * shows the national convention instead. A livery's sentence is a list of
+ * parts, because its credit links (liveryCredit); the convention's is a
+ * string, as a driver's is, and LiveryScheme and scripts/prerender.js draw
+ * either.
  */
 export function constructorBandNote(team, lastSeason, livery, colour) {
   if (!colour) return null
   return livery
-    ? `The colour ${team.name} raced in ${lastSeason.year}, ${colour.claim}. Read from ${[
-        ...new Set(livery.source.map(sourceHost)),
-      ].join(' and ')}; the shades here are this site's rendering of them, not a measurement.`
+    ? [
+        `The colour ${team.name} raced in ${lastSeason.year}, ${colour.claim}. Read from `,
+        ...liveryCredit(livery),
+        "; the shades here are this site's rendering of them, not a measurement.",
+      ]
     : `${team.country}'s international racing colour, under the convention that painted a car for the country that entered it until sponsor liveries took over around 1968. Not this team's own livery.`
 }
