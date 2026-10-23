@@ -8317,12 +8317,24 @@ try {
      * career standing whole where together they run longer, and it is not
      * walked here; a constructor that never won says so in words rather than
      * "0 wins"; a chassis is "built by" its maker, never "entered by" it, and
-     * only where its name does not already say who; and a car's title
-     * carries the span its eyebrow gives.
+     * only where its name does not already say who - an acronym included,
+     * so BAR 01 and OSCA 20 are named once; no description is cut off with
+     * an ellipsis; and a car's title carries the span its eyebrow gives.
      */
     const SEARCH_LIMIT = 155
     const ENTITY_KINDS = new Set(['cars', 'circuits', 'constructors', 'grands-prix', 'races', 'records'])
-    const described = { pages: 0, long: [], zero: [], entered: [], noWin: 0, builtBy: 0, cars: 0, spanless: [] }
+    const described = {
+      pages: 0,
+      long: [],
+      zero: [],
+      entered: [],
+      cut: [],
+      acronym: [],
+      noWin: 0,
+      builtBy: 0,
+      cars: 0,
+      spanless: [],
+    }
     for (const file of served) {
       const parts = relative(distDir, dirname(file)).split(sep)
       if (parts.length < 2 || !ENTITY_KINDS.has(parts[0])) continue
@@ -8334,6 +8346,9 @@ try {
       if (description.length > SEARCH_LIMIT) described.long.push(`${route} (${description.length})`)
       if (/\b0 wins\b/.test(description)) described.zero.push(route)
       if (/\bentered by\b/.test(description)) described.entered.push(route)
+      if (description.endsWith('…')) described.cut.push(route)
+      if ((route === '/cars/bar-01' || route === '/cars/osca-20') && description.includes(', built by '))
+        described.acronym.push(`${route}: ${description}`)
       if (description.includes('. No win in ')) described.noWin += 1
       if (description.includes(', built by ')) described.builtBy += 1
       if (parts[0] === 'cars') {
@@ -8350,6 +8365,8 @@ try {
       [described.long, `entity page descriptions run past ${SEARCH_LIMIT} characters`],
       [described.zero, 'entity page descriptions read "0 wins"'],
       [described.entered, 'entity page descriptions say a chassis was "entered by" its constructor'],
+      [described.cut, 'entity page descriptions are cut off with an ellipsis'],
+      [described.acronym, 'acronym-named chassis descriptions name their maker a second time'],
       [described.spanless, `car page titles, of ${described.cars}, lack the span their eyebrow gives`],
     ]) {
       truthy(list.length === 0, `no ${what}${list.length ? ` — ${list.length}: ${list.slice(0, 5).join(', ')}` : ''}`)

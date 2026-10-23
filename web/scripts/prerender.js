@@ -1593,11 +1593,20 @@ const list = (values) => values.filter(Boolean).join(', ')
  * says the name twice and calls the maker the entrant; one whose name does not
  * say who built it - "Alfa Romeo C43" of Sauber - still does.
  */
-const nameWords = (value) => String(value ?? '').toLowerCase().split(/[\s/]+/).filter(Boolean)
+// Dots are dropped so "O.S.C.A." and "OSCA" are one word, and a name whose
+// first word is the maker's initials - "BAR 01" of British American Racing -
+// names it as surely as one that spells it out.
+const nameWords = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .replace(/\./g, '')
+    .split(/[\s/]+/)
+    .filter(Boolean)
 const namesItsMaker = (name, maker) => {
   const [first] = nameWords(name)
-  const [makerFirst] = nameWords(maker)
-  return nameWords(maker).includes(first) || nameWords(name).includes(makerFirst)
+  const makerWords = nameWords(maker)
+  const initials = makerWords.length > 1 ? makerWords.map((word) => word[0]).join('') : null
+  return makerWords.includes(first) || nameWords(name).includes(makerWords[0]) || first === initials
 }
 
 /**
@@ -3922,6 +3931,16 @@ page({
     const row = one(CAR_ROW, c.id, c.id)
     const facts = wholeOfOneChassis(row) ? carFacts(variants[0], row) : c
     const run = carRecord(variants, carEntries).raced
+    // The first sentence is the one the description cannot lose, so where it
+    // would not fit whole the designers go, then the engine, rather than
+    // summarise() cutting it mid-list (CD-11): Lotus 25's engine and the
+    // McLaren MP4/4's designers each ran it past the limit.
+    const clauses = [
+      `${name}, ${yearRun(c.from_year, c.to_year)}`,
+      facts.engine_name ? `, ${facts.engine_name}` : '',
+      facts.designers ? `, designed by ${facts.designers}` : '',
+    ]
+    while (clauses.length > 1 && `${clauses.join('')}.`.length > DESCRIPTION_LIMIT) clauses.pop()
     page({
       path: `cars/${at}`,
       canonical: at === c.id ? null : `cars/${c.id}`,
@@ -3929,11 +3948,7 @@ page({
       sources: all(CAR_SOURCES, at),
       title: NAMES.car(name, ...run).title,
       image: photos.image,
-      description: summarise(
-        `${name}, ${yearRun(c.from_year, c.to_year)}${facts.engine_name ? `, ${facts.engine_name}` : ''}${
-          facts.designers ? `, designed by ${facts.designers}` : ''
-        }. ${c.concept ?? c.story ?? ''}`,
-      ),
+      description: summarise(`${clauses.join('')}. ${c.concept ?? c.story ?? ''}`),
       trail: TRAIL.car(at, name),
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
