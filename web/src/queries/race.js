@@ -18,6 +18,20 @@ import { linked } from '../lib/tiles.js'
 import { LABELS, SHARED } from '../lib/site.js'
 import { LATE_NOTE, raceDay } from '../lib/refresh.js'
 
+/**
+ * AF-07: the layout a race ran, as v_race_venues in schema.sql resolves it -
+ * the one-off the race names (races.layout_key), or else the timeline row
+ * whose years cover the season. The race page once matched the one-off
+ * alone, so every other round at a circuit with a timeline said no layout
+ * was recorded. verify.py holds both halves of the rule: a timeline that
+ * covers every race at its circuit, without overlaps, and so one row per
+ * race. Read by RACE here and by the static race pages' own query.
+ */
+export const LAYOUT_RACED_JOIN = `LEFT JOIN circuit_layouts cl ON cl.circuit_id = r.circuit_id AND (
+             (r.layout_key IS NOT NULL AND cl.layout_key = r.layout_key)
+          OR (r.layout_key IS NULL AND cl.by_year = 1 AND r.year >= cl.from_year
+              AND (cl.to_year IS NULL OR r.year <= cl.to_year)))`
+
 export const RACE = `
   SELECT r.*, c.name AS circuit, c.locality, c.country,
          cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
@@ -25,7 +39,7 @@ export const RACE = `
          o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
     FROM races r
     LEFT JOIN circuits c        ON c.id = r.circuit_id
-    LEFT JOIN circuit_layouts cl ON cl.circuit_id = r.circuit_id AND cl.layout_key = r.layout_key
+    ${LAYOUT_RACED_JOIN}
     LEFT JOIN grands_prix g     ON g.id = r.gp_id
     LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
    WHERE r.year = ? AND r.round = ?

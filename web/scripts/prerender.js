@@ -330,6 +330,7 @@ import {
   gridFlagNote,
   gridFlagUndrawn,
   inClassificationOrder,
+  LAYOUT_RACED_JOIN,
   qualifyingColumns,
   raceLede,
   raceStrip,
@@ -446,6 +447,8 @@ import {
 } from '../src/queries/eras.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS, GLOSSARY_LEDE } from '../src/queries/glossary.js'
 import {
+  LAYOUT_RACED,
+  NO_LAYOUT_RECORDED,
   OUTLINE_BY,
   OUTLINE_CREDIT,
   OUTLINE_REGISTER_NOTE,
@@ -458,12 +461,14 @@ import {
   STATE_WORDS,
   circuitOutlinesNote,
   layoutFacts,
+  layoutRaced,
   layoutTimeline,
   layoutsCount,
   leadOutline,
   otherLayouts,
   outlineCaption,
   outlineLabel,
+  raceLayoutNote,
   roundShortName,
   roundStates,
   stripLabel,
@@ -2774,10 +2779,12 @@ const page = ({
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
-            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
+            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
+            cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns
        FROM races r
        LEFT JOIN grands_prix g ON g.id = r.gp_id
        LEFT JOIN circuits c ON c.id = r.circuit_id
+       ${LAYOUT_RACED_JOIN}
        LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
        LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
       ORDER BY r.year DESC, r.round DESC`,
@@ -3065,6 +3072,9 @@ const page = ({
           // The event this race is an edition of, linked as Race.jsx links it (IA-01).
           ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
           ['Dates', raceDatesHtml(r)],
+          // The register's layout, as Race.jsx prints it, and the note on
+          // whose figures are whose under it (AF-07).
+          [LAYOUT_RACED, text(layoutRaced(r))],
           ['Format', r.sprint ? 'Sprint weekend' : 'Standard weekend'],
           // The entrant's name where no constructor row exists, the rule
           // queries/race.js applies everywhere a car is named; the eleven
@@ -3077,7 +3087,9 @@ const page = ({
                 ['Entrant', text(r.entrant)],
               ]),
           ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
-        ])}`,
+        ])}
+        ${raceLayoutNote(r) ? `<p class="source-note">${esc(raceLayoutNote(r))}</p>` : ''}
+        ${r.layout_name ? '' : `<p class="source-note">${esc(NO_LAYOUT_RECORDED)}</p>`}`,
     })
   }
 }

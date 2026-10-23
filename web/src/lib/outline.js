@@ -93,6 +93,37 @@ export const OUTLINE_REGISTER_NOTE = `${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE} ${OU
 export const OUTLINE_FIGURES_NOTE = 'The length listed with each layout is this register’s, from its own sources; the figures under its drawing are F1DB’s, and at some circuits the two disagree.'
 
 /**
+ * AF-07: a race page's "Layout raced", in both renderers - the register's
+ * name for the layout and its figures, "Original long circuit · 7.96 km ·
+ * 26 turns". Like the timeline's length above they are the register's, and
+ * at the same nine circuits they differ from F1DB's under the race's
+ * drawing (Interlagos 1973-80: 7.96 v 7.873 km), so RACE_LAYOUT_NOTE says
+ * whose each is wherever both are on the page. Null where the round names
+ * no layout, which both renderers drop and NO_LAYOUT_RECORDED explains.
+ */
+export const LAYOUT_RACED = 'Layout raced'
+export const layoutRaced = (race) =>
+  race.layout_name
+    ? [race.layout_name, outlineFigures({ length_km: race.layout_km, turns: race.layout_turns })].filter(Boolean).join(' · ')
+    : null
+export const RACE_LAYOUT_NOTE =
+  'The layout raced and its figures are this register’s, from its own sources; the figures under the race’s drawing are F1DB’s, and at some circuits the two disagree.'
+export const raceLayoutNote = (race) =>
+  race.outline &&
+  outlineFigures({ length_km: race.layout_km, turns: race.layout_turns }) &&
+  outlineFigures({ length_km: race.outline_km, turns: race.outline_turns })
+    ? RACE_LAYOUT_NOTE
+    : null
+
+/**
+ * Where the round names no layout. verify.py holds every race at a circuit
+ * with a timeline inside it, so a round with none is at a circuit the
+ * register has no timeline for, and the words say so of this one.
+ */
+export const NO_LAYOUT_RECORDED =
+  'No layout is recorded for this round: this register has no layout timeline for the circuit, and a blank here is better than a guess.'
+
+/**
  * Where a timeline row's drawing would be, when the row names no F1DB
  * outline. The row does the naming, so the words say the row lacks one -
  * at Marina Bay the drawings of those years are on the page, unnamed.
@@ -208,9 +239,11 @@ export const layoutTimeline = (layouts, outlines) => {
 export const outlineLabel = (circuit, layoutId) => `Outline of ${circuit ?? 'the circuit'}, F1DB layout ${layoutId}`
 
 /**
- * F1DB's figures for the layout — "5.793 km · 11 turns" — or nothing where it
- * gives none. They are F1DB's, not this register's: circuit_layouts holds the
- * lengths this project sourced, and outlineCaption says whose figure it prints.
+ * A layout's figures — "5.793 km · 11 turns" — or nothing where none is
+ * held. Under a drawing they are F1DB's, not this register's: circuit_layouts
+ * holds the lengths this project sourced, and outlineCaption says whose figure
+ * it prints. layoutRaced formats the register's own with it, and
+ * RACE_LAYOUT_NOTE says whose those are.
  */
 export const outlineFigures = (row) =>
   [
