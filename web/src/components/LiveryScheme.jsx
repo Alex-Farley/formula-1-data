@@ -13,7 +13,9 @@ import { bandWords } from '../lib/liveries.js'
  *
  * `colour` is a colourForEntry() or nationalEntry() result, or null. `note`
  * is the page's own prose, because a constructor's last season and a driver's
- * last team are different claims about the same colour.
+ * last team are different claims about the same colour: a string, or a list
+ * of strings and `{ text, href }` links where the sentence credits the pages
+ * it was read from (lib/liveries.js liveryCredit, AF-19).
  *
  * WHOSE WORD EACH NAME IS. Two provenance flags, two different obligations,
  * and this is the first surface that ever printed an accent name at all:
@@ -51,7 +53,19 @@ export default function LiveryScheme({ colour, note }) {
       {words.name}
       {words.sourced && <em>{words.sourced}</em>}
       <span>
-        {note}
+        {Array.isArray(note)
+          ? note.map((part) =>
+              typeof part === 'string' ? (
+                part
+              ) : (
+                // A link's address is unique in its sentence: liveryCredit
+                // names each article once, and the licence is not an article.
+                <a key={part.href} href={part.href} target="_blank" rel="noreferrer noopener">
+                  {part.text}
+                </a>
+              ),
+            )
+          : note}
         {words.chosen}
       </span>
     </p>

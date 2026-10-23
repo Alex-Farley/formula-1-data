@@ -395,6 +395,15 @@ in the neutral palette), the livery from 2010 — and paints the standings and
 classification tables, the title-race chart, the calendar strip's winner bar,
 and the band on a driver's and a constructor's page.
 
+**The palette is CC BY-SA 4.0** (`AF-19`, decided 2026-09-14 on #301), not
+the MIT that `package.json` declares for the code around it. Most entries
+adapt the colour tables of the sponsorship liveries article, and a taking that
+wide is treated as a substantial portion under the licence's section 4(b),
+which brings share-alike with it. So the constructor page's band names and
+links every Wikipedia article an entry cites, with the licence, where it
+printed a bare hostname (`liveryCredit()`), and `/data` marks the palette
+CC BY-SA 4.0.
+
 **Before 1968, the national convention**, `src/lib/racingColours.js`. A per-constructor
 livery *hex* has no source this project can admit, and the search is documented at the top of `src/lib/racingColours.js`: F1DB has no
 colour field, Wikidata's P465 is absent on every F1 constructor sampled

@@ -35,10 +35,13 @@ import {
   ACCENT_APART,
   accentsBySource,
   colourForEntry,
+  constructorBandNote,
   deltaE,
   LIVERIES,
+  LIVERY_ARTICLE,
   LIVERY_ERA,
   LIVERY_GAPS,
+  LIVERY_LICENCE,
   liveryFor,
   liveryPair,
   liveryPrimary,
@@ -681,6 +684,43 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       assert.match(from.slice(0, from.indexOf('\n}\n')), /raced in \$\{/, `${note}: the band no longer says what the car raced in`)
       assert.match(read(join(web, 'src', 'pages', page)), new RegExp(`\\b${note}\\(`), `${page}: the band no longer reads ${note}()`)
     }
+  })
+
+  it('a constructor band credits each Wikipedia article by title and link, with the licence, never as a bare host (AF-19)', () => {
+    // The ruling on #301: the palette adapts the sponsorship liveries
+    // article's tables, so CC BY-SA 4.0 is engaged and the credit names and
+    // links the article with its licence. Every entry is drawn through the
+    // real sentence builder, so a credit that drops one is caught.
+    const wikipedia = (url) => /(^|\.)wikipedia\.org$/.test(new URL(url).hostname)
+    const failing = []
+    for (const l of LIVERIES) {
+      const where = `${l.constructor} ${l.from}`
+      const note = constructorBandNote({ name: 'Team' }, { year: l.from }, l, { claim: 'as its sources describe it' })
+      if (!Array.isArray(note)) {
+        failing.push(`${where}: the sentence is not parts, so it cannot link`)
+        continue
+      }
+      const links = note.filter((part) => typeof part !== 'string')
+      const text = note.map((part) => (typeof part === 'string' ? part : part.text)).join('')
+      for (const url of l.source.filter(wikipedia)) {
+        const link = links.find((part) => part.href === url)
+        if (!link?.text || /wikipedia\.org|_/.test(link.text)) failing.push(`${where}: ${url} is not linked by its title`)
+      }
+      for (const link of links)
+        if (link.href === LIVERY_ARTICLE.href && link.text !== LIVERY_ARTICLE.text)
+          failing.push(`${where}: the article is named ${link.text}, and /data calls it ${LIVERY_ARTICLE.text}`)
+      const licensed = links.some((part) => part.href === LIVERY_LICENCE.href && part.text === LIVERY_LICENCE.text)
+      if (licensed !== l.source.some(wikipedia))
+        failing.push(`${where}: ${licensed ? 'the licence is credited with no article' : 'an article is credited without its licence'}`)
+      if (/wikipedia\.org/.test(text)) failing.push(`${where}: a bare Wikipedia host - ${text}`)
+      for (const url of l.source.filter((u) => !wikipedia(u)))
+        if (!text.includes(new URL(url).hostname.replace(/^www\./, ''))) failing.push(`${where}: ${url} is not named`)
+    }
+    assert.deepEqual(failing, [])
+    assert.ok(
+      LIVERIES.some((l) => l.source.includes(LIVERY_ARTICLE.href)),
+      'no entry cites the sponsorship liveries article, so this checks nothing the ruling was about',
+    )
   })
 
   it('a band draws every colour of its scheme, primary first, and a scheme of one draws no gradient (AF-17)', () => {

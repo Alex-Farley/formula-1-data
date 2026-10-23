@@ -5,6 +5,7 @@ import SubNav from '../components/SubNav.jsx'
 import { currentProgress } from '../data/client.js'
 import { row, rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
+import { LIVERY_ARTICLE, LIVERY_LICENCE } from '../lib/liveries.js'
 import {
   COUNTED_TOTALS,
   CROSS_CHECKED,
@@ -283,6 +284,16 @@ function Body({ data }) {
             <code>{FACTS_DECLARATION}</code>
           </a>{' '}
           {FACTS_DECLARATION_NOTE}
+        </p>
+        {/* AF-19, decided on #301: the palette adapts the article's colour
+            tables, so share-alike reaches it although it is not in f1.db. */}
+        <p className="measure">
+          The team livery palette this site draws from 2010 is{' '}
+          <a href={LIVERY_LICENCE.href}>{LIVERY_LICENCE.text}</a> as well, and carries share-alike:
+          most of its entries adapt the colour tables of Wikipedia&rsquo;s{' '}
+          <a href={LIVERY_ARTICLE.href}>{LIVERY_ARTICLE.text}</a> article. It is in the site&rsquo;s
+          code, <code>web/src/lib/liveries.js</code>, not in <code>f1.db</code>, and the code around
+          it is MIT.
         </p>
       </Section>
 

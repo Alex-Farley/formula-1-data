@@ -176,7 +176,9 @@ import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRa
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE, UNRESULTED } from '../src/queries/changes.js'
 import { SHAPE as DATA_SHAPE, fileStrip, trustStrip } from '../src/queries/data.js'
 import {
+  LIVERY_ARTICLE,
   LIVERY_ERA,
+  LIVERY_LICENCE,
   bandWords,
   colourForEntry,
   constructorBandNote,
@@ -1549,9 +1551,20 @@ const liveryBand = (colour, note) => {
   const style = Object.entries(colour.style ?? {})
     .map(([property, value]) => `${property}:${value}`)
     .join(';')
+  // A note is a string, or parts with links where it credits its pages
+  // (lib/liveries.js liveryCredit, AF-19), drawn as LiveryScheme draws them.
+  const sentence = Array.isArray(note)
+    ? note
+        .map((part) =>
+          typeof part === 'string'
+            ? esc(part)
+            : `<a href="${esc(part.href)}" target="_blank" rel="noreferrer noopener">${esc(part.text)}</a>`,
+        )
+        .join('')
+    : esc(note ?? '')
   return `<p class="livery-band"><i class="livery" style="${esc(style)}" aria-hidden="true"></i>${esc(
     words.name,
-  )}${words.sourced ? `<em>${esc(words.sourced)}</em>` : ''}<span>${esc(note ?? '')}${esc(words.chosen)}</span></p>`
+  )}${words.sourced ? `<em>${esc(words.sourced)}</em>` : ''}<span>${sentence}${esc(words.chosen)}</span></p>`
 }
 const outlineStrip = (year, calendar) => {
   if (!calendar.some((round) => round.outline)) return ''
@@ -4419,6 +4432,12 @@ page({
         trusted for, and what each licence cost or bought.</p>
       <p class="measure">${esc(FACTS_FILE)} <a href="${esc(FACTS_DECLARATION_URL)}"><code>${esc(FACTS_DECLARATION)}</code></a>
         ${esc(FACTS_DECLARATION_NOTE)}</p>
+      <p class="measure">The team livery palette this site draws from 2010 is
+        <a href="${esc(LIVERY_LICENCE.href)}">${esc(LIVERY_LICENCE.text)}</a> as well, and carries share-alike:
+        most of its entries adapt the colour tables of Wikipedia&rsquo;s
+        <a href="${esc(LIVERY_ARTICLE.href)}">${esc(LIVERY_ARTICLE.text)}</a> article. It is in the site&rsquo;s
+        code, <code>web/src/lib/liveries.js</code>, not in <code>f1.db</code>, and the code around
+        it is MIT.</p>
       <h2>Ask it something</h2>
       <p class="measure">${link('data/sql', 'The SQL console')} runs any read against the whole database in your
         browser &mdash; and a query&rsquo;s address is a link to it.</p>
