@@ -9,7 +9,8 @@ Reads:   f1.db; F1DB's files in harvest/; docs/prose_pass.tsv, through
          tools/prose_pass.py
 Writes:  nothing. tools/facts_export.py (PD-54, #742) builds the file from
          what this declares, and verify.py's THE FACTS ARTEFACT section holds
-         the declaration.
+         the declaration. build.py writes f1.db's column_origin from
+         origins(), the declaration read column by column (DA-30, #622).
 
 What the artefact is
 --------------------
@@ -191,10 +192,22 @@ DRIVER_DIFFERENCES = {
 # only writing of this project's the artefact carries is what they granted
 # CC BY 4.0. Carried as stored, the registry would call the file's own
 # authored tables share-alike, against its meta.licence.
+#
+# column_origin is not carried either. It says where each of f1.db's columns
+# has its values from (DA-30, origins() below), and the artefact rebuilds
+# some of those columns from F1DB and leaves others out, so carried as stored
+# it would describe a file the artefact is not.
 APPARATUS = {
     "source_registry": "all", "source_patterns": "all", "table_provenance": "all",
     "provenance": "all",
-    "meta": "none",
+    "meta": "none", "column_origin": "none",
+}
+
+# Why each APPARATUS table left out is left out.
+APPARATUS_OUT = {
+    "meta": "states f1.db's own version and terms; the artefact has its own",
+    "column_origin": "states where f1.db's columns have their values from, which the "
+                     "artefact rebuilds or leaves out for some of them",
 }
 
 # The four tables of FOM-owned timing, which f1.db holds empty (CLAUDE.md,
@@ -379,7 +392,7 @@ def declare(con):
         elif t in APPARATUS:
             rows, why = APPARATUS[t], "the database's description of itself"
             if rows == "none":
-                why = "states f1.db's own version and terms; the artefact has its own"
+                why = APPARATUS_OUT[t]
         elif "source_id" in cols:
             rows, why = "by source", "the rows citing a source carried"
             ids = ",".join(str(i) for i in sorted(carried))
@@ -497,6 +510,98 @@ def declare(con):
                             if d["rows"] not in (None, "none")))
     if out.get("table_provenance", {}).get("rows") == "all":
         out["table_provenance"]["where"] = f"tbl IN ({held})"
+    return out
+
+
+# ------------------------------------------------------------- column origins
+
+# What origins() can say about a column (DA-30). It is where the source of
+# the column's values is recorded, and nothing about the terms on which
+# this project releases them. There is no origin for "each row's own
+# source_id" or "the table's table_provenance source": those say where a
+# ROW came from, and nothing above establishes that a column's values are
+# its row's source's. A column the declarations do not reach is NULL.
+ORIGINS = ("span", "claims", "prose", "project", "derived")
+
+# The part of the declaration that settles a column, in the order tried.
+RULES = ("APPARATUS", "citation", "SPANS", "UNGRANTED", "CLAIM_FIELDS",
+         "prose pass", "UNSOURCED", "RECOUNTED", "unreached")
+
+
+def origins(con, decl=None):
+    """[(table, column, origin, via, rule)] for every column of every table,
+    in table and then schema order: the rows build.py writes to column_origin
+    and verify.py derives again (DA-30, #622).
+
+    Each origin is one of the declarations above, taken where it names the
+    column, and the first of these that does settles it:
+
+      APPARATUS     a table in which the database describes itself: project
+      citation      a row's citation - `source`, a column keyed to the
+                    registry, and the column a SPANS span is cited by: project
+      APPARATUS     any other column keyed to such a table, which is a
+                    confidence tier: project
+      SPANS         a column a per-row source column governs: span, via it
+      UNGRANTED     this project's writing outside the prose pass: project
+      CLAIM_FIELDS  a column the claims cite a source for, value by value:
+                    claims
+      prose pass    a column the prose pass measures: prose. Its labels are
+                    in docs/prose_pass.tsv, value by value, not here
+      UNSOURCED     a table with no source: project for the columns it names
+                    as this project's own and the prose PM-47 granted, and
+                    not established (NULL) for the rest, which no
+                    field-grain source records
+      RECOUNTED     a figure build.py counts from other rows, and the
+                    records build.py defines and runs on them: derived
+      unreached     none of the above: NULL, not established
+
+    There is no fallback to a row's source_id or a table's table_provenance
+    row (the ruling of 2026-10-06: column_origin states no origin PD-53 has
+    not established). Those record where a row came from, and a column of
+    it may be counted by build.py, be this project's link, or hold another
+    source's values written over the row's, so a column none of the above
+    names is NULL, whatever its row cites. Nor is RESOURCED read: its
+    classes say what each column is on a row the artefact rebuilds from
+    F1DB, not on f1.db's rows, where a driver's entries, starts and points,
+    for one, are stored as a source gave them rather than counted. The
+    upstream terms of a row's values are the registry's, through the row's
+    own source_id.
+    """
+    decl = decl or declare(con)
+    claim_fields = set(_N.CLAIM_FIELDS)
+    out = []
+    for t in sorted(decl):
+        cols = [c for c, _ in _columns(con, t)]
+        keyed = {c: ref for c, ref in _fks(con, t)}
+        span, governs = [], None
+        if t in SPANS:
+            governs, first, last = SPANS[t]
+            span = cols[cols.index(first):cols.index(last) + 1]
+        for c in cols:
+            name = f"{t}.{c}"
+            if t in APPARATUS:
+                row = ("project", None, "APPARATUS")
+            elif (c == governs or keyed.get(c) == "source_registry"
+                  or (c == "source" and "source_id" in cols)):
+                row = ("project", None, "citation")
+            elif keyed.get(c) in APPARATUS:
+                row = ("project", None, "APPARATUS")
+            elif c in span:
+                row = ("span", governs, "SPANS")
+            elif name in UNGRANTED:
+                row = ("project", None, "UNGRANTED")
+            elif (t, c) in claim_fields:
+                row = ("claims", "claims", "CLAIM_FIELDS")
+            elif c in measured(t):
+                row = ("prose", None, "prose pass")
+            elif t in UNSOURCED:
+                own = c in UNSOURCED[t]["own"] or name in granted()
+                row = ("project" if own else None, None, "UNSOURCED")
+            elif name in RECOUNTED or t in RECOUNTED:
+                row = ("derived", None, "RECOUNTED")
+            else:
+                row = (None, None, "unreached")
+            out.append((t, c) + row)
     return out
 
 

@@ -13,7 +13,7 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
-import { number } from '../lib/format.js'
+import { coverageYears, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
@@ -333,9 +333,14 @@ export default function Season() {
       {(data) => {
         const season = data.season.rows[0]
         if (!season) {
+          const held = coverageYears(currentProgress().manifest?.coverage)
           return (
             <Page title={`No season ${year}`} cite={false} trail={TRAIL.missing('/seasons', 'Seasons')}>
-              <p className="muted">The championship register runs from 1950 to 2027.</p>
+              <p className="muted">
+                {held
+                  ? `The championship register runs from ${held.from} to ${held.to}.`
+                  : `The championship register holds no season ${year}.`}
+              </p>
             </Page>
           )
         }

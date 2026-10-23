@@ -72,7 +72,10 @@ export const NAMES = {
   circuits: () => named('Circuits', titled('Every Formula One circuit')),
   circuit: (name) => named(name),
   cars: () => named('Cars', titled('Every Formula One car')),
-  car: (name) => named(name),
+  // The years it raced, as the eyebrow counts them (CD-11): a car page was
+  // titled with its bare name, and a search result for "Lotus 49" did not
+  // say which decade it was about. The h1 stays the name.
+  car: (name, from, to) => named(name, missing(from) && missing(to) ? undefined : titled(`${name} (${span(from, to)})`)),
   records: () => named('Records'),
   record: (name) => named(name),
   eras: () => named('Eras and regulations'),

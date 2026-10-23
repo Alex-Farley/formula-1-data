@@ -362,6 +362,16 @@ export function span(from, to) {
   return String(to)
 }
 
+/**
+ * meta.coverage_seasons as its two years. The database writes it "1950-2027"
+ * and verify.py holds it to the season register; anything else is not a
+ * span, and comes back null for span() to render as not established.
+ */
+export function coverageYears(value) {
+  const match = /^(\d{4})-(\d{4})$/.exec(String(value ?? ''))
+  return match ? { from: Number(match[1]), to: Number(match[2]) } : null
+}
+
 export function bytes(n) {
   if (!n) return EMPTY
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`

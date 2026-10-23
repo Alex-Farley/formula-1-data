@@ -25,7 +25,7 @@ import {
   LABELS,
 } from '../lib/site.js'
 import { categoryUrl } from '../lib/commons.js'
-import { outlineCaption } from '../lib/outline.js'
+import { LAYOUT_RACED, NO_LAYOUT_RECORDED, layoutRaced, outlineCaption, raceLayoutNote } from '../lib/outline.js'
 import { RACE_IMAGES, RACE_PHOTOGRAPHS } from '../queries/photographs.js'
 import {
   CLASSIFICATION_COLUMNS,
@@ -547,12 +547,9 @@ function RaceBody({ race, data, year, round }) {
               ),
             },
             { label: 'Dates', value: raceDates(race) === null ? null : <RaceDates race={race} /> },
-            {
-              label: 'Layout raced',
-              value: race.layout_name
-                ? `${race.layout_name}${race.layout_km ? ` · ${race.layout_km} km` : ''}${race.layout_turns ? ` · ${race.layout_turns} turns` : ''}`
-                : null,
-            },
+            // The register's layout and figures, beside a drawing whose
+            // caption gives F1DB's (AF-07): the note below says whose is whose.
+            { label: LAYOUT_RACED, value: layoutRaced(race) },
             { label: 'Confidence', value: <Confidence value={race.confidence} /> },
             {
               label: 'Source',
@@ -564,12 +561,8 @@ function RaceBody({ race, data, year, round }) {
             },
           ]}
         />
-        {!race.layout_name && (
-          <p className="source-note">
-            No layout is recorded for this round: only 13 of the 80 circuits have a layout
-            timeline, and a blank here is better than the wrong shape.
-          </p>
-        )}
+        {raceLayoutNote(race) && <p className="source-note">{raceLayoutNote(race)}</p>}
+        {!race.layout_name && <p className="source-note">{NO_LAYOUT_RECORDED}</p>}
       </Section>
 
       <Onward {...ONWARD.race({ race, year, winners, neighbours })} />

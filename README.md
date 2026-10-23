@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->177,507<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->54<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->178,204<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -84,6 +84,7 @@ here is a number the build checked.
 | `tools/parquet_export.py` | Writes every table as Parquet for the release bundle, with a `README.txt` stating its terms. Refuses a database carrying FOM timing, ODbL geometry or a row a local loader wrote. |
 | `tools/geometry_overlay.py` | Merges `f1-geometry.db` into a local `f1.db` (`--apply`) or takes it out again (`--remove`). |
 | `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
+| `docs/README.md` | What each file in `docs/` is for, and whether it is current. |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
 | `docs/LOCAL-SETUP.md` | Getting `/backlog-loop` running on your own machine, from nothing. |
@@ -92,6 +93,7 @@ here is a number the build checked.
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. Served at `lapledger.org/ATTRIBUTION.md`, beside the data it covers. |
 | `LICENSE-DATA`, `LICENSE` | The terms the data is offered under (CC BY-SA 4.0; CC BY 4.0 for the columns this project wrote itself and has granted, and for `f1-facts.db` whole) and the terms the code is. `LICENSE-DATA` is served at `lapledger.org/LICENSE-DATA`. |
 | `CITATION.cff` | The citation for the database, in Citation File Format. GitHub renders a *Cite this repository* button from it; its `version` is checked against `build.py` by `tests/test_conventions.py`, which also refuses the licence and the release date the file deliberately does not state. Both refusals are argued in it. |
+| `.zenodo.json` | What a Zenodo deposit of a release says about it — title, creator, description, keywords, and the licences of each part — once the maintainer switches Zenodo's GitHub integration on. Its title, creator, description and keywords are checked against `CITATION.cff` by `tests/test_conventions.py`. |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
 | `requirements.txt` | Empty for the database itself; `fastf1` only for the loader. |
 
@@ -132,7 +134,11 @@ To cite a figure read on the site, use the line at the foot of that page
 instead: it names the first sixteen hex digits of the SHA-256 of the exact
 database file the page was built from, and a version and a build date
 together can name more than one. There is no DOI — nobody has minted one,
-and `CITATION.cff` will carry it when somebody does.
+and `CITATION.cff` will carry it when somebody does. `.zenodo.json` is
+ready for that: it pins the title, description, keywords and licence Zenodo
+would publish for each release. Zenodo's licence field holds a single
+licence, so it marks the deposit *Other (Attribution)* and lists the terms
+of each part in its notes, rather than letting Zenodo fill the field in.
 
 **What no licence allows.** Nobody publishes Formula One race timing under a
 licence that permits passing it on, so this database holds none: `laps`,

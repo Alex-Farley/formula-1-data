@@ -213,6 +213,61 @@ CREATE TABLE claims (
     UNIQUE (tbl, row_key, field, source_id)
 );
 
+-- Where each column of this database has its values from (DA-30).
+--
+-- source_id says where a ROW came from, and a row is not the grain of its
+-- columns: a chassis is an F1DB row whose specification is the car's
+-- Wikipedia article, named in spec_source; a circuit's notes are prose the
+-- prose pass measures against Wikipedia, whatever its row cites; a car's
+-- race count is counted by build.py; a race's date is F1DB's even on a row
+-- citing a season article. Derived from source_id alone, as first proposed,
+-- this table would have stated a false origin for about fifty columns
+-- (measured 2026-09-26). It is derived instead from tools/facts_artefact.py's
+-- declaration of the facts artefact (PD-53), column by column, and states no
+-- origin that declaration has not established (the ruling of 2026-10-06).
+-- A column it does not reach has `origin` NULL - not established - whatever
+-- its row cites; it does not fall back to the row's source_id or the
+-- table's table_provenance row.
+--
+-- One row per column of every table here, this one included. build.py
+-- writes it in its last stage and verify.py derives it again and compares
+-- the whole table.
+--
+-- It records ORIGINS. It states no licence on which this project releases
+-- anything and grants nothing: the terms a source's values come under are
+-- source_registry's, reached through each row's own source_id.
+CREATE TABLE column_origin (
+    tbl             TEXT NOT NULL,
+    col             TEXT NOT NULL,
+    --   span       a column of the same row names its source: `via`
+    --   claims     a claims row names the source, value by value
+    --   prose      this project's text, labelled value by value against
+    --              Wikipedia by the prose pass, in docs/prose_pass.tsv
+    --              rather than here
+    --   project    this project's own record: a citation, a confidence tier,
+    --              an identifier, a state, a classification, a link, its own
+    --              writing outside the prose pass, or its account of itself
+    --   derived    built by build.py from other rows of this database: a
+    --              count, or a record build.py defines and finds in them
+    --   NULL       not established
+    origin          TEXT CHECK (origin IN ('span', 'claims', 'prose', 'project', 'derived')),
+    -- Where the source is recorded, for `span` and `claims`: the column of
+    -- the same row ('spec_source'), or 'claims'.
+    via             TEXT,
+    -- Which part of the declaration settled it, by the name
+    -- tools/facts_artefact.py origins() gives it, so a reader can find the
+    -- reason: 'APPARATUS', 'citation', 'SPANS', 'UNGRANTED', 'CLAIM_FIELDS',
+    -- 'prose pass', 'UNSOURCED', 'RECOUNTED', or 'unreached' (none of it
+    -- reaches the column).
+    rule            TEXT NOT NULL CHECK (rule IN ('APPARATUS', 'citation', 'SPANS',
+                        'UNGRANTED', 'CLAIM_FIELDS', 'prose pass', 'UNSOURCED',
+                        'RECOUNTED', 'unreached')),
+    PRIMARY KEY (tbl, col),
+    CHECK ((origin IS NOT NULL AND origin IN ('span', 'claims')) = (via IS NOT NULL)),
+    CHECK ((origin IS 'claims') = (via IS 'claims')),
+    CHECK ((rule = 'unreached') <= (origin IS NULL))
+);
+
 -- ------------------------------------------------------------- people
 CREATE TABLE drivers (
     id              TEXT PRIMARY KEY,          -- slug, e.g. 'juan-manuel-fangio'
