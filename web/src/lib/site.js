@@ -838,7 +838,8 @@ export const ABOUT = [
       'The data is offered under CC BY-SA 4.0 \u2014 with the columns named in ' +
         'meta.project_prose_columns, this project\u2019s reading of each disagreement, its ' +
         'account of each gap and the prose of ten of its twelve reference tables, under CC BY 4.0 ' +
-        '\u2014 and the code under the MIT licence; the circuit ' +
+        '\u2014 and the code under the MIT licence, except the livery palette in ' +
+        'web/src/lib/liveries.js, which is CC BY-SA 4.0; the circuit ' +
         'centrelines are © OpenStreetMap contributors under ODbL 1.0, and that obligation follows ' +
         'f1-geometry.db alone. So if the person ' +
         'named above stops, what has already been published stays readable, checkable and ' +
