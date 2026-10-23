@@ -224,7 +224,7 @@ function CarBody({ id, chassis, variants, data }) {
             </div>
             <p className="source-note">
               {SPECIFICATION_NOTE[0]}
-              <Link to="/reference/eras">{SPECIFICATION_NOTE[1]}</Link>
+              <Link to="/eras">{SPECIFICATION_NOTE[1]}</Link>
               {SPECIFICATION_NOTE[2]}
             </p>
           </>

@@ -79,6 +79,9 @@ export const NAMES = {
   records: () => named('Records'),
   record: (name) => named(name),
   eras: () => named('Eras and regulations'),
+  // The years in the title, as a car's are (CD-11): "The hybrid era" alone
+  // does not say to a search result which seasons it is about. IA-25.
+  era: (era) => named(era.era_name, titled(`${era.era_name} (${span(era.from_year, era.to_year)})`)),
   glossary: () => named('Glossary and people'),
   sources: () => named('Sources and licences'),
   data: () => named('Data'),

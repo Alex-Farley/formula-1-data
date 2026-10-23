@@ -3984,6 +3984,66 @@ try {
 
   })
 
+  // IA-25: the three registers take an era, by the season it begins in. The
+  // expected sets are worked out here from the raw rows - race years per
+  // driver and constructor, the chassis's printed span - not by running the
+  // query's own era column.
+  await section('/drivers?era=  (the era filter on three registers: IA-25)', async () => {
+    const eras = db.prepare('SELECT from_year, to_year FROM eras ORDER BY from_year').all()
+    const within = (era, year) => year >= era.from_year && (era.to_year === null || year <= era.to_year)
+    const touches = (era, from, to) => from !== null && (era.to_year === null || from <= era.to_year) && (to === null || to >= era.from_year)
+    const rowsAre = (n) =>
+      page.waitForFunction((n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n), n, { timeout: 10000 })
+    const racedYears = (column) => {
+      const years = new Map()
+      for (const { id, year } of db.prepare(`SELECT DISTINCT e.${column} AS id, r.year FROM race_entries e JOIN races r ON r.id = e.race_id WHERE e.${column} IS NOT NULL`).all()) {
+        years.set(id, [...(years.get(id) ?? []), year])
+      }
+      return years
+    }
+    const placed = (era, years, from, to) => (years ? years.some((y) => within(era, y)) : touches(era, from, to))
+
+    const sixties = eras.find((e) => e.from_year === 1966)
+    const driverYears = racedYears('driver_id')
+    const drivers = db.prepare('SELECT id, first_season, last_season FROM drivers').all()
+    const expectDrivers = drivers.filter((d) => placed(sixties, driverYears.get(d.id), d.first_season, d.last_season)).length
+    await go('/drivers?era=1966', 'Drivers')
+    await rowsAre(expectDrivers)
+    pass(`/drivers?era=1966 keeps the ${expectDrivers} drivers placed in 1966-1976`)
+    is(
+      await page.$$eval('#root main .filters select[aria-label="Era"] option', (os) => os.length),
+      eras.length + 1,
+      'the era select offers every era and "Every era"',
+    )
+
+    // A span hides a gap: Alfa Romeo's runs 1950-1985 and it raced no
+    // season of 1966-1976, so the era leaves it out.
+    const teamYears = racedYears('constructor_id')
+    const teams = db.prepare('SELECT id, name, first_entry, last_entry FROM constructors').all()
+    const expectTeams = teams.filter((k) => placed(sixties, teamYears.get(k.id), k.first_entry, k.last_entry))
+    await go('/constructors?era=1966', 'Constructors')
+    await rowsAre(expectTeams.length)
+    pass(`/constructors?era=1966 keeps the ${expectTeams.length} constructors placed in 1966-1976`)
+    const alfa = teams.find((k) => k.id === 'alfa-romeo')
+    if (alfa && touches(sixties, alfa.first_entry, alfa.last_entry) && !expectTeams.includes(alfa)) {
+      const names = await page.$$eval('#root main tbody tr > :first-child', (cells) => cells.map((c) => c.textContent.trim()))
+      truthy(!names.some((n) => n.startsWith(alfa.name)), `${alfa.name}, whose span covers the era and whose races do not, is not in it`)
+    }
+
+    const chassis = db.prepare('SELECT first_year, last_year FROM chassis').all()
+    const expectChassis = chassis.filter((c) => touches(sixties, c.first_year, c.last_year)).length
+    await go('/cars?era=1966', 'Cars')
+    await rowsAre(expectChassis)
+    pass(`/cars?era=1966 keeps the ${expectChassis} chassis whose seasons touch 1966-1976`)
+
+    // A year inside an era but not its start is not a key, and is dropped
+    // rather than emptying the register under a select reading "Every era".
+    await go('/drivers?era=1970', 'Drivers')
+    await rowsAre(drivers.length)
+    is(await page.$eval('#root main .filters select[aria-label="Era"]', (s) => s.value), '', 'an unknown era is dropped and the select says so')
+
+  })
+
   await section('/drivers/senna', async () => {
     await go('/drivers/senna', 'Ayrton Senna')
     const senna = await tableRows()
@@ -6367,12 +6427,65 @@ try {
 
   })
 
-  await section('/reference/eras', async () => {
-    await go('/reference/eras', 'Eras')
+  await section('/eras', async () => {
+    await go('/eras', 'Eras')
     truthy(
       (await tableRows()).includes(count('SELECT COUNT(*) FROM regulation_changes')),
       'every regulation change is listed',
     )
+    // IA-25: each era heading is the way to its own page, addressed by the
+    // season it begins in.
+    const eras = db.prepare('SELECT from_year, era_name FROM eras ORDER BY from_year').all()
+    const linked = await page.$$eval('#root main .timeline h3 a', (as) => as.map((a) => [a.getAttribute('href'), a.textContent.trim()]))
+    is(
+      JSON.stringify(linked.filter(([href]) => href.startsWith('/eras/'))),
+      JSON.stringify(eras.map((e) => [`/eras/${e.from_year}`, e.era_name])),
+      'every era links to its page, addressed by its first season',
+    )
+
+  })
+
+  // IA-25: an era's page is its slice of /eras - the seasons, formulae,
+  // changes, innovations and milestones in its years, counted here from the
+  // tables rather than from the page's own filter.
+  await section('/eras/2014', async () => {
+    const era = db.prepare('SELECT * FROM eras WHERE from_year = 2014').get()
+    await go('/eras/2014', era.era_name)
+    const to = era.to_year ?? 9999
+    const counts = await page.$$eval('#root main h2', (hs) =>
+      Object.fromEntries(hs.map((h) => [h.firstChild?.textContent.trim(), h.querySelector('.count')?.textContent])),
+    )
+    is(counts['The seasons'], String(count('SELECT COUNT(*) FROM seasons WHERE year BETWEEN ? AND ?', era.from_year, to)), 'the seasons are the era’s')
+    is(
+      counts['Regulation changes'],
+      String(count('SELECT COUNT(*) FROM regulation_changes WHERE year BETWEEN ? AND ?', era.from_year, to)),
+      'the regulation changes are the ones dated in the era',
+    )
+    is(
+      counts['Engine formulae'],
+      String(count('SELECT COUNT(*) FROM engine_eras WHERE from_year <= ? AND COALESCE(to_year, 9999) >= ?', to, era.from_year)),
+      'the engine formulae are the ones that ran in it',
+    )
+    const steps = await page.$$eval('#root main .stepper a', (as) => as.map((a) => a.getAttribute('href')))
+    is(steps.join(' '), '/eras/2009 /eras/2022', 'the stepper goes to the eras either side')
+    truthy(
+      await page.$('#root main nav.onward a[href="/drivers?era=2014"]'),
+      'the onward band opens the driver register on the era',
+    )
+    // A slice with nothing in it keeps its heading and says so: no safety
+    // milestone is recorded for the first era.
+    const empty = db.prepare(
+      'SELECT e.from_year, e.era_name FROM eras e WHERE NOT EXISTS (SELECT 1 FROM safety_milestones m WHERE m.year BETWEEN e.from_year AND COALESCE(e.to_year, 9999)) LIMIT 1',
+    ).get()
+    if (empty) {
+      await go(`/eras/${empty.from_year}`, empty.era_name)
+      const said = await page.$$eval('#root main section', (ss) =>
+        ss.filter((sec) => sec.querySelector('h2')?.firstChild?.textContent.trim() === 'Safety').map((sec) => sec.querySelector('.state.is-empty')?.textContent),
+      )
+      is(said[0], 'None recorded for these seasons.', `an era with no safety milestone (${empty.from_year}) says so under the heading`)
+    } else pass('every era has a safety milestone, so there is no empty slice to check')
+    await go('/eras/2016', 'No such era')
+    pass('an address inside an era but not at its start is no era, and says so')
 
   })
 
@@ -8073,6 +8186,13 @@ try {
       'dist/reference/quality/index.html sends the reader to /data/quality and names it canonical',
     )
     truthy(movedStatic.includes('name="robots" content="noindex"'), 'and asks not to be indexed itself')
+    // IA-25: the eras' old address, which the car pages and onward bands
+    // linked until the eras became a section.
+    const erasMoved = readFileSync(join(web, 'dist', 'reference', 'eras', 'index.html'), 'utf8')
+    truthy(
+      /http-equiv="refresh"[^>]*url=\/eras"/.test(erasMoved) && /<link rel="canonical" href="[^"]*\/eras"/.test(erasMoved),
+      'dist/reference/eras/index.html sends the reader to /eras and names it canonical',
+    )
     const moved = await browser.newPage()
     await moved.goto(`${BASE}/reference/sql?q=SELECT%207%20AS%20n`, { waitUntil: 'domcontentloaded' })
     await moved.waitForFunction(
@@ -8168,6 +8288,7 @@ try {
               AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1`) +
       10 + // records, data and its three children, eras, glossary, changes, about, compare (PD-43)
       one('SELECT COUNT(*) FROM records') + // one per record, at its key (PD-27)
+      one('SELECT COUNT(*) FROM eras') + // one per era, at its first season (IA-25)
       // SD-20: feed.xml is listed too. It is not a page, but it is an address
       // worth recrawling, and its lastmod is the one on the site that moves
       // whenever the data does.
@@ -8832,7 +8953,9 @@ try {
       '/cars/brabham-bt46',
       '/records',
       '/records/most-wins',
-      '/reference/eras',
+      '/eras',
+      // IA-25: an era's page, its stepper in the header.
+      '/eras/2014',
       '/reference/glossary',
       '/data',
       '/data/quality',
@@ -9609,7 +9732,10 @@ try {
         'Governance',
         'Tyre suppliers',
       ]) {
-        await same('/reference/eras', 'Eras', heading)
+        await same('/eras', 'Eras', heading)
+      }
+      for (const heading of ['The seasons', 'Engine formulae', 'Regulation changes', 'Technical innovations']) {
+        await same('/eras/2014', 'The hybrid era', heading)
       }
       for (const heading of ['Glossary', 'People']) await same('/reference/glossary', 'Glossary', heading)
       for (const heading of ['What a licence cost, or bought', 'The source registry', 'Photograph licences']) {

@@ -635,6 +635,15 @@ citation, is already one system and is kept.
   Every entry · photographs. This year's chassis opened on its photographs
   (I9, PD-49) until VD-83; the photograph that identifies a car is the
   opening slot's (VD-84), and the strip holds the rest.
+- **Era** (provisional, IA-25): the header carries the years as its
+  eyebrow, the era's summary as its lede and the stepper to the eras either
+  side as its aside · the era's lines as fields (dominant teams, technology,
+  confidence) · The seasons · Engine formulae · Regulation changes ·
+  Technical innovations · Safety · *Keep going*, which is the three
+  registers narrowed to the era. Each section is `/eras`'s own table or
+  timeline over the era's years; one with nothing in them keeps its
+  heading and says so in one sentence. It has no tiles or slot: an era has
+  no single figure to lead with and no picture of its own.
 
 ### Event pages: race
 

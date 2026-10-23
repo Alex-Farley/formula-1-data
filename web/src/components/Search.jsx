@@ -115,7 +115,7 @@ const PAGES = [
   ['/data/quality', NAMES.quality().headline, 'confidence gaps discrepancies checks'],
   ['/data/sources', NAMES.sources().headline, 'licence licenses attribution provenance'],
   ['/changes', CHANGES_TITLE, 'changelog releases updates corrections'],
-  ['/reference/eras', NAMES.eras().headline, 'eras rules regulations history'],
+  ['/eras', NAMES.eras().headline, 'eras rules regulations history'],
   ['/reference/glossary', NAMES.glossary().headline, 'glossary terms definitions people'],
   ['/about', NAMES.about().headline, 'who contact corrections'],
 ].map(([path, label, also]) => ({ kind: 'Page', key: path, label, meta: '', also, path, weight: 100 }))

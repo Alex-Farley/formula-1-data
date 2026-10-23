@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Confidence, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -32,6 +33,7 @@ import {
   ERAS_LEDE,
   erasNote,
   erasTiers,
+  eraPath,
 } from '../queries/eras.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -66,6 +68,43 @@ const ENGINE_APP = {
 }
 const withRenders = (columns, renders) =>
   columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
+
+/** The engine formulae, here and on an era's page (IA-25). */
+export function EngineTable({ rows, empty }) {
+  return (
+    <DataTable
+      unfolded={UNFOLDED.reference}
+      rows={rows}
+      rowKey={(row) => row.id}
+      sortable={false}
+      columns={withRenders(ENGINE_COLUMNS, ENGINE_APP)}
+      empty={empty}
+    />
+  )
+}
+
+/** The safety milestones as a dated timeline, here and on an era's page. */
+export function SafetyTimeline({ milestones, empty }) {
+  if (milestones.length === 0 && empty) return <p className="state is-empty">{empty}</p>
+  return (
+    <div className="timeline">
+      {milestones.map((milestone) => (
+        <article key={milestone.id}>
+          <h3>
+            {milestone.milestone}
+            <span className="years">{milestone.year}</span>
+          </h3>
+          {milestone.trigger_event && (
+            <p className="faint small">
+              <strong>After:</strong> {milestone.trigger_event}
+            </p>
+          )}
+          <p>{milestone.description}</p>
+        </article>
+      ))}
+    </div>
+  )
+}
 
 export default function Eras() {
   const state = useQueries(SPEC)
@@ -116,7 +155,8 @@ function Body({ data }) {
           {eras.map((era) => (
             <article key={era.id}>
               <h3>
-                {era.era_name}
+                {/* Its own page (IA-25), as prerender.js links it. */}
+                <Link to={eraPath(era)}>{era.era_name}</Link>
                 <span className="years">{span(era.from_year, era.to_year)}</span>
                 {eraTiers.length > 1 && <Confidence value={era.confidence} />}
               </h3>
@@ -135,13 +175,7 @@ function Body({ data }) {
       </Section>
 
       <Section title="Engine formulae" count={`${engines.length}`}>
-        <DataTable
-          unfolded={UNFOLDED.reference}
-          rows={engines}
-          rowKey={(row) => row.id}
-          sortable={false}
-          columns={withRenders(ENGINE_COLUMNS, ENGINE_APP)}
-        />
+        <EngineTable rows={engines} />
       </Section>
 
       <Section
@@ -201,22 +235,7 @@ function Body({ data }) {
       </Section>
 
       <Section title="Safety" count={`${safety.length}`}>
-        <div className="timeline">
-          {safety.map((milestone) => (
-            <article key={milestone.id}>
-              <h3>
-                {milestone.milestone}
-                <span className="years">{milestone.year}</span>
-              </h3>
-              {milestone.trigger_event && (
-                <p className="faint small">
-                  <strong>After:</strong> {milestone.trigger_event}
-                </p>
-              )}
-              <p>{milestone.description}</p>
-            </article>
-          ))}
-        </div>
+        <SafetyTimeline milestones={safety} />
       </Section>
 
       <Section title="Governance" count={`${governance.length}`}>

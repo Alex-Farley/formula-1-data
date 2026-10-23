@@ -5,8 +5,9 @@ import { NavLink } from 'react-router-dom'
  *
  * /reference used to hold both: a database drawer (quality, sources, the SQL
  * console) and a sport drawer (eras, glossary). The first is the database
- * itself and now lives under /data, which took the masthead slot. Eras and
- * the glossary keep their URLs and are reached from the pages about the sport
+ * itself and now lives under /data, which took the masthead slot. The
+ * glossary keeps its URL, and the eras moved to /eras when they became a
+ * section of their own (IA-25); both are reached from the pages about the sport
  * — Seasons, Cars, Circuits, Races and the home page — not from /data.
  */
 const DATA = [
@@ -17,7 +18,7 @@ const DATA = [
 ]
 
 const SPORT = [
-  ['/reference/eras', 'Eras and regulations'],
+  ['/eras', 'Eras and regulations'],
   ['/reference/glossary', 'Glossary and people'],
 ]
 
