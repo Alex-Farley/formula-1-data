@@ -12,7 +12,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { span, text } from '../lib/format.js'
+import { roundResult, span } from '../lib/format.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 import { carName } from './race.js'
 import { raceName, raceWinner } from './races.js'
@@ -127,7 +127,7 @@ export const venuesCount = (rows) => {
  * it: the Winner cell says "not yet run" once, and an em dash here would say
  * a fact is missing about a race that has not happened (CD-37).
  */
-export const editionCar = (_, row) => (row.status !== 'completed' ? '' : text(carName(row)))
+export const editionCar = (_, row) => roundResult(carName(row), row)
 
 export const CIRCUIT_COLUMNS = [
   { key: 'circuit', rowHeader: true, label: 'Circuit' },

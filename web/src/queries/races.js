@@ -11,7 +11,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { text } from '../lib/format.js'
+import { roundResult, text } from '../lib/format.js'
 import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 
 /**
@@ -72,9 +72,11 @@ export const RACE_COLUMNS = [
   { key: 'circuit', label: 'Circuit' },
   { key: 'country', label: 'Country', optional: true },
   { key: 'winner', label: 'Winner', text: raceWinner, phone: true },
-  { key: 'constructor', label: 'Constructor' },
-  { key: 'pole', label: 'Pole' },
-  { key: 'fastest_lap', label: 'Fastest lap' },
+  // Blank, not dashed, on a race still to come: the Winner cell says so once
+  // (roundResult, CD-43).
+  { key: 'constructor', label: 'Constructor', text: roundResult },
+  { key: 'pole', label: 'Pole', text: roundResult },
+  { key: 'fastest_lap', label: 'Fastest lap', text: roundResult },
 ]
 
 export const RACES_FOOTER =

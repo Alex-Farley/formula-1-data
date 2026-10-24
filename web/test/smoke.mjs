@@ -2104,6 +2104,53 @@ try {
 
   })
 
+  // The same rule on the two other tables that list rounds beside a "not yet
+  // run" Winner: the register of every race, and a circuit's races (CD-43).
+  // A row is found by its tag, and every other cell in it that would carry a
+  // result - all but the season, round, name, circuit, country and layout
+  // columns, which a scheduled round has - must not be an em dash.
+  await section('/races and /circuits/<id>  (a race not yet run dashes nothing beside its tag: CD-43)', async () => {
+    const dashedBesideTag = (results) =>
+      page.$$eval(
+        '#root main table',
+        (tables, [tag, results]) =>
+          tables.flatMap((table) => {
+            const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim())
+            const wanted = heads.flatMap((head, i) => (results.includes(head) ? [i] : []))
+            return [...table.querySelectorAll('tbody tr')]
+              .filter((tr) => [...tr.children].some((td) => td.textContent.trim() === tag))
+              .map((tr) => ({
+                rows: 1,
+                dashed: wanted.filter((i) => tr.children[i]?.textContent.trim() === '\u2014').length,
+                found: wanted.length,
+              }))
+          }),
+        [NOT_YET_RUN, results],
+      )
+    const scheduled = count("SELECT COUNT(*) FROM races WHERE status = 'scheduled'")
+    if (!scheduled) {
+      note('no race on the calendar is still to come - nothing to check')
+    } else {
+      // The register pages at 120 rows with the races to come last, so its
+      // own Scheduled filter is what puts them all on the page.
+      await go('/races?status=scheduled', 'Races')
+      const rows = await dashedBesideTag(['Constructor', 'Pole', 'Fastest lap'])
+      is(rows.length, scheduled, '/races tags every race still to come')
+      truthy(rows.every((r) => r.found === 3), 'and finds the three result columns beside each tag')
+      is(rows.reduce((n, r) => n + r.dashed, 0), 0, 'none of which dashes a result the race cannot have yet')
+      const circuit = one(
+        "SELECT circuit_id FROM races WHERE status <> 'completed' AND circuit_id IS NOT NULL ORDER BY year, round LIMIT 1",
+      )
+      const name = one('SELECT name FROM circuits WHERE id = ?', circuit)
+      const ahead = count("SELECT COUNT(*) FROM races WHERE status <> 'completed' AND circuit_id = ?", circuit)
+      await go(`/circuits/${circuit}`, name)
+      const here = await dashedBesideTag(['Constructor'])
+      is(here.length, ahead, `/circuits/${circuit} tags each race still to come there`)
+      truthy(here.every((r) => r.found === 1), 'and finds the Constructor column beside each tag')
+      is(here.reduce((n, r) => n + r.dashed, 0), 0, 'which is blank, not dashed')
+    }
+  })
+
   // ---------------------------------------------------------------- a race
 
   // 2026 carries two tables as it stands — formula1.com's snapshot records the
