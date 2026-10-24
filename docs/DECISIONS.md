@@ -653,12 +653,71 @@ context boundary, not a control.
   or a pause between the two forks leaves the PR open and claimed, and the
   inheritance rule lands it.
 
-**After.** The same figures, counted the same way, for the first ten items to
-land under the split, peak context per fork and context read after the PR, set
-against the sixteen above, and the session points each item cost, read from
-the `usage` lines `[D-55]` writes to `progress.log` before every fork. If
-quality or cost is worse, this is reverted; the measurement is `AF-123`
-(#1071).
+**After**, measured on 2026-10-24 (`AF-123`, #1071) and counted the same
+way: each API response once, its context the input, cache-read and
+cache-write tokens together. The counting reproduces the figures above -
+1,002 turns, 108 M, a median peak of 118,984 - except that taking the turn
+that runs `gh pr create` as the first after it gives 294 turns and 38.4 M
+where the text says 293 and 38.5 M. The first ten items to land under the
+split were AF-110, CR-91, AF-121, VD-87, VD-73, PM-13, DA-30, SD-31, PM-61
+and PM-79 (#1073 to #1102). Nine handed over at the PR; PM-79's first pass
+was a clean PASS and its implementer landed it, as the rule says. AF-76
+(#1099) handed over too, and its PR was closed unmerged when `check (3.9)`
+could not start on the new runner (#1101), so it is not among the ten.
+
+- **Peaks.** The implementing forks ran 55,000-273,000, median about
+  132,000; the landing forks 42,000-133,000, median about 74,000. Before, a
+  fork's context grew a median 16,500 tokens after the PR, so the split takes
+  little off a peak: most of it is reached before the PR, and VD-73 (273,000)
+  and VD-87 (259,000) set new highs while implementing.
+- **After the PR.** The ten items read 99.7 M over 911 turns, 34.3 M of it in
+  the 375 turns from `gh pr create` on: 41 % of the turns and 34 % of the
+  context, about 92,000 a turn against 131,000. The nine landing forks read
+  about 75,000 a turn. Turns over 150,000 tokens carried 41 % of the
+  context read after the PR before, and 25 % after, all of it in
+  implementing forks' review turns; no landing fork reached 150,000.
+- **More turns.** A landing fork took 12-53 turns. After the PR, an item whose
+  first pass FAILed took 40-61 turns against 20-30 before, and one whose PASS
+  left a fix 20-45 against 14-24. Some of that is the landing fork's start:
+  5-29 turns before its first edit or commit, the reading of the code it
+  fixes included.
+- **Per item.** The nine items with something to fix read 3.7 M each after
+  the PR, against 2.9 M for the eleven such before, 27 % more. They were
+  larger items: 7.2 M each before the PR against 5.2 M. Priced as the API
+  prices tokens - cache read 0.1, five-minute cache write 1.25 and output 5
+  against input 1 - their after-PR phase cost about the same, 0.71 M
+  input-equivalent against 0.68 M, while their pre-PR phase cost 42 % more.
+- **Session points.** The `usage` lines bracket a whole item, its reviewers
+  and anything else on the account included, and a window's first reading is
+  often "not readable". Bracketed exactly: AF-110 12 points, CR-91 14, PM-79
+  12, DA-30 105 (43 implementing, 62 landing, which ran two Opus and two
+  Sonnet passes). Bounded: PM-13 17 + at most 10, SD-31 at most 20 + 11,
+  PM-61 at most 7 + 3, VD-87 at most 39 + at most 13, VD-73 at most 98 + at
+  most 7; AF-121's implementing fork is not bracketed, its landing fork 17.
+  The same lines bracket thirteen of the sixteen before, 7-31 points, median
+  13. Points follow an item's size and its review passes, and these readings
+  cannot separate the split from either.
+- **Quality.** No finding was lost across a handover: each finding on the
+  nine verdict comments was fixed, left with its reason or carried to an
+  issue, as the comment said. No landing fork needed anything the PR did not
+  hold; three read an issue a comment named (#1088, #622's ruling, #1095),
+  which *Landing* allows. One landing fork drew a second FAIL, which none of
+  the sixteen before did: DA-30's rewrite of `origins()` applied a class that
+  describes the facts artefact's rows to f1.db, and its LICENSE-DATA wording
+  still did not match the schema's list, a first-pass finding fixed
+  incompletely. First passes FAILed on five of the ten against five of the
+  sixteen, but a first pass runs before the handover.
+
+**Conclusion: the split stays.** Against the size of the items, the work
+after the PR is not dearer: 34 % of the context against 36 %, and, priced,
+about the same cost on items whose pre-PR phase cost 42 % more. Nor
+is it the saving the per-turn figure suggests: a landing fork reads about
+75,000 a turn but takes about twice the turns, so an item with a fix read
+27 % more after its PR. What it did buy is what the usage report asked for:
+no landing fork ran past 150,000 tokens of context, and the share of the
+context read after the PR in turns above that fell from 41 % to 25 %. Quality
+held on both tests the item named. Ten items are few; a second landing fork
+whose rewrite FAILs again would be the figure to reopen this on.
 
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four
