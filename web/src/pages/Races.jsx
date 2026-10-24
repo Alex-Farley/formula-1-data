@@ -47,29 +47,41 @@ const APP = {
       ),
   },
   // The winning car's colour mark (AF-47), as the race page draws it beside
-  // the same constructor: one per row, the year the row's own.
+  // the same constructor: one per row, the year the row's own. On a race still
+  // to come these three cells are blank, as the column's text is: the Winner
+  // cell says "not yet run" once (roundResult, CD-43).
   constructor: {
-    render: (name, row) => (
-      <>
-        <LiveryMark
-          colour={colourForEntry({
-            constructorId: row.constructor_id,
-            country: row.constructor_country,
-            year: row.year,
-            team: name,
-          })}
-          year={row.year}
-        />
-        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
-      </>
-    ),
+    render: (name, row) =>
+      row.status !== 'completed' ? (
+        ''
+      ) : (
+        <>
+          <LiveryMark
+            colour={colourForEntry({
+              constructorId: row.constructor_id,
+              country: row.constructor_country,
+              year: row.year,
+              team: name,
+            })}
+            year={row.year}
+          />
+          {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+        </>
+      ),
   },
   pole: {
-    render: (name, row) => (row.pole_id ? <Link to={`/drivers/${row.pole_id}`}>{name}</Link> : cell(name)),
+    render: (name, row) =>
+      row.status !== 'completed' ? '' : row.pole_id ? <Link to={`/drivers/${row.pole_id}`}>{name}</Link> : cell(name),
   },
   fastest_lap: {
     render: (name, row) =>
-      row.fastest_lap_id ? <Link to={`/drivers/${row.fastest_lap_id}`}>{name}</Link> : cell(name),
+      row.status !== 'completed' ? (
+        ''
+      ) : row.fastest_lap_id ? (
+        <Link to={`/drivers/${row.fastest_lap_id}`}>{name}</Link>
+      ) : (
+        cell(name)
+      ),
   },
 }
 

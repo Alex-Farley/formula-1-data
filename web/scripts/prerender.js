@@ -2733,7 +2733,7 @@ const seasonsTable = (rows) =>
     // Nothing on a round still to come, as the app draws it: the
     // Winner cell beside it carries the "not yet run" tag, and three
     // more em dashes said a fact was missing about a race that has not
-    // happened (CD-37). queries/season.js roundResult is the rule.
+    // happened (CD-37). roundResult in lib/format.js is the rule.
     winning_team: (name, row) =>
       row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(winningCar(row)),
   }, { unfolded: UNFOLDED.subject, footer: CALENDAR_FOOTER })}`
@@ -2881,9 +2881,14 @@ const seasonsTable = (rows) =>
             : row.winner_id
               ? `${link(`drivers/${row.winner_id}`, name)}${row.co_winner_id ? ` ${tag(SHARED)}` : ''}`
               : text(name),
-        constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
-        pole: (name, row) => (row.pole_id ? link(`drivers/${row.pole_id}`, name) : text(name)),
-        fastest_lap: (name, row) => (row.fastest_lap_id ? link(`drivers/${row.fastest_lap_id}`, name) : text(name)),
+        // Blank on a race still to come, as the app draws it (roundResult,
+        // CD-43). The slice above holds only races that have run today, but
+        // the rule is the column's, not the slice's.
+        constructor: (name, row) =>
+          row.status !== 'completed' ? '' : row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name),
+        pole: (name, row) => (row.status !== 'completed' ? '' : row.pole_id ? link(`drivers/${row.pole_id}`, name) : text(name)),
+        fastest_lap: (name, row) =>
+          row.status !== 'completed' ? '' : row.fastest_lap_id ? link(`drivers/${row.fastest_lap_id}`, name) : text(name),
       }, { unfolded: UNFOLDED.register, footer: RACES_FOOTER })}`,
   })
 

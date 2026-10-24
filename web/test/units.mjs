@@ -78,6 +78,7 @@ import {
   points,
   raceDates,
   result,
+  roundResult,
   span,
   text,
   yearList,
@@ -111,7 +112,6 @@ import {
   noConstructorsNote,
   progressionNote,
   roundName,
-  roundResult,
   roundWinner,
   winningCar,
   CALENDAR_COLUMNS,
@@ -1132,6 +1132,15 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(roundName('Chinese Grand Prix', { sprint: 1 }), 'Chinese Grand Prix sprint')
     assert.equal(raceWinner('A', { status: 'completed', co_winner_id: 'b' }), 'A shared')
     assert.equal(raceWinner('A', { status: 'scheduled', co_winner_id: null }), NOT_YET_RUN)
+    // /races blanks the three result cells beside that tag, as the season's
+    // calendar does, and dashes a NULL on a race that has run (CD-43).
+    for (const key of ['constructor', 'pole', 'fastest_lap']) {
+      const column = RACES_COLUMNS.find((c) => c.key === key)
+      assert.equal(column.text(null, { status: 'scheduled' }), '', `/races ${key} on a race to come`)
+      assert.equal(column.text('Ferrari', { status: 'scheduled' }), '', `/races ${key} even where a value is held`)
+      assert.equal(column.text(null, { status: 'completed' }), EMPTY, `/races ${key} unestablished on a race run`)
+      assert.equal(column.text('Ferrari', { status: 'completed' }), 'Ferrari', `/races ${key} on a race run`)
+    }
     assert.equal(soFar('Antonelli', { undecided: 1 }), 'Antonelli so far')
     assert.equal(soFar('Norris', { undecided: 0 }), 'Norris')
     assert.equal(soFar(null, { undecided: 1 }), EMPTY)
@@ -1503,6 +1512,11 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(raceWinnerHere('A / B', { status: 'completed' }), 'A / B')
     assert.equal(raceWinnerHere(null, { status: 'scheduled' }), NOT_YET_RUN)
     assert.equal(raceWinnerHere(null, { status: 'completed' }), EMPTY)
+    // The Constructor beside it is blank on a race to come, dashed on one run (CD-43).
+    const hereCar = RACE_COLUMNS.find((c) => c.key === 'constructor').text
+    assert.equal(hereCar(null, { status: 'scheduled' }), '')
+    assert.equal(hereCar(null, { status: 'completed' }), EMPTY)
+    assert.equal(hereCar('McLaren', { status: 'completed' }), 'McLaren')
   })
 
   it('adds a Confidence or an As of column only where the records differ on it', () => {

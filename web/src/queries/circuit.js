@@ -11,7 +11,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { number, span, text } from '../lib/format.js'
+import { number, roundResult, span, text } from '../lib/format.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 
 /**
@@ -201,7 +201,8 @@ export const RACE_COLUMNS = [
   // them (VD-29).
   { key: 'layout_key', label: 'Layout', collapse: true },
   { key: 'winner', label: 'Winner', text: raceWinnerHere },
-  { key: 'constructor', label: 'Constructor' },
+  // Blank, not dashed, beside that "not yet run" (roundResult, CD-43).
+  { key: 'constructor', label: 'Constructor', text: roundResult },
 ]
 
 export const WINNER_COLUMNS = [

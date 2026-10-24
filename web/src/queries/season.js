@@ -15,7 +15,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, missing, number, points, raceDates, text } from '../lib/format.js'
+import { EMPTY, missing, number, points, raceDates, roundResult, text } from '../lib/format.js'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { carName } from './race.js'
@@ -879,18 +879,6 @@ export const roundName = (name, row) => (row.sprint ? `${text(name)} ${SPRINT}` 
 
 /** The winner, or "not yet run" for a calendar entry with no result. */
 export const roundWinner = (name, row) => (row.status !== 'completed' ? NOT_YET_RUN : text(name))
-
-/**
- * A result column on a round that has not been run: nothing (CD-37, CD-32).
- *
- * The Winner cell beside it already says "not yet run", and the em dash means
- * a figure nobody has established - so Car, Pole and Fastest lap dashed three
- * times per scheduled round said that a fact was missing about a race that
- * has not happened. 33 rounds on the calendar are in that state today and
- * every season passes through it. The row states the case once, in the cell
- * that exists to state it, and the rest stay blank.
- */
-export const roundResult = (value, row) => (row.status !== 'completed' ? '' : text(value))
 
 /**
  * The winning car, by the rule the race page names it with (queries/race.js

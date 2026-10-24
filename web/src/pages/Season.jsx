@@ -101,7 +101,7 @@ const calendarRenders = (year) => ({
       ),
   },
   // A round still to come has no winning car to link to, and the Winner cell
-  // beside it already says so: queries/season.js roundResult (CD-37).
+  // beside it already says so: roundResult in lib/format.js (CD-37).
   winning_team: {
     render: (name, row) =>
       row.status !== 'completed' ? (

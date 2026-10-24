@@ -27,6 +27,22 @@ export function text(value) {
   return String(value)
 }
 
+/**
+ * A result column on a round that has not been run: nothing (CD-37, CD-32,
+ * CD-43).
+ *
+ * The Winner cell beside it already says "not yet run", and the em dash means
+ * a figure nobody has established - so a car, a pole or a fastest lap dashed
+ * on a scheduled round said that a fact was missing about a race that has not
+ * happened. Every season passes through that state. The row states the case
+ * once, in the cell that exists to state it, and the rest stay blank. A
+ * season's calendar, /races, a circuit's races and a Grand Prix's editions
+ * each list rounds beside that Winner cell, and their result columns' `text`
+ * is this; where a renderer draws a link in one of those cells instead, it
+ * tests the same status first.
+ */
+export const roundResult = (value, row) => (row.status !== 'completed' ? '' : text(value))
+
 /** Integers plain, fractions to three places at most, thousands separated. */
 export function number(value) {
   if (missing(value) || typeof value !== 'number' || !Number.isFinite(value)) return EMPTY
