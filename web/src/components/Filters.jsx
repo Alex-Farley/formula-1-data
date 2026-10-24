@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { number } from '../lib/format.js'
 
 /**
@@ -6,17 +6,26 @@ import { number } from '../lib/format.js'
  *
  * Filtering happens in the browser against rows already fetched, not in SQL.
  * The largest register here is 1,153 rows and the database is in memory — a
- * round trip per keystroke would be slower than filtering, and it would make
- * the result flicker.
+ * round trip per change of filter would be slower than filtering, and it
+ * would make the result flicker.
  */
+
+/**
+ * How long typing has to pause before it counts. The search box writes the
+ * address this long after the last keystroke, and the live region announces
+ * a count this long after it last changed.
+ */
+const SETTLE_MS = 500
+
 export function Filters({ children, showing, of, noun = 'rows' }) {
   const count = showing === of ? `${number(of)} ${noun}` : `${number(showing)} of ${number(of)} ${noun}`
-  // The visible count updates per keystroke; the announced one waits until
-  // typing settles, because a live region that fires on every character is
-  // worse than no live region for the reader it exists for.
+  // The visible count follows the register at once; the announced one waits
+  // until the count has held still for SETTLE_MS, because a live region that
+  // fires on every change is worse than no live region for the reader it
+  // exists for.
   const [announced, setAnnounced] = useState(count)
   useEffect(() => {
-    const timer = setTimeout(() => setAnnounced(count), 500)
+    const timer = setTimeout(() => setAnnounced(count), SETTLE_MS)
     return () => clearTimeout(timer)
   }, [count])
   return (
@@ -92,14 +101,83 @@ export function NoMatch({ noun, term = '', among = '', onClear }) {
   )
 }
 
+/**
+ * A register's text filter, which writes once typing pauses (IX-40).
+ *
+ * Every keystroke used to be a write to the address, and each write is a
+ * `history.replaceState`. Safari throttles those, at roughly a hundred in
+ * thirty seconds, and throws a `SecurityError` past it: a reader typing and
+ * re-editing a query in one register could reach that, and the filter would
+ * stop following what they typed with nothing on the page to say so.
+ *
+ * So the box holds what is typed, and `onChange` hears it once typing has
+ * paused for SETTLE_MS, which is one write per pause and never more than one
+ * per SETTLE_MS. The register reads the address, so it filters at that pause
+ * too, not on each character. Leaving the box writes at once: a reader who
+ * types and goes straight to a row, or to Clear filters, leaves the address
+ * saying what they had typed, so Back brings it back. The selects, chips and
+ * toggles are discrete and still write the moment they change.
+ *
+ * What the box holds is a second copy of the term, and the address is still
+ * the authority over it. A change that did not come from this box (Clear
+ * filters, a link to the same register) replaces what the box holds and drops
+ * a write still waiting.
+ */
 export function SearchField({ value, onChange, placeholder = 'Filter…', label }) {
+  const [draft, setDraft] = useState(value)
+  const waiting = useRef(null)
+  // The term this box last wrote, so its own write coming back through
+  // `value` is not mistaken for a change from somewhere else.
+  const sent = useRef(null)
+  const change = useRef(onChange)
+  useEffect(() => {
+    change.current = onChange
+  })
+
+  const send = (text) => {
+    clearTimeout(waiting.current)
+    waiting.current = null
+    sent.current = text
+    change.current(text)
+  }
+
+  useEffect(() => {
+    if (value === sent.current) {
+      sent.current = null
+      return
+    }
+    clearTimeout(waiting.current)
+    waiting.current = null
+    sent.current = null
+    setDraft(value)
+  }, [value])
+
+  // A layout effect's cleanup runs before the box leaves the document, so a
+  // blur that its removal fires on a route change finds nothing waiting and
+  // cannot write the old term into the next page's address.
+  useLayoutEffect(
+    () => () => {
+      clearTimeout(waiting.current)
+      waiting.current = null
+    },
+    [],
+  )
+
   return (
     <input
       type="search"
-      value={value}
+      value={draft}
       aria-label={label ?? placeholder}
       placeholder={placeholder}
-      onChange={(event) => onChange(event.target.value)}
+      onChange={(event) => {
+        const text = event.target.value
+        setDraft(text)
+        clearTimeout(waiting.current)
+        waiting.current = setTimeout(() => send(text), SETTLE_MS)
+      }}
+      onBlur={() => {
+        if (waiting.current !== null) send(draft)
+      }}
     />
   )
 }

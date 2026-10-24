@@ -7601,6 +7601,32 @@ try {
     is(page.url(), address, 'Back returns to the register as it was left')
     is((await tableRows())[0], champions, 'with the filter still applied')
 
+    // IX-40. The search box wrote the address on every keystroke, and each
+    // write is a history.replaceState, which Safari throttles and then
+    // refuses with a SecurityError. It writes once typing pauses, and at once
+    // when the reader leaves the box, so a term typed just before opening a
+    // row is still in the entry Back returns to. Counted at the browser's own
+    // history object, which is what the router writes through.
+    await page.evaluate(() => {
+      window.__replaced = 0
+      const replace = history.replaceState.bind(history)
+      history.replaceState = (...args) => {
+        window.__replaced += 1
+        return replace(...args)
+      }
+    })
+    await page.type('input[type="search"]', 'hill', { delay: 40 })
+    is(await page.$eval('input[type="search"]', (node) => node.value), 'hill', 'the search box shows each key as it is typed')
+    await page.waitForFunction(() => new URL(window.location.href).searchParams.get('q') === 'hill', null, { timeout: 10000 })
+    is(await page.evaluate(() => window.__replaced), 1, 'and writes the address once, when typing pauses, not once a key')
+    await page.type('input[type="search"]', 'x')
+    await page.keyboard.press('Tab')
+    is(
+      await page.evaluate(() => new URL(window.location.href).searchParams.get('q')),
+      'hillx',
+      'leaving the box writes what it holds without waiting for the pause',
+    )
+
     // A parameter is typed by hand as often as it is clicked, and a register
     // filtered to nothing by a value no row carries — while the select beside
     // it read "Every nationality" — would be the control and the table
