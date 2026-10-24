@@ -71,9 +71,18 @@ export const ID_README = `${REPOSITORY}/blob/main/README.md#identifiers`
 /**
  * A sentence from `meta` cut at its backticks, which mark code in it - `id`,
  * a `?` - so each renderer can set those pieces as code rather than print
- * the marks.
+ * the marks. A backtick with no partner is text: the piece after it stays
+ * plain, with the mark put back, rather than the rest of the sentence being
+ * set as code.
  */
-export const codeSpans = (text) => String(text).split('`').map((part, i) => ({ text: part, code: i % 2 === 1 }))
+export const codeSpans = (text) => {
+  const parts = String(text).split('`')
+  const spans = parts.map((part, i) => ({ text: part, code: i % 2 === 1 }))
+  // An even number of pieces means an odd number of backticks: the last one
+  // opened a span nothing closed.
+  if (parts.length % 2 === 0) spans[spans.length - 1] = { text: `\`${parts[parts.length - 1]}`, code: false }
+  return spans
+}
 
 /** How far to trust it: what is disputed, what is missing, and who says so. */
 export const trustStrip = (shape) => [
