@@ -419,6 +419,9 @@ Now it does, inside the database itself:
 SELECT key, value FROM meta WHERE key LIKE 'id_stability%';
 ```
 
+The JSON exports carry the same keys: `f1_compat.json` at its top level, and
+`f1_database.json` under `meta`, which holds the whole table.
+
 An integer id is **unstable between releases** unless its table is named in
 `meta.id_stability_stable` — the <!-- fig:stable_id_tables -->7<!-- /fig -->
 tables this release undertakes not to renumber. That is an undertaking and not

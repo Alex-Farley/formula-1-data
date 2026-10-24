@@ -63,7 +63,6 @@ def dump(con, table, order=None):
 # table cannot go missing quietly - which is exactly what happened to the
 # chassis register until someone counted.
 NOT_EXPORTED = {
-    "meta": "unwrapped into the top-level keys instead",
     "provenance": "nested inside verification_policy",
     "laps": "filled locally by tools/fastf1_load.py; FOM's data, never shipped",
     "stints": "as laps",
@@ -124,6 +123,11 @@ def main():
                 "SELECT source FROM source_registry WHERE authority='forbidden'")],
         },
         "coverage": meta.get("coverage_note"),
+        # The whole table, as tools/parquet_export.py writes meta.parquet. The
+        # keys above are a hand-picked few, kept where v1 readers look for
+        # them; picking is how the identifier policy (meta.id_stability*)
+        # once failed to reach this file, and how the next key would (DA-27).
+        "meta": meta,
         "seasons": dump(con, "seasons", "year"),
         "drivers": dump(con, "drivers", "titles DESC, wins DESC, full_name"),
         # The article a driver's note was checked against, where that is not
@@ -241,11 +245,19 @@ def main():
                 JOIN constructors c ON c.id=e.constructor_id
                 WHERE e.year=? AND e.role='race' AND c.name=?""",
                 (SEASON, t["name"]))]
+        # Which ids a reader may keep (DA-04): the keys /data reads, by the
+        # prefix it reads them by, so a fourth reaches this file as well.
+        # Unwrapped like the three above, because this file is a fixed layout
+        # and not the whole database (DA-27).
+        id_policy = {k: v for k, v in meta.items() if k.startswith("id_stability")}
+        if "id_stability" not in id_policy:
+            raise SystemExit("compat: meta carries no id_stability policy")
         compat = {
             "database_name": out["database_name"],
             "version": out["version"],
             "verification_date": meta.get("verification_date"),
             "verification_policy": out["verification_policy"],
+            **dict(sorted(id_policy.items())),
             f"teams_{SEASON}": teams,
             f"drivers_{SEASON}": {
                 "full_season_entry_set": [dict(r) for r in con.execute("""
