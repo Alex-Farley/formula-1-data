@@ -709,10 +709,12 @@ puts the classification before the outline (visual defect 7).
 - **A race's standfirst** (built, CD-39, CD-61) is generated, never typed:
   who won, for whom, from where on the grid and at which circuit; then what
   the race meant, each sentence only where the race records establish it -
-  how much of the field was classified (the starters left unclassified,
-  since the Entries tile shows the classified count), a first championship
-  Grand Prix win for the driver or the constructor, a first championship
-  podium, a record of championship Grand Prix wins set or equalled,
+  how much of the field was classified (how many starters were not, with
+  neither the field's size nor the classified count, which are the Entries
+  tile's, and only where each starter was a car of its own), a first
+  championship race win for the driver or the constructor, a first
+  championship podium, a record of championship Grand Prix wins set or
+  equalled,
   the round that settled the drivers' title and who had led going into it.
   `raceSentence()` and `raceAftermath()` in `queries/race.js`, with
   `titleSettled()` in `queries/season.js`, write it for both renderers. A

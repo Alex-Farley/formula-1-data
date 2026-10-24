@@ -98,7 +98,14 @@ export const STARTED = "COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DN
  *   - rounds_before, so the very first round, before which there is nothing
  *     to be first against, makes no claim at all;
  *   - starters by STARTED above, and classified as the strip's Entries tile
- *     counts it: a finishing position held.
+ *     counts it: a finishing position held;
+ *   - one_car_each, 1 where each starter is a car of its own: no shared
+ *     drive flagged, no starter with neither a grid slot nor a pit-lane
+ *     start, and no two starters on one slot. The two counts are of drivers,
+ *     and on a race where two drivers took one car - a flagged shared
+ *     drive, or a relief driver the source lists with no grid, as Tony
+ *     Rolt at the 1950 British Grand Prix - they overstate the cars that
+ *     started, so the standfirst says nothing of the field there.
  *
  * Read by Race.jsx and by scripts/prerender.js with (year, round).
  */
@@ -113,7 +120,10 @@ export const RACE_HISTORY = `
      WHERE w.finish_position = 1 AND w.race_id IN (SELECT id FROM earlier)
      GROUP BY w.driver_id),
   field AS (
-    SELECT SUM(${STARTED}) AS starters, SUM(e.finish_position IS NOT NULL) AS classified
+    SELECT SUM(${STARTED}) AS starters, SUM(e.finish_position IS NOT NULL) AS classified,
+           COALESCE(MAX(${STARTED} AND (COALESCE(e.shared_drive, 0) = 1 OR (e.grid IS NULL AND e.grid_text IS NULL))), 0) = 0
+             AND SUM(${STARTED} AND e.grid IS NOT NULL) = COUNT(DISTINCT CASE WHEN ${STARTED} THEN e.grid END)
+             AS one_car_each
       FROM race_entries e JOIN here h ON e.race_id = h.id)
   SELECT x.driver_id, d.full_name AS driver, x.finish_position, x.constructor_id, k.name AS constructor,
          -- No row in wins is no win before: a count, so zero is established.
@@ -127,7 +137,7 @@ export const RACE_HISTORY = `
                AND p.race_id IN (SELECT id FROM earlier)) END AS team_wins_before,
          (SELECT MAX(n) FROM wins) AS record_before,
          (SELECT COUNT(*) FROM earlier) AS rounds_before,
-         f.starters, f.classified
+         f.starters, f.classified, f.one_car_each
     FROM race_entries x
     JOIN here h ON x.race_id = h.id
     CROSS JOIN field f
@@ -806,17 +816,22 @@ const listed = (names) =>
  * which is what a round not yet run, or one whose result has not been
  * loaded, gets.
  *
- *   - **The field.** "Every starter was classified." or "Of the 20 starters,
- *     8 were not classified." Not the classified count itself: the Entries
- *     tile beside the lede shows that, and a lede carries no count a tile
- *     beside it also shows (design system section 5).
+ *   - **The field.** "Every starter was classified." or "8 of the starters
+ *     were not classified." Neither the field's size nor the classified
+ *     count: on most races every entry started, so the first is the Entries
+ *     tile's own figure, the tile beside the lede shows the second, and a
+ *     lede carries no count a tile beside it also shows (design system
+ *     section 5). Only where RACE_HISTORY finds each starter a car of its
+ *     own, since its counts are of drivers.
  *   - **Firsts.** The first win for the winner or for the winning car's
  *     constructor, and the first podium for anyone else in the first three,
  *     counted over every earlier round. A first is a first in this
  *     database's championship races, which is the only record it holds, and
- *     says so - "the first championship Grand Prix win" - since Fangio had
- *     won Grands Prix before Monaco 1950; the very first round, which has
- *     nothing before it, claims none.
+ *     says so - "the first championship race win" - since Fangio had won
+ *     Grands Prix before Monaco 1950, and "race" rather than "Grand Prix"
+ *     since the eleven Indianapolis 500s were championship races and not
+ *     Grands Prix; the very first round, which has nothing before it,
+ *     claims none.
  *   - **The wins record.** Where one driver won and the win took their count
  *     past, or level with, the most any driver held before the round: "set
  *     a new record" or "equalled the record", of championship Grand Prix
@@ -830,12 +845,12 @@ export const raceAftermath = (history, title) => {
   const rows = history ?? []
   const sentences = []
   const field = rows[0]
-  if (field && !missing(field.starters) && field.starters > 0 && !missing(field.classified)) {
+  if (field && field.one_car_each === 1 && !missing(field.starters) && field.starters > 0 && !missing(field.classified)) {
     const out = field.starters - field.classified
     sentences.push(
       out === 0
         ? 'Every starter was classified.'
-        : `Of the ${number(field.starters)} starters, ${number(out)} ${out === 1 ? 'was' : 'were'} not classified.`,
+        : `${number(out)} of the starters ${out === 1 ? 'was' : 'were'} not classified.`,
     )
   }
   const name = (row) => row.driver ?? row.driver_id
@@ -848,7 +863,7 @@ export const raceAftermath = (history, title) => {
     }
     const firstPodium = rows.filter((row) => row.finish_position > 1 && row.podiums_before === 0).map(name)
     const clauses = [
-      firstWin.length ? `the first championship Grand Prix win for ${firstWin.join(' and for ')}` : null,
+      firstWin.length ? `the first championship race win for ${firstWin.join(' and for ')}` : null,
       firstPodium.length ? `the first championship podium for ${listed(firstPodium)}` : null,
     ].filter(Boolean)
     if (clauses.length) sentences.push(`It was ${clauses.join(', and ')}.`)
