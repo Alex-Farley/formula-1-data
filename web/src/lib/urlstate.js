@@ -20,6 +20,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
  *     which is the entry the reader leaves behind when they open a driver —
  *     so Back brings the filter back, which is the test this was written
  *     against. The SQL console already stores its statement this way.
+ *     Replacing is still a write, and Safari throttles those, so the search
+ *     box writes once typing pauses rather than per keystroke (IX-40,
+ *     SearchField in components/Filters.jsx).
  *
  * A DEFAULT IS ABSENT
  *     `/drivers` stays `/drivers` until something is actually asked of it,
