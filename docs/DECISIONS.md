@@ -739,7 +739,7 @@ says at each point where one starts which file to read:
 | `no-verdict.md` | `verdict.sh read` exits 1, or a reviewer stops on a limit or an unavailable account |
 | `alarm.md` | the item is a `refresh-failing` or `results-late` alarm, or a security alert |
 | `trouble.md` | a `gh` call names a limit, `next.py` exits 3, `ci-wait.sh` exits 2 or 3, or `merge-step.py before` exits 3 |
-| `hold-or-stop.md` | before a stop, a skip or a hold, or when a decision, a blocker or a refusal is in the way |
+| `hold-or-stop.md` | before a stop, a skip or a hold, or when a decision, a blocker or the permission classifier refusing an edit is in the way |
 
 No rule changed. Besides the read lines and each file's opening paragraph,
 the only words that changed are cross-references and joins: "below" where a
@@ -750,13 +750,14 @@ the common path needs stay in the skill: where an issue's status goes, the
 three exceptions to putting it back, and putting every status back before a
 stop. `CLAUDE.md` still carries "stop on a dangerous one" for any fork that
 has not opened `hold-or-stop.md`. `tests/test_conventions.py` fails on a
-passage that no read line names, and on a read line naming a file that is
-not there.
+passage that no read line names or the index paragraph leaves out, and on
+any file the skill or a passage names, by path or bare name, that is not
+there.
 
-**Before and after, in bytes.** `SKILL.md` went from 41,944 to 32,317, down
-9,627 or 23 %. `CLAUDE.md` went from 11,829 to 11,902, because its pointer
+**Before and after, in bytes.** `SKILL.md` went from 41,944 to 32,359, down
+9,585 or 23 %. `CLAUDE.md` went from 11,829 to 11,902, because its pointer
 now names the folder. The two files every fork loads went from 53,773 to
-44,219, down 18 %. The issue estimated the skill at roughly 10,000 tokens,
+44,261, down 18 %. The issue estimated the skill at roughly 10,000 tokens,
 about 4.2 bytes a token. At that rate a fork carries about 2,300 tokens
 fewer on each turn, and it pays a file read only on a path that needs one. A
 landing fork reads `land.md` (1,157 bytes) every time, so it carries about
@@ -780,8 +781,9 @@ inside that window, it changes the same file again, and AF-129 says so
 rather than mixing the two.
 
 **Not moved.** *Before an item*, *Doing the item* and the self-check under
-*Before asking for review* together hold about 10,100 bytes, and a landing
-fork skips all three. Moving them would spare the landing forks, about half
+*Before asking for review* together hold about 9,100 bytes, and a landing
+fork skips all three; it runs only the precheck paragraph that closes that
+section. Moving them would spare the landing forks, about half
 of all forks under D-58, but every implementing fork would read them a turn
 later and carry them anyway. The item asked for the paths a typical fork
 does not take, and those three are the main path. If AF-129's figures make

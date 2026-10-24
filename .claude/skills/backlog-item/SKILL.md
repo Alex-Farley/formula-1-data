@@ -507,7 +507,8 @@ tokens. Forks that inherited an open PR peaked at 55,000-96,000.
 ## Stop conditions, and holding instead
 
 **Before you stop, skip or hold, and whenever a person's decision, a
-blocker or a refusal stands in the item's way, read
+blocker or the permission classifier refusing an edit stands in the item's
+way, read
 `.claude/skills/backlog-item/hold-or-stop.md`**: which of the three it is,
 the five steps of a hold `[D-52]`, and what stops the loop outright.
 

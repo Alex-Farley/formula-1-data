@@ -658,9 +658,25 @@ class TheItemProcedureReadsItsPassagesOnDemand(unittest.TestCase):
             self.assertIn("Part of the backlog-item procedure.", text,
                           f"{name} does not say what it is part of")
             self.assertTrue(re.search(r"\n## ", text), f"{name} does not name the section it came from")
-        named = set(re.findall(re.escape(self.DIR) + r"/([\w.-]+\.md)", skill)) - {"SKILL.md"}
-        missing = sorted(named - set(passages))
-        self.assertEqual(missing, [], f"SKILL.md sends a fork to passages that do not exist: {missing}")
+        # The index paragraph near the top names every passage, so a fork
+        # reading it knows the whole set before any read line sends it to one.
+        index = next((p for p in read(f"{self.DIR}/SKILL.md").split("\n\n") if "sit beside this file" in p), "")
+        self.assertTrue(index, "SKILL.md has lost the paragraph that lists its passages")
+        unindexed = [name for name in passages if f"`{name}`" not in index]
+        self.assertEqual(unindexed, [], f"the passage index in SKILL.md does not name {unindexed}")
+
+    def test_every_file_the_procedure_names_is_there(self):
+        # Every backticked .md the procedure names, in SKILL.md and in each
+        # passage, as a full path or a bare name. A bare name is a passage
+        # beside the skill or a file at the repository root (CLAUDE.md), so a
+        # renamed passage leaves no mention of its old name dangling.
+        missing = []
+        for rel in files_under(self.DIR, (".md",)):
+            for name in sorted(set(re.findall(r"`([\w./-]+\.md)`", read(rel)))):
+                candidates = [name] if "/" in name else [f"{self.DIR}/{name}", name]
+                if not any(os.path.isfile(os.path.join(ROOT, c)) for c in candidates):
+                    missing.append(f"{os.path.basename(rel)}: {name}")
+        self.assertEqual(missing, [], f"the item procedure names files that are not there: {missing}")
 
 
 class TheCitationStaysInStepWithTheBuild(unittest.TestCase):
