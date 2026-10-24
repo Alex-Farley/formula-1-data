@@ -64,6 +64,8 @@ export default function DotPlot({
   invert = true,
   format = (v) => String(v),
   formatX = (v) => String(v),
+  // The span the axis covers at the least (charts/dotPlot.js, IX-38).
+  xDomain = null,
   label,
   // The entity whose chart this is (VD-34); see ColumnChart for the rule.
   colour = null,
@@ -75,7 +77,7 @@ export default function DotPlot({
   const own = ownColour(colour)
   // The geometry is charts/dotPlot.js's, which the static page draws from
   // too (VD-73), so the two halves place every dot and tick alike.
-  const layout = dotPlotLayout({ data, width, height, yMax, invert, format, formatX })
+  const layout = dotPlotLayout({ data, width, height, yMax, invert, format, formatX, xDomain })
   if (!layout) return null
   const { x, y } = layout
   const plotted = layout.points.map((p) => p.d)

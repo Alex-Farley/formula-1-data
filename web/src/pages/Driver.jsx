@@ -373,6 +373,7 @@ function DriverBody({ driver, data }) {
               yMax={career.yMax}
               format={career.format}
               formatX={career.formatX}
+              xDomain={career.xDomain}
               height={career.height}
               label={career.label}
             />
