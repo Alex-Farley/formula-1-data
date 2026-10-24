@@ -325,7 +325,8 @@ per item `[D-34]`.
 
 The same rules apply when an agent works through the queue unattended, and
 the per-item procedure that carries them is in **one** place:
-`.claude/skills/backlog-item/SKILL.md`. It holds the pace table, grouping,
+`.claude/skills/backlog-item/` — its `SKILL.md`, and the passages beside it
+that `SKILL.md` says when to read. It holds the pace table, grouping,
 the review policy, the stop conditions and what never slides at any pace.
 Nothing restates it — three copies of a rule is how two of them end up wrong,
 which is what this section used to be.
