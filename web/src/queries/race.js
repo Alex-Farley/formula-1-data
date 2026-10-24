@@ -13,7 +13,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { classificationOrder, finished, missing, number, points, raceDates, result, text } from '../lib/format.js'
+import { classificationOrder, finished, missing, number, ordinal, points, raceDates, result, text } from '../lib/format.js'
 import { linked } from '../lib/tiles.js'
 import { LABELS, SHARED } from '../lib/site.js'
 import { LATE_NOTE, raceDay } from '../lib/refresh.js'
@@ -54,6 +54,97 @@ export const ENTRIES = `
     LEFT JOIN constructors k ON k.id = e.constructor_id
     LEFT JOIN chassis ch ON ch.id = e.chassis_id
    WHERE r.year = ? AND r.round = ?
+`
+
+/**
+ * What counts as a start, for the SQLite the browser runs.
+ *
+ * THIS IS build.py's STARTED, and it is here as a constant rather than
+ * written into a query because the driver strip (queries/driver.js's
+ * DERIVED) asks the question three times - how many starts, how many starts
+ * have no grid recorded, how many have no lap count - and the race's
+ * standfirst a fourth (RACE_HISTORY below), and one rule spelled four times
+ * is how the country vocabulary split. It lives in this module because
+ * driver.js already imports this one and not the other way round.
+ * tests/test_conventions.py compares this string's codes with build.py's
+ * and fails if either moves without the other.
+ *
+ * An entry is a start unless the source's result says it never was. A
+ * pit-lane start counts; so does a retirement on the first lap. The rule
+ * reads the alias `e`, so a query interpolating it names race_entries `e`.
+ */
+export const STARTED = "COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')"
+
+/**
+ * What the race's standfirst says beyond who won (CD-39, CD-61): one row per
+ * entry classified in the first three, with what each had done before this
+ * round, and the field's two counts on every row.
+ *
+ * "Before" is every round earlier in the championship's order - an earlier
+ * season, or an earlier round of this one - so the counts are of the race
+ * records as they stood on the morning of the race, and a later result
+ * cannot change them. Each is counted by the rule its page uses, so the
+ * standfirst cannot disagree with the career it is about:
+ *
+ *   - wins_before and podiums_before as the driver strip counts a win and a
+ *     podium (queries/driver.js's DERIVED): a row classified first, or in
+ *     the first three, each shared drive credited to both drivers;
+ *   - team_wins_before as v_wins_by_constructor counts a constructor's win:
+ *     the distinct races its cars were classified first in. NULL where the
+ *     entry has no constructor - the eleven Indianapolis 500s - since a win
+ *     nobody is credited with has no first;
+ *   - record_before as /records' Most Grand Prix wins counts it: the most
+ *     wins any one driver held before this round, NULL before the first win;
+ *   - rounds_before, so the very first round, before which there is nothing
+ *     to be first against, makes no claim at all;
+ *   - starters by STARTED above, and classified as the strip's Entries tile
+ *     counts it: a finishing position held;
+ *   - one_car_each, 1 where each starter is a car of its own: no shared
+ *     drive flagged, no starter with neither a grid slot nor a pit-lane
+ *     start, and no two starters on one slot. The two counts are of drivers,
+ *     and on a race where two drivers took one car - a flagged shared
+ *     drive, or a relief driver the source lists with no grid, as Tony
+ *     Rolt at the 1950 British Grand Prix - they overstate the cars that
+ *     started, so the standfirst says nothing of the field there.
+ *
+ * Read by Race.jsx and by scripts/prerender.js with (year, round).
+ */
+export const RACE_HISTORY = `
+  WITH here AS (SELECT id, year, round FROM races WHERE year = ?1 AND round = ?2),
+  earlier AS (
+    SELECT r.id FROM races r, here h
+     WHERE r.year < h.year OR (r.year = h.year AND r.round < h.round)),
+  wins AS (
+    SELECT w.driver_id, COUNT(*) AS n
+      FROM race_entries w
+     WHERE w.finish_position = 1 AND w.race_id IN (SELECT id FROM earlier)
+     GROUP BY w.driver_id),
+  field AS (
+    SELECT SUM(${STARTED}) AS starters, SUM(e.finish_position IS NOT NULL) AS classified,
+           COALESCE(MAX(${STARTED} AND (COALESCE(e.shared_drive, 0) = 1 OR (e.grid IS NULL AND e.grid_text IS NULL))), 0) = 0
+             AND SUM(${STARTED} AND e.grid IS NOT NULL) = COUNT(DISTINCT CASE WHEN ${STARTED} THEN e.grid END)
+             AS one_car_each
+      FROM race_entries e JOIN here h ON e.race_id = h.id)
+  SELECT x.driver_id, d.full_name AS driver, x.finish_position, x.constructor_id, k.name AS constructor,
+         -- No row in wins is no win before: a count, so zero is established.
+         COALESCE((SELECT n FROM wins WHERE wins.driver_id = x.driver_id), 0) AS wins_before,
+         (SELECT COUNT(*) FROM race_entries p
+           WHERE p.driver_id = x.driver_id AND p.finish_position <= 3
+             AND p.race_id IN (SELECT id FROM earlier)) AS podiums_before,
+         CASE WHEN x.constructor_id IS NULL THEN NULL ELSE
+           (SELECT COUNT(DISTINCT p.race_id) FROM race_entries p
+             WHERE p.constructor_id = x.constructor_id AND p.finish_position = 1
+               AND p.race_id IN (SELECT id FROM earlier)) END AS team_wins_before,
+         (SELECT MAX(n) FROM wins) AS record_before,
+         (SELECT COUNT(*) FROM earlier) AS rounds_before,
+         f.starters, f.classified, f.one_car_each
+    FROM race_entries x
+    JOIN here h ON x.race_id = h.id
+    CROSS JOIN field f
+    LEFT JOIN drivers d      ON d.id = x.driver_id
+    LEFT JOIN constructors k ON k.id = x.constructor_id
+   WHERE x.finish_position BETWEEN 1 AND 3
+   ORDER BY x.finish_position, x.id
 `
 
 export const QUALIFYING = `
@@ -647,6 +738,16 @@ export const PIT_ORDER_NOTE =
  *
  *     Juan Manuel Fangio and Luigi Fagioli shared the win for Alfa Romeo at
  *     Reims-Gueux.
+ *     Max Verstappen won for Red Bull from pole at Bahrain International
+ *     Circuit.
+ *
+ * Where one driver won, the sentence says where they started (CD-39): "from
+ * pole" for the driver the season record credits with pole who also started
+ * first, "from the front of the grid" for a winner who started first without
+ * the credit (2022 Brazil, where the sprint set the grid), and "from 4th on
+ * the grid" otherwise - the slot, which a pit-lane start or a blank does not
+ * have, so either leaves the clause out. A shared win has two drivers and
+ * one slot, and says nothing of it.
  *
  * `winners` is every entry classified first, which is two of them on the
  * three races a pair shared a car; both are credited, as the classification
@@ -656,8 +757,8 @@ export const PIT_ORDER_NOTE =
  * 500s in the championship read "Kurtis Kraft-Offenhauser" rather than
  * nothing.
  *
- * A scheduled round has no classification to describe, so it says when and
- * where instead, that being the whole of what is established about it. The
+ * A scheduled round has no classification to describe, so it says where
+ * instead, and that it has not been run; its date is the eyebrow's. The
  * no-winner sentence holds for no race today - every one of the 1,163 run
  * rounds classifies someone first - and is here because a round whose
  * classification has not been loaded yet is a state this site passes through
@@ -671,21 +772,125 @@ export const raceSentence = (race, winners, stage = 'awaited') => {
     // measured at twenty-three hours. `stage` is raceStage() in
     // queries/sessions.js, read from the clock by whichever renderer has one;
     // where nobody passes it the sentence is what the record says, unchanged.
+    //
+    // No date (CD-39): the eyebrow directly above carries the race day in a
+    // <time>, in the reader's own format, and the Status tile the weekend.
+    // A third copy here was the one date on the page neither renderer could
+    // localise, since a lede is plain text in both.
     const held = stage === 'awaited' ? 'not yet run' : 'no result is recorded yet'
-    const when = raceDates(race)
-    return `Scheduled${when ? ` for ${when}` : ''}${where}; ${held}.`
+    return `Scheduled${where}; ${held}.`
   }
   if (!winners.length) return 'No winner is recorded for this round.'
   const first = winners[0]
   const car = carName(first)
   const forWhom = car ? ` for ${car}` : ''
   const who = winners.map((w) => w.driver ?? w.driver_id).join(' and ')
-  return winners.length > 1 ? `${who} shared the win${forWhom}${where}.` : `${who} won${forWhom}${where}.`
+  return winners.length > 1
+    ? `${who} shared the win${forWhom}${where}.`
+    : `${who} won${forWhom}${startedFrom(first)}${where}.`
+}
+
+/** " from pole", " from 4th on the grid", or nothing: raceSentence() above says which. */
+const startedFrom = (entry) => {
+  const grid = entry?.grid
+  if (missing(grid) || typeof grid !== 'number') return ''
+  // grid_text is the slot as the source states it, and differs from `grid`
+  // only where the start was not a numbered slot.
+  if (!missing(entry.grid_text) && String(entry.grid_text) !== String(grid)) return ''
+  if (grid === 1) return entry.pole === 1 ? ' from pole' : ' from the front of the grid'
+  return ` from ${ordinal(grid)} on the grid`
+}
+
+/** "A", "A and B", "A, B and C". */
+const listed = (names) =>
+  names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+
+/**
+ * What the race meant beyond who won, as sentences both renderers print
+ * after raceSentence() (CD-39, CD-61): how much of the field was
+ * classified, the firsts, the wins record, and the drivers' title. Each one
+ * is counted from the race records by `history` - RACE_HISTORY's rows - and
+ * `title`, titleSettled() in queries/season.js; none is typed, and a fact
+ * the records cannot establish leaves its sentence out rather than hedging.
+ * With neither, the result is empty and the lede is raceSentence() alone,
+ * which is what a round not yet run, or one whose result has not been
+ * loaded, gets.
+ *
+ *   - **The field.** "Every starter was classified." or "8 of the starters
+ *     were not classified." Neither the field's size nor the classified
+ *     count: on most races every entry started, so the first is the Entries
+ *     tile's own figure, the tile beside the lede shows the second, and a
+ *     lede carries no count a tile beside it also shows (design system
+ *     section 5). Only where RACE_HISTORY finds each starter a car of its
+ *     own, since its counts are of drivers.
+ *   - **Firsts.** The first win for the winner or for the winning car's
+ *     constructor, and the first podium for anyone else in the first three,
+ *     counted over every earlier round. A first is a first in this
+ *     database's championship races, which is the only record it holds, and
+ *     says so - "the first championship race win" - since Fangio had won
+ *     Grands Prix before Monaco 1950, and "race" rather than "Grand Prix"
+ *     since the eleven Indianapolis 500s were championship races and not
+ *     Grands Prix; the very first round, which has nothing before it,
+ *     claims none.
+ *   - **The wins record.** Where one driver won and the win took their count
+ *     past, or level with, the most any driver held before the round: "set
+ *     a new record" or "equalled the record", of championship Grand Prix
+ *     wins for the same reason. From a second win, since a first is said as
+ *     a first.
+ *   - **The title.** Where titleSettled() finds this the round after which
+ *     no other driver could reach the leader's total, and before which one
+ *     could.
+ */
+export const raceAftermath = (history, title) => {
+  const rows = history ?? []
+  const sentences = []
+  const field = rows[0]
+  if (field && field.one_car_each === 1 && !missing(field.starters) && field.starters > 0 && !missing(field.classified)) {
+    const out = field.starters - field.classified
+    sentences.push(
+      out === 0
+        ? 'Every starter was classified.'
+        : `${number(out)} of the starters ${out === 1 ? 'was' : 'were'} not classified.`,
+    )
+  }
+  const name = (row) => row.driver ?? row.driver_id
+  const winners = rows.filter((row) => row.finish_position === 1)
+  if (rows.length && rows[0].rounds_before > 0) {
+    const firstWin = winners.filter((row) => row.wins_before === 0).map(name)
+    const team = winners[0]
+    if (team && !missing(team.constructor_id) && team.team_wins_before === 0 && !missing(team.constructor)) {
+      firstWin.push(team.constructor)
+    }
+    const firstPodium = rows.filter((row) => row.finish_position > 1 && row.podiums_before === 0).map(name)
+    const clauses = [
+      firstWin.length ? `the first championship race win for ${firstWin.join(' and for ')}` : null,
+      firstPodium.length ? `the first championship podium for ${listed(firstPodium)}` : null,
+    ].filter(Boolean)
+    if (clauses.length) sentences.push(`It was ${clauses.join(', and ')}.`)
+  }
+  // A second win or later always has a record before it; a NULL there is
+  // a count that did not come back, and claims nothing.
+  if (winners.length === 1 && !missing(winners[0].record_before)) {
+    const won = winners[0].wins_before + 1
+    const record = winners[0].record_before
+    if (won >= 2 && won > record) {
+      sentences.push(`With this win, ${name(winners[0])} set a new record of ${number(won)} championship Grand Prix wins.`)
+    } else if (won >= 2 && won === record) {
+      sentences.push(`With this win, ${name(winners[0])} equalled the record of ${number(won)} championship Grand Prix wins.`)
+    }
+  }
+  if (title) {
+    sentences.push(`This round settled the drivers' title for ${title.champion}.`)
+    if (title.ledBefore) sentences.push(`${title.ledBefore} had led the championship going into it.`)
+  }
+  return sentences.join(' ')
 }
 
 /**
  * The opening of a race's page, in both renderers (CD-03): raceSentence()
- * above, then the note where a person wrote one.
+ * above, then raceAftermath() where `facts` is passed - `{ history, title }`,
+ * the rows of RACE_HISTORY and titleSettled()'s answer (CD-39, CD-61) - then
+ * the note where a person wrote one.
  *
  * The pages used to open straight onto the strip of tiles with nothing to say
  * what the reader was looking at, while scripts/prerender.js had already
@@ -705,10 +910,12 @@ export const raceSentence = (race, winners, stage = 'awaited') => {
  * tools/lede_figures.py's pattern, checked in verify.py's CALENDAR section,
  * fails the build on a race note that states a figure the page derives.
  */
-export const raceLede = (race, winners, stage = 'awaited') => {
+export const raceLede = (race, winners, stage = 'awaited', facts = null) => {
   const sentence = raceSentence(race, winners, stage)
-  const note = raceNote(race)
-  return note ? `${sentence} ${note}` : sentence
+  // A round with no classification held says nothing beyond its sentence,
+  // whatever rows were passed: the sentence is all that is established.
+  const aftermath = race.status === 'scheduled' || !winners.length ? '' : raceAftermath(facts?.history, facts?.title)
+  return [sentence, aftermath, raceNote(race)].filter(Boolean).join(' ')
 }
 
 /**

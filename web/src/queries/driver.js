@@ -13,29 +13,14 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, finished, missing, number, points, result, span, text, yearList } from '../lib/format.js'
+import { EMPTY, finished, missing, number, ordinal, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { FOLD_NOUN } from '../lib/table.js'
-import { PRACTICE_SESSIONS, carName } from './race.js'
+import { PRACTICE_SESSIONS, STARTED, carName } from './race.js'
 import { LABELS } from '../lib/site.js'
 import { colourSource, lastTeamColour } from '../lib/liveries.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
-
-/**
- * What counts as a start, for the SQLite the browser runs.
- *
- * THIS IS build.py's STARTED, and it is here as a constant rather than
- * written into the query because DERIVED asks the question three times - how
- * many starts, how many starts have no grid recorded, how many have no lap
- * count - and one rule spelled three times is how the country vocabulary
- * split. tests/test_conventions.py compares this string's codes with
- * build.py's and fails if either moves without the other.
- *
- * An entry is a start unless the source's result says it never was. A
- * pit-lane start counts; so does a retirement on the first lap.
- */
-const STARTED = "COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')"
 
 /**
  * The career, counted from the race records rather than read from a column.
@@ -1025,13 +1010,6 @@ const constructorList = (names) => {
   if (names.length <= 3) return names.length < 3 ? names.join(' and ') : `${names[0]}, ${names[1]} and ${names[2]}`
   const rest = names.length - 2
   return `${names[0]}, ${names[1]} and ${rest} other ${rest === 1 ? 'constructor' : 'constructors'}`
-}
-
-// Digits throughout: "best finish 4th" and "best finish 33rd" read as one
-// system, where words to twelfth and digits beyond did not.
-const ordinal = (n) => {
-  const tail = n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'
-  return `${n}${tail}`
 }
 
 /**

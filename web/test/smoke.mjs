@@ -2182,9 +2182,12 @@ try {
       `the static page opens on the derived sentence — "${staticLede}"`,
     )
     is(await text('#root main .lede'), staticLede, 'and the app opens on the same sentence')
+    // CD-39: the lede runs on past who won, and the description is cut at a
+    // sentence end, so it is the who-won sentence the two must share.
+    const firstSentence = staticLede.slice(0, staticLede.indexOf('. ') + 1 || undefined)
     truthy(
-      plain(html.match(/<meta name="description" content="([^"]*)" \/>/)?.[1] ?? '').includes(staticLede),
-      'and the description is built from that same sentence',
+      plain(html.match(/<meta name="description" content="([^"]*)" \/>/)?.[1] ?? '').includes(firstSentence),
+      `and the description is built from that same sentence — "${firstSentence}"`,
     )
 
     /*
@@ -2226,6 +2229,30 @@ try {
     const railCells = html.match(/<td class="rail"[^>]*>/g) ?? []
     is(railCells.length, race[0], 'the static classification draws a rail cell per entry')
     is(railCells.filter((c) => !c.includes('aria-hidden="true"')).length, 0, 'and every one is aria-hidden')
+  })
+
+  /*
+   * CD-39, CD-61: the standfirst says what the race meant, not only who won.
+   * 2007 Brazil settled the drivers' title for a driver who had not led
+   * going into it; the sentences come from the race records and the
+   * standings in both renderers, and must be the same words in both.
+   */
+  await section('/races/2007/17  (the standfirst says what the race decided)', async () => {
+    await go('/races/2007/17')
+    const champion = one(
+      'SELECT d.full_name FROM seasons s JOIN drivers d ON d.id = s.drivers_champion WHERE s.year = 2007',
+    )
+    const plain = (s) =>
+      s.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    const html = await (await fetch(`${BASE}/races/2007/17`)).text()
+    const staticLede = plain(html.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
+    truthy(
+      staticLede.includes(`This round settled the drivers' title for ${champion}.`),
+      `the static standfirst says the title was settled here — "${staticLede}"`,
+    )
+    truthy(/ had led the championship going into it\./.test(staticLede), 'and that someone else had led going in')
+    truthy(/^[^.]+ won for [^.]+ from [^.]+ on the grid at /.test(staticLede), 'and where the winner started')
+    is(await text('#root main .lede'), staticLede, 'and the app opens on the same words')
   })
 
   /*

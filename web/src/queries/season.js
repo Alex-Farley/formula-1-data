@@ -164,6 +164,136 @@ export const REMAINING = `
 `
 
 /**
+ * The drivers' table after one round and after the round before it, each row
+ * with the most points still to be won from there, for titleSettled() below
+ * (CD-61). Read with (year, round) by Race.jsx and scripts/prerender.js.
+ *
+ * `available` is REMAINING's arithmetic from a given round rather than from
+ * today: every round of the season after it, completed or not, at the most a
+ * race can pay one driver - a win and, where the season paid one, the
+ * fastest lap - and each sprint after it at a sprint win. A sprint with no
+ * sprint system to price it makes it NULL, which declines, rather than
+ * pricing it at nothing. `dropped_scores` comes back for the same reason it
+ * does there. The champion comes back so the answer can be held to the
+ * season record; it is NULL while the season is being run. `wins` is each
+ * driver's race wins that season up to the round, and `races_left` the
+ * races after it, which is what a tie on points is settled on.
+ *
+ * The figures are the most the rules allowed, not what was paid: a
+ * shortened race paid half, which only makes a driver behind less able to
+ * catch up than this says, never more. The one round that paid double, the
+ * last of 2014, is the exception, and is the round that season was settled
+ * at whichever price is used.
+ */
+export const TITLE_STANDINGS = `
+  WITH gp AS (
+    SELECT win_points + fastest_lap_points AS most, dropped_scores
+      FROM points_systems
+     WHERE session = 'race'
+       AND from_year <= ?1 AND (to_year IS NULL OR to_year >= ?1)
+     ORDER BY from_year DESC LIMIT 1),
+  sp AS (
+    SELECT win_points AS most
+      FROM points_systems
+     WHERE session = 'sprint'
+       AND from_year <= ?1 AND (to_year IS NULL OR to_year >= ?1)
+     ORDER BY from_year DESC LIMIT 1),
+  still AS (
+    SELECT a.n AS after_round,
+           (SELECT COUNT(*) FROM races r WHERE r.year = ?1 AND r.round > a.n) AS races,
+           (SELECT COALESCE(SUM(r.sprint), 0) FROM races r WHERE r.year = ?1 AND r.round > a.n) AS sprints
+      FROM (SELECT ?2 - 1 AS n UNION ALL SELECT ?2) a)
+  SELECT s.after_round, s.driver_id, s.entity, s.points, s.position, gp.dropped_scores,
+         a.races AS races_left,
+         (SELECT COUNT(*) FROM race_entries w JOIN races r ON r.id = w.race_id
+           WHERE r.year = ?1 AND r.round <= s.after_round
+             AND w.driver_id = s.driver_id AND w.finish_position = 1) AS wins,
+         a.races * gp.most
+           + CASE WHEN a.sprints = 0 THEN 0 ELSE a.sprints * (SELECT most FROM sp) END AS available,
+         se.drivers_champion
+    FROM standings s
+    JOIN still a ON a.after_round = s.after_round
+    CROSS JOIN gp
+    LEFT JOIN seasons se ON se.year = ?1
+   WHERE s.year = ?1 AND s.table_type = 'drivers' AND s.basis = 'running'
+   ORDER BY s.after_round, s.id
+`
+
+/**
+ * Whether this round settled the drivers' title, from TITLE_STANDINGS' rows:
+ * `{ champion, ledBefore }`, or null (CD-61).
+ *
+ * Settled HERE means two things, and both must hold. After this round no
+ * other driver could finish ahead of the leader: each was behind by more
+ * than the points still to be won, or by exactly that and would lose the
+ * tie on wins. And after the round before, someone still could: a driver
+ * behind by less than what was left, or by exactly that and able to win
+ * the tie. A level total is settled on wins, and a driver who scores the
+ * most still to be won has won every race left, so the tie is the leader's
+ * wins against that driver's wins plus the races left - 2004, settled in
+ * Belgium on a margin of 40 with 40 left, and 2006, still open going into
+ * Brazil on a margin of 10 with 10 left. Where those two are level too the
+ * next countback decides, which this does not work out, and it declines.
+ * So does everything titleAnswer() declines - a dropped-scores season,
+ * where a total need not rise by what its driver scores, fewer than two
+ * drivers on a table, a table missing for either round, a driver whose
+ * sources give two totals after one round. A leader who is not the season's
+ * recorded champion declines too, as a table that has gone wrong rather
+ * than a fact.
+ *
+ * `ledBefore` names the sole leader going into the round when that was
+ * someone else: the title lost, as well as won, at this round.
+ */
+export function titleSettled(rows, round) {
+  const list = rows ?? []
+  if (!list.length || list[0].dropped_scores !== EVERY_RESULT_COUNTS) return null
+  // The table after one round: its leader, the margin to second, and
+  // whether the title was `settled` or still `open` there - or null where
+  // the rows cannot say which.
+  const table = (after) => {
+    const byDriver = new Map()
+    let available = null
+    let racesLeft = null
+    for (const row of list) {
+      if (row.after_round !== after) continue
+      available = row.available
+      racesLeft = row.races_left
+      // Excluded from the classification: neither the leader nor someone to
+      // catch, as titleAnswer() reads the same footer.
+      if (missing(row.points) || missing(row.position)) continue
+      const held = byDriver.get(row.driver_id)
+      if (held && held.points !== row.points) return null
+      byDriver.set(row.driver_id, row)
+    }
+    if (byDriver.size < 2 || missing(available)) return null
+    // Level on points, the table's own order says who leads.
+    const order = [...byDriver.values()].sort((a, b) => b.points - a.points || a.position - b.position)
+    const leader = order[0]
+    let open = false
+    let unknown = false
+    for (const rival of order.slice(1)) {
+      const gap = leader.points - rival.points
+      if (gap < available) open = true
+      else if (gap === available) {
+        if (missing(racesLeft) || missing(rival.wins) || missing(leader.wins)) unknown = true
+        else if (rival.wins + racesLeft > leader.wins) open = true
+        else if (rival.wins + racesLeft === leader.wins) unknown = true
+      }
+    }
+    if (!open && unknown) return null
+    return { leader, margin: leader.points - order[1].points, open }
+  }
+  const after = table(round)
+  const before = table(round - 1)
+  if (!after || !before || after.open || !before.open) return null
+  const champion = list[0].drivers_champion
+  if (!missing(champion) && champion !== after.leader.driver_id) return null
+  const ledBefore =
+    before.margin > 0 && before.leader.driver_id !== after.leader.driver_id ? before.leader.entity : null
+  return { champion: after.leader.entity, ledBefore }
+}
+
+/**
  * Who each driver raced for that season, latest team first, for the colour
  * mark beside a name in the drivers' table (AF-04). A standings row names a
  * `team` as text; the constructor id it needs is in the race entries. A

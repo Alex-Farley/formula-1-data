@@ -682,7 +682,7 @@ puts the classification before the outline (visual defect 7).
 
 ---
 
-## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81, the registers' columns in CD-58); dates (CD-57) and session times (CD-59), but for a weekend in a sentence (CD-39 #499)
+## 5. Content rules (core) — built: voice, NULL and one label per concept (VD-81, the registers' columns in CD-58); dates (CD-57) and session times (CD-59), but for a weekend in a tile's note (CD-64 #1126); a race's standfirst (CD-39, CD-61)
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
@@ -706,6 +706,20 @@ puts the classification before the outline (visual defect 7).
   with no extension, and is named *…, on Wikimedia Commons* (DP-30, DP-31).
 - **Figures in prose** go stale; a lede carries no count that a tile beside
   it also shows.
+- **A race's standfirst** (built, CD-39, CD-61) is generated, never typed:
+  who won, for whom, from where on the grid and at which circuit; then what
+  the race meant, each sentence only where the race records establish it -
+  how much of the field was classified (how many starters were not, with
+  neither the field's size nor the classified count, which are the Entries
+  tile's, and only where each starter was a car of its own), a first
+  championship race win for the driver or the constructor, a first
+  championship podium, a record of championship Grand Prix wins set or
+  equalled,
+  the round that settled the drivers' title and who had led going into it.
+  `raceSentence()` and `raceAftermath()` in `queries/race.js`, with
+  `titleSettled()` in `queries/season.js`, write it for both renderers. A
+  fact the records cannot establish leaves its sentence out; nothing is
+  hedged, and no adjective goes in that a count does not prove.
 - **Numbers:** tabular figures in every column. A season is printed as
   written, never as 1,950 (PD-63). A one-year span is printed once, never as
   *2023–2023*.
@@ -746,10 +760,12 @@ puts the classification before the outline (visual defect 7).
     is that token's and is left as written.
   - The one exception is a Commons file's title on its credit link, which
     is printed as Commons heads the file's page (the attribution rule).
-  - *Pending (CD-39 #499):* a weekend a sentence carries as words, in a
-    scheduled race's standfirst and its Status tile, is in the house format
-    and not yet in a `<time>`; CD-39 rewrites race standfirsts with human
-    dates, from this formatter.
+  - *Pending (CD-64 #1126):* the weekend a scheduled race's Status tile
+    carries in its note is in the house format and not yet in a `<time>`.
+    The standfirst no longer carries one (CD-39): the eyebrow above it holds
+    the race day in a `<time>`, and a lede is plain text in both renderers.
+    A search result's description, which has no eyebrow, opens on the
+    race's date in the house format.
 - **NULL** is an em dash, never zero (**floor**).
 - **Uncertainty and disagreement:**
   - a disagreement is a framed note above the table it concerns, naming both

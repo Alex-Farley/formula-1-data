@@ -470,9 +470,9 @@ class OneRuleForWhatCountsAsAStart(unittest.TestCase):
     """data-integrity-reviewer, the one-vocabulary rule, across two languages.
 
     build.py's STARTED decides what counts as a start for the records tables;
-    the STARTED constant in web/src/queries/driver.js decides it for the
-    driver strip (PD-15), in the SQLite the browser runs, because the front
-    end cannot import a Python constant. That is one rule written out twice,
+    the STARTED constant in web/src/queries/race.js decides it for the
+    driver strip (PD-15) and the race's standfirst (CD-39), in the SQLite the
+    browser runs, because the front end cannot import a Python constant. That is one rule written out twice,
     which is how the country vocabulary split, and the failure would be silent
     in the direction that matters: a code added to one list and not the other
     makes the driver page and the records page disagree about the same career,
@@ -497,12 +497,12 @@ class OneRuleForWhatCountsAsAStart(unittest.TestCase):
     def test_build_and_the_driver_strip_agree(self):
         build = re.search(r"^STARTED = \((.*?)\)$", read("build.py"), re.M | re.S)
         self.assertIsNotNone(build, "build.py has no STARTED constant")
-        js = re.search(r"^const STARTED = (\".*\")$", read("web/src/queries/driver.js"), re.M)
-        self.assertIsNotNone(js, "web/src/queries/driver.js has no STARTED constant; the rule "
+        js = re.search(r"^export const STARTED = (\".*\")$", read("web/src/queries/race.js"), re.M)
+        self.assertIsNotNone(js, "web/src/queries/race.js has no STARTED constant; the rule "
                                  "belongs in one named place there, not written into a query")
         self.assertEqual(
             self.rule(build.group(1), "build.py STARTED"),
-            self.rule(js.group(1), "queries/driver.js STARTED"),
+            self.rule(js.group(1), "queries/race.js STARTED"),
             "build.py STARTED and the driver strip's STARTED count different result codes; "
             "a start is one thing on this site, and the records page and the driver page "
             "must not disagree about which entries were starts",
@@ -513,19 +513,34 @@ class OneRuleForWhatCountsAsAStart(unittest.TestCase):
         # by hand is the drift this class exists to stop, and it would pass
         # the test above because that reads only the constant.
         js = read("web/src/queries/driver.js")
-        # After the constant's own line: the declaration itself is the one
-        # place the codes may appear.
-        body = js[js.index("\n", js.index("const STARTED = ")):]
         self.assertEqual(
-            body.count("NOT IN ("), 0,
-            "queries/driver.js spells the start rule again after the STARTED constant; "
-            "interpolate ${STARTED} instead",
+            js.count("NOT IN ("), 0,
+            "queries/driver.js spells the start rule out instead of reading STARTED from "
+            "queries/race.js; interpolate ${STARTED} instead",
         )
         self.assertGreaterEqual(
-            body.count("${STARTED}"), 3,
+            js.count("${STARTED}"), 3,
             "queries/driver.js asks three questions that need the start rule - how many "
             "starts, how many have no grid recorded, how many have no lap count - so a "
             "constant used fewer times means one of them stopped using it",
+        )
+
+    def test_the_race_standfirst_uses_the_constant_and_writes_the_rule_nowhere_else(self):
+        # CD-39: the race's standfirst counts starters by the same rule, in
+        # the module the constant lives in.
+        js = read("web/src/queries/race.js")
+        # After the constant's own line: the declaration itself is the one
+        # place the codes may appear.
+        body = js[js.index("\n", js.index("export const STARTED = ")):]
+        self.assertEqual(
+            body.count("'DNQ'"), 0,
+            "queries/race.js spells the start rule again after the STARTED constant; "
+            "interpolate ${STARTED} instead",
+        )
+        self.assertGreaterEqual(
+            body.count("${STARTED}"), 1,
+            "RACE_HISTORY counts a race's starters, so the constant is read at least once "
+            "in queries/race.js",
         )
 
 

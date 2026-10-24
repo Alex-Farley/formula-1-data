@@ -119,6 +119,8 @@ import {
   stillRunning,
   titleAnswer,
   titleHeading,
+  TITLE_STANDINGS,
+  titleSettled,
 } from '../src/queries/season.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
@@ -128,7 +130,7 @@ import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
-import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty } from '../src/queries/race.js'
+import { driverName, fastestLapMark, inClassificationOrder, outcome, position, RACE_HISTORY, raceAftermath, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
 import { pitPairs, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
 import {
@@ -1181,6 +1183,202 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(rows[0].id, 'dnf-late', 'the caller’s array is not sorted in place')
   })
 
+  // CD-39, CD-61: what a race meant, after who won. Each sentence from rows
+  // shaped as RACE_HISTORY returns them, so each rule is seen to close.
+  it('says what a race meant: the field, the firsts, the wins record and the title', () => {
+    const podium = (over) => ({
+      driver_id: 'a', driver: 'A', finish_position: 1, constructor_id: 'k', constructor: 'K',
+      wins_before: 5, podiums_before: 9, team_wins_before: 20, record_before: 40, rounds_before: 300,
+      starters: 20, classified: 14, one_car_each: 1, ...over,
+    })
+    assert.equal(raceAftermath([], null), '', 'nothing held, nothing said')
+    assert.equal(raceAftermath([podium({})], null), '6 of the starters were not classified.', 'no figure the Entries tile shows')
+    assert.equal(raceAftermath([podium({ classified: 19 })], null), '1 of the starters was not classified.')
+    assert.equal(raceAftermath([podium({ classified: 20 })], null), 'Every starter was classified.')
+    assert.equal(raceAftermath([podium({ starters: null })], null), '', 'a field nobody counted is not "every starter"')
+    assert.equal(raceAftermath([podium({ one_car_each: 0 })], null), '', 'counts of drivers say nothing of cars where two drove one')
+    assert.equal(raceAftermath([podium({ one_car_each: 0, classified: 20 })], null), '')
+    // Firsts: the driver, the car's constructor, and anyone else on the podium.
+    assert.equal(
+      raceAftermath([podium({ wins_before: 0, podiums_before: 0, team_wins_before: 0, classified: 20 }), podium({ driver: 'B', finish_position: 2, podiums_before: 0 }), podium({ driver: 'C', finish_position: 3, podiums_before: 0 })], null),
+      'Every starter was classified. It was the first championship race win for A and for K, and the first championship podium for B and C.',
+    )
+    assert.equal(
+      raceAftermath([podium({ team_wins_before: 0, classified: 20 }), podium({ driver: 'B', finish_position: 2 })], null),
+      'Every starter was classified. It was the first championship race win for K.',
+    )
+    assert.equal(
+      raceAftermath([podium({ team_wins_before: null, constructor_id: null, constructor: null, wins_before: 0, classified: 20 })], null),
+      'Every starter was classified. It was the first championship race win for A.',
+      'a car with no constructor - an Indianapolis 500 - claims no first for anyone but its driver',
+    )
+    assert.equal(
+      raceAftermath([podium({ wins_before: 0, rounds_before: 0, classified: 20 }), podium({ driver: 'B', finish_position: 2, podiums_before: 0, rounds_before: 0 })], null),
+      'Every starter was classified.',
+      'the first round of all has nothing to be first against',
+    )
+    // The wins record: past it, level with it, short of it, and a first win.
+    assert.match(raceAftermath([podium({ wins_before: 40, record_before: 40 })], null), /A set a new record of 41 championship Grand Prix wins\.$/)
+    assert.match(raceAftermath([podium({ wins_before: 39, record_before: 40 })], null), /A equalled the record of 40 championship Grand Prix wins\.$/)
+    assert.doesNotMatch(raceAftermath([podium({ wins_before: 38, record_before: 40 })], null), /record/)
+    assert.doesNotMatch(raceAftermath([podium({ wins_before: 0, record_before: 0 })], null), /record/, 'a first win is said as a first, not as a record')
+    assert.doesNotMatch(
+      raceAftermath([podium({ wins_before: 40, record_before: 40 }), podium({ driver: 'B', wins_before: 40, record_before: 40 })], null),
+      /record/,
+      'a shared win claims no record: two counts, one sentence',
+    )
+    // The title, won and lost.
+    assert.match(raceAftermath([podium({})], { champion: 'B', ledBefore: null }), /This round settled the drivers' title for B\.$/)
+    assert.match(
+      raceAftermath([podium({})], { champion: 'B', ledBefore: 'C' }),
+      /This round settled the drivers' title for B\. C had led the championship going into it\.$/,
+    )
+    // The lede: the sentence, then this, then the note; nothing of it on a
+    // round with no result held.
+    const race = { year: 2008, status: 'completed', circuit: 'Interlagos', note: 'Run in the rain.' }
+    const won = [{ driver: 'A', constructor_id: 'k', constructor: 'K', grid: 1, grid_text: '1', pole: 1 }]
+    assert.equal(
+      raceLede(race, won, 'awaited', { history: [podium({ classified: 20 })], title: { champion: 'B', ledBefore: null } }),
+      "A won for K from pole at Interlagos. Every starter was classified. This round settled the drivers' title for B. Run in the rain.",
+    )
+    assert.equal(raceLede(race, [], 'awaited', { history: [podium({})], title: { champion: 'B' } }), 'No winner is recorded for this round. Run in the rain.')
+  })
+
+  // CD-61: the round the title was settled at, from the drivers' table after
+  // it and after the round before.
+  it('finds the round that settled the drivers\' title, and declines wherever the arithmetic would not carry', () => {
+    const counts = 'Every result counts'
+    // A driver's wins are the third member of the pair, where a case needs them.
+    const rows = (before, after, { availableBefore = 26, availableAfter = 0, racesBefore = 1, racesAfter = 0, champion = 'a', dropped = counts } = {}) => [
+      ...before.map(([id, pts, wins], i) => ({ after_round: 21, driver_id: id, entity: id.toUpperCase(), points: pts, wins, position: i + 1, dropped_scores: dropped, available: availableBefore, races_left: racesBefore, drivers_champion: champion })),
+      ...after.map(([id, pts, wins], i) => ({ after_round: 22, driver_id: id, entity: id.toUpperCase(), points: pts, wins, position: i + 1, dropped_scores: dropped, available: availableAfter, races_left: racesAfter, drivers_champion: champion })),
+    ]
+    assert.deepEqual(titleSettled(rows([['a', 100], ['b', 90]], [['a', 110], ['b', 108]]), 22), { champion: 'A', ledBefore: null })
+    assert.deepEqual(
+      titleSettled(rows([['b', 100], ['a', 95]], [['a', 120], ['b', 110]]), 22),
+      { champion: 'A', ledBefore: 'B' },
+      'the title lost as well as won',
+    )
+    assert.deepEqual(
+      titleSettled(rows([['b', 100], ['a', 100]], [['a', 120], ['b', 110]]), 22),
+      { champion: 'A', ledBefore: null },
+      'level going in, so nobody led',
+    )
+    assert.equal(titleSettled(rows([['a', 100], ['b', 74]], [['a', 110], ['b', 80]]), 22), null, 'already settled before the round')
+    // A margin equal to what was left: a tie on points, settled on wins, with
+    // the driver behind having won every race left (2006 going into Brazil).
+    assert.deepEqual(
+      titleSettled(rows([['a', 100, 7], ['b', 74, 7]], [['a', 125, 7], ['b', 99, 8]]), 22),
+      { champion: 'A', ledBefore: null },
+      'the round before, the driver behind could still have won the tie on wins',
+    )
+    assert.equal(titleSettled(rows([['a', 100, 9], ['b', 74, 7]], [['a', 125, 9], ['b', 99, 8]]), 22), null, 'or could not, so it was settled before')
+    assert.equal(titleSettled(rows([['a', 100, 8], ['b', 74, 7]], [['a', 125, 8], ['b', 99, 8]]), 22), null, 'level on wins too goes to a countback this does not work out')
+    assert.equal(titleSettled(rows([['a', 100], ['b', 74]], [['a', 125], ['b', 99]]), 22), null, 'and no wins on record says nothing')
+    // ... and after the round (2004 in Belgium).
+    assert.deepEqual(
+      titleSettled(rows([['a', 100, 11], ['b', 90, 2]], [['a', 110, 12], ['b', 100, 2]], { availableAfter: 10, racesAfter: 1 }), 22),
+      { champion: 'A', ledBefore: null },
+      'a margin equal to what is left is settled where the tie on wins is out of reach',
+    )
+    assert.equal(
+      titleSettled(rows([['a', 100, 3], ['b', 90, 3]], [['a', 110, 3], ['b', 100, 3]], { availableAfter: 10, racesAfter: 1 }), 22),
+      null,
+      'and is not where winning the race left would win the tie',
+    )
+    assert.equal(titleSettled(rows([['a', 100, 3], ['b', 90, 2]], [['a', 110, 3], ['b', 100, 2]], { availableAfter: 10, racesAfter: 1 }), 22), null, 'nor where it would level the wins')
+    assert.equal(titleSettled(rows([['a', 100], ['b', 90]], [['a', 110], ['b', 100]], { availableAfter: 10, racesAfter: 1 }), 22), null, 'nor with no wins on record')
+    assert.deepEqual(titleSettled(rows([['a', 100, 4], ['b', 90, 3]], [['a', 110, 5], ['b', 110, 3]]), 22), { champion: 'A', ledBefore: null }, 'level at the end, the leader on wins')
+    assert.equal(titleSettled(rows([['a', 100, 4], ['b', 90, 3]], [['a', 110, 4], ['b', 110, 4]]), 22), null, 'level at the end on points and wins')
+    assert.equal(titleSettled(rows([['a', 100], ['b', 90]], [['a', 110], ['b', 100]], { availableAfter: null }), 22), null, 'an unpriced sprint declines')
+    assert.equal(titleSettled(rows([['a', 100], ['b', 90]], [['a', 110], ['b', 108]], { dropped: 'Best 6 of 10' }), 22), null, 'a dropped-scores season declines')
+    assert.equal(titleSettled(rows([['a', 100], ['b', 90]], [['a', 110], ['b', 108]], { champion: 'b' }), 22), null, 'a leader who is not the recorded champion declines')
+    assert.deepEqual(titleSettled(rows([['a', 100], ['b', 90]], [['a', 110], ['b', 108]], { champion: null }), 22), { champion: 'A', ledBefore: null }, 'a season being run has no champion recorded yet')
+    assert.equal(titleSettled(rows([], [['a', 110], ['b', 108]]), 22), null, 'no table before the round')
+    assert.equal(titleSettled(rows([['a', 100], ['b', 90]], [['a', 110]]), 22), null, 'a table of one')
+    const conflict = rows([['a', 100], ['b', 90]], [['a', 110], ['b', 108]])
+    conflict.push({ ...conflict.at(-1), points: 111 })
+    assert.equal(titleSettled(conflict, 22), null, 'two sources giving one driver two totals')
+    const excluded = rows([['a', 100], ['b', 90]], [['a', 110], ['b', 108]])
+    excluded.push({ ...excluded.at(-1), driver_id: 'x', entity: 'X', points: 200, position: null })
+    assert.deepEqual(titleSettled(excluded, 22), { champion: 'A', ledBefore: null }, 'a driver excluded from the classification is not the leader')
+    assert.equal(titleSettled([], 22), null)
+  })
+
+  // CD-39, CD-61: the two queries, on a database built from schema.sql and a
+  // handful of rows, so what they count is seen apart from what f1.db holds.
+  it('counts a race\'s history and its title arithmetic from the rounds before it', () => {
+    const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
+    db.exec(readFileSync(join(web, '..', 'schema.sql'), 'utf8'))
+    // schema.sql turns the keys on; these rows name no grand prix or source.
+    db.exec('PRAGMA foreign_keys = OFF')
+    const race = db.prepare('INSERT INTO races (id, year, round, gp_id, name_used, sprint, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    race.run(1, 2000, 1, 'gp', 'One', 0, 'completed')
+    race.run(2, 2000, 2, 'gp', 'Two', 0, 'completed')
+    race.run(3, 2001, 1, 'gp', 'Three', 0, 'completed')
+    race.run(4, 2001, 2, 'gp', 'Four', 1, 'scheduled')
+    for (const id of ['a', 'b', 'c', 'd']) db.prepare('INSERT INTO drivers (id, full_name) VALUES (?, ?)').run(id, id.toUpperCase())
+    db.prepare("INSERT INTO constructors (id, name) VALUES ('k', 'K'), ('m', 'M')").run()
+    const entry = db.prepare('INSERT INTO race_entries (race_id, driver_id, constructor_id, finish_position, position_text, grid, grid_text) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    entry.run(1, 'a', 'k', 1, '1', 1, '1')
+    entry.run(1, 'b', 'k', 2, '2', 2, '2')
+    entry.run(2, 'a', 'k', 1, '1', 1, '1')
+    entry.run(2, 'c', 'm', 3, '3', 2, '2')
+    // The round asked about: c wins in m's car, b second, d did not start.
+    entry.run(3, 'c', 'm', 1, '1', 2, '2')
+    entry.run(3, 'b', 'k', 2, '2', 1, '1')
+    entry.run(3, 'a', 'k', null, 'DNF', 3, '3')
+    entry.run(3, 'd', 'm', null, 'DNS', null, null)
+    const got = db.prepare(RACE_HISTORY).all(2001, 1)
+    assert.deepEqual(
+      got.map((r) => [r.driver_id, r.finish_position, r.wins_before, r.podiums_before, r.team_wins_before, r.record_before, r.rounds_before, r.starters, r.classified]),
+      [
+        ['c', 1, 0, 1, 0, 2, 2, 3, 2],
+        ['b', 2, 0, 1, 2, 2, 2, 3, 2],
+      ],
+      'counts over the earlier rounds only - an earlier season and none of this round - and DNS is not a start',
+    )
+    // One car each: d did not start, so its blank grid is no matter.
+    const oneCarEach = () => db.prepare(RACE_HISTORY).all(2001, 1)[0].one_car_each
+    assert.equal(oneCarEach(), 1)
+    db.exec("UPDATE race_entries SET grid = NULL, grid_text = 'PL' WHERE race_id = 3 AND driver_id = 'a'")
+    assert.equal(oneCarEach(), 1, 'a pit-lane start is a car of its own')
+    db.exec("UPDATE race_entries SET grid_text = NULL WHERE race_id = 3 AND driver_id = 'a'")
+    assert.equal(oneCarEach(), 0, 'a starter with no slot at all may be a relief driver in a car already counted')
+    db.exec("UPDATE race_entries SET grid = 1, grid_text = '1' WHERE race_id = 3 AND driver_id = 'a'")
+    assert.equal(oneCarEach(), 0, 'two starters on one slot')
+    db.exec("UPDATE race_entries SET grid = 3, grid_text = '3', shared_drive = 1 WHERE race_id = 3 AND driver_id = 'a'")
+    assert.equal(oneCarEach(), 0, 'a flagged shared drive')
+    assert.equal(db.prepare(RACE_HISTORY).all(2000, 1)[0].rounds_before, 0)
+    assert.equal(db.prepare(RACE_HISTORY).all(2000, 1)[0].record_before, null, 'no win before the first')
+
+    db.exec(`INSERT INTO points_systems (session, from_year, to_year, scoring, scale, win_points, fastest_lap, fastest_lap_points, dropped_scores)
+             VALUES ('race', 2000, NULL, 's', 's', 25, 'fl', 1, 'Every result counts')`)
+    const standing = db.prepare("INSERT INTO standings (year, table_type, entity, driver_id, points, position, after_round, basis) VALUES (2001, 'drivers', ?, ?, ?, ?, ?, 'running')")
+    standing.run('C', 'c', 25, 1, 1)
+    standing.run('B', 'b', 18, 2, 1)
+    const title = db.prepare(TITLE_STANDINGS).all(2001, 1)
+    assert.deepEqual(
+      title.map((r) => [r.after_round, r.driver_id, r.available, r.wins, r.races_left]),
+      [
+        [1, 'c', null, 1, 1],
+        [1, 'b', null, 0, 1],
+      ],
+      'a sprint still to run with no sprint system to price it is NULL, not nothing',
+    )
+    db.exec(`INSERT INTO points_systems (session, from_year, to_year, scoring, scale, win_points, fastest_lap, fastest_lap_points, dropped_scores)
+             VALUES ('sprint', 2000, NULL, 's', 's', 8, 'none', 0, 'Every result counts')`)
+    assert.deepEqual(
+      db.prepare(TITLE_STANDINGS).all(2001, 2).map((r) => [r.after_round, r.available]),
+      [
+        [1, 34],
+        [1, 34],
+      ],
+      'after round 1, one race still to run at a win and the fastest lap, and its sprint at a sprint win',
+    )
+    db.close()
+  })
+
   // CD-03. The sentence 1,194 race pages open on, and the description every
   // one of them carries. What matters is the cases the run of the mill hides:
   // a shared drive, an entry with no constructor, a round not yet run.
@@ -1214,7 +1412,8 @@ describe('the queries a page and the prerenderer share', () => {
     )
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, []),
-      'Scheduled for 1–3 Oct 2027 at Istanbul Park; not yet run.',
+      'Scheduled at Istanbul Park; not yet run.',
+      'CD-39: the date is the eyebrow\'s, in a <time>, and not a third copy in the lede',
     )
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: null, date_iso: null, date_from: null, date_to: null, note: null }, []),
@@ -1226,11 +1425,11 @@ describe('the queries a page and the prerenderer share', () => {
     // instead. The note below the classification agrees with it.
     assert.equal(
       raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'run'),
-      'Scheduled for 1–3 Oct 2027 at Istanbul Park; no result is recorded yet.',
+      'Scheduled at Istanbul Park; no result is recorded yet.',
     )
     assert.equal(
       raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'running'),
-      'Scheduled for 1–3 Oct 2027 at Istanbul Park; no result is recorded yet.',
+      'Scheduled at Istanbul Park; no result is recorded yet.',
     )
     const scheduledRound = { year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }
     assert.equal(scheduledNote(scheduledRound).head, 'This race has not been run.')
@@ -1248,7 +1447,7 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(raceLede({ ...monza, note: '  Held on a Sunday in June.  ' }, won), 'Gerhard Berger won for Ferrari at Monza. Held on a Sunday in June.')
     assert.equal(
       raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: 'Subject to homologation.' }, []),
-      'Scheduled for 1–3 Oct 2027 at Istanbul Park; not yet run. Subject to homologation.',
+      'Scheduled at Istanbul Park; not yet run. Subject to homologation.',
     )
     for (const note of [null, undefined, '', '   ']) {
       assert.equal(
@@ -1257,6 +1456,25 @@ describe('the queries a page and the prerenderer share', () => {
         `a ${JSON.stringify(note)} note falls through to the records`,
       )
     }
+
+    // CD-39: where the one winner started. Pole is the credit and the slot
+    // together; the slot without the credit is the front of the grid (2022
+    // Brazil, the sprint's grid); a pit-lane start is not a slot.
+    const berger = { driver: 'Gerhard Berger', constructor_id: 'ferrari', constructor: 'Ferrari' }
+    assert.equal(raceSentence(monza, [{ ...berger, grid: 1, grid_text: '1', pole: 1 }]), 'Gerhard Berger won for Ferrari from pole at Monza.')
+    assert.equal(raceSentence(monza, [{ ...berger, grid: 1, grid_text: '1', pole: 0 }]), 'Gerhard Berger won for Ferrari from the front of the grid at Monza.')
+    assert.equal(raceSentence(monza, [{ ...berger, grid: 3, grid_text: '3', pole: 0 }]), 'Gerhard Berger won for Ferrari from 3rd on the grid at Monza.')
+    assert.equal(raceSentence(monza, [{ ...berger, grid: 22, grid_text: '22', pole: 0 }]), 'Gerhard Berger won for Ferrari from 22nd on the grid at Monza.')
+    assert.equal(raceSentence(monza, [{ ...berger, grid: 24, grid_text: 'PL', pole: 0 }]), 'Gerhard Berger won for Ferrari at Monza.', 'a pit-lane start names no slot')
+    assert.equal(raceSentence(monza, [{ ...berger, grid: null, grid_text: null, pole: 0 }]), 'Gerhard Berger won for Ferrari at Monza.', 'nor does a grid nobody recorded')
+    assert.equal(
+      raceSentence({ ...monza, circuit: 'Reims-Gueux' }, [
+        { driver: 'Juan Manuel Fangio', constructor_id: 'alfa-romeo', constructor: 'Alfa Romeo', grid: 1, pole: 1 },
+        { driver: 'Luigi Fagioli', constructor_id: 'alfa-romeo', constructor: 'Alfa Romeo', grid: 7, pole: 0 },
+      ]),
+      'Juan Manuel Fangio and Luigi Fagioli shared the win for Alfa Romeo at Reims-Gueux.',
+      'a shared win has two drivers and one slot, and names none',
+    )
 
     // SD-40: an empty pit-stop section before the first season with a stop,
     // between, and after the last round holding one - the last on either
