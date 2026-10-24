@@ -111,8 +111,9 @@ export function NoMatch({ noun, term = '', among = '', onClear }) {
  * stop following what they typed with nothing on the page to say so.
  *
  * So the box holds what is typed, and `onChange` hears it once typing has
- * paused for SETTLE_MS, which is one write per pause and never more than one
- * per SETTLE_MS. The register reads the address, so it filters at that pause
+ * paused for SETTLE_MS, or the moment the reader leaves the box: one write
+ * per pause or per departure, at the pace of a person rather than of their
+ * keys. The register reads the address, so it filters at that pause
  * too, not on each character. Leaving the box writes at once: a reader who
  * types and goes straight to a row, or to Clear filters, leaves the address
  * saying what they had typed, so Back brings it back. The selects, chips and
