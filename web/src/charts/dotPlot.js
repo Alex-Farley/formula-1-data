@@ -15,6 +15,12 @@ const finite = (d) => typeof d.y === 'number' && Number.isFinite(d.y)
  * `data` as DotPlot takes it. Null where no point has a value, which is a
  * plot with nothing to draw. `points` are the plotted ones, in data order,
  * each with the datum it came from.
+ *
+ * `xDomain`, where given, is the span the axis must cover whatever the data
+ * reaches: a driver's championship chart runs the length of the career the
+ * tile above it states, not from the first season with a standings row to
+ * the last (IX-38). The axis is the wider of the two, so a datum outside the
+ * span is never pushed off the plot.
  */
 export function dotPlotLayout({
   data,
@@ -24,11 +30,12 @@ export function dotPlotLayout({
   invert = true,
   format = (v) => String(v),
   formatX = (v) => String(v),
+  xDomain = null,
 }) {
   const M = DOT_MARGIN
   const plotted = data.filter(finite)
   if (plotted.length === 0) return null
-  const xs = data.map((d) => d.x)
+  const xs = [...data.map((d) => d.x), ...(xDomain ?? [])]
   const top = yMax ?? Math.max(...plotted.map((d) => d.y))
   const x = linear([Math.min(...xs), Math.max(...xs)], [M.left, width - M.right])
   const y = invert ? linear([1, top], [M.top, height - M.bottom]) : linear([0, top], [height - M.bottom, M.top])

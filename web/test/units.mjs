@@ -3167,3 +3167,28 @@ describe("a circuit's onward band says a shared record is shared (CR-50)", () =>
     assert.equal(hint([winner('a', 5), winner('b', 5), winner('c', 2)]), 'Has won here 5 times — a record shared with others.')
   })
 })
+
+describe("the championship chart's axis is the career (IX-38)", async () => {
+  const { finishesFigure } = await import('../src/queries/driver.js')
+  const { dotPlotLayout } = await import('../src/charts/dotPlot.js')
+  // Andretti's shape: entered from 1968, in the standings only from 1970.
+  const driver = { full_name: 'A Driver', first_season: 1968, last_season: 1982 }
+  const standings = [
+    { year: 1970, position: 15, points: 4 },
+    { year: 1982, position: 19, points: 4 },
+  ]
+  const bySeason = [1968, 1969, 1970, 1982].map((year) => ({ year, teams: null }))
+  const extent = (chart) => dotPlotLayout({ ...chart, width: 600 }).x.domain
+
+  it('runs from the first season the tile states to the last, not the standings', () => {
+    assert.deepEqual(extent(finishesFigure(driver, standings, new Map(), bySeason)), [1968, 1982])
+  })
+  it('takes the race records where they reach past the register, and ignores a NULL end', () => {
+    const open = { ...driver, first_season: 1970, last_season: null }
+    const chart = finishesFigure(open, standings, new Map(), [{ year: 1969 }, ...bySeason.slice(2), { year: 1984 }])
+    assert.deepEqual(extent(chart), [1969, 1984])
+  })
+  it('never cuts a datum the span does not reach', () => {
+    assert.deepEqual(extent({ data: [{ x: 2000, y: 1 }, { x: 2010, y: 2 }], xDomain: [2003, 2005] }), [2000, 2010])
+  })
+})
