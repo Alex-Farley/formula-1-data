@@ -12,12 +12,18 @@ effort: high
 
 # One backlog item
 
-You are the forked context for one item. This file is the **only** normative
-copy of the per-item procedure; `CLAUDE.md` and `CONTRIBUTING.md` carry the
-repository's rules and point here for the loop's. Read `CLAUDE.md` and
-`CONTRIBUTING.md` under *The queue* before touching anything. The reasons
-behind the rules here are `docs/DECISIONS.md`, by `[D-nn]`; read an entry
-only when you mean to change the rule that cites it.
+You are the forked context for one item. This file, with the passages beside
+it that it says when to read, is the **only** normative copy of the per-item
+procedure; `CLAUDE.md` and `CONTRIBUTING.md` carry the repository's rules
+and point here for the loop's. Read `CLAUDE.md` and `CONTRIBUTING.md` under
+*The queue* before touching anything. The reasons behind the rules here are
+`docs/DECISIONS.md`, by `[D-nn]`; read an entry only when you mean to change
+the rule that cites it.
+
+Six passages of the procedure sit beside this file, each for a path only
+some forks take: `grouping.md`, `land.md`, `no-verdict.md`, `alarm.md`,
+`trouble.md` and `hold-or-stop.md`. Each binds as this file does, and the
+place that needs one says so in a **read** line naming it `[D-59]`.
 
 Scripts are in `.claude/skills/backlog-loop/`.
 
@@ -32,7 +38,8 @@ target (`next` or an item id; default `next`), optionally `--skip A,B` for
 ids this run has already skipped, and optionally `--max-size S`, which the
 driver adds when its usage check leaves room only for a small item `[D-55]`,
 and `--land <N>`, which makes you the fork that lands pull request `<N>`
-(*Handing over at the pull request*). If you were not invoked by the
+(*Handing over at the pull request*; read
+`.claude/skills/backlog-item/land.md` first). If you were not invoked by the
 `backlog-loop` driver, by the `backlog-manager` agent that runs its
 procedure unattended `[D-42]`, or by a person typing `/backlog-item`, return
 `STOP: not invoked by the loop` and do nothing.
@@ -131,71 +138,11 @@ gives any pass that recorded no verdict, and no more.
 
 ## Grouping
 
-A reviewer pays a fixed cost on every pull request — the rules, the
-surroundings of the diff, the build — before it reads a line of the change.
-Two items that touch the same file pay it twice for nothing. `next.py
---group` is how a group is found.
-
-**The head is the queue's next item, always.** Grouping decides what rides
-with it, never which item comes first.
-
-**What a companion must earn:** it is cheaper *because* it rides with the
-head — the same file, query, component or test, so one reading of the
-surrounding code serves both. A shared `source:` label or subject is not a
-theme. If you cannot write the one sentence saying why these are one change,
-they are not one change, and that sentence goes in the pull request.
-
-- **How many is whatever is linked to the head**, at any size and at every
-  pace `[D-20]`. The bound is the diff, not a number.
-- **Size is a cost to weigh, not a gate.** An `M` companion is worth having.
-  An `L` is the one to look at twice: `CONTRIBUTING.md` sizes it as needing a
-  plan first, and if that plan is not the head's it is a head of its own. A
-  `?` is sized by the reread — if it is an `L` in disguise, treat it as one
-  and label it on the way past. **The rungs of one M item are still one PR**
-  `[D-21]`.
-- `--group`'s score is a hint: it reads titles and bodies, not code. Read the
-  full bodies before taking any.
-- **A companion from the status below the head** is being promoted past
-  everything between. Say in the pull request why.
-- **Two items that are the same defect** — one PR closes both and says they
-  were one finding. That is a good outcome.
-- **Drop, never grow.** If the diff stops reading as one change, drop the
-  last companion added and **put its status back**. A group is an economy,
-  not a target.
-- A companion that does not survive the reread is declined like any other
-  item; one that turns into a blocker is dropped and recorded on its own
-  issue, status back, and the head carries on. Only the head being blocked is
-  a `SKIPPED`.
-
-**The tidy lane** `[D-54]` is the one place unrelated items share a pull
-request. When the head is labelled `size: XS` — about thirty changed lines
-or fewer: a wording fix, a comment, one data row, one declared exception —
-up to four more `XS` items from the head's status or the one below ride with
-it in a *tidy batch*, five at most, linked to it or not. `next.py --group`
-lists them under the head's companions, in queue order. The rest of this
-section still applies to a batch except the one-change test, which a batch
-replaces with this:
-
-- **Every gate is unchanged.** One review pass for the batch, by the
-  reviewer *Review* and the pace table name for what the whole diff touches:
-  the Opus first pass where any item is in an area that needs one, a fresh
-  Sonnet where the whole batch is docs or wording, `frontend-reviewer-quick`
-  at `fast` where every item is under `web/` and none touches
-  `scripts/prerender.js`. A batch that spans `web/` and `data/` gets both
-  areas' reviewers, launched in one message. The licence and security
-  triggers are read against the whole diff, the precheck names every id, and
-  all four checks are green before the merge.
-- **The diff reads as a list of separate small changes**, one section per
-  item in the PR body, each with its own `Closes` line. It does not have to
-  read as one change; it does have to read item by item.
-- **An item that grows past the limit leaves the batch**, status back, and
-  is relabelled with its real size on the way past. So does one that turns
-  out to need a decision or a source the batch cannot wait for. The batch
-  never waits for its slowest member.
-- **A linked `XS` item is simply a member of the batch.** A linked
-  companion larger than `XS` still rides with an `XS` head under `[D-20]`,
-  and then the PR is a group and not a tidy batch, because a batch is only
-  `XS` items: take the group, and leave the unlinked `XS` items in the queue.
+**When `next.py --group` proposes a companion or a tidy batch, read
+`.claude/skills/backlog-item/grouping.md` before taking any**: what a
+companion must earn, how many ride, the tidy lane `[D-54]`, and drop, never
+grow. With none proposed the item is a group of one, and this is all of the
+section it needs.
 
 **Every issue set to *In progress* leaves it by exactly one of five routes**,
 and a group accounts for each of its own: merged (`Done`, or *Now* for an
@@ -280,18 +227,9 @@ line could not be written; say so in the stock-take and carry on.
 - **The issue:** `file.py status <n> "In progress"` for every issue in the
   group when the worktree opens; `Closes #<n>` on its own line for each in
   the PR body, which is the record of what was done and what was left.
-  **Except an alarm** — an issue labelled `refresh-failing` or
-  `results-late`, which refresh.yml opens as an item and closes itself on
-  the first run that proves the fix: the PR says `Refs #<n>`, never a
-  closing keyword, and its body says how to work it `AF-89`.
-  **A security alert** — an issue labelled `source: security`, which
-  security.yml files — is an ordinary item and closes by `Closes #<n>`
-  when the alert is real. One that is a false positive or in test code is
-  never dismissed by a fork: only the maintainer dismisses an alert, so it
-  is held as *Stop conditions* says, the `file.py decision` naming each
-  alert, the reason and the `gh api` command its body gives. A secret is
-  held the same way, real or not, and nothing about it goes in a PR
-  `AF-121`.
+  **An alarm** (`refresh-failing`, `results-late`) **or a security alert**
+  (`source: security`) is the exception: read
+  `.claude/skills/backlog-item/alarm.md` before the worktree opens.
   Anything discovered is filed as its own issue — `file.py new <prefix>
   "<title>" --size <XS|S|M|L|?> --body "..."` — never left in a note, a PR
   comment or a TODO.
@@ -427,15 +365,10 @@ recorded nothing is no review. **Only the reviewer runs `record`.** A fork
 that records a verdict on a reviewer's behalf — because the reply plainly
 said PASS — has read the reply for a verdict by another route.
 
-**One respawn when a pass records no verdict**, whatever the reason — it ran
-out of turns, forgot the command, or the command refused it. Open a new pass
-id and send the **same brief** to a fresh agent of the same kind with only the
-id changed; everything else goes across, so the pass that settles the item is
-briefed no more thinly than the one it replaces. The respawn's findings are
-read like any pass's. If it records nothing either, the item has no review and
-the *Not a PASS* rule below applies. Interpreting a reply instead is how the
-rule rots: the fork that reads a verdict out of prose today is the fork that
-reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
+**When `verdict.sh read <id>` exits 1 — a pass that recorded no verdict — or
+a reviewer stops on a rate limit, an unavailable account or a session limit,
+read `.claude/skills/backlog-item/no-verdict.md` before anything else**: the
+one respawn `[D-37]`, and what is not a PASS. On a recorded verdict:
 
 - **FAIL:** fix, run the precheck again, confirm with a fresh agent by commit
   range, on the model the pace table's *Confirming* row names — whatever the
@@ -455,15 +388,6 @@ reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
   of dead code needs **no further pass at all**.
 - **A review finding is not discovered work, and only one of them is an
   issue** `[D-15]`. A defect in the diff under review is fixed, not filed.
-- **Not a PASS**, and no respawn is owed: a rate limit or an unavailable
-  account. Retrying a limit extends it `[D-27]`.
-- **Not a PASS after its one respawn**, and one respawn is the whole of it:
-  a pass for which `verdict.sh read` exits 1 — silence, a reviewer that hit
-  its turn cap, one that never ran the command, or one whose command was
-  refused. The second pass settles the item, whichever of those the first
-  was.
-  If the agent dies on a session limit, return `LIMIT: resets <time>` at
-  once; you cannot outlive the reset.
 - **Record the verdict as a PR comment the moment it arrives**, before the
   fix or anything else — reviewer and model, verdict, blocking findings one
   line each `[D-23]`. On a first pass the same comment is the handover
@@ -481,8 +405,8 @@ each gated on the one before:
 item — waiting up to nine minutes a call, exit 5 to call it again; a refresh
 not merged an hour after its last push is stuck, and is not waited on
 `AF-105`. It exits 3 when main has moved under the branch, a refresh having
-merged included: that is *Main moved under the branch* below, then CI again,
-then `before` again. **A refused `gh pr merge` is not a merge**, and the
+merged included: that is *Main moved under the branch*, in `trouble.md`, then
+CI again, then `before` again. **A refused `gh pr merge` is not a merge**, and the
 answer to one is never the post-merge steps: `after` reads the PR's state
 back from GitHub and does nothing unless it is `MERGED` `AF-99`. Never delete
 a PR's remote branch by hand — the repository deletes it on merge, and a
@@ -510,7 +434,7 @@ tokens. Forks that inherited an open PR peaked at 55,000-96,000.
   change is landed by this fork, CI wait and merge included: what is left is
   a few turns of waiting, about what a fresh fork's start would cost. A
   first pass that settled nothing after its respawn stays here too: that is
-  *Not a PASS* under *Review*, and this fork deals with it.
+  *Not a PASS* under *Review*, in `no-verdict.md`, and this fork deals with it.
 - **What goes across is on the PR, and nothing else does.** The landing fork
   never sees this context. The first pass's verdict comment carries, beyond
   `[D-23]`'s lines: every finding with file:line, blocking or not, since a
@@ -523,17 +447,8 @@ tokens. Forks that inherited an open PR peaked at 55,000-96,000.
 
 ### Landing (`--land <N>`)
 
-Run `start-check.sh` as *Starting* says, then skip *Before an item* and *Doing
-the item*: the item was chosen, claimed and built. Read, in this order, and
-nothing else first: the PR body and its comments (`gh pr view <N>
---comments`); the diff, in the PR's worktree, which `start-check.sh` lists —
-`git fetch origin <branch> && git worktree add <scratchpad>/wt-<slug>
-<branch>` when it is gone; and the issue only for what a comment names. Then
-go on from *Review* where the verdict comment left it — fix, precheck,
-confirmation, CI, merge. Every rule there applies as written: the fix is to
-this diff, the confirmation is a fresh agent on the model the pace table
-names, and nothing merges without a recorded `PASS`. A landing fork does not
-hand over again; it returns any line *The result* allows except `OPENED`.
+**On `--land <N>`, and for an inherited open PR, read
+`.claude/skills/backlog-item/land.md`** and do what it says.
 
 ## Keeping the cost down
 
@@ -549,17 +464,8 @@ hand over again; it returns any line *The result* allows except `OPENED`.
   what is safe to cache, so `--group` followed by `next.py <head>
   <companion>` costs one board read and not two; calling `next.py` to browse
   costs one each time, so do not.
-- **A rate limit is an ordinary blocker, and retrying extends it** `[D-27]`.
-  A `gh` failure naming a limit while `gh api rate_limit` looks untouched is
-  the secondary limiter. Record it, stop calling, come back. `precheck.sh`
-  tells it from a real "not an open issue" FAIL, which you can trust.
-- **The limiter refusing the board read is a `STOP`, not a skip.** `next.py`
-  exits **3** on it and names it, distinctly from the 2 that means `gh`
-  failed for some other reason. Recording a blocker is itself a board write,
-  so the skip path needs the call that is being refused; and no fork can
-  choose an item while the board is unreadable. Do not poll it — a poll every
-  45 seconds keeps it closed `[D-27]`. Return `STOP` and let the run be
-  picked up later.
+- **A `gh` call that fails naming a limit, or `next.py` exiting 3:** stop
+  calling, and read `.claude/skills/backlog-item/trouble.md` `[D-27]`.
 - **Keep your own messages short.** Do not paste reviewer reports into your
   context twice; the PR comment is the record. Read build and test output in
   its quiet form and never `cat` a log you have already checked the exit
@@ -576,14 +482,9 @@ hand over again; it returns any line *The result* allows except `OPENED`.
   foreground with the Bash tool's maximum timeout
   (600000 ms) and run it again if the tool times out first. Empty output from
   `gh` is pending.
-- **A 2 on a check the diff cannot reach is rerun once, and recorded first**
-  `AF-106`: `file.py flake "<the failing test's line, as the job printed
-  it>" <the failed run's URL>`, then `gh run rerun <run-id> --failed`, then
-  `ci-wait.sh` again. The record names the test that failed — a smoke
-  check's `FAIL [Section] message` line, a unit test's name — never the job
-  (`web`, `check (3.12)`) it failed in. `CONTRIBUTING.md` under *The queue*
-  says what the record does. A check the diff can reach is not a flake but a
-  finding, and a second failure on the rerun is read as one too.
+- **`ci-wait.sh` exiting 2 or 3, or `merge-step.py before` exiting 3:** read
+  `.claude/skills/backlog-item/trouble.md` — a failed check the diff cannot
+  reach, and main moved under the branch.
 - **A slow build is waited on the same way**, in the foreground. A tool call
   past 600 s does not trip the `no progress for 600s` watchdog, which watches
   the model's response stream, not your tools: every kill so far came after a
@@ -591,12 +492,6 @@ hand over again; it returns any line *The result* allows except `OPENED`.
   `[D-50]`. A command the Bash tool moves to the background at its timeout is
   waited on with a foreground loop on its output file, never by ending the
   turn.
-- **Main moved under the branch:** `python3
-  .claude/skills/backlog-loop/merge-main.py` from the worktree. It resolves
-  only what it can safely — the generated artefacts with a rebuild, and a
-  README or licence-statement conflict that is only figure spans moving. A
-  conflict in a source file or in prose stops it with the file named, for a
-  person. Rerun the web tests before pushing. Merge PRs one at a time.
 - **After the merge:** `merge-step.py after <PR>`, and only once `gh pr
   merge` has returned. It refuses, exit 1, unless the PR reads `MERGED`;
   then it sets every issue the body closes to *Done*, removes the worktree
@@ -611,57 +506,11 @@ hand over again; it returns any line *The result* allows except `OPENED`.
 
 ## Stop conditions, and holding instead
 
-**Stop on a decision only when it cannot be held.** Where rule 4 and this
-section seem to pull apart, that sentence settles it `[D-52]`.
-
-**Hold** the item when the only thing in its way is a person's call: a
-licence reading, a scope change, a trade the item does not settle, a change
-that would weaken a check or a workflow if it were made, or the permission
-classifier refusing an edit — on a licence record or a control, say. A hold
-is five steps, in this order:
-
-1. **The change does not happen.** Nothing routes around a refusal: not the
-   same edit reworded, split, made with another tool or through another
-   file. The question waits on the issue, and a person answers it.
-2. `file.py decision <n> "<what must be decided, and what the item does
-   under each answer>"`.
-3. **Its dependants wait for it.** The candidates are the items `--group`
-   printed as naming the head or named by it, and — because `--group` looks
-   only at the head's status and the one below, and leaves out a `blocked`
-   item — any line of `next.py --list Now`, `Next` and `Someday` whose
-   title names the head. Read their bodies with `next.py <ID>...`; each that
-   says it builds on the head's outcome gets `file.py blocked-by <n>
-   [<n>...] --on <head>`. `next.py` passes over an item blocked by an open
-   one, and the block lifts on its own when the head closes. An item that
-   only mentions the head does not wait.
-4. **The repository is left clean, and nothing is lost:** no worktree, no
-   open PR, no half-edited file. Commits worth keeping are pushed to their
-   branch and the branch is named in a comment on the issue; an open PR is
-   closed with a comment saying why, never merged.
-5. Status back, for the head and each companion. Return
-   `DECIDE <ID>: <the question in one clause>`.
-
-A companion that needs a decision is dropped from the group and held on its
-own issue by steps 1 to 3, status back, and the head carries on. Only the
-head being held is a `DECIDE`.
-
-**Stop**, and say why, when the danger is one a hold cannot leave behind:
-something already done — merged, on `main`, written to a published artefact
-— that could corrupt data, breach a licence, weaken a check or lose history;
-a change to production infrastructure other than by merging; a state that
-cannot be left clean, such as a conflict in a source file or in prose that
-`merge-main.py` hands to a person; a hold whose own record could not be
-written, because a question that exists only in this context is lost with
-it; and when the user asks to pause.
-
-Stop, too, when `start-check.sh` refuses the primary checkout, and when
-`next.py` exits 3 because the secondary limiter is refusing the board: both
-are conditions no fork can work around, and the second cannot even be
-recorded.
-
-Skip and record an ordinary blocker — network, a service, a missing
-non-critical credential — with `file.py blocked <n> "<what>"`, and leave the
-repository clean: no worktree, no open PR, no half-edited file.
+**Before you stop, skip or hold, and whenever a person's decision, a
+blocker or the permission classifier refusing an edit stands in the item's
+way, read
+`.claude/skills/backlog-item/hold-or-stop.md`**: which of the three it is,
+the five steps of a hold `[D-52]`, and what stops the loop outright.
 
 **Put every issue's status back before you stop, skip or hold**, the head and each
 companion — except on the two of these returns that *Grouping* exempts, a

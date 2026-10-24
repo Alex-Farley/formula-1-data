@@ -42,7 +42,7 @@
  */
 import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import {
   CHASSIS_NOTE,
@@ -125,7 +125,7 @@ import {
   leadersDrawn,
   recordFamilies,
 } from '../src/queries/records.js'
-import { NO_DRAWING, NO_TIMELINE_ROW, OUTLINE_RULE } from '../src/lib/outline.js'
+import { LAYOUT_RACED, NO_DRAWING, NO_LAYOUT_RECORDED, NO_TIMELINE_ROW, OUTLINE_RULE, RACE_LAYOUT_NOTE } from '../src/lib/outline.js'
 import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -1315,6 +1315,25 @@ try {
   // D-48: the database as static JSON, one file per thing, written at build
   // time from the same f1.db. Every figure here is read out of the database,
   // so the files are held to it rather than to a number typed in the test.
+  await section('The masthead span  (both renderers, off the season register: SD-12)', async () => {
+    // The app's half was typed, and the static half derived, so the two agreed
+    // only until the next season was registered. Both now read the register:
+    // the app through the manifest's meta.coverage_seasons, the static page
+    // through its own query.
+    const { lo, hi } = db.prepare('SELECT MIN(year) AS lo, MAX(year) AS hi FROM seasons').get()
+    const expected = `${lo}–${hi} · every championship race`
+    const strap = (n) => n.textContent
+    // Read where the shared page already is, without go(): the masthead is
+    // the same on every route, and the section after this one reads the
+    // overview's tiles off whatever page it finds.
+    is(await page.$eval('#root .wordmark > span > span', strap), expected, "the app's masthead states the span the register holds")
+    const noJs = await browser.newContext({ javaScriptEnabled: false })
+    const plain = await noJs.newPage()
+    await plain.goto(`${BASE}/circuits`, { waitUntil: 'load' })
+    is(await plain.$eval('#prerendered .wordmark > span > span', strap), expected, "and so does the static page's")
+    await noJs.close()
+  })
+
   await section('The JSON API  (/api/v1)', async () => {
     const get = async (path) => {
       const response = await fetch(`${BASE}/api/v1/${path}`)
@@ -3211,6 +3230,73 @@ try {
     } else pass('every race with a pictured car has photographs of its own')
   })
 
+  /*
+   * AF-07. A race page's "Layout raced" is the register's layout for the
+   * season - the one-off the race names, or the timeline row covering its
+   * year - and its figures are the register's, beside a drawing captioned
+   * with F1DB's. It once matched the one-off alone, so a timeline round said
+   * no layout was recorded. The round is the first whose register length
+   * differs from F1DB's, found here by a join written out apart from the
+   * page's, and both halves must name the layout, give the register's
+   * length and say whose figures are whose; a round at a circuit with no
+   * timeline says so in both.
+   */
+  await section('/races  (the layout raced, and whose figures are whose: AF-07)', async () => {
+    const raced = db
+      .prepare(
+        `SELECT r.year, r.round, l.layout_name, l.length_km
+           FROM races r
+           JOIN circuit_layouts l ON l.circuit_id = r.circuit_id AND l.by_year = 1
+                                 AND r.year BETWEEN l.from_year AND COALESCE(l.to_year, 9999)
+           JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+          WHERE r.layout_key IS NULL AND l.length_km IS NOT NULL AND o.length_km IS NOT NULL
+            AND l.length_km <> o.length_km
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get()
+    const none = db
+      .prepare(
+        `SELECT r.year, r.round FROM races r
+          WHERE r.status = 'completed' AND r.circuit_id NOT IN (SELECT circuit_id FROM circuit_layouts)
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get()
+    truthy(raced && none, 'a round whose register length differs from F1DB\u2019s, and one at a circuit with no timeline')
+    const decode = (s) =>
+      s.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    const read = () =>
+      page.evaluate((label) => {
+        const main = document.querySelector('#root main')
+        const dt = [...main.querySelectorAll('dl.fields dt')].find((d) => d.textContent.trim() === label)
+        return {
+          value: dt?.nextElementSibling?.textContent.trim() ?? null,
+          notes: [...main.querySelectorAll('p.source-note')].map((p) => p.textContent.trim()),
+        }
+      }, LAYOUT_RACED)
+    const served = async (route) => {
+      const html = decode(await (await fetch(`${BASE}${route}`)).text())
+      const value = html.match(new RegExp(`<dt>${LAYOUT_RACED}</dt><dd>([^<]*)</dd>`))?.[1] ?? null
+      return { value, notes: [...html.matchAll(/<p class="source-note">([^<]*)<\/p>/g)].map((m) => m[1]) }
+    }
+    if (raced) {
+      const route = `/races/${raced.year}/${raced.round}`
+      await go(route)
+      for (const [half, got] of [['app', await read()], ['static', await served(route)]]) {
+        is(got.value?.split(' · ').slice(0, 2).join(' · '), `${raced.layout_name} · ${raced.length_km} km`, `${route}, ${half}: the register's layout and length`)
+        truthy(got.notes.includes(RACE_LAYOUT_NOTE), `${route}, ${half}: says the register's figures are not the drawing's`)
+        truthy(!got.notes.includes(NO_LAYOUT_RECORDED), `${route}, ${half}: does not say no layout is recorded`)
+      }
+    }
+    if (none) {
+      const route = `/races/${none.year}/${none.round}`
+      await go(route)
+      for (const [half, got] of [['app', await read()], ['static', await served(route)]]) {
+        truthy(got.notes.includes(NO_LAYOUT_RECORDED), `${route}, ${half}: says no layout is recorded`)
+        truthy(!got.notes.includes(RACE_LAYOUT_NOTE), `${route}, ${half}: and no note on figures it does not show`)
+      }
+    }
+  })
+
   await section('/races/1955/1  (a shared drive)', async () => {
     const shared = one('SELECT id FROM races WHERE year = 1955 AND round = 1')
     await go('/races/1955/1')
@@ -3928,6 +4014,66 @@ try {
       '',
       'Clear filters empties the search box and the register comes back',
     )
+
+  })
+
+  // IA-25: the three registers take an era, by the season it begins in. The
+  // expected sets are worked out here from the raw rows - race years per
+  // driver and constructor, the chassis's printed span - not by running the
+  // query's own era column.
+  await section('/drivers?era=  (the era filter on three registers: IA-25)', async () => {
+    const eras = db.prepare('SELECT from_year, to_year FROM eras ORDER BY from_year').all()
+    const within = (era, year) => year >= era.from_year && (era.to_year === null || year <= era.to_year)
+    const touches = (era, from, to) => from !== null && (era.to_year === null || from <= era.to_year) && (to === null || to >= era.from_year)
+    const rowsAre = (n) =>
+      page.waitForFunction((n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n), n, { timeout: 10000 })
+    const racedYears = (column) => {
+      const years = new Map()
+      for (const { id, year } of db.prepare(`SELECT DISTINCT e.${column} AS id, r.year FROM race_entries e JOIN races r ON r.id = e.race_id WHERE e.${column} IS NOT NULL`).all()) {
+        years.set(id, [...(years.get(id) ?? []), year])
+      }
+      return years
+    }
+    const placed = (era, years, from, to) => (years ? years.some((y) => within(era, y)) : touches(era, from, to))
+
+    const sixties = eras.find((e) => e.from_year === 1966)
+    const driverYears = racedYears('driver_id')
+    const drivers = db.prepare('SELECT id, first_season, last_season FROM drivers').all()
+    const expectDrivers = drivers.filter((d) => placed(sixties, driverYears.get(d.id), d.first_season, d.last_season)).length
+    await go('/drivers?era=1966', 'Drivers')
+    await rowsAre(expectDrivers)
+    pass(`/drivers?era=1966 keeps the ${expectDrivers} drivers placed in 1966-1976`)
+    is(
+      await page.$$eval('#root main .filters select[aria-label="Era"] option', (os) => os.length),
+      eras.length + 1,
+      'the era select offers every era and "Every era"',
+    )
+
+    // A span hides a gap: Alfa Romeo's runs 1950-1985 and it raced no
+    // season of 1966-1976, so the era leaves it out.
+    const teamYears = racedYears('constructor_id')
+    const teams = db.prepare('SELECT id, name, first_entry, last_entry FROM constructors').all()
+    const expectTeams = teams.filter((k) => placed(sixties, teamYears.get(k.id), k.first_entry, k.last_entry))
+    await go('/constructors?era=1966', 'Constructors')
+    await rowsAre(expectTeams.length)
+    pass(`/constructors?era=1966 keeps the ${expectTeams.length} constructors placed in 1966-1976`)
+    const alfa = teams.find((k) => k.id === 'alfa-romeo')
+    if (alfa && touches(sixties, alfa.first_entry, alfa.last_entry) && !expectTeams.includes(alfa)) {
+      const names = await page.$$eval('#root main tbody tr > :first-child', (cells) => cells.map((c) => c.textContent.trim()))
+      truthy(!names.some((n) => n.startsWith(alfa.name)), `${alfa.name}, whose span covers the era and whose races do not, is not in it`)
+    }
+
+    const chassis = db.prepare('SELECT first_year, last_year FROM chassis').all()
+    const expectChassis = chassis.filter((c) => touches(sixties, c.first_year, c.last_year)).length
+    await go('/cars?era=1966', 'Cars')
+    await rowsAre(expectChassis)
+    pass(`/cars?era=1966 keeps the ${expectChassis} chassis whose seasons touch 1966-1976`)
+
+    // A year inside an era but not its start is not a key, and is dropped
+    // rather than emptying the register under a select reading "Every era".
+    await go('/drivers?era=1970', 'Drivers')
+    await rowsAre(drivers.length)
+    is(await page.$eval('#root main .filters select[aria-label="Era"]', (s) => s.value), '', 'an unknown era is dropped and the select says so')
 
   })
 
@@ -6314,11 +6460,67 @@ try {
 
   })
 
-  await section('/reference/eras', async () => {
-    await go('/reference/eras', 'Eras')
+  await section('/eras', async () => {
+    await go('/eras', 'Eras')
     truthy(
       (await tableRows()).includes(count('SELECT COUNT(*) FROM regulation_changes')),
       'every regulation change is listed',
+    )
+    // IA-25: each era heading is the way to its own page, addressed by the
+    // season it begins in.
+    const eras = db.prepare('SELECT from_year, era_name FROM eras ORDER BY from_year').all()
+    const linked = await page.$$eval('#root main .timeline h3 a', (as) => as.map((a) => [a.getAttribute('href'), a.textContent.trim()]))
+    is(
+      JSON.stringify(linked.filter(([href]) => href.startsWith('/eras/'))),
+      JSON.stringify(eras.map((e) => [`/eras/${e.from_year}`, e.era_name])),
+      'every era links to its page, addressed by its first season',
+    )
+
+  })
+
+  // IA-25: an era's page is its slice of /eras - the seasons, formulae,
+  // changes, innovations and milestones in its years, counted here from the
+  // tables rather than from the page's own filter.
+  await section('/eras/2014', async () => {
+    const era = db.prepare('SELECT * FROM eras WHERE from_year = 2014').get()
+    await go('/eras/2014', era.era_name)
+    const to = era.to_year ?? 9999
+    const counts = await page.$$eval('#root main h2', (hs) =>
+      Object.fromEntries(hs.map((h) => [h.firstChild?.textContent.trim(), h.querySelector('.count')?.textContent])),
+    )
+    is(counts['The seasons'], String(count('SELECT COUNT(*) FROM seasons WHERE year BETWEEN ? AND ?', era.from_year, to)), 'the seasons are the era’s')
+    is(
+      counts['Regulation changes'],
+      String(count('SELECT COUNT(*) FROM regulation_changes WHERE year BETWEEN ? AND ?', era.from_year, to)),
+      'the regulation changes are the ones dated in the era',
+    )
+    is(
+      counts['Engine formulae'],
+      String(count('SELECT COUNT(*) FROM engine_eras WHERE from_year <= ? AND COALESCE(to_year, 9999) >= ?', to, era.from_year)),
+      'the engine formulae are the ones that ran in it',
+    )
+    const steps = await page.$$eval('#root main .stepper a', (as) => as.map((a) => a.getAttribute('href')))
+    is(steps.join(' '), '/eras/2009 /eras/2022', 'the stepper goes to the eras either side')
+    truthy(
+      await page.$('#root main nav.onward a[href="/drivers?era=2014"]'),
+      'the onward band opens the driver register on the era',
+    )
+    // A slice with nothing in it keeps its heading and says so: no safety
+    // milestone is recorded for the first era.
+    const empty = db.prepare(
+      'SELECT e.from_year, e.era_name FROM eras e WHERE NOT EXISTS (SELECT 1 FROM safety_milestones m WHERE m.year BETWEEN e.from_year AND COALESCE(e.to_year, 9999)) LIMIT 1',
+    ).get()
+    if (empty) {
+      await go(`/eras/${empty.from_year}`, empty.era_name)
+      const said = await page.$$eval('#root main section', (ss) =>
+        ss.filter((sec) => sec.querySelector('h2')?.firstChild?.textContent.trim() === 'Safety').map((sec) => sec.querySelector('.state.is-empty')?.textContent),
+      )
+      is(said[0], 'None recorded for these seasons.', `an era with no safety milestone (${empty.from_year}) says so under the heading`)
+    } else pass('every era has a safety milestone, so there is no empty slice to check')
+    await go('/eras/2016', 'No such era')
+    truthy(
+      await page.$(`#root main a[href="/eras/${era.from_year}"]`),
+      'an address inside an era but not at its start is no era, and names the era 2016 falls in',
     )
 
   })
@@ -7432,6 +7634,32 @@ try {
     is(page.url(), address, 'Back returns to the register as it was left')
     is((await tableRows())[0], champions, 'with the filter still applied')
 
+    // IX-40. The search box wrote the address on every keystroke, and each
+    // write is a history.replaceState, which Safari throttles and then
+    // refuses with a SecurityError. It writes once typing pauses, and at once
+    // when the reader leaves the box, so a term typed just before opening a
+    // row is still in the entry Back returns to. Counted at the browser's own
+    // history object, which is what the router writes through.
+    await page.evaluate(() => {
+      window.__replaced = 0
+      const replace = history.replaceState.bind(history)
+      history.replaceState = (...args) => {
+        window.__replaced += 1
+        return replace(...args)
+      }
+    })
+    await page.type('input[type="search"]', 'hill', { delay: 40 })
+    is(await page.$eval('input[type="search"]', (node) => node.value), 'hill', 'the search box shows each key as it is typed')
+    await page.waitForFunction(() => new URL(window.location.href).searchParams.get('q') === 'hill', null, { timeout: 10000 })
+    is(await page.evaluate(() => window.__replaced), 1, 'and writes the address once, when typing pauses, not once a key')
+    await page.type('input[type="search"]', 'x')
+    await page.keyboard.press('Tab')
+    is(
+      await page.evaluate(() => new URL(window.location.href).searchParams.get('q')),
+      'hillx',
+      'leaving the box writes what it holds without waiting for the pause',
+    )
+
     // A parameter is typed by hand as often as it is clicked, and a register
     // filtered to nothing by a value no row carries — while the select beside
     // it read "Every nationality" — would be the control and the table
@@ -8020,6 +8248,13 @@ try {
       'dist/reference/quality/index.html sends the reader to /data/quality and names it canonical',
     )
     truthy(movedStatic.includes('name="robots" content="noindex"'), 'and asks not to be indexed itself')
+    // IA-25: the eras' old address, which the car pages and onward bands
+    // linked until the eras became a section.
+    const erasMoved = readFileSync(join(web, 'dist', 'reference', 'eras', 'index.html'), 'utf8')
+    truthy(
+      /http-equiv="refresh"[^>]*url=\/eras"/.test(erasMoved) && /<link rel="canonical" href="[^"]*\/eras"/.test(erasMoved),
+      'dist/reference/eras/index.html sends the reader to /eras and names it canonical',
+    )
     const moved = await browser.newPage()
     await moved.goto(`${BASE}/reference/sql?q=SELECT%207%20AS%20n`, { waitUntil: 'domcontentloaded' })
     await moved.waitForFunction(
@@ -8115,6 +8350,7 @@ try {
               AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1`) +
       10 + // records, data and its three children, eras, glossary, changes, about, compare (PD-43)
       one('SELECT COUNT(*) FROM records') + // one per record, at its key (PD-27)
+      one('SELECT COUNT(*) FROM eras') + // one per era, at its first season (IA-25)
       // SD-20: feed.xml is listed too. It is not a page, but it is an address
       // worth recrawling, and its lastmod is the one on the site that moves
       // whenever the data does.
@@ -8322,6 +8558,68 @@ try {
     } else {
       for (const { file } of naked.slice(0, 5)) fail(`no og:image: ${relative(distDir, file)}`)
       if (naked.length > 5) fail(`…and ${naked.length - 5} more pages with no og:image`)
+    }
+
+    /*
+     * What a search result prints of an entity page (CD-11). Its description
+     * is cut at a sentence end to what a results page shows, so none runs
+     * past 155 characters - a driver's is the one exception, its name and
+     * career standing whole where together they run longer, and it is not
+     * walked here; a constructor that never won says so in words rather than
+     * "0 wins"; a chassis is "built by" its maker, never "entered by" it, and
+     * only where its name does not already say who - an acronym included,
+     * so BAR 01 and OSCA 20 are named once; no description is cut off with
+     * an ellipsis; and a car's title carries the span its eyebrow gives.
+     */
+    const SEARCH_LIMIT = 155
+    const ENTITY_KINDS = new Set(['cars', 'circuits', 'constructors', 'grands-prix', 'races', 'records'])
+    const described = {
+      pages: 0,
+      long: [],
+      zero: [],
+      entered: [],
+      cut: [],
+      acronym: [],
+      noWin: 0,
+      builtBy: 0,
+      cars: 0,
+      spanless: [],
+    }
+    for (const file of served) {
+      const parts = relative(distDir, dirname(file)).split(sep)
+      if (parts.length < 2 || !ENTITY_KINDS.has(parts[0])) continue
+      const html = readFileSync(file, 'utf8')
+      if (/name="robots" content="noindex"/.test(html)) continue
+      const route = `/${parts.join('/')}`
+      const description = unescaped(/<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '')
+      described.pages += 1
+      if (description.length > SEARCH_LIMIT) described.long.push(`${route} (${description.length})`)
+      if (/\b0 wins\b/.test(description)) described.zero.push(route)
+      if (/\bentered by\b/.test(description)) described.entered.push(route)
+      if (description.endsWith('…')) described.cut.push(route)
+      if ((route === '/cars/bar-01' || route === '/cars/osca-20') && description.includes(', built by '))
+        described.acronym.push(`${route}: ${description}`)
+      if (description.includes('. No win in ')) described.noWin += 1
+      if (description.includes(', built by ')) described.builtBy += 1
+      if (parts[0] === 'cars') {
+        described.cars += 1
+        const eyebrow = unescaped(/<p class="eyebrow">([^<]*)<\/p>/.exec(html)?.[1] ?? '').split(' · ').at(-1)
+        const title = unescaped(/<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '')
+        if (/^\d{4}/.test(eyebrow) && !title.includes(`(${eyebrow}) — `)) described.spanless.push(`${route}: ${title}`)
+      }
+    }
+    atLeast(described.pages, 2500, 'indexable entity pages whose description was read')
+    atLeast(described.noWin, 1, 'constructors whose description says they never won')
+    atLeast(described.builtBy, 1, 'chassis whose description names a maker their name does not')
+    for (const [list, what] of [
+      [described.long, `entity page descriptions run past ${SEARCH_LIMIT} characters`],
+      [described.zero, 'entity page descriptions read "0 wins"'],
+      [described.entered, 'entity page descriptions say a chassis was "entered by" its constructor'],
+      [described.cut, 'entity page descriptions are cut off with an ellipsis'],
+      [described.acronym, 'acronym-named chassis descriptions name their maker a second time'],
+      [described.spanless, `car page titles, of ${described.cars}, lack the span their eyebrow gives`],
+    ]) {
+      truthy(list.length === 0, `no ${what}${list.length ? ` — ${list.length}: ${list.slice(0, 5).join(', ')}` : ''}`)
     }
 
     /*
@@ -8717,7 +9015,12 @@ try {
       '/cars/brabham-bt46',
       '/records',
       '/records/most-wins',
-      '/reference/eras',
+      '/eras',
+      // IA-25: an era's page, its stepper in the header; the first era, with
+      // an empty Safety slice; and the open era, with no innovation yet.
+      '/eras/2014',
+      '/eras/1950',
+      '/eras/2026',
       '/reference/glossary',
       '/data',
       '/data/quality',
@@ -9088,8 +9391,6 @@ try {
       ],
       '/seasons/1976': [{ half: 'app', section: '', drop: 'The grid: ', why: PROSE_DRIFT }],
       '/races': [{ half: 'static', section: '', drop: /^[\d,]+ championship Grands Prix\. The \d+ most recently run/, why: SLICE }],
-      '/races/1976/9': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
-      '/races/2027/1': [{ half: 'app', section: LABELS.provenance, drop: 'No layout is recorded for this round', why: PROSE_DRIFT }],
       '/constructors/ferrari': [{ half: 'app', section: LABELS.provenance, drop: 'Trust the counted figures.', why: PROSE_DRIFT }],
       '/compare': [{ half: 'static', section: '', drop: 'Choosing the two drivers needs JavaScript', why: SAYS_WHY }],
       '/circuits/monza': [{ half: 'static', section: '', drop: characteristics('monza'), why: PROSE_DRIFT }],
@@ -9496,7 +9797,10 @@ try {
         'Governance',
         'Tyre suppliers',
       ]) {
-        await same('/reference/eras', 'Eras', heading)
+        await same('/eras', 'Eras', heading)
+      }
+      for (const heading of ['The seasons', 'Engine formulae', 'Regulation changes', 'Technical innovations']) {
+        await same('/eras/2014', 'The hybrid era', heading)
       }
       for (const heading of ['Glossary', 'People']) await same('/reference/glossary', 'Glossary', heading)
       for (const heading of ['What a licence cost, or bought', 'The source registry', 'Photograph licences']) {

@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->54<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->178,204<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->54<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->178,213<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -84,6 +84,7 @@ here is a number the build checked.
 | `tools/parquet_export.py` | Writes every table as Parquet for the release bundle, with a `README.txt` stating its terms. Refuses a database carrying FOM timing, ODbL geometry or a row a local loader wrote. |
 | `tools/geometry_overlay.py` | Merges `f1-geometry.db` into a local `f1.db` (`--apply`) or takes it out again (`--remove`). |
 | `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
+| `docs/README.md` | What each file in `docs/` is for, and whether it is current. |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
 | `docs/LOCAL-SETUP.md` | Getting `/backlog-loop` running on your own machine, from nothing. |
@@ -239,7 +240,7 @@ than asserted. Beneath them, **<!-- fig:chassis -->1,153<!-- /fig -->
 chassis** — every one that has raced — with engines and per-season entry
 lists. See *Cars and chassis*.
 
-**Technical and regulatory** — <!-- fig:regulation_changes -->60<!-- /fig -->
+**Technical and regulatory** — <!-- fig:regulation_changes -->69<!-- /fig -->
 regulation changes by year and
 category, <!-- fig:innovations -->26<!-- /fig --> landmark innovations (with the year
 each was banned, where it was), <!-- fig:engine_eras -->11<!-- /fig --> engine

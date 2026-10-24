@@ -170,6 +170,15 @@ case for quotation — but they are quotations, not facts. Keeping them was a
 decision rather than an oversight; `docs/COMMERCIAL-READINESS.md` records what
 was weighed, and when it would be worth revisiting.
 
+The site carries one more Wikipedia taking, outside every database file: the
+team livery palette from 2010, in `web/src/lib/liveries.js`, most of whose
+entries adapt the colour tables of the *Formula One sponsorship liveries*
+article. The maintainer's ruling (`AF-19`, #301) treats a taking that wide as
+a substantial portion under CC BY-SA 4.0 section 4(b), so the palette is
+CC BY-SA 4.0 and carries share-alike, though the code around it is MIT. The
+constructor page's livery band names and links each Wikipedia article its
+colour was read from, with the licence, and `/data` says the same.
+
 *This is a description of the licences involved, not legal advice.*
 
 ### Wikimedia Commons — sixteen different licences, one per file
@@ -234,7 +243,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->178,204<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->178,213<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to

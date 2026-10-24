@@ -240,6 +240,10 @@ const manifest = {
   wasm: wasmDigest,
   version: meta.version ?? null,
   built: meta.built ?? null,
+  // meta.coverage_seasons, "1950-2027", which verify.py holds to the season
+  // register. It rides here because the masthead needs it on the first frame
+  // the app draws, and the manifest is in hand by then (SD-12).
+  coverage: meta.coverage_seasons ?? null,
   staged: new Date().toISOString().slice(0, 10),
   geometry,
 }

@@ -15,6 +15,103 @@ import { span, text } from '../lib/format.js'
 
 export const ERAS = 'SELECT * FROM eras ORDER BY from_year'
 
+/*
+ * Eras as an axis (IA-25): an address of their own, /eras/<first season>,
+ * and a filter on the drivers, constructors and cars registers, `?era=` with
+ * the same key.
+ *
+ * The key is the era's first season and not `eras.id`, which build.py numbers
+ * by position in data/technical.py: an era inserted before another would
+ * renumber every one after it, and a cited /eras/8 would quietly become a
+ * different era. scripts/prerender.js refuses two eras that start in the same
+ * season, since they would be one address.
+ */
+
+/** The era's key: its address, and its value in a register's `?era=`. */
+export const eraKey = (era) => String(era.from_year)
+
+/** The era's page. */
+export const eraPath = (era) => `/eras/${era.from_year}`
+
+/** The era whose page `key` is, or null: the address takes the first season alone. */
+export const eraByKey = (eras, key) => eras.find((era) => eraKey(era) === String(key)) ?? null
+
+/** Does a season fall in the era? One with no last season is still running. */
+export const inEra = (era, year) =>
+  year !== null && year !== undefined && year >= era.from_year && (missingYear(era.to_year) || year <= era.to_year)
+
+/**
+ * Does a span of seasons touch the era? A span with no last season is open,
+ * and one with no first season is not established, so it touches none.
+ */
+export const touchesEra = (era, from, to) =>
+  !missingYear(from) && (missingYear(era.to_year) || from <= era.to_year) && (missingYear(to) || to >= era.from_year)
+
+const missingYear = (year) => year === null || year === undefined
+
+/** The rows of a table that fall in the era, by a season column. */
+export const rowsInEra = (era, rows, key = 'year') => rows.filter((row) => inEra(era, row[key]))
+
+/** The rows whose own span of seasons touches the era. */
+export const rowsTouchingEra = (era, rows, from = 'from_year', to = 'to_year') =>
+  rows.filter((row) => touchesEra(era, row[from], row[to]))
+
+/** "The hybrid era, 2014–2021": an era as one select option names it. */
+export const eraLabel = (era) => `${era.era_name}, ${span(era.from_year, era.to_year)}`
+
+/** The register's `?era=` select: one option per era, oldest first. */
+export const eraOptions = (eras) => eras.map((era) => [eraKey(era), eraLabel(era)])
+
+/**
+ * The era as the tail of a register's empty-state phrase (IX-28): "in
+ * 2014–2021", or "since 2026" for the one still running.
+ */
+export const eraWhen = (era) =>
+  missingYear(era.to_year) ? `since ${era.from_year}` : `in ${span(era.from_year, era.to_year)}`
+
+/**
+ * The eras a driver or constructor raced in, as their keys, comma-separated:
+ * the column the register's era filter reads. `entry` is the condition that
+ * picks the row's race entries out of `race_entries e`; `first` and `last`
+ * are the span the register prints.
+ *
+ * A season with a race entry in it decides, because a span hides a gap: Alfa
+ * Romeo's runs 1950-1985 and it entered no race from 1952 to 1978. A row
+ * with no race entry at all - a Friday driver who never started one, or Rob
+ * Walker Racing, whose cars were other makers' - has only its span, and the
+ * span stands in. A row with neither is in no era, because nothing says
+ * which.
+ */
+export const erasRaced = (entry, first, last) => `
+  (SELECT group_concat(er.from_year) FROM eras er
+    WHERE CASE WHEN EXISTS (SELECT 1 FROM race_entries e WHERE ${entry})
+               THEN EXISTS (SELECT 1 FROM race_entries e JOIN races r ON r.id = e.race_id
+                             WHERE ${entry} AND r.year >= er.from_year
+                               AND (er.to_year IS NULL OR r.year <= er.to_year))
+               ELSE ${first} IS NOT NULL AND (er.to_year IS NULL OR ${first} <= er.to_year)
+                    AND (${last} IS NULL OR ${last} >= er.from_year)
+          END)`
+
+/**
+ * An era's page, in both renderers (IA-25): the era's two lines as fields,
+ * then its slice of the chronology /eras holds whole - its seasons, the
+ * engine formulae that ran in them, and the regulation changes, innovations
+ * and safety milestones dated in them - each from the query /eras draws it
+ * from, under the heading it has there. A slice with nothing in it keeps its
+ * heading and says so.
+ */
+export const ERA_FIELDS = [
+  ['dominant_teams', 'Dominant'],
+  ['defining_features', 'Technology'],
+]
+export const ERA_SEASONS_TITLE = 'The seasons'
+export const ERA_EMPTY = 'None recorded for these seasons.'
+export const eraDescription = (era) =>
+  `${era.era_name}, ${span(era.from_year, era.to_year)}: the seasons, engine formulae, regulation changes, technical innovations and safety milestones of one era of Formula One.`
+
+/** Is the register row, carrying `erasRaced` as `eras_raced`, in the era? */
+export const racedIn = (row, key) => String(row.eras_raced ?? '').split(',').includes(String(key))
+
 /**
  * The eras as one timeline section, in both renderers (VD-87): its heading,
  * the note it carries where every era shares one tier, and the two labelled

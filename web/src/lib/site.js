@@ -72,10 +72,16 @@ export const NAMES = {
   circuits: () => named('Circuits', titled('Every Formula One circuit')),
   circuit: (name) => named(name),
   cars: () => named('Cars', titled('Every Formula One car')),
-  car: (name) => named(name),
+  // The years it raced, as the eyebrow counts them (CD-11): a car page was
+  // titled with its bare name, and a search result for "Lotus 49" did not
+  // say which decade it was about. The h1 stays the name.
+  car: (name, from, to) => named(name, missing(from) && missing(to) ? undefined : titled(`${name} (${span(from, to)})`)),
   records: () => named('Records'),
   record: (name) => named(name),
   eras: () => named('Eras and regulations'),
+  // The years in the title, as a car's are (CD-11): "The hybrid era" alone
+  // does not say to a search result which seasons it is about. IA-25.
+  era: (era) => named(era.era_name, titled(`${era.era_name} (${span(era.from_year, era.to_year)})`)),
   glossary: () => named('Glossary and people'),
   sources: () => named('Sources and licences'),
   data: () => named('Data'),
@@ -96,8 +102,8 @@ export const NOT_FOUND_LEDE =
   'That address is not one this site has. Press Ctrl K, or Cmd K on a Mac, to search every driver, team, circuit, car, season and race at once — or pick up one of these.'
 
 /**
- * The line above a page's h1, for the seven kinds of entity page (VD-79,
- * DP-03): read by the page and by scripts/prerender.js, so both renderers
+ * The line above a page's h1, for the seven kinds of entity page and an
+ * era's (VD-79, DP-03, IA-25): read by the page and by scripts/prerender.js, so both renderers
  * draw the same header.
  *
  * ONE RULE: THE PAGE TYPE, THEN THE FACTS THAT IDENTIFY THE ENTITY (VD-81,
@@ -133,6 +139,8 @@ export const EYEBROWS = {
   season: (rounds, run) => eyebrow('Season', missing(rounds) ? null : roundsRun(Number(rounds), run)),
   car: (team, from, to) => eyebrow('Car', team, missing(from) && missing(to) ? null : span(from, to)),
   grandPrix: (country) => eyebrow('Grand Prix', country),
+  // An era is identified by its seasons; one still running is "2026–" (IA-25).
+  era: (from, to) => eyebrow('Era', missing(from) ? null : span(from, to)),
 }
 
 /**
@@ -835,7 +843,8 @@ export const ABOUT = [
       'The data is offered under CC BY-SA 4.0 \u2014 with the columns named in ' +
         'meta.project_prose_columns, this project\u2019s reading of each disagreement, its ' +
         'account of each gap and the prose of ten of its twelve reference tables, under CC BY 4.0 ' +
-        '\u2014 and the code under the MIT licence; the circuit ' +
+        '\u2014 and the code under the MIT licence, except the livery palette in ' +
+        'web/src/lib/liveries.js, which is CC BY-SA 4.0; the circuit ' +
         'centrelines are © OpenStreetMap contributors under ODbL 1.0, and that obligation follows ' +
         'f1-geometry.db alone. So if the person ' +
         'named above stops, what has already been published stays readable, checkable and ' +

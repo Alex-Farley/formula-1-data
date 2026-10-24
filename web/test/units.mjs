@@ -172,11 +172,14 @@ import {
   TO_COME,
   circuitOutlinesNote,
   layoutFacts,
+  layoutRaced,
   layoutTimeline,
   layoutsCount,
   leadOutline,
   outlineCaption,
   outlineFigures,
+  RACE_LAYOUT_NOTE,
+  raceLayoutNote,
   roundShortName,
   roundStates,
   timelineName,
@@ -1504,6 +1507,28 @@ describe('the circuit outlines (AF-03)', () => {
     assert.equal(unnamed(2008, 2012), `${NO_TIMELINE_ROW}, 2008–2012`)
     assert.notEqual(unnamed(2008, 2012), unnamed(2013, 2014))
     assert.equal(timelineName({ layout: row, outline: null }), 'Grand Prix circuit')
+  })
+  it("prints a race's layout with the register's figures, and says whose they are only beside F1DB's (AF-07)", () => {
+    const race = {
+      layout_name: 'Original long circuit',
+      layout_km: 7.96,
+      layout_turns: 26,
+      outline: 'M0 0',
+      outline_km: 7.873,
+      outline_turns: 26,
+    }
+    assert.equal(layoutRaced(race), 'Original long circuit · 7.96 km · 26 turns')
+    // A figure the register does not hold is left out, never printed as 0.
+    assert.equal(layoutRaced({ ...race, layout_turns: null }), 'Original long circuit · 7.96 km')
+    assert.equal(layoutRaced({ ...race, layout_km: null, layout_turns: null }), 'Original long circuit')
+    assert.equal(layoutRaced({ ...race, layout_name: null }), null)
+    assert.equal(raceLayoutNote(race), RACE_LAYOUT_NOTE)
+    // No note where one side has no figures to set against the other's.
+    assert.equal(raceLayoutNote({ ...race, outline: null }), null)
+    assert.equal(raceLayoutNote({ ...race, outline_km: null, outline_turns: null }), null)
+    assert.equal(raceLayoutNote({ ...race, layout_name: null, layout_km: null, layout_turns: null }), null)
+    // A length of 0 is a figure, not a missing one.
+    assert.equal(layoutRaced({ ...race, layout_km: 0, layout_turns: null }), 'Original long circuit · 0 km')
   })
   it("folds a circuit's timeline and its outlines into one list, and hides neither side's gaps (IX-32)", () => {
     const layout = (id, from, drawn) => ({ id, from_year: from, f1db_layout_id: drawn })
@@ -3109,6 +3134,8 @@ describe('one eyebrow rule: the page type, then the facts that identify the enti
     assert.equal(EYEBROWS.car(null, null, null), 'Car')
     assert.equal(EYEBROWS.grandPrix('United Kingdom'), 'Grand Prix · United Kingdom')
     assert.equal(EYEBROWS.grandPrix(null), 'Grand Prix')
+    assert.equal(EYEBROWS.era(2014, 2021), 'Era · 2014–2021')
+    assert.equal(EYEBROWS.era(2026, null), 'Era · 2026–')
   })
   it('names a race page\'s neighbours as their own pages are headed', () => {
     const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
@@ -3138,5 +3165,30 @@ describe("a circuit's onward band says a shared record is shared (CR-50)", () =>
   })
   it('a record level with another driver is shared, not more than anyone', () => {
     assert.equal(hint([winner('a', 5), winner('b', 5), winner('c', 2)]), 'Has won here 5 times — a record shared with others.')
+  })
+})
+
+describe("the championship chart's axis is the career (IX-38)", async () => {
+  const { finishesFigure } = await import('../src/queries/driver.js')
+  const { dotPlotLayout } = await import('../src/charts/dotPlot.js')
+  // Andretti's shape: entered from 1968, in the standings only from 1970.
+  const driver = { full_name: 'A Driver', first_season: 1968, last_season: 1982 }
+  const standings = [
+    { year: 1970, position: 15, points: 4 },
+    { year: 1982, position: 19, points: 4 },
+  ]
+  const bySeason = [1968, 1969, 1970, 1982].map((year) => ({ year, teams: null }))
+  const extent = (chart) => dotPlotLayout({ ...chart, width: 600 }).x.domain
+
+  it('runs from the first season the tile states to the last, not the standings', () => {
+    assert.deepEqual(extent(finishesFigure(driver, standings, new Map(), bySeason)), [1968, 1982])
+  })
+  it('takes the race records where they reach past the register, and ignores a NULL end', () => {
+    const open = { ...driver, first_season: 1970, last_season: null }
+    const chart = finishesFigure(open, standings, new Map(), [{ year: 1969 }, ...bySeason.slice(2), { year: 1984 }])
+    assert.deepEqual(extent(chart), [1969, 1984])
+  })
+  it('never cuts a datum the span does not reach', () => {
+    assert.deepEqual(extent({ data: [{ x: 2000, y: 1 }, { x: 2010, y: 2 }], xDomain: [2003, 2005] }), [2000, 2010])
   })
 })

@@ -176,7 +176,9 @@ import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRa
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE, UNRESULTED } from '../src/queries/changes.js'
 import { SHAPE as DATA_SHAPE, fileStrip, trustStrip } from '../src/queries/data.js'
 import {
+  LIVERY_ARTICLE,
   LIVERY_ERA,
+  LIVERY_LICENCE,
   bandWords,
   colourForEntry,
   constructorBandNote,
@@ -330,6 +332,7 @@ import {
   gridFlagNote,
   gridFlagUndrawn,
   inClassificationOrder,
+  LAYOUT_RACED_JOIN,
   qualifyingColumns,
   raceLede,
   raceStrip,
@@ -441,11 +444,20 @@ import {
   TYRES,
   TYRE_COLUMNS,
   ERAS_LEDE,
+  ERA_EMPTY,
+  ERA_FIELDS,
+  ERA_SEASONS_TITLE,
+  eraDescription,
+  eraPath,
   erasNote,
   erasTiers,
+  rowsInEra,
+  rowsTouchingEra,
 } from '../src/queries/eras.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS, GLOSSARY_LEDE } from '../src/queries/glossary.js'
 import {
+  LAYOUT_RACED,
+  NO_LAYOUT_RECORDED,
   OUTLINE_BY,
   OUTLINE_CREDIT,
   OUTLINE_REGISTER_NOTE,
@@ -458,12 +470,14 @@ import {
   STATE_WORDS,
   circuitOutlinesNote,
   layoutFacts,
+  layoutRaced,
   layoutTimeline,
   layoutsCount,
   leadOutline,
   otherLayouts,
   outlineCaption,
   outlineLabel,
+  raceLayoutNote,
   roundShortName,
   roundStates,
   stripLabel,
@@ -627,7 +641,7 @@ import {
 // IA-22). The trails were written out here and the onward bands existed only
 // in the app, so the half a crawler and a cold arrival are given had no
 // relational layer at all; both now come from one place.
-import { ONWARD, TRAIL, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
+import { ONWARD, TRAIL, eraSteps, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
 import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
@@ -1544,9 +1558,20 @@ const liveryBand = (colour, note) => {
   const style = Object.entries(colour.style ?? {})
     .map(([property, value]) => `${property}:${value}`)
     .join(';')
+  // A note is a string, or parts with links where it credits its pages
+  // (lib/liveries.js liveryCredit, AF-19), drawn as LiveryScheme draws them.
+  const sentence = Array.isArray(note)
+    ? note
+        .map((part) =>
+          typeof part === 'string'
+            ? esc(part)
+            : `<a href="${esc(part.href)}" target="_blank" rel="noreferrer noopener">${esc(part.text)}</a>`,
+        )
+        .join('')
+    : esc(note ?? '')
   return `<p class="livery-band"><i class="livery" style="${esc(style)}" aria-hidden="true"></i>${esc(
     words.name,
-  )}${words.sourced ? `<em>${esc(words.sourced)}</em>` : ''}<span>${esc(note ?? '')}${esc(words.chosen)}</span></p>`
+  )}${words.sourced ? `<em>${esc(words.sourced)}</em>` : ''}<span>${sentence}${esc(words.chosen)}</span></p>`
 }
 const outlineStrip = (year, calendar) => {
   if (!calendar.some((round) => round.outline)) return ''
@@ -1561,20 +1586,53 @@ const outlineStrip = (year, calendar) => {
     .join('')}</ol><p class="faint outline-strip-note">${esc(OUTLINE_RULE)} ${esc(OUTLINE_BY)}.</p></div>`
 }
 
-/** A sentence trimmed to something a search result will not cut mid-word. */
-const summarise = (value, limit = 160) => {
+/**
+ * A sentence trimmed to something a search result will not cut mid-word.
+ *
+ * DESCRIPTION_LIMIT is about what a results page prints of a description
+ * before it cuts the rest off itself (CD-11). The entity pages' descriptions
+ * used to be summarised to 300, which left 509 of them longer than this, and
+ * where one was cut was the engine's choice rather than a sentence end.
+ */
+const DESCRIPTION_LIMIT = 155
+const summarise = (value, limit = DESCRIPTION_LIMIT) => {
   const flat = String(value ?? '').replace(/\s+/g, ' ').trim()
   if (flat.length <= limit) return flat
   // Cut at the last sentence end that fits, so a description never breaks
   // off mid-thought - Chris Amon's used to end on "Widely held to be the fi…".
-  // A word boundary with an ellipsis is the fallback, for a single sentence
-  // longer than half the room.
+  // A short whole sentence is kept over a longer cut one: the cut used to
+  // wait for half the room, which at this limit ended a record's description
+  // on "so a…". A word boundary with an ellipsis is the fallback, for a first
+  // sentence longer than the room.
   const sentence = flat.lastIndexOf('. ', limit - 1)
-  if (sentence >= limit / 2) return flat.slice(0, sentence + 1)
+  if (sentence > 0) return flat.slice(0, sentence + 1)
   return `${flat.slice(0, flat.lastIndexOf(' ', limit - 1))}…`
 }
 
 const list = (values) => values.filter(Boolean).join(', ')
+
+/**
+ * Whether a chassis name already names the team that built it (CD-11):
+ * "Haas VF-26" of Haas F1 Team, "Kick Sauber C45" of Sauber. Most of the
+ * register's descriptions read "Ferrari SF-26, entered by Ferrari", which
+ * says the name twice and calls the maker the entrant; one whose name does not
+ * say who built it - "Alfa Romeo C43" of Sauber - still does.
+ */
+// Dots are dropped so "O.S.C.A." and "OSCA" are one word, and a name whose
+// first word is the maker's initials - "BAR 01" of British American Racing -
+// names it as surely as one that spells it out.
+const nameWords = (value) =>
+  String(value ?? '')
+    .toLowerCase()
+    .replace(/\./g, '')
+    .split(/[\s/]+/)
+    .filter(Boolean)
+const namesItsMaker = (name, maker) => {
+  const [first] = nameWords(name)
+  const makerWords = nameWords(maker)
+  const initials = makerWords.length > 1 ? makerWords.map((word) => word[0]).join('') : null
+  return makerWords.includes(first) || nameWords(name).includes(makerWords[0]) || first === initials
+}
 
 /**
  * A recorded source disagreement, rendered beside the fact it is about.
@@ -2470,6 +2528,28 @@ const page = ({
 
 // ---------------------------------------------------------------- seasons
 
+// A name as the app renders it: a link where it has an id, and after it
+// the undecided season's "so far" tag - the row is a leader, not a champion.
+const seasonMarked = (path, idKey) => (name, row) =>
+  row.not_started
+    ? tag(NOT_YET_RUN)
+    : `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
+
+/**
+ * The seasons list over whichever seasons it is given, as Seasons.jsx's
+ * SeasonsTable draws it: every one on /seasons, an era's on /eras/<year>
+ * (IA-25). The seasons register either way, for the fold.
+ */
+const seasonsTable = (rows) =>
+  fromColumns(SEASONS_COLUMNS, rows, {
+    year: (year) => link(`seasons/${year}`, year),
+    champion: seasonMarked('drivers', 'champion_id'),
+    champion_team: (name, row) => (row.champion_team_id ? link(`constructors/${row.champion_team_id}`, name) : text(name)),
+    runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
+    constructors_champion: seasonMarked('constructors', 'constructors_champion_id'),
+    title_race: (value, row) => titleRaceSvg(value, titleRaceText(value, row)),
+  }, { unfolded: UNFOLDED.register, footer: SEASON_LIST_FOOTER })
+
 {
   // The list and each season's page read web/src/queries/seasons.js and
   // season.js - the app's own queries, column lists and heading rule (PD-02,
@@ -2480,12 +2560,6 @@ const page = ({
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
   const driver = (id) => (id ? link(`drivers/${id}`, names[id] ?? id) : '—')
   const team = (id) => (id ? link(`constructors/${id}`, teams[id] ?? id) : '—')
-  // A name as the app renders it: a link where it has an id, and after it
-  // the undecided season's "so far" tag - the row is a leader, not a champion.
-  const marked = (path, idKey) => (name, row) =>
-    row.not_started
-      ? tag(NOT_YET_RUN)
-      : `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
 
   page({
     path: 'seasons',
@@ -2495,14 +2569,7 @@ const page = ({
     onward: ONWARD.seasons(),
     body: `
       ${opening({ title: NAMES.seasons().headline, lede: SEASONS_LEDE })}
-      ${fromColumns(SEASONS_COLUMNS, seasons, {
-        year: (year) => link(`seasons/${year}`, year),
-        champion: marked('drivers', 'champion_id'),
-        champion_team: (name, row) => (row.champion_team_id ? link(`constructors/${row.champion_team_id}`, name) : text(name)),
-        runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
-        constructors_champion: marked('constructors', 'constructors_champion_id'),
-        title_race: (value, row) => titleRaceSvg(value, titleRaceText(value, row)),
-      }, { unfolded: UNFOLDED.register, footer: SEASON_LIST_FOOTER })}`,
+      ${seasonsTable(seasons)}`,
   })
 
   for (const { year } of all('SELECT year FROM seasons ORDER BY year DESC')) {
@@ -2741,10 +2808,12 @@ const page = ({
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
-            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
+            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
+            cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns
        FROM races r
        LEFT JOIN grands_prix g ON g.id = r.gp_id
        LEFT JOIN circuits c ON c.id = r.circuit_id
+       ${LAYOUT_RACED_JOIN}
        LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
        LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
       ORDER BY r.year DESC, r.round DESC`,
@@ -2861,7 +2930,7 @@ const page = ({
       path: `races/${r.year}/${r.round}`,
       lastmod: r.date_iso,
       title: NAMES.race(r.year, r.name_used).title,
-      description: summarise(description, 300),
+      description: summarise(description),
       trail: TRAIL.race(r.year, r.round, r.name_used),
       onward: ONWARD.race({ race: r, year: r.year, winners: raceWinners, neighbours }),
       sources: all(RACE_SOURCES, r.year, r.round),
@@ -3032,6 +3101,9 @@ const page = ({
           // The event this race is an edition of, linked as Race.jsx links it (IA-01).
           ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
           ['Dates', raceDatesHtml(r)],
+          // The register's layout, as Race.jsx prints it, and the note on
+          // whose figures are whose under it (AF-07).
+          [LAYOUT_RACED, text(layoutRaced(r))],
           ['Format', r.sprint ? 'Sprint weekend' : 'Standard weekend'],
           // The entrant's name where no constructor row exists, the rule
           // queries/race.js applies everywhere a car is named; the eleven
@@ -3044,7 +3116,9 @@ const page = ({
                 ['Entrant', text(r.entrant)],
               ]),
           ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
-        ])}`,
+        ])}
+        ${raceLayoutNote(r) ? `<p class="source-note">${esc(raceLayoutNote(r))}</p>` : ''}
+        ${r.layout_name ? '' : `<p class="source-note">${esc(NO_LAYOUT_RECORDED)}</p>`}`,
     })
   }
 }
@@ -3159,14 +3233,17 @@ const page = ({
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
     // cut mid-thought with an ellipsis, and the career alone is complete.
+    // The career is never the part cut: where name and career together run
+    // past the limit, the cut would leave "Will Stevens, United Kingdom." and
+    // nothing else, so they stand whole, longer than the limit (CD-11).
     const lead = `${d.full_name}${d.nationality ? `, ${d.nationality}` : ''}. ${career}`
-    const withNotes = summarise(`${lead} ${d.notes ?? ''}`, 300)
+    const withNotes = summarise(`${lead} ${d.notes ?? ''}`)
 
     page({
       path: `drivers/${d.id}`,
       lastmod: LAST_RUN.driver.get(d.id),
       title: NAMES.driver(d.full_name).title,
-      description: withNotes.endsWith('…') ? lead : withNotes,
+      description: withNotes.length < lead.length ? lead : withNotes,
       trail: TRAIL.driver(d.id, d.full_name),
       onward: ONWARD.driver({ results, bySeason }),
       sources: all(DRIVER_SOURCES, d.id),
@@ -3345,9 +3422,15 @@ page({
     // its own id: rob-walker has none, its wins being credited to Cooper and
     // Lotus, so a count of zero would be a figure nobody established. Joined,
     // so a team with neither figure gets no stray ". ." in its description.
+    // A team that never won says so in words rather than as "0 wins" (CD-11),
+    // over the championship races it entered: a SUM that is NULL is a team
+    // whose every entry went unclassified, and every race with entries has
+    // one at finish_position 1, so it too is a team that never won.
     const teamFigures = [
       teamDerived.entries > 0
-        ? `${formatted(teamDerived.wins ?? 0)} ${teamDerived.wins === 1 ? 'win' : 'wins'}`
+        ? teamDerived.wins > 0
+          ? `${formatted(teamDerived.wins)} ${teamDerived.wins === 1 ? 'win' : 'wins'}`
+          : `No win in ${formatted(teamDerived.races)} championship ${teamDerived.races === 1 ? 'race' : 'races'} entered`
         : '',
       c.constructors_titles
         ? `${c.constructors_titles} constructors' ${c.constructors_titles === 1 ? 'title' : 'titles'}`
@@ -3364,7 +3447,6 @@ page({
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${yearRun(c.first_entry, c.last_entry, 'present')}. ${
           teamFigures ? `${teamFigures}. ` : ''
         }${c.notes ?? ''}`,
-        300,
       ),
       trail: TRAIL.constructor(c.id, c.name),
       onward: ONWARD.constructor({ constructor: c, designs, bySeason: teamBySeason }),
@@ -3526,7 +3608,6 @@ page({
         }${c.turns ? `, ${c.turns} turns` : ''}${c.gp_count ? `, ${c.gp_count} championship Grands Prix` : ''}${
           c.first_gp ? ` from ${c.first_gp}` : ''
         }. ${c.characteristics ?? ''}`,
-        300,
       ),
       trail: TRAIL.circuit(c.id, c.name),
       onward: ONWARD.circuit({ races: racesHere, winners: winnersHere }),
@@ -3657,7 +3738,6 @@ page({
         `The ${gp.name}: ${gp.held} ${gp.held === 1 ? 'edition' : 'editions'} run${
           gp.first_held ? `, ${span(gp.first_held, gp.last_held)}` : ''
         }, at ${gp.circuits} ${gp.circuits === 1 ? 'circuit' : 'circuits'}. ${gp.notes ?? ''}`,
-        300,
       ),
       trail: TRAIL.grandPrix(id, gp.name),
       onward: ONWARD.grandPrix({ editions, winners }),
@@ -3792,7 +3872,7 @@ page({
       specified([...specChassis, ...specEngine])
         ? `<div class="split">${specFields(specChassis)}${specFields(specEngine)}</div><p class="source-note">${esc(
             SPECIFICATION_NOTE[0],
-          )}${link('reference/eras', SPECIFICATION_NOTE[1])}${esc(SPECIFICATION_NOTE[2])}</p>`
+          )}${link('eras', SPECIFICATION_NOTE[1])}${esc(SPECIFICATION_NOTE[2])}</p>`
         : `<p class="source-note">${esc(NO_SPECIFICATION)}</p>`
     }`
     const external = (url) => (url ? `<a href="${esc(url)}">${esc(url)}</a>` : null)
@@ -3891,23 +3971,29 @@ page({
     // describes its curated row.
     const row = one(CAR_ROW, c.id, c.id)
     const facts = wholeOfOneChassis(row) ? carFacts(variants[0], row) : c
+    const run = carRecord(variants, carEntries).raced
+    // The first sentence is the one the description cannot lose, so where it
+    // would not fit whole the designers go, then the engine, rather than
+    // summarise() cutting it mid-list (CD-11): Lotus 25's engine and the
+    // McLaren MP4/4's designers each ran it past the limit.
+    const clauses = [
+      `${name}, ${yearRun(c.from_year, c.to_year)}`,
+      facts.engine_name ? `, ${facts.engine_name}` : '',
+      facts.designers ? `, designed by ${facts.designers}` : '',
+    ]
+    while (clauses.length > 1 && `${clauses.join('')}.`.length > DESCRIPTION_LIMIT) clauses.pop()
     page({
       path: `cars/${at}`,
       canonical: at === c.id ? null : `cars/${c.id}`,
       lastmod: LAST_RUN.car.get(at),
       sources: all(CAR_SOURCES, at),
-      title: NAMES.car(name).title,
+      title: NAMES.car(name, ...run).title,
       image: photos.image,
-      description: summarise(
-        `${name}, ${yearRun(c.from_year, c.to_year)}${facts.engine_name ? `, ${facts.engine_name}` : ''}${
-          facts.designers ? `, designed by ${facts.designers}` : ''
-        }. ${c.concept ?? c.story ?? ''}`,
-        300,
-      ),
+      description: summarise(`${clauses.join('')}. ${c.concept ?? c.story ?? ''}`),
       trail: TRAIL.car(at, name),
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
-        ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced), title: NAMES.car(name).headline, lede: c.story })}
+        ${opening({ eyebrow: EYEBROWS.car(variants[0]?.constructor, ...run), title: NAMES.car(name).headline, lede: c.story })}
         ${carBody({ id: c.id, at, variants, car: row, entries: carEntries, photos })}`,
     })
   }
@@ -3939,26 +4025,26 @@ page({
     // A chassis that is the whole of a curated car is a copy of the car's
     // page, and says so (IA-06); queries/car.js holds the rule for both halves.
     const address = carAddress(ch.id, carRow)
+    const run = carRecord(variants, carEntries).raced
 
     page({
       path: `cars/${ch.id}`,
       canonical: address.slice(1),
       lastmod: LAST_RUN.car.get(ch.id),
       sources: all(CAR_SOURCES, ch.id),
-      title: NAMES.car(name).title,
+      title: NAMES.car(name, ...run).title,
       image: photos.image,
       description: summarise(
-        `${name}, ${constructor ? `entered by ${constructor}, ` : ''}${years}. ` +
+        `${name}, ${constructor && !namesItsMaker(name, constructor) ? `built by ${constructor}, ` : ''}${years}. ` +
           `${entries.length ? `${entries.length} championship ${entries.length === 1 ? 'entry' : 'entries'}` : 'No championship entry recorded'}` +
           `${ch.wins ? `, ${ch.wins} ${ch.wins === 1 ? 'win' : 'wins'}` : ''}` +
           `${ch.engine_name ? `. ${ch.engine_name} engine` : ''}.`,
-        300,
       ),
       trail: TRAIL.car(ch.id, name),
       onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
         ${opening({
-          eyebrow: EYEBROWS.car(variants[0]?.constructor, ...carRecord(variants, carEntries).raced),
+          eyebrow: EYEBROWS.car(variants[0]?.constructor, ...run),
           title: NAMES.car(name).headline,
           // The design's story, where the chassis is one of a curated family:
           // Car.jsx reads the car behind a chassis as well as the car of its
@@ -4137,7 +4223,7 @@ page({
     page({
       path: recordPath(record),
       title: NAMES.record(record.record).title,
-      description: summarise(`${record.record}: ${record.holder}, ${record.value}. ${record.detail}`, 300),
+      description: summarise(`${record.record}: ${record.holder}, ${record.value}. ${record.detail}`),
       trail: TRAIL.record(record.key, record.record),
       onward: ONWARD.record({ record, holder }),
       body: `
@@ -4162,8 +4248,18 @@ page({
   // in the markup timeline() gives the safety milestones.
   const eras = all(ERAS)
   const eraTiers = erasTiers(eras)
+  // An era's address is its first season (IA-25, queries/eras.js), so two
+  // eras starting in one season would be one page written twice.
+  const starts = eras.map((e) => e.from_year)
+  if (new Set(starts).size !== starts.length) {
+    die(`prerender: two eras begin in the same season (${starts.join(', ')}), and an era's address is its first season`)
+  }
+  const engineCells = {
+    era_name: (name, row) =>
+      `<b>${esc(name)}</b> <br><span class="faint small">${esc(span(row.from_year, row.to_year))}</span>`,
+  }
   page({
-    path: 'reference/eras',
+    path: 'eras',
     title: NAMES.eras().title,
     description: 'Formula One divided into eras, with the dominant teams and defining features of each.',
     trail: TRAIL.eras(),
@@ -4175,7 +4271,7 @@ page({
       <div class="timeline">${eras
         .map(
           (e) =>
-            `<article><h3>${esc(e.era_name)}<span class="years">${esc(span(e.from_year, e.to_year))}</span>${
+            `<article><h3>${link(eraPath(e), e.era_name)}<span class="years">${esc(span(e.from_year, e.to_year))}</span>${
               eraTiers.length > 1 ? confidencePill(e.confidence) : ''
             }</h3><p>${esc(e.summary)}</p>${ERA_LINES.map(([key, label]) =>
               e[key] ? `<p class="faint small"><strong>${esc(label)}</strong> ${esc(e[key])}</p>` : '',
@@ -4183,10 +4279,7 @@ page({
         )
         .join('')}</div>
       <h2>Engine formulae</h2>
-      ${fromColumns(ENGINE_COLUMNS, all(ENGINES), {
-        era_name: (name, row) =>
-          `<b>${esc(name)}</b> <br><span class="faint small">${esc(span(row.from_year, row.to_year))}</span>`,
-      }, { unfolded: UNFOLDED.reference })}
+      ${fromColumns(ENGINE_COLUMNS, all(ENGINES), engineCells, { unfolded: UNFOLDED.reference })}
       <h2>Scoring systems</h2>
       <p class="note">${esc(POINTS_NOTE)}</p>
       ${fromColumns(POINTS_COLUMNS, all(POINTS), {}, { unfolded: UNFOLDED.reference })}
@@ -4203,6 +4296,44 @@ page({
       <h2>Tyre suppliers</h2>
       ${fromColumns(TYRE_COLUMNS, all(TYRES), {}, { unfolded: UNFOLDED.reference })}`,
   })
+
+  // Each era at its own address, as Era.jsx draws it (IA-25): the same
+  // queries, sliced to the era the same way, in the same order, and a slice
+  // with nothing in it keeping its heading and saying so.
+  const allSeasons = all(SEASONS)
+  const allEngines = all(ENGINES)
+  const allRegulations = all(REGULATIONS)
+  const allInnovations = all(INNOVATIONS)
+  const allSafety = all(SAFETY)
+  const emptyState = `<p class="state is-empty">${esc(ERA_EMPTY)}</p>`
+  const orEmpty = (rows, html) => (rows.length ? html : emptyState)
+  for (const era of eras) {
+    const seasons = rowsInEra(era, allSeasons)
+    const engines = rowsTouchingEra(era, allEngines)
+    const regulations = rowsInEra(era, allRegulations)
+    const innovations = rowsInEra(era, allInnovations)
+    const safety = rowsInEra(era, allSafety)
+    page({
+      path: eraPath(era).slice(1),
+      title: NAMES.era(era).title,
+      description: eraDescription(era),
+      trail: TRAIL.era(era),
+      onward: ONWARD.era({ era }),
+      body: `
+        ${opening({ eyebrow: EYEBROWS.era(era.from_year, era.to_year), title: NAMES.era(era).headline, lede: era.summary })}
+        ${stepperNav(eraSteps(eras, era))}
+        ${fields([...ERA_FIELDS.map(([key, label]) => [label, era[key] ? esc(era[key]) : null]), ['Confidence', confidencePill(era.confidence)]])}
+        ${heading(ERA_SEASONS_TITLE, seasons.length)}
+        ${seasonsTable(seasons)}
+        ${heading('Engine formulae', engines.length)}
+        ${orEmpty(engines, fromColumns(ENGINE_COLUMNS, engines, engineCells, { unfolded: UNFOLDED.reference }))}
+        ${heading('Regulation changes', regulations.length)}
+        ${orEmpty(regulations, fromColumns(REGULATION_COLUMNS, regulations, {}, { unfolded: UNFOLDED.reference }))}
+        ${heading('Technical innovations', innovations.length)}
+        ${orEmpty(innovations, fromColumns(INNOVATION_COLUMNS, innovations, {}, { unfolded: UNFOLDED.reference }))}
+        ${safety.length ? timeline(safety) : `${heading('Safety', 0)}${emptyState}`}`,
+    })
+  }
 
   const glossary = all(GLOSSARY)
   page({
@@ -4362,6 +4493,12 @@ page({
         trusted for, and what each licence cost or bought.</p>
       <p class="measure">${esc(FACTS_FILE)} <a href="${esc(FACTS_DECLARATION_URL)}"><code>${esc(FACTS_DECLARATION)}</code></a>
         ${esc(FACTS_DECLARATION_NOTE)}</p>
+      <p class="measure">The team livery palette this site draws from 2010 is
+        <a href="${esc(LIVERY_LICENCE.href)}">${esc(LIVERY_LICENCE.text)}</a> as well, and carries share-alike:
+        most of its entries adapt the colour tables of Wikipedia&rsquo;s
+        <a href="${esc(LIVERY_ARTICLE.href)}">${esc(LIVERY_ARTICLE.text)}</a> article. It is in the site&rsquo;s
+        code, <code>web/src/lib/liveries.js</code>, not in <code>f1.db</code>, and the code around
+        it is MIT.</p>
       <h2>Ask it something</h2>
       <p class="measure">${link('data/sql', 'The SQL console')} runs any read against the whole database in your
         browser &mdash; and a query&rsquo;s address is a link to it.</p>
@@ -4772,14 +4909,16 @@ for (const p of pages) {
  * cited query still runs.
  *
  * These are not in `pages`, so they are not in the sitemap: a sitemap lists
- * the addresses to index, and these ask not to be. Eras and the glossary did
- * not move.
+ * the addresses to index, and these ask not to be. The glossary did not
+ * move; the eras did later, to /eras, when they became a section (IA-25).
  */
 const MOVED = [
   ['reference', 'data'],
   ['reference/quality', 'data/quality'],
   ['reference/sources', 'data/sources'],
   ['reference/sql', 'data/sql'],
+  // IA-25: the eras became a section of their own.
+  ['reference/eras', 'eras'],
 ]
 
 /**

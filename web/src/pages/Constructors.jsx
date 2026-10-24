@@ -4,11 +4,12 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
-import { useQuery } from '../data/useQuery.js'
+import { rows as pick, useQueries } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { colourFor } from '../lib/racingColours.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER, CONSTRUCTORS_LEDE } from '../queries/constructors.js'
+import { ERAS, eraByKey, eraKey, eraOptions, eraWhen, racedIn } from '../queries/eras.js'
 import { SeasonsRacedSpark } from '../charts/Spark.jsx'
 import { seasonsRacedText } from '../charts/spark.js'
 
@@ -51,7 +52,7 @@ const APP = {
 }
 
 export default function Constructors() {
-  const state = useQuery(CONSTRUCTORS)
+  const state = useQueries({ register: [CONSTRUCTORS], eras: [ERAS] })
   return (
     <Page
       title={NAMES.constructors().headline}
@@ -61,7 +62,7 @@ export default function Constructors() {
     >
       <Section>
         <Result state={state} skeleton>
-          {(data) => <Register rows={data.rows} />}
+          {(data) => <Register rows={pick(data, 'register')} eras={pick(data, 'eras')} />}
         </Result>
       </Section>
 
@@ -70,7 +71,7 @@ export default function Constructors() {
   )
 }
 
-function Register({ rows }) {
+function Register({ rows, eras }) {
   // IA-19: the same question /drivers asks, in the same words. It read
   // "Active" before, which named the stored constructors.active column and
   // left a reader to work out that it meant this year.
@@ -89,15 +90,18 @@ function Register({ rows }) {
   ]
 
   // In the address, and clamped to what this register actually holds (IA-08).
-  const [params, set, clear] = useUrlState({ q: '', country: '', kind: '' })
+  const [params, set, clear] = useUrlState({ q: '', country: '', kind: '', era: '' })
   const term = params.q
   const country = oneOf(params.country, countries)
   const kind = oneOf(params.kind, kinds)
+  // An era by its first season (IA-25), the key /eras/<year> is addressed by.
+  const era = eraByKey(eras, params.era)
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
     return rows.filter((row) => {
       if (country && row.country !== country) return false
+      if (era && !racedIn(row, eraKey(era))) return false
       if (kind === 'winners' && !row.wins) return false
       if (kind === 'champions' && !row.constructors_titles) return false
       // `on_grid` from the query, not the stored `active` column. CR-35
@@ -109,11 +113,11 @@ function Register({ rows }) {
       if (!needle) return true
       return row.name.toLowerCase().includes(needle)
     })
-  }, [rows, term, country, kind])
+  }, [rows, term, country, kind, era])
 
   // The filters as a plural noun phrase, for the empty state (IX-28).
   const among =
-    country || kind
+    country || kind || era
       ? [
           kind === 'winners'
             ? 'race winners'
@@ -123,6 +127,7 @@ function Register({ rows }) {
                 ? `constructors on the ${gridSeason} grid`
                 : 'constructors',
           country ? `from ${country}` : '',
+          era ? eraWhen(era) : '',
         ]
           .filter(Boolean)
           .join(' ')
@@ -143,6 +148,13 @@ function Register({ rows }) {
           label="Country"
           all="Every country"
           options={countries}
+        />
+        <Select
+          value={era ? eraKey(era) : ''}
+          onChange={(value) => set({ era: value })}
+          label="Era"
+          all="Every era"
+          options={eraOptions(eras)}
         />
         <Chips
           label="Filter constructors by kind"

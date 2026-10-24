@@ -455,7 +455,7 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
         # second queue, which the rules forbid. docs/LANDED.md is the archive
         # and the scripts' docstrings may say where the queue used to be.
         self.assertFalse(os.path.exists(os.path.join(ROOT, "docs/BACKLOG.md")), "docs/BACKLOG.md is back: the queue is GitHub Issues")
-        for rel in ["CLAUDE.md", ".claude/skills/backlog-loop/precheck.sh"] + self.skills():
+        for rel in ["CLAUDE.md", ".claude/skills/backlog-loop/precheck.sh"] + files_under(".claude/skills", (".md",)):
             self.assertNotIn("BACKLOG.md", read(rel), f"{rel} names a backlog file; the queue is GitHub Issues")
 
     def test_no_command_shadows_a_skill(self):
@@ -575,7 +575,8 @@ class TheVerdictIsACommand(unittest.TestCase):
                         "review-prompt.md no longer says how the fork reads the verdict")
 
     def test_the_item_procedure_reads_the_command_not_the_reply(self):
-        skill = self.flat(".claude/skills/backlog-item/SKILL.md")
+        # The whole procedure: SKILL.md and the passages beside it (AF-125).
+        skill = " ".join(self.flat(rel) for rel in files_under(".claude/skills/backlog-item", (".md",)))
         for phrase in ("verdict.sh read <id>", "nothing in the reply is read for one",
                        "One respawn when a pass records no verdict"):
             self.assertTrue(phrase in skill, f"the item procedure has lost {phrase!r} (D-40)")
@@ -632,6 +633,50 @@ class TheVerdictIsACommand(unittest.TestCase):
             got = self.run_script(repo, "read", fresh)
             self.assertEqual((got.returncode, got.stdout.strip()), (0, "PASS"),
                              "the main checkout did not read a verdict recorded in a worktree")
+
+
+class TheItemProcedureReadsItsPassagesOnDemand(unittest.TestCase):
+    """AF-125. The branches of the per-item procedure that most forks never
+    take sit beside .claude/skills/backlog-item/SKILL.md rather than in it,
+    so that a fork does not carry them on every turn. A passage no read line
+    names is one no fork will ever open, and a read line naming a file that
+    is not there sends a fork looking for instructions that do not exist;
+    either is a rule lost without anything saying so."""
+
+    DIR = ".claude/skills/backlog-item"
+
+    def test_every_passage_is_read_from_the_skill_and_every_read_finds_one(self):
+        skill = re.sub(r"\s+", " ", read(f"{self.DIR}/SKILL.md"))
+        passages = sorted(os.path.basename(rel) for rel in files_under(self.DIR, (".md",))
+                          if os.path.basename(rel) != "SKILL.md")
+        self.assertTrue(passages, "no passages beside the item skill")
+        for name in passages:
+            self.assertTrue(re.search(r"\bread `" + re.escape(f"{self.DIR}/{name}") + "`", skill),
+                            f"no read line in SKILL.md names {name}, so no fork will open it")
+            text = read(f"{self.DIR}/{name}")
+            self.assertFalse(text.startswith("---"), f"{name} has frontmatter; it is a passage, not a skill")
+            self.assertIn("Part of the backlog-item procedure.", text,
+                          f"{name} does not say what it is part of")
+            self.assertTrue(re.search(r"\n## ", text), f"{name} does not name the section it came from")
+        # The index paragraph near the top names every passage, so a fork
+        # reading it knows the whole set before any read line sends it to one.
+        index = next((p for p in read(f"{self.DIR}/SKILL.md").split("\n\n") if "sit beside this file" in p), "")
+        self.assertTrue(index, "SKILL.md has lost the paragraph that lists its passages")
+        unindexed = [name for name in passages if f"`{name}`" not in index]
+        self.assertEqual(unindexed, [], f"the passage index in SKILL.md does not name {unindexed}")
+
+    def test_every_file_the_procedure_names_is_there(self):
+        # Every backticked .md the procedure names, in SKILL.md and in each
+        # passage, as a full path or a bare name. A bare name is a passage
+        # beside the skill or a file at the repository root (CLAUDE.md), so a
+        # renamed passage leaves no mention of its old name dangling.
+        missing = []
+        for rel in files_under(self.DIR, (".md",)):
+            for name in sorted(set(re.findall(r"`([\w./-]+\.md)`", read(rel)))):
+                candidates = [name] if "/" in name else [f"{self.DIR}/{name}", name]
+                if not any(os.path.isfile(os.path.join(ROOT, c)) for c in candidates):
+                    missing.append(f"{os.path.basename(rel)}: {name}")
+        self.assertEqual(missing, [], f"the item procedure names files that are not there: {missing}")
 
 
 class TheCitationStaysInStepWithTheBuild(unittest.TestCase):

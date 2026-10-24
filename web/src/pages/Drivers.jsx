@@ -4,11 +4,12 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
-import { useQuery } from '../data/useQuery.js'
+import { rows as pick, useQueries } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER, DRIVERS_LEDE } from '../queries/drivers.js'
 import { PRACTICE_ONLY_MARK } from '../queries/race.js'
+import { ERAS, eraByKey, eraKey, eraOptions, eraWhen, racedIn } from '../queries/eras.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
@@ -41,7 +42,7 @@ const APP = {
 }
 
 export default function Drivers() {
-  const state = useQuery(DRIVERS)
+  const state = useQueries({ register: [DRIVERS], eras: [ERAS] })
   return (
     <Page
       title={NAMES.drivers().headline}
@@ -51,7 +52,7 @@ export default function Drivers() {
     >
       <Section>
         <Result state={state} skeleton>
-          {(data) => <Register rows={data.rows} />}
+          {(data) => <Register rows={pick(data, 'register')} eras={pick(data, 'eras')} />}
         </Result>
       </Section>
 
@@ -60,7 +61,7 @@ export default function Drivers() {
   )
 }
 
-function Register({ rows }) {
+function Register({ rows, eras }) {
   // The season the grid filter names, from the shared query; every row
   // carries the same value.
   const gridSeason = seasonOf(rows)
@@ -83,15 +84,18 @@ function Register({ rows }) {
   // know is dropped rather than filtered on: the grid chip is not offered in
   // a season with no entry list yet, and a nationality this register does
   // not hold would empty it while the select still read "Every nationality".
-  const [params, set, clear] = useUrlState({ q: '', nationality: '', kind: '' })
+  const [params, set, clear] = useUrlState({ q: '', nationality: '', kind: '', era: '' })
   const term = params.q
   const nationality = oneOf(params.nationality, nationalities)
   const kind = oneOf(params.kind, kinds)
+  // An era by its first season (IA-25), the key /eras/<year> is addressed by.
+  const era = eraByKey(eras, params.era)
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
     return rows.filter((row) => {
       if (nationality && row.nationality !== nationality) return false
+      if (era && !racedIn(row, eraKey(era))) return false
       if (kind === 'champions' && !row.titles) return false
       if (kind === 'winners' && !row.wins) return false
       // The grid is the declared season's entry list, derived in the shared
@@ -102,14 +106,14 @@ function Register({ rows }) {
       if (!needle) return true
       return row.full_name.toLowerCase().includes(needle)
     })
-  }, [rows, term, nationality, kind])
+  }, [rows, term, nationality, kind, era])
 
   // What the three filters are asking for, as a plural noun phrase, for the
   // state that says which of them emptied the register (IX-28). The chips'
   // own labels are headings rather than nouns, and `nationality` is a country
   // and not an adjective, so neither goes in raw.
   const among =
-    nationality || kind
+    nationality || kind || era
       ? [
           kind === 'winners'
             ? 'race winners'
@@ -121,6 +125,7 @@ function Register({ rows }) {
                   ? 'practice-only drivers'
                   : 'drivers',
           nationality ? `from ${nationality}` : '',
+          era ? eraWhen(era) : '',
         ]
           .filter(Boolean)
           .join(' ')
@@ -141,6 +146,13 @@ function Register({ rows }) {
           label="Nationality"
           all="Every nationality"
           options={nationalities}
+        />
+        <Select
+          value={era ? eraKey(era) : ''}
+          onChange={(value) => set({ era: value })}
+          label="Era"
+          all="Every era"
+          options={eraOptions(eras)}
         />
         <Chips
           label="Filter drivers by kind"

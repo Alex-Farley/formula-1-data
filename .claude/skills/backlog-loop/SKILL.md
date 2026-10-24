@@ -22,8 +22,8 @@ the run (`docs/DECISIONS.md` `[D-16]`). A fork per item is what makes the
 driving context stop growing.
 
 The rules are in `CLAUDE.md`; the per-item procedure, the pace table and
-what never slides are in `.claude/skills/backlog-item/SKILL.md`, which is
-their only normative copy; the scripts the fork uses are in this folder: `start-check.sh` (what it
+what never slides are in `.claude/skills/backlog-item/` (`SKILL.md` and the
+passages it says when to read), which is their only normative copy; the scripts the fork uses are in this folder: `start-check.sh` (what it
 checks before it starts), `next.py` (reads the queue), `file.py` (writes to
 it), `loop_usage.py` (reads the plan's usage before each fork),
 `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`, and

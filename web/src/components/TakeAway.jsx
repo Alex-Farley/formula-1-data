@@ -38,7 +38,7 @@ const count = (n) => n.toLocaleString('en-GB')
 export default function TakeAway({ columns, rows, shown, name, fileLabel }) {
   const [said, setSaid] = useState(null)
   const timer = useRef(null)
-  // A table can be unmounted by a filter keystroke between the copy and the
+  // A table can be unmounted by a filter changing between the copy and the
   // message clearing itself.
   useEffect(() => () => clearTimeout(timer.current), [])
 

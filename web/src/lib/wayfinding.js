@@ -27,6 +27,7 @@
  * A trail is [path, label] pairs, root first, the page itself last. Both
  * renderers draw the last one as the current page rather than as a link.
  */
+import { eraKey, eraPath } from '../queries/eras.js'
 
 /* --------------------------------------------------------------- trails */
 
@@ -67,7 +68,10 @@ export const TRAIL = {
   car: (id, name) => [HOME, ['/cars', 'Cars'], [`/cars/${id}`, name]],
   records: () => [HOME, ['/records', 'Records']],
   record: (key, name) => [HOME, ['/records', 'Records'], [`/records/${key}`, name]],
-  eras: () => [HOME, ['/reference/eras', 'Eras']],
+  // IA-25: a section of its own, /eras and an address per era, where it was
+  // one page at /reference/eras, which still answers and forwards here.
+  eras: () => [HOME, ['/eras', 'Eras']],
+  era: (era) => [HOME, ['/eras', 'Eras'], [eraPath(era), era.era_name]],
   glossary: () => [HOME, ['/reference/glossary', 'Glossary']],
   data: () => [HOME, ['/data', 'Data']],
   sources: () => [HOME, ['/data', 'Data'], ['/data/sources', 'Sources']],
@@ -137,7 +141,7 @@ export const ONWARD = {
       { to: '/records', label: 'Records', hint: 'Most wins, most poles, champions, grand slams.' },
       { to: '/data/sql', label: 'SQL console', hint: 'Ask the database your own question.' },
       {
-        to: '/reference/eras',
+        to: '/eras',
         label: 'Eras and rules',
         hint: 'How the rules changed, and the words they are written in.',
       },
@@ -149,7 +153,7 @@ export const ONWARD = {
       { to: '/races', label: 'Every race', hint: 'All 1,000-plus rounds in one filterable list.' },
       { to: '/records', label: 'Records', hint: 'Champions, most wins, most poles, grand slams.' },
       {
-        to: '/reference/eras',
+        to: '/eras',
         label: 'Eras and rules',
         hint: 'Why a 1955 points total cannot be compared with a 2025 one.',
       },
@@ -328,7 +332,7 @@ export const ONWARD = {
     items: [
       { to: '/races', label: 'Every race', hint: 'What was run at each of these venues.' },
       {
-        to: '/reference/eras',
+        to: '/eras',
         label: 'Eras and rules',
         hint: 'The safety work that redrew many of these circuits.',
       },
@@ -365,7 +369,7 @@ export const ONWARD = {
     items: [
       { to: '/constructors', label: 'Constructors', hint: 'The teams that built and ran them.' },
       {
-        to: '/reference/eras',
+        to: '/eras',
         label: 'Eras and rules',
         hint: 'The regulations these cars were designed around.',
       },
@@ -443,9 +447,20 @@ export const ONWARD = {
     ],
   }),
 
+  // The registers, filtered to the era by the key its own address carries
+  // (IA-25), and the chronology it is one chapter of.
+  era: ({ era }) => ({
+    items: [
+      { to: `/drivers?era=${eraKey(era)}`, label: 'Its drivers', hint: 'The driver register, narrowed to these seasons.' },
+      { to: `/constructors?era=${eraKey(era)}`, label: 'Its constructors', hint: 'The constructor register, narrowed to these seasons.' },
+      { to: `/cars?era=${eraKey(era)}`, label: 'Its cars', hint: 'The chassis register, narrowed to these seasons.' },
+      { to: '/eras', label: 'Every era', hint: 'The whole chronology, and the rules that ran across it.' },
+    ],
+  }),
+
   glossary: () => ({
     items: [
-      { to: '/reference/eras', label: 'Eras and rules', hint: 'Where most of this vocabulary comes from.' },
+      { to: '/eras', label: 'Eras and rules', hint: 'Where most of this vocabulary comes from.' },
       { to: '/races', label: 'Races', hint: 'See the terms in use on a classification.' },
       { to: '/data/quality', label: 'Data quality', hint: 'What “verified” and “reference” mean here.' },
     ],
@@ -567,6 +582,13 @@ export const raceSteps = (neighbours) => ({
     : null,
   next: neighbours.next ? { to: `/races/${neighbours.next}`, label: neighbours.next_name ?? 'Next race' } : null,
 })
+
+/** The era either side of this one, oldest first as ERAS runs. */
+export const eraSteps = (eras, era) => {
+  const at = eras.findIndex((other) => other.from_year === era.from_year)
+  const step = (other) => (other ? { to: eraPath(other), label: other.era_name } : null)
+  return { previous: step(at > 0 ? eras[at - 1] : null), next: step(at >= 0 ? eras[at + 1] : null) }
+}
 
 export const seasonSteps = (neighbours) => ({
   previous: neighbours.previous

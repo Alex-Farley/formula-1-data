@@ -527,7 +527,7 @@ function Table({
    * it was removed, and the app opens on at least that many.
    *
    * The price is that a seeded register re-renders all of its rows rather than
-   * `page` of them - every keystroke in the filter above /drivers now lays out
+   * `page` of them - every change to the filter above /drivers now lays out
    * 862 rows, not 150. They are the rows the static page already had in the
    * document, and the alternative is taking them away again, so it is the
    * right side of the trade; it is the one thing here that got dearer.

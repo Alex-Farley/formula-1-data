@@ -285,7 +285,7 @@ const colourClause = (lead, source, hollow, mark, none) =>
 
 /** The championship chart's note: 50 words at the longest, a career that runs from national colours into the gap. */
 export const finishesFigureNote = (source, hollow) =>
-  `Final championship position by season, ringed for a title; a season with points and no dot was an exclusion. ${colourClause(
+  `Final championship position by season, ringed for a title. No dot: not in the final standings, or excluded. ${colourClause(
     'Dots are coloured for each season’s final team',
     source,
     hollow,
@@ -335,6 +335,17 @@ export const FINISHES_COLUMNS = [
  * and a page of outlines would say "missing" about a career where nothing is
  * missing that the site records anywhere.
  *
+ * THE AXIS IS THE CAREER (IX-38). It ran from the first season with a
+ * standings row to the last, while the Seasons tile above it states the
+ * career from the register and the entry list: on about half the charts a
+ * season raced at one end or the other - Andretti's 1968 and 1969, which
+ * scored nothing in an era whose standings list only the scorers - was off
+ * the axis, and the two spans on one screen disagreed. `xDomain` is the
+ * widest of the register's span (an end it leaves NULL claims nothing),
+ * the seasons BY_SEASON holds an entry in, and the standings' own years, so
+ * every year the tile states is on the axis. A season there with no dot is
+ * one the driver is not in the final standings for, which the note says.
+ *
  * `standings` is STANDINGS's rows, `teams` teamsBySeason() of SEASON_TEAMS's
  * and `bySeason` BY_SEASON's.
  */
@@ -348,6 +359,9 @@ export function finishesFigure(driver, standings, teams, bySeason) {
   const plotted = finishes.filter((s) => typeof s.position === 'number')
   const inColour = plotted.some((s) => s.colour)
   const mixed = inColour && !plotted.every((s) => s.colour)
+  const years = [driver.first_season, driver.last_season, ...bySeason.map((b) => b.year), ...standings.map((s) => s.year)].filter(
+    (year) => typeof year === 'number',
+  )
   return {
     rows: finishes,
     note: finishesFigureNote(inColour ? colourSource(plotted.map((s) => s.colour)) : null, mixed),
@@ -369,6 +383,7 @@ export function finishesFigure(driver, standings, teams, bySeason) {
     yMax: Math.max(10, ...standings.map((s) => s.position ?? 0)),
     format: (v) => `P${Math.round(v)}`,
     formatX: (v) => String(Math.round(v)),
+    xDomain: [Math.min(...years), Math.max(...years)],
     height: 210,
     label: `Championship finishing position by season for ${driver.full_name}`,
   }

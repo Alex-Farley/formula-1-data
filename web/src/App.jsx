@@ -8,6 +8,7 @@ import { Result } from './components/States.jsx'
 import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
 import { useQuery } from './data/useQuery.js'
+import { coverageYears, span } from './lib/format.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
 import { CHECKED_LABEL, LAST_CHECKED } from './lib/refresh.js'
 import {
@@ -41,6 +42,7 @@ import Record from './pages/Record.jsx'
 import Changes from './pages/Changes.jsx'
 import Data from './pages/Data.jsx'
 import Eras from './pages/Eras.jsx'
+import Era from './pages/Era.jsx'
 import Quality from './pages/Quality.jsx'
 import Sources from './pages/Sources.jsx'
 import Glossary from './pages/Glossary.jsx'
@@ -60,6 +62,11 @@ const NAV = [
 ]
 
 function Wordmark() {
+  // The span is the database's, from the manifest: Boot draws Chrome only
+  // once the database is open, so the manifest is always in hand here, and
+  // scripts/prerender.js reads the same register for the static masthead.
+  // It was typed, and went stale a season at a time (SD-12).
+  const years = coverageYears(currentProgress().manifest?.coverage)
   return (
     <Link to="/" className="wordmark">
       {/* A chequered field, four by four, cropped to the panel with no
@@ -81,7 +88,7 @@ function Wordmark() {
       </svg>
       <span>
         <b>Lap Ledger</b>
-        <span>1950–2027 · every championship race</span>
+        <span>{span(years?.from, years?.to)} · every championship race</span>
       </span>
     </Link>
   )
@@ -440,10 +447,13 @@ function Chrome() {
               Off the masthead and linked from the footer of every page,
               which is where a reader goes looking for it. */}
           <Route path="/about" element={<About />} />
-          {/* About the sport rather than the database. These keep their
-              addresses and lost the masthead slot; Seasons, Cars, Circuits,
-              Races and the home page lead here. */}
-          <Route path="/reference/eras" element={<Eras />} />
+          {/* About the sport rather than the database, and off the
+              masthead; Seasons, Cars, Circuits, Races and the home page lead
+              here. The glossary kept its address. The eras became a section,
+              /eras and an address per era, and /reference/eras forwards to
+              it (IA-25). */}
+          <Route path="/eras" element={<Eras />} />
+          <Route path="/eras/:key" element={<Era />} />
           <Route path="/reference/glossary" element={<Glossary />} />
           {/* The old addresses. prerender.js writes a redirecting page at
               each for a cold arrival; these answer the same way in-app. */}
@@ -451,6 +461,7 @@ function Chrome() {
           <Route path="/reference/quality" element={<Moved to="/data/quality" />} />
           <Route path="/reference/sources" element={<Moved to="/data/sources" />} />
           <Route path="/reference/sql" element={<Moved to="/data/sql" />} />
+          <Route path="/reference/eras" element={<Moved to="/eras" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
