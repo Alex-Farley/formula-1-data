@@ -109,6 +109,7 @@ import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '.
 import { dateSegments, houseDate } from '../src/lib/format.js'
 import { TILE_STRIP_NAME } from '../src/lib/tiles.js'
 import { UNRESULTED } from '../src/queries/changes.js'
+import { POLICY, POLICY_HEADER } from '../scripts/headers.js'
 import { EXAMPLES } from '../src/lib/questions.js'
 import {
   CONSTRUCTOR_WINS,
@@ -339,6 +340,38 @@ process.on('SIGINT', () => {
 
 try {
     browser = await chromium.launch({ executablePath: chromePath() })
+
+    // Every refusal the content security policy makes, on every page of the
+    // run and not only the one the Console section watches (AF-76). The
+    // preview server enforces the policy the host only reports
+    // (vite.config.js), so a refusal here is something the site would lose.
+    // Browser.newPage goes through newContext, so wrapping that one method
+    // reaches every page the run opens. Two listeners, because a context
+    // with JavaScript off runs no init script: Chromium's own console line
+    // for a refusal, and the page's securitypolicyviolation event.
+    const refusals = []
+    // One refusal is the test's own and not the site's. axe-core re-reads
+    // every cross-origin stylesheet with an XMLHttpRequest from inside the
+    // page, so that its CSS rules can see one; the page loads the Google
+    // Fonts sheet under style-src, which allows it, and no code of the
+    // site's fetches it - so that sheet refused under connect-src can only
+    // be axe's, and only that refusal is passed over. A window around the
+    // axe run would add nothing, and could miss an event that lands late.
+    const axeOwn = (text) => /connect-src/.test(text) && text.includes('https://fonts.googleapis.com/css2?')
+    const newContext = browser.newContext.bind(browser)
+    browser.newContext = async (...options) => {
+      const opened = await newContext(...options)
+      opened.on('console', (message) => {
+        const text = message.text()
+        if (/Content Security Policy/i.test(text) && !axeOwn(text)) refusals.push(`${message.page()?.url() ?? 'a worker'}: ${text}`)
+      })
+      await opened.addInitScript(() =>
+        document.addEventListener('securitypolicyviolation', (event) =>
+          console.error(`Content Security Policy refused ${event.blockedURI || 'inline'} under ${event.effectiveDirective}`),
+        ),
+      )
+      return opened
+    }
     // An explicit context, not browser.newPage(): the shortcut owns its context,
   // and @axe-core/playwright opens a page in the same context to run in, which
   // Playwright refuses on an owned one ("Please use browser.newContext()").
@@ -368,7 +401,7 @@ try {
     // to ask for a portrait first.
     const siteError = (message) => !/commons\.wikimedia\.org|ERR_|net::/i.test(message)
     page.on('console', (message) => {
-      if (message.type() === 'error') consoleErrors.push(message.text())
+      if (message.type() === 'error' && !axeOwn(message.text())) consoleErrors.push(message.text())
     })
     page.on('pageerror', (error) => consoleErrors.push(String(error)))
 
@@ -9998,6 +10031,21 @@ try {
     const real = consoleErrors.filter(siteError)
     if (real.length === 0) pass('no errors logged during the run')
     else real.forEach((message) => fail(`console error: ${message}`))
+
+    // The policy, as the host is given it and as this run was served it
+    // (AF-76). The second is what makes the refusal count below mean
+    // anything: a preview that served no policy would refuse nothing.
+    const hostFile = readFileSync(join(web, 'dist', '_headers'), 'utf8')
+    truthy(
+      hostFile.includes(`/*\n  ${POLICY_HEADER}: ${POLICY}\n`),
+      `the host is given scripts/headers.js's policy for every path, as ${POLICY_HEADER}`,
+    )
+    const served = (await fetch(`${BASE}/`)).headers.get('content-security-policy')
+    is(served, POLICY, 'and the preview served it enforced, so that a refusal below is one the site would lose')
+    const unique = [...new Set(refusals)]
+    if (unique.length === 0) pass('the content security policy refused nothing on any page the run opened')
+    for (const message of unique.slice(0, 12)) fail(`refused: ${message}`)
+    if (unique.length > 12) fail(`…and ${unique.length - 12} more refusals`)
   })
 } finally {
   await browser?.close()

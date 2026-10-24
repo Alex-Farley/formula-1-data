@@ -43,6 +43,7 @@ import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { SECURITY_HEADERS } from './headers.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -262,10 +263,12 @@ writeFileSync(
 )
 console.log(`  public/SHA256SUMS        (${sums.length} files)`)
 
-// ---------------------------------------------------------------- cache rules
+// ------------------------------------------------- security and cache rules
 
 /*
- * Caching, for hosts that read _headers (Cloudflare Pages, Netlify).
+ * Headers, for hosts that read _headers (Cloudflare Pages, Netlify, and
+ * Cloudflare Workers static assets, which serves this site). The security
+ * headers come from scripts/headers.js; the rest of this note is caching.
  *
  * The manifest is the one file that must never be served stale: it carries the
  * digest the loader compares against its cached copy, so a cached manifest
@@ -287,6 +290,12 @@ console.log(`  public/SHA256SUMS        (${sums.length} files)`)
 writeFileSync(
   join(publicDir, '_headers'),
   [
+    // Every path: the content security policy and the three headers beside
+    // it (AF-76). scripts/headers.js says what each source is for, and why
+    // the policy reports rather than refuses for now.
+    '/*',
+    ...SECURITY_HEADERS.map(([name, value]) => `  ${name}: ${value}`),
+    '',
     '/db-manifest.json',
     '  Cache-Control: no-cache',
     '',
@@ -343,4 +352,4 @@ writeFileSync(
     '',
   ].join('\n'),
 )
-console.log('  public/_headers          (cache rules)')
+console.log('  public/_headers          (security headers, cache rules)')

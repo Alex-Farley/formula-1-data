@@ -4956,6 +4956,17 @@ const REDIRECTS = [
     lead: 'The season being run is',
   })),
 ]
+// The script every stub runs, carrying the query and the fragment across,
+// which a meta refresh drops. A file rather than an inline script because the
+// content security policy (scripts/headers.js) allows no inline script: each
+// stub's would differ by its target and need a hash of its own. The target
+// rides on the tag; a classic script, so currentScript names it, and above the
+// meta refresh, so it runs before the refresh is parsed.
+writeFileSync(
+  join(dist, 'redirect.js'),
+  '// Written by scripts/prerender.js for its redirecting stubs.\n' +
+    'location.replace(document.currentScript.dataset.to + location.search + location.hash)\n',
+)
 for (const { from, to, title, lead } of REDIRECTS) {
   const target = href(to)
   const url = `${ORIGIN}${target}`
@@ -4971,8 +4982,8 @@ for (const { from, to, title, lead } of REDIRECTS) {
     <title>${esc(titled(title))}</title>
     <meta name="robots" content="noindex" />
     <link rel="canonical" href="${esc(url)}" />
+    <script src="${esc(href('redirect.js'))}" data-to="${esc(target)}"></script>
     <meta http-equiv="refresh" content="0; url=${esc(target)}" />
-    <script>location.replace(${JSON.stringify(target)} + location.search + location.hash)</script>
   </head>
   <body>
     <p>${esc(lead)} <a href="${esc(target)}">${esc(url)}</a>.</p>

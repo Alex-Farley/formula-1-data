@@ -31,6 +31,7 @@ import { LAST_CHECKED } from '../src/lib/refresh.js'
 import { DOCUMENTS, FOOTER_PRIVACY, FOOTER_PRIVACY_LINK, IN_THIS_TAB, LABELS, REPLACED } from '../src/lib/site.js'
 import { FOLD_NOUN, FOLD_TO, UNFOLDED } from '../src/lib/table.js'
 import { measurement } from '../scripts/measurement.js'
+import { BEACON_ORIGIN, INLINE_HANDLERS, POLICY } from '../scripts/headers.js'
 import {
   ACCENT_APART,
   accentsBySource,
@@ -1486,6 +1487,9 @@ describe('what the pages send, and to whom (PD-0)', () => {
     'fonts.googleapis.com': ['load', 'the stylesheet for Saira and JetBrains Mono, non-blocking in index.html'],
     'fonts.gstatic.com': ['load', 'the font files that stylesheet names'],
     'static.cloudflareinsights.com': ['load', 'the Web Analytics beacon, one count per arrival (PD-0)'],
+    // Named only by the content security policy (scripts/headers.js), which
+    // has to allow what the beacon already does.
+    'cloudflareinsights.com': ['load', 'where the beacon sends that one count'],
     // Special:FilePath redirects to Wikimedia's media servers, and a row's
     // stored thumb_url (VD-23) names them directly - upload.wikimedia.org or
     // thumb.wikimedia.org, which verify.py pins - so they are fetched too and
@@ -1547,8 +1551,77 @@ describe('what the pages send, and to whom (PD-0)', () => {
         .filter(([, [use]]) => use === 'load')
         .map(([host]) => host)
         .sort(),
-      ['commons.wikimedia.org', 'fonts.googleapis.com', 'fonts.gstatic.com', 'static.cloudflareinsights.com'],
+      ['cloudflareinsights.com', 'commons.wikimedia.org', 'fonts.googleapis.com', 'fonts.gstatic.com', 'static.cloudflareinsights.com'],
     )
+  })
+
+  /*
+   * And the content security policy allows each of them, under the directive
+   * that governs how it is fetched (AF-76). The smoke test runs the site
+   * under the policy enforced, but only with the inputs a test build has: no
+   * beacon token, and whatever photographs its routes reach. This holds the
+   * policy to the list above instead, so a load host it would refuse fails
+   * here, whatever the build environment.
+   */
+  const directive = (name) => POLICY.split('; ').find((d) => d.startsWith(`${name} `))?.split(' ').slice(1) ?? []
+  const allows = (name, host) =>
+    directive(name).some((source) => source === `https://${host}` || (source.startsWith('https://*.') && host.endsWith(source.slice('https://*'.length))))
+
+  it('the content security policy allows every host the browser is told to fetch from', () => {
+    const governs = {
+      'fonts.googleapis.com': 'style-src',
+      'fonts.gstatic.com': 'font-src',
+      'static.cloudflareinsights.com': 'script-src',
+      'cloudflareinsights.com': 'connect-src',
+      'commons.wikimedia.org': 'img-src',
+    }
+    const loads = Object.entries(HOSTS).filter(([, [use]]) => use === 'load').map(([host]) => host)
+    assert.deepEqual(Object.keys(governs).sort(), loads.sort(), 'a load host has no directive named for it here')
+    for (const [host, name] of Object.entries(governs)) assert.ok(allows(name, host), `${name} does not allow ${host}`)
+    // And no other source under script-src but quoted keywords and hashes:
+    // a host, a scheme or a wildcard is what a missed escape would use.
+    assert.deepEqual(
+      directive('script-src').filter((source) => !/^'.*'$/.test(source)),
+      [BEACON_ORIGIN],
+      'script-src allows a source other than the beacon and quoted keywords',
+    )
+  })
+
+  it('and every stored photograph address, which this source never names', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const hosts = db
+        .prepare(
+          "SELECT DISTINCT substr(thumb_url, 9, instr(substr(thumb_url, 9), '/') - 1) AS host FROM article_images WHERE thumb_url LIKE 'https://%/%'",
+        )
+        .all()
+        .map(({ host }) => host)
+      assert.ok(hosts.length > 0, 'no stored thumb_url to check')
+      const refused = hosts.filter((host) => !allows('img-src', host))
+      assert.deepEqual(refused, [], 'img-src refuses a host a stored thumb_url names')
+    } finally {
+      db.close()
+    }
+  })
+
+  it("and the beacon's tag loads from the origin script-src names", () => {
+    const [tag] = measurement({ CF_BEACON_TOKEN: TOKEN }).tags
+    assert.equal(new URL(tag.match(/ src="([^"]+)"/)[1]).origin, BEACON_ORIGIN)
+  })
+
+  it('the policy allows no inline script: the one inline handler is hashed, and nothing else runs inline', () => {
+    const index = read(join(web, 'index.html'))
+    assert.deepEqual(
+      [...index.matchAll(/\son[a-z]+="([^"]*)"/g)].map((m) => m[1]),
+      INLINE_HANDLERS,
+      "index.html's inline handlers are not exactly those scripts/headers.js hashes",
+    )
+    // A <script> with neither a src nor a data type is inline code the
+    // policy refuses, wherever the markup comes from.
+    for (const file of [join(web, 'index.html'), join(web, 'scripts', 'prerender.js'), join(web, 'scripts', 'measurement.js')]) {
+      const inline = [...read(file).matchAll(/<script\b(?![^>]*\bsrc=)(?![^>]*type="application\/ld\+json")[^>]*>/g)].map((m) => m[0])
+      assert.deepEqual(inline, [], `${rel(file)} writes an inline script the content security policy refuses`)
+    }
   })
 
   it('the tag the build will write carries "spa":false, so one arrival is one count', () => {
