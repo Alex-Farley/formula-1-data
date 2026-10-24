@@ -219,16 +219,18 @@ the bug nobody finds until they share a link.
 | `/data/quality` | The confidence ladder, the gaps, the disagreements, the coverage |
 | `/data/sources` | Every source, and what each licence cost or bought |
 | `/data/sql` | Arbitrary SQL, the same as `./f1 sql`; `?q=` is the permalink |
-| `/reference/eras` | Eras, regulations, scoring systems, innovations, safety |
+| `/eras`, `/eras/:year` | Eras, regulations, scoring systems, innovations, safety; one era's seasons and rules, addressed by the season it begins in |
 | `/reference/glossary` | Vocabulary and people |
 
 `/reference`, `/reference/quality`, `/reference/sources` and `/reference/sql`
-are the old addresses of the `/data` pages. The app answers each with a
-`<Navigate replace>` that keeps the query string, and `prerender.js` writes a
-redirecting page at each path for a cold arrival, so a citation written before
-the move still resolves. Eras and the glossary are about the sport, not the
-database; they kept their addresses and are reached from Seasons, Cars,
-Circuits, Races and the home page rather than from the masthead.
+are the old addresses of the `/data` pages, and `/reference/eras` the old
+address of `/eras`. The app answers each with a `<Navigate replace>` that
+keeps the query string, and `prerender.js` writes a redirecting page at each
+path for a cold arrival, so a citation written before the move still resolves.
+Eras and the glossary are about the sport, not the database, and are reached
+from Seasons, Cars, Circuits, Races and the home page rather than from the
+masthead. The drivers, constructors and cars registers take `?era=<year>`, an
+era by the season it begins in, which each era's page links to.
 
 Press <kbd>⌘K</kbd> or <kbd>Ctrl K</kbd> anywhere for a search across every
 driver, constructor, circuit, car, season, race, Grand Prix and record at once,

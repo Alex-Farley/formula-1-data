@@ -3134,6 +3134,8 @@ describe('one eyebrow rule: the page type, then the facts that identify the enti
     assert.equal(EYEBROWS.car(null, null, null), 'Car')
     assert.equal(EYEBROWS.grandPrix('United Kingdom'), 'Grand Prix · United Kingdom')
     assert.equal(EYEBROWS.grandPrix(null), 'Grand Prix')
+    assert.equal(EYEBROWS.era(2014, 2021), 'Era · 2014–2021')
+    assert.equal(EYEBROWS.era(2026, null), 'Era · 2026–')
   })
   it('names a race page\'s neighbours as their own pages are headed', () => {
     const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })

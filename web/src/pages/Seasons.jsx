@@ -101,6 +101,26 @@ const APP = {
   },
 }
 
+/**
+ * The list, newest first, over whichever seasons it is given: every one here,
+ * an era's on /eras/<year> (IA-25), which prerender.js draws from the same
+ * columns and cells. It is the seasons register either way, and an era's
+ * dozen rows are under the fold threshold besides.
+ */
+export function SeasonsTable({ rows }) {
+  return (
+    <DataTable
+      unfolded={UNFOLDED.register}
+      rows={rows}
+      rowKey={(row) => row.year}
+      sort="year"
+      direction="desc"
+      columns={SEASONS_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+      footer={SEASON_LIST_FOOTER}
+    />
+  )
+}
+
 export default function Seasons() {
   const state = useQuery(SEASONS)
 
@@ -113,17 +133,7 @@ export default function Seasons() {
     >
       <Section>
         <Result state={state} skeleton>
-          {(data) => (
-            <DataTable
-              unfolded={UNFOLDED.register}
-              data={data}
-              rowKey={(row) => row.year}
-              sort="year"
-              direction="desc"
-              columns={SEASONS_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
-              footer={SEASON_LIST_FOOTER}
-            />
-          )}
+          {(data) => <SeasonsTable rows={data.rows} />}
         </Result>
       </Section>
 

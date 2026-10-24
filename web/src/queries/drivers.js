@@ -24,6 +24,7 @@
 import { span } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { PRACTICE_ONLY_MARK } from './race.js'
+import { erasRaced } from './eras.js'
 
 /**
  * The whole register in one query.
@@ -60,7 +61,9 @@ export const DRIVERS = `
          -- anchor, not the register.
          ${CURRENT_SEASON_SQL} AS grid_season,
          EXISTS (SELECT 1 FROM season_entries se
-                  WHERE se.driver_id = d.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid
+                  WHERE se.driver_id = d.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid,
+         -- The eras the driver raced in, for the era filter (IA-25).
+         ${erasRaced('e.driver_id = d.id', 'd.first_season', 'd.last_season')} AS eras_raced
     FROM drivers d
    ORDER BY d.wins DESC, d.podiums DESC, d.full_name
 `
@@ -76,7 +79,7 @@ export const registerCount = (rows) => ({
 })
 
 export const REGISTER_FOOTER =
-  'Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort. † Drove in practice and never started a Grand Prix.'
+  'Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort. An era holds every driver with a race entry in it; one with no race entry at all is placed by Seasons. † Drove in practice and never started a Grand Prix.'
 
 export const DRIVER_COLUMNS = [
   {
@@ -106,4 +109,4 @@ export const DRIVER_COLUMNS = [
  * used to open on a sentence of its own and swap it at the handover.
  */
 export const DRIVERS_LEDE =
-  'Every driver the championship has recorded an entry for, from 1950 to now, and the Friday drivers who ran in practice and never started a race. Filter by nationality, narrow to champions or race winners, then open anyone for their record.'
+  'Every driver the championship has recorded an entry for, from 1950 to now, and the Friday drivers who ran in practice and never started a race. Filter by nationality or era, narrow to champions or race winners, then open anyone for their record.'

@@ -42,6 +42,7 @@ import Record from './pages/Record.jsx'
 import Changes from './pages/Changes.jsx'
 import Data from './pages/Data.jsx'
 import Eras from './pages/Eras.jsx'
+import Era from './pages/Era.jsx'
 import Quality from './pages/Quality.jsx'
 import Sources from './pages/Sources.jsx'
 import Glossary from './pages/Glossary.jsx'
@@ -446,10 +447,13 @@ function Chrome() {
               Off the masthead and linked from the footer of every page,
               which is where a reader goes looking for it. */}
           <Route path="/about" element={<About />} />
-          {/* About the sport rather than the database. These keep their
-              addresses and lost the masthead slot; Seasons, Cars, Circuits,
-              Races and the home page lead here. */}
-          <Route path="/reference/eras" element={<Eras />} />
+          {/* About the sport rather than the database, and off the
+              masthead; Seasons, Cars, Circuits, Races and the home page lead
+              here. The glossary kept its address. The eras became a section,
+              /eras and an address per era, and /reference/eras forwards to
+              it (IA-25). */}
+          <Route path="/eras" element={<Eras />} />
+          <Route path="/eras/:key" element={<Era />} />
           <Route path="/reference/glossary" element={<Glossary />} />
           {/* The old addresses. prerender.js writes a redirecting page at
               each for a cold arrival; these answer the same way in-app. */}
@@ -457,6 +461,7 @@ function Chrome() {
           <Route path="/reference/quality" element={<Moved to="/data/quality" />} />
           <Route path="/reference/sources" element={<Moved to="/data/sources" />} />
           <Route path="/reference/sql" element={<Moved to="/data/sql" />} />
+          <Route path="/reference/eras" element={<Moved to="/eras" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

@@ -444,8 +444,15 @@ import {
   TYRES,
   TYRE_COLUMNS,
   ERAS_LEDE,
+  ERA_EMPTY,
+  ERA_FIELDS,
+  ERA_SEASONS_TITLE,
+  eraDescription,
+  eraPath,
   erasNote,
   erasTiers,
+  rowsInEra,
+  rowsTouchingEra,
 } from '../src/queries/eras.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS, GLOSSARY_LEDE } from '../src/queries/glossary.js'
 import {
@@ -634,7 +641,7 @@ import {
 // IA-22). The trails were written out here and the onward bands existed only
 // in the app, so the half a crawler and a cold arrival are given had no
 // relational layer at all; both now come from one place.
-import { ONWARD, TRAIL, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
+import { ONWARD, TRAIL, eraSteps, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
 import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
@@ -2521,6 +2528,28 @@ const page = ({
 
 // ---------------------------------------------------------------- seasons
 
+// A name as the app renders it: a link where it has an id, and after it
+// the undecided season's "so far" tag - the row is a leader, not a champion.
+const seasonMarked = (path, idKey) => (name, row) =>
+  row.not_started
+    ? tag(NOT_YET_RUN)
+    : `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
+
+/**
+ * The seasons list over whichever seasons it is given, as Seasons.jsx's
+ * SeasonsTable draws it: every one on /seasons, an era's on /eras/<year>
+ * (IA-25). The seasons register either way, for the fold.
+ */
+const seasonsTable = (rows) =>
+  fromColumns(SEASONS_COLUMNS, rows, {
+    year: (year) => link(`seasons/${year}`, year),
+    champion: seasonMarked('drivers', 'champion_id'),
+    champion_team: (name, row) => (row.champion_team_id ? link(`constructors/${row.champion_team_id}`, name) : text(name)),
+    runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
+    constructors_champion: seasonMarked('constructors', 'constructors_champion_id'),
+    title_race: (value, row) => titleRaceSvg(value, titleRaceText(value, row)),
+  }, { unfolded: UNFOLDED.register, footer: SEASON_LIST_FOOTER })
+
 {
   // The list and each season's page read web/src/queries/seasons.js and
   // season.js - the app's own queries, column lists and heading rule (PD-02,
@@ -2531,12 +2560,6 @@ const page = ({
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
   const driver = (id) => (id ? link(`drivers/${id}`, names[id] ?? id) : '—')
   const team = (id) => (id ? link(`constructors/${id}`, teams[id] ?? id) : '—')
-  // A name as the app renders it: a link where it has an id, and after it
-  // the undecided season's "so far" tag - the row is a leader, not a champion.
-  const marked = (path, idKey) => (name, row) =>
-    row.not_started
-      ? tag(NOT_YET_RUN)
-      : `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
 
   page({
     path: 'seasons',
@@ -2546,14 +2569,7 @@ const page = ({
     onward: ONWARD.seasons(),
     body: `
       ${opening({ title: NAMES.seasons().headline, lede: SEASONS_LEDE })}
-      ${fromColumns(SEASONS_COLUMNS, seasons, {
-        year: (year) => link(`seasons/${year}`, year),
-        champion: marked('drivers', 'champion_id'),
-        champion_team: (name, row) => (row.champion_team_id ? link(`constructors/${row.champion_team_id}`, name) : text(name)),
-        runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
-        constructors_champion: marked('constructors', 'constructors_champion_id'),
-        title_race: (value, row) => titleRaceSvg(value, titleRaceText(value, row)),
-      }, { unfolded: UNFOLDED.register, footer: SEASON_LIST_FOOTER })}`,
+      ${seasonsTable(seasons)}`,
   })
 
   for (const { year } of all('SELECT year FROM seasons ORDER BY year DESC')) {
@@ -3856,7 +3872,7 @@ page({
       specified([...specChassis, ...specEngine])
         ? `<div class="split">${specFields(specChassis)}${specFields(specEngine)}</div><p class="source-note">${esc(
             SPECIFICATION_NOTE[0],
-          )}${link('reference/eras', SPECIFICATION_NOTE[1])}${esc(SPECIFICATION_NOTE[2])}</p>`
+          )}${link('eras', SPECIFICATION_NOTE[1])}${esc(SPECIFICATION_NOTE[2])}</p>`
         : `<p class="source-note">${esc(NO_SPECIFICATION)}</p>`
     }`
     const external = (url) => (url ? `<a href="${esc(url)}">${esc(url)}</a>` : null)
@@ -4232,8 +4248,18 @@ page({
   // in the markup timeline() gives the safety milestones.
   const eras = all(ERAS)
   const eraTiers = erasTiers(eras)
+  // An era's address is its first season (IA-25, queries/eras.js), so two
+  // eras starting in one season would be one page written twice.
+  const starts = eras.map((e) => e.from_year)
+  if (new Set(starts).size !== starts.length) {
+    die(`prerender: two eras begin in the same season (${starts.join(', ')}), and an era's address is its first season`)
+  }
+  const engineCells = {
+    era_name: (name, row) =>
+      `<b>${esc(name)}</b> <br><span class="faint small">${esc(span(row.from_year, row.to_year))}</span>`,
+  }
   page({
-    path: 'reference/eras',
+    path: 'eras',
     title: NAMES.eras().title,
     description: 'Formula One divided into eras, with the dominant teams and defining features of each.',
     trail: TRAIL.eras(),
@@ -4245,7 +4271,7 @@ page({
       <div class="timeline">${eras
         .map(
           (e) =>
-            `<article><h3>${esc(e.era_name)}<span class="years">${esc(span(e.from_year, e.to_year))}</span>${
+            `<article><h3>${link(eraPath(e), e.era_name)}<span class="years">${esc(span(e.from_year, e.to_year))}</span>${
               eraTiers.length > 1 ? confidencePill(e.confidence) : ''
             }</h3><p>${esc(e.summary)}</p>${ERA_LINES.map(([key, label]) =>
               e[key] ? `<p class="faint small"><strong>${esc(label)}</strong> ${esc(e[key])}</p>` : '',
@@ -4253,10 +4279,7 @@ page({
         )
         .join('')}</div>
       <h2>Engine formulae</h2>
-      ${fromColumns(ENGINE_COLUMNS, all(ENGINES), {
-        era_name: (name, row) =>
-          `<b>${esc(name)}</b> <br><span class="faint small">${esc(span(row.from_year, row.to_year))}</span>`,
-      }, { unfolded: UNFOLDED.reference })}
+      ${fromColumns(ENGINE_COLUMNS, all(ENGINES), engineCells, { unfolded: UNFOLDED.reference })}
       <h2>Scoring systems</h2>
       <p class="note">${esc(POINTS_NOTE)}</p>
       ${fromColumns(POINTS_COLUMNS, all(POINTS), {}, { unfolded: UNFOLDED.reference })}
@@ -4273,6 +4296,44 @@ page({
       <h2>Tyre suppliers</h2>
       ${fromColumns(TYRE_COLUMNS, all(TYRES), {}, { unfolded: UNFOLDED.reference })}`,
   })
+
+  // Each era at its own address, as Era.jsx draws it (IA-25): the same
+  // queries, sliced to the era the same way, in the same order, and a slice
+  // with nothing in it keeping its heading and saying so.
+  const allSeasons = all(SEASONS)
+  const allEngines = all(ENGINES)
+  const allRegulations = all(REGULATIONS)
+  const allInnovations = all(INNOVATIONS)
+  const allSafety = all(SAFETY)
+  const emptyState = `<p class="state is-empty">${esc(ERA_EMPTY)}</p>`
+  const orEmpty = (rows, html) => (rows.length ? html : emptyState)
+  for (const era of eras) {
+    const seasons = rowsInEra(era, allSeasons)
+    const engines = rowsTouchingEra(era, allEngines)
+    const regulations = rowsInEra(era, allRegulations)
+    const innovations = rowsInEra(era, allInnovations)
+    const safety = rowsInEra(era, allSafety)
+    page({
+      path: eraPath(era).slice(1),
+      title: NAMES.era(era).title,
+      description: eraDescription(era),
+      trail: TRAIL.era(era),
+      onward: ONWARD.era({ era }),
+      body: `
+        ${opening({ eyebrow: EYEBROWS.era(era.from_year, era.to_year), title: NAMES.era(era).headline, lede: era.summary })}
+        ${stepperNav(eraSteps(eras, era))}
+        ${fields([...ERA_FIELDS.map(([key, label]) => [label, era[key] ? esc(era[key]) : null]), ['Confidence', confidencePill(era.confidence)]])}
+        ${heading(ERA_SEASONS_TITLE, seasons.length)}
+        ${seasonsTable(seasons)}
+        ${heading('Engine formulae', engines.length)}
+        ${orEmpty(engines, fromColumns(ENGINE_COLUMNS, engines, engineCells, { unfolded: UNFOLDED.reference }))}
+        ${heading('Regulation changes', regulations.length)}
+        ${orEmpty(regulations, fromColumns(REGULATION_COLUMNS, regulations, {}, { unfolded: UNFOLDED.reference }))}
+        ${heading('Technical innovations', innovations.length)}
+        ${orEmpty(innovations, fromColumns(INNOVATION_COLUMNS, innovations, {}, { unfolded: UNFOLDED.reference }))}
+        ${safety.length ? timeline(safety) : `${heading('Safety', 0)}${emptyState}`}`,
+    })
+  }
 
   const glossary = all(GLOSSARY)
   page({
@@ -4848,14 +4909,16 @@ for (const p of pages) {
  * cited query still runs.
  *
  * These are not in `pages`, so they are not in the sitemap: a sitemap lists
- * the addresses to index, and these ask not to be. Eras and the glossary did
- * not move.
+ * the addresses to index, and these ask not to be. The glossary did not
+ * move; the eras did later, to /eras, when they became a section (IA-25).
  */
 const MOVED = [
   ['reference', 'data'],
   ['reference/quality', 'data/quality'],
   ['reference/sources', 'data/sources'],
   ['reference/sql', 'data/sql'],
+  // IA-25: the eras became a section of their own.
+  ['reference/eras', 'eras'],
 ]
 
 /**

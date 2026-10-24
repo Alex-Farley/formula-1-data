@@ -14,6 +14,7 @@ import { seasonsRacedText } from '../charts/spark.js'
 import { span } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { LABELS } from '../lib/site.js'
+import { erasRaced } from './eras.js'
 
 /**
  * Most race entries first, then alphabetically, case-insensitively.
@@ -51,7 +52,9 @@ export const CONSTRUCTORS = `
          (SELECT MIN(year) FROM seasons) AS first_season,
          ${CURRENT_SEASON_SQL} AS grid_season,
          EXISTS (SELECT 1 FROM season_entries se
-                  WHERE se.constructor_id = k.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid
+                  WHERE se.constructor_id = k.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid,
+         -- The eras the constructor raced in, for the era filter (IA-25).
+         ${erasRaced('e.constructor_id = k.id', 'k.first_entry', 'k.last_entry')} AS eras_raced
     FROM constructors k
    ORDER BY entries DESC, k.name COLLATE NOCASE, k.id
 `
@@ -80,7 +83,7 @@ export const CONSTRUCTOR_COLUMNS = [
 ]
 
 export const CONSTRUCTORS_FOOTER =
-  '“Entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started. “Season by season” marks each season with a race entry under the constructor’s own name, from the first championship season at the left to this one at the right, so it can start later or stop sooner than “Seasons” where a team raced under another name or in another maker’s car.'
+  '“Entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started. “Season by season” marks each season with a race entry under the constructor’s own name, from the first championship season at the left to this one at the right, so it can start later or stop sooner than “Seasons” where a team raced under another name or in another maker’s car. An era holds every constructor with a season marked in it; one with none is placed by “Seasons”.'
 
 /**
  * The page's lede, under its h1 in both renderers (VD-79): the app's words,
@@ -88,4 +91,4 @@ export const CONSTRUCTORS_FOOTER =
  * used to open on a sentence of its own and swap it at the handover.
  */
 export const CONSTRUCTORS_LEDE =
-  'A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Sorted by race entries, with alphabetical a click away: filter by country, or narrow to race winners, champions and this season’s grid. Each page carries the team’s record, the cars it built, and the names it raced under before and after.'
+  'A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Sorted by race entries, with alphabetical a click away: filter by country or era, or narrow to race winners, champions and this season’s grid. Each page carries the team’s record, the cars it built, and the names it raced under before and after.'

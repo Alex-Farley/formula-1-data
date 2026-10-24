@@ -15,6 +15,7 @@ import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { LANDMARK, NAMES } from '../lib/site.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, CARS_LEDE } from '../queries/cars.js'
+import { ERAS, eraByKey, eraKey, eraOptions, eraWhen, touchesEra } from '../queries/eras.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
@@ -63,7 +64,7 @@ const APP = {
 }
 
 export default function Cars() {
-  const state = useQueries({ gallery: [GALLERY], register: [CHASSIS] })
+  const state = useQueries({ gallery: [GALLERY], register: [CHASSIS], eras: [ERAS] })
   return (
     <Page
       title={NAMES.cars().headline}
@@ -90,7 +91,7 @@ export default function Cars() {
               title="The chassis register"
               count={`${pick(data, 'register').length.toLocaleString('en-GB')} chassis`}
             >
-              <Register rows={pick(data, 'register')} />
+              <Register rows={pick(data, 'register')} eras={pick(data, 'eras')} />
             </Section>
           </>
         )}
@@ -168,7 +169,7 @@ function Gallery({ cars }) {
   )
 }
 
-function Register({ rows }) {
+function Register({ rows, eras }) {
   // IA-19: this register had no route to this year's chassis at all, in a
   // page of 1,153 rows opening on 1950.
   const gridSeason = seasonOf(rows)
@@ -192,15 +193,20 @@ function Register({ rows }) {
   ]
 
   // In the address, and clamped to what this register actually holds (IA-08).
-  const [params, set, clear] = useUrlState({ q: '', constructor: '', kind: '' })
+  const [params, set, clear] = useUrlState({ q: '', constructor: '', kind: '', era: '' })
   const term = params.q
   const constructor = oneOf(params.constructor, constructors)
   const kind = oneOf(params.kind, kinds)
+  // An era by its first season (IA-25), the key /eras/<year> is addressed by.
+  // A chassis is placed by the seasons it prints and not by its race entries,
+  // which name the chassis for only part of some cars' careers.
+  const era = eraByKey(eras, params.era)
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
     return rows.filter((row) => {
       if (constructor && row.constructor !== constructor) return false
+      if (era && !touchesEra(era, row.first_year, row.last_year)) return false
       if (kind === 'landmark' && !row.landmark) return false
       if (kind === 'grid' && !row.on_grid) return false
       if (kind === 'spec' && !row.has_spec) return false
@@ -210,9 +216,10 @@ function Register({ rows }) {
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(needle))
     })
-  }, [rows, term, constructor, kind])
+  }, [rows, term, constructor, kind, era])
 
   // The filters as a plural noun phrase, for the empty state (IX-28).
+  const when = era ? ` ${eraWhen(era)}` : ''
   const among = kind
     ? `${
         kind === 'winners'
@@ -222,10 +229,12 @@ function Register({ rows }) {
             : kind === 'landmark'
               ? 'landmark chassis'
               : `chassis on the ${gridSeason} grid`
-      }${constructor ? ` from ${constructor}` : ''}`
+      }${constructor ? ` from ${constructor}` : ''}${when}`
     : constructor
-      ? `${constructor} chassis`
-      : ''
+      ? `${constructor} chassis${when}`
+      : era
+        ? `chassis${when}`
+        : ''
 
   return (
     <>
@@ -252,6 +261,13 @@ function Register({ rows }) {
           label="Constructor"
           all="Every constructor"
           options={constructors}
+        />
+        <Select
+          value={era ? eraKey(era) : ''}
+          onChange={(value) => set({ era: value })}
+          label="Era"
+          all="Every era"
+          options={eraOptions(eras)}
         />
         <Chips
           label="Filter cars by kind"
