@@ -89,6 +89,8 @@ import {
   IN_THIS_TAB_HEADING,
   LABELS,
   MAINTAINER,
+  NOT_HELD,
+  NOT_HELD_ANCHOR,
   NOT_YET_RUN,
   PHOTOGRAPHS_SHOWN,
   RACE_CARS_TITLE,
@@ -6205,6 +6207,76 @@ try {
       } finally {
         await cold.close()
       }
+    } finally {
+      await noJs.close()
+    }
+  })
+
+  /*
+   * DA-25 (#537): the identifier policy DA-04 put in `meta` is on /data, read
+   * from the file, in both renderers. CD-42 (#534): the console's "Why this
+   * is so" names the paragraph on the four empty tables, and both renderers
+   * carry the anchor on it, so the link lands there rather than at the top.
+   */
+  await section('/data  (which ids may be kept, and /data/sql\'s link to why four tables are empty)', async () => {
+    const meta = (key) => one('SELECT value FROM meta WHERE key = ?', key)
+    const stable = meta('id_stability_stable').split(',').map((t) => t.trim())
+    const keys = meta('id_stability_keys').split(';').map((k) => k.trim())
+    atLeast(stable.length, 1, 'the file declares at least one table whose ids are kept')
+    atLeast(keys.length, 1, 'and publishes at least one natural key')
+    const flat = (text) => text.replace(/\s+/g, ' ').trim()
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+    const plain = await noJs.newPage()
+    try {
+      await go('/data', 'Data')
+      await plain.goto(`${BASE}/data`, { waitUntil: 'load' })
+      for (const [half, where, main] of [['app', page, '#root main'], ['static', plain, 'main']]) {
+        const policy = await where
+          .$$eval(`${main} h2`, (hs) => {
+            const h = hs.find((n) => n.textContent.trim() === 'Which ids you may keep')
+            const box = h?.closest('section')
+            if (!box) return null
+            const field = (label) =>
+              [...box.querySelectorAll('dl.fields dt')].find((dt) => dt.textContent.trim() === label)?.nextElementSibling
+            const codes = (dd) => (dd ? [...dd.querySelectorAll('code')].map((c) => c.textContent) : [])
+            return { text: box.textContent, stable: codes(field('Stable ids')), keys: codes(field('Natural keys')) }
+          })
+          .catch(() => null)
+        truthy(policy, `/data, ${half}: it has a section on which ids may be kept`)
+        // The backticks are drawn as code, so the sentence is compared
+        // without them.
+        truthy(
+          flat(policy?.text ?? '').includes(flat(meta('id_stability').replaceAll('`', ''))),
+          `/data, ${half}: it states meta.id_stability word for word`,
+        )
+        is(JSON.stringify(policy?.stable), JSON.stringify(stable), `/data, ${half}: and names every table meta.id_stability_stable does`)
+        is(JSON.stringify(policy?.keys), JSON.stringify(keys), `/data, ${half}: and every natural key meta.id_stability_keys does`)
+
+        const held = await where.$eval(`${main} #${NOT_HELD_ANCHOR}`, (n) => n.textContent).catch(() => '')
+        truthy(flat(held).includes(NOT_HELD), `/data, ${half}: #${NOT_HELD_ANCHOR} is the paragraph on the four empty tables`)
+      }
+
+      // The console's answer to a read of an empty timing table links there,
+      // and following it puts the paragraph on screen.
+      await go('/data/sql', 'SQL console')
+      await page.waitForSelector('#root main .table-wrap', { timeout: 20000 })
+      await page.fill('textarea.sql', 'SELECT * FROM laps')
+      await page.click('button.button')
+      const why = await page.waitForSelector('#root main .state.is-empty a', { timeout: 10000 })
+      is(await why.getAttribute('href'), `/data#${NOT_HELD_ANCHOR}`, `/data/sql: "Why this is so" names #${NOT_HELD_ANCHOR}`)
+      await why.click()
+      const landed = await page
+        .waitForFunction(
+          (id) => {
+            const top = document.getElementById(id)?.getBoundingClientRect().top
+            return top !== undefined && top >= -2 && top < window.innerHeight / 2
+          },
+          NOT_HELD_ANCHOR,
+          { timeout: 5000 },
+        )
+        .then(() => true)
+        .catch(() => false)
+      truthy(landed, '/data/sql: and following it puts the paragraph on screen, not the top of /data')
     } finally {
       await noJs.close()
     }

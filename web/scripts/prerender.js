@@ -113,6 +113,7 @@ import {
   LANDMARK,
   MAINTAINER,
   NOT_HELD,
+  NOT_HELD_ANCHOR,
   NOT_YET_RUN,
   PHOTOGRAPHS_NOTE,
   PHOTOGRAPHS_SHOWN,
@@ -174,7 +175,17 @@ import {
 } from '../src/lib/changes.js'
 import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRaces, raceDay } from '../src/lib/refresh.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE, UNRESULTED } from '../src/queries/changes.js'
-import { SHAPE as DATA_SHAPE, fileStrip, trustStrip } from '../src/queries/data.js'
+import {
+  ID_HEADING,
+  ID_INTRO,
+  ID_QUERY,
+  ID_README,
+  SHAPE as DATA_SHAPE,
+  codeSpans,
+  fileStrip,
+  idPolicy,
+  trustStrip,
+} from '../src/queries/data.js'
 import {
   LIVERY_ARTICLE,
   LIVERY_ERA,
@@ -1021,6 +1032,33 @@ const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null
  * for one through text().
  */
 // `paired` sets two facts to a row at desktop width (app.css says where).
+/**
+ * /data's identifier policy (DA-25), as Data.jsx draws it: the sentence with
+ * its backticked pieces as code, the stable tables and the natural keys as
+ * fields - the em dash for a row the file does not carry - and where to read
+ * all three.
+ */
+const idPolicyHtml = ({ note, stable, keys }) => {
+  const coded = (names, joiner) =>
+    names === null
+      ? `<span class="empty">${EMPTY}</span>`
+      : names.length === 0
+        ? 'None'
+        : names.map((name) => `<code>${esc(name)}</code>`).join(esc(joiner))
+  const sentence = note
+    ? `<p class="measure">${codeSpans(note)
+        .map(({ text, code }) => (code ? `<code>${esc(text)}</code>` : esc(text)))
+        .join('')}</p>`
+    : ''
+  return `${sentence}
+      ${fields([
+        ['Stable ids', coded(stable, ', ')],
+        ['Natural keys', coded(keys, '; ')],
+      ])}
+      <p class="measure">All three are rows of <code>meta</code>: <code>${esc(ID_QUERY)}</code> reads them. The README
+        sets the policy out table by table, under <a href="${esc(ID_README)}">Identifiers</a>.</p>`
+}
+
 const fields = (pairs, { paired = false } = {}) => {
   const kept = pairs.filter(([, value]) => value !== null && value !== undefined && value !== '')
   if (!kept.length) return ''
@@ -4483,6 +4521,9 @@ page({
       <p class="measure">${esc(DOCUMENTS_NOTE)} <a href="${esc(REPOSITORY)}">The repository</a> holds the build, the
         checks that gate it and the source data they read, so the cross-checking claimed above can
         be read rather than taken on trust.</p>
+      <h2>${esc(ID_HEADING)}</h2>
+      <p class="note">${esc(ID_INTRO)}</p>
+      ${idPolicyHtml(idPolicy(META))}
       <h2>How far to trust it</h2>
       ${tiles(trustStrip(shape))}
       <p class="measure">The ladder, from the top: ${ladder.map(confidencePill).join(' ')}. Only an official source — the FIA or formula1.com — carries a row to the top. Where a
@@ -4496,7 +4537,7 @@ page({
         ['Facts only', `${(classes['facts-only'] ?? 0).toLocaleString()} sources — the facts are used; nothing is copied.`],
         ['Not redistributable', `${(classes.no ?? 0).toLocaleString()} sources — on the register so the position is on record; no row may cite one.`],
       ])}
-      <p class="measure">${esc(NOT_HELD)}</p>
+      <p class="measure" id="${esc(NOT_HELD_ANCHOR)}">${esc(NOT_HELD)}</p>
       <p class="measure">Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0 and
         carry share-alike; the centrelines are ODbL and the obligation follows
         <code>f1-geometry.db</code> alone. Most of what this project wrote itself — its reading of

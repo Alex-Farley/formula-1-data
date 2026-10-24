@@ -428,8 +428,12 @@ export function Confidence({ value, plain = false }) {
   )
 }
 
-export function Note({ children }) {
-  return <div className="note-box">{children}</div>
+export function Note({ children, id }) {
+  return (
+    <div className="note-box" id={id}>
+      {children}
+    </div>
+  )
 }
 
 /**

@@ -7,6 +7,7 @@
  * page and the script each draw them.
  */
 import { number } from '../lib/format.js'
+import { REPOSITORY } from '../lib/site.js'
 
 /** How big the file is, and how much of it is the record of its own doubts. */
 export const SHAPE = `SELECT
@@ -34,6 +35,54 @@ export const fileStrip = (meta, shape) => [
   { label: 'Tables', value: number(shape.tables), note: `and ${number(shape.views)} views` },
   { label: 'Races', value: number(shape.races), note: `${number(shape.entries)} race entries` },
 ]
+
+/**
+ * Which ids a reader may keep (DA-25): the three `meta` rows DA-04 published,
+ * as the file states them. `note` is meta.id_stability's sentence; `stable`
+ * the tables meta.id_stability_stable names, whose ids are not renumbered;
+ * `keys` each natural key meta.id_stability_keys publishes. A row the file
+ * does not carry is null, not established, and drawn as the em dash; an
+ * empty one is a list of none, which the build writes when no table is
+ * declared stable.
+ */
+export const idPolicy = (meta) => {
+  const list = (value, separator) =>
+    value === null || value === undefined
+      ? null
+      : String(value)
+          .split(separator)
+          .map((part) => part.trim())
+          .filter(Boolean)
+  return {
+    note: meta.id_stability ?? null,
+    stable: list(meta.id_stability_stable, ','),
+    keys: list(meta.id_stability_keys, ';'),
+  }
+}
+
+/** The section's heading, its intro, and where a reader goes for more. */
+export const ID_HEADING = 'Which ids you may keep'
+export const ID_INTRO =
+  'For anyone who keeps an id from one release to join on in the next. The file states its own ' +
+  'policy in three rows of its meta table, and this is what they say.'
+export const ID_QUERY = "SELECT key, value FROM meta WHERE key LIKE 'id_stability%'"
+export const ID_README = `${REPOSITORY}/blob/main/README.md#identifiers`
+
+/**
+ * A sentence from `meta` cut at its backticks, which mark code in it - `id`,
+ * a `?` - so each renderer can set those pieces as code rather than print
+ * the marks. A backtick with no partner is text: the piece after it stays
+ * plain, with the mark put back, rather than the rest of the sentence being
+ * set as code.
+ */
+export const codeSpans = (text) => {
+  const parts = String(text).split('`')
+  const spans = parts.map((part, i) => ({ text: part, code: i % 2 === 1 }))
+  // An even number of pieces means an odd number of backticks: the last one
+  // opened a span nothing closed.
+  if (parts.length % 2 === 0) spans[spans.length - 1] = { text: `\`${parts[parts.length - 1]}`, code: false }
+  return spans
+}
 
 /** How far to trust it: what is disputed, what is missing, and who says so. */
 export const trustStrip = (shape) => [

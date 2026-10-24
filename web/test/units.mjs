@@ -25,6 +25,7 @@ import { SEASONS_LEDE } from '../src/queries/seasons.js'
 import { CONSTRUCTORS_LEDE } from '../src/queries/constructors.js'
 import { CIRCUITS_LEDE } from '../src/queries/circuits.js'
 import { CARS_LEDE } from '../src/queries/cars.js'
+import { codeSpans, idPolicy } from '../src/queries/data.js'
 
 import {
   FOLD_NOUN,
@@ -3408,5 +3409,39 @@ describe("the championship chart's axis is the career (IX-38)", async () => {
   })
   it('never cuts a datum the span does not reach', () => {
     assert.deepEqual(extent({ data: [{ x: 2000, y: 1 }, { x: 2010, y: 2 }], xDomain: [2003, 2005] }), [2000, 2010])
+  })
+})
+
+describe("/data's identifier policy reads meta as the file states it (DA-25)", () => {
+  it('sets paired backticks as code, and an unpaired one as text', () => {
+    assert.deepEqual(codeSpans('join `a` on `b`'), [
+      { text: 'join ', code: false },
+      { text: 'a', code: true },
+      { text: ' on ', code: false },
+      { text: 'b', code: true },
+      { text: '', code: false },
+    ])
+    assert.deepEqual(codeSpans('a `b` c `d e'), [
+      { text: 'a ', code: false },
+      { text: 'b', code: true },
+      { text: ' c ', code: false },
+      { text: '`d e', code: false },
+    ])
+    assert.deepEqual(codeSpans('no marks'), [{ text: 'no marks', code: false }])
+  })
+  it('a row the file does not carry is null; an empty one is a list of none', () => {
+    assert.deepEqual(idPolicy({}), { note: null, stable: null, keys: null })
+    assert.deepEqual(idPolicy({ id_stability: 's', id_stability_stable: '', id_stability_keys: '' }), {
+      note: 's',
+      stable: [],
+      keys: [],
+    })
+  })
+  it('splits keys on the semicolon, so the commas inside one stay in it', () => {
+    assert.deepEqual(idPolicy({ id_stability_stable: 'races, qualifying', id_stability_keys: 'races(year, round); records(key)' }), {
+      note: null,
+      stable: ['races', 'qualifying'],
+      keys: ['races(year, round)', 'records(key)'],
+    })
   })
 })
