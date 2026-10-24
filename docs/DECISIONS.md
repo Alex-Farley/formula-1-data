@@ -726,6 +726,69 @@ turns above that fell from 41 % to 25 %. No finding was lost across a
 handover. Ten items are few; a second landing fork whose rewrite FAILs again
 would be the figure to reopen this on.
 
+### D-59 · The item skill's rarely taken branches are read on demand — 2026-10-24 (`AF-125`, #1081)
+Every fork carries `.claude/skills/backlog-item/SKILL.md` and `CLAUDE.md` on
+every turn, and much of the skill covered paths a given fork does not take.
+Six of those paths now sit beside the skill, word for word, and the skill
+says at each point where one starts which file to read:
+
+| File | Read when |
+|---|---|
+| `grouping.md` | `next.py --group` proposes a companion or a tidy batch |
+| `land.md` | the fork is given `--land`, or inherits an open PR |
+| `no-verdict.md` | `verdict.sh read` exits 1, or a reviewer stops on a limit or an unavailable account |
+| `alarm.md` | the item is a `refresh-failing` or `results-late` alarm, or a security alert |
+| `trouble.md` | a `gh` call names a limit, `next.py` exits 3, `ci-wait.sh` exits 2 or 3, or `merge-step.py before` exits 3 |
+| `hold-or-stop.md` | before a stop, a skip or a hold, or when a decision, a blocker or the permission classifier refusing an edit is in the way |
+
+No rule changed. Besides the read lines and each file's opening paragraph,
+the only words that changed are cross-references and joins: "below" where a
+passage moved out, *Not a PASS*, *Stop conditions* and *Main moved under the
+branch* now naming their file, "rule 4" now naming *Before an item*, and a
+"Then:" that led into bullets which stayed behind. The paragraphs a fork on
+the common path needs stay in the skill: where an issue's status goes, the
+three exceptions to putting it back, and putting every status back before a
+stop. `CLAUDE.md` still carries "stop on a dangerous one" for any fork that
+has not opened `hold-or-stop.md`. `tests/test_conventions.py` fails on a
+passage that no read line names or the index paragraph leaves out, and on
+any file the skill or a passage names, by path or bare name, that is not
+there.
+
+**Before and after, in bytes.** `SKILL.md` went from 41,944 to 32,359, down
+9,585 or 23 %. `CLAUDE.md` went from 11,829 to 11,902, because its pointer
+now names the folder. The two files every fork loads went from 53,773 to
+44,261, down 18 %. The issue estimated the skill at roughly 10,000 tokens,
+about 4.2 bytes a token. At that rate a fork carries about 2,300 tokens
+fewer on each turn, and it pays a file read only on a path that needs one. A
+landing fork reads `land.md` (1,157 bytes) every time, so it carries about
+8,400 bytes fewer.
+
+**What that is worth, estimated.** The ten items D-58 measured after the
+split took 911 turns, about 91 an item. At 2,300 tokens a turn that is about
+210,000 tokens of context an item, some 2 % of the 9.97 M each item read.
+Those are cache reads, so priced as D-58 prices them it is about 21,000
+input-equivalent an item. This is a fixed cost taken off every turn, and it
+is small next to what an item reads in its own code and output.
+
+**Per item, before.** The baseline is D-58's *After*: the ten items from
+AF-110 to PM-79 (#1073 to #1102). Implementing forks peaked at
+55,000-273,000 tokens, median about 132,000, and landing forks at
+42,000-133,000, median about 74,000. They read 99.7 M over 911 turns, and
+their session points are listed there. The figures after this change need
+the next ten items to land, so they are AF-129 (#1123), counted the same
+way. One thing could blur them: if #1122 rules to revert D-58's split
+inside that window, it changes the same file again, and AF-129 says so
+rather than mixing the two.
+
+**Not moved.** *Before an item*, *Doing the item* and the self-check under
+*Before asking for review* together hold about 9,100 bytes, and a landing
+fork skips all three; it runs only the precheck paragraph that closes that
+section. Moving them would spare the landing forks, about half
+of all forks under D-58, but every implementing fork would read them a turn
+later and carry them anyway. The item asked for the paths a typical fork
+does not take, and those three are the main path. If AF-129's figures make
+the case, it is a change of its own.
+
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four
 rungs of `PD-02` whose diffs a single pass would have read for the price of

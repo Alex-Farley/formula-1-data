@@ -184,7 +184,8 @@ queue*. `docs/LANDED.md` is the record of what landed and what was declined
 before the queue moved.
 
 **The whole per-item procedure lives in one place:
-`.claude/skills/backlog-item/SKILL.md`.** The review policy, the pace table,
+`.claude/skills/backlog-item/`** — its `SKILL.md`, and the passages beside it
+that `SKILL.md` says when to read. The review policy, the pace table,
 grouping, the stop conditions and what never slides are set there and are not
 restated anywhere else. The loop is a skill, invoked on purpose rather than
 run by default: `/backlog-loop next`, `/backlog-loop <ITEM-ID>` or

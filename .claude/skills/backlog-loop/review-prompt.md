@@ -96,4 +96,4 @@ Everything goes across — the worktree, the task, the routes, the "try to
 disprove" list and the constraints, `Do NOT run npm test` among them — so the
 pass that settles the item is briefed no more thinly than the one it replaces.
 If the respawn records nothing either, the item has no review, as
-`.claude/skills/backlog-item/SKILL.md` sets out under *Review*.
+`.claude/skills/backlog-item/no-verdict.md` sets out.
