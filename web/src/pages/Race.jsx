@@ -45,6 +45,7 @@ import {
   QUALIFYING,
   QUALIFYING_FOOTER,
   RACE,
+  RACE_HISTORY,
   RACE_SOURCES,
   SHARED_DRIVE_NOTE,
   SPRINT,
@@ -78,6 +79,7 @@ import {
   stintsNote,
   stintsUnbarred,
 } from '../queries/race.js'
+import { TITLE_STANDINGS, titleSettled } from '../queries/season.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -231,6 +233,9 @@ export default function Race() {
     images: [RACE_IMAGES, args],
     photographs: [RACE_PHOTOGRAPHS, args],
     sources: [RACE_SOURCES, args],
+    // CD-39, CD-61: what the standfirst says beyond who won.
+    history: [RACE_HISTORY, args],
+    title: [TITLE_STANDINGS, args],
   })
 
   return (
@@ -315,7 +320,10 @@ function RaceBody({ race, data, year, round }) {
       title={NAMES.race(year, race.name_used).headline}
       documentName={NAMES.race(year, race.name_used).title}
       trail={TRAIL.race(year, round, race.name_used)}
-      lede={raceLede(race, winners, stage)}
+      lede={raceLede(race, winners, stage, {
+        history: rows(data, 'history'),
+        title: titleSettled(rows(data, 'title'), round),
+      })}
       sources={rows(data, 'sources')}
       aside={
         <Stepper {...raceSteps(neighbours)} />

@@ -35,6 +35,16 @@ export function number(value) {
     : Number(value.toFixed(3)).toLocaleString('en-GB')
 }
 
+/**
+ * "4th", "33rd", "92nd". Digits throughout: "best finish 4th" and "best
+ * finish 33rd" read as one system, where words to twelfth and digits beyond
+ * did not. Shared by the driver's sentence and the race's (CD-39).
+ */
+export const ordinal = (n) => {
+  const tail = n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'
+  return `${n}${tail}`
+}
+
 /** Championship points: 24, 25.5, 0.5 — never 25.000. */
 export function points(value) {
   if (missing(value) || typeof value !== 'number') return EMPTY

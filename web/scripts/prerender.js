@@ -221,6 +221,7 @@ import {
   NOT_RUN_STANDINGS,
   REMAINING,
   SEASON,
+  TITLE_STANDINGS,
   SEASON_SOURCES,
   STANDINGS as SEASON_STANDINGS,
   TITLE_RACE_COLUMNS,
@@ -240,6 +241,7 @@ import {
   teamsByDriver,
   titleAnswer,
   titleRaceFigure,
+  titleSettled,
   titleStrip,
   wonHereNote,
 } from '../src/queries/season.js'
@@ -293,6 +295,7 @@ import {
   ENTRY_NOTE_MARK,
   ENTRY_NOTE_SPOKEN,
   ENTRIES,
+  RACE_HISTORY,
   NEIGHBOURS as RACE_NEIGHBOURS,
   FASTEST_LAP,
   GRID_FLAG_COLUMNS,
@@ -2915,14 +2918,25 @@ const seasonsTable = (rows) =>
     // and the description is the same words: the note explains a round and
     // never replaces what the page says it is. The note is printed once, in
     // the lede, and nowhere else on the page.
-    const standfirst = raceLede(r, raceWinners, stage)
+    //
+    // CD-39, CD-61: the standfirst goes on to what the race meant - the
+    // field, the firsts, the wins record, the title - from the same two
+    // queries Race.jsx reads, so the two renderers say the same of it.
+    const standfirst = raceLede(r, raceWinners, stage, {
+      history: all(RACE_HISTORY, r.year, r.round),
+      title: titleSettled(all(TITLE_STANDINGS, r.year, r.round), r.round),
+    })
     // PD-57: the timetable leads a round not yet run and follows the
     // strategy once a result is held, before the photographs (VD-83), as
     // Race.jsx places it.
     const timetable = sessions.length
       ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions, {}, { footer: TIMETABLE_NOTE })}`
       : ''
-    const description = `${headline}. ${standfirst}${
+    // The day in the house format (CD-39): a search result is the one place
+    // the eyebrow's date is not, and summarise() cuts the rest at a sentence
+    // end, so the who-won sentence, which comes first, is what survives.
+    const when = scheduled ? raceDates(r) : houseDate(r.date_iso, 'long')
+    const description = `${headline}${when ? `, ${when}` : ''}. ${standfirst}${
       scheduled ? '' : ' Full classification, grid, pole and fastest lap.'
     }`
 
