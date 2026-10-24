@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { NAMES, SELF_DESCRIBING, TIMING_EMPTY_TABLES, timingEmpty, TWO_FILES } from '../lib/site.js'
+import { NAMES, NOT_HELD_ANCHOR, SELF_DESCRIBING, TIMING_EMPTY_TABLES, timingEmpty, TWO_FILES } from '../lib/site.js'
 import { complaint, emptyTimingTableRead } from '../lib/sql.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
@@ -12,6 +12,9 @@ import { UNFOLDED } from '../lib/table.js'
 import { EXAMPLES, QUESTIONS, TOPICS } from '../lib/questions.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+
+/** /data's paragraph on the four empty tables, not the top of the page (CD-42). */
+const WHY = { pathname: '/data', hash: `#${NOT_HELD_ANCHOR}` }
 // `m.sql` alongside the column names, because the column names are the half
 // of the schema that cannot warn anybody. The comments in the DDL are where
 // this database says what a column means — that `standings.basis` tells the
@@ -80,7 +83,7 @@ function SchemaEntry({ entry }) {
       )}
       {empty && (
         <p className="small faint ddl-empty">
-          {timingEmpty(entry.name)} <Link to="/data">Why this is so</Link>.
+          {timingEmpty(entry.name)} <Link to={WHY}>Why this is so</Link>.
         </p>
       )}
     </details>
@@ -288,7 +291,7 @@ export default function Sql() {
                 empty={
                   emptied ? (
                     <p className="state is-empty">
-                      {timingEmpty(emptied)} <Link to="/data">Why this is so</Link>.
+                      {timingEmpty(emptied)} <Link to={WHY}>Why this is so</Link>.
                     </p>
                   ) : (
                     'The statement ran and matched nothing.'

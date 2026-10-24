@@ -484,6 +484,15 @@ export const NOT_HELD =
   'allows exactly that.'
 
 /**
+ * Where NOT_HELD sits on /data, for the links that promise it: the console's
+ * "Why this is so", beside an empty timing table and under a read of one,
+ * landed at the top of the page with the paragraph well below (CD-42). Both
+ * renderers put it on the paragraph, so the link works on a cold arrival at
+ * the static page as well as in the app.
+ */
+export const NOT_HELD_ANCHOR = 'not-held'
+
+/**
  * The same position in one line, for the two places a paragraph will not go:
  * beside each of the four tables in the console's schema browser, and as the
  * empty result when a statement reads one of them.

@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -25,6 +26,7 @@ import {
   API_NOTE,
   NAMES,
   NOT_HELD,
+  NOT_HELD_ANCHOR,
   RAW_DATABASE_URL,
   REPOSITORY,
   SELF_DESCRIBING,
@@ -32,7 +34,17 @@ import {
 } from '../lib/site.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
-import { SHAPE, fileStrip, trustStrip } from '../queries/data.js'
+import {
+  ID_HEADING,
+  ID_INTRO,
+  ID_QUERY,
+  ID_README,
+  SHAPE,
+  codeSpans,
+  fileStrip,
+  idPolicy,
+  trustStrip,
+} from '../queries/data.js'
 /**
  * The database's front door.
  *
@@ -54,6 +66,26 @@ const SPEC = {
   classes: ['SELECT redistributable, COUNT(*) AS n FROM source_registry GROUP BY redistributable'],
   ladder: ['SELECT confidence FROM provenance ORDER BY rank'],
 }
+
+/** A sentence from `meta`, its backticked pieces set as code. */
+const Coded = ({ text }) =>
+  codeSpans(text).map(({ text: part, code }, i) => (code ? <code key={i}>{part}</code> : part))
+
+/**
+ * Names as code, joined as the file joins them. Null is not established and
+ * Fields draws the em dash; an empty list is a list of none.
+ */
+const codeList = (names, joiner) =>
+  names === null
+    ? null
+    : names.length === 0
+      ? 'None'
+      : names.map((name, i) => (
+          <Fragment key={name}>
+            {i > 0 ? joiner : ''}
+            <code>{name}</code>
+          </Fragment>
+        ))
 
 const mb = (bytes) => (bytes ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : null)
 const kb = (bytes) => (bytes ? `${(bytes / 1024).toFixed(0)} KB` : null)
@@ -92,6 +124,7 @@ function Body({ data }) {
   const shape = row(data, 'shape') ?? {}
   const classes = Object.fromEntries(rows(data, 'classes').map((r) => [r.redistributable, r.n]))
   const ladder = rows(data, 'ladder').map((r) => r.confidence)
+  const policy = idPolicy(meta)
   const manifest = currentProgress().manifest
   const base = import.meta.env.BASE_URL
 
@@ -223,6 +256,26 @@ function Body({ data }) {
         </p>
       </Section>
 
+      {/* DA-25: the identifier policy DA-04 put in meta, where somebody who
+          downloaded the file rather than cloning the repository looks. */}
+      <Section title={ID_HEADING} note={ID_INTRO}>
+        {policy.note && (
+          <p className="measure">
+            <Coded text={policy.note} />
+          </p>
+        )}
+        <Fields
+          items={[
+            { label: 'Stable ids', value: codeList(policy.stable, ', ') },
+            { label: 'Natural keys', value: codeList(policy.keys, '; ') },
+          ]}
+        />
+        <p className="measure">
+          All three are rows of <code>meta</code>: <code>{ID_QUERY}</code> reads them. The README
+          sets the policy out table by table, under <a href={ID_README}>Identifiers</a>.
+        </p>
+      </Section>
+
       <Section
         title="How far to trust it"
         note="Every row carries one of five confidence tiers; every disagreement between sources is kept rather than quietly resolved; everything known to be missing is listed."
@@ -262,7 +315,7 @@ function Body({ data }) {
             ),
           }))}
         />
-        <Note>
+        <Note id={NOT_HELD_ANCHOR}>
           <strong>What is not here.</strong> {NOT_HELD}{' '}
           {shape.timing_rows === 0
             ? 'This copy has all four empty, as the build requires.'
