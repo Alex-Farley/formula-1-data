@@ -713,9 +713,10 @@ Measured against the size of the items, the work after the PR is not dearer:
 34 % of the context against 36 %, and, priced, about the same cost on items
 whose pre-PR phase cost 42 % more. That test is this measurement's own, not
 the issue's. The issue asked whether cost or quality got worse, and in
-absolute terms both did a little: an item with a fix read 27 % more context
-after its PR and cost about 4 % more priced, and FAIL rounds rose by one,
-DA-30's. Nothing here controls for the mix of items either: the larger pre-PR
+absolute terms both rose: an item with a fix read 27 % more context after its
+PR, though it cost only about 4 % more priced, and FAIL rounds rose by one,
+DA-30's second, while first passes FAILed on five of the ten against five of
+the sixteen. Nothing here controls for the mix of items either: the larger pre-PR
 phase may be VD-73 and VD-87, two large front-end items, rather than anything
 the split did. Nor is the split the saving the per-turn figure suggests: a
 landing fork reads about 75,000 a turn but takes about twice the turns. What
