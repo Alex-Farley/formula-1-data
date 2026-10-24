@@ -691,7 +691,7 @@ could not start on the new runner (#1101), so it is not among the ten.
   and anything else on the account included, and a window's first reading is
   often "not readable". Bracketed exactly: AF-110 12 points, CR-91 14, PM-79
   12, DA-30 105 (43 implementing, 62 landing, which ran two Opus and two
-  Sonnet passes). Bounded: PM-13 17 + at most 10, SD-31 at most 20 + 11,
+  Sonnet passes). Bounded: PM-13 30 + at most 10, SD-31 at most 20 + 11,
   PM-61 at most 7 + 3, VD-87 at most 39 + at most 13, VD-73 at most 98 + at
   most 7; AF-121's implementing fork is not bracketed, its landing fork 17.
   The same lines bracket thirteen of the sixteen before, 7-31 points, median
@@ -708,16 +708,22 @@ could not start on the new runner (#1101), so it is not among the ten.
   incompletely. First passes FAILed on five of the ten against five of the
   sixteen, but a first pass runs before the handover.
 
-**Conclusion: the split stays.** Against the size of the items, the work
-after the PR is not dearer: 34 % of the context against 36 %, and, priced,
-about the same cost on items whose pre-PR phase cost 42 % more. Nor
-is it the saving the per-turn figure suggests: a landing fork reads about
-75,000 a turn but takes about twice the turns, so an item with a fix read
-27 % more after its PR. What it did buy is what the usage report asked for:
-no landing fork ran past 150,000 tokens of context, and the share of the
-context read after the PR in turns above that fell from 41 % to 25 %. Quality
-held on both tests the item named. Ten items are few; a second landing fork
-whose rewrite FAILs again would be the figure to reopen this on.
+**Conclusion: the split stays, for the maintainer to confirm (#1122).**
+Measured against the size of the items, the work after the PR is not dearer:
+34 % of the context against 36 %, and, priced, about the same cost on items
+whose pre-PR phase cost 42 % more. That test is this measurement's own, not
+the issue's. The issue asked whether cost or quality got worse, and in
+absolute terms both did a little: an item with a fix read 27 % more context
+after its PR and cost about 4 % more priced, and FAIL rounds rose by one,
+DA-30's. Nothing here controls for the mix of items either: the larger pre-PR
+phase may be VD-73 and VD-87, two large front-end items, rather than anything
+the split did. Nor is the split the saving the per-turn figure suggests: a
+landing fork reads about 75,000 a turn but takes about twice the turns. What
+it did buy is what the usage report asked for: no landing fork ran past
+150,000 tokens of context, and the share of the context read after the PR in
+turns above that fell from 41 % to 25 %. No finding was lost across a
+handover. Ten items are few; a second landing fork whose rewrite FAILs again
+would be the figure to reopen this on.
 
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four
