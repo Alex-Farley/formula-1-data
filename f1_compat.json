@@ -56,6 +56,9 @@
       "Fan sites, Reddit, secondary media, unsourced databases"
     ]
   },
+  "id_stability": "Integer `id` columns are surrogates, handed out by the build in insert order, and are NOT stable between releases except in the tables named by meta.id_stability_stable. There the maintainers undertake not to renumber them; nothing in the build measures that, because no release is compared with the one before it. Join on the natural keys published in meta.id_stability_keys - a `?` in one of those marks a column that holds NULL, so join it with IS rather than =. A text id is a natural key and does not move.",
+  "id_stability_keys": "circuit_layouts(circuit_id, layout_key); discrepancies(key); known_gaps(key); pit_stops(race_id, source, driver_key, stop_number); practice(race_id, session, driver_id); qualifying(race_id, driver_id); race_entries(race_id, driver_id); races(year, round); records(key); season_entrants(year, entrant_id, f1db_constructor_id, engine_manufacturer_id); sprint_qualifying(race_id, driver_id); sprint_results(race_id, driver_id); standings(year, table_type, after_round, basis, driver_id, constructor_id, engine_id, source, position_text)",
+  "id_stability_stable": "circuit_layouts, pit_stops, qualifying, race_entries, races, season_entrants, sprint_results",
   "teams_2026": [
     {
       "name": "Mercedes",
