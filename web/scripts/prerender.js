@@ -4320,7 +4320,7 @@ page({
       trail: TRAIL.era(era),
       onward: ONWARD.era({ era }),
       body: `
-        ${opening({ eyebrow: span(era.from_year, era.to_year), title: NAMES.era(era).headline, lede: era.summary })}
+        ${opening({ eyebrow: EYEBROWS.era(era.from_year, era.to_year), title: NAMES.era(era).headline, lede: era.summary })}
         ${stepperNav(eraSteps(eras, era))}
         ${fields([...ERA_FIELDS.map(([key, label]) => [label, era[key] ? esc(era[key]) : null]), ['Confidence', confidencePill(era.confidence)]])}
         ${heading(ERA_SEASONS_TITLE, seasons.length)}

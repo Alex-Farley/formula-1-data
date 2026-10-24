@@ -6485,7 +6485,10 @@ try {
       is(said[0], 'None recorded for these seasons.', `an era with no safety milestone (${empty.from_year}) says so under the heading`)
     } else pass('every era has a safety milestone, so there is no empty slice to check')
     await go('/eras/2016', 'No such era')
-    pass('an address inside an era but not at its start is no era, and says so')
+    truthy(
+      await page.$(`#root main a[href="/eras/${era.from_year}"]`),
+      'an address inside an era but not at its start is no era, and names the era 2016 falls in',
+    )
 
   })
 
@@ -8954,8 +8957,11 @@ try {
       '/records',
       '/records/most-wins',
       '/eras',
-      // IA-25: an era's page, its stepper in the header.
+      // IA-25: an era's page, its stepper in the header; the first era, with
+      // an empty Safety slice; and the open era, with no innovation yet.
       '/eras/2014',
+      '/eras/1950',
+      '/eras/2026',
       '/reference/glossary',
       '/data',
       '/data/quality',

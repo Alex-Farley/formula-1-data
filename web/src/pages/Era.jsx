@@ -2,11 +2,9 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Onward, Page, Section, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
-import SearchKey from '../components/SearchKey.jsx'
 import { UNFOLDED } from '../lib/table.js'
 import { rows, useQueries } from '../data/useQuery.js'
-import { span } from '../lib/format.js'
-import { NAMES } from '../lib/site.js'
+import { EYEBROWS, NAMES } from '../lib/site.js'
 import { ONWARD, TRAIL, eraSteps } from '../lib/wayfinding.js'
 import { SEASONS } from '../queries/seasons.js'
 import {
@@ -21,6 +19,8 @@ import {
   REGULATION_COLUMNS,
   SAFETY,
   eraByKey,
+  eraPath,
+  inEra,
   rowsInEra,
   rowsTouchingEra,
 } from '../queries/eras.js'
@@ -57,13 +57,24 @@ export default function Era() {
         const eras = rows(data, 'eras')
         const era = eraByKey(eras, key)
         if (!era) {
+          // A season inside an era names the era it falls in. Search indexes
+          // /eras and not the eras one by one, so it is not offered here.
+          const year = /^\d{4}$/.test(String(key)) ? Number(key) : null
+          const within = year === null ? null : (eras.find((e) => inEra(e, year)) ?? null)
           return (
             <Page title="No such era" cite={false} trail={TRAIL.missing('/eras', 'Eras')}>
               <p className="muted">
                 No era in the database begins in “{key}”: an era’s address is the season it begins in.
               </p>
               <p>
-                Press <SearchKey /> to search by name, or <Link to="/eras">see every era</Link>.
+                {within ? (
+                  <>
+                    {year} falls in <Link to={eraPath(within)}>{within.era_name}</Link>. Or{' '}
+                    <Link to="/eras">see every era</Link>.
+                  </>
+                ) : (
+                  <Link to="/eras">See every era</Link>
+                )}
               </p>
             </Page>
           )
@@ -83,7 +94,7 @@ function EraBody({ era, eras, data }) {
 
   return (
     <Page
-      eyebrow={span(era.from_year, era.to_year)}
+      eyebrow={EYEBROWS.era(era.from_year, era.to_year)}
       title={NAMES.era(era).headline}
       documentName={NAMES.era(era).title}
       trail={TRAIL.era(era)}

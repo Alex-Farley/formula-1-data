@@ -253,7 +253,8 @@ string runs past.
     January 1985* or *Race · Round 12 of 24 · 6 July 2025*. A fact the
     database does not hold is left out, never printed as a dash. All seven
     entity types carry one, seasons included (*Season · 23 rounds, 16
-    run*), from `EYEBROWS` in `web/src/lib/site.js`, which both renderers
+    run*), and an era's page does the same (*Era · 2014–2021*, IA-25),
+    from `EYEBROWS` in `web/src/lib/site.js`, which both renderers
     read. This settles IA-09 (#253); smoke's *one vocabulary* check holds
     each entity page's eyebrow to its type in both halves (VD-81).
   - The **stepper** names its neighbours: *← 2025 Austrian Grand Prix*, as
@@ -635,8 +636,9 @@ citation, is already one system and is kept.
   Every entry · photographs. This year's chassis opened on its photographs
   (I9, PD-49) until VD-83; the photograph that identifies a car is the
   opening slot's (VD-84), and the strip holds the rest.
-- **Era** (provisional, IA-25): the header carries the years as its
-  eyebrow, the era's summary as its lede and the stepper to the eras either
+- **Era** (provisional, IA-25): the header carries `EYEBROWS.era` as its
+  eyebrow, the page type and then the years (*Era · 2014–2021*, *Era ·
+  2026–*), as §3 has every entity page's; the era's summary as its lede and the stepper to the eras either
   side as its aside · the era's lines as fields (dominant teams, technology,
   confidence) · The seasons · Engine formulae · Regulation changes ·
   Technical innovations · Safety · *Keep going*, which is the three

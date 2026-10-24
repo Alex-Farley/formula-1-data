@@ -102,8 +102,8 @@ export const NOT_FOUND_LEDE =
   'That address is not one this site has. Press Ctrl K, or Cmd K on a Mac, to search every driver, team, circuit, car, season and race at once — or pick up one of these.'
 
 /**
- * The line above a page's h1, for the seven kinds of entity page (VD-79,
- * DP-03): read by the page and by scripts/prerender.js, so both renderers
+ * The line above a page's h1, for the seven kinds of entity page and an
+ * era's (VD-79, DP-03, IA-25): read by the page and by scripts/prerender.js, so both renderers
  * draw the same header.
  *
  * ONE RULE: THE PAGE TYPE, THEN THE FACTS THAT IDENTIFY THE ENTITY (VD-81,
@@ -139,6 +139,8 @@ export const EYEBROWS = {
   season: (rounds, run) => eyebrow('Season', missing(rounds) ? null : roundsRun(Number(rounds), run)),
   car: (team, from, to) => eyebrow('Car', team, missing(from) && missing(to) ? null : span(from, to)),
   grandPrix: (country) => eyebrow('Grand Prix', country),
+  // An era is identified by its seasons; one still running is "2026–" (IA-25).
+  era: (from, to) => eyebrow('Era', missing(from) ? null : span(from, to)),
 }
 
 /**
