@@ -16,8 +16,8 @@ The reserve is spent on the alarm alone:
   would let ride.
 - **An open `claude/` PR or a worktree that is not this alarm's is left as
   it is** — not landed, not reviewed, not touched. The one PR landed is
-  the alarm's own: the `claude/<id>-` branch's, saying `Refs #<n>`, which
-  the driver's `ALARM <ID> #<N>` line names and `land.md` lands. That breaks *one PR open at a time*
+  the alarm's own: a `claude/` PR saying `Refs #<n>`, as `next.py --alarm`
+  finds it, which `land.md` lands. That breaks *one PR open at a time*
   for the alarm's sake, and the trade is deliberate: an ordinary item landed
   on the reserve is what the reserve is held against. The other PR may then
   need `main` merged into it once the alarm's fix lands, which the fork that

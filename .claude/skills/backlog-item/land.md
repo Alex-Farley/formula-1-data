@@ -15,7 +15,9 @@ comments (`gh pr view <N> --comments`); the diff, in the PR's worktree,
 which `start-check.sh` lists — `git fetch origin <branch> && git worktree
 add <scratchpad>/wt-<slug> <branch>` when it is gone; and the issue only for
 what a comment names. Then go on from *Review* where the last verdict
-comment left it — fix, precheck, confirmation, CI, merge. Every rule there
+comment left it — fix, precheck, confirmation, CI, merge. A PR with no
+verdict comment yet was left before its first review: run the precheck, at
+the end of *Before asking for review*, and then *Review*'s first pass. Every rule there
 applies as written: the fix is to this diff, the confirmation is a fresh
 agent on the model the pace table names, and nothing merges without a
 recorded `PASS`.
