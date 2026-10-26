@@ -16,14 +16,14 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-Of the <!-- fig:sourced_rows -->172,106<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
+Of the <!-- fig:sourced_rows -->172,282<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.4%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->171,353<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->171,529<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->753<!-- /fig --> | <!-- fig:facts_only_share -->0.4%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
@@ -430,7 +430,7 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->167,222<!-- /fig --> of the <!-- fig:sourced_rows -->172,106<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,469<!-- /fig --> and
+cite Wikipedia: <!-- fig:edition_rows -->167,398<!-- /fig --> of the <!-- fig:sourced_rows -->172,282<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,645<!-- /fig --> and
 the <!-- fig:facts_only_rows -->753<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
 nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
@@ -603,8 +603,8 @@ F1DB's grand prix of each race and its official title are
 | `race_entries.constructor_id` | F1DB's on all but <!-- fig:wp_winners_no_constructor -->11<!-- /fig -->, Indianapolis 500 winners whose car F1DB credits to a maker the constructor register does not hold. They are NULL here, and a rebuild leaves them NULL: Wikipedia supplies nothing in them | nothing |
 | `race_entries.grid`, `laps_completed` | F1DB's on all but <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives, where this database holds a grid slot or a lap count for the winner that F1DB's row for him leaves blank | those left NULL, or another source for them |
 | `race_entries.entrant` | Wikipedia's house style, constructor and engine; F1DB holds both as ids on every row, and the snapshot names its constructors but not its engine makers. F1DB names the car of the 1957 and 1958 Indianapolis winners Epperly where the article says Salih | the engine makers' names and a rule for the string — or the column left out |
-| `race_entries.pole` | <!-- fig:pole_credits -->1,166<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->683<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,163<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
-| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,165<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->776<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,163<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->0<!-- /fig -->, names another driver in <!-- fig:fl_f1db_other -->0<!-- /fig -->, and records as shared, timed alike, <!-- fig:fl_f1db_shares -->2<!-- /fig --> this database credits to one driver, each open in `discrepancies` | a choice for the races where F1DB differs |
+| `race_entries.pole` | <!-- fig:pole_credits -->1,167<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->684<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,164<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
+| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,166<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->777<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,164<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->0<!-- /fig -->, names another driver in <!-- fig:fl_f1db_other -->0<!-- /fig -->, and records as shared, timed alike, <!-- fig:fl_f1db_shares -->2<!-- /fig --> this database credits to one driver, each open in `discrepancies` | a choice for the races where F1DB differs |
 
 **A correction, made in review.** The measurement as it was first put to the
 maintainer counted shared fastest laps of which F1DB named one driver, and a
