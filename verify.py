@@ -5049,6 +5049,18 @@ def the_full_classification():
         n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]
         check(f"{table}.{column} is filled at least {floor:,} times, as {source} fills it",
               n >= floor, f"{n:,} filled")
+    # The floor counts F1DB's pit-lane times; this reads them (AF-140). The
+    # shortest is 8.757 s and the median about 25, so a figure stored in
+    # milliseconds or minutes, or a stationary time, fails one side or the
+    # other. Red-flag waits run to an hour, which is why the median and not
+    # the mean or the longest is what is held.
+    lane = [r[0] for r in con.execute("""SELECT pit_lane_seconds FROM pit_stops
+        WHERE source = 'f1db' AND pit_lane_seconds IS NOT NULL
+        ORDER BY pit_lane_seconds""")]
+    median = lane[len(lane) // 2] if lane else None
+    check("every F1DB pit-lane time is at least 5 s, and their median 15-40 s",
+          bool(lane) and lane[0] >= 5 and 15 <= median <= 40,
+          f"shortest {lane[0]}, median {median}" if lane else "none")
     # Fastest laps live in a column, and the F1DB file fills vacancies only,
     # so a floor on the count is one row wide. Per race instead: every
     # completed race carries a credit, bar the one known_gaps declares (2021

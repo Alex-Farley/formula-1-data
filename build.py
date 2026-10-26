@@ -3518,8 +3518,11 @@ def _pit_millis(r):
     millisecond on 2025 Australia - and at over eight seconds on every row
     it is time in the pit lane, not the two or three seconds the car stood
     (docs/BUILD-NOTES.md, v2.11), so it goes in `pit_lane_seconds` and never
-    `stationary_seconds` (AF-140). It is written `ss.sss`, `m:ss.sss` or,
-    once (2014 Britain), `h:mm:ss.sss`. Parsed in whole
+    `stationary_seconds` (AF-140). It is all the time in the pit lane: a
+    car held there under a red flag or repaired there carries the wait,
+    which is why hundreds of stops run past two minutes and schema.sql says
+    so. It is written `ss.sss`, `m:ss.sss` or, once (2014 Britain),
+    `h:mm:ss.sss`. Parsed in whole
     milliseconds, as F1DB parses it, so no float rounding moves a figure;
     a non-empty time that does not parse stops the build rather than
     becoming a NULL that reads as not established."""
