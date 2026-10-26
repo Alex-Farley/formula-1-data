@@ -117,6 +117,22 @@ class Footnotes(unittest.TestCase):
         self.reads("{{abbr|X|[[Saudi Aramco|Aramco]] fuel}}", "Aramco fuel")
 
 
+class DistinctItems(unittest.TestCase):
+    """A designer named once per role is written out once (PM-75)."""
+
+    def test_a_repeated_name_is_kept_once_at_its_first_place(self):
+        self.assertEqual(
+            WS.distinct_items("Bob Bell ; Loïc Bigois ; David Jeffrey ; David Jeffrey"),
+            "Bob Bell ; Loïc Bigois ; David Jeffrey")
+        self.assertEqual(WS.distinct_items("A; B; a ; C; B"), "A; B; C")
+
+    def test_distinct_items_are_left_as_the_page_had_them(self):
+        self.assertEqual(WS.distinct_items("A (TD); A (CD); B"), "A (TD); A (CD); B")
+        self.assertEqual(WS.distinct_items("Ross Brawn; John Owen"),
+                         "Ross Brawn; John Owen")
+        self.assertIsNone(WS.distinct_items(None))
+
+
 class CategoryGate(unittest.TestCase):
     """A Formula Two infobox is a championship car only for a chassis entered
     in 1952 or 1953, the seasons run to Formula Two rules (PM-75)."""

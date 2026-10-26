@@ -310,6 +310,31 @@ def _template(m):
     return "; ".join(items)
 
 
+def distinct_items(s):
+    """A "; " list with a repeated item kept once, at its first place.
+
+    The Mercedes F1 W03 and W04 infoboxes name David Jeffrey twice, once
+    for each of two roles; with the roles dropped he was written out twice
+    (PM-75). Items are compared whole, case and spacing aside, so a name
+    kept with two different roles is two items still. The separators
+    after each item kept are left as the page had them.
+    """
+    if not s:
+        return s
+    parts = re.split(r"(\s*;\s*)", s)
+    out, seen = [parts[0]], {re.sub(r"\s+", " ", parts[0]).strip().lower()}
+    held = None             # the separator after the last item kept
+    for sep, item in zip(parts[1::2], parts[2::2]):
+        key = re.sub(r"\s+", " ", item).strip().lower()
+        if key and key in seen:
+            held = held if held is not None else sep
+            continue
+        seen.add(key)
+        out += [held if held is not None else sep, item]
+        held = None
+    return "".join(out)
+
+
 def track_ends(raw):
     """(front, rear) in mm from an infobox's single `track` field.
 
@@ -860,6 +885,7 @@ def main():
                "first_year": lo, "last_year": hi}
         for col, keys in TEXT_FIELDS:
             row[col] = strip(first(box, keys))
+        row["designers"] = distinct_items(row["designers"])
         for col, keys, unit in NUM_FIELDS:
             row[col] = number(box, keys, unit)
         for col, keys in CAREER_FIELDS:
