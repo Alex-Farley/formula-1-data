@@ -15,12 +15,13 @@ The reserve is spent on the alarm alone:
   never `--group`: the group is the alarm alone, whatever `grouping.md`
   would let ride.
 - **An open `claude/` PR or a worktree that is not this alarm's is left as
-  it is** — not landed, not reviewed, not touched. Under `--land <N>` the
-  PR landed is `<N>` and nothing else. That breaks *one PR open at a time*
+  it is** — not landed, not reviewed, not touched. The one PR landed is
+  the alarm's own: a `claude/` PR saying `Refs #<n>`, as `next.py --alarm`
+  finds it, which `land.md` lands. That breaks *one PR open at a time*
   for the alarm's sake, and the trade is deliberate: an ordinary item landed
   on the reserve is what the reserve is held against. The other PR may then
-  need `main` merged into it once the alarm's fix lands, which its landing
-  fork does as `trouble.md` says.
+  need `main` merged into it once the alarm's fix lands, which the fork that
+  inherits it does as `trouble.md` says.
 - **A worktree that is this alarm's** — a fork stopped before it opened the
   PR, which `next.py --alarm` finds by its `claude/<id>-` branch — is
   inherited and finished from where it stopped, as *Starting* says.

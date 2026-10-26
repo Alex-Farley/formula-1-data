@@ -11,10 +11,8 @@ This skill stays in the session a person started and stays small. It does not
 read the queue, open an issue, run the build or launch a reviewer. Every item
 runs in **`backlog-item`**, a forked skill in `.claude/skills/backlog-item/`,
 whose context is discarded when it returns - the item merged, skipped, held or
-stopped, or handed over. An item whose review leaves something to fix takes
-two forks: one implements it and opens the pull request, and a fresh one lands
-it `[D-58]`. What comes back here from each is one contract line and a
-stock-take of at most five lines.
+stopped. What comes back here is one contract line and a stock-take of at most
+five lines.
 
 Why: the driving session, not the reviewers, was 75-85 % of the loop's
 tokens, because everything it had ever read stayed in context for the rest of
@@ -68,9 +66,9 @@ Two words, either order, both optional.
      the race-weekend reserve is what holds the week back, and the one
      thing it may be spent on is open - a refresh alarm at the head of the
      queue, an alarm a fork was stopped on before its pull request, or the
-     pull request `#<N>` an alarm fork opened `AF-130`. Invoke the fork with
-     args `<pace> <ID> --alarm`, plus `--land <N>` when the line names a
-     pull request, and no `--skip` or `--max-size`: `--alarm` keeps
+     pull request `#<N>` an alarm fork opened and did not land `AF-130`.
+     Invoke the fork with args `<pace> <ID> --alarm`, and no `--skip` or
+     `--max-size` - the fork finds the alarm's own pull request itself: `--alarm` keeps
      companions, a tidy batch and any other open pull request off the
      reserve. Whatever it returns,
      nothing else starts until this step has run again, so the reserve
@@ -86,16 +84,6 @@ Two words, either order, both optional.
    here, and do not read the board or the issue list to "check" first -
    `next.py` inside the fork does that for a few hundred tokens.
 3. Read the **first line** of the result and act on it:
-   - `OPENED #<N> <ID>`: the fork opened the pull request, had it reviewed,
-     recorded the verdict on it and handed it over, because the review left
-     something to fix `[D-58]`. The item is not finished, whatever the
-     target: go to step 2 and invoke the fork with args `<pace> <ID> --land
-     <N>`, with no `--skip` and no `--max-size` - a landing fork starts
-     nothing new, and the size cap governs what is started. A `WAIT` there
-     pauses as anywhere else; the PR stays open and claimed, and the next
-     fork given `next` or the id lands it. `OPENED` is neither a skip nor a
-     hold, and changes neither count. Only the landing fork's line is the
-     item's result.
    - `MERGED #<N> <ID>`, or `MERGED #<N> <ID>+<ID>` when the fork grouped
      items that shared a file into one pull request (*Grouping* in the item
      skill; one fork is still one PR and one line back): with

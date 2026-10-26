@@ -25,10 +25,7 @@ WHAT IT DOES
     little left for an item, so this sleeps until the time it names and
     starts again. Everything else ends the run: a STOP is a person's, and a result with no contract line is not a
     merge. A DECIDE reaches this script only as the result of a one-item run,
-    because under `until-paused` the manager carries on past it (D-52). A
-    fork's OPENED never reaches it: the manager answers one by starting the
-    fork that lands the pull request (D-58), so a manager that ended on one
-    left its item half-done, and that is read as no contract line.
+    because under `until-paused` the manager carries on past it (D-52).
 
     Before each session it runs the same usage check itself, and sleeps
     through a WAIT rather than start a session only to pause it (D-55). An
