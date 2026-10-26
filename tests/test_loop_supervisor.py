@@ -157,5 +157,26 @@ class TheCommandItRuns(unittest.TestCase):
             sup.parse_args(["quickly"])
 
 
+
+class AnAlarmLine(unittest.TestCase):
+    """AF-130: the usage check's ALARM starts a session only for a run that
+    would take that alarm; any other sleeps through it as through a WAIT."""
+    LINE = "ALARM AF-150 until 2026-10-27T09:00+00:00 - week 95% used; the reserve goes on AF-150 alone"
+
+    def test_a_run_that_chooses_its_items_starts(self):
+        self.assertTrue(sup.alarm_is_for("next", self.LINE))
+        self.assertTrue(sup.alarm_is_for("until-paused", self.LINE))
+
+    def test_a_run_given_that_alarm_starts_and_one_given_another_item_does_not(self):
+        self.assertTrue(sup.alarm_is_for("AF-150", self.LINE))
+        self.assertTrue(sup.alarm_is_for("AF-150", self.LINE.replace("AF-150 until", "AF-150 #1160 until")))
+        self.assertFalse(sup.alarm_is_for("AF-15", self.LINE))
+        self.assertFalse(sup.alarm_is_for("VD-33", self.LINE))
+
+    def test_the_time_it_sleeps_to_is_the_line_s(self):
+        now = dt.datetime(2026, 10, 26, 12, 0, tzinfo=UTC)
+        self.assertEqual(sup.until_at(self.LINE, now), dt.datetime(2026, 10, 27, 9, 0, tzinfo=UTC))
+
+
 if __name__ == "__main__":
     unittest.main()

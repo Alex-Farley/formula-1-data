@@ -11,6 +11,7 @@ Print the next item of the queue, or one named item, and nothing else.
     python3 .claude/skills/backlog-loop/next.py --next-id PD  # the next unused number for a prefix
     python3 .claude/skills/backlog-loop/next.py --skip AF-03,VD-26   # the next item after those
     python3 .claude/skills/backlog-loop/next.py --group --max-size S # the next item no larger than S
+    python3 .claude/skills/backlog-loop/next.py --alarm       # the refresh alarm the reserve may go on, if any
 
 The queue is GitHub Issues on Alex-Farley/formula-1-data, ranked on the Lap
 Ledger project (users/Alex-Farley/projects/1). Since 2026-09-13; before that
@@ -94,6 +95,19 @@ small one; it is pacing, not grouping, so for that one fork it overrides
 D-20's "whatever is linked rides". An item named on the command line is
 printed whatever its size, since it has already been chosen; only what
 next.py chooses is capped `AF-108` `[D-55]`.
+
+`--alarm` is for the usage check alone (loop_usage.py), which asks it only
+while the race-weekend reserve is what holds the loop back. It prints the id
+of the one item that reserve may be spent on, or exits 1 when there is none:
+an open alarm at *In progress* with a `claude/` pull request open on it
+(`Refs #n`), printed as `<ID> #<PR>` for the fork that lands it; else one at
+*In progress* with a `claude/<id>-` branch and no pull request yet - a fork
+stopped before it opened one, whose worktree the next fork finishes; else the
+queue's head, when the head is an alarm and no refresh.yml run is queued or
+running - a fix for it merged and the run that proves it under way is waited
+for, not worked again. The head is the queue's own: an alarm a person moved
+to *Next* or *Someday* is printed only when nothing eligible is above it,
+which is when next.py would choose it anyway `AF-130` `[D-55]`.
 
 `--next-id PD` reads every issue, open and closed, and prints the first
 number after the highest `PD-n` in use, so a new finding continues the
@@ -715,6 +729,70 @@ def next_id(prefix):
     return f"{prefix}-{(max(used) + 1 if used else 1):02d}"
 
 
+# An alarm fork's pull request refers to its alarm this way `AF-89`; the same
+# reading as merge-step.py's.
+REFS = re.compile(r"\brefs?:?\s+#(\d+)\b", re.I)
+REFRESH_WORKFLOW = "refresh.yml"
+
+
+def is_alarm(row):
+    return bool(ALARMS & set(row["labels"]))
+
+
+def claude_branches():
+    """This checkout's local `claude/` branches, as `claude/<slug>`: where a
+    stopped fork's worktree is, since a branch is pushed only to open its PR.
+    origin's are not read - merged ones linger there unpruned. An empty list
+    on any failure, which finds no branch."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))
+    try:
+        out = subprocess.run(["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/claude/"],
+                             capture_output=True, text=True, check=False, cwd=root)
+    except OSError:
+        return []
+    if out.returncode != 0:
+        return []
+    return out.stdout.split()
+
+
+def has_branch(row, branches):
+    """Whether a fork's branch for this item exists: `claude/<id>` or
+    `claude/<id>-...`, the id lower-cased as the branch names it."""
+    slug = "claude/" + row["ident"].lower().lstrip("#")
+    return any(b == slug or b.startswith(slug + "-") for b in branches)
+
+
+def reserve_alarm(ranked, in_progress, skip):
+    """(row, pull request number or None) for `--alarm`, or None: the one
+    item the race-weekend reserve may be spent on. Landing an alarm's open
+    pull request comes first, as an inherited PR does for any fork; then an
+    alarm a fork claimed and was stopped on before its PR existed, which no
+    other path returns, since the queue passes over *In progress*."""
+    waiting = [r for r in in_progress if is_alarm(r) and r["ident"] not in skip]
+    if waiting:
+        for pr in gh("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100",
+                     "--json", "number,headRefName,body"):
+            if not pr["headRefName"].startswith("claude/"):
+                continue
+            refs = {int(n) for n in REFS.findall(pr.get("body") or "")}
+            row = next((r for r in waiting if r["number"] in refs), None)
+            if row is not None:
+                return row, pr["number"]
+        branches = claude_branches()
+        row = next((r for r in waiting if has_branch(r, branches)), None)
+        if row is not None:
+            return row, None
+    head = first_eligible(ranked, skip)
+    if head is None or not is_alarm(head):
+        return None
+    runs = gh("run", "list", "--repo", REPO, "--workflow", REFRESH_WORKFLOW, "--limit", "5",
+              "--json", "status")
+    if any(r.get("status") != "completed" for r in runs):
+        return None
+    return head, None
+
+
 def main(argv):
     skip = set()
     if "--skip" in argv:
@@ -749,6 +827,19 @@ def main(argv):
     # them, a call that names items prints each, and a bare call prints the
     # single item it chooses - which `one_body` fetches below, after the
     # choosing, for the price of the one it needs.
+    if argv[:1] == ["--alarm"]:
+        if len(argv) != 1 or group or cap:
+            sys.exit("--alarm takes only --skip")
+        ranked, in_progress, _ = load()
+        found = reserve_alarm(ranked, in_progress, skip)
+        if found is None:
+            print("no open refresh alarm at the head of the queue, none with a pull request open, "
+                  "or a refresh run under way", file=sys.stderr)
+            sys.exit(1)
+        row, pr = found
+        print(row["ident"] + (f" #{pr}" if pr else ""))
+        return
+
     listing = argv[:1] == ["--list"]
     want_bodies = not listing and (group or bool(argv))
     ranked, in_progress, unplaced = load(

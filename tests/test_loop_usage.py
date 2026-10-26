@@ -42,8 +42,12 @@ def report(session=25, week=15):
     return PROBED.replace("25% used", f"{session}% used").replace("15% used", f"{week}% used")
 
 
+CONF_LOOK = dict(CONF, ALARM_LOOK=60.0)
+
+
 def decide(session=25, week=15, race=None):
-    return lu.decide(lu.parse(report(session, week), NOW), NOW, race, CONF)
+    """(word, until, why) with no alarm looked for, as before AF-130."""
+    return lu.decide(lu.parse(report(session, week), NOW), NOW, race, CONF)[:3]
 
 
 class ReadsOnlyWhatItCanReadWhole(unittest.TestCase):
@@ -155,6 +159,98 @@ class TheRaceWeekendReserve(unittest.TestCase):
             self.assertEqual(lu.next_race(dt.datetime(2026, 10, 13, 12, 0, tzinfo=UTC), db),
                              dt.datetime(2026, 10, 11, 19, 0, tzinfo=UTC))
         self.assertIs(lu.next_race(NOW, os.path.join(tmp, "missing.db")), False)
+
+
+class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
+    """AF-130: while the reserve is held, it may be spent on a refresh alarm
+    `next.py --alarm` names, and on nothing else."""
+    RACE = dt.datetime(2026, 10, 18, 19, 0, tzinfo=UTC)
+
+    def decide(self, session=25, week=36, race=RACE, found=None):
+        asked = []
+
+        def alarm():
+            asked.append(True)
+            return (found, None) if found else (None, "no refresh alarm to spend it on")
+        out = lu.decide(lu.parse(report(session, week), NOW), NOW, race, CONF_LOOK, alarm)
+        return out, bool(asked)
+
+    def test_an_alarm_at_the_head_with_the_reserve_binding_is_allowed(self):
+        # 36 % is within the pace with no race and past it with the reserve held.
+        (word, until, why, target), asked = self.decide(found="AF-150")
+        self.assertTrue(asked)
+        self.assertEqual((word, target), ("ALARM", "AF-150"))
+        # The time ordinary work may start again: the pace catching up.
+        self.assertEqual(until, WEEK_RESET - lu.WEEK + lu.WEEK * (26 / 90))
+        self.assertTrue(lu.line(word, until, why, target).startswith("ALARM AF-150 until 2026-10-"))
+        self.assertEqual(lu.EXIT[word], 4)
+
+    def test_past_the_reserve_line_but_under_the_whole_week_too(self):
+        (word, _, _, target), _ = self.decide(week=95, found="AF-150 #1160")
+        self.assertEqual((word, target), ("ALARM", "AF-150 #1160"))
+
+    def test_an_ordinary_item_with_the_reserve_binding_waits_and_looks_again(self):
+        (word, until, why, target), asked = self.decide()
+        self.assertTrue(asked)
+        self.assertEqual((word, target), ("WAIT", None))
+        # Not the pace's catch-up, which is days off: the next look.
+        self.assertEqual(until, NOW + dt.timedelta(minutes=60))
+        self.assertIn("no refresh alarm to spend it on", why)
+
+    def test_an_alarm_with_the_session_window_too_low_waits(self):
+        (word, until, _, _), asked = self.decide(session=94, found="AF-150")
+        self.assertFalse(asked)
+        self.assertEqual((word, until), ("WAIT", SESSION_RESET))
+
+    def test_an_alarm_starts_on_the_small_rung(self):
+        (word, _, _, target), _ = self.decide(session=85, found="AF-150")
+        self.assertEqual((word, target), ("ALARM", "AF-150"))
+
+    def test_an_unread_session_window_starts_no_alarm(self):
+        windows = lu.parse(report(25, 36), NOW)
+        del windows["session"]
+        asked = []
+        word, _, why, target = lu.decide(windows, NOW, self.RACE, CONF_LOOK,
+                                         lambda: asked.append(True) or ("AF-150", None))
+        self.assertEqual((word, target, asked), ("WAIT", None, []))
+        self.assertIn("session window not readable", why)
+
+    def test_the_look_is_never_under_its_floor(self):
+        for value in ("0", "-5", "3"):
+            self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": value})["ALARM_LOOK"],
+                             lu.ALARM_LOOK_FLOOR)
+        self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": "30"})["ALARM_LOOK"], 30.0)
+        # Not a number of minutes at all: the default, as for any threshold.
+        for value in ("nan", "inf", "-inf"):
+            self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": value})["ALARM_LOOK"], 60.0)
+
+    def test_the_whole_week_spent_spends_nothing(self):
+        (word, until, _, _), asked = self.decide(week=100, found="AF-150")
+        self.assertFalse(asked)
+        # No shorter look either: the reset, as before AF-130.
+        self.assertEqual((word, until), ("WAIT", WEEK_RESET))
+
+    def test_ahead_of_the_pace_with_no_reserve_held_spends_nothing(self):
+        (word, _, _, _), asked = self.decide(week=45, race=None, found="AF-150")
+        self.assertFalse(asked)
+        self.assertEqual(word, "WAIT")
+
+    def test_within_the_pace_looks_for_nothing(self):
+        (word, _, _, _), asked = self.decide(week=20, found="AF-150")
+        self.assertFalse(asked)
+        self.assertEqual(word, "GO")
+
+    def test_the_lookup_reads_next_py_and_fails_towards_none(self):
+        def ran(stdout, code):
+            with mock.patch.object(lu.subprocess, "run", return_value=mock.Mock(stdout=stdout, returncode=code)):
+                return lu.reserve_alarm()
+        self.assertEqual(ran("AF-150\n", 0), ("AF-150", None))
+        self.assertEqual(ran("AF-150 #1160\n", 0), ("AF-150 #1160", None))
+        self.assertEqual(ran("", 1)[0], None)
+        self.assertIn("exit 3", ran("", 3)[1])
+        self.assertEqual(ran("AF-150; rm -rf /\n", 0)[0], None)
+        with mock.patch.object(lu.subprocess, "run", side_effect=lu.subprocess.TimeoutExpired("x", 1)):
+            self.assertEqual(lu.reserve_alarm()[0], None)
 
 
 class TheCommand(unittest.TestCase):

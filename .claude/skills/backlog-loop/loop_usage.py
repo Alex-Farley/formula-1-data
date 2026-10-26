@@ -41,6 +41,11 @@ WHAT IT DECIDES
              interactive driver schedules its wake-up for then; the manager
              returns `PAUSE: until <ISO time> - <why>` and supervise.py
              sleeps until it.
+    ALARM    (exit 4) start only the refresh alarm the line names:
+             `ALARM <ID> until <ISO time> - <why>`, or `ALARM <ID> #<PR> ...`
+             when the item is an alarm fork's open pull request to land. The
+             time is when ordinary work may start again. The driver gives
+             the fork that one id and looks again after it.
     UNKNOWN  (exit 0) usage could not be read - no CLI, an API-key login, a
              wording this does not know. Carry on as before AF-108, reacting
              to a limit when one arrives, and say so.
@@ -61,15 +66,27 @@ WHAT IT DECIDES
     race is; when f1.db cannot be read the reserve is kept, the cautious
     side. The stricter window wins, and of two waits the later.
 
+    The reserve is spent on a refresh alarm and on nothing else (AF-130).
+    While it is held and the week says wait, but less than 100 % of the week
+    is used and the 5-hour window allows an item, `next.py --alarm` is asked
+    for the one item it may go on: an alarm fork's open pull request, or an
+    alarm at the head of the queue with no refresh run under way. One found
+    is ALARM; none is WAIT, and that wait is cut to ALARM_LOOK minutes (15
+    at the least), so an alarm opened on race night is picked up at the next
+    look and not at the weekly reset. A lookup that fails finds none, and
+    with the 5-hour window unread none is looked for: no alarm starts
+    without SMALL_LEFT points of it known to be left.
+
     The thresholds are starting values, not measurements: every decision is
     written to .claude/loop/progress.log with the figures it used, so a week
     of them is what calibrates them. Each can be set in the environment:
     LOOP_USAGE_ANY_LEFT, LOOP_USAGE_SMALL_LEFT, LOOP_USAGE_SLACK,
-    LOOP_USAGE_RESERVE. A pause is always allowed, and nothing here touches
+    LOOP_USAGE_RESERVE, LOOP_USAGE_ALARM_LOOK. A pause is always allowed, and nothing here touches
     a control: no check, permission mode or review is changed by a figure.
 """
 import datetime as dt
 import json
+import math
 import os
 import re
 import shutil
@@ -110,8 +127,13 @@ WEEK = dt.timedelta(days=7)
 # How long after a race its refresh work is still expected: results late,
 # a refresh alarm, the fix for one.
 RACE_TAIL = dt.timedelta(days=2)
-DEFAULTS = {"ANY_LEFT": 20, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10}
-EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "WAIT": 5}
+# ALARM_LOOK is in minutes, and never under ALARM_LOOK_FLOOR; the others
+# are points of 100.
+DEFAULTS = {"ANY_LEFT": 20, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
+ALARM_LOOK_FLOOR = 15
+EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
+# What `next.py --alarm` prints: an id, and an open pull request's number.
+ALARM_TARGET = re.compile(r"(?:[A-Z]{2}-\d+|#\d+)(?: #\d+)?")
 
 
 def known_zone(name):
@@ -242,6 +264,26 @@ def next_race(now, db=None):
         return False
 
 
+def reserve_alarm(timeout=120):
+    """(target, note): what `next.py --alarm` names the reserve may be
+    spent on, or None and why not. Never raises; a lookup that fails is
+    none found, the cautious side."""
+    try:
+        run = subprocess.run([sys.executable, os.path.join(HERE, "next.py"), "--alarm"],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                             timeout=timeout, check=False)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return None, f"the alarm lookup did not answer ({type(e).__name__})"
+    if run.returncode == 1:
+        return None, "no refresh alarm to spend it on"
+    if run.returncode != 0:
+        return None, f"the alarm lookup failed (next.py exit {run.returncode})"
+    target = (run.stdout or "").strip()
+    if not ALARM_TARGET.fullmatch(target):
+        return None, "the alarm lookup printed nothing readable"
+    return target, None
+
+
 def settings(env=None):
     env = os.environ if env is None else env
     out = {}
@@ -250,6 +292,10 @@ def settings(env=None):
             out[key] = float(env.get(f"LOOP_USAGE_{key}", default))
         except ValueError:
             out[key] = float(default)
+        if not math.isfinite(out[key]):
+            out[key] = float(default)
+    # A look every minute would be /usage and two gh reads a minute.
+    out["ALARM_LOOK"] = max(out["ALARM_LOOK"], ALARM_LOOK_FLOOR)
     return out
 
 
@@ -257,13 +303,16 @@ def iso(when):
     return when.astimezone(dt.timezone.utc).isoformat(timespec="minutes")
 
 
-def decide(windows, now, race=None, conf=None):
-    """(word, until, reasons). `windows` is parse()'s answer; `race` is
-    next_race()'s. `until` is set for WAIT (when to look again) and for
-    SMALL (the session's reset, the pause if nothing small is open)."""
+def decide(windows, now, race=None, conf=None, alarm=None):
+    """(word, until, reasons, target). `windows` is parse()'s answer; `race`
+    is next_race()'s; `alarm` is reserve_alarm or a stand-in, called only
+    when the reserve could be spent, and None to look for no alarm at all.
+    `until` is set for WAIT (when to look again), for SMALL (the session's
+    reset, the pause if nothing small is open) and for ALARM (when ordinary
+    work may start again). `target` is the alarm, for ALARM alone."""
     conf = conf or settings({})
     if not windows:
-        return "UNKNOWN", None, ["usage not readable"]
+        return "UNKNOWN", None, ["usage not readable"], None
     word, until, why = "GO", None, []
 
     if "session" in windows:
@@ -304,15 +353,32 @@ def decide(windows, now, race=None, conf=None):
                 catch = min(catch, max(race + RACE_TAIL, now))
             if catch > now:
                 why.append("ahead of the weekly pace")
+                # The reserve may go on a refresh alarm and on nothing else,
+                # and never past the whole week, with the 5-hour window too
+                # low for an item, or with that window unread (AF-130).
+                spendable = held and used < 100 and alarm is not None
+                if spendable and word != "WAIT" and "session" in windows:
+                    target, note = alarm()
+                    if target:
+                        why.append(f"the reserve goes on the refresh alarm {target} alone")
+                        return "ALARM", catch, why, target
+                    why.append(note)
+                if spendable:
+                    look = now + dt.timedelta(minutes=conf["ALARM_LOOK"])
+                    if look < catch:
+                        catch = look
+                        why.append(f"looking again for a refresh alarm in {conf['ALARM_LOOK']:g} minutes")
                 until = max(until, catch) if word == "WAIT" else catch
                 word = "WAIT"
     else:
         why.append("weekly window not readable")
 
-    return word, until, why
+    return word, until, why, None
 
 
-def line(word, until, why):
+def line(word, until, why, target=None):
+    if word == "ALARM":
+        return f"ALARM {target} until {iso(until)} - " + "; ".join(why)
     if word == "WAIT":
         return f"WAIT until {iso(until)} - " + "; ".join(why)
     if word == "SMALL":
@@ -331,8 +397,8 @@ def check(now=None, claude=None):
     if not windows:
         return ("UNKNOWN - /usage named no window this can read; carrying on, reacting to a limit "
                 "when one arrives"), EXIT["UNKNOWN"]
-    word, until, why = decide(windows, now, next_race(now), settings())
-    return line(word, until, why), EXIT[word]
+    word, until, why, target = decide(windows, now, next_race(now), settings(), reserve_alarm)
+    return line(word, until, why, target), EXIT[word]
 
 
 def main(argv):

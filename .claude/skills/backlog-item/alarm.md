@@ -5,6 +5,26 @@ says when to read this file; it binds as that file does, and sits apart from
 it only so that a fork which never takes this path does not carry it on
 every turn (AF-125).
 
+## Started on the reserve (`--alarm`)
+
+The driver adds `--alarm` when its usage check found the race-weekend
+reserve held and this alarm the one thing it may go on `AF-130` `[D-55]`.
+The reserve is spent on the alarm alone:
+
+- **No companions and no tidy batch.** Read the item with `next.py <ID>`,
+  never `--group`: the group is the alarm alone, whatever `grouping.md`
+  would let ride.
+- **An open `claude/` PR or a worktree that is not this alarm's is left as
+  it is** — not landed, not reviewed, not touched. Under `--land <N>` the
+  PR landed is `<N>` and nothing else. That breaks *one PR open at a time*
+  for the alarm's sake, and the trade is deliberate: an ordinary item landed
+  on the reserve is what the reserve is held against. The other PR may then
+  need `main` merged into it once the alarm's fix lands, which its landing
+  fork does as `trouble.md` says.
+- **A worktree that is this alarm's** — a fork stopped before it opened the
+  PR, which `next.py --alarm` finds by its `claude/<id>-` branch — is
+  inherited and finished from where it stopped, as *Starting* says.
+
 ## Doing the item
 
 *Doing the item* gives every issue in the group a `Closes #<n>` line of

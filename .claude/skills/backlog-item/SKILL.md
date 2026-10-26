@@ -37,9 +37,12 @@ Arguments: a pace (`fast`, `balanced`, `thorough`; default `balanced`) and a
 target (`next` or an item id; default `next`), optionally `--skip A,B` for
 ids this run has already skipped, and optionally `--max-size S`, which the
 driver adds when its usage check leaves room only for a small item `[D-55]`,
-and `--land <N>`, which makes you the fork that lands pull request `<N>`
+`--land <N>`, which makes you the fork that lands pull request `<N>`
 (*Handing over at the pull request*; read
-`.claude/skills/backlog-item/land.md` first). If you were not invoked by the
+`.claude/skills/backlog-item/land.md` first), and `--alarm`, which the
+driver adds when its usage check spends the race-weekend reserve on that one
+refresh alarm (read `.claude/skills/backlog-item/alarm.md` first: it changes
+what you inherit and what rides) `AF-130`. If you were not invoked by the
 `backlog-loop` driver, by the `backlog-manager` agent that runs its
 procedure unattended `[D-42]`, or by a person typing `/backlog-item`, return
 `STOP: not invoked by the loop` and do nothing.
@@ -58,14 +61,16 @@ inheritance to finish from where it stopped, and **its comments are read
 before anything else** — a recorded `FAIL` nobody has fixed is fixed, never
 reviewed again on the same head `[D-23]`. An inherited open PR is landed
 as *Landing* says, whether or not you were given `--land`, and is not handed
-over again.
+over again — except under `--alarm`, where only the alarm's own is
+`alarm.md`.
 
 ## Before an item
 
 1. `python3 .claude/skills/backlog-loop/next.py --group` prints the first
    open item in the queue's own order — number, title, labels, body, the open
    decisions to work around — and under it the items that could ride with it.
-   Use `--group` at every pace. `next.py <ID>` prints one item and
+   Use `--group` at every pace, and never under `--alarm`, where the
+   alarm rides alone. `next.py <ID>` prints one item and
    `next.py <ID> <ID> <ID>` several, which is how a proposed group is read
    before it is taken; `--list <status>` prints one line per open item;
    `--skip A,B` passes over named ids, and an issue labelled `blocked` or

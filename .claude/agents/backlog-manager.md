@@ -42,7 +42,8 @@ your own skip list from it.
   returned as `PAUSE: until <time> - <why>` as your first line, with the
   session reset the `SMALL` line named for a fork's `PAUSE:`. Schedule
   nothing; `supervise.py` sleeps until then and starts a fresh session
-  `[D-55]`.
+  `[D-55]`. An `ALARM` is not a wait unless step 2 says it is: it starts
+  the fork for the alarm it names.
 - **No pane.** Create `.claude/loop/progress.log` as step 1 says, and skip
   the desktop app's pane if its tool is not there.
 - **The result is for a script as well as a person.** Your final message's

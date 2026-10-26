@@ -31,7 +31,12 @@ WHAT IT DOES
     left its item half-done, and that is read as no contract line.
 
     Before each session it runs the same usage check itself, and sleeps
-    through a WAIT rather than start a session only to pause it (D-55).
+    through a WAIT rather than start a session only to pause it (D-55). An
+    ALARM - the race-weekend reserve is held but may go on the refresh
+    alarm it names - starts the session, whose own check gives the fork
+    that one item, when the target is `next`, `until-paused` or that alarm;
+    a run given some other item sleeps through it as through a WAIT, since
+    the reserve goes on nothing else (AF-130).
 
     It never merges, reviews or edits anything. The manager drives, the fork
     (backlog-item) does the item, and this only decides whether to start the
@@ -116,6 +121,15 @@ def parse_args(argv):
             raise SystemExit(f"supervise: {word!r} is neither a target (next, until-paused, an item id) "
                              f"nor a pace ({', '.join(PACES)})")
     return target, pace
+
+
+def alarm_is_for(target, usage):
+    """Whether an ALARM line may start a session of this run: one choosing
+    its items, or one given that alarm by id."""
+    if target in ("next", "until-paused"):
+        return True
+    words = usage.split()
+    return len(words) > 1 and words[1] == target
 
 
 def until_at(text, now):
@@ -223,7 +237,8 @@ def main(argv):
         now = dt.datetime.now(dt.timezone.utc)
         usage, code = loop_usage.check(now, claude)
         progress(f"usage: {usage[:200]}")
-        if code == loop_usage.EXIT["WAIT"]:
+        if code == loop_usage.EXIT["WAIT"] or (code == loop_usage.EXIT["ALARM"]
+                                                 and not alarm_is_for(target, usage)):
             when = until_at(usage, now) or now + FALLBACK_WAIT
             print(f"supervise: {usage}")
             sleep_until(when + dt.timedelta(minutes=1))
