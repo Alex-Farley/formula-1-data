@@ -197,7 +197,7 @@ class ReserveAlarm(unittest.TestCase):
     def row(self, n, ident, status, *labels):
         return dict(number=n, ident=ident, status=status, labels=sorted(labels), waits=0)
 
-    def find(self, ranked, in_progress=(), prs=(), runs=(), skip=()):
+    def find(self, ranked, in_progress=(), prs=(), runs=(), skip=(), branches=()):
         def gh(*args):
             if args[:2] == ("pr", "list"):
                 return list(prs)
@@ -206,10 +206,11 @@ class ReserveAlarm(unittest.TestCase):
                 return list(runs)
             raise AssertionError(args)
         saved, nxt.gh = nxt.gh, gh
+        saved_branches, nxt.claude_branches = nxt.claude_branches, lambda: list(branches)
         try:
             return nxt.reserve_alarm(list(ranked), list(in_progress), set(skip))
         finally:
-            nxt.gh = saved
+            nxt.gh, nxt.claude_branches = saved, saved_branches
 
     ALARM = property(lambda self: self.row(150, "AF-150", "Now", "refresh-failing", "size: ?"))
     ITEM = property(lambda self: self.row(9, "AF-09", "Now", "size: S"))
@@ -242,6 +243,23 @@ class ReserveAlarm(unittest.TestCase):
         prs = [{"number": 1161, "headRefName": "someone/fix", "body": "Refs #151"},
                {"number": 1162, "headRefName": "claude/x", "body": "Refs #1510"}]
         self.assertIsNone(self.find([self.ITEM], in_progress=[held], prs=prs))
+
+    def test_an_alarm_stopped_on_before_its_pull_request_is_taken_again(self):
+        held = self.row(151, "AF-151", "In progress", "results-late")
+        found = self.find([self.ITEM], in_progress=[held], branches=["claude/af-151-late"],
+                          runs=[{"status": "in_progress"}])
+        self.assertEqual((found[0]["ident"], found[1]), ("AF-151", None))
+        # An open pull request for it still comes first, and names the PR.
+        prs = [{"number": 1160, "headRefName": "claude/af-151-late", "body": "Refs #151"}]
+        found = self.find([self.ITEM], in_progress=[held], prs=prs, branches=["claude/af-151-late"])
+        self.assertEqual(found[1], 1160)
+
+    def test_a_branch_for_another_id_is_not_the_alarm_s(self):
+        held = self.row(15, "AF-15", "In progress", "refresh-failing")
+        self.assertIsNone(self.find([self.ITEM], in_progress=[held],
+                                    branches=["claude/af-150-late", "claude/af-1-x"]))
+        self.assertTrue(nxt.has_branch(held, ["claude/af-15"]))
+        self.assertTrue(nxt.has_branch(dict(held, ident="#963"), ["claude/963-refresh"]))
 
 
 if __name__ == "__main__":

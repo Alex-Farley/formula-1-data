@@ -67,9 +67,12 @@ Two words, either order, both optional.
    - `ALARM <ID> until <time> - <why>`, or `ALARM <ID> #<N> until ...`:
      the race-weekend reserve is what holds the week back, and the one
      thing it may be spent on is open - a refresh alarm at the head of the
-     queue, or the pull request `#<N>` an alarm fork opened `AF-130`. Invoke
-     the fork with args `<pace> <ID>`, plus `--land <N>` when the line names
-     a pull request, and no `--skip` or `--max-size`. Whatever it returns,
+     queue, an alarm a fork was stopped on before its pull request, or the
+     pull request `#<N>` an alarm fork opened `AF-130`. Invoke the fork with
+     args `<pace> <ID> --alarm`, plus `--land <N>` when the line names a
+     pull request, and no `--skip` or `--max-size`: `--alarm` keeps
+     companions, a tidy batch and any other open pull request off the
+     reserve. Whatever it returns,
      nothing else starts until this step has run again, so the reserve
      goes on that item alone. When the target is an item id other
      than `<ID>`, the line is `WAIT until <time>`: a person's chosen item

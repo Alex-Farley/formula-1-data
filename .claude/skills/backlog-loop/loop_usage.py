@@ -71,9 +71,11 @@ WHAT IT DECIDES
     is used and the 5-hour window allows an item, `next.py --alarm` is asked
     for the one item it may go on: an alarm fork's open pull request, or an
     alarm at the head of the queue with no refresh run under way. One found
-    is ALARM; none is WAIT, and that wait is cut to ALARM_LOOK minutes, so
-    an alarm opened on race night is picked up at the next look and not at
-    the weekly reset. A lookup that fails finds none.
+    is ALARM; none is WAIT, and that wait is cut to ALARM_LOOK minutes (15
+    at the least), so an alarm opened on race night is picked up at the next
+    look and not at the weekly reset. A lookup that fails finds none, and
+    with the 5-hour window unread none is looked for: no alarm starts
+    without SMALL_LEFT points of it known to be left.
 
     The thresholds are starting values, not measurements: every decision is
     written to .claude/loop/progress.log with the figures it used, so a week
@@ -124,8 +126,10 @@ WEEK = dt.timedelta(days=7)
 # How long after a race its refresh work is still expected: results late,
 # a refresh alarm, the fix for one.
 RACE_TAIL = dt.timedelta(days=2)
-# ALARM_LOOK is in minutes; the others are points of 100.
+# ALARM_LOOK is in minutes, and never under ALARM_LOOK_FLOOR; the others
+# are points of 100.
 DEFAULTS = {"ANY_LEFT": 20, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
+ALARM_LOOK_FLOOR = 15
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
 # What `next.py --alarm` prints: an id, and an open pull request's number.
 ALARM_TARGET = re.compile(r"(?:[A-Z]{2}-\d+|#\d+)(?: #\d+)?")
@@ -287,6 +291,8 @@ def settings(env=None):
             out[key] = float(env.get(f"LOOP_USAGE_{key}", default))
         except ValueError:
             out[key] = float(default)
+    # A look every minute would be /usage and two gh reads a minute.
+    out["ALARM_LOOK"] = max(out["ALARM_LOOK"], ALARM_LOOK_FLOOR)
     return out
 
 
@@ -345,10 +351,10 @@ def decide(windows, now, race=None, conf=None, alarm=None):
             if catch > now:
                 why.append("ahead of the weekly pace")
                 # The reserve may go on a refresh alarm and on nothing else,
-                # and never past the whole week or with the 5-hour window too
-                # low for an item (AF-130).
+                # and never past the whole week, with the 5-hour window too
+                # low for an item, or with that window unread (AF-130).
                 spendable = held and used < 100 and alarm is not None
-                if spendable and word != "WAIT":
+                if spendable and word != "WAIT" and "session" in windows:
                     target, note = alarm()
                     if target:
                         why.append(f"the reserve goes on the refresh alarm {target} alone")

@@ -206,6 +206,21 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
         (word, _, _, target), _ = self.decide(session=85, found="AF-150")
         self.assertEqual((word, target), ("ALARM", "AF-150"))
 
+    def test_an_unread_session_window_starts_no_alarm(self):
+        windows = lu.parse(report(25, 36), NOW)
+        del windows["session"]
+        asked = []
+        word, _, why, target = lu.decide(windows, NOW, self.RACE, CONF_LOOK,
+                                         lambda: asked.append(True) or ("AF-150", None))
+        self.assertEqual((word, target, asked), ("WAIT", None, []))
+        self.assertIn("session window not readable", why)
+
+    def test_the_look_is_never_under_its_floor(self):
+        for value in ("0", "-5", "3"):
+            self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": value})["ALARM_LOOK"],
+                             lu.ALARM_LOOK_FLOOR)
+        self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": "30"})["ALARM_LOOK"], 30.0)
+
     def test_the_whole_week_spent_spends_nothing(self):
         (word, until, _, _), asked = self.decide(week=100, found="AF-150")
         self.assertFalse(asked)

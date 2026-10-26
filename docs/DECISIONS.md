@@ -602,14 +602,20 @@ one only for it to pause.
   opened on race night would have waited about 18 hours for a person. Now,
   while the reserve is held, the week says wait and less than 100 % of it is
   used, the check asks `next.py --alarm` for the one item it may go on: an
-  alarm fork's open pull request, or an alarm at the head of the queue with
-  no refresh run under way (a fix merged and its proving run in flight is
-  waited for, not worked twice). One found is `ALARM <ID>`, and the driver
-  gives the fork that id alone; none is a wait cut to 60 minutes
-  (`LOOP_USAGE_ALARM_LOOK`), so the next look finds an alarm opened in the
-  meantime. No alarm starts with less than `SMALL_LEFT` points of the
-  5-hour window left, and a run given some other item by id does not spend
-  the reserve.
+  alarm fork's open pull request, an alarm a fork was stopped on before
+  opening one (its `claude/<id>-` branch exists), or an alarm at the head
+  of the queue with no refresh run under way (a fix merged and its proving
+  run in flight is waited for, not worked twice). One found is
+  `ALARM <ID>`, and the driver gives the fork that id with `--alarm`, under
+  which it takes no companion or tidy batch and leaves any other open pull
+  request for later - one PR open at a time is broken for the alarm, since
+  landing an ordinary item on the reserve is what it is held against. None
+  found is a wait cut to 60 minutes (`LOOP_USAGE_ALARM_LOOK`, 15 at the
+  least), so the next look finds an alarm opened in the meantime. No alarm
+  starts with less than `SMALL_LEFT` points of the 5-hour window left, or
+  with that window unread; one may start on the `SMALL` rung whatever its
+  size, as the item set the floor at `SMALL_LEFT` and no higher. A run
+  given some other item by id does not spend the reserve.
 
 ### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065)
 The maintainer's usage report of 2026-10-18 put 43 % of usage at more than

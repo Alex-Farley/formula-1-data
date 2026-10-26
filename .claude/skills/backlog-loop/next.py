@@ -99,12 +99,15 @@ next.py chooses is capped `AF-108` `[D-55]`.
 `--alarm` is for the usage check alone (loop_usage.py), which asks it only
 while the race-weekend reserve is what holds the loop back. It prints the id
 of the one item that reserve may be spent on, or exits 1 when there is none:
-an open alarm with a `claude/` pull request open on it (`Refs #n`, at *In
-progress*), printed as `<ID> #<PR>` for the fork that lands it; otherwise the
+an open alarm at *In progress* with a `claude/` pull request open on it
+(`Refs #n`), printed as `<ID> #<PR>` for the fork that lands it; else one at
+*In progress* with a `claude/<id>-` branch and no pull request yet - a fork
+stopped before it opened one, whose worktree the next fork finishes; else the
 queue's head, when the head is an alarm and no refresh.yml run is queued or
 running - a fix for it merged and the run that proves it under way is waited
-for, not worked again. An alarm a person moved to *Next* or *Someday* is not
-the head and is not printed `AF-130` `[D-55]`.
+for, not worked again. The head is the queue's own: an alarm a person moved
+to *Next* or *Someday* is printed only when nothing eligible is above it,
+which is when next.py would choose it anyway `AF-130` `[D-55]`.
 
 `--next-id PD` reads every issue, open and closed, and prints the first
 number after the highest `PD-n` in use, so a new finding continues the
@@ -736,10 +739,36 @@ def is_alarm(row):
     return bool(ALARMS & set(row["labels"]))
 
 
+def claude_branches():
+    """This checkout's local `claude/` branches, as `claude/<slug>`: where a
+    stopped fork's worktree is, since a branch is pushed only to open its PR.
+    origin's are not read - merged ones linger there unpruned. An empty list
+    on any failure, which finds no branch."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__)))))
+    try:
+        out = subprocess.run(["git", "for-each-ref", "--format=%(refname:short)", "refs/heads/claude/"],
+                             capture_output=True, text=True, check=False, cwd=root)
+    except OSError:
+        return []
+    if out.returncode != 0:
+        return []
+    return out.stdout.split()
+
+
+def has_branch(row, branches):
+    """Whether a fork's branch for this item exists: `claude/<id>` or
+    `claude/<id>-...`, the id lower-cased as the branch names it."""
+    slug = "claude/" + row["ident"].lower().lstrip("#")
+    return any(b == slug or b.startswith(slug + "-") for b in branches)
+
+
 def reserve_alarm(ranked, in_progress, skip):
     """(row, pull request number or None) for `--alarm`, or None: the one
     item the race-weekend reserve may be spent on. Landing an alarm's open
-    pull request comes first, as an inherited PR does for any fork."""
+    pull request comes first, as an inherited PR does for any fork; then an
+    alarm a fork claimed and was stopped on before its PR existed, which no
+    other path returns, since the queue passes over *In progress*."""
     waiting = [r for r in in_progress if is_alarm(r) and r["ident"] not in skip]
     if waiting:
         for pr in gh("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100",
@@ -750,6 +779,10 @@ def reserve_alarm(ranked, in_progress, skip):
             row = next((r for r in waiting if r["number"] in refs), None)
             if row is not None:
                 return row, pr["number"]
+        branches = claude_branches()
+        row = next((r for r in waiting if has_branch(r, branches)), None)
+        if row is not None:
+            return row, None
     head = first_eligible(ranked, skip)
     if head is None or not is_alarm(head):
         return None
