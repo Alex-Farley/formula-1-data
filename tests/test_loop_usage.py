@@ -220,6 +220,9 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
             self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": value})["ALARM_LOOK"],
                              lu.ALARM_LOOK_FLOOR)
         self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": "30"})["ALARM_LOOK"], 30.0)
+        # Not a number of minutes at all: the default, as for any threshold.
+        for value in ("nan", "inf", "-inf"):
+            self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": value})["ALARM_LOOK"], 60.0)
 
     def test_the_whole_week_spent_spends_nothing(self):
         (word, until, _, _), asked = self.decide(week=100, found="AF-150")

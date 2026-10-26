@@ -86,6 +86,7 @@ WHAT IT DECIDES
 """
 import datetime as dt
 import json
+import math
 import os
 import re
 import shutil
@@ -290,6 +291,8 @@ def settings(env=None):
         try:
             out[key] = float(env.get(f"LOOP_USAGE_{key}", default))
         except ValueError:
+            out[key] = float(default)
+        if not math.isfinite(out[key]):
             out[key] = float(default)
     # A look every minute would be /usage and two gh reads a minute.
     out["ALARM_LOOK"] = max(out["ALARM_LOOK"], ALARM_LOOK_FLOOR)

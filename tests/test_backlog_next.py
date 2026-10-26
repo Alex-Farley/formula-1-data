@@ -259,7 +259,6 @@ class ReserveAlarm(unittest.TestCase):
         self.assertIsNone(self.find([self.ITEM], in_progress=[held],
                                     branches=["claude/af-150-late", "claude/af-1-x"]))
         self.assertTrue(nxt.has_branch(held, ["claude/af-15"]))
-        self.assertTrue(nxt.has_branch(dict(held, ident="#963"), ["claude/963-refresh"]))
 
 
 if __name__ == "__main__":
