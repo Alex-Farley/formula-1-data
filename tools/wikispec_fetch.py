@@ -78,7 +78,19 @@ this database already holds and did not get from Wikipedia:
      with no family cut. So "Lotus 18/21" is still not the 21 (F1DB holds an
      18/21), and "Alfa Romeo 105/115 Series Coupes" is not a list at all.
 
-A page failing either check is refused whole and logged. It is never
+Before any of the three, the infobox's `Category` must say Formula One. The
+one exception is the two seasons the championship itself ran to Formula Two
+rules: when Alfa Romeo withdrew after 1951 there were too few Formula One
+cars to fill a grid, so the 1952 and 1953 World Championships were run for
+Formula Two cars, and the articles on those cars rightly say "Formula Two" -
+the Ferrari Tipo 500's was recategorised so on 2026-10-08. A category of
+Formula Two is therefore accepted for a chassis F1DB records as entered in
+1952 or 1953 (F2_SEASONS), and for no other: a Formula Two car run in the
+Formula Two class of a later German Grand Prix is still refused. Such a page
+still has to pass all three checks; the Ferrari 166 F2, entered in 1952 but
+debuting in 1948, fails check 2.
+
+A page failing any check is refused whole and logged. It is never
 partially accepted, and a near miss is never nudged into a match.
 
 Regulation limits are not measurements
@@ -175,6 +187,22 @@ COLUMNS = (["article", "chassis_ids", "constructor_id", "first_year", "last_year
 # value at harvest time rather than storing it and hoping the build notices.
 from_technical = os.path.join(ROOT, "data")
 sys.path.insert(0, ROOT)
+
+
+# The World Championship seasons run to Formula Two rules, in which a car
+# whose infobox says Formula Two was a championship car (the category gate in
+# main(), and the docstring above check 1).
+F2_SEASONS = frozenset({1952, 1953})
+# Whole words, so "Formula 2000" is not Formula Two.
+F2_CATEGORY = re.compile(r"\bformula (two|2)\b")
+
+
+def category_admits(category, entered):
+    """Whether an infobox `Category` admits a chassis entered in `entered`."""
+    c = category.lower()
+    if "formula one" in c or "formula 1" in c:
+        return True
+    return bool(F2_CATEGORY.search(c)) and bool(F2_SEASONS & set(entered))
 
 
 def limits():
@@ -802,7 +830,7 @@ def main():
                 log.append(f"{cid}|no article|tried {', '.join(tried) or full}")
             continue
         category = strip(box.get("category") or "") or ""
-        if "formula one" not in category.lower() and "formula 1" not in category.lower():
+        if not category_admits(category, entered):
             log.append(f"{cid}|infobox is not a Formula One car|{title} "
                        f"(category: {category or 'absent'})")
             continue

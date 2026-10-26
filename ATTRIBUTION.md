@@ -243,7 +243,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->178,389<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->178,377<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -276,7 +276,7 @@ the share-alike above. First, its account of its own sources and state:
 
 | Column | What it holds | Chars |
 |---|---|---:|
-| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->42,645<!-- /fig --> |
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->40,460<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,852<!-- /fig --> |
 | `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->14,604<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,544<!-- /fig --> |
@@ -299,7 +299,7 @@ entry 18 records as written for this project (`PM-49`, #573):
 | `engine_manufacturers.notes` | notes on each engine manufacturer |
 
 Every figure here is a span this build rewrites from the database
-itself: <!-- fig:prose_kb -->89 KB<!-- /fig --> between all of them, of
+itself: <!-- fig:prose_kb -->87 KB<!-- /fig --> between all of them, of
 which <!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and

@@ -16,14 +16,14 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-Of the <!-- fig:sourced_rows -->172,282<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
+Of the <!-- fig:sourced_rows -->172,285<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.4%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->171,529<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->171,532<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->753<!-- /fig --> | <!-- fig:facts_only_share -->0.4%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
@@ -430,20 +430,20 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->167,398<!-- /fig --> of the <!-- fig:sourced_rows -->172,282<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,645<!-- /fig --> and
+cite Wikipedia: <!-- fig:edition_rows -->167,398<!-- /fig --> of the <!-- fig:sourced_rows -->172,285<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,645<!-- /fig --> and
 the <!-- fig:facts_only_rows -->753<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
 nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
 because §4(b) reaches the database holding the substantial portion and no
 other.
 
-It leaves out the <!-- fig:wp_rows -->4,884<!-- /fig --> rows that cite Wikipedia:
+It leaves out the <!-- fig:wp_rows -->4,887<!-- /fig --> rows that cite Wikipedia:
 
 | Rows | Table | What they are |
 |---:|---|---|
 | <!-- fig:wp_races -->1,125<!-- /fig --> | `races` | the race register to <!-- fig:wp_last_season -->2024<!-- /fig --> |
 | <!-- fig:wp_race_entries -->1,128<!-- /fig --> | `race_entries` | the winners |
-| <!-- fig:wp_claims -->2,463<!-- /fig --> | `claims` | race, win, pole and fastest-lap totals as per-car and per-driver articles publish them, the article the *List of Formula One circuits* links for each circuit, and the race articles that state why a finisher inside the paid places scored nothing (`race_entries.note`, DA-37) |
+| <!-- fig:wp_claims -->2,466<!-- /fig --> | `claims` | race, win, pole and fastest-lap totals as per-car and per-driver articles publish them, the article the *List of Formula One circuits* links for each circuit, and the race articles that state why a finisher inside the paid places scored nothing (`race_entries.note`, DA-37) |
 | <!-- fig:wp_drivers -->64<!-- /fig --> | `drivers` | <!-- fig:wp_drivers_seasons -->15<!-- /fig --> winners a season article introduced, and <!-- fig:wp_drivers_polesitters -->49<!-- /fig --> drivers who took pole and never won, from *List of Formula One polesitters* |
 | <!-- fig:wp_cars -->29<!-- /fig --> | `cars` | design families citing their per-car article |
 | <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
@@ -544,13 +544,13 @@ an analysis, not legal advice.
 
 ### The claims: bare facts, held as a check
 
-Of the claims here, <!-- fig:wp_claims -->2,463<!-- /fig --> cite Wikipedia. Each is a value as an article publishes it, and
+Of the claims here, <!-- fig:wp_claims -->2,466<!-- /fig --> cite Wikipedia. Each is a value as an article publishes it, and
 each `claims` row is the field-grain record of a column of another table,
 which `verify.py` holds exactly to its claims:
 
 | Claims | Column | The value | Reading |
 |---:|---|---|---|
-| <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> | `chassis.published_races`, `published_wins`, `published_poles` | a car's race, win and pole totals from the infobox of <!-- fig:wp_claim_car_articles -->656<!-- /fig --> per-car articles, on <!-- fig:wp_claim_cars -->793<!-- /fig --> chassis rows | bare fact: a count |
+| <!-- fig:wp_claim_car_totals -->2,365<!-- /fig --> | `chassis.published_races`, `published_wins`, `published_poles` | a car's race, win and pole totals from the infobox of <!-- fig:wp_claim_car_articles -->657<!-- /fig --> per-car articles, on <!-- fig:wp_claim_cars -->794<!-- /fig --> chassis rows | bare fact: a count |
 | <!-- fig:wp_claim_circuit_articles -->79<!-- /fig --> | `circuits.article` | the title of the article the *List of Formula One circuits* links for a circuit | bare fact: a title names a work, it is not one |
 | <!-- fig:wp_claim_circuit_sections -->3<!-- /fig --> | `circuits.article_section` | the heading of the section that link points to | the same: a heading of a few words |
 | <!-- fig:wp_claim_driver_totals -->6<!-- /fig --> | `drivers.fastest_laps_external`, `poles_external` | a career total as the driver's article publishes it | bare fact: a count |
@@ -637,7 +637,7 @@ The two routes side by side:
 | What stays the same whichever is chosen | `f1.db` itself, under CC BY-SA 4.0; the NULL constructor on <!-- fig:wp_winners_no_constructor -->11<!-- /fig --> Indianapolis winners | |
 
 The two answers on the claims follow the route. A rebuild that keeps
-Wikipedia's values out of the race rows and then carries <!-- fig:wp_claim_car_totals -->2,362<!-- /fig --> of its
+Wikipedia's values out of the race rows and then carries <!-- fig:wp_claim_car_totals -->2,365<!-- /fig --> of its
 infobox figures has put the question back; keeping the rows as stored has
 already accepted it.
 
@@ -647,7 +647,7 @@ already accepted it.
    costs above — and if so, São Paulo's key, the Mexico City name, `entrant`
    and the fastest laps where F1DB differs, one way each — or keep them as
    stored on the reading that no database right reaches them.
-2. **The claims.** Carry the <!-- fig:wp_claims -->2,463<!-- /fig --> as bare facts, or leave them out with the
+2. **The claims.** Carry the <!-- fig:wp_claims -->2,466<!-- /fig --> as bare facts, or leave them out with the
    seven columns they mirror. Nothing in the artefact depends on them either way.
 3. **The note sources.** Carry the <!-- fig:wp_note_sources -->53<!-- /fig --> wherever the notes they back are
    carried, or leave them out.

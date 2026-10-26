@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->54<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->178,389<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->54<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->178,377<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -647,10 +647,10 @@ and <!-- fig:chassis_with_spec -->804<!-- /fig --> of them carry a specification
 `tools/wikispec_fetch.py` established off that chassis's own Wikipedia
 article. `chassis.car_id` joins the two.
 
-Of the chassis here, <!-- fig:chassis_published_wins -->784<!-- /fig --> carry a published
+Of the chassis here, <!-- fig:chassis_published_wins -->785<!-- /fig --> carry a published
 career win total. The wins this database derives independently, from its own
 race records through the linkage below, **agree exactly
-for <!-- fig:chassis_wins_match -->635<!-- /fig --> of them and exceed
+for <!-- fig:chassis_wins_match -->636<!-- /fig --> of them and exceed
 for <!-- fig:chassis_wins_exceed -->0<!-- /fig -->**; the rest are lower bounds
 where a season could not be linked.
 
@@ -820,7 +820,7 @@ an ugly page, it is an infringing one.
 
 What **cannot** be checked is whether the photograph shows the car. Testing
 whether the file name mentions the chassis
-finds <!-- fig:images_named -->277<!-- /fig -->
+finds <!-- fig:images_named -->280<!-- /fig -->
 of <!-- fig:images -->623<!-- /fig --> — most correct images are filed under the
 driver, and `File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an
 Arrows A21 — so the test would discard half the good rows if it were a rule.
@@ -834,7 +834,7 @@ of their own — Wikipedia covers them on the team's page — so the route above
 never reaches them. For those, `tools/wikimedia_images.py --route category`
 looks for a Wikimedia Commons category named for the chassis, such as
 `Category:Vanwall VW5`, and takes a photograph filed under
-it. <!-- fig:images_catalogued -->118<!-- /fig --> rows come from it. The claim is
+it. <!-- fig:images_catalogued -->122<!-- /fig --> rows come from it. The claim is
 only that a Commons editor filed the file there, and a category also holds
 replicas and show cars, so these rows sit a rung *below* `unverified`, at
 `catalogued`, and the `route` column keeps them apart. A category is taken
@@ -1248,7 +1248,7 @@ and `known_gaps` says so.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->128<!-- /fig -->
+holds <!-- fig:discrepancies -->109<!-- /fig -->
 rows: <!-- fig:discrepancies_open -->35<!-- /fig -->
 open, <!-- fig:discrepancies_explained -->23<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
@@ -1285,10 +1285,10 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   *article* is well constrained; what the picture depicts is not, and there is
   no second source to disagree with it. This is the only part of the database
   with no cross-check available at all. A
-  further <!-- fig:images_catalogued -->118<!-- /fig --> chassis with no article have
+  further <!-- fig:images_catalogued -->122<!-- /fig --> chassis with no article have
   one only from a Commons category, held a rung lower at `catalogued` and not
   shown. `./f1 images` lists
-  the <!-- fig:images_unnamed -->346<!-- /fig --> whose file name does not even
+  the <!-- fig:images_unnamed -->343<!-- /fig --> whose file name does not even
   name the car. The <!-- fig:races_with_images -->514<!-- /fig --> races with
   photographs of their own have them because a Commons editor filed them
   under the race's category, also at `catalogued`; that one was taken at

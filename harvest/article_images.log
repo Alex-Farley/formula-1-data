@@ -5,8 +5,10 @@ Aston Martin DBR5	REFUSED	article has no lead image, and no image in its body na
 BRM P115	REFUSED	article has no lead image, and no image in its body names the car
 BRM P61	REFUSED	article has no lead image, and no image in its body names the car
 Benetton B187	REFUSED	article has no lead image, and no image in its body names the car
+Brabham BT33	REFUSED	File:1970 Brands Hatch Race of Champions Jack Brabham BT33.jpg requires attribution and names no author
 Brabham BT34	REFUSED	File:1971 Race of Champions G Hill Brabham BT34.jpg requires attribution and names no author
 Brabham BT59	REFUSED	article has no lead image, and no image in its body names the car
+Caterham CT01	REFUSED	File:Vitaly Petrov 2012 Malaysia FP1.jpg states no licence
 Cooper T58	REFUSED	article has no lead image, and no image in its body names the car
 Cooper T77	REFUSED	File:1965-08-01 Rindt, Jochen - Cooper Climax.jpg requires attribution and names no author
 Dallara 3087	REFUSED	article has no lead image, and no image in its body names the car
@@ -21,7 +23,6 @@ Jordan EJ15	REFUSED	File:Karthikeyan (Jordan) locking brakes in qualifying at US
 Larrousse LH95	REFUSED	article has no lead image, and no image in its body names the car
 Ligier JS7	REFUSED	article has no lead image, and no image in its body names the car
 Lola LC91	REFUSED	article has no lead image, and no image in its body names the car
-Manor MRT05	REFUSED	File:Pascal Wehrlein 2016 Malaysia FP2 1.jpg states no licence
 March 871	REFUSED	article has no lead image, and no image in its body names the car
 March 881	REFUSED	article has no lead image, and no image in its body names the car
 McLaren M4B	REFUSED	article has no lead image, and no image in its body names the car
@@ -35,7 +36,7 @@ Minardi PS05	REFUSED	File:Minardi PS05 British GP 2005.jpg requires attribution 
 RAM 02	REFUSED	article has no lead image, and no image in its body names the car
 Red Bull RB1	REFUSED	File:Coulthard RedBull Canada2005.jpg requires attribution and names no author
 Red Bull RB2	REFUSED	File:Red Bull Racing F1 2006 EMS.jpg requires attribution and names no author
-Rial ARC1	REFUSED	article has no lead image, and no image in its body names the car
+Red Bull RB7	REFUSED	article has no lead image, and no image in its body names the car
 Rial ARC2	REFUSED	article has no lead image, and no image in its body names the car
 Shadow DN12	REFUSED	article has no lead image, and no image in its body names the car
 Tyrrell DG016	REFUSED	article has no lead image, and no image in its body names the car
@@ -68,7 +69,7 @@ AlphaTauri AT04	ACCEPTED	File:FIA F1 Austria 2023 Nr. 21 (2).jpg	CC BY-SA 4.0	le
 Alpine A521	ACCEPTED	File:Fernando Alonso, F1 British Grand Prix 2021.jpg	CC BY 4.0	lead image
 Alpine A522	ACCEPTED	File:2022 British Grand Prix (52382586268).jpg	CC BY 2.0	lead image
 Alpine A523	ACCEPTED	File:FIA F1 Austria 2023 Nr. 10 (2) (cropped).jpg	CC BY-SA 4.0	lead image
-Alpine A526	ACCEPTED	File:FIA F1 Austria 2026 Nr. 10 Gasly (3).jpg	CC BY-SA 4.0	lead image
+Alpine A526	ACCEPTED	File:FIA F1 Austria 2026 Nr. 10 Gasly (1).jpg	CC BY-SA 4.0	lead image
 Arrows A1	ACCEPTED	File:Arrows A1 at Silverstone Classic 2009.jpg	CC BY 2.0	lead image
 Arrows A10	ACCEPTED	File:Arrows A10 at the 2016 Goodwood Festival of Speed.jpg	CC BY-SA 2.0	lead image
 Arrows A11	ACCEPTED	File:Motor-Sport-Museum am Hockenheimring, 1991 Footwork Porsche A11C, pic1.jpg	CC0	lead image
@@ -87,7 +88,7 @@ Arrows A7	ACCEPTED	File:Arrows A7 1984.jpg	CC BY-SA 2.0	lead image
 Arrows A8	ACCEPTED	File:1985 European GP Boutsen.jpg	CC BY-SA 2.0	lead image
 Arrows A9	ACCEPTED	File:Arrows A9 at Goodwood 2012 (3).jpg	CC BY-SA 2.0	lead image
 Arrows FA1	ACCEPTED	File:Riccardo Patrese - Arrows FA1 at Druids at the 1978 British Grand Prix (50050521097).jpg	CC BY-SA 2.0	lead image
-Aston Martin AMR21	ACCEPTED	File:Sebastian Vettel, F1 British Grand Prix 2021.jpg	CC BY 4.0	lead image
+Aston Martin AMR21	ACCEPTED	File:FIA F1 Austria 2021 Nr. 5 Vettel.jpg	CC BY-SA 4.0	lead image
 Aston Martin AMR22	ACCEPTED	File:Sebastian Vettel 2022 (cropped).jpg	CC BY-SA 4.0	lead image
 Aston Martin DBR4	ACCEPTED	File:Aston Martin DBR4 Mallory Park.JPG	CC BY-SA 3.0	lead image
 BAR 002	ACCEPTED	File:BAR 002 Honda Collection Hall.jpg	CC BY-SA 3.0	lead image
@@ -152,11 +153,11 @@ Brabham BT58	ACCEPTED	File:Martin Brundle Spa 1989.jpg	CC BY 4.0	lead image
 Brabham BT60	ACCEPTED	File:The 1992 Brabham-Judd BT60 of Damon Hill at the Donington Grand Prix collection (14478863180).jpg	CC BY 2.0	lead image
 Brabham BT7	ACCEPTED	File:Brabham bt7.jpg	CC BY-SA 2.0	lead image
 Brawn BGP 001	ACCEPTED	File:Button Spain 2009.jpg	CC BY 2.0	lead image
-Caterham CT01	ACCEPTED	File:Vitaly Petrov 2012 Malaysia FP1.jpg	CC BY-SA 3.0	lead image
 Caterham CT03	ACCEPTED	File:Charles Pic 2013 Malaysia FP2.jpg	CC BY-SA 3.0	lead image
 Caterham CT05	ACCEPTED	File:Marcus Ericsson 2014 British GP 001.jpg	CC BY 2.0	lead image
 Coloni C3	ACCEPTED	File:C3-1.jpg	CC BY-SA 3.0	lead image
 Coloni C4	ACCEPTED	File:Ingo Iserhardt, Formel 1 Test.jpg	CC BY-SA 3.0 de	lead image
+Connaught Type A	ACCEPTED	File:Connaught A Silverstone 2007.jpg	CC BY-SA 3.0	lead image
 Connaught Type B	ACCEPTED	File:1955 Connaught B-Type.jpg	CC BY 2.0	lead image
 Connaught Type C	ACCEPTED	File:Connaught Type C.jpg	CC BY-SA 4.0	lead image
 Cooper T23	ACCEPTED	File:Cooper T23 2017 Silverstone Classic (38632978040).jpg	CC BY 2.0	lead image
@@ -201,7 +202,7 @@ Ferrari F1-75	ACCEPTED	File:Charles Leclerc 2022.jpg	CC BY-SA 4.0	lead image
 Ferrari F1/86	ACCEPTED	File:Alboreto at 1986 Italian Grand Prix.jpg	CC BY-SA 2.0	lead image
 Ferrari F1/87	ACCEPTED	File:Ferrari F1-87.jpg	CC BY-SA 3.0	lead image
 Ferrari F10	ACCEPTED	File:Ferrari Bahrain 2010.jpg	CC BY 2.0	lead image
-Ferrari F138	ACCEPTED	File:Felipe Massa 2013 Malaysia FP2 2.jpg	CC BY-SA 3.0	lead image
+Ferrari F138	ACCEPTED	File:Fernando Alonso 2013 Malaysia FP2.jpg	CC BY-SA 3.0	lead image
 Ferrari F14 T	ACCEPTED	File:Fernando Alonso 2014 British GP 002 (cropped).jpg	CC BY 2.0	lead image
 Ferrari F2001	ACCEPTED	File:Schumacher Ferrari F2001 at Laguna Seca.jpg	CC BY 2.0	lead image
 Ferrari F2002	ACCEPTED	File:Ferrari F2002 front-right Museo Ferrari.jpg	CC BY-SA 3.0	lead image
@@ -225,7 +226,7 @@ Ferrari SF1000	ACCEPTED	File:2020 F1 Pre-Season Testing Catalonia (49629607611).
 Ferrari SF15-T	ACCEPTED	File:Sebastian Vettel 2015 Malaysia FP2 3.jpg	CC BY-SA 4.0	lead image
 Ferrari SF16-H	ACCEPTED	File:Sebastian Vettel 2016 Malaysia FP2 1.jpg	CC BY-SA 4.0	lead image
 Ferrari SF21	ACCEPTED	File:FIA F1 Austria 2021 Nr. 16 Leclerc (side).jpg	CC BY-SA 4.0	lead image
-Ferrari SF70H	ACCEPTED	File:Sebastian Vettel 2017 Malaysia FP1 1.jpg	CC BY-SA 4.0	lead image
+Ferrari SF70H	ACCEPTED	File:Sebastian Vettel 2017 Malaysia FP2.jpg	CC BY-SA 4.0	lead image
 Ferrari SF71H	ACCEPTED	File:FIA F1 Austria 2018 Nr. 5 Vettel.jpg	CC BY-SA 4.0	lead image
 Ferrari SF90	ACCEPTED	File:FIA F1 Austria 2019 Nr. 5 Vettel 1.jpg	CC BY-SA 4.0	lead image
 Ferrari Tipo 500	ACCEPTED	File:Ferrari 500 F2 front-left Donington Grand Prix Collection.jpg	CC BY-SA 3.0	lead image
@@ -258,7 +259,7 @@ Haas VF-21	ACCEPTED	File:FIA F1 Austria 2021 Nr. 47 Schumacher (side).jpg	CC BY-
 Haas VF-22	ACCEPTED	File:2022 British Grand Prix (52381409242).jpg	CC BY 2.0	lead image
 Haas VF-24	ACCEPTED	File:FIA F1 Austria 2024 Nr. 20 Magnussen.jpg	CC BY-SA 4.0	lead image
 Haas VF-25	ACCEPTED	File:FIA F1 Austria 2025 Nr. 87 Bearman.jpg	CC BY-SA 4.0	lead image
-Haas VF-26	ACCEPTED	File:FIA F1 Austria 2026 Nr. 31 Ocon (3).jpg	CC BY-SA 4.0	lead image
+Haas VF-26	ACCEPTED	File:FIA F1 Austria 2026 Nr. 87 Bearman (1).jpg	CC BY-SA 4.0	lead image
 Hesketh 308C	ACCEPTED	File:Wolf-Williams FW05 at Goodwood 2010 crop.jpg	CC BY-SA 2.0	lead image
 Hesketh 308E	ACCEPTED	File:Hesketh 308E 2008 Goodwood.jpg	CC BY 2.0	lead image
 Hill GH1	ACCEPTED	File:2017 FIA Masters Historic Formula One Championship, Circuit of the Americas Hill cropped (23970297598).jpg	CC BY-SA 2.0	lead image
@@ -292,7 +293,7 @@ Jordan EJ12	ACCEPTED	File:Jodan honda ej12.JPG	CC BY-SA 3.0	lead image
 Jordan EJ13	ACCEPTED	File:Giancarlo Fisichella 2003 Silverstone 8.jpg	CC BY-SA 2.0	lead image
 Jordan EJ14	ACCEPTED	File:Nick Heidfeld 2004 Canada cropped.jpg	CC BY-SA 2.0	lead image
 Kick Sauber C44	ACCEPTED	File:2024-08-24 Motorsport, Formel 1, Großer Preis der Niederlande 2024 STP 3314 by Stepro.jpg	CC BY-SA 4.0	lead image
-Kick Sauber C45	ACCEPTED	File:2025 Japan GP - Sauber - Nico Hulkenberg - FP1.jpg	CC BY-SA 4.0	lead image
+Kick Sauber C45	ACCEPTED	File:FIA F1 Austria 2025 Nr. 27 Hülkenberg.jpg	CC BY-SA 4.0	lead image
 Lambo 291	ACCEPTED	File:Lamborghini 291 (54910906617).jpg	CC BY-SA 4.0	lead image
 Lancia D50	ACCEPTED	File:Lancia D50 at Goodwood Revival 2012.jpg	CC BY 2.0	lead image
 Larrousse LH93	ACCEPTED	File:Erik Comas - Larrousse LH93 during practice for the 1993 British Grand Prix (33302817820).jpg	CC BY-SA 2.0	lead image
@@ -361,6 +362,7 @@ Lotus E21	ACCEPTED	File:Kimi Raikkonen 2013 Malaysia FP2.jpg	CC BY-SA 3.0	lead i
 Lotus E22	ACCEPTED	File:Lotus E22 Maldonado Silverstone 2014 (3).jpg	CC BY 2.0	lead image
 Lotus E23 Hybrid	ACCEPTED	File:Romain Grosjean 2015 Malaysia FP1.jpg	CC BY-SA 4.0	lead image
 Lotus T127	ACCEPTED	File:Lotus in Bahrain (cropped) 2010.jpg	CC BY 2.0	lead image
+Manor MRT05	ACCEPTED	File:Pascal Wehrlein 2016 Malaysia FP2 1.jpg	CC BY-SA 4.0	lead image
 March 701	ACCEPTED	File:March 701 (Tyrrell) front-left Heritage Motor Centre, Gaydon.jpg	CC BY-SA 3.0	lead image
 March 711	ACCEPTED	File:1971 Andrea de Adamich, March, Fuchsröhre.jpg	CC BY-SA 2.0 de	lead image
 March 731	ACCEPTED	File:March 731 front-left Donington Grand Prix Collection.jpg	CC BY-SA 3.0	lead image
@@ -397,18 +399,17 @@ McLaren MCL35	ACCEPTED	File:Lando Norris-McLaren MCL35 (3).jpg	CC BY 3.0	lead im
 McLaren MCL36	ACCEPTED	File:Lando Norris drives the McLaren MCL36 during the 2022 British Grand Prix..jpg	CC BY-SA 4.0	lead image
 McLaren MCL38	ACCEPTED	File:2024-08-25 Motorsport, Formel 1, Großer Preis der Niederlande 2024 STP 3805 by Stepro.jpg	CC BY-SA 4.0	lead image
 McLaren MCL39	ACCEPTED	File:FIA F1 Austria 2025 Nr. 4 Norris.jpg	CC BY-SA 4.0	lead image
-McLaren MCL40	ACCEPTED	File:FIA F1 Austria 2026 Nr. 1 Norris (3).jpg	CC BY-SA 4.0	lead image
 McLaren MCL60	ACCEPTED	File:FIA F1 Austria 2023 Nr. 4 (2).jpg	CC BY-SA 4.0	lead image
 McLaren MP4-16	ACCEPTED	File:McLaren MP4-16A 2015 McLaren MP4-16A shakedown (21220157539).jpg	CC BY-SA 2.0	lead image
 McLaren MP4-17	ACCEPTED	File:Kimi Räikkönen 2003 Silverstone.jpg	CC BY-SA 2.0	lead image
 McLaren MP4-19	ACCEPTED	File:Coulthard 2004 Canada.jpg	CC BY 2.0	lead image
 McLaren MP4-20	ACCEPTED	File:Pedro de la Rosa 2005 Canadian GP.jpg	CC BY-SA 1.0	lead image
 McLaren MP4-21	ACCEPTED	File:Juan Pablo Montoya Canada 2006 (crop).PNG	CC BY-SA 2.0	lead image
-McLaren MP4-22	ACCEPTED	File:Lewis Hamilton 2007 Canada.jpg	CC BY-SA 2.0	lead image
+McLaren MP4-22	ACCEPTED	File:Lewis Hamilton 2007.jpg	CC BY 2.0	lead image
 McLaren MP4-23	ACCEPTED	File:Lewis Hamilton 2008 China.jpg	CC BY-SA 2.0	lead image
 McLaren MP4-24	ACCEPTED	File:Hamilton McLaren MP4-24.jpg	CC BY 2.0	lead image
 McLaren MP4-25	ACCEPTED	File:Jenson Button Bahrain 2010 cropped.jpg	CC BY 2.0	lead image
-McLaren MP4-26	ACCEPTED	File:Jenson Button (6182466841).jpg	CC BY-SA 2.0	lead image
+McLaren MP4-26	ACCEPTED	File:Jenson Button 2011 Malaysia FP2 2.jpg	CC BY-SA 3.0	lead image
 McLaren MP4-27	ACCEPTED	File:Lewis Hamilton 2012 Malaysia FP1.jpg	CC BY-SA 3.0	lead image
 McLaren MP4-28	ACCEPTED	File:Jenson Button 2013 Malaysia FP2 1.jpg	CC BY-SA 3.0	lead image
 McLaren MP4-29	ACCEPTED	File:Mclaren MP4-29 Jenson Button 2014 F1 Chinese GP.jpg	CC BY-SA 2.0	lead image
@@ -432,7 +433,7 @@ McLaren MP4/9	ACCEPTED	File:Mika Hakkinen - Mclaren MP4-9 at the 1994 British Gr
 Mercedes AMG F1 W10 EQ Power+	ACCEPTED	File:FIA F1 Austria 2019 Nr. 77 Bottas 1.jpg	CC BY-SA 4.0	lead image
 Mercedes F1 W03	ACCEPTED	File:Nico Rosberg 2012 Malaysia FP1.jpg	CC BY-SA 3.0	lead image
 Mercedes F1 W04	ACCEPTED	File:Lewis Hamilton 2013 Malaysia FP2 1.jpg	CC BY-SA 3.0	lead image
-Mercedes F1 W05 Hybrid	ACCEPTED	File:The Dominator (22616462870).jpg	CC BY 2.0	lead image
+Mercedes F1 W05 Hybrid	ACCEPTED	File:Mercedes F1 W05 Hybrid (Lewis Hamilton).jpg	CC BY 2.0	lead image
 Mercedes F1 W06 Hybrid	ACCEPTED	File:Lewis Hamilton 2015 Malaysia FP2 1.jpg	CC BY-SA 4.0	lead image
 Mercedes F1 W07 Hybrid	ACCEPTED	File:Nico Rosberg 2016 Malaysia FP2.jpg	CC BY-SA 4.0	lead image
 Mercedes MGP W01	ACCEPTED	File:Nico Rosberg 2010 Bahrain.jpg	CC BY 2.0	lead image
@@ -470,8 +471,8 @@ Prost JS45	ACCEPTED	File:Prost Mugen Honda JS45.jpg	Public domain	lead image
 RAM 01	ACCEPTED	File:RAM 01.jpg	CC BY 2.0	lead image
 RAM 03	ACCEPTED	File:1985 European GP Philippe Alliot.jpg	CC BY-SA 2.0	lead image
 RB VCARB 01	ACCEPTED	File:Yuki Tsunoda Chinese GP 2024.jpg	CC BY-SA 4.0	lead image
-Racing Bulls VCARB 02	ACCEPTED	File:2025 Japan GP - Racing Bulls - Liam Lawson - FP2.jpg	CC BY-SA 4.0	lead image
-Racing Bulls VCARB 03	ACCEPTED	File:FIA F1 Austria 2026 Nr. 41 Lindblad (3).jpg	CC BY-SA 4.0	lead image
+Racing Bulls VCARB 02	ACCEPTED	File:FIA F1 Austria 2025 Nr. 30 Lawson.jpg	CC BY-SA 4.0	lead image
+Racing Bulls VCARB 03	ACCEPTED	File:FIA F1 Austria 2026 Nr. 41 Lindblad (1).jpg	CC BY-SA 4.0	lead image
 Racing Point RP19	ACCEPTED	File:FIA F1 Austria 2019 Nr. 18 Stroll 1.jpg	CC BY-SA 4.0	lead image
 Racing Point RP20	ACCEPTED	File:Sergio Perez-Racing Point RP 20 (5).jpg	CC BY 3.0	lead image
 Red Bull RB10	ACCEPTED	File:Sebastian Vettel 2014 China Race (cropped).jpg	CC BY-SA 2.0	lead image
@@ -482,7 +483,6 @@ Red Bull RB3	ACCEPTED	File:Mark Webber 2007 Malaysia (cropped).jpg	CC BY-SA 2.0	
 Red Bull RB4	ACCEPTED	File:David Coulthard - Toro Rosso (4204012255).jpg	CC BY-SA 2.0	lead image
 Red Bull RB5	ACCEPTED	File:Vettel Spain 2009.jpg	CC BY 2.0	lead image
 Red Bull RB6	ACCEPTED	File:Vettel Bahrain 2010 (cropped).jpg	CC BY 2.0	lead image
-Red Bull RB7	ACCEPTED	File:Sebastian Vettel (6195669861).jpg	CC BY-SA 2.0	lead image
 Red Bull RB8	ACCEPTED	File:Sebastian Vettel 2012 Malaysia FP1.jpg	CC BY-SA 3.0	lead image
 Red Bull RB9	ACCEPTED	File:Sebastian Vettel 2013 Malaysia FP2.jpg	CC BY-SA 3.0	lead image
 Red Bull Racing RB14	ACCEPTED	File:FIA F1 Austria 2018 Nr. 33 Verstappen.jpg	CC BY-SA 4.0	lead image
@@ -514,6 +514,7 @@ Renault RE50	ACCEPTED	File:Derek Warwick Renault RE50 1984 Dallas F1.jpg	CC BY-S
 Renault RE60	ACCEPTED	File:Renault RE60.jpg	CC BY-SA 2.0	lead image
 Renault RS01	ACCEPTED	File:Paris - Retromobile 2013 - Renault F1 RS01 - 1978 - 102.jpg	CC BY-SA 3.0	lead image
 Renault RS10	ACCEPTED	File:Renault F1 RS10 L'Atelier Renault.jpg	CC BY-SA 2.0	lead image
+Rial ARC1	ACCEPTED	File:F1 1988, Rial ARC1, Spa Francorchamps (55425564171) (cropped).jpg	CC BY 4.0	lead image
 Sauber C12	ACCEPTED	File:Karl Wendlinger - Sauber C12 during practice for the 1993 British Grand Prix (33302730550).jpg	CC BY-SA 2.0	lead image
 Sauber C13	ACCEPTED	File:Andrea de Cesaris - Sauber C13 at the 1994 British Grand Prix (32418704201).jpg	CC BY-SA 2.0	lead image
 Sauber C14	ACCEPTED	File:Jean-Christophe Boullion 1995 Britain.jpg	CC BY-SA 2.0	lead image
@@ -644,7 +645,7 @@ Williams FW32	ACCEPTED	File:Barrichello Malaysian GP 2010 (cropped).jpg	CC BY 2.
 Williams FW33	ACCEPTED	File:Rubens Barrichello (6196180836).jpg	CC BY-SA 2.0	lead image
 Williams FW34	ACCEPTED	File:Pastor Maldonado 2012 Malaysia FP1.jpg	CC BY-SA 3.0	lead image
 Williams FW35	ACCEPTED	File:Pastor Maldonado 2013 Malaysia FP2 1.jpg	CC BY-SA 3.0	lead image
-Williams FW36	ACCEPTED	File:Felipe Massa 2014 Singapore FP1.jpg	CC BY-SA 4.0	lead image
+Williams FW36	ACCEPTED	File:Felipe Massa 2014 British GP 013.jpg	CC BY 2.0	lead image
 Williams FW37	ACCEPTED	File:Felipe Massa 2015 Malaysia FP3.jpg	CC BY-SA 4.0	lead image
 Williams FW38	ACCEPTED	File:Felipe Massa 2016 Malaysia FP2.jpg	CC BY-SA 4.0	lead image
 Williams FW40	ACCEPTED	File:Felipe Massa 2017 Malaysia FP2 2.jpg	CC BY-SA 4.0	lead image
@@ -654,8 +655,8 @@ Williams FW43	ACCEPTED	File:George Russell 2020 Tuscan Grand Prix - race day.jpg
 Williams FW44	ACCEPTED	File:FIA F1 Austria 2022 Nr. 23 Albon.jpg	CC BY-SA 4.0	lead image
 Williams FW45	ACCEPTED	File:FIA F1 Austria 2023 Nr. 23 (2).jpg	CC BY-SA 4.0	lead image
 Williams FW46	ACCEPTED	File:FIA F1 Austria 2024 Nr. 23 Albon.jpg	CC BY-SA 4.0	lead image
-Williams FW47	ACCEPTED	File:2025 Japan GP - Williams - Carlos Sainz - FP1.jpg	CC BY-SA 4.0	lead image
-Williams FW48	ACCEPTED	File:FIA F1 Austria 2026 Nr. 23 Albon (3).jpg	CC BY-SA 4.0	lead image
+Williams FW47	ACCEPTED	File:FIA F1 Austria 2025 Nr. 55 Sainz.jpg	CC BY-SA 4.0	lead image
+Williams FW48	ACCEPTED	File:FIA F1 Austria 2026 Nr. 23 Albon (1).jpg	CC BY-SA 4.0	lead image
 Wolf WR1	ACCEPTED	File:Wolf WR1 at Barber 01.jpg	CC BY-SA 2.0	lead image
 Wolf WR5	ACCEPTED	File:Wolf WR6 Mont-Tremblant Scheckter.jpg	CC BY-SA 3.0	lead image
 Wolf WR7	ACCEPTED	File:Keke Rosberg 1979 Imola.jpg	CC BY-SA 2.0	lead image
