@@ -617,7 +617,7 @@ one only for it to pause.
   size, as the item set the floor at `SMALL_LEFT` and no higher. A run
   given some other item by id does not spend the reserve.
 
-### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065)
+### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065), reverted 2026-10-26 (`AF-128`, #1122)
 The maintainer's usage report of 2026-10-18 put 43 % of usage at more than
 150,000 tokens of context, and the item forks were most of it. `[D-16]` stopped
 the driving context growing across items; inside an item the same thing
@@ -747,6 +747,24 @@ turns above that fell from 41 % to 25 %. No finding was lost across a
 handover. Ten items are few; a second landing fork whose rewrite FAILs again
 would be the figure to reopen this on.
 
+**Reverted (`AF-128`, #1122), ruled by the maintainer 2026-10-24.** #1071 set
+the test in advance: if quality or cost got worse, revert. On its own terms
+both did: context after the PR rose 27 % on an item with a fix, priced cost
+about 4 %, and FAIL rounds by one, DA-30's second. Keeping the split on the
+share-of-item test above was rejected because that test was chosen after the
+result. An item is again one fork from start to merge: the implementing fork
+fixes, confirms and lands its own PR, `OPENED` and `--land` are gone, and the
+driver and the manager start no second fork. What the split bought is on the
+record here and lost with it: no landing fork ran past 150,000 tokens of
+context, and the share of the after-PR context read in turns above 150,000
+fell from 41 % to 25 %. Two things it added stay, because neither depends on
+it. A first pass's verdict comment still carries every finding with
+file:line, the pass id and the routes the brief named, which is what a fork
+inheriting a PR after a limit fixes from. And `land.md`, the landing
+procedure, is now read for that inherited PR alone. The revert falls inside
+the window AF-129 (#1123) measures D-59 over, which D-59 asks it to say
+rather than mix the two.
+
 ### D-59 · The item skill's rarely taken branches are read on demand — 2026-10-24 (`AF-125`, #1081)
 Every fork carries `.claude/skills/backlog-item/SKILL.md` and `CLAUDE.md` on
 every turn, and much of the skill covered paths a given fork does not take.
@@ -756,7 +774,7 @@ says at each point where one starts which file to read:
 | File | Read when |
 |---|---|
 | `grouping.md` | `next.py --group` proposes a companion or a tidy batch |
-| `land.md` | the fork is given `--land`, or inherits an open PR |
+| `land.md` | the fork inherits an open PR (and, until D-58's revert, was given `--land`) |
 | `no-verdict.md` | `verdict.sh read` exits 1, or a reviewer stops on a limit or an unavailable account |
 | `alarm.md` | the item is a `refresh-failing` or `results-late` alarm, or a security alert |
 | `trouble.md` | a `gh` call names a limit, `next.py` exits 3, `ci-wait.sh` exits 2 or 3, or `merge-step.py before` exits 3 |
