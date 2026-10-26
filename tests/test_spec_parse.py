@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 How tools/wikispec_fetch.py reads an infobox's single `track` field and its
-list templates, tested directly (PM-68).
+list templates, tested directly (PM-68), its footnotes (CR-76), and which
+`Category` it admits (PM-75).
 
 WHY THIS FILE EXISTS
     The parse runs only against the live API, and the committed harvest shows
@@ -114,6 +115,47 @@ class Footnotes(unittest.TestCase):
 
     def test_a_piped_link_in_the_last_parameter_is_not_split(self):
         self.reads("{{abbr|X|[[Saudi Aramco|Aramco]] fuel}}", "Aramco fuel")
+
+
+class DistinctItems(unittest.TestCase):
+    """A designer named once per role is written out once (PM-75)."""
+
+    def test_a_repeated_name_is_kept_once_at_its_first_place(self):
+        self.assertEqual(
+            WS.distinct_items("Bob Bell ; Loïc Bigois ; David Jeffrey ; David Jeffrey"),
+            "Bob Bell ; Loïc Bigois ; David Jeffrey")
+        self.assertEqual(WS.distinct_items("A; B; a ; C; B"), "A; B; C")
+
+    def test_distinct_items_are_left_as_the_page_had_them(self):
+        self.assertEqual(WS.distinct_items("A (TD); A (CD); B"), "A (TD); A (CD); B")
+        self.assertEqual(WS.distinct_items("Ross Brawn; John Owen"),
+                         "Ross Brawn; John Owen")
+        self.assertIsNone(WS.distinct_items(None))
+
+
+class CategoryGate(unittest.TestCase):
+    """A Formula Two infobox is a championship car only for a chassis entered
+    in 1952 or 1953, the seasons run to Formula Two rules (PM-75)."""
+
+    def test_formula_one_is_admitted_in_any_season(self):
+        self.assertTrue(WS.category_admits("Formula One", {1988}))
+        self.assertTrue(WS.category_admits("[[Formula One]]", {1952}))
+
+    def test_formula_two_is_admitted_for_a_1952_or_1953_entry(self):
+        # The Ferrari Tipo 500 (1952-57) and the Connaught Type A (1952-54).
+        self.assertTrue(WS.category_admits("Formula Two", set(range(1952, 1958))))
+        self.assertTrue(WS.category_admits("Formula 2", {1953, 1954}))
+
+    def test_formula_two_is_refused_outside_those_seasons(self):
+        # A Formula Two car in the F2 class of a later German Grand Prix.
+        self.assertFalse(WS.category_admits("Formula Two", {1957, 1958}))
+        self.assertFalse(WS.category_admits("Formula Two", {1951, 1954}))
+        self.assertFalse(WS.category_admits("Formula Two", set()))
+
+    def test_another_category_is_refused_even_in_1952(self):
+        self.assertFalse(WS.category_admits("Sports car", {1952}))
+        self.assertFalse(WS.category_admits("", {1952}))
+        self.assertFalse(WS.category_admits("Formula 2000", {1952}))
 
 
 if __name__ == "__main__":

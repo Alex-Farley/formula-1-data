@@ -320,6 +320,18 @@ class CategoryTail(unittest.TestCase):
         self.assertEqual(WI.file_candidates(
             [("File:BAR 006 2004.jpg", 0)], "BAR 006", "bar-007",
             [("bar-006", "BAR 006")]), [])
+        # A sibling named in the plural is named (PM-75).
+        self.assertEqual(WI.file_candidates(
+            [("File:Cooper T53s and Cooper T79 at Spa.jpg", 0),
+             ("File:Cooper T79 1965.jpg", 0)],
+            "Cooper T79", "cooper-t79", [("cooper-t53", "Cooper T53")]),
+            ["File:Cooper T79 1965.jpg"])
+        self.assertTrue(WI.names_car("File:Cooper T53s and Cooper T79 at Spa.jpg",
+                                     "Cooper T53", "cooper-t53", whole=True))
+        self.assertFalse(WI.names_car("File:Coloni FC188B 2008 Donington Park.jpg",
+                                      "Coloni FC188", "coloni-fc188", whole=True))
+        self.assertFalse(WI.names_car("File:Lotus 18spec.jpg",
+                                      "Lotus 18", "lotus-18", whole=True))
 
     def test_a_bracket_must_say_formula_one(self):
         lotus = ("Lotus", "Lotus Racing")

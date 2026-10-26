@@ -542,7 +542,9 @@ def names_car(file_name, article, chassis_ids, whole=False):
 
     `whole` also refuses a name not followed by a separator, so that
     "Coloni FC188B" names the FC188B and not the FC188. The category route
-    uses it to find a file that names a sibling chassis.
+    uses it to find a file that names a sibling chassis. A designation ending
+    in a digit and followed by a plural "s" names its car all the same:
+    "Cooper T53s and Cooper T79 at Spa.jpg" names the T53 (PM-75).
     """
     # The file name as norm() reduces it, remembering where a separator
     # stood: "ATS D6 1.jpg" is atsd61jpg, and the D6 ends at a space.
@@ -563,7 +565,10 @@ def names_car(file_name, article, chassis_ids, whole=False):
                      == want[0].isdigit())
                     and not (end not in seps and fn[end].isdigit()
                              and want[-1].isdigit())
-                    and not (whole and end not in seps)):
+                    and not (whole and end not in seps
+                             and not (want[-1].isdigit()
+                                      and fn[end] == "s"
+                                      and end + 1 in seps))):
                 return True
             at = fn.find(want, at + 1)
     return False

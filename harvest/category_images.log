@@ -40,7 +40,6 @@ cooper-special	REFUSED	no category named for it exists
 cooper-t20	REFUSED	Category:Cooper T20 is not filed as a Formula One car (no parents)
 cooper-t44	REFUSED	no category named for it exists
 cooper-t71-73	REFUSED	Category:Cooper T71/73 is not filed as a Formula One car (Cooper T71; Cooper T73)
-cooper-t79	REFUSED	no category named for it exists
 cooper-t82	REFUSED	no category named for it exists
 de-tomaso-801	REFUSED	no category named for it exists
 de-tomaso-f1-001	REFUSED	no category named for it exists
@@ -58,7 +57,6 @@ emeryson-56	REFUSED	no category named for it exists
 emeryson-61	REFUSED	no category named for it exists
 emw-r2	REFUSED	no category named for it exists
 enb-f1	REFUSED	no category named for it exists
-ensign-n174	REFUSED	no category named for it exists
 ensign-n180b	REFUSED	no category named for it exists
 ensign-n181	REFUSED	no category named for it exists
 epperly-indy-roadster	REFUSED	no category named for it exists
@@ -138,7 +136,6 @@ lotus-22	REFUSED	Category:Lotus 22 is not filed as a Formula One car (Ford (Cosw
 lotus-44	REFUSED	no category named for it exists
 lotus-59b	REFUSED	no category named for it exists
 lotus-69-special	REFUSED	no category named for it exists
-lyncar-006	REFUSED	no category named for it exists
 maki-f101c	REFUSED	Category:Maki F101C holds no photograph that is not a replica, a part or another chassis's
 maki-f102a	REFUSED	no category named for it exists
 march-721g	REFUSED	Category:March 721G is not filed as a Formula One car (March 721)
@@ -250,7 +247,6 @@ ats-wheels-d3	ACCEPTED	Category:ATS D3	File:Rétromobile 2018 - ATS D3 - 1979 - 
 ats-wheels-d4	ACCEPTED	Category:ATS D4	File:Marc Surer ATS 1980.jpg	Public domain
 audi-r26	ACCEPTED	Category:Audi R26	File:2026 Chinese GP - Audi - R26.jpg	CC BY 4.0
 brabham-bt18	ACCEPTED	Category:Brabham BT18	File:Brabham BT18 Mallory Park.JPG	CC BY-SA 3.0
-brabham-bt33	ACCEPTED	Category:Brabham BT33	File:1971 Brabham BT33 (19698941594).jpg	CC BY 2.0
 brabham-bt42	ACCEPTED	Category:Brabham BT42	File:1973 Brabham BT42, Melbourne, 2008.JPG	CC BY-SA 4.0
 brabham-bt45c	ACCEPTED	Category:Brabham BT45C	File:Lauda driving brabham.jpg	Public domain
 brabham-bt49c	ACCEPTED	Category:Brabham BT49C	File:1981 Brabham BT49C (19700817283).jpg	CC BY 2.0
@@ -258,7 +254,6 @@ brabham-bt49d	ACCEPTED	Category:Brabham BT49D	File:2005 Brands Hatch A1GP 25 Sep
 brm-p15	ACCEPTED	Category:BRM P15	File:BRM P15 V16 Mk1 at Formula 1 Exhibition, London.jpg	CC BY-SA 4.0
 brm-p153	ACCEPTED	Category:BRM P153	File:BRM P153.jpg	CC BY-SA 3.0
 brm-p160e	ACCEPTED	Category:BRM P160E	File:Niki Lauda 1972 F1 BRM P160E.jpg	CC BY 4.0
-connaught-a	ACCEPTED	Category:Connaught Type A	File:Connaught A Silverstone 2007.jpg	CC BY-SA 3.0
 connew-pc1	ACCEPTED	Category:Connew PC1	File:Connew PC1 2.JPG	CC BY 3.0
 cooper-t12	ACCEPTED	Category:Cooper T12	File:Cooper T12.jpg	Public domain
 cooper-t24	ACCEPTED	Category:Cooper T24	File:Cooper T24.jpg	CC BY 2.0
@@ -266,9 +261,11 @@ cooper-t40	ACCEPTED	Category:Cooper T40	File:Cooper T40 Bristol of Jack Brabham 
 cooper-t41	ACCEPTED	Category:Cooper T41	File:Cooper T41 Donington 2007.jpg	CC BY-SA 3.0
 cooper-t43	ACCEPTED	Category:Cooper T43	File:Cooper T43 2017 Silverstone Classic (26572399588).jpg	CC BY 2.0
 cooper-t59	ACCEPTED	Category:Cooper T59	File:Cooper T59 FJ of Michael Shearer.JPG	CC BY-SA 4.0
+cooper-t79	ACCEPTED	Category:Cooper T79	File:1965 Tasman Clark McLaren.jpg	Public domain
 eagle-t1f	ACCEPTED	Category:Eagle T1F	File:Eagle T1F.jpg	CC BY-SA 3.0
 ensign-n173	ACCEPTED	Category:Ensign N173	File:1973 Ensign N173 at Silverstone Classic 2019.jpg	CC BY 2.0
-ensign-n175	ACCEPTED	Category:Ensign N175	File:-33 - Ensign MN175 - 1975.jpg	CC BY 4.0
+ensign-n174	ACCEPTED	Category:Ensign N174	File:Ensign N174 Amon WmC dag76.jpg	CC BY-SA 4.0
+ensign-n175	ACCEPTED	Category:Ensign N175	File:-33 - Ensign MN175 - 1975-cropped.jpg	CC BY 4.0
 ensign-n176	ACCEPTED	Category:Ensign N176	File:1976 British GP Amon Ensign (2).jpg	CC BY-SA 3.0
 ensign-n177	ACCEPTED	Category:Ensign N177	File:Derek Daly - Ensign N177 & Rupert Keegan - Surtees TS20 head down Paddock Hill at the 1978 British Grand Prix (50050265771).jpg	CC BY-SA 2.0
 ensign-n180	ACCEPTED	Category:Ensign N180	File:1980 Ensign N180 (20313146392).jpg	CC BY 2.0
@@ -306,6 +303,7 @@ lotus-49c	ACCEPTED	Category:Lotus 49C	File:Lotus 49C (sideview).jpg	CC BY-SA 4.0
 lotus-72e	ACCEPTED	Category:Lotus 72E	File:Emerson 1 Lotus 72E.jpg	CC BY-SA 4.0
 lotus-76	ACCEPTED	Category:Lotus 76	File:Lotus 76 (1).jpg	CC BY-SA 2.0
 lotus-racing-t128	ACCEPTED	Category:Lotus T128 (Formula One car)	File:2011 British GP - Lotus garage.jpg	CC BY 2.0
+lyncar-006	ACCEPTED	Category:Lyncar 006	File:Lyncar F1 Ford Cosworht (1977). (55078840707).jpg	CC BY-SA 4.0
 maki-f101	ACCEPTED	Category:Maki F101	File:Maki f101 20141115.JPG	CC BY-SA 4.0
 march-721	ACCEPTED	Category:March 721	File:John Watsons March 721.jpg	CC BY 2.0
 march-741	ACCEPTED	Category:March 741	File:1974 March 741.jpg	CC BY-SA 4.0
@@ -313,11 +311,13 @@ march-751	ACCEPTED	Category:March 751	File:March 751 at Barber 01.jpg	CC BY-SA 2
 march-cg911b	ACCEPTED	Category:March CG911B	File:Andrea Chiesa 1992 Monaco.jpg	CC BY 2.0
 maserati-4cl	ACCEPTED	Category:Maserati 4CL	File:1939-05-28 Coppa Principessa Napoli Maserati 4CL Rocco.jpg	Public domain
 maserati-a6gcm	ACCEPTED	Category:Maserati A6GCM	File:1953 Maserati A6GCM.jpg	CC BY 2.0
+mclaren-m23b	ACCEPTED	Category:McLaren M23B	File:McLaren M23B at Goodwood 2014 001.jpg	CC BY-SA 2.0
 mclaren-m23c	ACCEPTED	Category:McLaren M23C	File:James Hunt Silver 003.jpg	CC BY-SA 3.0
 mclaren-m23d	ACCEPTED	Category:McLaren M23D	File:Age d'or Dijon Prenois 2013 129.JPG	CC BY-SA 3.0
 mclaren-m7b	ACCEPTED	Category:McLaren M7B	File:Vic Elford McLaren M7B Germany 1969.jpg	CC BY-SA 2.0 de
 mclaren-m7c	ACCEPTED	Category:McLaren M7C	File:Bonnier, Joakim, McLaren M7C (1971).jpg	CC BY-SA 2.0 de
 mclaren-m9a	ACCEPTED	Category:McLaren M9A	File:McLaren M9A (52676403397).jpg	CC BY-SA 2.0
+mclaren-mcl40	ACCEPTED	Category:McLaren MCL40	File:McLaren MCL40 of Oscar Piastri (028A8055).jpg	CC BY-SA 4.0
 mclaren-mp4-1c	ACCEPTED	Category:McLaren MP4/1C	File:McLaren MP4-1C.jpg	CC BY-SA 3.0
 mclaren-mp4-2c	ACCEPTED	Category:McLaren MP4/2C	File:McLaren MP4 2C (51550430356).jpg	CC BY 2.0
 mercedes-f1-w08	ACCEPTED	Category:Mercedes AMG F1 W08 EQ Power+	File:Mercedes-AMG F1 W08 EQ Power+ (26495998339).jpg	CC BY 2.0
@@ -337,7 +337,7 @@ osella-fa1d	ACCEPTED	Category:Osella FA1D	File:Osella FA1D Bournemouth WHEELS Fe
 osella-fa1e	ACCEPTED	Category:Osella FA1E	File:Osella FA1E 1983.jpg	CC BY-SA 3.0
 osella-fa1f	ACCEPTED	Category:Osella FA1F	File:Ghinzani Osella FA1F 1984 Dallas F1.jpg	CC BY-SA 2.0
 osella-fa1g	ACCEPTED	Category:Osella FA1G	File:Osella FA1G (2).jpg	CC BY-SA 4.0
-red-bull-rb22	ACCEPTED	Category:Red Bull RB22	File:Red Bull Ferrari F1 Cars (55383878613).jpg	CC BY-SA 4.0
+red-bull-rb22	ACCEPTED	Category:Red Bull RB22	File:2026-08-23 Motorsport, Formel 1, Großer Preis der Niederlande 2026 STP 2909.jpg	CC BY-SA 4.0
 scarab-f1	ACCEPTED	Category:Scarab F1	File:Chuck Daigh Scarab F1 2018 Silverstone Classic (40064501923).jpg	CC BY 2.0
 simca-gordini-t11	ACCEPTED	Category:Simca-Gordini T11	File:Gordini 11 course 1946 -aa.jpg	CC BY-SA 4.0
 simca-gordini-t15	ACCEPTED	Category:Simca-Gordini T15	File:Simca Gordini T15.jpg	Public domain
