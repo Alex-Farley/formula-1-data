@@ -635,9 +635,10 @@ export const gridFlagLabel = (rows) => {
  * of both, here so the two renderers print the same ones.
  *
  * It replaced a table of stops - lap, driver, stop number and two duration
- * columns that were empty on every row, F1DB publishing no duration. The
- * figure's table carries every lap that table did, driver by driver, and
- * the note says in words what the empty columns said by being empty.
+ * columns that were then empty on every row. The figure's table carries
+ * every lap that table did, driver by driver. Since AF-140 `pit_stops`
+ * holds each stop's pit-lane time as well, which neither the figure nor its
+ * table shows yet, so the note says the ticks give the lap and no more.
  */
 export const PITS_HEADING = 'Pit stops'
 
@@ -656,9 +657,9 @@ export const STINT_COLUMNS = [
  * What the bars mean and what they cannot, and - only where the page has
  * one - a gap in the record, a car out and a stop on the lap a driver went
  * out on: 49 words at the longest, under the 50 the figure grammar allows
- * (VD-80). The sentence on what the record holds is the one that must never
- * be lost: the lap of each stop, and no duration, tyre or lap time, so
- * nothing here measures what a stop gained.
+ * (VD-80). The sentence on what the ticks show is the one that must never
+ * be lost: the lap of each stop, and not its length, a tyre or a lap time,
+ * so nothing here is read as measuring what a stop gained.
  */
 export const stintsNote = (rows, late) =>
   [
@@ -666,7 +667,7 @@ export const stintsNote = (rows, late) =>
     rows.some((r) => r.stops.length === 0) ? 'An unticked bar may hide a stop: F1DB’s record has gaps.' : '',
     rows.some((r) => r.out) ? 'A cross is a driver not classified.' : '',
     late.length ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on their final lap.` : '',
-    'Only the lap is recorded: not a stop’s length, tyres or gain.',
+    'Ticks mark only the lap: not a stop’s length, tyres or gain.',
   ]
     .filter(Boolean)
     .join(' ')
@@ -729,7 +730,7 @@ export const PIT_ORDER_COLUMNS = [
 ]
 
 export const PIT_ORDER_NOTE =
-  'Pairs of classified drivers who started or finished next to each other, each with a stop recorded; the two names in a row are in grid order. Both are read from the stops F1DB records, which has gaps. It is the order things happened in and no more: with no stop duration and no lap times, the record cannot say whether stopping first won or lost a place.'
+  'Pairs of classified drivers who started or finished next to each other, each with a stop recorded; the two names in a row are in grid order. Both are read from the stops F1DB records, which has gaps. It is the order things happened in and no more: with no lap times, the record cannot say whether stopping first won or lost a place.'
 
 /**
  * What happened, in one sentence, counted from the race records rather than

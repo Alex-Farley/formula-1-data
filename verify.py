@@ -5040,6 +5040,10 @@ def the_full_classification():
         # name, its category being Madrid's race.
         ("article_images", "race_id", 3916, "harvest/race_images.txt"),
         ("circuits", "article", 79, "harvest/circuit_articles.txt"),
+        # AF-140's, at the count it arrived with: every F1DB stop but one
+        # (1994 r10, where F1DB gives no time) carries its pit-lane time,
+        # which build.py read from an empty column until then.
+        ("pit_stops", "pit_lane_seconds", 22654, "harvest/f1db_pit_stops.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
         n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]

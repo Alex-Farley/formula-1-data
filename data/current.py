@@ -940,12 +940,10 @@ EMPTY_COLUMNS = {
     "pit_stops.driver_code":
         "written only by the local timing loaders: F1DB, the one pit-stop "
         "source that may be passed on, identifies a driver by id",
-    "pit_stops.pit_lane_seconds":
-        "written only by the local timing loaders: F1DB publishes the lap "
-        "and the order of each stop and no duration",
     "pit_stops.stationary_seconds":
-        "no source read here gives it: the timing sources publish pit-lane "
-        "time, and F1DB no duration at all",
+        "no source read here gives it: F1DB and the timing sources publish "
+        "a stop's time in the pit lane, which is pit_lane_seconds, and not "
+        "the seconds the car stood",
     "season_entries.note":
         "a per-row annotation that no loader writes and no row has needed",
     "sprint_results.note":
