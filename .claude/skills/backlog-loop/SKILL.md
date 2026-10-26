@@ -64,8 +64,19 @@ Two words, either order, both optional.
      the same arguments, as for a limit below, then stop. Run as the
      `backlog-manager` agent, schedule nothing: return
      `PAUSE: until <time> - <why>`, and `supervise.py` sleeps until then.
+   - `ALARM <ID> until <time> - <why>`, or `ALARM <ID> #<N> until ...`:
+     the race-weekend reserve is what holds the week back, and the one
+     thing it may be spent on is open - a refresh alarm at the head of the
+     queue, or the pull request `#<N>` an alarm fork opened `AF-130`. Invoke
+     the fork with args `<pace> <ID>`, plus `--land <N>` when the line names
+     a pull request, and no `--skip` or `--max-size`. Whatever it returns,
+     nothing else starts until this step has run again, so the reserve
+     goes on that item alone. When the target is an item id other
+     than `<ID>`, the line is `WAIT until <time>`: a person's chosen item
+     does not spend the reserve, and neither does the alarm they did not
+     choose.
 
-   Then invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
+   Otherwise invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
    this run has skipped any, and `--max-size S` when the check said
    `SMALL`. Do not do any of the fork's work
