@@ -18,7 +18,9 @@ name: release the artefacts
 #     git tag v2.15 && git push origin v2.15
 #
 # or run this by hand to publish a tag that already exists, which builds that
-# tag whichever branch the run is started from (AF-82).
+# tag's sources whichever branch the run is started from (AF-82). The steps
+# themselves are still this file as it stands on that branch, as on any
+# manual run.
 on:
   push:
     tags: ['v*']
@@ -44,9 +46,14 @@ jobs:
       # not exist fails here, before anything is built or a release created.
       # The tag must be pushed first, and pushing a v* tag runs this workflow
       # on its own.
+      #
+      # No step pushes or fetches, and the release goes through the API, so
+      # the contents: write token is not left in .git/config for the
+      # pip-installed Parquet writer below to read.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
+          persist-credentials: false
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:

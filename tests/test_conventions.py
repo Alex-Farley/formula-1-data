@@ -153,8 +153,9 @@ class PublishingPathsCarryBothDatabases(unittest.TestCase):
         yml = read(".github/workflows/release.yml")
         checkout = re.search(r"uses: actions/checkout@\S+.*\n\s+with:\n((?:\s{10,}\S.*\n)+)", yml)
         self.assertIsNotNone(checkout, "release.yml's checkout has no `with:` naming a ref")
-        self.assertIn("ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}",
-                      checkout.group(1), "release.yml does not check out the tag it publishes")
+        self.assertRegex(checkout.group(1),
+                         r"(?m)^\s+ref: refs/tags/\$\{\{ github\.event\.inputs\.tag \|\| github\.ref_name \}\}$",
+                         "release.yml does not check out the tag it publishes")
 
     def test_site_stages_both(self):
         staging = read("web/scripts/prepare-assets.js")
