@@ -439,6 +439,10 @@ short). One dashed vertical line in ink across every row is the leader's
 total, named at its head. `charts/reachChart.js` lays it out for both
 renderers; `reachFigure()` in `queries/season.js` chooses the rows (those
 still in, at most `TITLE_LIST_LIMIT`, and the highest placed of those out).
+Names sit in BarChart's 168 px column beside the bars from a 480 px plot,
+and above each bar from its left edge below that, where the leader's line
+is drawn beside the bars only, so a long name is never cut at the edge and
+the line never runs through one.
 
 - **Colour:** rule 1 above where every bar has a sourced colour, as the
   title race takes it; ink otherwise, and no accent. The extension is the

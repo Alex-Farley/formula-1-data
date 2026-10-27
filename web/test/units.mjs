@@ -1015,7 +1015,7 @@ describe('the queries a page and the prerenderer share', () => {
       const answer = titleAnswer(args)
       return answer ? `${answer.who} ${answer.basis}` : null
     }
-    const live = { races: 2, sprints: 1, run: 21, dropped_scores: 'Every result counts', available: 58 }
+    const live = { races: 2, sprints: 1, run: 21, dropped_scores: 'Every result counts', available: 58, sprint_scale: '[8,7,6,5,4,3,2,1]' }
     const table = [
       { entity: 'Antonelli', position: 1, points: 300 },
       { entity: 'Russell', position: 2, points: 250 },
@@ -1171,6 +1171,12 @@ describe('the queries a page and the prerenderer share', () => {
       assert.doesNotMatch(early.who, /constructors/)
       assert.match(early.basis, /^6 rounds still to run, so 150 points are still available, and a driver further behind/)
     }
+    // A sprint to run with no sprint system on record declines both, rather
+    // than price the sprint at nothing.
+    assert.equal(
+      titleAnswer({ drivers, constructors: teams, remaining: { ...live, sprints: 1, sprint_scale: null }, afterRound: 17, year: 2026 }),
+      null,
+    )
     // A dropped-scores season declines both.
     assert.equal(
       titleAnswer({ drivers, constructors: teams, remaining: { ...live, dropped_scores: 'Best 11 results' }, afterRound: 17, year: 1988 }),
@@ -1262,7 +1268,7 @@ describe('the queries a page and the prerenderer share', () => {
       { key: 'a', label: 'A', points: 300, reach: 350, alive: true, colour: null },
       { key: 'b', label: 'B', points: 240, reach: 290, alive: false, colour: null },
     ]
-    for (const width of [320, 640, 1200]) {
+    for (const width of [320, 375, 479, 480, 640, 1200]) {
       const layout = reachLayout({ data, lead: 300, width })
       const [a, b] = layout.bars
       // Every path's x coordinates, in order.
@@ -1278,6 +1284,24 @@ describe('the queries a page and the prerenderer share', () => {
       assert.ok(reachEnd > layout.lead.x)
       assert.ok(a.valueX + 8 * reachText(b.d).length <= width + 60, `the figures fit beside the bar at ${width}`)
       assert.ok(layout.lead.textX >= 34 && layout.lead.textX <= width - 34)
+      // No name can run off the left edge (#1182's review: at 320 to 900 px a
+      // name end-aligned in a narrow column was cut): below 480 px it starts
+      // at the edge above its bar, and from 480 it has BarChart's 168 px.
+      for (const bar of layout.bars) {
+        if (width < 480) {
+          assert.equal(bar.labelAnchor, 'start')
+          assert.equal(bar.labelX, 0)
+          assert.ok(bar.labelY + 8 <= bar.y, `the name sits above its bar at ${width}`)
+          // ...and the leader's line passes no name.
+          for (const [y1, y2] of layout.lead.segments) {
+            assert.ok(y2 <= bar.labelY - 8 || y1 >= bar.labelY + 8, `the line clears ${bar.d.label}'s name at ${width}`)
+          }
+        } else {
+          assert.equal(bar.labelAnchor, 'end')
+          assert.equal(bar.labelX, 158)
+        }
+      }
+      assert.equal(layout.stacked, width < 480)
     }
     assert.equal(reachText(data[0]), '300 → 350')
     assert.equal(reachText(data[1]), '240 → 290, out')

@@ -1465,17 +1465,17 @@ const reachSvg = (chart, width) => {
     .map((bar) => {
       const paint = bar.d.colour ? 'var(--livery)' : INK
       return `<g${bar.d.colour ? ownAttrs(bar.d.colour) : ''}><text class="axis-text bar-label" x="${px(bar.labelX)}" y="${px(
-        bar.middle,
-      )}" text-anchor="end" dominant-baseline="middle" fill="var(--ink)">${esc(bar.d.label)}</text>${
+        bar.labelY,
+      )}" text-anchor="${bar.labelAnchor}" dominant-baseline="middle" fill="var(--ink)">${esc(bar.d.label)}</text>${
         bar.solid ? `<path d="${tidy(bar.solid)}" fill="${paint}"/>` : ''
       }${bar.extension ? `<path class="reach-extension" d="${tidy(bar.extension)}" fill="${paint}" stroke="${paint}"/>` : ''}<text class="value-text" x="${px(
         bar.valueX,
       )}" y="${px(bar.middle)}" dominant-baseline="middle">${esc(bar.value)}</text></g>`
     })
     .join('')
-  const lead = `<line class="reach-leader" x1="${px(layout.lead.x)}" x2="${px(layout.lead.x)}" y1="${px(layout.lead.y1)}" y2="${px(
-    layout.lead.y2,
-  )}"/><text class="axis-text" x="${px(layout.lead.textX)}" y="${px(layout.lead.textY)}" text-anchor="middle">${esc(layout.lead.text)}</text>`
+  const lead = `${layout.lead.segments
+    .map(([y1, y2]) => `<line class="reach-leader" x1="${px(layout.lead.x)}" x2="${px(layout.lead.x)}" y1="${px(y1)}" y2="${px(y2)}"/>`)
+    .join('')}<text class="axis-text" x="${px(layout.lead.textX)}" y="${px(layout.lead.textY)}" text-anchor="middle">${esc(layout.lead.text)}</text>`
   return `<div class="plot-holder">${plotSvg(layout, chart.label, `${bars}${lead}`)}</div>`
 }
 

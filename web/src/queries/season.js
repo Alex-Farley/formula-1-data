@@ -949,7 +949,11 @@ export function titleAnswer({ drivers, constructors, remaining, afterRound, buil
   if (remaining.dropped_scores !== EVERY_RESULT_COUNTS) return null
   if (missing(afterRound) || afterRound !== remaining.run) return null
 
-  const forDrivers = standingFight('drivers', drivers, remaining.available, (d) => d.driver_id)
+  // A sprint still to run with no sprint system on record is priced at
+  // nothing by REMAINING's `available`: the drivers' title declines it, as
+  // the constructors' does, rather than count it as worth no points.
+  const unpriced = remaining.sprints > 0 && missing(remaining.sprint_scale)
+  const forDrivers = standingFight('drivers', drivers, unpriced ? null : remaining.available, (d) => d.driver_id)
   const teams = Number.isInteger(year) && year >= CONSTRUCTORS_FROM && year >= EVERY_CAR_COUNTS_FROM
   const forTeams = teams ? standingFight('constructors', constructors, teamAvailable(remaining), (d) => d.constructor_id) : null
   if (!forDrivers && !forTeams) return null

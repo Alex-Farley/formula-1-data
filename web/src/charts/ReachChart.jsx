@@ -30,8 +30,8 @@ export default function ReachChart({ data, lead, label }) {
               <text
                 className="axis-text bar-label"
                 x={bar.labelX}
-                y={bar.middle}
-                textAnchor="end"
+                y={bar.labelY}
+                textAnchor={bar.labelAnchor}
                 dominantBaseline="middle"
                 fill="var(--ink)"
               >
@@ -45,7 +45,9 @@ export default function ReachChart({ data, lead, label }) {
             </g>
           )
         })}
-        <line className="reach-leader" x1={layout.lead.x} x2={layout.lead.x} y1={layout.lead.y1} y2={layout.lead.y2} />
+        {layout.lead.segments.map(([y1, y2]) => (
+          <line key={y1} className="reach-leader" x1={layout.lead.x} x2={layout.lead.x} y1={y1} y2={y2} />
+        ))}
         <text className="axis-text" x={layout.lead.textX} y={layout.lead.textY} textAnchor="middle">
           {layout.lead.text}
         </text>
