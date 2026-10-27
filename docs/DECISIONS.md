@@ -839,6 +839,120 @@ later and carry them anyway. The item asked for the paths a typical fork
 does not take, and those three are the main path. If AF-129's figures make
 the case, it is a change of its own.
 
+### D-60 · Sonnet implements XS and S items, on trial — 2026-10-27 (`AF-144`, #1150)
+On 2026-10-24 `/usage` put the week at **Opus 98 %, Sonnet 2 %**. Every
+implementing fork ran on the session's model, Opus, and so did every first
+pass; only confirmations and `frontend-reviewer-quick` used Sonnet, which
+counts for much less of the plan's weekly limit. Usage, not the queue, is
+what bounds how much the loop lands in a week. The maintainer agreed a
+trial with its revert rule set in advance: Sonnet implements XS and S items,
+the review is unchanged, and the trial goes if the review finds the work
+worse.
+
+**The probe.** `[D-35]` found a skill's `effort:` key apparently inert in a
+fork, so the item asked for `model:` to be checked the same way before
+anything relied on it. It was checked by billing rather than metadata: `claude -p
+--output-format json` reports usage per model (`modelUsage`), which is what
+the session was charged on, not what it says about itself. Three runs on
+2026-10-27, Claude Code 2.1.307, each a throwaway `context: fork` skill
+asked to quote the sentence naming its model:
+
+| Run | Session | Skill's `model:` | Models charged | Fork said |
+|---|---|---|---|---|
+| A | `/skill` typed as the prompt | `sonnet` | Sonnet only | Sonnet 5.5 |
+| B | Opus, which invokes the Skill tool | `sonnet` | Opus 86 output tokens, Sonnet 32 | Sonnet 5.5 |
+| C | Opus, which invokes the Skill tool | none | Opus only | Opus 5.5 |
+
+B against C is the result: **the key is live in a fork**, and an Opus
+session's fork of a skill naming Sonnet is charged as Sonnet. It says nothing
+about `effort:`, whose open probe is still the behavioural one `[D-35]` names.
+
+**The route, then, is a second skill, not a second process.** The item
+expected `supervise.py` to start a Sonnet session for a small head, because a
+fork could only inherit the session's model. With the key live, the driver
+chooses per fork within the session it already runs. That holds for
+`/backlog-loop` typed by a person as much as unattended, and needs no change
+to how `supervise.py` starts the manager. `backlog-item-sonnet` is
+`context: fork` with `model: sonnet`, and its body sends the fork to
+`backlog-item/SKILL.md` with four additions, so the procedure still has one
+copy. Reverting the trial takes out: the `backlog-item-sonnet` folder;
+`implementer.py`, with the `import implementer`, `open_claude_work()`,
+`trial_count()` and the `--implementer` branch in `next.py`; precheck
+check 8; the implementer step and the `REROUTE` line in the driver's
+procedure; the lines naming the trial in `backlog-manager.md` and
+`supervise.py`'s docstring; and `tests/test_backlog_implementer.py`.
+
+**What is chosen, and how.** Before a fork at `balanced` or `thorough`, for
+the target `next` or `until-paused`, the driver runs `next.py
+--implementer` with the fork's `--skip` and `--max-size`.
+`implementer.py` holds the rule, and gives `sonnet <ID>` only when:
+
+- no `claude/` branch or pull request is open. The next fork finishes one
+  whatever it is, so its model is not chosen by the item at the head;
+- the head is not an alarm or a security alert;
+- its source is not the data itself (`source: live data`,
+  `source: Wikipedia survey`, `source: project record`): that work lands in
+  `data/` or `harvest/` whether or not the body says so, and the first
+  review of this entry found an LV item naming no path at all;
+- it is labelled XS or S. An unsized `?` is not;
+- its title and body name no protected path. The item's list is the data
+  paths (`build.py`, `verify.py`, `data/`, `harvest/`, `tools/`) and the
+  publishing ones (`.github/workflows/`, the release, `export_json.py`,
+  `prepare-assets.js`). Beside those come the rest of what `[D-19]` gives an
+  Opus first pass (`schema.sql`, `prerender.js`), the rest of the deploy
+  chain CLAUDE.md names (`package.json` and its lock, `parquet-bundle.mjs`,
+  `wrangler.jsonc`), all of `.github/`, any `.yml`, the licence texts, the
+  committed artefacts, and these files of the loop's controls:
+  `implementer.py`, `precheck.sh`, `floors.py`, `verdict.sh`,
+  `merge-step.py`, `merge-main.py`, `ci-wait.sh`, `next.py`,
+  `review-prompt.md`, `.claude/agents/` and both item skills. The rest of
+  `.claude/skills/backlog-loop/`, `.claude/settings*.json` and the loop's
+  tests are not protected. Over-matching keeps an item on Opus, which is the
+  safe direction;
+- fewer than ten pull requests, merged or open, carry the label
+  `implementer: sonnet`. **The trial stops itself at ten** and waits to be
+  measured, rather than running on unmeasured.
+
+Anything else, including an error from the script, is the ordinary Opus
+fork. `fast` stays out because its quick reviewer is Sonnet too, and the
+trial leans on the Opus first pass. An item a person named stays out
+because the script reads the queue's head, not the item named.
+
+**Two guards, because a body is a claim** `[D-34]`. The Sonnet fork rereads
+the item against the code before it claims anything. Where the work needs a
+protected path after all, it returns `REROUTE <ID>: <path>`, and the driver
+hands the item to the ordinary fork. `precheck.sh` then checks the diff
+itself, with renames split into both sides, against `implementer.py` as
+`origin/main` holds it so that a diff cannot rewrite its own rule. The Sonnet
+fork runs it under `LOOP_IMPLEMENTER=sonnet`. A pull request so run or
+labelled `implementer: sonnet` that changes a protected path is a FAIL, and
+the fork closes that pull request unmerged and reroutes. The variable without
+the label is a FAIL too, because the label is what the trial counts. The
+fork never takes the label off. The label is also the trial's
+record: the fork writes `implementer: sonnet` into its *item chosen*
+progress line, so `progress.log` attributes the `usage` lines around it.
+
+**The revert rule, as agreed.** Over the first ten items Sonnet implements,
+against the last ten XS and S items Opus implemented before this entry's
+pull request merged:
+
+- the share of first reviews that FAIL;
+- findings missed, meaning anything a later review or a later item found
+  that the first review should have caught on that diff;
+- session points per item, from the `usage` lines in `.claude/loop/progress.log`.
+
+If FAILs or missed findings are worse, the trial is reverted in the pull
+request that records the figures, even if usage improved. The figures go
+here either way. That is `AF-146` (#1175), labelled `blocked` until ten
+labelled pull requests have merged. The control is named by pull request
+number there, from the verdict comments `[D-23]`, rather than here: it is
+read off the same comments, by the same hand, as the trial's ten.
+
+**One confound to hold.** `[D-35]`'s control found that a change to the
+reviewers inside the window moves the figures. Nothing here changes a
+reviewer, and AF-146 should say so if anything else does before the ten are
+in.
+
 ### D-21 · The rungs of one item are one PR — 2026-09-13
 The 2026-09-13 run spent four first passes and three confirmations on four
 rungs of `PD-02` whose diffs a single pass would have read for the price of
@@ -1406,6 +1520,11 @@ compared against 6
 first-pass FAILs in 10 and 8 FAIL rounds over 10 items — and run only after
 the behavioural probe above says the effort is reaching the fork at all. One
 item cannot tell 6 in 10 from 5 in 10, so it is several or it is nothing.
+
+*2026-10-27:* the `model:` key, one key over again, **is** live in a fork,
+established by per-model billing rather than by the fork's metadata
+`[D-60]`. That does not carry over to `effort:`: the behavioural probe
+above is still the one that would settle it.
 
 ### D-42 · The loop runs from the repository, not from an account — 2026-09-25
 Until this the loop's manager was whichever interactive session typed
