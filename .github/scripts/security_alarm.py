@@ -65,7 +65,7 @@ A SECRET IS NAMED, NEVER DESCRIBED
 TWO TOKENS
     The workflow's own token reads the code-scanning alerts and the open
     issues and does every write. It is refused the Dependabot and
-    secret-scanning alerts (HTTP 403 on the first run, 2026-10-23), so
+    secret-scanning alerts (HTTP 403 on every run from the first, 2026-10-19), so
     those two kinds are read with a token minted from the refresh GitHub
     App, narrowed to reading them, and that token is used for nothing else
     (AF-124).

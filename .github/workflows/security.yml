@@ -13,9 +13,9 @@ name: security alerts
 # Weekly, at a minute nobody else picked (AF-01), and after each CodeQL run
 # on main finishes, so an alert a push raises can be filed the same day.
 # CodeQL here is GitHub's default setup, listed among this repository's
-# workflows as `CodeQL` (dynamic/github-code-scanning/codeql); no run of
-# this file has yet shown that workflow_run fires for it, so the weekly
-# schedule is the floor either way. workflow_run runs this file as it is on
+# workflows as `CodeQL` (dynamic/github-code-scanning/codeql); workflow_run
+# has fired for it since the first run of this file, on 2026-10-19, and the
+# weekly schedule is the floor either way. workflow_run runs this file as it is on
 # main, and the `branches` filter keeps it to runs on main.
 on:
   schedule:
@@ -40,7 +40,7 @@ jobs:
   # security-events to read the code-scanning alerts, issues to file them.
   # And one minted from the refresh GitHub App, narrowed to reading the
   # Dependabot and secret-scanning alerts, which GITHUB_TOKEN was refused
-  # (HTTP 403 on the first run, 2026-10-23, and every run since) (AF-124).
+  # (HTTP 403 on every run from the first, 2026-10-19) (AF-124).
   # The App token reads those two kinds and nothing else; it never writes.
   # A kind neither token may read fails the step at the end, which
   # security_alarm.py prefers to a watch that reports nothing open because
