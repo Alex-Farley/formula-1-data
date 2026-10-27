@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { dotPlotLayout } from './dotPlot.js'
 import { ownColour } from './own.js'
-import { seriesColour } from './palette.js'
+import { INK } from './palette.js'
 import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
 
@@ -20,7 +20,7 @@ import { useMeasure } from './useMeasure.js'
  * `.livery-series` group of their own, reading the {light, dark} pair as a
  * whole-chart colour does (charts/own.js), and the tooltip swatch takes the
  * hovered point's. A point without one takes the chart's `colour`, and
- * failing that the neutral series colour.
+ * failing that ink (VD-94).
  *
  * A point may instead be `hollow` (AF-55): outlined, unfilled, drawn in ink
  * rather than in any colour. That is how a chart that wears liveries draws a
@@ -87,7 +87,7 @@ export default function DotPlot({
   // point carries neither: it is drawn in ink by `.mark-hollow`, and takes no
   // `.livery-series` group, because there is no pair for one to resolve.
   const ownOf = (d) => (d.colour ? ownColour(d.colour) : own)
-  const paintOf = (d) => ownOf(d).paint ?? seriesColour(0)
+  const paintOf = (d) => ownOf(d).paint ?? INK
 
   // The point nearest the pointer, in the plot's own units, or none past HIT.
   // A tap sends no pointermove, so a pointerdown reads the point as well.

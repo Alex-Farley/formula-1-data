@@ -34,6 +34,7 @@ import {
   WON_BY,
   WON_FOR,
   calendarLink,
+  chartData,
   chartLabel,
   chartNote,
   reading,
@@ -209,7 +210,7 @@ export default function Home() {
                   }}
                 >
                   <ColumnChart
-                    data={seasons.map((s) => ({ key: s.year, value: s.rounds, label: s.year % 10 === 0 ? s.year : '' }))}
+                    data={chartData(seasons)}
                     labelEvery={1}
                     height={200}
                     label={chartLabel(shape)}

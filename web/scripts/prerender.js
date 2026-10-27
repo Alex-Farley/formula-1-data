@@ -661,12 +661,12 @@ import {
 // in the app, so the half a crawler and a cold arrival are given had no
 // relational layer at all; both now come from one place.
 import { ONWARD, TRAIL, eraSteps, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
-import { GRID_FLAG_HEADS, crossPath, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
+import { GRID_FLAG_HEADS, crossPath, flagCarClass, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
 import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
 import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
-import { seriesColour, seriesDash } from '../src/charts/palette.js'
+import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
 import {
   STINT_HEADS,
   lateStops,
@@ -1242,7 +1242,7 @@ const gridFlagSvg = (layout, label) => {
   )}${t('axis-text', layout.labelX, layout.headY, GRID_FLAG_HEADS.result)}${layout.cars
     .map(
       (car) =>
-        `<g class="${car.out ? 'flag-car flag-out' : 'flag-car'}">${t('axis-text', layout.gridX, car.y1, car.grid, ` text-anchor="end"${mid}`)}` +
+        `<g class="${flagCarClass(car)}">${t('axis-text', layout.gridX, car.y1, car.grid, ` text-anchor="end"${mid}`)}` +
         `<line class="flag-line" x1="${car.x1}" y1="${car.y1}" x2="${car.x2}" y2="${car.y2}"/>` +
         `<circle class="flag-start" cx="${car.x1}" cy="${car.y1}" r="2.5"/>` +
         (car.leader ? `<line class="flag-leader" x1="${car.leader.from}" y1="${car.y2}" x2="${car.leader.to}" y2="${car.y2}"/>` : '') +
@@ -1382,7 +1382,7 @@ const xAxis = (layout) =>
 const dotPlotSvg = (chart, width) => {
   const layout = dotPlotLayout({ ...chart, width })
   if (!layout) return ''
-  const paint = (d) => (d.colour ? 'var(--livery)' : seriesColour(0))
+  const paint = (d) => (d.colour ? 'var(--livery)' : INK)
   const halos = layout.points
     .filter(({ d }) => d.mark)
     .map(
@@ -1403,16 +1403,18 @@ const dotPlotSvg = (chart, width) => {
   return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${halos}${dots}`)}</div>`
 }
 
-/* ColumnChart.jsx at rest: the columns in the entity's colour, the peak's
-   value over it, and every labelEvery-th season under the axis. */
+/* ColumnChart.jsx at rest: the columns in the entity's colour or in ink, a
+   marked one in the accent and a hollow one outlined, the printed values
+   over theirs, and every labelEvery-th season under the axis. */
 const columnSvg = (chart, colour, width) => {
   const layout = columnLayout({ ...chart, width })
   if (!layout) return ''
-  const paint = colour ? 'var(--livery)' : seriesColour(0)
+  const base = colour ? 'var(--livery)' : INK
+  const paint = (d) => (d.hollow ? 'none' : d.mark ? MARK : base)
   const columns = layout.columns
     .map(
       (c) =>
-        `<g><path d="${tidy(c.path)}" fill="${paint}"/>${
+        `<g><path${c.d.hollow ? ' class="column-hollow"' : ''} d="${tidy(c.path)}" fill="${paint(c.d)}"/>${
           c.value !== null ? `<text class="value-text" x="${px(c.centre)}" y="${px(c.top - 6)}" text-anchor="middle">${esc(c.value)}</text>` : ''
         }${c.label !== null ? `<text class="axis-text" x="${px(c.centre)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(c.label)}</text>` : ''}</g>`,
     )
@@ -1428,7 +1430,7 @@ const lineSvg = (chart, width) => {
   if (!layout) return ''
   const lines = layout.lines
     .map(({ s, i, path, end }) => {
-      const stroke = s.colour ? 'var(--livery)' : seriesColour(i)
+      const stroke = s.colour ? 'var(--livery)' : slotColour(i, layout.lines.length)
       const dash = seriesDash(i)
       return `<g${s.colour ? ownAttrs(s.colour) : ''}><path d="${path}" fill="none" stroke="${stroke}" stroke-width="2"${
         dash ? ` stroke-dasharray="${dash}"` : ''
@@ -1456,11 +1458,11 @@ const legendHtml = (legend, marks) =>
               ? `<svg class="${entry.colour ? 'line-key livery-series' : 'line-key'}"${
                   entry.colour ? ` style="${pairStyle(entry.colour)}"` : ''
                 } width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" focusable="false"><line x1="2" x2="18" y1="4" y2="4" stroke="${
-                  entry.colour ? 'var(--livery)' : seriesColour(i)
+                  entry.colour ? 'var(--livery)' : slotColour(i, legend.length)
                 }" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/></svg>`
               : entry.colour
                 ? `<i class="livery-series" style="${pairStyle(entry.colour)}; background: var(--livery)" aria-hidden="true"></i>`
-                : `<i style="background: ${seriesColour(i)}" aria-hidden="true"></i>`
+                : `<i style="background: ${slotColour(i, legend.length)}" aria-hidden="true"></i>`
           return `<span>${key}${esc(entry.name)}</span>`
         })
         .join('')}</div>`

@@ -151,7 +151,21 @@ function Gallery({ cars }) {
             <h3>
               <Link to={`/cars/${car.id}`}>{car.car}</Link>
             </h3>
+            {/* The builder's mark, as the register's constructor column draws it
+                (AF-51), taken on the card by AF-58 inside VD-94's move: the
+                photograph shows a livery, the mark says which colour the
+                record holds for that constructor in the car's last season,
+                and a car of the declared 1968-2009 gap draws none. */}
             <p className="carcard-meta num">
+              <LiveryMark
+                colour={colourForEntry({
+                  constructorId: car.constructor_id,
+                  country: car.constructor_country,
+                  year: car.to_year,
+                  team: car.constructor,
+                })}
+                year={car.to_year}
+              />
               {car.constructor} · {span(car.from_year, car.to_year)}
             </p>
             {car.concept && <p className="carcard-concept">{car.concept}</p>}

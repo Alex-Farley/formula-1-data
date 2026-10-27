@@ -152,8 +152,8 @@
  *               the country that entered it, and the era this record most
  *               owns.
  *   1968-2009   nothing. Sponsor liveries displaced the convention and no
- *               source for this era has been read yet; a surface draws the
- *               neutral series palette or no mark. A declared gap, not an
+ *               source for this era has been read yet; a surface draws
+ *               ink, the neutral series palette, or no mark. A declared gap, not an
  *               oversight (AF-04, scope decided 2026-09-13: 2010 onwards).
  *   2010-       this map, or nothing where LIVERY_GAPS says so.
  *

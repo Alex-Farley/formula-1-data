@@ -181,9 +181,9 @@ capped in rem, and below 768 everything runs the full column.
 | Surfaces | `--bg`, `--panel`, `--panel-sunk`, `--panel-raised`, `--stage` | ground, a box, a well, an overlay, the surface a chart or outline is drawn on |
 | Ink | `--ink`, `--ink-soft`, `--ink-faint`, `--ink-invert` | text by rank; the foreground on an accent fill |
 | Structure | `--rule`, `--rule-strong`, `--shadow-sm`, `--shadow` | hairlines; the two elevations |
-| Interaction | `--accent`, `--accent-ink`, `--accent-wash` | the one interactive colour, and the fastest lap |
+| Interaction | `--accent`, `--accent-ink`, `--accent-wash` | the one interactive colour, the fastest lap, and on an ink chart the value its page states (`--series-mark`, `[D-61]`) |
 | Result rail | `--rail-podium`, `--rail-points`, `--rail-classified` | state on a result row |
-| Chart | `--series-1..3`, `--grid` | categorical series. Never text |
+| Chart | `--series-ink`, `--series-mark`, `--series-1..3`, `--grid` | a chart with no owner in ink, its one stated value in the accent (VD-94, `[D-61]`); several series with no sourced colour in the three slots. Never text |
 | Identity | `--racing-*` (1950–1967, a pair per theme); `--livery` (2010 on, per element) | a constructor's colour, beside a name it never replaces |
 
 Both themes keep their measured contrast (the figures are in the
@@ -399,6 +399,21 @@ inside it is scaled, until the app redraws it at the width it occupies.
   h2 names its section rather than what it measures, as the constructors'
   wins and the decade the chips chose on `/records`) sits in a
   `FigurePart`, whose h3 names it and its table.
+- **Colour** (VD-94, `[D-61]`; `charts/palette.js` holds the order and the
+  validator's numbers):
+  1. A series that belongs to a team or a driver wears its sourced colour,
+     the livery from 2010 or the racing colour before 1968, as the pair
+     `charts/own.js` writes.
+  2. A chart with one series and no such colour is drawn in `--series-ink`,
+     and the one value its page states in `--series-mark`, with that value
+     or its name printed on or beside the mark: the home chart's latest season
+     raced, a record's holder on `/records`, a race's winner
+     in *Grid to flag*. A chart whose page states no one value has no
+     accented mark. A chart in liveries takes no accent.
+  3. Several series with no sourced colour, or colours that cannot be told
+     apart, take `--series-1..3`.
+  A mark that is not a measurement of the same kind as the rest, such as a
+  calendar among results, is hollow: outlined in ink, unfilled.
 - **Widths:** the slot (5 columns) for the lead figure, the full width
   otherwise.
 - **States:** a figure with nothing to draw says so in one sentence in its

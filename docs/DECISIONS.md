@@ -260,6 +260,33 @@ phone. What the third costs is a sighted reader of a wide table on a phone,
 who loses the column names once the heads scroll away; that is VD-99
 (#972), an item of its own.
 
+### D-61 · A chart with no owner is drawn in ink, the accent on the value the page states — 2026-10-27 (`VD-94`, #924)
+Every chart that belonged to no team or driver drew its marks in
+`--series-1`, slot one of the dataviz skill's reference categorical palette,
+which `charts/palette.js` itself called a brand-neutral placeholder. The
+design review of 2026-10-08 named the same blue on home, season, race and
+records as one of the three strongest signs that the site was generated
+rather than designed (DR-01).
+
+The rule it changes is the accent's. The system gave `--accent` one job,
+"you can act on this", with the fastest lap beside it, and `palette.js`
+kept it off data marks on purpose: a mark wearing it would look clickable.
+DR-01 asked for single-series charts in ink with the accent on the one
+value that matters, and sourced liveries and racing colours on team and
+driver series, with the reference slots only as the fallback. That changes
+what an existing rule says, so it is §8's *Changing or reversing*; the
+maintainer accepted the review, this change with it, on 2026-10-08, and
+that acceptance is recorded on the item.
+
+What it costs is the accent's single meaning. It holds where it is spent:
+on one mark per chart, never on a whole series, and always beside a printed
+value or name, so the mark is never the only cue (1.4.1). The pair was run
+through the same validator as the slots, and the numbers are in
+`palette.js`. What it does not change: text never wears a chart colour,
+three slots are still the cap where several series have no sourced colour,
+and a chart in liveries takes no accent, because a red mark among team
+colours would read as Ferrari's.
+
 `smoke.mjs` (*Sticky column heads*) holds all three cases: heads under the
 masthead on a table that fits, at the top of the box on a figure's numbers,
 and not sticky on a table wider than its box.

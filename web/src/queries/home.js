@@ -272,6 +272,29 @@ export const chartNote = (seasons) => {
   }.`
 }
 
+/**
+ * The columns the note describes (VD-94): the first season and the last one
+ * raced carry their counts printed over them, the last raced in the accent,
+ * because those are the two figures the note states; a calendar is drawn
+ * hollow, because the note says it is not a set of results, and its tooltip
+ * says "calendar". Every tenth season is labelled under the axis. The two
+ * rules read the rows as chartNote() does, so the picture and the sentence
+ * cannot name different seasons.
+ */
+export const chartData = (seasons) => {
+  const raced = [...seasons].reverse().find((s) => s.run)
+  const first = raced ? seasons[0] : null
+  return seasons.map((s) => ({
+    key: s.year,
+    value: s.rounds,
+    label: s.year % 10 === 0 ? s.year : '',
+    print: s === first || s === raced,
+    mark: s === raced,
+    hollow: !s.run,
+    note: s.run ? undefined : 'calendar',
+  }))
+}
+
 export const chartLabel = (shape) =>
   `Number of championship races in each season from ${shape.from_year} to ${shape.to_year}`
 

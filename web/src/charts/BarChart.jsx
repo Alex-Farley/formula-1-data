@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { linear, niceDomain } from './scales.js'
 import { ownColour } from './own.js'
-import { seriesColour } from './palette.js'
+import { INK, MARK } from './palette.js'
 import { useMeasure } from './useMeasure.js'
 
 /**
@@ -15,8 +15,11 @@ import { useMeasure } from './useMeasure.js'
  * DotPlot point does: every bar here is a different entity, so the colour is
  * per bar and there is no whole-chart `colour` prop to give. Each bar sits in
  * a `.livery-series` group of its own and reads the {light, dark} pair rather
- * than the flat mark base (charts/own.js). A bar without one falls back to the
- * neutral series colour.
+ * than the flat mark base (charts/own.js). A bar without one is drawn in ink,
+ * and one that carries `mark` in the accent: the record's holder, say, on a
+ * chart whose page states the record (VD-94; charts/palette.js has the
+ * order). Every bar's name and value are printed beside it, so the accent is
+ * never the only thing that says which bar it is.
  *
  * A datum may instead be `hollow` (AF-55), the bar form of DotPlot's hollow
  * point and the same convention: outlined and unfilled, in ink rather than in
@@ -77,7 +80,7 @@ export default function BarChart({ data, format = (v) => v.toLocaleString('en-GB
                 d={`M${start},${y} L${start + long - radius},${y} Q${start + long},${y} ${start + long},${y + radius}
                     L${start + long},${y + THICKNESS - radius} Q${start + long},${y + THICKNESS} ${start + long - radius},${y + THICKNESS}
                     L${start},${y + THICKNESS} Z`}
-                fill={d.hollow ? 'none' : (own.paint ?? seriesColour(0))}
+                fill={d.hollow ? 'none' : (own.paint ?? (d.mark ? MARK : INK))}
                 opacity={hover && hover.key !== d.key ? 0.55 : 1}
               />
               <text

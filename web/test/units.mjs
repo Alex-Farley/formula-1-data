@@ -168,7 +168,7 @@ import {
   sprintQualifyingColumns,
   withDistance,
 } from '../src/queries/race.js'
-import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
+import { chartData, chartNote, seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
   LIVERIES,
   LIVERY_ERA,
@@ -215,10 +215,14 @@ import {
   headlineRecords,
   leadersDrawn,
   leadersDrawnLine,
+  markLeaders,
   recordColumns,
   recordFamilies,
   tiersOf,
 } from '../src/queries/records.js'
+import { columnLayout } from '../src/charts/columnChart.js'
+import { flagCarClass, gridFlagLayout } from '../src/charts/gridFlag.js'
+import { INK, slotColour } from '../src/charts/palette.js'
 import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 import { unestablished } from '../src/lib/tiles.js'
 
@@ -1568,6 +1572,13 @@ describe('the queries a page and the prerenderer share', () => {
     assert.deepEqual(leadersDrawn(tied, 'wins').map((r) => r.id), [...Array(17).keys()])
     assert.match(leadersDrawnLine(17), /^The 17 with the most/)
     assert.equal(leadersDrawn(board([3, 2, 1]), 'wins').length, 3)
+  })
+
+  it("marks a leaderboard's holder, every one of a shared record, and nothing on an empty board (VD-94)", () => {
+    const bars = (values) => values.map((value, i) => ({ key: i, value }))
+    assert.deepEqual(markLeaders(bars([9, 7, 7])).map((b) => b.mark), [true, false, false])
+    assert.deepEqual(markLeaders(bars([7, 7, 5])).map((b) => b.mark), [true, true, false])
+    assert.deepEqual(markLeaders([]), [])
   })
 
   it('leads with the headline records and shows every other one once, under its family (WK-08)', () => {
@@ -3617,5 +3628,51 @@ describe('a session gap as a distance on the track (AF-131)', () => {
     } finally {
       db.close()
     }
+  })
+})
+
+describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)', () => {
+  it('a lone series without a sourced colour is ink, and several take the slots', () => {
+    assert.equal(slotColour(0, 1), INK)
+    assert.deepEqual([0, 1, 2].map((i) => slotColour(i, 3)), ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'])
+  })
+
+  it("the home chart prints the two figures its note states, marks the latest season raced and draws a calendar hollow", () => {
+    const seasons = [
+      { year: 1950, rounds: 7, run: 7 },
+      { year: 1960, rounds: 10, run: 10 },
+      { year: 2025, rounds: 24, run: 24 },
+      { year: 2026, rounds: 23, run: 18 },
+      { year: 2027, rounds: 24, run: 0 },
+    ]
+    const columns = chartData(seasons)
+    assert.deepEqual(columns.filter((c) => c.print).map((c) => c.key), [1950, 2026])
+    assert.deepEqual(columns.filter((c) => c.mark).map((c) => c.key), [2026])
+    assert.deepEqual(columns.filter((c) => c.hollow).map((c) => [c.key, c.note]), [[2027, 'calendar']])
+    // The note names the same two seasons the picture prints.
+    assert.match(chartNote(seasons), /^7 rounds in 1950; 23 by 2026\./)
+    // The layout prints those two and not the peak, 2025 and 2027's 24.
+    const layout = columnLayout({ data: columns, width: 600, height: 200 })
+    assert.deepEqual(layout.columns.filter((c) => c.value !== null).map((c) => c.d.key), [1950, 2026])
+    // With nothing raced nothing is marked, and the peak is printed as before.
+    const calendar = chartData([{ year: 2027, rounds: 24, run: 0 }, { year: 2028, rounds: 20, run: 0 }])
+    assert.equal(calendar.some((c) => c.mark || c.print), false)
+    const peak = columnLayout({ data: calendar, width: 600, height: 200 })
+    assert.deepEqual(peak.columns.filter((c) => c.value !== null).map((c) => c.d.key), [2027])
+  })
+
+  it('grid to flag marks the car classified first, and both of a shared winning drive', () => {
+    const entry = (id, grid, finish, laps) => ({
+      id,
+      driver: `Driver ${id}`,
+      grid,
+      finish_position: finish,
+      position_text: finish === null ? 'DNF' : String(finish),
+      laps_completed: laps,
+    })
+    const layout = gridFlagLayout([entry(1, 2, 1, 50), entry(2, 1, 2, 50), entry(3, 3, null, 20)])
+    assert.deepEqual(layout.cars.map(flagCarClass), ['flag-car flag-won', 'flag-car', 'flag-car flag-out'])
+    const shared = gridFlagLayout([entry(1, 1, 1, 50), entry(2, 1, 1, 50), entry(3, 2, 2, 50)])
+    assert.deepEqual(shared.cars.map((car) => car.won), [true, true, false])
   })
 })
