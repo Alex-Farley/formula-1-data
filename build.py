@@ -3997,6 +3997,66 @@ def _resource_typed_career_figures(cur, f1db_drivers):
                     ("; ".join(parts), did))
 
 
+def _stage_30b_dates_of_birth_and_death_from_f1db(b):
+    """dates of birth and death from F1DB, before the records read them"""
+    cur = b.cur
+
+    # --- a driver's dates from F1DB, where the row has none (PM-73)
+    #
+    # The drivers a season article or the polesitters' list introduced, and
+    # those the podium harvest added, were inserted without the dates F1DB
+    # states under the id they carry, so the facts artefact, which takes
+    # F1DB's dates for the first two, knew more about them than f1.db did;
+    # and a typed row can lack a death that happened after it was typed.
+    # Where the row has a date it is compared, not overwritten: two dates for
+    # one person mean one of the registers has the wrong person or the wrong
+    # day, and the build stops. A death filled here makes the row `deceased`,
+    # because a driver page shows no date of death under an `active` or
+    # `retired` status.
+    #
+    # It runs here, and not with the rest of what F1DB publishes about a
+    # driver in stage 36, because stage 31's age records count the drivers
+    # with no date of birth and its posthumous-champion record reads the
+    # dates of death: filled after them, the records would describe the
+    # register as it was before. b.f1db_drivers is stage 21's map.
+    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
+    born_filled = died_filled = 0
+    for f1db_id, our_id in sorted(b.f1db_drivers.items()):
+        meta = f1db_drv.get(f1db_id)
+        if meta is None:
+            raise SystemExit(
+                f"the driver map resolves {our_id} to {f1db_id}, which is not "
+                f"in harvest/f1db_drivers.txt. Rerun tools/f1db_fetch.py.")
+        f1db_born, f1db_died = meta[4], meta[5]
+        row = cur.execute("SELECT born, died, status FROM drivers WHERE id = ?",
+                          (our_id,)).fetchone()
+        if row is None:
+            raise SystemExit(f"the driver map resolves {our_id} to {f1db_id}, "
+                             f"and the register holds no {our_id}.")
+        born, died, status = row
+        for what, ours, theirs in (("date of birth", born, f1db_born),
+                                   ("date of death", died, f1db_died)):
+            if ours and theirs and ours != theirs:
+                raise SystemExit(
+                    f"{our_id} has the {what} {ours} and F1DB gives {f1db_id} "
+                    f"{theirs}. One of them is the wrong person or the wrong "
+                    f"day: correct the row, or the mapping.")
+        if not born and f1db_born:
+            born = f1db_born
+            born_filled += 1
+        if not died and f1db_died:
+            if status == "active":
+                raise SystemExit(
+                    f"{our_id} is active and F1DB gives {f1db_id} the date of "
+                    f"death {f1db_died}. One of them is the wrong person.")
+            died, status = f1db_died, "deceased"
+            died_filled += 1
+        cur.execute("UPDATE drivers SET born = ?, died = ?, status = ? WHERE id = ?",
+                    (born, died, status, our_id))
+    print(f"  driver dates: {born_filled} date(s) of birth and {died_filled} "
+          f"of death filled from F1DB")
+
+
 def _stage_31_figures_derivable_from_the_race_records(b):
     """figures derivable from the race records"""
     cur = b.cur
@@ -5230,51 +5290,19 @@ def _stage_36_what_f1db_publishes_about_a_driver_and(b):
     # does not repeat the match, and means the schema's UNIQUE constraint
     # stands behind the one-to-one-ness that resolve_f1db_drivers checks.
     #
-    # The dates of birth and death are filled the same way, where the row has
-    # none (PM-73). The drivers a season article or the polesitters' list
-    # introduced, and those the podium harvest added, were inserted without
-    # the dates F1DB states under the id they carry, so the facts artefact,
-    # which takes F1DB's dates for the first two, knew more about them than
-    # f1.db did; and a typed row can lack a death that happened after it was
-    # typed. Where the row has a date it is compared, not overwritten: two
-    # dates for one person mean one of the registers has the wrong person or
-    # the wrong day, and the build stops. A death filled here makes the row
-    # `deceased`, because a driver page shows no date of death under an
-    # `active` or `retired` status.
+    # The dates of birth and death are not filled here but in stage 30b,
+    # before the records are derived from them.
     f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
     f1db_ctry = {r[0]: r[1] for r in HV.load_f1db_countries()}
-    keyed = numbered = coded = born_filled = died_filled = 0
+    keyed = numbered = coded = 0
     for f1db_id, our_id in sorted(b.f1db_drivers.items()):
         meta = f1db_drv.get(f1db_id)
         if meta is None:
             raise SystemExit(
                 f"the driver map resolves {our_id} to {f1db_id}, which is not "
                 f"in harvest/f1db_drivers.txt. Rerun tools/f1db_fetch.py.")
-        (_id, _name, _first, _last, f1db_born, f1db_died, abbr, _nat,
+        (_id, _name, _first, _last, _born, _died, abbr, _nat,
          place, born_country_id, number) = meta
-        row = cur.execute("SELECT born, died, status FROM drivers WHERE id = ?",
-                          (our_id,)).fetchone()
-        if row is None:
-            raise SystemExit(f"the driver map resolves {our_id} to {f1db_id}, "
-                             f"and the register holds no {our_id}.")
-        born, died, status = row
-        for what, ours, theirs in (("date of birth", born, f1db_born),
-                                   ("date of death", died, f1db_died)):
-            if ours and theirs and ours != theirs:
-                raise SystemExit(
-                    f"{our_id} has the {what} {ours} and F1DB gives {f1db_id} "
-                    f"{theirs}. One of them is the wrong person or the wrong "
-                    f"day: correct the row, or the mapping.")
-        if not born and f1db_born:
-            born = f1db_born
-            born_filled += 1
-        if not died and f1db_died:
-            if status == "active":
-                raise SystemExit(
-                    f"{our_id} is active and F1DB gives {f1db_id} the date of "
-                    f"death {f1db_died}. One of them is the wrong person.")
-            died, status = f1db_died, "deceased"
-            died_filled += 1
         country = None
         if born_country_id:
             country = f1db_ctry.get(born_country_id)
@@ -5284,11 +5312,10 @@ def _stage_36_what_f1db_publishes_about_a_driver_and(b):
                     f"{born_country_id!r} that is not in "
                     f"harvest/f1db_countries.txt. Rerun tools/f1db_fetch.py.")
         cur.execute("""UPDATE drivers SET f1db_id = ?, abbreviation = ?,
-            place_of_birth = ?, country_of_birth = ?, permanent_number = ?,
-            born = ?, died = ?, status = ?
+            place_of_birth = ?, country_of_birth = ?, permanent_number = ?
             WHERE id = ?""",
             (f1db_id, abbr, place, country,
-             int(number) if number else None, born, died, status, our_id))
+             int(number) if number else None, our_id))
         keyed += cur.rowcount
         numbered += 1 if number else 0
         coded += 1 if abbr else 0
@@ -5327,8 +5354,7 @@ def _stage_36_what_f1db_publishes_about_a_driver_and(b):
             f"{title_years or 'none'}: one of the two numbers is wrong.")
 
     print(f"  f1db ids: {keyed} driver(s) keyed to the F1DB register, "
-          f"{coded} with a three-letter code, {numbered} with a permanent number; "
-          f"{born_filled} date(s) of birth and {died_filled} of death filled from it")
+          f"{coded} with a three-letter code, {numbered} with a permanent number")
 
 
 STAGES = [
@@ -5365,6 +5391,7 @@ STAGES = [
     _stage_28_race_dates_and_the_fastest_lap_where,
     _stage_29_career_figures_checked_against_the_official,
     _stage_30_derived_win_totals,
+    _stage_30b_dates_of_birth_and_death_from_f1db,
     _stage_31_figures_derivable_from_the_race_records,
     _stage_32_link_race_entries_to_the_chassis,
     _stage_33_rule_two_resolve_through_the_driver,

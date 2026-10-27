@@ -50,7 +50,7 @@ here is a number the build checked.
 | `f1-facts.db` | The facts artefact: `f1.db` less everything that stays share-alike, for release under CC BY 4.0. **Not committed** — `make export` writes it with `tools/facts_export.py` from the set `tools/facts_artefact.py` declares, and the release workflow publishes it beside `f1.db`. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. Served at `lapledger.org/schema.sql`, so a downloader can read what the tables mean. |
-| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->40<!-- /fig --> named stages; `STAGES` is the schedule. |
+| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->41<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — plus `test_conventions.py`, the reviewer checklists' mechanical items as tests, and `test_verify_refuses.py`, the licence gate shown refusing each thing it exists to refuse. `make test`, stdlib only. |
 | `ruff.toml`, `web/biome.jsonc` | The linters CI runs on the Python and the front end, and every rule left out with its reason. `make lint`. Neither is a dependency of the build. |

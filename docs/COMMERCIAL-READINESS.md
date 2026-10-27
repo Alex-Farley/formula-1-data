@@ -699,8 +699,7 @@ each difference to be one a rule predicts: the fastest lap in a race where
 `f1.db` holds an open discrepancy with F1DB over it — the races F1DB records
 as shared and the season harvest credits to one driver; the shared drives'
 cells F1DB leaves blank; a credit F1DB does not state yet, which is NULL, not
-a 0; dates of birth and death F1DB states and `f1.db` does not hold yet
-(`PM-73`, #931); one declared disagreement, Bertrand Gachot's nationality
+a 0; one declared disagreement, Bertrand Gachot's nationality
 (`PM-72`, #930); and the registry's `share_alike` for this project's own
 source, which the file states as none, because the only writing of this
 project's it holds is what `PM-47` and `PM-49` granted (`PD-67`, #1018).

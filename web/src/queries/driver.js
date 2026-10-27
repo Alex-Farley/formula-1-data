@@ -945,9 +945,9 @@ export function record(driver) {
   // the driver is alive: 310 of the 862 pages carried `Died —` directly above
   // `Status active` or `Status retired`, which is the em-dash convention -
   // the site's loudest claim about its own honesty - asserting the opposite
-  // of the row beneath it. A `deceased` row keeps the dash, because 10 of the
-  // 441 are a death whose date nobody has established and that is exactly
-  // what it means; so does a blank status, where nothing is established
+  // of the row beneath it. A `deceased` row keeps the dash, because a death
+  // whose date nobody has established is exactly what it means; so does a
+  // blank status, where nothing is established
   // either way.
   //
   // A practice-only driver (LV-03) has no status, because a status describes

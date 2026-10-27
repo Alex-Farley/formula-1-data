@@ -114,8 +114,8 @@ export const NOT_FOUND_LEDE =
  * a reader landing cold on /cars/ags-jh24 read "AGS" over "JH24" and nothing
  * on the page said what kind of thing it was (IA-09). Now the type always
  * leads, and a fact the database does not hold is left out rather than
- * printed as a dash: "Driver · United States of America" for the 59 drivers
- * with no date of birth.
+ * printed as a dash: "Driver · United States of America" for a driver with
+ * no date of birth.
  */
 const EYEBROW_JOIN = ' · '
 const eyebrow = (type, ...facts) => [type, ...facts.filter((fact) => !missing(fact))].join(EYEBROW_JOIN)

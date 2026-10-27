@@ -2110,7 +2110,7 @@ def timeline_sanity():
         WHERE born IS NOT NULL AND died IS NOT NULL AND died < born""").fetchall()
     check("nobody died before they were born", not bad)
     # A driver keyed to F1DB has F1DB's dates wherever F1DB states one, read
-    # here from the harvest file rather than from build.py's stage 36, which
+    # here from the harvest file rather than from build.py's stage 30b, which
     # fills a missing date and refuses a different one (PM-73).
     f1db = {r[0]: r for r in harvest_module().load_f1db_drivers()}
     bad = []

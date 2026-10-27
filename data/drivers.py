@@ -184,7 +184,9 @@ OTHER_DRIVERS = [
      "Lost the 1981 title to Piquet by a point at the final round. Later governor of Santa Fe province.", "high"),
     ("depailler", "Patrick Depailler", "France", "FRA", "1944-08-09", "1980-08-01", 1972, 1980, 2, 1, 0, "deceased",
      "Killed testing at Hockenheim.", "medium"),
-    ("mass", "Jochen Mass", "Germany", "GER", "1946-09-30", None, 1973, 1982, 1, 0, 0, "retired",
+    # Died 2025-05-04, as F1DB gives it; typed here while he was alive, and
+    # build.py fills a death F1DB states (PM-73).
+    ("mass", "Jochen Mass", "Germany", "GER", "1946-09-30", "2025-05-04", 1973, 1982, 1, 0, 0, "deceased",
      "Won the shortened 1975 Spanish GP at Montjuic, stopped after a fatal accident.", "medium"),
     ("watson", "John Watson", "United Kingdom", "GBR", "1946-05-04", None, 1973, 1985, 5, 2, 0, "retired",
      "Won from 22nd on the grid at Long Beach in 1983 — still the lowest starting position for a winner.", "high"),
