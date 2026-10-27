@@ -599,13 +599,14 @@ KNOWN_GAPS = [
      "No lap times, tyre stints, race control messages or telemetry. Nobody "
      "publishes Formula One race timing under a licence that permits passing "
      "it on, so this database holds none: the tables exist and stay empty "
-     "by design. Pit stops - lap and order, from F1DB - and six radio "
+     "by design. Pit stops - lap, order and pit-lane time, from F1DB, a time "
+     "that includes any red-flag wait or repair in the pit lane - and six radio "
      "exchanges quoted from Wikipedia are the exceptions, and may be passed "
      "on.",
      "The laps, stints and race_control_messages tables are EMPTY in the "
      "distributed database, and that is a licensing and reproducibility "
      "decision rather than a missing harvest. (pit_stops holds F1DB's stops - "
-     "lap and order, no durations - and team_radio six exchanges quoted from "
+     "lap, order and pit-lane time - and team_radio six exchanges quoted from "
      "Wikipedia; both may be passed on.) Two "
      "sources fill them, and between them they reach further back than the "
      "2018 floor this gap used to describe. "
@@ -794,7 +795,8 @@ KNOWN_GAPS = [
      "lap together IS derived. The list's records that need the clinching "
      "round - the youngest champion, the most races left when a title was "
      "won - wait on the same derivation as the youngest and oldest champion "
-     "above, and its pit-stop durations need timing too.",
+     "above, and its pit-stop records, which time the car standing still "
+     "rather than its run through the pit lane, need timing too.",
      "The clinching round is computable from `standings` and `points_systems`, "
      "and the per-season maximum-points rule that route was waiting on is now "
      "written down: points_systems.win_points and .fastest_lap_points carry as "

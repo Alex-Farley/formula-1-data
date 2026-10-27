@@ -13,10 +13,10 @@
  *     retirement's bar stops short where it went out, and ends on a cross.
  *
  * WHAT IT DOES NOT
- *     `pit_stops` holds the lap of each stop (F1DB, from 1994) and nothing
- *     else: its two duration columns are empty because F1DB publishes none,
- *     and lap times and running order are FOM's, which `laps` stays empty
- *     of for licence reasons (docs/TIMING-ARCHITECTURE.md). So the bars say
+ *     `pit_stops` holds the lap of each stop (F1DB, from 1994) and its time
+ *     in the pit lane, which is not drawn; nothing says how long the car
+ *     stood, and lap times and running order are FOM's, which `laps` stays
+ *     empty of for licence reasons (docs/TIMING-ARCHITECTURE.md). So the bars say
  *     when each driver stopped and nothing about what a stop gained or
  *     lost, and the pit order beside them (pitPairs) is an order of events.
  *     No wording here may say "undercut" or anything else that needs timing.
@@ -192,8 +192,8 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
  * so the result column reads as what became of that order.
  *
  * It is the order of events and no more. The record holds the lap each
- * stop was made on, not how long it took or a lap time either side of it,
- * so nothing here can say whether stopping first won or lost a place, and
+ * stop was made on and its time in the pit lane, but no lap time either
+ * side of it, so nothing here can say whether stopping first won or lost a place, and
  * nothing that prints it may say so.
  */
 export function pitPairs(entries, pits) {

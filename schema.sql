@@ -1821,12 +1821,16 @@ CREATE TABLE pit_stops (
     stop_number     INTEGER,
     lap_number      INTEGER,
     -- The timing sources publish PIT LANE time - entry to exit, around
-    -- 20-30 s - not the two or three seconds the car is stationary. Storing
-    -- the one we have in the column that names it, and leaving the other
-    -- NULL, is the difference between a figure and a wrong figure. In the
-    -- DISTRIBUTED database both are NULL on every row: the only source that
-    -- may be passed on, F1DB, publishes the lap and the stop order and no
-    -- duration at all. Strategy is derivable from it; duration is not.
+    -- 20-30 s for an ordinary stop - not the two or three seconds the car
+    -- is stationary. Storing the one we have in the column that names it,
+    -- and leaving the other NULL, is the difference between a figure and a
+    -- wrong figure. F1DB, the only source that may be passed on, publishes
+    -- pit-lane time too ("the total time of the pit stop"), so in the
+    -- DISTRIBUTED database pit_lane_seconds is filled and stationary_seconds
+    -- is NULL on every row (AF-140). The time is all of it spent in the pit
+    -- lane: a car held there under a red flag, or repaired there, carries
+    -- the wait in its stop, which can run to minutes or an hour. Filter or
+    -- take a median before reading the column as how long stops take.
     stationary_seconds REAL,
     pit_lane_seconds REAL,
     source          TEXT NOT NULL DEFAULT 'fastf1',

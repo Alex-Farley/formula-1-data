@@ -3486,23 +3486,55 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
     # F1DB, Jolpica and FastF1 can hold the same stop side by side and be
     # compared, rather than the last loader to run winning.
     pit_rows = pit_skipped = 0
+    timed = 0
     for r in HV.load_f1db_pit_stops():
         rid = b.race_for(r["year"], r["round"], "pit stops")
         did = f1db_drivers.get(r["driver_id"])
         if rid is None or not did:
             pit_skipped += 1
             continue
-        millis = r["time_millis"]
+        millis = _pit_millis(r)
         cur.execute("""INSERT OR IGNORE INTO pit_stops (race_id, driver_id,
                 driver_key, stop_number, lap_number, pit_lane_seconds, source)
             VALUES (?,?,?,?,?,?,'f1db')""",
             (rid, did, did, int(r["stop"]) if r["stop"] else None,
              int(r["lap"]) if r["lap"] else None,
-             round(int(millis) / 1000.0, 3) if millis else None))
+             millis / 1000 if millis is not None else None))
         pit_rows += cur.rowcount
+        timed += cur.rowcount if millis is not None else 0
     if pit_rows:
-        print(f"  pit stops: {pit_rows} rows from F1DB "
-              f"({pit_skipped} skipped)")
+        print(f"  pit stops: {pit_rows} rows from F1DB, {timed} with a "
+              f"pit-lane time ({pit_skipped} skipped)")
+
+
+def _pit_millis(r):
+    """A pit stop's time in milliseconds, from F1DB's `time`.
+
+    F1DB's schema calls `time` "the total time of the pit stop", and its
+    `timeMillis` is that figure in milliseconds, worked out by F1DB's own
+    build from `time` - which is why the YAML this harvest reads leaves
+    `time_millis` empty, and why it is only the fallback here. It is the
+    figure Jolpica publishes as a stop's `duration` - the two agree to the
+    millisecond on 2025 Australia - and at over eight seconds on every row
+    it is time in the pit lane, not the two or three seconds the car stood
+    (docs/BUILD-NOTES.md, v2.11), so it goes in `pit_lane_seconds` and never
+    `stationary_seconds` (AF-140). It is all the time in the pit lane: a
+    car held there under a red flag or repaired there carries the wait,
+    which is why hundreds of stops run past two minutes and schema.sql says
+    so. It is written `ss.sss`, `m:ss.sss` or, once (2014 Britain),
+    `h:mm:ss.sss`. Parsed in whole
+    milliseconds, as F1DB parses it, so no float rounding moves a figure;
+    a non-empty time that does not parse stops the build rather than
+    becoming a NULL that reads as not established."""
+    text = r["time"]
+    if not text:
+        return int(r["time_millis"]) if r["time_millis"] else None
+    m = re.fullmatch(r"(?:(?:(\d+):)?(\d+):)?(\d+)\.(\d{3})", text)
+    if not m:
+        raise SystemExit(f"pit stops: F1DB time {text!r} at {r['year']} "
+                         f"r{r['round']} {r['driver_id']} does not parse")
+    h, mi, s, ms = (int(g) if g else 0 for g in m.groups())
+    return ((h * 60 + mi) * 60 + s) * 1000 + ms
 
 
 def _stage_27_notable_team_radio_a_small_curated(b):
@@ -5404,7 +5436,7 @@ def coverage_note(cur):
         f"{n('SELECT COUNT(*) FROM sprint_qualifying'):,} sprint qualifying rows (each driver's best lap, not lap timing); "
         f"{n('SELECT COUNT(*) FROM standings'):,} championship standings rows after every round; "
         f"{n('SELECT COUNT(*) FROM sprint_results'):,} sprint classifications; "
-        f"{n('SELECT COUNT(*) FROM pit_stops'):,} pit stops (lap and order, no durations); "
+        f"{n('SELECT COUNT(*) FROM pit_stops'):,} pit stops (lap, order and time in the pit lane); "
         f"{n('SELECT COUNT(DISTINCT driver_id) FROM race_entries'):,} drivers who entered a race and "
         f"{n('SELECT COUNT(*) FROM drivers WHERE practice_only = 1'):,} who drove only in practice, "
         f"{n('SELECT COUNT(*) FROM constructors'):,} constructors, "

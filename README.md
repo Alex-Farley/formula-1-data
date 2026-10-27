@@ -190,9 +190,8 @@ session F1DB holds, 1977 on
 — <!-- fig:practice -->49,818<!-- /fig --> rows
 over <!-- fig:practice_weekends -->790<!-- /fig --> weekends, each driver's best lap
 and laps run, which is a classification and not lap timing;
-and <!-- fig:pit_stops -->22,655<!-- /fig --> pit stops — lap and order, no
-durations, because no source publishes those under a licence that permits
-passing them on.
+and <!-- fig:pit_stops -->22,655<!-- /fig --> pit stops — the lap, the order and the
+time in the pit lane of each.
 
 **Drivers** — <!-- fig:drivers -->915<!-- /fig --> rows: every driver in the
 full classification, and
@@ -996,7 +995,7 @@ constraint is the licences available here, not the law. So the split is:
 | `laps` | per-lap timing, sectors, tyres, track status | **empty, and `verify.py` fails if it is not** |
 | `stints` | tyre stints | empty, same |
 | `race_control_messages` | flags, safety cars, penalties, deleted laps | empty, same |
-| `pit_stops` | lap and order of every stop | <!-- fig:pit_stops -->22,655<!-- /fig --> rows from F1DB (CC BY 4.0); no durations, and only that source is permitted |
+| `pit_stops` | lap, order and pit-lane time of every stop | <!-- fig:pit_stops -->22,655<!-- /fig --> rows from F1DB (CC BY 4.0); only that source is permitted |
 | `team_radio` | clip index and optional transcripts | <!-- fig:notable_radio -->6<!-- /fig --> curated exchanges, quoted from a written source |
 
 `docs/TIMING-ARCHITECTURE.md` is the decision in full. The empty tables are
@@ -1144,7 +1143,7 @@ derived — see *What it deliberately doesn't have*.
 Your v1 policy was "official sources only, never invent". That's the right
 instinct but it caps the database at whatever can be fetched in a session. So
 every fact table but one now carries a `confidence` column instead. The one
-is `pit_stops`, which holds only F1DB's lap and stop order and is checked by
+is `pit_stops`, which holds only F1DB's stops and is checked by
 source instead: `verify.py` fails on a row from anywhere else.
 
 | Level | Meaning | Safe to publish? |
