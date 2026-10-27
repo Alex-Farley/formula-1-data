@@ -54,8 +54,8 @@ not is written again alone, the way a single issue always is. A status write
 is idempotent, so writing one again whose first outcome was unknown costs a
 call and nothing else. A refusal no retry can improve on - the limiter, or
 an authorisation refusal - ends the run instead, since against the limiter
-a retry extends it `[D-27]`; either way the run names every issue
-not confirmed, so none is left at an old status with nobody told.
+a retry extends it `[D-27]`. Either way, a run that ends on a `gh` failure
+names every issue not confirmed, so the caller knows which to write again.
 
 `decline` closes an open issue as *not planned* with the reason as a comment
 and refuses a closed one, so a landed record cannot be turned into a
@@ -377,8 +377,10 @@ def not_confirmed(left, status, said):
 def set_statuses(numbers, status):
     """`status` on every issue named, printing `#n <status>` for each the
     moment it is set: one request for the group, then one each for whatever
-    it did not confirm. A failure ends the run naming every issue not yet
-    confirmed, so the caller knows exactly which to write again."""
+    it did not confirm. A failure that ends the run the way gh failures do,
+    by exiting, names every issue not yet confirmed and the command to write
+    them again; an unexpected exception is still a traceback, exit 1, and
+    `#n <status>` lines are then the only record of what was set."""
     if status not in STATUSES:
         sys.exit(f"status must be one of {', '.join(STATUSES)}")
     numbers = list(dict.fromkeys(numbers))
