@@ -1870,7 +1870,9 @@ try {
       await go(route, heading)
       const app = (await text('#root main')) ?? ''
       const html = await (await fetch(`${BASE}${route}`)).text()
-      const body = unescaped((html.split('<div id="prerendered">')[1] ?? '').replace(/<[^>]+>/g, ''))
+      // The text between the tags, read as /data's textOf reads it.
+      const between = [...(html.split('<div id="prerendered">')[1] ?? '').matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')
+      const body = unescaped(between)
       return [
         ['app', app],
         ['static page', body],
