@@ -11,6 +11,7 @@ import { colourForEntry } from '../lib/liveries.js'
 import { NAMES } from '../lib/site.js'
 
 import { LATEST } from '../queries/races.js'
+import { FIGHT_QUERIES, currentTitle, fightAhead } from '../queries/season.js'
 import { ONWARD } from '../lib/wayfinding.js'
 import {
   BOARD,
@@ -71,6 +72,8 @@ export default function Home() {
     nextSeason: [NEXT_SEASON],
     now: [SEASON_NOW],
     lead: [SEASON_LEAD],
+    // Who can still win (AF-132), the season page's answer, under the next race.
+    ...FIGHT_QUERIES,
   })
 
   const { headline, title } = NAMES.home()
@@ -87,6 +90,10 @@ export default function Home() {
           const after = data.nextSeason.rows[0]?.year ?? null
           const now = data.now.rows[0]
           const lead = rows(data, 'lead')
+          const ahead = fightAhead(
+            currentTitle((key) => rows(data, key)),
+            next,
+          )
           // The winning car's colour (AF-47 clause 1: the constructor is a
           // first-class attribute of the race), in the race's own season, as
           // /races draws it beside the same name. One mark for the sentence,
@@ -170,6 +177,7 @@ export default function Home() {
                             <RaceDates race={next} /> · round {next.round}
                           </p>
                           <p className="muted">{stillToRunNote(now)}</p>
+                          {ahead && <p>{ahead}</p>}
                           <p>
                             <Link to={`/seasons/${next.year}`}>{calendarLink(next.year)}</Link>
                           </p>

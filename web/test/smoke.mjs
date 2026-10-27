@@ -62,6 +62,7 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import {
+  FIGHT_QUERIES,
   FINAL as SEASON_FINAL,
   NEXT_HEADING,
   NEXT_ROUND,
@@ -71,7 +72,14 @@ import {
   TITLE_SOURCES,
   WON_HERE,
   WON_HERE_HEADING,
+  REACH_HEADING,
+  STAKE_HEADING,
+  currentTitle,
+  fightAhead,
+  fightLine,
   latestRound,
+  mergeSources,
+  reachTitle,
   seasonSources,
   standingsHeading,
   titleAnswer,
@@ -177,6 +185,9 @@ const one = (sql, ...args) => Object.values(db.prepare(sql).get(...args))[0]
    and no layouts, so every check below that means "the season in progress"
    has to ask for the latest season with a round already completed. */
 const inProgress = () => one("SELECT MAX(year) FROM races WHERE status = 'completed'")
+// Who can still win the season being run (AF-132), from the queries and the
+// function every page that prints it reads.
+const currentFight = () => currentTitle((key) => db.prepare(FIGHT_QUERIES[key][0]).all())
 const count = (sql, ...args) => one(sql, ...args)
 
 /* The five entities esc() in prerender.js writes, read back. Two sections now
@@ -1796,10 +1807,12 @@ try {
     const year = inProgress()
     const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
     const notes = (one('SELECT notes FROM seasons WHERE year = ?', year) ?? '').trim()
-    const drivers = db.prepare(SEASON_FINAL).all(year).filter((r) => r.table_type === 'drivers')
+    const final = db.prepare(SEASON_FINAL).all(year)
+    const drivers = final.filter((r) => r.table_type === 'drivers')
+    const constructors = final.filter((r) => r.table_type === 'constructors')
     const remaining = db.prepare(REMAINING).get(year) ?? null
     const afterRound = latestRound(db.prepare(SEASON_STANDINGS).all(year))
-    const answer = !champion && drivers.length >= 2 ? titleAnswer({ drivers, remaining, afterRound }) : null
+    const answer = !champion && drivers.length >= 2 ? titleAnswer({ drivers, constructors, remaining, afterRound, year }) : null
     await go(`/seasons/${year}`, String(year))
     const appLede = (await text('#root main .lede')) ?? ''
     const html = await (await fetch(`${BASE}/seasons/${year}`)).text()
@@ -1841,6 +1854,81 @@ try {
       ((html.split('<dl class="stats"')[1] ?? '').split('</dl>')[1]?.match(/^\s*(?:<\/div>)?\s*<p class="faint">([\s\S]*?)<\/p>/)?.[1] ?? '').replace(/[<>]/g, ''),
     )
     truthy(staticAfter.startsWith(basis), `and on the static page — "${staticAfter.slice(0, 80)}"`)
+  })
+
+  /*
+   * AF-132: the one answer in five places, each in both halves - the reach
+   * charts on the season page, the line under the home page's next race,
+   * what's at stake on the upcoming race's page, and a contender's line on
+   * their driver and team pages, the leader's and one already out where
+   * there is one. With no answer, none of them is anywhere.
+   */
+  await section('/seasons/2026 / /races /drivers /constructors  (who can still win, in five places: AF-132)', async () => {
+    const title = currentFight()
+    const year = one(`SELECT ${CURRENT_SEASON_SQL}`)
+    const both = async (route, heading) => {
+      await go(route, heading)
+      const app = (await text('#root main')) ?? ''
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      // The text between the tags, read as /data's textOf reads it.
+      const between = [...(html.split('<div id="prerendered">')[1] ?? '').matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')
+      const body = unescaped(between)
+      return [
+        ['app', app],
+        ['static page', body],
+      ]
+    }
+    const nextRound = one(`SELECT MIN(round) FROM races WHERE year = ? AND status <> 'completed'`, year)
+    if (!title) {
+      note(`\n/seasons/${year}  (no answer to who can still win: no placement prints one)`)
+      for (const [half, body] of await both(`/seasons/${year}`, String(year))) {
+        truthy(!body.includes(reachTitle('drivers')), `the ${half} draws no reach chart without an answer`)
+      }
+      if (nextRound) {
+        for (const [half, body] of await both(`/races/${year}/${nextRound}`)) {
+          truthy(!body.includes(STAKE_HEADING), `the ${half} of the next race says nothing is at stake without an answer`)
+        }
+      }
+      return
+    }
+    for (const [half, body] of await both(`/seasons/${year}`, String(year))) {
+      truthy(body.includes(REACH_HEADING), `the ${half} of /seasons/${year} has the reach charts' section`)
+      for (const kind of ['drivers', 'constructors']) {
+        if (title[kind]) truthy(body.includes(reachTitle(kind)), `with ${reachTitle(kind).toLowerCase()} drawn`)
+      }
+    }
+    const ahead = fightAhead(title, { year: one(`SELECT year FROM races WHERE year = ? AND status = 'scheduled' ORDER BY round LIMIT 1`, year) })
+    for (const [half, body] of await both('/')) {
+      if (ahead) is(body.split(ahead).length - 1, 1, `the ${half} of the home page says who can still win once, under the next race`)
+    }
+    truthy(title.next === nextRound, `the upcoming race is round ${title.next}`)
+    for (const [half, body] of await both(`/races/${year}/${title.next}`)) {
+      truthy(body.includes(STAKE_HEADING), `the ${half} of the upcoming race says what is at stake`)
+      is(body.split(title.who).length - 1, 1, `and who can still win, once`)
+    }
+    // A round run is not the upcoming race.
+    if (title.next > 1) {
+      for (const [half, body] of await both(`/races/${year}/${title.next - 1}`)) {
+        truthy(!body.includes(STAKE_HEADING), `the ${half} of a round already run says nothing is at stake`)
+      }
+    }
+    for (const kind of ['drivers', 'constructors']) {
+      const fight = title[kind]
+      if (!fight) continue
+      const out = fight.rows.find((d) => !d.alive)
+      for (const contender of [fight.rows[0], out].filter(Boolean)) {
+        const line = fightLine(title, kind, contender.id)
+        if (!line) continue
+        const route = `/${kind}/${contender.id}`
+        for (const [half, body] of await both(route)) {
+          is(body.split(line).length - 1, 1, `the ${half} of ${route} says "${line}" once`)
+        }
+      }
+    }
+    // A driver from no table of this season has no line.
+    for (const [half, body] of await both('/drivers/senna', 'Ayrton Senna')) {
+      truthy(!/title fight/.test(body), `the ${half} of /drivers/senna says nothing of a title fight`)
+    }
   })
 
   /*
@@ -7055,16 +7143,24 @@ try {
       const behind = route.startsWith('/seasons/')
         ? (() => {
             const [year] = args
-            const drivers = db.prepare(SEASON_FINAL).all(year).filter((r) => r.table_type === 'drivers')
+            const final = db.prepare(SEASON_FINAL).all(year)
+            const drivers = final.filter((r) => r.table_type === 'drivers')
+            const constructors = final.filter((r) => r.table_type === 'constructors')
             const remaining = db.prepare(REMAINING).get(year) ?? null
             const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
             const answer =
               !champion && drivers.length >= 2
-                ? titleAnswer({ drivers, remaining, afterRound: latestRound(db.prepare(SEASON_STANDINGS).all(year)) })
+                ? titleAnswer({ drivers, constructors, remaining, afterRound: latestRound(db.prepare(SEASON_STANDINGS).all(year)), year })
                 : null
             return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining })
           })()
-        : db.prepare(sources).all(...args)
+        : // A team or driver in the title fight being run adds the fight's
+          // sources, where its page prints the line (AF-132).
+          route.startsWith('/constructors/') && fightLine(currentFight(), 'constructors', args[0])
+          ? mergeSources(db.prepare(sources).all(...args), db.prepare(FIGHT_QUERIES.fightSources[0]).all())
+          : route.startsWith('/drivers/') && fightLine(currentFight(), 'drivers', args[0])
+            ? mergeSources(db.prepare(sources).all(...args), db.prepare(FIGHT_QUERIES.fightSources[0]).all())
+            : db.prepare(sources).all(...args)
       truthy(behind.length > 0, `${route} has rows that resolve to a source`)
       truthy(
         behind.every((s) => appCite.includes(`${s.source} (${licenceTerms(s)})`)),

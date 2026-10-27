@@ -260,6 +260,7 @@ describe('every declared table names its rows (AX-21)', () => {
     practiceColumns: [[{ distance_m: 3 }]],
     recordColumns: [[]],
     careerColumns: ['Ayrton Senna', 'Alain Prost'],
+    reachColumns: ['drivers'],
   }
   const modules = [
     ...readdirSync(join(web, 'src/queries')).map((entry) => join(web, 'src/queries', entry)),
@@ -2210,7 +2211,7 @@ describe('one figure grammar: the heading names the figure, and the note goes un
     const { gridFlagNote, stintsNote } = await import('../src/queries/race.js')
     const { finishesFigureNote, thisSeasonFigureNote } = await import('../src/queries/driver.js')
     const records = await import('../src/queries/records.js')
-    const { progressionNote } = await import('../src/queries/season.js')
+    const { progressionNote, reachNote } = await import('../src/queries/season.js')
     const { chartNote } = await import('../src/queries/home.js')
     const { CHASSIS_NOTE } = await import('../src/queries/quality.js')
     const { colourSource } = await import('../src/lib/liveries.js')
@@ -2234,6 +2235,9 @@ describe('one figure grammar: the heading names the figure, and the note goes un
       'season so far, no colour': thisSeasonFigureNote(true, null, false),
       'constructors, every kind and a hollow bar': records.constructorWinsNote(both, true),
       'title race, dropped scores': progressionNote(false, 'Best 5 results'),
+      // AF-132: a team's wording, and the sentence a cut list adds.
+      'reach, a team, cut': reachNote('constructors', true),
+      'reach, a driver, cut': reachNote('drivers', true),
       'races per season, two calendars': chartNote([
         { year: 1950, rounds: 7, run: true },
         { year: 2026, rounds: 24, run: true },

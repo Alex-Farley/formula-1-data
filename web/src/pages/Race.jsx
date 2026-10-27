@@ -83,7 +83,8 @@ import {
   stintsNote,
   stintsUnbarred,
 } from '../queries/race.js'
-import { TITLE_STANDINGS, titleSettled } from '../queries/season.js'
+import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, isUpcoming, mergeSources, titleSettled } from '../queries/season.js'
+import { currentProgress } from '../data/client.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -257,6 +258,8 @@ export default function Race() {
     // CD-39, CD-61: what the standfirst says beyond who won.
     history: [RACE_HISTORY, args],
     title: [TITLE_STANDINGS, args],
+    // AF-132: who can still win, on the upcoming race's page.
+    ...FIGHT_QUERIES,
   })
 
   return (
@@ -318,6 +321,10 @@ function RaceBody({ race, data, year, round }) {
   // Late is shown whatever `status` says: a round authored `completed` by
   // hand with no result held is late on /changes, so it is late here too.
   const pending = scheduled || late !== null ? scheduledNote(race, stage, late) : null
+  // What's at stake (AF-132): the season page's answer, on the page of the
+  // next round to run, until its results land.
+  const fight = currentTitle((key) => rows(data, key), currentProgress().manifest?.built)
+  const stake = isUpcoming(fight, race) ? fight : null
 
   const timetable = sessions.length > 0 && (
     <Section title="Timetable" count={`${sessions.length} sessions`}>
@@ -346,7 +353,7 @@ function RaceBody({ race, data, year, round }) {
         history: rows(data, 'history'),
         title: titleSettled(rows(data, 'title'), round),
       })}
-      sources={rows(data, 'sources')}
+      sources={stake ? mergeSources(rows(data, 'sources'), rows(data, 'fightSources')) : rows(data, 'sources')}
       aside={
         <Stepper {...raceSteps(neighbours)} />
       }
@@ -370,6 +377,15 @@ function RaceBody({ race, data, year, round }) {
           the static page can know too, and a round past its date with no
           result held still has nothing to put above its timetable. */}
       {scheduled && timetable}
+
+      {stake && (
+        <Section title={STAKE_HEADING}>
+          <p>{stake.who}</p>
+          <p className="note follows">
+            <Dated>{stake.basis}</Dated>
+          </p>
+        </Section>
+      )}
 
       <Disagreement rows={rows(data, 'disagreements')} what="this race" />
 
