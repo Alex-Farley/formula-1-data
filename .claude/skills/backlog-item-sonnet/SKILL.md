@@ -29,7 +29,7 @@ on the four points below.
    when its body names a data path (`build.py`, `verify.py`, `schema.sql`,
    `data/`, `harvest/`, `tools/`) or a publishing one (`.github/`,
    `export_json.py`, the deploy chain under `web/`, the licence texts, the
-   committed artefacts, the files of the loop's own controls) -
+   committed artefacts, the files of the loop's review and merge controls) -
    `.claude/skills/backlog-loop/implementer.py` holds the list. A body is a
    claim about where the work lands, so when you reread the item against the
    code, before anything is claimed: if the work needs a protected path
