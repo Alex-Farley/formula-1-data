@@ -13,9 +13,9 @@ name: security alerts
 # Weekly, at a minute nobody else picked (AF-01), and after each CodeQL run
 # on main finishes, so an alert a push raises can be filed the same day.
 # CodeQL here is GitHub's default setup, listed among this repository's
-# workflows as `CodeQL` (dynamic/github-code-scanning/codeql); no run of
-# this file has yet shown that workflow_run fires for it, so the weekly
-# schedule is the floor either way. workflow_run runs this file as it is on
+# workflows as `CodeQL` (dynamic/github-code-scanning/codeql); workflow_run
+# has fired for it since the first run of this file, on 2026-10-19, and the
+# weekly schedule is the floor either way. workflow_run runs this file as it is on
 # main, and the `branches` filter keeps it to runs on main.
 on:
   schedule:
@@ -36,12 +36,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The workflow's own token, with the two scopes it needs: security-events
-  # to read the code-scanning and Dependabot alerts, issues to file them.
-  # Secret-scanning alerts are read with the same token and the step fails
-  # when it may not read them, which security_alarm.py prefers to a watch
-  # that reports nothing open because it cannot look. No npm and no App
-  # token: it checks out one file and runs it.
+  # Two tokens. The workflow's own, with the two scopes it needs:
+  # security-events to read the code-scanning alerts, issues to file them.
+  # And one minted from the refresh GitHub App, narrowed to reading the
+  # Dependabot and secret-scanning alerts, which GITHUB_TOKEN was refused
+  # (HTTP 403 on every run from the first, 2026-10-19) (AF-124).
+  # The App token reads those two kinds and nothing else; it never writes.
+  # A kind neither token may read fails the step at the end, which
+  # security_alarm.py prefers to a watch that reports nothing open because
+  # it cannot look. No npm: it checks out one file and runs it, and runs
+  # as it is on main, never a pull request's copy.
   watch:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -61,5 +65,21 @@ jobs:
             .github/scripts/security_alarm.py
           sparse-checkout-cone-mode: false
 
+      # Last before the one step that uses it, and revoked when the job
+      # ends. A mint that fails - the App lacking either permission, say -
+      # does not stop the job: the script then names both kinds unreadable,
+      # still files the code-scanning alerts, and fails the step.
+      - name: Mint a token that reads Dependabot and secret-scanning alerts
+        id: app
+        continue-on-error: true
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.REFRESH_APP_ID }}
+          private-key: ${{ secrets.REFRESH_APP_PRIVATE_KEY }}
+          permission-vulnerability-alerts: read
+          permission-secret-scanning-alerts: read
+
       - name: File the open alerts nobody has
+        env:
+          ALERTS_TOKEN: ${{ steps.app.outputs.token }}
         run: python3 -B .github/scripts/security_alarm.py

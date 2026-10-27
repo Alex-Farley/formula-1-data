@@ -3,8 +3,11 @@ the open alerts, without GitHub. Each alert is read into a group, a group
 is filed once, and an alert any open issue already names is never filed
 again."""
 import importlib.util
+import json
 import os
+import subprocess
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 spec = importlib.util.spec_from_file_location(
@@ -176,6 +179,71 @@ class Ids(unittest.TestCase):
     def test_next_number(self):
         self.assertEqual(alarm.next_number(["SC-03: a", "SC-11: b", "AF-40: c"]), 12)
         self.assertEqual(alarm.next_number([]), 1)
+
+
+
+class Tokens(unittest.TestCase):
+    """AF-124: the Dependabot and secret-scanning alerts are read with the
+    App's token, and that token does nothing else."""
+
+    def run_main(self, app_token):
+        calls = []
+
+        def fake_run(args, env=None, **_):
+            calls.append((args[1:], "workflow" if env is None else env["GH_TOKEN"]))
+            out = ""
+            if args[1] == "api" and "secret-scanning/alerts" in args[-1]:
+                out = json.dumps(secret(4)) + "\n"
+            elif args[1:3] == ["issue", "create"]:
+                out = "https://github.com/o/r/issues/9\n"
+            return subprocess.CompletedProcess(args, 0, out, "")
+
+        environ = dict(os.environ, GH_REPO=REPO, RUN_URL="RUN", ALERTS_TOKEN=app_token)
+        environ.pop("GITHUB_STEP_SUMMARY", None)
+        with mock.patch.dict(os.environ, environ, clear=True), \
+                mock.patch.object(alarm.subprocess, "run", fake_run):
+            try:
+                alarm.main()
+                exit_message = None
+            except SystemExit as e:
+                exit_message = str(e.code)
+        return calls, exit_message
+
+    def test_token_for(self):
+        env = {"ALERTS_TOKEN": "app"}
+        self.assertIsNone(alarm.token_for("code-scanning", env))
+        self.assertEqual(alarm.token_for("dependabot", env), "app")
+        self.assertEqual(alarm.token_for("secret-scanning", env), "app")
+        for kind in ("dependabot", "secret-scanning"):
+            with self.assertRaises(alarm.Unreadable):
+                alarm.token_for(kind, {"ALERTS_TOKEN": ""})
+            with self.assertRaises(alarm.Unreadable):
+                alarm.token_for(kind, {})
+
+    def test_the_app_token_reads_two_kinds_and_writes_nothing(self):
+        calls, exit_message = self.run_main("app")
+        self.assertIsNone(exit_message)
+        used = {}
+        for args, token in calls:
+            used.setdefault(token, []).append(args)
+        app_paths = sorted(a[-1].split("/")[3] for a in used["app"])
+        self.assertEqual(app_paths, ["dependabot", "secret-scanning"])
+        self.assertTrue(all(a[0] == "api" for a in used["app"]))
+        workflow = used["workflow"]
+        self.assertIn("code-scanning", " ".join(a[-1] for a in workflow if a[0] == "api"))
+        # The secret alert was filed, and filed with the workflow's token.
+        self.assertTrue(any(a[:2] == ("issue", "create") for a in map(tuple, workflow)))
+
+    def test_no_app_token_is_named_and_fails_after_the_rest_is_filed(self):
+        calls, exit_message = self.run_main("")
+        self.assertIsNotNone(exit_message)
+        self.assertIn("dependabot", exit_message)
+        self.assertIn("secret-scanning", exit_message)
+        self.assertEqual({t for _, t in calls}, {"workflow"})
+        paths = [a[-1] for a, _ in calls if a[0] == "api"]
+        self.assertTrue(any("code-scanning/alerts" in p for p in paths))
+        self.assertFalse(any("dependabot/alerts" in p or "secret-scanning/alerts" in p
+                             for p in paths))
 
 
 if __name__ == "__main__":

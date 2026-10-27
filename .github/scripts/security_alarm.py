@@ -62,14 +62,25 @@ A SECRET IS NAMED, NEVER DESCRIBED
     from its rule and file would name them to anyone who tried the few
     `actions/` rules against the few workflows.
 
+TWO TOKENS
+    The workflow's own token reads the code-scanning alerts and the open
+    issues and does every write. It is refused the Dependabot and
+    secret-scanning alerts (HTTP 403 on every run from the first, 2026-10-19), so
+    those two kinds are read with a token minted from the refresh GitHub
+    App, narrowed to reading them, and that token is used for nothing else
+    (AF-124).
+
 A CHECK THAT CANNOT SEE
-    Each kind is read on its own. A kind the token may not read, or that is
-    not enabled, is named in the log and the job summary, the other kinds
-    are still filed, and the step fails at the end, so a watch that is
-    blind to one kind says so rather than reporting nothing open.
+    Each kind is read on its own. A kind its token may not read, or that is
+    not enabled, or whose App token was not minted, is named in the log and
+    the job summary, the other kinds are still filed, and the step fails at
+    the end, so a watch that is blind to one kind says so rather than
+    reporting nothing open.
 
 Needs GH_TOKEN (the workflow's own token, with issues: write and
-security-events: read), GH_REPO and RUN_URL.
+security-events: read), ALERTS_TOKEN (the App's, with Dependabot alerts:
+read and secret-scanning alerts: read; empty when the mint failed), GH_REPO
+and RUN_URL.
 """
 import hashlib
 import json
@@ -94,6 +105,8 @@ SEVERITY_LABELS = {
 }
 RANK = {"low": 1, "medium": 2, "high": 3}
 KINDS = ("code-scanning", "dependabot", "secret-scanning")
+# The kinds read with the App's token, ALERTS_TOKEN: GITHUB_TOKEN may not.
+APP_KINDS = frozenset({"dependabot", "secret-scanning"})
 MARK = re.compile(r"<!-- security-alert ([0-9a-f]{16}) -->")
 
 
@@ -309,16 +322,31 @@ class Unreadable(Exception):
     pass
 
 
-def gh(*args, check=True):
-    out = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+def token_for(kind, environ):
+    """The token a kind is read with: None for the workflow's own, which
+    gh takes from GH_TOKEN, else the App's. Unreadable when the App's was
+    not minted."""
+    if kind not in APP_KINDS:
+        return None
+    token = environ.get("ALERTS_TOKEN", "")
+    if not token:
+        raise Unreadable("no App token to read them with: ALERTS_TOKEN is empty, "
+                         "so the mint step before this one failed or did not run")
+    return token
+
+
+def gh(*args, check=True, token=None):
+    """gh with the workflow's own token, or with `token` for this call alone."""
+    env = None if token is None else {**os.environ, "GH_TOKEN": token}
+    out = subprocess.run(["gh", *args], capture_output=True, text=True, check=False, env=env)
     if check and out.returncode:
         sys.exit(f"gh {' '.join(args[:2])} failed: {out.stderr.strip()}")
     return out
 
 
-def read_lines(path):
+def read_lines(path, token=None):
     """Every page of a REST list, one JSON value a line."""
-    out = gh("api", "--paginate", "--jq", ".[]", path, check=False)
+    out = gh("api", "--paginate", "--jq", ".[]", path, check=False, token=token)
     if out.returncode:
         raise Unreadable(out.stderr.strip() or f"gh api {path} failed")
     return [json.loads(line) for line in out.stdout.splitlines() if line.strip()]
@@ -329,7 +357,8 @@ def main():
     alerts, blind = {}, {}
     for kind in KINDS:
         try:
-            alerts[kind] = read_lines(f"repos/{repo}/{kind}/alerts?state=open&per_page=100")
+            alerts[kind] = read_lines(f"repos/{repo}/{kind}/alerts?state=open&per_page=100",
+                                      token=token_for(kind, os.environ))
         except Unreadable as e:
             blind[kind] = str(e)
             print(f"::error::could not read the open {kind} alerts: {e}")

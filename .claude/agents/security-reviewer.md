@@ -84,6 +84,15 @@ answer a missing asset with HTML and a 200.
   `refresh_tree.py` lets across; and a credential persisted by
   `actions/checkout` into any of the three. Flag any secret echoed, written
   to a file that is uploaded, or passed on a command line.
+- `security.yml` mints a token from the same App (AF-124), narrowed with
+  `permission-vulnerability-alerts: read` and
+  `permission-secret-scanning-alerts: read`, because `GITHUB_TOKEN` is
+  refused both kinds of alert. Its job runs no npm and checks out one file,
+  and the token reads those two kinds and nothing else:
+  `security_alarm.py` hands it to gh only for those reads and does every
+  write with the workflow's own. Flag a widening of that narrowing, the
+  token reaching a write or another step, and a `pull_request` trigger on
+  that file, which would hand the key to a branch's copy of it.
 - A new third-party action, or an existing one moved to another commit.
   Say what a new one can reach with the token it gets, and treat a new
   action in `release.yml` or `refresh.yml` as the serious case. That each
