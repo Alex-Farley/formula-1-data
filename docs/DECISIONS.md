@@ -605,7 +605,7 @@ drives many forks, so a check in `supervise.py` alone would run once per
 session. `supervise.py` runs it too, before each session, so as not to start
 one only for it to pause.
 
-- **The 5-hour window:** 45 points or more left, any item (20 until
+- **The 5-hour window:** 60 points or more left, any item (20 until
   `AF-148`, below); 7 or more, an XS or S item only, through
   `next.py --max-size S`; less, wait for the reset.
   The middle rung is what uses the end of a window rather than sleeping
@@ -655,20 +655,40 @@ one only for it to pause.
   with that window unread; one may start on the `SMALL` rung whatever its
   size, as the item set the floor at `SMALL_LEFT` and no higher. A run
   given some other item by id does not spend the reserve.
-- **An M item starts only with 45 points left** (2026-10-27, `AF-148`,
-  #1181). `ANY_LEFT` (20) is replaced by `M_LEFT` (45,
+- **An M item starts only with 60 points left** (2026-10-27, `AF-148`,
+  #1181). `ANY_LEFT` (20) is replaced by `M_LEFT` (60,
   `LOOP_USAGE_M_LEFT`); between it and `SMALL_LEFT` the answer is `SMALL`,
-  so a fork under 45 takes an XS or S item or returns `PAUSE:`. Two cases
-  were the watching the maintainer chose on 2026-10-14. That day AF-90 (M,
-  refresh and data) took a session from 55 % to the limit: 196 turns, a
-  256k-token peak context and 31.8M cache reads against 6-10M for a typical
-  S fork. On 2026-10-26 the check said GO at 37 points left after AF-130
-  merged, the fork took PM-75 (M, data), and the session hit its limit at
+  so a fork under 60 takes an XS or S item or returns `PAUSE:`. On
+  2026-10-14 the maintainer chose to keep the thresholds and watch; three M
+  forks since have run out of session mid-item. AF-90 (M, refresh and
+  data), 2026-10-14: 196 turns, a 256k-token peak context and 31.8M cache
+  reads against 6-10M for a typical S fork, from 55 % used to the limit,
+  so more than 45 points. PM-75 (M, data), 2026-10-26: the check said GO at
+  37 points left after AF-130 merged, and the session hit its limit at
   15:50 mid-item; another fork finished it after the 19:00 reset (#1155).
-  The gate is on the band and not on the item, since the check runs before
-  the fork has chosen one; a fork finishing an inherited open pull request is still
-  not capped by size. No `L_LEFT` is set: `progress.log` records no per-item usage and no
-  item size, so there are no L figures to take one from yet.
+  AF-132 (M, front end), 2026-10-27: started at 15:40 with 58 points left,
+  above the 45 first proposed, and hit the limit at 16:02 after `make all`
+  and the web tests, before a PR. M items that did finish cost, between
+  the `usage` lines either side of them: AF-125 6 points, AF-108 10,
+  PM-45 19, CD-39+CD-61 20 for the two, AF-122 23, CD-46 31. Those figures
+  take in the reviewers and any interactive use of the same window, which
+  AF-132's afternoon had. 60 is above every recorded overrun and well over
+  the largest finished cost; it is an estimate from six figures, and the
+  `usage` lines are what to revise it from. The gate is on the band and not
+  on the item, since the check runs before the fork has chosen one; a fork
+  finishing an inherited open pull request is still not capped by size. No
+  `L_LEFT` is set: the only L items in `progress.log`, AF-47 and AF-42, ran
+  before its first `usage` line, so there are no L figures to take one from.
+- **An unreadable session window stays GO, and the line says why.** The
+  maintainer's comment of 2026-10-27 asked whether it should be SMALL. In
+  `progress.log` 24 readings have a week and no session. The nine since
+  2026-10-24 were all taken one minute after a 5-hour boundary (the latest
+  20:01 on 2026-10-27, the previous window's reset at 19:59), and `[D-58]`
+  already records a window's first reading as often not readable. So a
+  window that has just rolled over shows no session line, and all of it is
+  left, which is when an M item should start. A reworded report that names no window at
+  all is `UNKNOWN`, as before, and not this case. Landing an inherited item
+  is unaffected either way.
 - **A manual run is told apart in the log.** `loop_usage.py --loop` is what
   the driver passes and files under `usage`; a run without it files under
   `usage (manual)`, since a check run by hand wrote lines the loop's own

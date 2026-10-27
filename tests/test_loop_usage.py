@@ -35,7 +35,7 @@ PROBED = ("You are currently using your subscription to power your Claude Code u
           "Current session: 25% used · resets Oct 14, 10:59pm (Europe/London)\n"
           "Current week (all models): 15% used · resets Oct 19, 2:59pm (Europe/London)\n\n"
           "What's contributing to your limits usage?\n  49% of your usage was at >150k context\n")
-CONF = {"M_LEFT": 45.0, "SMALL_LEFT": 7.0, "SLACK": 10.0, "RESERVE": 10.0}
+CONF = {"M_LEFT": 60.0, "SMALL_LEFT": 7.0, "SLACK": 10.0, "RESERVE": 10.0}
 SESSION_RESET = dt.datetime(2026, 10, 14, 21, 59, tzinfo=UTC)
 WEEK_RESET = dt.datetime(2026, 10, 19, 13, 59, tzinfo=UTC)
 
@@ -87,20 +87,29 @@ class ReadsOnlyWhatItCanReadWhole(unittest.TestCase):
 class TheSessionWindow(unittest.TestCase):
     def test_plenty_left_is_go(self):
         self.assertEqual(decide(session=0)[0], "GO")
-        self.assertEqual(decide(session=55)[0], "GO")
+        self.assertEqual(decide(session=40)[0], "GO")
 
     def test_under_m_left_is_small_and_names_the_reset(self):
-        # 45 points left (55 used) is the first GO; 44 left is the last
-        # band that is SMALL only, down to 7 left (93 used).
-        word, until, why = decide(session=56)
+        # 60 points left (40 used) is the first GO; 59 left is the top
+        # of the band that is SMALL only, down to 7 left (93 used).
+        word, until, why = decide(session=41)
         self.assertEqual((word, until), ("SMALL", SESSION_RESET))
-        self.assertIn("under 45 points left: an XS or S item only", " ".join(why))
+        self.assertIn("under 60 points left: an XS or S item only", " ".join(why))
         self.assertEqual(decide(session=80)[0], "SMALL")
         self.assertEqual(decide(session=93)[0], "SMALL")
 
-    def test_the_2026_10_26_session_was_small(self):
-        # 63 % used when PM-75 (M) was taken: 37 left, formerly GO.
-        self.assertEqual(decide(session=63)[0], "SMALL")
+    def test_the_three_overruns_were_small(self):
+        # AF-90 started at 55 % used, PM-75 at 63 %, AF-132 at 42 %: all
+        # three were GO before AF-148 and all three ran out of session.
+        for used in (55, 63, 42):
+            self.assertEqual(decide(session=used)[0], "SMALL", used)
+
+    def test_a_window_that_has_just_rolled_over_is_go_and_says_why(self):
+        windows = lu.parse(report(), NOW)
+        del windows["session"]
+        word, _, why, _ = lu.decide(windows, NOW, None, CONF)
+        self.assertEqual(word, "GO")
+        self.assertIn("a window just rolled over shows none", " ".join(why))
 
     def test_too_little_for_any_item_waits_for_the_reset(self):
         word, until, _ = decide(session=94)
@@ -224,7 +233,7 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
         word, _, why, target = lu.decide(windows, NOW, self.RACE, CONF_LOOK,
                                          lambda: asked.append(True) or ("AF-150", None))
         self.assertEqual((word, target, asked), ("WAIT", None, []))
-        self.assertIn("session window not readable", why)
+        self.assertTrue(any(w.startswith("session window not readable") for w in why), why)
 
     def test_the_look_is_never_under_its_floor(self):
         for value in ("0", "-5", "3"):
@@ -295,7 +304,7 @@ class TheCommand(unittest.TestCase):
         self.assertEqual((text.split()[0], code), ("UNKNOWN", 0))
 
     def test_a_threshold_in_the_environment_that_is_not_a_number_is_the_default(self):
-        self.assertEqual(lu.settings({"LOOP_USAGE_M_LEFT": "lots"})["M_LEFT"], 45.0)
+        self.assertEqual(lu.settings({"LOOP_USAGE_M_LEFT": "lots"})["M_LEFT"], 60.0)
         self.assertEqual(lu.settings({"LOOP_USAGE_M_LEFT": "30"})["M_LEFT"], 30.0)
 
     def test_the_bands_follow_the_setting(self):

@@ -7,7 +7,7 @@
     loop's own, and its line in progress.log goes under the id `usage`. A
     run without it is somebody checking by hand, and goes under `usage
     (manual)`, so the two cannot be read as the loop contradicting itself
-    (2026-10-26, AF-148). The decision and the exit status are the same.
+    (2026-10-27, AF-148). The decision and the exit status are the same.
 
 WHY THIS EXISTS
     Until AF-108 the loop reacted to a usage limit only after hitting one:
@@ -57,22 +57,33 @@ WHAT IT DECIDES
              to a limit when one arrives, and say so.
 
     The 5-hour window, by what is left of it (points of 100):
-      at least M_LEFT      GO - any size; 45 starting value (AF-148)
+      at least M_LEFT      GO - any size; 60 (AF-148)
       at least SMALL_LEFT  SMALL - an S item costs about 73,000 fork tokens
                            and an M about 188,000 (AF-88, UR-14), each with
                            reviewer passes of 40,000-130,000 [D-24]
       less                 WAIT until the window resets
 
     M_LEFT replaced ANY_LEFT (20), which let an M item start with 20 points
-    left: on 2026-10-26 PM-75 started at 37 left and the session hit its
-    limit mid-item, and AF-90 on 2026-10-14 alone took a session from 55 %
-    to the limit. Nothing here knows an item's size before the fork picks
-    it, so the gate is on the whole band: below M_LEFT only an XS or S item
-    starts. An L item may want a higher bar of its own; progress.log records
-    no per-item usage and no item size, so there are not yet figures to set
-    an L_LEFT from, and none is set. A fork
+    left. Three M forks hit the session limit mid-item: AF-90 (2026-10-14)
+    from 45 points left, PM-75 (2026-10-26) from 37 and AF-132 (2026-10-27)
+    from 58. M items that finished cost 6 to 31 points between the `usage`
+    lines either side, interactive use of the same window included. 60 is
+    set above every recorded overrun, and is an estimate from six figures:
+    LOOP_USAGE_M_LEFT moves it, and docs/DECISIONS.md D-55 has the table.
+    Nothing here knows an item's size before the fork picks it, so the gate
+    is on the whole band: below M_LEFT only an XS or S item starts. An L
+    item may want a higher bar of its own, but no L item has run since the
+    `usage` lines began (the last two, AF-47 and AF-42, are earlier), so
+    there are no figures to set an L_LEFT from, and none is set. A fork
     finishing an open pull request it inherited is not capped by size, as
     before: the cap governs what is started.
+
+    A session window that is not readable is GO, as before. Of the 24 such
+    readings in progress.log, the nine since 2026-10-24 were all taken one
+    minute after a 5-hour boundary (the latest 20:01 on 2026-10-27), and
+    D-58 records a window's first reading as often not readable: a window
+    that has just rolled over has no line yet, and all of it is left. The
+    line says so.
 
     The weekly window is spread evenly over the seven days to its reset: the
     loop may have used the elapsed fraction of the week's allowance, plus
@@ -146,7 +157,7 @@ WEEK = dt.timedelta(days=7)
 RACE_TAIL = dt.timedelta(days=2)
 # ALARM_LOOK is in minutes, and never under ALARM_LOOK_FLOOR; the others
 # are points of 100.
-DEFAULTS = {"M_LEFT": 45, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
+DEFAULTS = {"M_LEFT": 60, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
 ALARM_LOOK_FLOOR = 15
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
 # What `next.py --alarm` prints: an id, and an open pull request's number.
@@ -343,7 +354,7 @@ def decide(windows, now, race=None, conf=None, alarm=None):
             word, until = "SMALL", reset
             why.append(f"under {conf['M_LEFT']:g} points left: an XS or S item only")
     else:
-        why.append("session window not readable")
+        why.append("session window not readable (a window just rolled over shows none)")
 
     if "week" in windows:
         used, reset = windows["week"]
