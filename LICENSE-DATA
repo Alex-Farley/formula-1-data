@@ -212,9 +212,8 @@ licence, which covers the rest of harvest/:
   - `harvest/circuit_wikidata.txt` — the candidate relations for each
     circuit, and the length measured from each one's geometry.
 
-What these files take from Wikidata — the relation ids of
-circuit_geometry.txt, and the ids and coordinates circuit_wikidata.txt's
-header names — is CC0, as those two files' headers say.
+The Wikidata item ids in circuit_wikidata.txt's wikidata_id column stay
+CC0, as its header says.
 
 ## Live timing data
 

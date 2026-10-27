@@ -280,9 +280,8 @@ the rest of `harvest/` is under (`CR-102`):
 - `harvest/circuit_wikidata.txt` — the candidate relations for each circuit,
   and the length measured from each one's geometry.
 
-What they take from Wikidata — the relation ids of `circuit_geometry.txt`,
-and the ids and coordinates `circuit_wikidata.txt`'s header names — stays
-CC0, as those two files' headers say.
+The Wikidata item ids in `circuit_wikidata.txt`'s `wikidata_id` column stay
+CC0, as its header says.
 
 ## What this project wrote — CC BY 4.0
 
