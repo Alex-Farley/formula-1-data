@@ -338,6 +338,17 @@ at is public already — except one about a workflow, which, like a secret,
 is given by its address alone, so an injection is not announced before it
 is fixed.
 
+**Two kinds read with the refresh App's token — 2026-10-23 (`AF-124`,
+#1076).** The first scheduled run showed `GITHUB_TOKEN` refused, HTTP 403,
+for the Dependabot and the secret-scanning alerts alike; only code scanning
+was read. The maintainer chose to add *Dependabot alerts: read* and *Secret
+scanning alerts: read* to the refresh GitHub App and mint a token each run
+narrowed to those two reads. **Declined:** a fine-grained personal access
+token, a long-lived secret; and leaving secret scanning out of the watch,
+which would have left Dependabot unread as well. The workflow's own token
+still reads code scanning and does every write. A mint that fails leaves
+the two kinds named unreadable and the step failed, as before.
+
 ---
 
 ## The loop
