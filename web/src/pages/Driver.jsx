@@ -10,6 +10,7 @@ import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.j
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
+import { FIGHT_QUERIES, currentTitle, fightLine, mergeSources } from '../queries/season.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
 import { EYEBROWS, ENTRIES_NOTE, LABELS, NAMES } from '../lib/site.js'
 import { FOLD_NOUN } from '../lib/table.js'
@@ -256,6 +257,8 @@ export default function Driver() {
     teamMates: [TEAM_MATES, [id, null]],
     sources: [DRIVER_SOURCES, [id]],
     practice: [DRIVER_PRACTICE, [id]],
+    // AF-132: where a contender stands in the title fight being run.
+    ...FIGHT_QUERIES,
   })
 
   return (
@@ -323,6 +326,9 @@ function DriverBody({ driver, data }) {
   // A Friday driver's whole record is the practice sheets (LV-03).
   const practiceOnly = driver.practice_only === 1
   const practice = rows(data, 'practice')
+  // Where this driver stands in the title fight of the season being run
+  // (AF-132): queries/season.js's line, which the static page prints too.
+  const fight = practiceOnly ? null : fightLine(currentTitle((key) => rows(data, key)), 'drivers', driver.id)
 
   return (
     <Page
@@ -330,7 +336,7 @@ function DriverBody({ driver, data }) {
       title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors, practice)}
-      sources={rows(data, 'sources')}
+      sources={fight ? mergeSources(rows(data, 'sources'), rows(data, 'fightSources')) : rows(data, 'sources')}
       aside={
         <LiveryScheme colour={teamColour} note={driverBandNote(lastTeam, teamColour)} />
       }
@@ -347,6 +353,7 @@ function DriverBody({ driver, data }) {
       {!practiceOnly && (
         <Section>
           <Stats items={careerStrip(driver, derived, thisSeason, standings)} />
+          {fight && <p className="note follows">{fight}</p>}
         </Section>
       )}
 

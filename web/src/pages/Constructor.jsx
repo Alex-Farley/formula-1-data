@@ -7,6 +7,7 @@ import Figure from '../charts/Figure.jsx'
 import Photographs from '../components/Photographs.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
+import { FIGHT_QUERIES, currentTitle, fightLine, mergeSources } from '../queries/season.js'
 import { span } from '../lib/format.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import LiveryScheme from '../components/LiveryScheme.jsx'
@@ -78,6 +79,8 @@ export default function Constructor() {
     bySeason: [BY_SEASON, [id]],
     standings: [STANDINGS, [id]],
     disagreements: [CONSTRUCTOR_DISAGREEMENTS, [id]],
+    // AF-132: where a contender stands in the title fight being run.
+    ...FIGHT_QUERIES,
     wins: [WINS, [id]],
     designs: [DESIGNS, [id]],
     lineage: [LINEAGE, [id]],
@@ -142,13 +145,17 @@ function ConstructorBody({ constructor, data }) {
       })
     : nationalEntry(constructor.country)
 
+  // Where this team stands in the constructors' title fight of the season
+  // being run (AF-132): queries/season.js's line, printed by both halves.
+  const fight = fightLine(currentTitle((key) => rows(data, key)), 'constructors', constructor.id)
+
   return (
     <Page
       eyebrow={EYEBROWS.constructor(constructor.country, constructor.base)}
       title={NAMES.constructor(constructor.name).headline}
       trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
-      sources={rows(data, 'sources')}
+      sources={fight ? mergeSources(rows(data, 'sources'), rows(data, 'fightSources')) : rows(data, 'sources')}
       aside={
         <LiveryScheme colour={identity} note={constructorBandNote(constructor, lastSeason, livery, identity)} />
       }
@@ -156,6 +163,7 @@ function ConstructorBody({ constructor, data }) {
       <Section>
         {/* queries/constructor.js's strip, which the static page draws too (VD-49). */}
         <Stats items={teamStrip(constructor, derived)} />
+        {fight && <p className="note follows">{fight}</p>}
       </Section>
 
       {/* What leads (PD-58): the tiles, then the shape of the team's

@@ -122,7 +122,15 @@ import {
   titleHeading,
   TITLE_STANDINGS,
   titleSettled,
+  currentTitle,
+  fightAhead,
+  fightLine,
+  isUpcoming,
+  outSince,
+  reachFigures,
+  teamAvailable,
 } from '../src/queries/season.js'
+import { reachLayout, reachText } from '../src/charts/reachChart.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
@@ -1076,6 +1084,204 @@ describe('the queries a page and the prerenderer share', () => {
       }).split('.')[0],
       "Who can still win the drivers' title: Antonelli and Russell",
     )
+  })
+
+  // AF-132: the constructors' title on the same test, and the one answer the
+  // five places print. The 2026 shapes below are the issue's own example.
+  it("works out who can still win the constructors' title too, and where neither title is answered", () => {
+    const live = {
+      races: 6, sprints: 0, run: 17, dropped_scores: 'Every result counts', available: 150,
+      win_points: 25, fastest_lap_points: 0, scale: '[25,18,15,12,10,8,6,4,2,1]', sprint_scale: '[8,7,6,5,4,3,2,1]', sprint_points: 8,
+    }
+    const drivers = [
+      { entity: 'Antonelli', driver_id: 'antonelli', position: 1, points: 340 },
+      { entity: 'Russell', driver_id: 'russell', position: 2, points: 300 },
+      { entity: 'Norris', driver_id: 'norris', position: 3, points: 201 },
+      { entity: 'Stroll', driver_id: 'stroll', position: 4, points: 20 },
+    ]
+    const teams = [
+      { entity: 'Mercedes', constructor_id: 'mercedes', position: 1, points: 600 },
+      { entity: 'Ferrari', constructor_id: 'ferrari', position: 2, points: 466 },
+      { entity: 'McLaren', constructor_id: 'mclaren', position: 3, points: 361 },
+      { entity: 'Red Bull Racing', constructor_id: 'red-bull', position: 4, points: 342 },
+    ]
+    // A one-two is the scale's first two places, read from the row: 43 a
+    // round, six rounds, 258 - the issue's figure.
+    assert.equal(teamAvailable(live), 258)
+    assert.equal(teamAvailable({ ...live, sprints: 2 }), 258 + 2 * 15)
+    // The fastest-lap point of 2019-2024 goes to one of the two cars.
+    assert.equal(teamAvailable({ ...live, fastest_lap_points: 1 }), 6 * 44)
+    // A sprint left with no sprint system to price it declines; so does a
+    // scale that is not two numbers.
+    assert.equal(teamAvailable({ ...live, sprints: 1, sprint_scale: null }), null)
+    assert.equal(teamAvailable({ ...live, scale: '[25]' }), null)
+    assert.equal(teamAvailable({ ...live, scale: 'not json' }), null)
+
+    // A two-way fight in each: Mercedes by 134 with 258 left keeps Ferrari in
+    // and McLaren 239 behind in too, Red Bull 258 behind exactly level with
+    // what is left, and so in.
+    const answer = titleAnswer({ drivers, constructors: teams, remaining: live, afterRound: 17, built: '2026-09-16', year: 2026 })
+    assert.equal(
+      answer.who,
+      "Who can still win the drivers' title: Antonelli, Russell and Norris. Who can still win the constructors' title: Mercedes, Ferrari, McLaren and Red Bull Racing.",
+    )
+    assert.match(answer.basis, /^6 rounds still to run, so 150 points are still available to a driver and 258 to a team, a one-two in every round/)
+    assert.deepEqual(answer.constructors.alive.map((d) => d.id), ['mercedes', 'ferrari', 'mclaren', 'red-bull'])
+    // One past it is out, and the reach chart draws it as the one just out.
+    const short = titleAnswer({
+      drivers,
+      constructors: [...teams.slice(0, 3), { ...teams[3], points: 341 }],
+      remaining: live,
+      afterRound: 17,
+      year: 2026,
+    })
+    assert.match(short.who, /constructors' title: Mercedes, Ferrari and McLaren\.$/)
+    const [driversFigure, teamsFigure] = reachFigures(short, 2026, new Map())
+    assert.deepEqual(teamsFigure.data.map((d) => [d.label, d.alive]), [['Mercedes', true], ['Ferrari', true], ['McLaren', true], ['Red Bull Racing', false]])
+    assert.deepEqual(driversFigure.data.map((d) => d.label), ['Antonelli', 'Russell', 'Norris', 'Stroll'])
+    assert.deepEqual(teamsFigure.rows[3], { entity: 'Red Bull Racing', id: 'red-bull', points: 341, behind: 259, reach: 599, alive: false })
+    // Only the highest placed of those out is drawn, beside everyone still in.
+    const outTwice = reachFigures(
+      titleAnswer({ drivers: [...drivers, { entity: 'Bottas', driver_id: 'bottas', position: 5, points: 2 }], remaining: live, afterRound: 17, year: 2026 }),
+      2026,
+      new Map(),
+    )[0]
+    assert.deepEqual(outTwice.data.map((d) => d.label), ['Antonelli', 'Russell', 'Norris', 'Stroll'])
+
+    // A decided title says so, for either championship.
+    const decided = titleAnswer({
+      drivers: [drivers[0], drivers[3]],
+      constructors: [teams[0], { ...teams[1], points: 300 }],
+      remaining: live,
+      afterRound: 17,
+      year: 2026,
+    })
+    assert.equal(
+      decided.who,
+      "Only Antonelli can still win the drivers' title: no other driver can now reach the leader's total. Only Mercedes can still win the constructors' title: no other team can now reach the leader's total.",
+    )
+
+    // Before 1958 there was no constructors' championship, and before 1979
+    // a team scored with its best-placed car only: the drivers' title is
+    // still answered (were the season's scores all to count), the
+    // constructors' is not.
+    for (const year of [1955, 1975, undefined]) {
+      const early = titleAnswer({ drivers, constructors: teams, remaining: live, afterRound: 17, year })
+      assert.equal(early.constructors, null, `no constructors' answer for ${year}`)
+      assert.doesNotMatch(early.who, /constructors/)
+      assert.match(early.basis, /^6 rounds still to run, so 150 points are still available, and a driver further behind/)
+    }
+    // A dropped-scores season declines both.
+    assert.equal(
+      titleAnswer({ drivers, constructors: teams, remaining: { ...live, dropped_scores: 'Best 11 results' }, afterRound: 17, year: 1988 }),
+      null,
+    )
+    // A constructors' table alone is still answered.
+    assert.match(
+      titleAnswer({ drivers: [], constructors: teams, remaining: live, afterRound: 17, year: 2026 }).basis,
+      /258 points are still available to a team/,
+    )
+  })
+
+  it("prints a contender's line, the round they went out at only where the tables establish it", () => {
+    const remaining = {
+      races: 2, sprints: 0, run: 3, dropped_scores: 'Every result counts', available: 50,
+      win_points: 25, fastest_lap_points: 0, scale: '[25,18]', sprint_scale: null, sprint_points: 0,
+    }
+    // Five rounds, three run, so 100, 75 and 50 left after rounds 1 to 3.
+    // B falls out after round 2 (80 behind, 75 left) and stays out; C is
+    // level with what is left after round 3, and in.
+    const table = (round, totals) =>
+      Object.entries(totals).map(([id, points], i) => ({ table_type: 'drivers', after_round: round, driver_id: id, points, position: i + 1 }))
+    const standings = [
+      ...table(1, { a: 25, b: 18, c: 15, d: 0 }),
+      ...table(2, { a: 100, b: 20, c: 40, d: 0 }),
+      ...table(3, { a: 110, b: 30, c: 60, d: 1 }),
+    ]
+    const drivers = standings.filter((r) => r.after_round === 3).map((r) => ({ ...r, entity: r.driver_id.toUpperCase() }))
+    const rounds = [1, 2, 3, 4, 5].map((round) => ({ round, sprint: 0, status: round <= 3 ? 'completed' : 'scheduled' }))
+    const get = (rows) => (key) => rows[key]
+    const title = currentTitle(
+      get({
+        fightSeason: [{ year: 2026, drivers_champion: null }],
+        fightFinal: drivers,
+        fightStandings: standings,
+        fightRemaining: [remaining],
+        fightRounds: rounds,
+      }),
+    )
+    assert.equal(title.next, 4)
+    assert.equal(fightLine(title, 'drivers', 'a'), 'Leads the title fight by 50 with 50 left.')
+    assert.equal(fightLine(title, 'drivers', 'c'), 'Still in the title fight: 50 behind with 50 left.')
+    assert.equal(fightLine(title, 'drivers', 'b'), 'Out of the title fight since round 2.')
+    // D: 25 behind with 100 left after round 1, in; 100 behind with 75 left
+    // after round 2, out.
+    assert.equal(fightLine(title, 'drivers', 'd'), 'Out of the title fight since round 2.')
+    assert.equal(fightLine(title, 'drivers', 'nobody'), null)
+    assert.equal(fightLine(title, 'constructors', 'a'), null)
+    // A gap in the tables leaves the round unestablished, and says only out.
+    const gapped = { ...title, standings: standings.filter((r) => r.after_round !== 1) }
+    assert.equal(outSince(gapped, 'drivers', 'b'), null)
+    assert.equal(fightLine(gapped, 'drivers', 'b'), 'Out of the title fight.')
+    // Two totals for one driver after one round is no table either.
+    const twice = { ...title, standings: [...standings, { ...standings[9], points: 31 }] }
+    assert.equal(outSince(twice, 'drivers', 'b'), null)
+    // The only one left, and level at the top.
+    const alone = { ...title, drivers: { ...title.drivers, alive: [title.drivers.rows[0]] } }
+    assert.equal(fightLine(alone, 'drivers', 'a'), 'The only one left in the title fight: 50 clear with 50 left.')
+    const level = currentTitle(
+      get({
+        fightSeason: [{ year: 2026, drivers_champion: null }],
+        fightFinal: [drivers[0], { ...drivers[2], points: 110 }],
+        fightStandings: standings,
+        fightRemaining: [remaining],
+        fightRounds: rounds,
+      }),
+    )
+    assert.equal(fightLine(level, 'drivers', 'a'), 'Level on points at the top of the title fight with 50 left.')
+    // A champion on the record, or no answer, is no line and no title.
+    assert.equal(
+      currentTitle(get({ fightSeason: [{ year: 2026, drivers_champion: 'a' }], fightFinal: drivers, fightStandings: standings, fightRemaining: [remaining], fightRounds: rounds })),
+      null,
+    )
+    assert.equal(fightLine(null, 'drivers', 'a'), null)
+
+    // The upcoming race is the next round of the season answered, until it
+    // has a result; the home page's next race is answered only in that season.
+    assert.equal(isUpcoming(title, { year: 2026, round: 4, status: 'scheduled' }), true)
+    assert.equal(isUpcoming(title, { year: 2026, round: 4, status: 'completed' }), false)
+    assert.equal(isUpcoming(title, { year: 2026, round: 3, status: 'completed' }), false)
+    assert.equal(isUpcoming(title, { year: 2027, round: 4, status: 'scheduled' }), false)
+    assert.equal(isUpcoming(null, { year: 2026, round: 4, status: 'scheduled' }), false)
+    assert.equal(fightAhead(title, { year: 2026 }), title.who)
+    assert.equal(fightAhead(title, { year: 2027 }), null)
+  })
+
+  it('lays out the reach chart: the bar to the points, the outline to the reach, the line at the leader', () => {
+    const data = [
+      { key: 'a', label: 'A', points: 300, reach: 350, alive: true, colour: null },
+      { key: 'b', label: 'B', points: 240, reach: 290, alive: false, colour: null },
+    ]
+    for (const width of [320, 640, 1200]) {
+      const layout = reachLayout({ data, lead: 300, width })
+      const [a, b] = layout.bars
+      // Every path's x coordinates, in order.
+      const xs = (path) => [...path.matchAll(/[MHQ]\s*(-?[\d.]+)/g)].map((m) => Number(m[1]))
+      const solidEnd = Math.max(...xs(a.solid))
+      const reachEnd = Math.max(...xs(a.extension))
+      // The extension starts where the bar ends, and the line stands at the
+      // leader's points, which is A's bar end.
+      assert.equal(Math.min(...xs(a.extension)), solidEnd)
+      assert.ok(Math.abs(layout.lead.x - solidEnd) < 1e-9, `the line is at the leader's total at ${width}`)
+      // B's reach falls short of the line; A's passes it.
+      assert.ok(Math.max(...xs(b.extension)) < layout.lead.x)
+      assert.ok(reachEnd > layout.lead.x)
+      assert.ok(a.valueX + 8 * reachText(b.d).length <= width + 60, `the figures fit beside the bar at ${width}`)
+      assert.ok(layout.lead.textX >= 34 && layout.lead.textX <= width - 34)
+    }
+    assert.equal(reachText(data[0]), '300 → 350')
+    assert.equal(reachText(data[1]), '240 → 290, out')
+    assert.equal(reachLayout({ data: [], lead: 0, width: 640 }), null)
   })
 
   // VD-90: the answer takes the lede position, and the season's own note

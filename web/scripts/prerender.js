@@ -230,6 +230,8 @@ import {
   NEXT_HEADING,
   NEXT_ROUND,
   NOT_RUN_STANDINGS,
+  FIGHT_QUERIES,
+  REACH_HEADING,
   REMAINING,
   SEASON,
   TITLE_STANDINGS,
@@ -250,6 +252,13 @@ import {
   standingsHeading,
   stillRunning,
   teamsByDriver,
+  STAKE_HEADING,
+  currentTitle,
+  fightAhead,
+  fightLine,
+  isUpcoming,
+  mergeSources,
+  reachFigures,
   titleAnswer,
   titleRaceFigure,
   titleSettled,
@@ -666,6 +675,7 @@ import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } 
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
 import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
+import { reachLayout } from '../src/charts/reachChart.js'
 import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
 import {
   STINT_HEADS,
@@ -1443,6 +1453,30 @@ const lineSvg = (chart, width) => {
     })
     .join('')
   return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${lines}`)}</div>`
+}
+
+/* ReachChart.jsx at rest (AF-132): each contender's name, the solid bar and
+   its outlined extension in the bar's colour or in ink, the two figures
+   beside it, and the leader's line across them all, named at its head. */
+const reachSvg = (chart, width) => {
+  const layout = reachLayout({ ...chart, width })
+  if (!layout) return ''
+  const bars = layout.bars
+    .map((bar) => {
+      const paint = bar.d.colour ? 'var(--livery)' : INK
+      return `<g${bar.d.colour ? ownAttrs(bar.d.colour) : ''}><text class="axis-text bar-label" x="${px(bar.labelX)}" y="${px(
+        bar.middle,
+      )}" text-anchor="end" dominant-baseline="middle" fill="var(--ink)">${esc(bar.d.label)}</text>${
+        bar.solid ? `<path d="${tidy(bar.solid)}" fill="${paint}"/>` : ''
+      }${bar.extension ? `<path class="reach-extension" d="${tidy(bar.extension)}" fill="${paint}" stroke="${paint}"/>` : ''}<text class="value-text" x="${px(
+        bar.valueX,
+      )}" y="${px(bar.middle)}" dominant-baseline="middle">${esc(bar.value)}</text></g>`
+    })
+    .join('')
+  const lead = `<line class="reach-leader" x1="${px(layout.lead.x)}" x2="${px(layout.lead.x)}" y1="${px(layout.lead.y1)}" y2="${px(
+    layout.lead.y2,
+  )}"/><text class="axis-text" x="${px(layout.lead.textX)}" y="${px(layout.lead.textY)}" text-anchor="middle">${esc(layout.lead.text)}</text>`
+  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${bars}${lead}`)}</div>`
 }
 
 /* Figure.jsx's legend: a stroke in the series' dash for a line chart, as
@@ -2451,6 +2485,11 @@ const page = ({
 
 
 
+// Who can still win the season being run (AF-132), worked out once from the
+// queries the app's home, race, driver and constructor pages read, and
+// printed on each of them as the app prints it.
+const TITLE = currentTitle((key) => all(FIGHT_QUERIES[key][0]), META.built)
+
 // ------------------------------------------------------------------- home
 //
 // The home page, from src/queries/home.js - the same queries, figures,
@@ -2508,7 +2547,7 @@ const page = ({
     upcoming
       ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
         <p class="muted small">${raceDatesHtml(upcoming)} \u00b7 round ${esc(upcoming.round)}</p>
-        <p class="muted">${esc(stillToRunNote(now))}</p>
+        <p class="muted">${esc(stillToRunNote(now))}</p>${fightAhead(TITLE, upcoming) ? `\n        <p>${esc(fightAhead(TITLE, upcoming))}</p>` : ''}
         <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
       : `<p class="muted">${esc(seasonComplete(now.year))}</p>${
           after ? `<p>${link(`seasons/${after}`, calendarLink(after))}</p>` : `<p class="muted">${esc(NOTHING_SCHEDULED)}</p>`
@@ -2688,11 +2727,26 @@ const seasonsTable = (rows) =>
     const answer = running
       ? titleAnswer({
           drivers: driversFinal,
+          constructors: constructorsFinal,
           remaining: one(REMAINING, year),
           afterRound: after,
           built: META.built,
+          year,
         })
       : null
+    // The reach charts (AF-132), Season.jsx's, each in a figure part of its
+    // own under one heading, with its numbers open beneath it.
+    const reach = reachFigures(answer, year, teamsByDriver(all(DRIVER_TEAMS, year)))
+    const reachSection = reach.length
+      ? `<h2>${esc(REACH_HEADING)}</h2><div class="split">${reach
+          .map(
+            (f) =>
+              `<div class="figure-part"><h3>${esc(f.title)}</h3>${figure(f.title, f.note, fromColumns(f.columns, f.rows, {}, { unfolded: UNFOLDED.figure }), {
+                plot: reachSvg(f, COLUMN_WIDTH),
+              })}</div>`,
+          )
+          .join('')}</div>`
+      : ''
     // The title race that leads the page (VD-73): Season.jsx's figure, from
     // queries/season.js, in the slot after the tiles.
     const race = titleRaceFigure({
@@ -2793,6 +2847,7 @@ const seasonsTable = (rows) =>
           }`,
           raceChart,
         )}
+        ${reachSection}
         ${nextSection}
         ${live ? seasonCalendar + seasonStandings : seasonStandings + seasonCalendar}
         ${
@@ -3006,7 +3061,7 @@ const seasonsTable = (rows) =>
       description: summarise(description),
       trail: TRAIL.race(r.year, r.round, r.name_used),
       onward: ONWARD.race({ race: r, year: r.year, winners: raceWinners, neighbours }),
-      sources: all(RACE_SOURCES, r.year, r.round),
+      sources: isUpcoming(TITLE, r) ? mergeSources(all(RACE_SOURCES, r.year, r.round), all(FIGHT_QUERIES.fightSources[0])) : all(RACE_SOURCES, r.year, r.round),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'SportsEvent',
@@ -3054,6 +3109,7 @@ const seasonsTable = (rows) =>
         <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
+        ${isUpcoming(TITLE, r) ? ownSection(`<h2>${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p><p class="faint">${dated(TITLE.basis)}</p>`) : ''}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)
@@ -3315,6 +3371,10 @@ const seasonsTable = (rows) =>
     const lead = `${d.full_name}${d.nationality ? `, ${d.nationality}` : ''}. ${career}`
     const withNotes = summarise(`${lead} ${d.notes ?? ''}`)
 
+    // Where this driver stands in the title fight being run (AF-132), as
+    // Driver.jsx prints it under the strip.
+    const driverFight = practiceOnly ? null : fightLine(TITLE, 'drivers', d.id)
+
     page({
       path: `drivers/${d.id}`,
       lastmod: LAST_RUN.driver.get(d.id),
@@ -3322,7 +3382,7 @@ const seasonsTable = (rows) =>
       description: withNotes.length < lead.length ? lead : withNotes,
       trail: TRAIL.driver(d.id, d.full_name),
       onward: ONWARD.driver({ results, bySeason }),
-      sources: all(DRIVER_SOURCES, d.id),
+      sources: driverFight ? mergeSources(all(DRIVER_SOURCES, d.id), all(FIGHT_QUERIES.fightSources[0])) : all(DRIVER_SOURCES, d.id),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'Person',
@@ -3340,7 +3400,7 @@ const seasonsTable = (rows) =>
         ${
           practiceOnly
             ? ''
-            : opened(tiles(careerStrip(d, derived, thisSeason, standings)), finishesChart)
+            : opened(`${tiles(careerStrip(d, derived, thisSeason, standings))}${driverFight ? `<p class="faint">${esc(driverFight)}</p>` : ''}`, finishesChart)
         }
         ${thisSeasonSection}
         ${
@@ -3514,10 +3574,13 @@ page({
     ]
       .filter(Boolean)
       .join(', ')
+    // Where this team stands in the constructors' title fight (AF-132), as
+    // Constructor.jsx prints it under the strip.
+    const teamFight = fightLine(TITLE, 'constructors', c.id)
     page({
       path: `constructors/${c.id}`,
       lastmod: LAST_RUN.constructor.get(c.id),
-      sources: all(CONSTRUCTOR_SOURCES, c.id),
+      sources: teamFight ? mergeSources(all(CONSTRUCTOR_SOURCES, c.id), all(FIGHT_QUERIES.fightSources[0])) : all(CONSTRUCTOR_SOURCES, c.id),
       title: NAMES.constructor(c.name).title,
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${yearRun(c.first_entry, c.last_entry, 'present')}. ${
@@ -3537,7 +3600,7 @@ page({
       body: `
         ${opening({ eyebrow: EYEBROWS.constructor(c.country, c.base), title: NAMES.constructor(c.name).headline, lede: c.notes })}
         ${liveryBand(identity, constructorBandNote(c, lastSeason, livery, identity))}
-        ${opened(tiles(teamStrip(c, teamDerived)), winsSection)}
+        ${opened(`${tiles(teamStrip(c, teamDerived))}${teamFight ? `<p class="faint">${esc(teamFight)}</p>` : ''}`, winsSection)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>
         ${

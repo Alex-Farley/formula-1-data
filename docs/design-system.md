@@ -430,6 +430,26 @@ inside it is scaled, until the app redraws it at the width it occupies.
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
+**The reach chart** (provisional, AF-132). A figure for one question: who
+can still catch the leader. One row per contender: a solid bar from nought
+to the points scored, then an outlined extension of it to the most they
+could still reach under the season's own scoring, then the two figures
+beside it in words (*340 → 490*, and *, out* where the extension stops
+short). One dashed vertical line in ink across every row is the leader's
+total, named at its head. `charts/reachChart.js` lays it out for both
+renderers; `reachFigure()` in `queries/season.js` chooses the rows (those
+still in, at most `TITLE_LIST_LIMIT`, and the highest placed of those out).
+
+- **Colour:** rule 1 above where every bar has a sourced colour, as the
+  title race takes it; ink otherwise, and no accent. The extension is the
+  bar's own colour, outlined 2 px at full strength over a pale fill, so the
+  outline carries the 3:1 (DP-33) and the fill carries nothing.
+- **Second cue:** the figures beside every bar say who is out in words, so
+  neither the line nor the colour is the only cue (1.4.1).
+- **Placement:** two in one section, *Who can still win*, each a
+  `FigurePart` named for its title, side by side in `.split`; its numbers
+  are a table, as every figure's are.
+
 ### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
@@ -659,7 +679,8 @@ citation, is already one system and is kept.
   renderers print; smoke's *who can still win, in the lede*). The whole
   answer, some ninety words, was too long for a lede: it ran to ten lines
   and the web font's arrival added an eleventh, moving the page beneath it ·
-  lead chart · standings · calendar · Who entered · photographs. The
+  lead chart · *Who can still win*, the reach chart for each title the
+  answer covers (provisional, AF-132) · standings · calendar · Who entered · photographs. The
   photographs follow *Who entered* so that they sit where the photo strip
   puts them on every type (§3), which this line had the other way round.
 - **Car:** tiles directly under the h1 · Why it mattered · Specification ·
@@ -682,7 +703,11 @@ citation, is already one system and is kept.
 Race pages follow the entity layout (DP-11): the header beside the outline
 slot; tiles; the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
-photographs. The classification never shares its
+photographs. The page of the next round to run, while the season has no
+drivers' champion on record and its results have not landed, carries
+*What's at stake* after the timetable: the season page's answer and its
+basis, from the same function (provisional, AF-132). The classification
+never shares its
 width with a side column (VD-84; beside the outline it lost Points and FL to
 a scroll from 768 to 1,110 px), and a scheduled race leads with its
 timetable (kept). From 768 px the classification also fits its own box

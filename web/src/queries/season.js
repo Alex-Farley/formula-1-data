@@ -113,7 +113,7 @@ export const FINAL = `
               AND e.driver_id = f.driver_id) END AS wins
     FROM v_standings_final f
     LEFT JOIN constructors k ON k.id = f.constructor_id
-   WHERE f.year = ?
+   WHERE f.year = ?1
    ORDER BY f.table_type, f.position IS NULL, f.position, f.points DESC, f.id
 `
 
@@ -133,6 +133,12 @@ export const FINAL = `
  * nothing says EVERY_RESULT_COUNTS, and verify.py holds that spelling to
  * every such row (DA-18). `session` is which of the two period tables a row
  * belongs to.
+ *
+ * `scale` and `sprint_scale` are the two systems' points by place, as the
+ * JSON arrays the table holds, for what a team can still win (AF-132): a
+ * one-two is the first two places added, read from the season's own scale
+ * and never written here. `sprint_scale` is NULL in a season with no sprint
+ * system.
  */
 /** What `points_systems.dropped_scores` says of a system that dropped no result. */
 export const EVERY_RESULT_COUNTS = 'Every result counts'
@@ -145,18 +151,19 @@ export const REMAINING = `
       FROM races r
      WHERE r.year = ?1),
   gp AS (
-    SELECT win_points, fastest_lap_points, dropped_scores
+    SELECT win_points, fastest_lap_points, dropped_scores, scale
       FROM points_systems
      WHERE session = 'race'
        AND from_year <= ?1 AND (to_year IS NULL OR to_year >= ?1)
      ORDER BY from_year DESC LIMIT 1),
   sp AS (
-    SELECT win_points
+    SELECT win_points, scale
       FROM points_systems
      WHERE session = 'sprint'
        AND from_year <= ?1 AND (to_year IS NULL OR to_year >= ?1)
      ORDER BY from_year DESC LIMIT 1)
   SELECT t.races, t.sprints, t.run, g.win_points, g.fastest_lap_points, g.dropped_scores,
+         g.scale, (SELECT scale FROM sp) AS sprint_scale,
          COALESCE((SELECT win_points FROM sp), 0) AS sprint_points,
          t.races * (g.win_points + g.fastest_lap_points)
            + t.sprints * COALESCE((SELECT win_points FROM sp), 0) AS available
@@ -581,7 +588,12 @@ export const TITLE_SOURCES = `
 export const seasonSources = (sources, title, { answer, remaining }) => {
   const dropped = remaining?.dropped_scores
   if (!answer && (missing(dropped) || dropped === EVERY_RESULT_COUNTS)) return sources
-  const byId = new Map([...sources, ...title].map((s) => [s.id, s]))
+  return mergeSources(sources, title)
+}
+
+/** Two lists of registry entries as one, one entry per source, in the registry's order. */
+export const mergeSources = (sources, more) => {
+  const byId = new Map([...sources, ...more].map((s) => [s.id, s]))
   return [...byId.values()].sort((a, b) => a.priority - b.priority || a.id - b.id)
 }
 
@@ -776,12 +788,122 @@ const plural = (n, word) => `${number(n)} ${word}${n === 1 ? '' : 's'}`
 const listed = (names) =>
   names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 
+/** The first season of the constructors' championship. */
+export const CONSTRUCTORS_FROM = 1958
+
 /**
- * Who can still win the drivers' title, as one sentence both renderers print
- * (PD-28). The most-asked question of every September, and one the site can
- * answer from what it already holds: the standings as they stand, the rounds
- * still on the calendar, and the points a win is worth under the season's own
- * scoring rule.
+ * The first season in which every car's points counted to its constructor
+ * (AF-132). Before it only a team's best-placed car scored for it in each
+ * race, so a team's most from a round was a win and not a one-two, and the
+ * database holds no row that says which rule a season ran under: the
+ * constructors' answer declines before it rather than guess. Every season
+ * before 1991 also dropped scores, which declines both answers anyway; the
+ * two years are named so that neither rule leans on the other.
+ */
+export const EVERY_CAR_COUNTS_FROM = 1979
+
+/** A points scale's first two places added - a one-two - or null where the JSON does not hold two numbers. */
+const oneTwo = (scale) => {
+  try {
+    const places = JSON.parse(scale)
+    return Array.isArray(places) && places.length >= 2 && places.slice(0, 2).every(Number.isFinite)
+      ? places[0] + places[1]
+      : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The most one driver and one team can score from one round, under the
+ * season's own scoring, from REMAINING's row (AF-132): `{ drivers, constructors }`,
+ * each `{ race, sprint }`, a value null where the row cannot say.
+ *
+ * A driver's is a win and, where the season paid one, the fastest lap: the
+ * sum REMAINING's `available` is made of. A team's is a one-two - the first
+ * two places of the season's scale - and the fastest lap, which one of its
+ * two cars can take; a sprint's, the sprint scale's first two places. A
+ * sprint round with no sprint system on record prices the team's sprint at
+ * null, which declines, rather than at nothing.
+ */
+export function mostPerRound(remaining) {
+  if (!remaining) return null
+  const lap = missing(remaining.fastest_lap_points) ? null : remaining.fastest_lap_points
+  const race = (base) => (missing(base) || lap === null ? null : base + lap)
+  return {
+    drivers: { race: race(remaining.win_points), sprint: missing(remaining.sprint_scale) ? null : remaining.sprint_points },
+    constructors: { race: race(oneTwo(remaining.scale)), sprint: oneTwo(remaining.sprint_scale) },
+  }
+}
+
+/**
+ * What a team can still win from REMAINING's row: a one-two in every round
+ * still to run and in every sprint, or null where the scale cannot say.
+ */
+export const teamAvailable = (remaining) => {
+  const most = mostPerRound(remaining)?.constructors
+  if (!most || most.race === null) return null
+  if (remaining.sprints && most.sprint === null) return null
+  return remaining.races * most.race + (remaining.sprints ? remaining.sprints * most.sprint : 0)
+}
+
+/**
+ * One championship's table, measured against what is still to be won: the
+ * elimination test both titles share. `table` is FINAL's rows for the one
+ * championship; `idOf` reads the driver or constructor id a page matches on.
+ * Null with fewer than two classified, or nothing to measure against.
+ *
+ * Each row comes back with `behind` the leader, the most it can still
+ * `reach`, and whether it is still `alive`: behind by no more than what is
+ * left. A row that can only draw level is counted in, because the countback
+ * that would settle the tie is not worked out here.
+ */
+function standingFight(kind, table, available, idOf) {
+  // A row with points and no position was excluded from the classification,
+  // which is the same table's footer: neither the leader nor someone to catch.
+  const scored = (table ?? []).filter((d) => !missing(d.points) && !missing(d.position))
+  if (scored.length < 2 || missing(available)) return null
+  const lead = Math.max(...scored.map((d) => d.points))
+  const rows = [...scored]
+    .sort((a, b) => b.points - a.points || a.position - b.position)
+    .map((d) => ({
+      id: idOf(d) ?? null,
+      entity: d.entity,
+      points: d.points,
+      position: d.position,
+      behind: lead - d.points,
+      reach: d.points + available,
+      alive: lead - d.points <= available,
+      row: d,
+    }))
+  return { kind, available, lead, rows, alive: rows.filter((d) => d.alive), scored: rows.length }
+}
+
+/** The sentence for one title: who can still win it. */
+const whoLine = (fight) => {
+  const title = fight.kind === 'drivers' ? "the drivers' title" : "the constructors' title"
+  const other = fight.kind === 'drivers' ? 'driver' : 'team'
+  const many = fight.kind === 'drivers' ? 'drivers' : 'teams'
+  const alive = fight.alive
+  if (alive.length === 1) return `Only ${alive[0].entity} can still win ${title}: no other ${other} can now reach the leader's total.`
+  if (alive.length <= TITLE_LIST_LIMIT) return `Who can still win ${title}: ${listed(alive.map((d) => d.entity))}.`
+  // The drivers' wording is the one VD-90 printed; a team's says which title.
+  const of = fight.kind === 'drivers' ? '' : ` in ${title}`
+  if (alive.length === fight.scored) return `Every ${other} who has scored can still reach the leader's total${of}.`
+  return `${number(alive.length)} of the ${number(fight.scored)} ${many} who have scored can still reach the leader's total${of}.`
+}
+
+/** How many names a sentence lists, and the reach chart draws, before the count is the answer instead. */
+export const TITLE_LIST_LIMIT = 10
+
+/**
+ * Who can still win the title, as one answer every page that prints it reads
+ * (PD-28, AF-132): the season's lede and the reach chart under its tiles, the
+ * next-race panel on the home page, the upcoming race's page, and a
+ * contender's driver and team pages. The most-asked question of every
+ * September, and one the site can answer from what it already holds: the
+ * standings as they stand, the rounds still on the calendar, and the points a
+ * round is worth under the season's own scoring rule.
  *
  * It returns null rather than a hedge wherever the arithmetic would not carry:
  *
@@ -793,64 +915,338 @@ const listed = (names) =>
  *   - a dropped-scores season — before 1991 only a driver's best few results
  *     counted, so a total need not rise by what its driver scores and being
  *     behind by more than is available does not put anyone out;
- *   - fewer than two drivers on the table.
+ *   - fewer than two classified on both tables.
  *
- * Where more than ten drivers are still in - the opening weeks of a season,
- * when nobody is out - the count is the answer and the list of names is not,
- * and where nobody at all is out it says that rather than counting to itself.
+ * The constructors' title is answered on the same test, against a one-two in
+ * every round left (mostPerRound), and only where the season had a
+ * constructors' championship (from 1958) under which every car scored for its
+ * team (from 1979): `year` says which, and without it the constructors' title
+ * is not answered. Either title can be null while the other is answered.
+ *
+ * Where more than ten are still in - the opening weeks of a season, when
+ * nobody is out - the count is the answer and the list of names is not, and
+ * where nobody at all is out it says that rather than counting to itself.
  *
  * What it does not claim is in its own last sentence: a tie on points is
  * settled on wins, so "can still reach the leader's total" is not the same as
- * "can still be champion", and a driver who can only equal is counted in.
- * The round it was counted after and the date the database was built are
- * printed with it, because the answer changes with the harvest and not with
- * the code (SD-14).
+ * "can still be champion", and one who can only equal is counted in. The
+ * round it was counted after and the date the database was built are printed
+ * with it, because the answer changes with the harvest and not with the code
+ * (SD-14).
  *
  * It comes in two parts (VD-90): `who`, the answer, which a season being run
  * prints in its lede (seasonLede below), and `basis`, what it was worked out
  * from and what it does not claim, which follows directly under the tiles.
  * The whole of it, ninety words, was too long to be a lede: on 2026 it ran to
  * ten lines, and the web font arriving after the page put an eleventh on and
- * moved everything beneath it.
+ * moved everything beneath it. `drivers` and `constructors` are the two
+ * fights themselves, for the reach chart and a contender's line.
  */
-export function titleAnswer({ drivers, remaining, afterRound, built }) {
+export function titleAnswer({ drivers, constructors, remaining, afterRound, built, year }) {
   if (!remaining || !remaining.races) return null
   // Anything but the one spelling - a rule, or a blank - declines, so a
   // reworded row fails closed rather than into a wrong elimination.
   if (remaining.dropped_scores !== EVERY_RESULT_COUNTS) return null
   if (missing(afterRound) || afterRound !== remaining.run) return null
-  // A driver with points and no position was excluded from the classification,
-  // which is the same table's footer: their points stand and their position
-  // does not, so they are neither the leader to catch nor someone to catch.
-  const scored = (drivers ?? []).filter((d) => !missing(d.points) && !missing(d.position))
-  if (scored.length < 2) return null
 
-  const available = remaining.available
-  if (missing(available)) return null
-  const lead = Math.max(...scored.map((d) => d.points))
-  const alive = scored.filter((d) => lead - d.points <= available)
+  const forDrivers = standingFight('drivers', drivers, remaining.available, (d) => d.driver_id)
+  const teams = Number.isInteger(year) && year >= CONSTRUCTORS_FROM && year >= EVERY_CAR_COUNTS_FROM
+  const forTeams = teams ? standingFight('constructors', constructors, teamAvailable(remaining), (d) => d.constructor_id) : null
+  if (!forDrivers && !forTeams) return null
 
   const left = [plural(remaining.races, 'round'), remaining.sprints ? plural(remaining.sprints, 'sprint') : null]
     .filter(Boolean)
     .join(' and ')
-  const who =
-    alive.length === 1
-      ? `Only ${alive[0].entity} can still win the drivers' title: no other driver can now reach the leader's total.`
-      : alive.length <= 10
-        ? `Who can still win the drivers' title: ${listed(alive.map((d) => d.entity))}.`
-        : alive.length === scored.length
-          ? "Every driver who has scored can still reach the leader's total."
-          : `${number(alive.length)} of the ${number(scored.length)} drivers who have scored can still reach the leader's total.`
-
+  const who = [forDrivers, forTeams].filter(Boolean).map(whoLine).join(' ')
+  const still =
+    forDrivers && forTeams
+      ? `${left} still to run, so ${points(forDrivers.available)} points are still available to a driver and ${points(forTeams.available)} to a team, a one-two in every round, and anyone further behind their leader than that cannot reach them.`
+      : forDrivers
+        ? `${left} still to run, so ${points(forDrivers.available)} points are still available, and a driver further behind the leader than that cannot reach them.`
+        : `${left} still to run, so ${points(forTeams.available)} points are still available to a team, a one-two in every round, and a team further behind the leader than that cannot reach them.`
   const basis = [
-    `${left} still to run, so ${points(available)} points are still available, and a driver further behind the leader than that cannot reach them.`,
+    still,
     afterRound ? `Counted after round ${number(afterRound)}${built ? `, from the database built ${built}` : ''}.` : null,
     'Points only: a tie at the top is settled on wins, which this does not work out.',
   ]
     .filter(Boolean)
     .join(' ')
-  return { who, basis }
+  return { who, basis, drivers: forDrivers, constructors: forTeams, afterRound, year }
 }
+
+/**
+ * The calendar's rounds, for the round a contender went out at (AF-132):
+ * outSince() prices what was left after each one from them.
+ */
+export const TITLE_ROUNDS = `
+  SELECT round, sprint, status FROM races WHERE year = ?1 ORDER BY round
+`
+
+/** The season's own row, as much of it as the title fight reads. */
+const FIGHT_SEASON = `
+  SELECT year, drivers_champion FROM seasons WHERE year = ${CURRENT_SEASON_SQL}
+`
+
+const current = (sql) => sql.replaceAll('?1', CURRENT_SEASON_SQL)
+
+/**
+ * The registry entries behind the title fight of the season being run
+ * (AF-132), for the citation of a page that prints it and is not that
+ * season's: the points system's, the calendar's, and the standings' - both
+ * tables as FINAL reads them, by SEASON_SOURCES' rule, and the running rows
+ * STANDINGS chooses. A page adds them with mergeSources() only where it
+ * prints the answer.
+ */
+const FIGHT_SOURCES = `
+  SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT source_id FROM table_provenance WHERE tbl = 'points_systems'
+     UNION SELECT source_id FROM races WHERE year = ?1
+     UNION SELECT t.source_id FROM standings t
+            WHERE t.year = ?1
+              AND (t.basis = 'final'
+                   OR NOT EXISTS (SELECT 1 FROM standings f
+                                   WHERE f.year = t.year AND f.table_type = t.table_type
+                                     AND f.basis = 'final'))
+     UNION SELECT t.source_id FROM standings t
+            WHERE t.year = ?1 AND t.basis = 'running'
+              AND t.source = (SELECT source FROM standings
+                               WHERE year = ?1 AND basis = 'running'
+                               GROUP BY source
+                               ORDER BY COUNT(DISTINCT after_round) DESC, MAX(after_round) DESC, source
+                               LIMIT 1))
+   ORDER BY s.priority, s.id
+`
+
+/**
+ * The queries the title fight of the season being run is answered from, on
+ * a page that is not that season's (AF-132): the home page, the upcoming
+ * race and a contender's pages. The season's own page reads the same tables
+ * by its year. Each is keyed for useQueries, and scripts/prerender.js runs
+ * the same SQL once for every page it writes.
+ */
+export const FIGHT_QUERIES = {
+  fightSeason: [FIGHT_SEASON],
+  fightFinal: [current(FINAL)],
+  fightStandings: [current(STANDINGS)],
+  fightRemaining: [current(REMAINING)],
+  fightRounds: [current(TITLE_ROUNDS)],
+  fightSources: [current(FIGHT_SOURCES)],
+}
+
+/**
+ * The answer for the season being run, from FIGHT_QUERIES' rows, by the
+ * season page's own rule: only while no drivers' champion is on the record
+ * and two drivers are on the table - once there is a champion, a sentence
+ * working out who could have won is noise at best and a contradiction at
+ * worst. `get(key)` returns a query's rows.
+ *
+ * The running table and the calendar ride along for outSince().
+ */
+export function currentTitle(get, built) {
+  const season = get('fightSeason')[0]
+  if (!season || season.drivers_champion) return null
+  const final = get('fightFinal')
+  const drivers = final.filter((r) => r.table_type === 'drivers')
+  if (drivers.length < 2) return null
+  const standings = get('fightStandings')
+  const answer = titleAnswer({
+    drivers,
+    constructors: final.filter((r) => r.table_type === 'constructors'),
+    remaining: get('fightRemaining')[0] ?? null,
+    afterRound: latestRound(standings),
+    built,
+    year: season.year,
+  })
+  if (!answer) return null
+  const remaining = get('fightRemaining')[0]
+  return { ...answer, standings, rounds: get('fightRounds'), most: mostPerRound(remaining), next: nextRoundOf(get('fightRounds')) }
+}
+
+const nextRoundOf = (rounds) => rounds.find((r) => r.status !== 'completed')?.round ?? null
+
+/**
+ * The round after which a contender could no longer reach the leader, where
+ * the running table establishes it (AF-132), or null.
+ *
+ * What was still to be won after round n is every round of the calendar
+ * after it, each at the most mostPerRound() gives, and its sprint where it
+ * had one. Out after round n is behind the table's leader then by more than
+ * that. Established means the table after every round from that one to the
+ * last is held and says out, and the one before it is held and says in -
+ * or is the start of the season, before which nobody is out. A gap in the
+ * tables, a contender twice in one with two totals, or a table that has them
+ * in where the answer has them out, declines.
+ */
+export function outSince(title, kind, id) {
+  const most = title?.most?.[kind]
+  if (!most || most.race === null || missing(id)) return null
+  const rounds = title.rounds ?? []
+  if (rounds.some((r) => r.sprint) && most.sprint === null) return null
+  const left = (n) => rounds.filter((r) => r.round > n).reduce((sum, r) => sum + most.race + (r.sprint ? most.sprint : 0), 0)
+  const idOf = kind === 'drivers' ? (r) => r.driver_id : (r) => r.constructor_id
+  const tables = new Map()
+  for (const r of title.standings ?? []) {
+    if (r.table_type !== kind || missing(r.points) || missing(r.position) || missing(idOf(r))) continue
+    if (!tables.has(r.after_round)) tables.set(r.after_round, new Map())
+    const table = tables.get(r.after_round)
+    const held = table.get(idOf(r))
+    table.set(idOf(r), held !== undefined && held !== r.points ? NaN : r.points)
+  }
+  // true out, false in, null where the table cannot say.
+  const out = (n) => {
+    const table = tables.get(n)
+    if (!table || !table.has(id)) return null
+    const totals = [...table.values()]
+    if (totals.some(Number.isNaN)) return null
+    return Math.max(...totals) - table.get(id) > left(n)
+  }
+  let since = null
+  for (let n = title.afterRound; n >= 1; n -= 1) {
+    const now = out(n)
+    if (now === null) return null
+    if (!now) return since
+    since = n
+  }
+  return since
+}
+
+/**
+ * The one line a contender's driver or team page prints about the title
+ * fight (AF-132), from currentTitle()'s answer: null where that answer is
+ * null, where this title is not answered, or where the id is not on its
+ * table once.
+ *
+ *     Still in the title fight: 102 behind with 150 left.
+ *     Leads the title fight by 133 with 125 left.
+ *     Level on points at the top of the title fight with 125 left.
+ *     The only one left in the title fight: 133 clear with 125 left.
+ *     Out of the title fight since round 15.
+ *
+ * "Since round N" only where outSince() establishes N; otherwise only that
+ * they are out.
+ */
+export function fightLine(title, kind, id) {
+  const fight = title?.[kind]
+  if (!fight || missing(id)) return null
+  const mine = fight.rows.filter((d) => d.id === id)
+  if (mine.length !== 1) return null
+  const [me] = mine
+  const left = points(fight.available)
+  if (!me.alive) {
+    const since = outSince(title, kind, id)
+    return since === null ? 'Out of the title fight.' : `Out of the title fight since round ${number(since)}.`
+  }
+  const others = fight.rows.filter((d) => d !== me)
+  if (me.behind > 0) return `Still in the title fight: ${points(me.behind)} behind with ${left} left.`
+  if (others.some((d) => d.behind === 0)) return `Level on points at the top of the title fight with ${left} left.`
+  const margin = me.points - others[0].points
+  if (fight.alive.length === 1) return `The only one left in the title fight: ${points(margin)} clear with ${left} left.`
+  return `Leads the title fight by ${points(margin)} with ${left} left.`
+}
+
+/**
+ * The answer under the home page's next race (AF-132): only where that race
+ * is in the season the answer is about, so a winter's next race, in the
+ * season after, is not given this one's title fight.
+ */
+export const fightAhead = (title, race) => (title && race && race.year === title.year ? title.who : null)
+
+/** The upcoming race's section (AF-132): what its title fight stands at, until its results land. */
+export const STAKE_HEADING = "What's at stake"
+
+/**
+ * Whether a race's page is the upcoming race's: the first round of the
+ * season being run with no result on the calendar, while there is an answer
+ * to print.
+ */
+export const isUpcoming = (title, race) =>
+  Boolean(title && race && race.year === title.year && race.round === title.next && race.status !== 'completed')
+
+/* ------------------------------------------------------------ reach chart */
+
+/** The reach chart's section and its two figures (AF-132). */
+export const REACH_HEADING = 'Who can still win'
+export const reachTitle = (kind) => (kind === 'drivers' ? "The drivers' title" : "The constructors' title")
+
+/**
+ * The reach chart's note, at most 50 words (VD-80): what the two parts of a
+ * bar are and what the line is, which is what stops a misreading.
+ */
+export const reachNote = (kind, cut) =>
+  `Each solid bar is the points scored so far, and the outlined part the most still to be won: ${
+    kind === 'drivers' ? 'a win' : 'a one-two'
+  } in every round left. The line is the leader's total; a bar that stops short of it is out.${
+    cut ? ` The ${TITLE_LIST_LIMIT} highest of those still in are drawn.` : ''
+  }`
+
+export const reachColumns = (kind) => [
+  { key: 'entity', rowHeader: true, label: kind === 'drivers' ? 'Driver' : 'Constructor' },
+  { key: 'points', label: 'Points', align: 'num', text: points },
+  { key: 'behind', label: 'Gap', align: 'num', text: (value) => (missing(value) || value === 0 ? EMPTY : points(value)) },
+  { key: 'reach', label: 'Most possible', align: 'num', text: points },
+  { key: 'alive', label: 'Title fight', text: (value) => (value ? 'in' : 'out') },
+]
+
+/**
+ * The reach chart (AF-132), worked out once for both renderers: each
+ * contender's points as a solid bar, an outlined extension to the most they
+ * could still reach, and a line at the leader's total. It draws those still
+ * in - the first TITLE_LIST_LIMIT of them, where more are - and the highest
+ * placed of those already out, so the line has a bar that stops short of it.
+ *
+ * `colourOf(row)` is the contender's colour or null; the chart wears colours
+ * only where every bar has one, as the title race does. Null where the fight
+ * is.
+ */
+export function reachFigure(fight, year, colourOf = () => null) {
+  if (!fight) return null
+  const still = fight.alive.slice(0, TITLE_LIST_LIMIT)
+  const justOut = fight.rows.find((d) => !d.alive)
+  const drawn = justOut ? [...still, justOut] : still
+  const coloured = drawn.map((d) => colourOf(d))
+  const inColour = coloured.every(Boolean)
+  return {
+    kind: fight.kind,
+    title: reachTitle(fight.kind),
+    note: reachNote(fight.kind, fight.alive.length > TITLE_LIST_LIMIT),
+    lead: fight.lead,
+    data: drawn.map((d, i) => ({
+      key: String(d.id ?? d.entity),
+      label: d.entity,
+      points: d.points,
+      reach: d.reach,
+      alive: d.alive,
+      colour: inColour ? coloured[i] : null,
+    })),
+    rows: drawn.map((d) => ({ entity: d.entity, id: d.id, points: d.points, behind: d.behind, reach: d.reach, alive: d.alive })),
+    columns: reachColumns(fight.kind),
+    label: `${reachTitle(fight.kind)} in ${year}: points so far and the most each contender can still reach, against the leader's ${points(fight.lead)}`,
+  }
+}
+
+/**
+ * The colour a contender's bar wears (AF-132), as the title race takes it: a
+ * driver in the team they last raced for that season (`teams` is
+ * teamsByDriver()'s map), a team in its own, each by colourForEntry()'s
+ * rules for the year.
+ */
+const contenderColour = (kind, teams, year) => (d) => {
+  if (kind === 'constructors') {
+    return colourForEntry({ constructorId: d.row.constructor_id, country: d.row.constructor_country, year, team: d.entity })
+  }
+  const last = (teams?.get(d.id) ?? [])[0]
+  return last ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor }) : null
+}
+
+/** Both titles' reach charts, drivers' first, for whichever titleAnswer() answered. */
+export const reachFigures = (answer, year, teams) =>
+  answer
+    ? [answer.drivers, answer.constructors]
+        .filter(Boolean)
+        .map((fight) => reachFigure(fight, year, contenderColour(fight.kind, teams, year)))
+    : []
 
 /**
  * A season's lede: who can still win, then the season's own note (VD-90).

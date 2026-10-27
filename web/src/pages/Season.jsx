@@ -1,7 +1,7 @@
 import { Fragment, useMemo } from 'react'
 import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, until } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
+import { Confidence, FigurePart, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { FOLD_NOUN, UNFOLDED } from '../lib/table.js'
@@ -11,6 +11,7 @@ import { outlineCaption } from '../lib/outline.js'
 import { measured, odblCredit } from '../lib/trace.js'
 import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
+import ReachChart from '../charts/ReachChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
 import { coverageYears, number } from '../lib/format.js'
@@ -64,6 +65,8 @@ import {
   standingsHeading,
   stillRunning,
   teamsByDriver,
+  REACH_HEADING,
+  reachFigures,
   titleAnswer,
   titleRaceFigure,
   titleStrip,
@@ -405,11 +408,16 @@ function SeasonBody({ year, season, data }) {
   const answer = running
     ? titleAnswer({
         drivers: driversFinal,
+        constructors: constructorsFinal,
         remaining: data.remaining.rows[0] ?? null,
         afterRound: after,
         built: currentProgress().manifest?.built,
+        year,
       })
     : null
+  // The same answer drawn (AF-132): each title's contenders against the
+  // leader's total, from queries/season.js, which the static page draws too.
+  const reach = useMemo(() => reachFigures(answer, year, teams), [answer, year, teams])
 
   // The page leads with the answer (VD-90): who can still win opens the
   // lede, ahead of the season's own note, and what it was worked out from
@@ -545,6 +553,22 @@ function SeasonBody({ year, season, data }) {
           <Figure lead note={race.note} legend={race.legend} marks="line" table={{ rows: race.rows, columns: TITLE_RACE_COLUMNS }}>
             <LineChart series={race.series} format={race.format} formatX={race.formatX} height={race.height} label={race.label} />
           </Figure>
+        </Section>
+      )}
+
+      {reach.length > 0 && (
+        <Section title={REACH_HEADING}>
+          {/* Two figures in one section, each named by an h3 of its own,
+              which names its table too (AX-28). */}
+          <div className="split">
+            {reach.map((figure) => (
+              <FigurePart key={figure.kind} title={figure.title}>
+                <Figure note={figure.note} table={{ rows: figure.rows, columns: figure.columns }}>
+                  <ReachChart data={figure.data} lead={figure.lead} label={figure.label} />
+                </Figure>
+              </FigurePart>
+            ))}
+          </div>
         </Section>
       )}
 

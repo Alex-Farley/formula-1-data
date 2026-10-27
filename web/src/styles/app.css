@@ -3087,6 +3087,24 @@ figure.figure > .figure-note:first-child {
   stroke-width: 1.5;
 }
 
+/* The reach chart (AF-132): the most a contender could still score, drawn
+   on from the points they have. The bar's own colour outlined at full
+   strength and 2 px wide (DP-33), which is what carries 3:1 against the
+   panel - the pale fill
+   inside it carries nothing - so the extension reads as the same contender
+   and as not yet scored. The leader's total is the one line across every
+   bar, in ink and dashed, named at its head. */
+.figure .reach-extension {
+  fill-opacity: 0.18;
+  stroke-width: 2;
+}
+
+.figure .reach-leader {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
 /* Grid to flag (PD-30): a car that finished in ink, the winner in the
    accent (VD-94), one that was not classified fainter, dashed, ending on a
    cross - three channels, so the colour is never the only one, and the
