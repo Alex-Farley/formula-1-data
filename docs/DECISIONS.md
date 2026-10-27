@@ -671,13 +671,14 @@ one only for it to pause.
   above the 45 first proposed, and hit the limit at 16:02 after `make all`
   and the web tests, before a PR. M items that did finish cost, between
   the `usage` lines taken before the item began and after it merged, in one
-  window: AF-76 6 points, AF-108 10 (at least: its before-line came three
-  minutes after it was chosen), PM-45 19, AF-122 23, AF-125 26, CD-46 31,
+  window: AF-108 10 (at least: its before-line came three minutes after it
+  was chosen), PM-45 19, AF-122 23, AF-125 26, CD-46 31,
   and CD-39+CD-61, two M items in one PR, 67. Those figures take in the
   reviewers and any interactive use of the same window, which AF-132's
   afternoon had. 70 is above every recorded overrun (more than 58) and
-  every recorded cost, the pair's 67 included; it is an estimate from ten
-  figures, and the `usage` lines are what to revise it from. A threshold
+  every recorded cost, the pair's 67 included; it is an estimate from nine
+  figures, and the `usage` lines are what to revise it from. AF-76 is left out: it ran in
+  two windows, 38 points in the first and 6 in the second. A threshold
   set too high costs an M item waiting for the next window while S items
   go on; set too low it costs a fork killed mid-item. The gate is on the band and not
   on the item, since the check runs before the fork has chosen one; a fork

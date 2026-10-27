@@ -66,10 +66,10 @@ WHAT IT DECIDES
     M_LEFT replaced ANY_LEFT (20), which let an M item start with 20 points
     left. Three M forks hit the session limit mid-item: AF-90 (2026-10-14)
     from 45 points left, PM-75 (2026-10-26) from 37 and AF-132 (2026-10-27)
-    from 58. M items that finished cost 6 to 31 points each between the
+    from 58. M items that finished cost 10 (at least) to 31 points each between the
     `usage` lines either side, and a group of two M items 67, interactive
     use of the same window included. 70 is set above every recorded
-    overrun and every recorded cost, and is an estimate from ten figures:
+    overrun and every recorded cost, and is an estimate from nine figures:
     LOOP_USAGE_M_LEFT moves it, and docs/DECISIONS.md D-55 has the table.
     Nothing here knows an item's size before the fork picks it, so the gate
     is on the whole band: below M_LEFT only an XS or S item starts. An L
