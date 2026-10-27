@@ -13,16 +13,19 @@ name: release the artefacts
 #     the sources builds, rather than a file whose every intermediate state is
 #     kept forever.
 #
-# Tag a version and push it, or run this by hand:
+# Tag a version and push it:
 #
 #     git tag v2.15 && git push origin v2.15
+#
+# or run this by hand to publish a tag that already exists, which builds that
+# tag whichever branch the run is started from (AF-82).
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to publish (created if it does not exist)'
+        description: 'Existing tag to publish (v<VERSION>); the run builds the tag, not the branch it is started from'
         required: true
 
 permissions:
@@ -33,7 +36,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # The tag, by its full ref, on both triggers. Without a ref a manual run
+      # checks out the branch it was started from, so a branch with commits
+      # past the tag and the same VERSION would pass the check below and be
+      # published under the tag. refs/tags/ rather than the bare name, so a
+      # branch of the same name is never taken for it, and a tag that does
+      # not exist fails here, before anything is built or a release created.
+      # The tag must be pushed first, and pushing a v* tag runs this workflow
+      # on its own.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:

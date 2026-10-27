@@ -147,6 +147,15 @@ class PublishingPathsCarryBothDatabases(unittest.TestCase):
         for name in ("f1.db", "f1-geometry.db"):
             self.assertIn(name, digest.group(1).split(), f"SHA256SUMS does not digest {name}")
 
+    def test_release_builds_the_tag(self):
+        # AF-82: with no ref, a manual run builds the branch it was started
+        # from and publishes it under the tag it was given.
+        yml = read(".github/workflows/release.yml")
+        checkout = re.search(r"uses: actions/checkout@\S+.*\n\s+with:\n((?:\s{10,}\S.*\n)+)", yml)
+        self.assertIsNotNone(checkout, "release.yml's checkout has no `with:` naming a ref")
+        self.assertIn("ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}",
+                      checkout.group(1), "release.yml does not check out the tag it publishes")
+
     def test_site_stages_both(self):
         staging = read("web/scripts/prepare-assets.js")
         for name in ("f1.db", "f1-geometry.db"):
