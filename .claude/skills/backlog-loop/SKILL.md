@@ -9,8 +9,9 @@ disable-model-invocation: true
 
 This skill stays in the session a person started and stays small. It does not
 read the queue, open an issue, run the build or launch a reviewer. Every item
-runs in **`backlog-item`**, a forked skill in `.claude/skills/backlog-item/`,
-whose context is discarded when it returns - the item merged, skipped, held or
+runs in **`backlog-item`**, a forked skill in `.claude/skills/backlog-item/` -
+or, for the Sonnet trial step 2 describes, `backlog-item-sonnet`, which runs
+that same procedure on Sonnet - whose context is discarded when it returns - the item merged, skipped, held or
 stopped. What comes back here is one contract line and a stock-take of at most
 five lines.
 
@@ -77,7 +78,20 @@ Two words, either order, both optional.
      does not spend the reserve, and neither does the alarm they did not
      choose.
 
-   Otherwise invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
+   Otherwise, **choose the implementer** when the target is `next` or
+   `until-paused` and the pace is `balanced` or `thorough`: run
+   `python3 .claude/skills/backlog-loop/next.py --implementer`, with the
+   `--skip` and `--max-size S` the fork would be given. It costs no model
+   turn and one board read. When its output starts `sonnet <ID>`, invoke the
+   Skill tool: skill `backlog-item-sonnet`, args `<pace> <ID> --max-size S`,
+   with `--skip <ids>` when this run has skipped any. Anything else - `opus`,
+   an error, any exit other than 0 - and at `fast` or for an item id a person
+   named, invoke the ordinary fork below. This is the Sonnet trial, AF-144
+   `[D-60]`: Sonnet implements an XS or S item that names no protected
+   path, and the review is unchanged. `fast` stays out of it because its
+   quick reviewer is Sonnet too, and the trial leans on the Opus first pass.
+
+   The ordinary fork: invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
    this run has skipped any, and `--max-size S` when the check said
    `SMALL`. Do not do any of the fork's work
@@ -115,6 +129,11 @@ Two words, either order, both optional.
      GitHub's secondary rate limiter refusing the board read, which no fork
      can record around and no poll can shorten `[D-27]`. Neither is worth a
      second fork; say which one it was.
+   - `REROUTE <ID>: <path>`: a `backlog-item-sonnet` fork found that the
+     item needs a protected path after all, and left nothing claimed. Invoke
+     the ordinary fork at once with `<pace> <ID>` and the same `--skip` and
+     `--max-size` the check gave, once - its line is the one acted on. Not a
+     skip and not a hold, so it counts as neither.
    - `PAUSE: <why>`: the fork was given `--max-size S` and nothing in the
      queue was that small. Nothing is claimed or half-done. Treat it as
      `WAIT until <the session reset the SMALL line named>` in step 2.
@@ -183,6 +202,9 @@ under `usage`, with the figures each decision used.
   reviewers do not: every agent in `.claude/agents/` restricts itself to
   `Read, Grep, Glob, Bash`, so an MCP server costs them nothing.
   The loop uses none of them either way.
+- The implementer's model is the session's, except where step 2 chooses
+  Sonnet: a forked skill's `model:` key is live where its `effort:` key is
+  not, probed by the per-model usage a headless session reports `[D-60]`.
 - The implementer's effort is the session's: set `CLAUDE_CODE_EFFORT_LEVEL`
   or `effortLevel` before starting, not during a run, because a change of
   effort mid-session breaks the prompt cache. `backlog-item/SKILL.md`'s

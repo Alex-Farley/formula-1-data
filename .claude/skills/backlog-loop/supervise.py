@@ -36,7 +36,8 @@ WHAT IT DOES
     the reserve goes on nothing else (AF-130).
 
     It never merges, reviews or edits anything. The manager drives, the fork
-    (backlog-item) does the item, and this only decides whether to start the
+    (backlog-item, or backlog-item-sonnet under the AF-144 trial, D-60 - the
+    manager chooses per item, so no model is set here) does the item, and this only decides whether to start the
     manager again.
 
     NOT PROBED: the exact text `claude -p --output-format json` returns when

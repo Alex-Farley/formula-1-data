@@ -203,4 +203,19 @@ if [ -n "$vchanged" ]; then
     done <<<"$low"
   fi
 fi
+# 8. a pull request implemented on Sonnet under the AF-144 trial touches no
+# protected path (D-60). The fork checks the item before claiming it; this
+# checks the diff, which is what the rule is about. implementer.py holds the
+# list. A label gh could not read is a warning, as an unread body is above.
+labels=$(gh pr view --json labels --jq '.labels[].name' 2>"$errf"); lrc=$?
+if [ $lrc -ne 0 ]; then
+  say WARN "the PR's labels were not read (none yet, or gh failed: $(head -1 "$errf" | cut -c1-56)), so the Sonnet trial's paths are unchecked"
+elif printf '%s\n' "$labels" | grep -qx 'implementer: sonnet'; then
+  impl="$(dirname "${BASH_SOURCE[0]}")/implementer.py"
+  if hits=$(git diff --name-only origin/main...HEAD | python3 "$impl"); then
+    say ok "implemented on Sonnet, and no protected path changed"
+  else
+    say FAIL "implemented on Sonnet (label 'implementer: sonnet') and changes a protected path, which AF-144 keeps on Opus: $(printf '%s' "$hits" | tr '\n' ' ')"; fail=1
+  fi
+fi
 if [ $fail = 0 ]; then echo "precheck: ready for review"; else echo "precheck: fix before asking a reviewer"; exit 1; fi

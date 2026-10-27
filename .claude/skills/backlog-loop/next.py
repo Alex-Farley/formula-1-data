@@ -12,6 +12,7 @@ Print the next item of the queue, or one named item, and nothing else.
     python3 .claude/skills/backlog-loop/next.py --skip AF-03,VD-26   # the next item after those
     python3 .claude/skills/backlog-loop/next.py --group --max-size S # the next item no larger than S
     python3 .claude/skills/backlog-loop/next.py --alarm       # the refresh alarm the reserve may go on, if any
+    python3 .claude/skills/backlog-loop/next.py --implementer # sonnet <ID>, or opus: who implements the next item
 
 The queue is GitHub Issues on Alex-Farley/formula-1-data, ranked on the Lap
 Ledger project (users/Alex-Farley/projects/1). Since 2026-09-13; before that
@@ -109,6 +110,13 @@ for, not worked again. The head is the queue's own: an alarm a person moved
 to *Next* or *Someday* is printed only when nothing eligible is above it,
 which is when next.py would choose it anyway `AF-130` `[D-55]`.
 
+`--implementer` is for the driver alone, which runs it before a fork at
+`balanced` or `thorough` and is given the same `--skip` and `--max-size` the
+fork would be. It prints `sonnet <ID> - <why>` when the item the fork would
+take may be implemented on Sonnet under the AF-144 trial, and `opus - <why>`
+otherwise; implementer.py holds the rule (D-60). Anything else - an error,
+an exit other than 0 - is the ordinary Opus fork.
+
 `--next-id PD` reads every issue, open and closed, and prints the first
 number after the highest `PD-n` in use, so a new finding continues the
 critique's own sequence and no id is reused (`file.py` calls this).
@@ -128,6 +136,7 @@ from collections import Counter
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
 import gh_preflight  # noqa: E402  (a sibling script, not an installed package)
+import implementer  # noqa: E402
 import loop_cache  # noqa: E402
 
 REPO = "Alex-Farley/formula-1-data"
@@ -793,6 +802,23 @@ def reserve_alarm(ranked, in_progress, skip):
     return head, None
 
 
+def open_claude_work():
+    """Whether a fork's work is open: a local `claude/` branch, or an open
+    pull request from one. The next fork finishes either, whatever it is."""
+    if claude_branches():
+        return True
+    prs = gh("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100", "--json", "headRefName")
+    return any(pr["headRefName"].startswith("claude/") for pr in prs)
+
+
+def trial_count():
+    """Pull requests labelled for the Sonnet trial, merged or still open; a
+    closed one that never merged was not an item implemented."""
+    prs = gh("pr", "list", "--repo", REPO, "--state", "all", "--label", implementer.LABEL,
+             "--limit", "100", "--json", "state")
+    return sum(1 for pr in prs if pr["state"] in ("MERGED", "OPEN"))
+
+
 def main(argv):
     skip = set()
     if "--skip" in argv:
@@ -838,6 +864,23 @@ def main(argv):
             sys.exit(1)
         row, pr = found
         print(row["ident"] + (f" #{pr}" if pr else ""))
+        return
+
+    if argv[:1] == ["--implementer"]:
+        if len(argv) != 1 or group:
+            sys.exit("--implementer takes only --skip and --max-size")
+        if open_claude_work():
+            head = None
+            word, why = implementer.choose(None, True, trial_count)
+        else:
+            ranked, _, _ = load()
+            if cap:
+                skip |= too_large(ranked, cap)
+            head = first_eligible(ranked, skip)
+            if head is not None:
+                head["body"] = one_body(head["number"])
+            word, why = implementer.choose(head, False, trial_count)
+        print(f"sonnet {head['ident']} - {why}" if word == "sonnet" else f"opus - {why}")
         return
 
     listing = argv[:1] == ["--list"]
