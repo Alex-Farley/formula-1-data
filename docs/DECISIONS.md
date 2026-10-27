@@ -605,8 +605,9 @@ drives many forks, so a check in `supervise.py` alone would run once per
 session. `supervise.py` runs it too, before each session, so as not to start
 one only for it to pause.
 
-- **The 5-hour window:** 20 points or more left, any item; 7 or more, an XS
-  or S item only, through `next.py --max-size S`; less, wait for the reset.
+- **The 5-hour window:** 45 points or more left, any item (20 until
+  `AF-148`, below); 7 or more, an XS or S item only, through
+  `next.py --max-size S`; less, wait for the reset.
   The middle rung is what uses the end of a window rather than sleeping
   through it. It overrides `[D-20]`'s "whatever is linked rides" for that one
   fork, because a linked M companion is the cost the cap exists to avoid. A
@@ -654,6 +655,25 @@ one only for it to pause.
   with that window unread; one may start on the `SMALL` rung whatever its
   size, as the item set the floor at `SMALL_LEFT` and no higher. A run
   given some other item by id does not spend the reserve.
+- **An M item starts only with 45 points left** (2026-10-27, `AF-148`,
+  #1181). `ANY_LEFT` (20) is replaced by `M_LEFT` (45,
+  `LOOP_USAGE_M_LEFT`); between it and `SMALL_LEFT` the answer is `SMALL`,
+  so a fork under 45 takes an XS or S item or returns `PAUSE:`. Two cases
+  were the watching the maintainer chose on 2026-10-14. That day AF-90 (M,
+  refresh and data) took a session from 55 % to the limit: 196 turns, a
+  256k-token peak context and 31.8M cache reads against 6-10M for a typical
+  S fork. On 2026-10-26 the check said GO at 37 points left after AF-130
+  merged, the fork took PM-75 (M, data), and the session hit its limit at
+  15:50 mid-item; another fork finished it after the 19:00 reset (#1155).
+  The gate is on the band and not on the item, since the check runs before
+  the fork has chosen one; a fork finishing an inherited open pull request is still
+  not capped by size. No `L_LEFT` is set: `progress.log` records no per-item usage and no
+  item size, so there are no L figures to take one from yet.
+- **A manual run is told apart in the log.** `loop_usage.py --loop` is what
+  the driver passes and files under `usage`; a run without it files under
+  `usage (manual)`, since a check run by hand wrote lines the loop's own
+  could not be told from, which on 2026-10-26 at 15:47 read as the loop
+  contradicting itself. The decision is the same either way.
 
 ### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065), reverted 2026-10-26 (`AF-128`, #1122)
 The maintainer's usage report of 2026-10-18 put 43 % of usage at more than

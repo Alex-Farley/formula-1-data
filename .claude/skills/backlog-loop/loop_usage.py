@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """Read the plan's usage before an item, and say whether the loop should start one.
 
-    python3 .claude/skills/backlog-loop/loop_usage.py
+    python3 .claude/skills/backlog-loop/loop_usage.py [--loop]
+
+    `--loop` is what the driver's step 2 passes: it says the run is the
+    loop's own, and its line in progress.log goes under the id `usage`. A
+    run without it is somebody checking by hand, and goes under `usage
+    (manual)`, so the two cannot be read as the loop contradicting itself
+    (2026-10-26, AF-148). The decision and the exit status are the same.
 
 WHY THIS EXISTS
     Until AF-108 the loop reacted to a usage limit only after hitting one:
@@ -51,11 +57,22 @@ WHAT IT DECIDES
              to a limit when one arrives, and say so.
 
     The 5-hour window, by what is left of it (points of 100):
-      at least ANY_LEFT    GO
+      at least M_LEFT      GO - any size; 45 starting value (AF-148)
       at least SMALL_LEFT  SMALL - an S item costs about 73,000 fork tokens
                            and an M about 188,000 (AF-88, UR-14), each with
                            reviewer passes of 40,000-130,000 [D-24]
       less                 WAIT until the window resets
+
+    M_LEFT replaced ANY_LEFT (20), which let an M item start with 20 points
+    left: on 2026-10-26 PM-75 started at 37 left and the session hit its
+    limit mid-item, and AF-90 on 2026-10-14 alone took a session from 55 %
+    to the limit. Nothing here knows an item's size before the fork picks
+    it, so the gate is on the whole band: below M_LEFT only an XS or S item
+    starts. An L item may want a higher bar of its own; progress.log records
+    no per-item usage and no item size, so there are not yet figures to set
+    an L_LEFT from, and none is set. A fork
+    finishing an open pull request it inherited is not capped by size, as
+    before: the cap governs what is started.
 
     The weekly window is spread evenly over the seven days to its reset: the
     loop may have used the elapsed fraction of the week's allowance, plus
@@ -80,7 +97,7 @@ WHAT IT DECIDES
     The thresholds are starting values, not measurements: every decision is
     written to .claude/loop/progress.log with the figures it used, so a week
     of them is what calibrates them. Each can be set in the environment:
-    LOOP_USAGE_ANY_LEFT, LOOP_USAGE_SMALL_LEFT, LOOP_USAGE_SLACK,
+    LOOP_USAGE_M_LEFT, LOOP_USAGE_SMALL_LEFT, LOOP_USAGE_SLACK,
     LOOP_USAGE_RESERVE, LOOP_USAGE_ALARM_LOOK. A pause is always allowed, and nothing here touches
     a control: no check, permission mode or review is changed by a figure.
 """
@@ -129,7 +146,7 @@ WEEK = dt.timedelta(days=7)
 RACE_TAIL = dt.timedelta(days=2)
 # ALARM_LOOK is in minutes, and never under ALARM_LOOK_FLOOR; the others
 # are points of 100.
-DEFAULTS = {"ANY_LEFT": 20, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
+DEFAULTS = {"M_LEFT": 45, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
 ALARM_LOOK_FLOOR = 15
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
 # What `next.py --alarm` prints: an id, and an open pull request's number.
@@ -322,9 +339,9 @@ def decide(windows, now, race=None, conf=None, alarm=None):
         if left < conf["SMALL_LEFT"]:
             word, until = "WAIT", reset
             why.append(f"under {conf['SMALL_LEFT']:g} points left: too little for any item")
-        elif left < conf["ANY_LEFT"]:
+        elif left < conf["M_LEFT"]:
             word, until = "SMALL", reset
-            why.append(f"under {conf['ANY_LEFT']:g} points left: an XS or S item only")
+            why.append(f"under {conf['M_LEFT']:g} points left: an XS or S item only")
     else:
         why.append("session window not readable")
 
@@ -401,14 +418,21 @@ def check(now=None, claude=None):
     return line(word, until, why, target), EXIT[word]
 
 
+def log_id(argv):
+    """The id a run's line goes under in progress.log: `usage` for the
+    loop's own (`--loop`), `usage (manual)` for anyone else's."""
+    return "usage" if argv == ["--loop"] else "usage (manual)"
+
+
 def main(argv):
-    if argv:
-        raise SystemExit("loop_usage.py takes no arguments; the thresholds are LOOP_USAGE_* in the environment")
+    if argv not in ([], ["--loop"]):
+        raise SystemExit("loop_usage.py takes only --loop; the thresholds are LOOP_USAGE_* in the environment")
     text, code = check()
     print(text)
-    # The log a person watches, under its own id; a line that cannot be
-    # written is said, not hidden, and does not change the decision.
-    subprocess.run(["bash", os.path.join(HERE, "progress.sh"), "usage", text[:300]],
+    # The log a person watches, under an id that says whose run it was; a
+    # line that cannot be written is said, not hidden, and does not change
+    # the decision.
+    subprocess.run(["bash", os.path.join(HERE, "progress.sh"), log_id(argv), text[:300]],
                    stdout=subprocess.DEVNULL, check=False)
     return code
 
