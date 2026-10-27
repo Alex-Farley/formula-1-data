@@ -151,6 +151,23 @@ import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
 import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
 import { ONWARD, raceSteps } from '../src/lib/wayfinding.js'
 import { NEIGHBOURS as RACE_NEIGHBOURS } from '../src/queries/race.js'
+import {
+  AGGREGATE_METHOD,
+  DISTANCE_LABEL,
+  DISTANCE_METHOD,
+  KNOCKOUT_METHOD,
+  QUALIFYING as QUALIFYING_QUERY,
+  RACE as RACE_QUERY,
+  distanceMethod,
+  lapSeconds,
+  layoutLength,
+  practiceBySession,
+  practiceColumns,
+  qualifyingColumns,
+  sessionParts,
+  sprintQualifyingColumns,
+  withDistance,
+} from '../src/queries/race.js'
 import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
   LIVERIES,
@@ -3457,5 +3474,148 @@ describe("/data's identifier policy reads meta as the file states it (DA-25)", (
       stable: ['races', 'qualifying'],
       keys: ['races(year, round)', 'records(key)'],
     })
+  })
+})
+
+// AF-131: each session gap as a distance on the track, measured in the
+// driver's own session, at the session-best lap's average speed.
+describe('a session gap as a distance on the track (AF-131)', () => {
+  const row = (driver_id, parts) => ({ driver_id, q1: null, q2: null, q3: null, time: null, ...parts })
+  // Singapore 2026's sheet, cut to one driver of each kind and the pole.
+  const singapore = [
+    row('verstappen', { q1: '1:33.241', q2: '1:31.639', q3: '1:31.373' }),
+    row('leclerc', { q1: '1:32.774', q2: '1:31.953', q3: '1:31.427' }),
+    row('hamilton', { q1: '1:32.429', q2: '1:31.529', q3: '1:31.496' }),
+    row('lindblad', { q1: '1:33.288', q2: '1:32.498', q3: '1:32.781' }),
+    row('hulkenberg', { q1: '1:33.147', q2: '1:32.784' }),
+    row('alonso', { q1: '1:34.223' }),
+    row('hadjar', {}),
+  ]
+  const byDriver = (rows) => Object.fromEntries(rows.map((r) => [r.driver_id, r.distance_m]))
+
+  it('reads a lap time as the session tables write it, and nothing else', () => {
+    assert.equal(lapSeconds('1:31.373'), 91.373)
+    assert.equal(lapSeconds('53.904'), 53.904)
+    assert.equal(lapSeconds('10:01.000'), 601)
+    for (const odd of [null, undefined, '', '+0.054', '1 lap', 'DNF', '1:31:20.5', 91.373]) assert.equal(lapSeconds(odd), null)
+  })
+
+  it('measures each driver against the fastest lap of the last part they set a time in', () => {
+    const d = byDriver(withDistance(singapore, 4.94))
+    // The top ten against the Q3 pole: 54 m/s on 4.94 km.
+    assert.equal(d.verstappen, 0)
+    assert.equal(d.leclerc, 3)
+    assert.equal(d.lindblad, 76)
+    assert.equal(d.hamilton, 7)
+    // A Q2 knockout against Hamilton's fastest Q2, a Q1 knockout against his Q1.
+    assert.equal(d.hulkenberg, 68)
+    assert.equal(d.alonso, 96)
+    // No time is not established, never 0.
+    assert.equal(d.hadjar, null)
+  })
+
+  it('leaves every distance unestablished without a length, and keeps the rest of the row', () => {
+    for (const km of [null, undefined, 0]) {
+      const rows = withDistance(singapore, km)
+      assert.ok(rows.every((r) => r.distance_m === null))
+      assert.deepEqual(
+        qualifyingColumns(rows).map((c) => c.key),
+        ['position_text', 'driver', 'constructor', 'driver_number', 'q1', 'q2', 'q3', 'gap', 'interval'],
+      )
+      assert.equal(distanceMethod(rows), null)
+    }
+    assert.equal(withDistance(singapore, 4.94)[1].q3, '1:31.427')
+  })
+
+  it('puts the column after the gap, prints metres, and dashes a missing one', () => {
+    const rows = withDistance(singapore, 4.94)
+    const keys = qualifyingColumns(rows).map((c) => c.key)
+    assert.deepEqual(keys.slice(keys.indexOf('gap'), keys.indexOf('gap') + 3), ['gap', 'distance_m', 'interval'])
+    const column = qualifyingColumns(rows).find((c) => c.key === 'distance_m')
+    assert.equal(column.label, DISTANCE_LABEL)
+    assert.equal(column.text(76), '76 m')
+    assert.equal(column.text(0), '0 m')
+    assert.equal(column.text(1234), '1,234 m')
+    assert.equal(column.text(null), '—')
+    assert.equal(distanceMethod(rows), `${DISTANCE_METHOD} ${KNOCKOUT_METHOD}`)
+    assert.ok(sprintQualifyingColumns(rows).some((c) => c.key === 'distance_m'))
+  })
+
+  it('measures a single-session sheet, and a practice session, against its one fastest time', () => {
+    // Phoenix 1990's front of the grid: one time each, 3.8 km.
+    const phoenix = [
+      row('berger', { time: '1:28.664' }),
+      row('pierluigi-martini', { time: '1:28.731' }),
+      row('alesi', { time: '1:29.408' }),
+      row('senna', { time: null }),
+    ]
+    const d = byDriver(withDistance(phoenix, 3.8))
+    assert.deepEqual(d, { berger: 0, 'pierluigi-martini': 3, alesi: 32, senna: null })
+    assert.equal(distanceMethod(withDistance(phoenix, 3.8)), DISTANCE_METHOD)
+    // Each practice session is its own sheet with its own fastest lap.
+    const sheets = practiceBySession(
+      [
+        { session: 'fp1', driver_id: 'a', time: '1:30.000' },
+        { session: 'fp1', driver_id: 'b', time: '1:31.000' },
+        { session: 'fp2', driver_id: 'b', time: '1:29.000' },
+        { session: 'fp2', driver_id: 'a', time: '1:29.500' },
+      ],
+      4.5,
+    )
+    assert.deepEqual(
+      sheets.map((s) => byDriver(s.rows)),
+      [
+        { a: 0, b: 50 },
+        { b: 0, a: 25 },
+      ],
+    )
+    assert.ok(practiceColumns(sheets[0].rows).some((c) => c.key === 'distance_m'))
+    assert.ok(!practiceColumns(practiceBySession([{ session: 'fp1', driver_id: 'a', time: '1:30.000' }])[0].rows).some((c) => c.key === 'distance_m'))
+  })
+
+  it('measures a grid time summed over two laps over both, and says so', () => {
+    const aggregate = [row('a', { time: '3:00.000' }), row('b', { time: '3:01.000' }), row('c', {})]
+    // One second behind over two 5 km laps run in 180 s: 2 x 5000 / 180.
+    assert.deepEqual(byDriver(withDistance(aggregate, 5, 2)), { a: 0, b: 56, c: null })
+    assert.deepEqual(byDriver(withDistance(aggregate, 5)), { a: 0, b: 28, c: null })
+    for (const laps of [null, undefined, 1]) assert.deepEqual(byDriver(withDistance(aggregate, 5, laps)), { a: 0, b: 28, c: null })
+    // A time of nothing is not a lap: no distance, never a negative one.
+    assert.deepEqual(byDriver(withDistance([...aggregate, row('d', { time: '0.000' })], 5)), { a: 0, b: 28, c: null, d: null })
+    assert.equal(distanceMethod(withDistance(aggregate, 5, 2), 2), `${DISTANCE_METHOD} ${AGGREGATE_METHOD}`)
+    assert.equal(distanceMethod(withDistance(aggregate, 5), 1), DISTANCE_METHOD)
+  })
+
+  it("takes the register's length, then F1DB's drawing's, and neither where neither holds one", () => {
+    assert.equal(layoutLength({ layout_km: 4.94, outline_km: 4.927 }), 4.94)
+    assert.equal(layoutLength({ layout_km: null, outline_km: 3.8 }), 3.8)
+    assert.equal(layoutLength({ layout_km: null, outline_km: null }), null)
+    assert.equal(layoutLength(undefined), null)
+  })
+
+  it('resolves the layout and the distance on f1.db: Singapore 2026 by its timeline, Bahrain 2020 by its one-off, Phoenix 1990 by its drawing', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const race = (year, round) => db.prepare(RACE_QUERY).get(year, round)
+      const singapore2026 = race(2026, 17)
+      assert.equal(singapore2026.f1db_layout_id, 'marina-bay-4')
+      assert.equal(layoutLength(singapore2026), 4.94)
+      const sheet = withDistance(db.prepare(QUALIFYING_QUERY).all(2026, 17), layoutLength(singapore2026))
+      assert.equal(sheet.find((r) => r.driver_id === 'leclerc').distance_m, 3)
+      assert.equal(sheet.find((r) => r.driver_id === 'lindblad').distance_m, 76)
+      assert.equal(layoutLength(race(2020, 16)), 3.543)
+      const phoenix1990 = race(1990, 1)
+      assert.equal(phoenix1990.layout_km, null)
+      assert.equal(layoutLength(phoenix1990), 3.8)
+      const grid = withDistance(db.prepare(QUALIFYING_QUERY).all(1990, 1), layoutLength(phoenix1990))
+      assert.equal(sessionParts(grid)[0], 'time')
+      assert.equal(grid.find((r) => r.driver_id === 'pierluigi-martini').distance_m, 3)
+      // The grid's laps: two in 2005's aggregate rounds, one after, and
+      // none dated before 1996, which counts as one.
+      assert.equal(phoenix1990.qualifying_laps, null)
+      assert.equal(singapore2026.qualifying_laps, 1)
+      assert.deepEqual([race(2005, 6).qualifying_laps, race(2005, 7).qualifying_laps], [2, 1])
+    } finally {
+      db.close()
+    }
   })
 })

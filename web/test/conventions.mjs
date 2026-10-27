@@ -255,8 +255,9 @@ describe('every declared table names its rows (AX-21)', () => {
   // is added to BUILT with them.
   const BUILT = {
     entryColumns: [true],
-    qualifyingColumns: [[{ q1: '1:20.000' }]],
-    sprintQualifyingColumns: [[{ q1: '1:20.000' }]],
+    qualifyingColumns: [[{ q1: '1:20.000', distance_m: 3 }]],
+    sprintQualifyingColumns: [[{ q1: '1:20.000', distance_m: 3 }]],
+    practiceColumns: [[{ distance_m: 3 }]],
     recordColumns: [[]],
     careerColumns: ['Ayrton Senna', 'Alain Prost'],
   }

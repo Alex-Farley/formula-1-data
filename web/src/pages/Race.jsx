@@ -64,12 +64,16 @@ import {
   raceStrip,
   railOf,
   scheduledNote,
+  withDistance,
   PRACTICE,
-  PRACTICE_COLUMNS,
   PRACTICE_ONLY_MARK,
   PRACTICE_SUMMARY,
   SPRINT_QUALIFYING,
+  DISTANCE_HOW,
+  distanceMethod,
+  layoutLength,
   practiceBySession,
+  practiceColumns,
   practiceFooter,
   practiceSummaryCount,
   sprintQualifyingColumns,
@@ -211,6 +215,23 @@ const sessionDriverLink = {
 
 const sessionRenders = (year) => ({ driver: sessionDriverLink, constructor: constructorLink(year) })
 
+/* AF-131: how a sheet's distance column is derived, under the sheet that
+   shows one, named for its table as well for a screen reader, since a
+   weekend can carry six. scripts/prerender.js writes the same disclosure. */
+function DistanceHow({ rows: sheet, table, laps = 1 }) {
+  const method = distanceMethod(sheet, laps)
+  if (!method) return null
+  return (
+    <details className="table-how">
+      <summary>
+        {DISTANCE_HOW}
+        <span className="sr-only">, {table}</span>
+      </summary>
+      <p>{method}</p>
+    </details>
+  )
+}
+
 const sprintRenders = (year) => ({ rail: RAIL, driver: driverLink, constructor: constructorLink(year), status: outTag })
 
 const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
@@ -259,9 +280,10 @@ export default function Race() {
 
 function RaceBody({ race, data, year, round }) {
   const entries = rows(data, 'entries')
-  const qualifying = rows(data, 'qualifying')
-  const practice = practiceBySession(rows(data, 'practice'))
-  const sprintQualifying = rows(data, 'sprintQualifying')
+  const km = layoutLength(race)
+  const qualifying = withDistance(rows(data, 'qualifying'), km, race.qualifying_laps)
+  const practice = practiceBySession(rows(data, 'practice'), km)
+  const sprintQualifying = withDistance(rows(data, 'sprintQualifying'), km)
   const pits = rows(data, 'pits')
   const photographs = rows(data, 'photographs')
   /* The sprint is a separate race on the same weekend, so it is ordered the
@@ -421,6 +443,7 @@ function RaceBody({ race, data, year, round }) {
             columns={withRenders(qualifyingColumns(qualifying), qualifyingRenders(year))}
             footer={QUALIFYING_FOOTER}
           />
+          <DistanceHow rows={qualifying} table="Qualifying" laps={race.qualifying_laps} />
         </Section>
       )}
 
@@ -449,6 +472,7 @@ function RaceBody({ race, data, year, round }) {
             columns={withRenders(sprintQualifyingColumns(sprintQualifying), sessionRenders(year))}
             footer={sprintQualifyingFooter(sprintQualifying)}
           />
+          <DistanceHow rows={sprintQualifying} table="Sprint qualifying" />
         </Section>
       )}
 
@@ -504,9 +528,10 @@ function RaceBody({ race, data, year, round }) {
                   rowKey={(row) => row.id}
                   sortable={false}
                   page={40}
-                  columns={withRenders(PRACTICE_COLUMNS, sessionRenders(year))}
+                  columns={withRenders(practiceColumns(sheet), sessionRenders(year))}
                   footer={practiceFooter(sheet)}
                 />
+                <DistanceHow rows={sheet} table={title} />
               </Section>
             ))}
           </details>

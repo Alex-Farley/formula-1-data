@@ -13,7 +13,8 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { classificationOrder, finished, missing, number, ordinal, points, raceDates, result, text } from '../lib/format.js'
+import { EMPTY, classificationOrder, finished, missing, number, ordinal, points, raceDates, result, text } from '../lib/format.js'
+import { DERIVATION } from './records.js'
 import { linked } from '../lib/tiles.js'
 import { LABELS, SHARED } from '../lib/site.js'
 import { LATE_NOTE, raceDay } from '../lib/refresh.js'
@@ -32,8 +33,24 @@ export const LAYOUT_RACED_JOIN = `LEFT JOIN circuit_layouts cl ON cl.circuit_id 
           OR (r.layout_key IS NULL AND cl.by_year = 1 AND r.year >= cl.from_year
               AND (cl.to_year IS NULL OR r.year <= cl.to_year)))`
 
+/*
+ * AF-131: how many laps the grid time is the sum of - 2 in the aggregate
+ * qualifying of 2005's first six rounds, 1 in every period qualifying_formats
+ * dates otherwise, and NULL before 1996, where it dates none and each time is
+ * one lap. It reads `sessions`, how many timed sessions' times went into the
+ * grid, because each of those times is one lap: the only period with two is
+ * 2005's "single lap, aggregate". Read by RACE and by the static race pages'
+ * own query.
+ */
+export const QUALIFYING_LAPS = `(SELECT qf.sessions FROM qualifying_formats qf
+     WHERE qf.session = 'race'
+       AND (qf.from_year < r.year OR (qf.from_year = r.year AND qf.from_round <= r.round))
+       AND (qf.to_year IS NULL OR qf.to_year >= r.year)
+     ORDER BY qf.from_year DESC, qf.from_round DESC LIMIT 1)`
+
 export const RACE = `
   SELECT r.*, c.name AS circuit, c.locality, c.country,
+         ${QUALIFYING_LAPS} AS qualifying_laps,
          cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
          g.name AS gp_full,
          o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
@@ -450,6 +467,95 @@ export const classificationFooter = (entries) =>
     .join(' ')
 
 /*
+ * AF-131: each session gap as an approximate distance on the track, beside
+ * the time. Derived here, for both renderers, and never stored: the gap
+ * column is typed only for the top ten since 2006, so the distance comes
+ * from the session times themselves.
+ *
+ * Each driver is measured in their own session, so the track is like for
+ * like: in knock-out qualifying the last part a driver set a time in (a Q1
+ * knockout against the fastest Q1 lap, the top ten against the fastest Q3
+ * lap), and otherwise the one time against the fastest. The distance is the
+ * time behind at the session-best lap's average speed - the layout's length
+ * over that lap - in whole metres. Where the grid time is the sum of two
+ * laps (2005's aggregate), the speed is over both and so is the distance. The length is the layout raced that
+ * year: the register's, as the page's "Layout raced" gives it, and F1DB's,
+ * under the race's drawing, where the register has no timeline for the
+ * circuit (all but two rounds' `layout_key` is NULL, so the timeline or the
+ * drawing is what finds the layout; LAYOUT_RACED_JOIN says how).
+ *
+ * No time, no session best or no length is NULL, an em dash; the session's
+ * fastest driver is 0 m, which is a figure. A sheet with no distance at all
+ * leaves the column and its disclosure out.
+ */
+export const DISTANCE_LABEL = '≈ Distance'
+export const DISTANCE_METHOD = 'Distance at the session-best lap’s average speed, on the layout raced that year.'
+export const KNOCKOUT_METHOD =
+  'Each driver is measured against the fastest lap of the last part they set a time in.'
+export const AGGREGATE_METHOD =
+  'Here the grid time is the sum of two laps, so the distance is over both, at their average speed.'
+export const DISTANCE_HOW = `${DERIVATION}: distance`
+
+/** A lap time as the session tables write it, "1:31.373" or "53.904", in seconds; null for anything else. */
+export const lapSeconds = (value) => {
+  const match = /^(?:(\d+):)?(\d{1,2}(?:\.\d+)?)$/.exec(typeof value === 'string' ? value.trim() : '')
+  if (!match) return null
+  return (match[1] ? Number(match[1]) * 60 : 0) + Number(match[2])
+}
+
+/** The length of the layout raced, in km: the register's, else F1DB's; null where neither holds one. */
+export const layoutLength = (race) =>
+  race && race.layout_km > 0 ? race.layout_km : race && race.outline_km > 0 ? race.outline_km : null
+
+/** A sheet's timed parts, the last first: Q3, Q2, Q1 in knock-out qualifying, else the one time. */
+export const sessionParts = (rows) => (rows.some((q) => q.q1) ? ['q3', 'q2', 'q1'] : ['time'])
+
+/**
+ * The sheet's rows, each with `distance_m`: behind its own part's fastest
+ * lap, in whole metres, or null. `laps` is how many laps each time sums.
+ */
+export const withDistance = (rows, km, laps = 1) => {
+  const length = km > 0 ? km * (laps > 1 ? laps : 1) : null
+  const parts = sessionParts(rows)
+  const best = {}
+  for (const part of parts) {
+    const times = rows.map((row) => lapSeconds(row[part])).filter((t) => t !== null && t > 0)
+    best[part] = times.length ? Math.min(...times) : null
+  }
+  return rows.map((row) => {
+    const part = parts.find((p) => lapSeconds(row[p]) !== null)
+    const own = part ? lapSeconds(row[part]) : null
+    const time = own !== null && own > 0 ? own : null
+    const fastest = part ? best[part] : null
+    const distance_m =
+      length !== null && time !== null && fastest !== null ? Math.round(((time - fastest) * length * 1000) / fastest) : null
+    return { ...row, distance_m }
+  })
+}
+
+const metres = (value) => (missing(value) ? EMPTY : `${number(value)}\u00a0m`)
+
+/*
+ * `derived` marks the column, header included, so a sheet that fits its box
+ * (IX-48) closes up a step further to take it: app.css, "A table that fits
+ * its box".
+ */
+export const DERIVED = 'derived'
+
+const distanceColumns = (rows) =>
+  rows.some((row) => row.distance_m !== null && row.distance_m !== undefined)
+    ? [{ key: 'distance_m', label: DISTANCE_LABEL, align: 'num', text: metres, cellClass: DERIVED }]
+    : []
+
+/** What the sheet's disclosure says, or null where the sheet shows no distance. */
+export const distanceMethod = (rows, laps = 1) =>
+  distanceColumns(rows).length === 0
+    ? null
+    : [DISTANCE_METHOD, sessionParts(rows)[0] === 'q3' && KNOCKOUT_METHOD, laps > 1 && AGGREGATE_METHOD]
+        .filter(Boolean)
+        .join(' ')
+
+/*
  * One time per driver before knock-out qualifying arrived in 2006; the best
  * lap of each session from then.
  *
@@ -458,7 +564,9 @@ export const classificationFooter = (entries) =>
  * columns, and from 768 to 900 px they scrolled 112 px out of view on
  * /races/2024/21, in both qualifying and sprint qualifying (IX-48). So its
  * two columns of words take `WRAPS`, the classification's rule for a table
- * that fits its box. The practice sheets fit at one line and keep it.
+ * that fits its box. The practice sheets keep one line and are not held to
+ * it (IX-49): with AF-131's distance column some run past their box at 900
+ * as well as at 768, and scroll there.
  */
 export const qualifyingColumns = (rows) => [
   { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },
@@ -473,6 +581,7 @@ export const qualifyingColumns = (rows) => [
       ]
     : [{ key: 'time', label: 'Time', align: 'num' }]),
   { key: 'gap', label: 'Gap', align: 'num' },
+  ...distanceColumns(rows),
   { key: 'interval', label: 'Interval', align: 'num' },
 ]
 
@@ -489,11 +598,20 @@ export const PRACTICE_SESSIONS = [
   ['warm_up', 'Warm-up'],
 ]
 
-/** One weekend's practice rows, split by session and in weekend order; a session with no rows is left out. */
-export const practiceBySession = (rows) =>
-  PRACTICE_SESSIONS.map(([session, title]) => ({ session, title, rows: rows.filter((r) => r.session === session) })).filter(
-    (s) => s.rows.length > 0,
-  )
+/**
+ * One weekend's practice rows, split by session and in weekend order; a
+ * session with no rows is left out. Given the layout's length, each sheet's
+ * rows carry their distance behind that session's fastest lap (AF-131).
+ */
+export const practiceBySession = (rows, km = null) =>
+  PRACTICE_SESSIONS.map(([session, title]) => ({
+    session,
+    title,
+    rows: withDistance(
+      rows.filter((r) => r.session === session),
+      km,
+    ),
+  })).filter((s) => s.rows.length > 0)
 
 /*
  * PD-57: a weekend's session sheets sit behind one disclosure below the
@@ -521,13 +639,14 @@ const sessionDriver = {
   text: (name, row) => text(name ?? row.driver_id) + (row.practice_only === 1 ? ` ${PRACTICE_ONLY_MARK}` : ''),
 }
 
-export const PRACTICE_COLUMNS = [
+export const practiceColumns = (rows) => [
   { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },
   sessionDriver,
   { key: 'constructor', label: 'Constructor' },
   { key: 'driver_number', label: 'No.', align: 'num' },
   { key: 'time', label: 'Best lap', align: 'num' },
   { key: 'gap', label: 'Gap', align: 'num' },
+  ...distanceColumns(rows),
   { key: 'interval', label: 'Interval', align: 'num' },
   { key: 'laps', label: 'Laps', align: 'num' },
 ]

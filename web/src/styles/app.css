@@ -1232,6 +1232,20 @@ tbody th:not(.prose) {
   table:has(> tbody .wraps) :is(thead th:not(.rail, .sortable), th.sortable button, tbody td:not(.rail), tbody th) {
     padding-inline: var(--space-3);
   }
+
+  /* A fitting sheet with a derived column (AF-131: the qualifying sheets'
+     distance) is one column wider, about 97 px, and at 768 all but 2 of the
+     441 sheets from 2006 then ran over, by up to 54 px. So its heads may break at a space, as
+     "≈ Distance" and the glossary key beside "Pos" do, and its cells close
+     up to --space-2 a side. A figure still never wraps. */
+  table:has(> tbody .wraps):has(> thead th.derived) thead th {
+    white-space: normal;
+  }
+
+  table:has(> tbody .wraps):has(> thead th.derived)
+    :is(thead th:not(.rail, .sortable), th.sortable button, tbody td:not(.rail), tbody th) {
+    padding-inline: var(--space-2);
+  }
 }
 
 /*
@@ -3222,6 +3236,28 @@ figure.figure > .figure-note:first-child {
   margin: var(--space-3) 0 0;
   font-size: var(--size-3);
   color: var(--ink-soft, var(--ink-faint));
+}
+
+/* A table's derived column explained under its footer band (AF-131): the
+   race page's session sheets and their distance. Closed, as the known-gaps
+   note is, so the method is kept without standing between two tables. */
+.table-how {
+  margin-top: var(--space-3);
+  font-size: var(--size-3);
+  color: var(--ink-faint);
+}
+
+.table-how > summary {
+  cursor: pointer;
+}
+
+.table-how > summary:hover {
+  color: var(--ink);
+}
+
+.table-how p {
+  margin: var(--space-3) 0 0;
+  max-width: var(--measure);
 }
 
 .figure details > summary {
