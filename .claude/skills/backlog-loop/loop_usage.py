@@ -57,7 +57,7 @@ WHAT IT DECIDES
              to a limit when one arrives, and say so.
 
     The 5-hour window, by what is left of it (points of 100):
-      at least M_LEFT      GO - any size; 60 (AF-148)
+      at least M_LEFT      GO - any size; 70 (AF-148)
       at least SMALL_LEFT  SMALL - an S item costs about 73,000 fork tokens
                            and an M about 188,000 (AF-88, UR-14), each with
                            reviewer passes of 40,000-130,000 [D-24]
@@ -66,9 +66,10 @@ WHAT IT DECIDES
     M_LEFT replaced ANY_LEFT (20), which let an M item start with 20 points
     left. Three M forks hit the session limit mid-item: AF-90 (2026-10-14)
     from 45 points left, PM-75 (2026-10-26) from 37 and AF-132 (2026-10-27)
-    from 58. M items that finished cost 6 to 31 points between the `usage`
-    lines either side, interactive use of the same window included. 60 is
-    set above every recorded overrun, and is an estimate from six figures:
+    from 58. M items that finished cost 6 to 31 points each between the
+    `usage` lines either side, and a group of two M items 67, interactive
+    use of the same window included. 70 is set above every recorded
+    overrun and every recorded cost, and is an estimate from ten figures:
     LOOP_USAGE_M_LEFT moves it, and docs/DECISIONS.md D-55 has the table.
     Nothing here knows an item's size before the fork picks it, so the gate
     is on the whole band: below M_LEFT only an XS or S item starts. An L
@@ -157,7 +158,7 @@ WEEK = dt.timedelta(days=7)
 RACE_TAIL = dt.timedelta(days=2)
 # ALARM_LOOK is in minutes, and never under ALARM_LOOK_FLOOR; the others
 # are points of 100.
-DEFAULTS = {"M_LEFT": 60, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
+DEFAULTS = {"M_LEFT": 70, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
 ALARM_LOOK_FLOOR = 15
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
 # What `next.py --alarm` prints: an id, and an open pull request's number.
