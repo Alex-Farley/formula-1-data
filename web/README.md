@@ -655,11 +655,13 @@ on an old database indefinitely.
 
 It also gives every path a content security policy, `nosniff`, a referrer
 policy and `X-Frame-Options`, all from `scripts/headers.js`, which says what
-each allowed source is for. The policy is sent as
-`Content-Security-Policy-Report-Only` for now; `npm run preview` reads the
-same block back out of `dist/_headers` and serves it **enforced**, so the
-smoke test fails on anything the policy would refuse. A host that ignores
-`_headers`, GitHub Pages among them, sends none of these.
+each allowed source is for. The policy is enforced, as
+`Content-Security-Policy`: it was sent report-only until the live site had
+been read under it with the analytics beacon loaded, which no test build has
+(AF-126). `npm run preview` reads the same block back out of `dist/_headers`
+and serves it too, so the smoke test fails on anything the policy would
+refuse. A host that ignores `_headers`, GitHub Pages among them, sends none
+of these.
 
 ## Things worth knowing before changing it
 

@@ -12,18 +12,21 @@
  *     they write; the policy is the backstop for the day an escape is missed,
  *     so that injected markup cannot run a script or load one from elsewhere.
  *
- * WHY REPORT-ONLY, FOR NOW
- *     The smoke test runs the whole site under this policy ENFORCED - the
- *     preview server turns the header below into Content-Security-Policy -
- *     and fails on any refusal. The host only reports, until the live site
- *     has been read under it too: the Cloudflare beacon only loads where
- *     CF_BEACON_TOKEN is set, which no test build has, and the host may add
- *     things a preview server never sees. Enforcing is then a one-word change
- *     to POLICY_HEADER.
+ * ENFORCED, AND HOW IT CAME TO BE
+ *     AF-76 sent the policy as Content-Security-Policy-Report-Only, because
+ *     the smoke test - which runs the whole site under it enforced on the
+ *     preview server, and fails on any refusal - cannot see the live host:
+ *     the Cloudflare beacon only loads where CF_BEACON_TOKEN is set, which no
+ *     test build has, and the host may add things a preview server never
+ *     sees. AF-126 read ten lapledger.org pages under the report-only
+ *     policy in a browser collecting securitypolicyviolation events - the
+ *     beacon loaded, Commons photographs, the SQL console running a query -
+ *     found no violation, and made the host enforce it.
  *
- *     Only the policy waits. nosniff, Referrer-Policy and X-Frame-Options are
- *     enforced on the host from AF-76 on, because none of them depends on
- *     anything the smoke test cannot see.
+ *     What the smoke test still cannot see: a host the browser is told to
+ *     load from is held to this policy by test/conventions.mjs, whatever the
+ *     build environment, but anything the host itself injects is checked by
+ *     nothing, and the policy now refuses it on the live site.
  *
  * What each source is for, so that nothing here outlives its reason:
  *
@@ -75,14 +78,14 @@ export const POLICY = [
   .map((directive) => directive.join(' '))
   .join('; ')
 
-/** Report-Only until the live site has been read under it; see above. */
-export const POLICY_HEADER = 'Content-Security-Policy-Report-Only'
+/** Enforced on the host since AF-126; see above. */
+export const POLICY_HEADER = 'Content-Security-Policy'
 
 export const SECURITY_HEADERS = [
   [POLICY_HEADER, POLICY],
   ['X-Content-Type-Options', 'nosniff'],
   ['Referrer-Policy', 'strict-origin-when-cross-origin'],
-  // frame-ancestors says the same, but only once the policy is enforced.
+  // frame-ancestors says the same; this is for a browser that does not read it.
   ['X-Frame-Options', 'DENY'],
 ]
 
