@@ -5023,8 +5023,13 @@ def the_full_classification():
     # since published a Brabham BT33 article, whose lead image names no
     # author and is refused, and an article takes a chassis off the category
     # route. Both are what the source now says, not a lost harvest.
+    # PM-77 lowered weight_kg 201 -> 197, by the maintainer's ruling of
+    # 2026-10-23 on #1085: the 2020 and 2023 minimums joined
+    # regulation_limits, so build.py withdraws the 746 kg of mercedes-f1-w11
+    # and mclaren-mcl35 and the 798 kg of alfa-romeo-c43 and mclaren-mcl60.
+    # The harvest still carries all four; it has not shrunk.
     COLUMN_FLOORS = (
-        ("chassis", "weight_kg", 201, "harvest/car_specs.txt"),
+        ("chassis", "weight_kg", 197, "harvest/car_specs.txt"),
         ("chassis", "wheelbase_mm", 346, "harvest/car_specs.txt"),
         # `article` is filled only on the article route, `chassis_id` only on
         # the category route (AF-42), so each floor names one harvest.
