@@ -2109,6 +2109,23 @@ def timeline_sanity():
     bad = con.execute("""SELECT full_name, born, died FROM drivers
         WHERE born IS NOT NULL AND died IS NOT NULL AND died < born""").fetchall()
     check("nobody died before they were born", not bad)
+    # A driver keyed to F1DB has F1DB's dates wherever F1DB states one, read
+    # here from the harvest file rather than from build.py's stage 30b, which
+    # fills a missing date and refuses a different one (PM-73).
+    f1db = {r[0]: r for r in harvest_module().load_f1db_drivers()}
+    bad = []
+    for r in con.execute("SELECT id, f1db_id, born, died FROM drivers "
+                         "WHERE f1db_id IS NOT NULL"):
+        meta = f1db.get(r["f1db_id"])
+        for col, i in (("born", 4), ("died", 5)):
+            if meta is not None and meta[i] and r[col] != meta[i]:
+                bad.append(f"{r['id']} {col} {r[col] or 'none'}, F1DB {meta[i]}")
+    check("every driver keyed to F1DB has the dates of birth and death F1DB "
+          "gives", not bad, f"{len(bad)}: " + "; ".join(bad[:5]) if bad else "")
+    bad = con.execute("""SELECT id FROM drivers WHERE died IS NOT NULL
+        AND (status IS NULL OR status != 'deceased')""").fetchall()
+    check("every driver with a date of death is deceased", not bad,
+          ", ".join(r["id"] for r in bad))
     bad = con.execute("""SELECT full_name, first_season, last_season FROM drivers
         WHERE last_season IS NOT NULL AND first_season IS NOT NULL
         AND last_season < first_season""").fetchall()
@@ -5836,7 +5853,6 @@ def facts_artefact():
           not wrong_fl, ", ".join(wrong_fl[:6]))
     key_of = {rid: (y, r) for rid, y, r in con.execute("SELECT id, year, round FROM races")}
     unexplained, notes = [], Counter()
-    f1db_of = dict(con.execute("SELECT id, f1db_id FROM drivers").fetchall())
     cells = fa.claimed_cells(con)
     for (t, c), rows in sorted(by.items()):
         kind = fa.RESOURCED.get(t, {}).get("columns", {}).get(c)
@@ -5857,10 +5873,6 @@ def facts_artefact():
                 notes["fastest laps F1DB does not state"] += 1
             elif theirs is None and c in decl[t]["nulled"] and (t, str(rid), c) in cells:
                 notes["values a claim cites a share-alike source for"] += 1
-            elif t == "drivers" and c in ("born", "died") and ours is None \
-                    and theirs == src.drivers.get(f1db_of.get(rid), [None] * 6)[
-                        4 if c == "born" else 5]:
-                notes["drivers' dates F1DB adds"] += 1
             elif t == "drivers" and (rid, c) in fa.DRIVER_DIFFERENCES:
                 notes["drivers F1DB describes otherwise (declared)"] += 1
             elif t == "source_registry" and c == "share_alike" and theirs == 0 \

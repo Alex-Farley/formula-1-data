@@ -134,7 +134,9 @@ OTHER_DRIVERS = [
      "Runner-up four consecutive years (1955-58) and third three times. Universally called the greatest driver never to win the championship.", "high"),
     ("gonzalez", "Jose Froilan Gonzalez", "Argentina", "ARG", "1922-10-05", "2013-06-15", 1950, 1960, 2, 3, 0, "deceased",
      "Gave Ferrari its first World Championship Grand Prix win, at Silverstone in 1951.", "high"),
-    ("villoresi", "Luigi Villoresi", "Italy", "ITA", "1913-05-16", "1997-08-24", 1950, 1956, 0, 0, 0, "deceased",
+    # Born 1909, as his Wikipedia article and F1DB both give it; 1913 was
+    # typed here, and build.py now refuses a date F1DB contradicts (PM-73).
+    ("villoresi", "Luigi Villoresi", "Italy", "ITA", "1909-05-16", "1997-08-24", 1950, 1956, 0, 0, 0, "deceased",
      "Ascari's mentor and team-mate at Ferrari and Lancia.", "medium"),
     ("taruffi", "Piero Taruffi", "Italy", "ITA", "1906-10-12", "1988-01-12", 1950, 1956, 1, 0, 0, "deceased",
      "Won the 1952 Swiss GP; later won the final Mille Miglia in 1957.", "medium"),
@@ -182,7 +184,9 @@ OTHER_DRIVERS = [
      "Lost the 1981 title to Piquet by a point at the final round. Later governor of Santa Fe province.", "high"),
     ("depailler", "Patrick Depailler", "France", "FRA", "1944-08-09", "1980-08-01", 1972, 1980, 2, 1, 0, "deceased",
      "Killed testing at Hockenheim.", "medium"),
-    ("mass", "Jochen Mass", "Germany", "GER", "1946-09-30", None, 1973, 1982, 1, 0, 0, "retired",
+    # Died 2025-05-04, as F1DB gives it; typed here while he was alive, and
+    # build.py fills a death F1DB states (PM-73).
+    ("mass", "Jochen Mass", "Germany", "GER", "1946-09-30", "2025-05-04", 1973, 1982, 1, 0, 0, "deceased",
      "Won the shortened 1975 Spanish GP at Montjuic, stopped after a fatal accident.", "medium"),
     ("watson", "John Watson", "United Kingdom", "GBR", "1946-05-04", None, 1973, 1985, 5, 2, 0, "retired",
      "Won from 22nd on the grid at Long Beach in 1983 — still the lowest starting position for a winner.", "high"),
