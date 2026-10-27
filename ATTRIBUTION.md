@@ -59,15 +59,15 @@ fifteen tables that carry `confidence` and no `source` column of their own.
 So the table above is now checkable against the database rather than a claim
 about it. See `docs/DERIVED-CONFIDENCE.md`. Since `AF-102` the build checks
 it: each cell above that credits a whole table, and each sentence of the
-attribution text below crediting Wikipedia, F1DB, Wikimedia Commons or
-formula1.com, is a marked span naming the tables it is about, and
+attribution text below crediting Wikipedia, F1DB, Wikimedia Commons,
+formula1.com or the FIA, is a marked span naming the tables it is about, and
 `verify.py` fails where a source the words name is cited by none of those
 tables' rows, or where a source more than a tenth of a table's rows cite goes
 unnamed under the same heading (`tools/credit_sources.py`). One cell is
 checked for less than it says: the circuit register's is checked for the
 layout timelines alone, because all <!-- fig:circuits -->80<!-- /fig --> `circuits` rows cite formula1.com
 while the cell credits Wikipedia, and which of the two is right is open
-(`CR-68`, #775). Cells that credit some of a table's rows or columns — the
+(`CR-111`, #1184). Cells that credit some of a table's rows or columns — the
 race winners, pole and fastest lap, the chassis specifications, the claims
 notes, the career totals — are not marked, since a check on the whole table
 would pass them whatever they said.
@@ -432,10 +432,10 @@ for word, and the Parquet bundle's `README.txt` quotes that section, so a
 change here is a change to both; `tests/test_parquet_notice.py` fails if
 the two drift apart.
 
-> Car and circuit data in this repository, <!-- credit:cars,circuit_layouts,race_entries,drivers,team_radio -->each race's winner, pole position
-> and fastest lap, some driver records and six team radio quotations are
-> derived from [Wikipedia](https://en.wikipedia.org/)<!-- /credit -->, licensed under
-> [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). <!-- credit:drivers,constructors,race_entries,sprint_results,practice,qualifying,sprint_qualifying,standings,pit_stops,chassis,engines,season_entrants,circuit_outlines -->Most driver
+> Car and circuit data in this repository, <!-- credit:cars,circuit_layouts,race_entries,drivers,team_radio,claims,driver_note_sources,regulation_limits -->each race's winner, pole position
+> and fastest lap, some driver records, some regulation limits and six team
+> radio quotations are derived from [Wikipedia](https://en.wikipedia.org/)<!-- /credit -->, licensed under
+> [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). <!-- credit:drivers,constructors,race_entries,sprint_results,practice,qualifying,sprint_qualifying,standings,pit_stops,chassis,engines,season_entrants,circuit_outlines,claims -->Most driver
 > and constructor records, the full race classification, sprint results,
 > practice, qualifying and sprint qualifying, championship standings, pit
 > stops, and the chassis, engine and season-entrant register are derived from
@@ -447,8 +447,9 @@ the two drift apart.
 > [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation
 > ids come from [Wikidata](https://www.wikidata.org/) (CC0). <!-- credit:article_images -->Car, circuit and
 > race photographs are hosted on Wikimedia Commons<!-- /credit -->, and each carries its own
-> licence and credit, recorded per file in `article_images`. <!-- credit:drivers,constructors,season_entries,sessions,standings -->Current-season
+> licence and credit, recorded per file in `article_images`. <!-- credit:drivers,constructors,season_entries,sessions,standings,claims -->Current-season
 > data, and the other driver and constructor records, are from formula1.com<!-- /credit -->.
+> <!-- credit:regulation_limits -->The other regulation limits are from the FIA's regulations<!-- /credit -->.
 > Formula 1, F1 and Grand Prix are trademarks of Formula One Licensing BV;
 > this project is unaffiliated with and unendorsed by Formula One or the FIA.
 
