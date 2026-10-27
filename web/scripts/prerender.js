@@ -318,13 +318,17 @@ import {
   PIT_ORDER_HEADING,
   PIT_ORDER_NOTE,
   PRACTICE,
-  PRACTICE_COLUMNS,
   PRACTICE_ONLY_MARK,
   PRACTICE_SUMMARY,
   QUALIFYING,
   QUALIFYING_FOOTER,
   SPRINT_QUALIFYING,
+  DISTANCE_HOW,
+  distanceMethod,
+  layoutLength,
+  withDistance,
   practiceBySession,
+  practiceColumns,
   practiceFooter,
   practiceSummaryCount,
   sprintQualifyingColumns,
@@ -347,6 +351,7 @@ import {
   gridFlagUndrawn,
   inClassificationOrder,
   LAYOUT_RACED_JOIN,
+  QUALIFYING_LAPS,
   qualifyingColumns,
   raceLede,
   raceStrip,
@@ -2850,7 +2855,8 @@ const seasonsTable = (rows) =>
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
             r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
-            cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns
+            cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
+            ${QUALIFYING_LAPS} AS qualifying_laps
        FROM races r
        LEFT JOIN grands_prix g ON g.id = r.gp_id
        LEFT JOIN circuits c ON c.id = r.circuit_id
@@ -2923,6 +2929,14 @@ const seasonsTable = (rows) =>
   // block at every h2 not already inside one, so a bare h2 there would cut
   // the grid in half.
   const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
+  // AF-131: how a sheet's distance column is derived, as Race.jsx's
+  // DistanceHow writes it; nothing where the sheet shows no distance.
+  const distanceHow = (sheet, table, laps = 1) => {
+    const method = distanceMethod(sheet, laps)
+    return method
+      ? `<details class="table-how"><summary>${esc(DISTANCE_HOW)}<span class="sr-only">, ${esc(table)}</span></summary><p>${esc(method)}</p></details>`
+      : ''
+  }
 
   // The span of rounds with a stop recorded, which a race's empty pit-stop
   // section reads (PD-56, SD-40).
@@ -2935,9 +2949,10 @@ const seasonsTable = (rows) =>
     const entryRows = all(ENTRIES, r.year, r.round)
     const entries = inClassificationOrder(entryRows)
     const flag = gridFlagRows(entryRows)
-    const qualifying = all(QUALIFYING, r.year, r.round)
-    const practice = practiceBySession(all(PRACTICE, r.year, r.round))
-    const sprintQualifying = all(SPRINT_QUALIFYING, r.year, r.round)
+    const km = layoutLength(r)
+    const qualifying = withDistance(all(QUALIFYING, r.year, r.round), km, r.qualifying_laps)
+    const practice = practiceBySession(all(PRACTICE, r.year, r.round), km)
+    const sprintQualifying = withDistance(all(SPRINT_QUALIFYING, r.year, r.round), km)
     const sprintResults = inClassificationOrder(all(SPRINT_RESULTS, r.year, r.round))
     const pits = all(PITS, r.year, r.round)
     const scheduled = r.status === 'scheduled'
@@ -3099,7 +3114,7 @@ const seasonsTable = (rows) =>
             ? `<h2>Qualifying</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {
                 driver: driverCell,
                 constructor: constructorCell,
-              }, { unfolded: UNFOLDED.subject, footer: QUALIFYING_FOOTER })}`
+              }, { unfolded: UNFOLDED.subject, footer: QUALIFYING_FOOTER })}${distanceHow(qualifying, 'Qualifying', r.qualifying_laps)}`
             : ''
         }
         ${
@@ -3117,7 +3132,10 @@ const seasonsTable = (rows) =>
             ? `<h2>Sprint qualifying</h2>${fromColumns(sprintQualifyingColumns(sprintQualifying), sprintQualifying, {
                 driver: sessionDriverCell,
                 constructor: constructorCell,
-              }, { unfolded: UNFOLDED.subject, footer: sprintQualifyingFooter(sprintQualifying) })}`
+              }, { unfolded: UNFOLDED.subject, footer: sprintQualifyingFooter(sprintQualifying) })}${distanceHow(
+                sprintQualifying,
+                'Sprint qualifying',
+              )}`
             : ''
         }
         ${
@@ -3137,10 +3155,10 @@ const seasonsTable = (rows) =>
               )}</span></summary>${practice
                 .map(
                   ({ title, rows: sheet }) =>
-                    `<section class="section"><h2>${text(title)}</h2>${fromColumns(PRACTICE_COLUMNS, sheet, {
+                    `<section class="section"><h2>${text(title)}</h2>${fromColumns(practiceColumns(sheet), sheet, {
                       driver: sessionDriverCell,
                       constructor: constructorCell,
-                    }, { unfolded: UNFOLDED.subject, footer: practiceFooter(sheet) })}</section>`,
+                    }, { unfolded: UNFOLDED.subject, footer: practiceFooter(sheet) })}${distanceHow(sheet, title)}</section>`,
                 )
                 .join('')}</details>`
             : ''

@@ -432,6 +432,13 @@ inside it is scaled, until the app redraws it at the width it occupies.
   - a footer band holding the source line on the left and *Copy* and *CSV*
     on the right; the static page's band holds the line alone, as the two
     buttons need a script (VD-86);
+  - under the band, where a column is derived at query time, a closed
+    *How it is derived* disclosure (`.table-how`) holding the method in a
+    sentence, named for what it explains and, for a screen reader, for its
+    table: *How it is derived: distance, Practice 2*. **Provisional**
+    (AF-131): the race page's session sheets and their *≈ Distance* column
+    are its first user. The derived column is its own column, never a second
+    line in another's cell, so it sorts and copies as one value;
   - the **fold**.
 - **The fold is the one reveal control.** It applies to any table over 25
   rows (`FOLD_OVER`) unless the table opts out with a reason. Its button
@@ -483,7 +490,13 @@ inside it is scaled, until the app redraws it at the width it occupies.
   past their box on /races/2024/21. Their Driver and Constructor carry
   `.wraps`. At 768 every sheet then fitted in the static page, read for
   each season from 2006 and every fourth before it, and in the app on
-  seven races chosen to stretch it. The sprint's classification and the practice
+  seven races chosen to stretch it. A sheet that also carries a derived
+  column (AF-131: *≈ Distance*, marked by its `derived` class) is about
+  97 px wider, and at 768 all but 2 of the 441 sheets from 2006 then ran
+  over, by up to 54 px, so between the breakpoints its heads may also
+  break at a space and its cells pad `--space-2` a side. Every sheet from
+  2006, and every fourth season's before, then fitted at 768 in the static
+  page. The sprint's classification and the practice
   sheets are not yet held to it (IX-49 #944). Still provisional: §8
   promotes on a second *page*, and both users are on the race page.
   What it costs: between the breakpoints a long name takes two lines, so
