@@ -134,7 +134,9 @@ OTHER_DRIVERS = [
      "Runner-up four consecutive years (1955-58) and third three times. Universally called the greatest driver never to win the championship.", "high"),
     ("gonzalez", "Jose Froilan Gonzalez", "Argentina", "ARG", "1922-10-05", "2013-06-15", 1950, 1960, 2, 3, 0, "deceased",
      "Gave Ferrari its first World Championship Grand Prix win, at Silverstone in 1951.", "high"),
-    ("villoresi", "Luigi Villoresi", "Italy", "ITA", "1913-05-16", "1997-08-24", 1950, 1956, 0, 0, 0, "deceased",
+    # Born 1909, as his Wikipedia article and F1DB both give it; 1913 was
+    # typed here, and build.py now refuses a date F1DB contradicts (PM-73).
+    ("villoresi", "Luigi Villoresi", "Italy", "ITA", "1909-05-16", "1997-08-24", 1950, 1956, 0, 0, 0, "deceased",
      "Ascari's mentor and team-mate at Ferrari and Lancia.", "medium"),
     ("taruffi", "Piero Taruffi", "Italy", "ITA", "1906-10-12", "1988-01-12", 1950, 1956, 1, 0, 0, "deceased",
      "Won the 1952 Swiss GP; later won the final Mille Miglia in 1957.", "medium"),
