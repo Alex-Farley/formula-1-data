@@ -932,6 +932,11 @@ thing — R25 605, RB6 620, W05 691, W11 746, RB19 798 — but this project does
 not withdraw a figure on a suspicion, and no *sourced* limit for those seasons
 exists yet. They stay, flagged, as open work.
 
+Four of them have since gone the same way, each once its season's FIA
+Technical Regulations were read in Article 4.1: the RB6 and W05 against the
+2010 and 2014 issues (PM-13), the W11 and RB19 against the 2020 and 2023
+issues (PM-77). The R25's 605 still waits on a 2005 issue (PM-78).
+
 ### A test the data does on itself
 
 `regulation_limits` only covers the years a source actually states a limit

@@ -206,13 +206,15 @@ _SPORT = {
 }
 
 # The FIA Technical Regulations, read for the minimum weight in Article 4.1,
-# for the two seasons whose limit a curated car's weight was withdrawn
-# against (PM-13; the seasons still waiting are named in data/cars.py beside
-# WITHDRAWN). Each row covers its one season, because only that season's
-# issue was read.
+# for the four seasons whose limit a curated car's weight was withdrawn
+# against (2010 and 2014 on PM-13, 2020 and 2023 on PM-77; the season still
+# waiting is named in data/cars.py beside WITHDRAWN). Each row covers its one
+# season, because only that season's issue was read.
 _TECH = {
     2010: "https://argent.fia.com/web/fia-public.nsf/4ADA53A7369DCE8EC12576C700535E67/$FILE/1-2010%20TECHNICAL%20REGULATIONS%2023-06-2010.pdf",
     2014: "https://www.fia.com/sites/default/files/regulation/file/1-2014%20TECHNICAL%20REGULATIONS%202014-01-23.pdf",
+    2020: "https://www.fia.com/sites/default/files/2020_formula_1_technical_regulations_-_iss_5_-_2020-06-19_1.pdf",
+    2023: "https://www.fia.com/sites/default/files/fia_2023_formula_1_technical_regulations_-_issue_7_-_2023-08-31.pdf",
 }
 
 REGULATION_LIMITS = [
@@ -397,7 +399,7 @@ REGULATION_LIMITS = [
      "B2.2.3b.i), with participation in the rest of the Competition still "
      "left to the stewards.", "reference", _SPORT[2026]),
 
-    # Two seasons of the minimum weight read from the FIA's own Technical
+    # Four seasons of the minimum weight read from the FIA's own Technical
     # Regulations (_TECH above). They sit at the end of the list rather than
     # among the other weight rows so that no row before them is renumbered:
     # a row's id is its place in this list. The view orders them by season.
@@ -409,6 +411,15 @@ REGULATION_LIMITS = [
      "Car and driver, without fuel, at all times during the Event (Articles "
      "1.9 and 4.1 of the 2014 Technical Regulations, 23 January 2014). The "
      "first year of the hybrid power units.", "reference", _TECH[2014]),
+    (2020, 2020, "minimum_weight_kg", 746.0, "kg",
+     "Car and driver, without fuel, at all times during the Event (Articles "
+     "1.9 and 4.1 of the 2020 Technical Regulations, issue 5, 19 June "
+     "2020).", "reference", _TECH[2020]),
+    (2023, 2023, "minimum_weight_kg", 798.0, "kg",
+     "Car and driver, without fuel, at all times during the Competition; "
+     "the 2023 issue calls it the minimum mass (Articles 2.4 and 4.1 of the "
+     "2023 Technical Regulations, issue 7, 31 August 2023).",
+     "reference", _TECH[2023]),
 ]
 
 

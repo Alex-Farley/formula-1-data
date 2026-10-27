@@ -422,7 +422,7 @@ CARS = [
      "moulded carbon-fibre and honeycomb composite monocoque",
      "Mercedes 8-speed sequential semi-automatic",
      "Carbon-fibre wishbones with pushrod front and pullrod rear, plus Dual Axis Steering",
-     "carbon disc", 746.0, None, None, None, None,
+     "carbon disc", None, None, None, None, None,
      "Let the driver change the front wheel toe angle by pulling the steering wheel towards him on the straights",
      "Dual Axis Steering (DAS), which traded straight-line drag against cornering grip and tyre warm-up within a lap",
      "DAS was spotted on television during pre-season testing, ruled legal for 2020 and banned for 2021 in the same breath. The W11 won 13 of 17 races in a season compressed and reordered by the pandemic, and holds the outright lap record at most circuits it visited.",
@@ -435,7 +435,7 @@ CARS = [
      "90-degree turbo V6 hybrid", 1600, "turbocharged hybrid", 1000, None, 15000,
      "carbon-fibre composite monocoque", "Red Bull 8-speed semi-automatic",
      "Pushrod front, pullrod rear, with carbon-composite wishbones",
-     "carbon disc", 798.0, None, None, None, None,
+     "carbon disc", None, None, None, None, None,
      "The most complete exploitation of the 2022 ground-effect rules: low drag on the straights without giving anything up in the corners",
      None,
      "Twenty-one wins from twenty-two races, beating the MP4/4's 93.8 per cent with 95.5 per cent, and leading 86.7 per cent of all laps run. The one it lost was Singapore. Verstappen won ten in a row, a record. It is the most dominant single season any car has had, and it happened under a cost cap that was supposed to prevent exactly this.",
@@ -602,13 +602,13 @@ CAR_CHASSIS = {
 # regulations. The RB6's 620 and the W05's 691 were suspected for as long as
 # no limit for their seasons had a source, and were withdrawn once the 2010
 # and 2014 FIA Technical Regulations, read in Article 4.1, gave the same
-# figures (PM-13).
+# figures (PM-13). The W11's 746 and the RB19's 798 followed from the 2020
+# and 2023 issues (PM-77). Recording those two limits also withdrew four
+# chassis-register weights, which is why verify.py's floor for
+# chassis.weight_kg was lowered on the maintainer's ruling of 2026-10-23 on
+# #1085.
 #
-# Three suspects stay. The W11's 746 and the RB19's 798 are the 2020 and 2023
-# minimums in those seasons' Technical Regulations too, but recording the
-# two limits would also withdraw four chassis-register weights and take
-# chassis.weight_kg under its floor in verify.py, which is the maintainer's
-# to lower: PM-77 (#1085). The R25's 605 has no final 2005 issue read. The
+# One curated suspect stays. The R25's 605 has no final 2005 issue read. The
 # FIA International Court of Appeal's judgment of 4 May 2005 reads Article
 # 4.1 as 600 kg at all times during the event and says nothing of
 # qualifying; the 2004 rule was 605 kg in qualifying and 600 at all other
@@ -643,6 +643,14 @@ WITHDRAWN = [
      "691 kg is the 2014 minimum weight, car and driver without fuel, in "
      "Article 4.1 of the 2014 Technical Regulations. It is not a measurement "
      "of the W05."),
+    ("mercedes-w11", "weight_kg", 746.0,
+     "746 kg is the 2020 minimum weight, car and driver without fuel, in "
+     "Article 4.1 of the 2020 Technical Regulations. It is not a measurement "
+     "of the W11."),
+    ("red-bull-rb19", "weight_kg", 798.0,
+     "798 kg is the 2023 minimum mass, car and driver without fuel, in "
+     "Article 4.1 of the 2023 Technical Regulations. It is not a measurement "
+     "of the RB19."),
 ]
 
 
