@@ -3676,13 +3676,16 @@ def _stage_30_derived_win_totals(b):
     # podium-only harvests insert none - takes it from the race records
     # (CR-104). A stored span is never overwritten here: where one differs
     # from the records it is a career-span row in discrepancies, and verify.py
-    # holds the rest to MIN and MAX of the race years.
+    # holds the rest to MIN and MAX of the race years. An active driver is
+    # left alone, since filling both ends would close the open span; one
+    # typed with no first season fails verify.py instead.
     cur.execute("""UPDATE drivers SET
         first_season = (SELECT MIN(r.year) FROM race_entries e
             JOIN races r ON r.id = e.race_id WHERE e.driver_id = drivers.id),
         last_season  = (SELECT MAX(r.year) FROM race_entries e
             JOIN races r ON r.id = e.race_id WHERE e.driver_id = drivers.id)
         WHERE first_season IS NULL AND last_season IS NULL
+          AND COALESCE(status, '') != 'active'
           AND EXISTS (SELECT 1 FROM race_entries e
                       WHERE e.driver_id = drivers.id)""")
 
