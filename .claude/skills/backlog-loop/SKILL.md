@@ -50,9 +50,10 @@ Two words, either order, both optional.
    fork returns, and that the fork's stages appear in that file -
    `tail -f .claude/loop/progress.log` from a terminal. Nothing else
    before the fork: a fork that looks stalled gets killed `[D-17]`.
-2. Read the plan's usage: `python3 .claude/skills/backlog-loop/loop_usage.py`.
+2. Read the plan's usage: `python3 .claude/skills/backlog-loop/loop_usage.py --loop`.
    It costs no model turn and a few seconds, and its first word decides
-   `[D-55]`:
+   `[D-55]`. `--loop` files the line under `usage` in the log; a run
+   without it is filed as `usage (manual)`:
    - `GO` or `UNKNOWN`: invoke the fork as below. `UNKNOWN` means usage
      could not be read, and the loop reacts to a limit when one arrives, as
      it did before the check existed.

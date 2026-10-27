@@ -605,8 +605,9 @@ drives many forks, so a check in `supervise.py` alone would run once per
 session. `supervise.py` runs it too, before each session, so as not to start
 one only for it to pause.
 
-- **The 5-hour window:** 20 points or more left, any item; 7 or more, an XS
-  or S item only, through `next.py --max-size S`; less, wait for the reset.
+- **The 5-hour window:** 70 points or more left, any item (20 until
+  `AF-148`, below); 7 or more, an XS or S item only, through
+  `next.py --max-size S`; less, wait for the reset.
   The middle rung is what uses the end of a window rather than sleeping
   through it. It overrides `[D-20]`'s "whatever is linked rides" for that one
   fork, because a linked M companion is the cost the cap exists to avoid. A
@@ -654,6 +655,51 @@ one only for it to pause.
   with that window unread; one may start on the `SMALL` rung whatever its
   size, as the item set the floor at `SMALL_LEFT` and no higher. A run
   given some other item by id does not spend the reserve.
+- **An M item starts only with 70 points left** (2026-10-27, `AF-148`,
+  #1181). `ANY_LEFT` (20) is replaced by `M_LEFT` (70,
+  `LOOP_USAGE_M_LEFT`); between it and `SMALL_LEFT` the answer is `SMALL`,
+  so a fork under 70 takes an XS or S item or returns `PAUSE:`. On
+  2026-10-14 the maintainer chose to keep the thresholds and watch; three M
+  forks since have run out of session. AF-90 (M, refresh and data),
+  2026-10-14, on the issue's account: 196 turns, a 256k-token peak context
+  and 31.8M cache reads against 6-10M for a typical S fork, from 55 % used
+  to the limit, so more than 45 points (the log shows it merged at 20:48,
+  after the limit). PM-75 (M, data), 2026-10-26: the check said GO at
+  37 points left after AF-130 merged, and the session hit its limit at
+  15:50 mid-item; another fork finished it after the 19:00 reset (#1155).
+  AF-132 (M, front end), 2026-10-27: started at 15:40 with 58 points left,
+  above the 45 first proposed, and hit the limit at 16:02 after `make all`
+  and the web tests, before a PR. M items that did finish cost, between
+  the `usage` lines taken before the item began and after it merged, in one
+  window: AF-108 10 (at least: its before-line came three minutes after it
+  was chosen), PM-45 19, AF-122 23, AF-125 26, CD-46 31,
+  and CD-39+CD-61, two M items in one PR, 67. Those figures take in the
+  reviewers and any interactive use of the same window, which AF-132's
+  afternoon had. 70 is above every recorded overrun (more than 58) and
+  every recorded cost, the pair's 67 included; it is an estimate from nine
+  figures, and the `usage` lines are what to revise it from. AF-76 is left out: it ran in
+  two windows, 38 points in the first and 6 in the second. A threshold
+  set too high costs an M item waiting for the next window while S items
+  go on; set too low it costs a fork killed mid-item. The gate is on the band and not
+  on the item, since the check runs before the fork has chosen one; a fork
+  finishing an inherited open pull request is still not capped by size. No
+  `L_LEFT` is set: the only L items in `progress.log`, AF-47 and AF-42, ran
+  before its first `usage` line, so there are no L figures to take one from.
+- **An unreadable session window stays GO, and the line says why.** The
+  maintainer's comment of 2026-10-27 asked whether it should be SMALL. In
+  `progress.log` 24 readings have a week and no session. The nine since
+  2026-10-24 were all taken one minute after a 5-hour boundary (the latest
+  20:01 on 2026-10-27, the previous window's reset at 19:59), and `[D-58]`
+  already records a window's first reading as often not readable. So a
+  window that has just rolled over shows no session line, and all of it is
+  left, which is when an M item should start. A reworded report that names no window at
+  all is `UNKNOWN`, as before, and not this case. Landing an inherited item
+  is unaffected either way.
+- **A manual run is told apart in the log.** `loop_usage.py --loop` is what
+  the driver passes and files under `usage`; a run without it files under
+  `usage (manual)`, since a check run by hand wrote lines the loop's own
+  could not be told from, which on 2026-10-26 at 15:47 read as the loop
+  contradicting itself. The decision is the same either way.
 
 ### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065), reverted 2026-10-26 (`AF-128`, #1122)
 The maintainer's usage report of 2026-10-18 put 43 % of usage at more than

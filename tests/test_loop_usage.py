@@ -9,8 +9,10 @@ WHY THIS FILE EXISTS
     and then that each threshold, the weekly pace and the race-weekend
     reserve decide what the docstring says they do.
 """
+import contextlib
 import datetime as dt
 import importlib.util
+import io
 import json
 import os
 import sqlite3
@@ -33,7 +35,7 @@ PROBED = ("You are currently using your subscription to power your Claude Code u
           "Current session: 25% used · resets Oct 14, 10:59pm (Europe/London)\n"
           "Current week (all models): 15% used · resets Oct 19, 2:59pm (Europe/London)\n\n"
           "What's contributing to your limits usage?\n  49% of your usage was at >150k context\n")
-CONF = {"ANY_LEFT": 20.0, "SMALL_LEFT": 7.0, "SLACK": 10.0, "RESERVE": 10.0}
+CONF = {"M_LEFT": 70.0, "SMALL_LEFT": 7.0, "SLACK": 10.0, "RESERVE": 10.0}
 SESSION_RESET = dt.datetime(2026, 10, 14, 21, 59, tzinfo=UTC)
 WEEK_RESET = dt.datetime(2026, 10, 19, 13, 59, tzinfo=UTC)
 
@@ -84,12 +86,30 @@ class ReadsOnlyWhatItCanReadWhole(unittest.TestCase):
 
 class TheSessionWindow(unittest.TestCase):
     def test_plenty_left_is_go(self):
-        self.assertEqual(decide(session=80)[0], "GO")
+        self.assertEqual(decide(session=0)[0], "GO")
+        self.assertEqual(decide(session=30)[0], "GO")
 
-    def test_getting_close_is_small_and_names_the_reset(self):
-        word, until, _ = decide(session=81)
+    def test_under_m_left_is_small_and_names_the_reset(self):
+        # 70 points left (30 used) is the first GO; 69 left is the top
+        # of the band that is SMALL only, down to 7 left (93 used).
+        word, until, why = decide(session=31)
         self.assertEqual((word, until), ("SMALL", SESSION_RESET))
+        self.assertIn("under 70 points left: an XS or S item only", " ".join(why))
+        self.assertEqual(decide(session=80)[0], "SMALL")
         self.assertEqual(decide(session=93)[0], "SMALL")
+
+    def test_the_three_overruns_were_small(self):
+        # AF-90 started at 55 % used, PM-75 at 63 %, AF-132 at 42 %: all
+        # three were GO before AF-148 and all three ran out of session.
+        for used in (55, 63, 42):
+            self.assertEqual(decide(session=used)[0], "SMALL", used)
+
+    def test_a_window_that_has_just_rolled_over_is_go_and_says_why(self):
+        windows = lu.parse(report(), NOW)
+        del windows["session"]
+        word, _, why, _ = lu.decide(windows, NOW, None, CONF)
+        self.assertEqual(word, "GO")
+        self.assertIn("a window just rolled over shows none", " ".join(why))
 
     def test_too_little_for_any_item_waits_for_the_reset(self):
         word, until, _ = decide(session=94)
@@ -213,7 +233,7 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
         word, _, why, target = lu.decide(windows, NOW, self.RACE, CONF_LOOK,
                                          lambda: asked.append(True) or ("AF-150", None))
         self.assertEqual((word, target, asked), ("WAIT", None, []))
-        self.assertIn("session window not readable", why)
+        self.assertTrue(any(w.startswith("session window not readable") for w in why), why)
 
     def test_the_look_is_never_under_its_floor(self):
         for value in ("0", "-5", "3"):
@@ -264,7 +284,7 @@ class TheCommand(unittest.TestCase):
         text, code = self.run_with(json.dumps({"result": report(session=95), "is_error": False}))
         self.assertTrue(text.startswith("WAIT until 2026-10-14T21:59+00:00 - "), text)
         self.assertEqual(code, 5)
-        text, code = self.run_with(json.dumps({"result": report(session=85), "is_error": False}))
+        text, code = self.run_with(json.dumps({"result": report(session=60), "is_error": False}))
         self.assertTrue(text.startswith("SMALL --max-size S, session resets 2026-10-14T21:59+00:00"), text)
         self.assertEqual(code, 3)
 
@@ -284,8 +304,37 @@ class TheCommand(unittest.TestCase):
         self.assertEqual((text.split()[0], code), ("UNKNOWN", 0))
 
     def test_a_threshold_in_the_environment_that_is_not_a_number_is_the_default(self):
-        self.assertEqual(lu.settings({"LOOP_USAGE_ANY_LEFT": "lots"})["ANY_LEFT"], 20.0)
-        self.assertEqual(lu.settings({"LOOP_USAGE_ANY_LEFT": "30"})["ANY_LEFT"], 30.0)
+        self.assertEqual(lu.settings({"LOOP_USAGE_M_LEFT": "lots"})["M_LEFT"], 70.0)
+        self.assertEqual(lu.settings({"LOOP_USAGE_M_LEFT": "30"})["M_LEFT"], 30.0)
+
+    def test_the_bands_follow_the_setting(self):
+        conf = dict(CONF, M_LEFT=30.0)
+        windows = lu.parse(report(session=70), NOW)
+        self.assertEqual(lu.decide(windows, NOW, None, conf)[0], "GO")
+        self.assertEqual(lu.decide(lu.parse(report(session=71), NOW), NOW, None, conf)[0], "SMALL")
+
+
+class TheLog(unittest.TestCase):
+    def test_a_run_by_hand_is_filed_as_manual(self):
+        self.assertEqual(lu.log_id([]), "usage (manual)")
+        self.assertEqual(lu.log_id(["--loop"]), "usage")
+
+    def run_main(self, argv):
+        with mock.patch.object(lu, "check", return_value=("GO - fine", 0)), \
+                mock.patch.object(lu.subprocess, "run") as run, \
+                contextlib.redirect_stdout(io.StringIO()):
+            code = lu.main(argv)
+        return code, run.call_args[0][0]
+
+    def test_main_passes_the_id_to_progress_sh(self):
+        code, cmd = self.run_main(["--loop"])
+        self.assertEqual((code, cmd[-2:]), (0, ["usage", "GO - fine"]))
+        code, cmd = self.run_main([])
+        self.assertEqual((code, cmd[-2:]), (0, ["usage (manual)", "GO - fine"]))
+
+    def test_any_other_argument_is_refused(self):
+        with self.assertRaises(SystemExit):
+            lu.main(["--manual"])
 
 
 if __name__ == "__main__":
