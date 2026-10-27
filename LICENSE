@@ -25,4 +25,7 @@ SOFTWARE.
 This licence covers the code in this repository: build.py, verify.py,
 audit.py, export_json.py, f1, tools/, schema.sql, harvest/append.py, and the
 CI, Makefile and packaging files. It does not cover the data — see
-LICENSE-DATA.
+LICENSE-DATA. Nor does it cover the LIVERIES entries in
+web/src/lib/liveries.js, the team livery palette, which is adapted from
+Wikipedia's Formula One sponsorship liveries article and is CC BY-SA 4.0 —
+see ATTRIBUTION.md.
