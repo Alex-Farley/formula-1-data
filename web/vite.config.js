@@ -58,19 +58,13 @@ const cloudflareHtmlHandling = () => ({
     /*
      * The headers the host gives every path, read out of the _headers file
      * the host is given (AF-76), since sirv reads no such file. The content
-     * security policy is served ENFORCED here where the host only reports
-     * it: a refusal in preview breaks what it refuses, so the smoke test
-     * fails on it rather than logging a warning nobody reads.
-     * scripts/headers.js says why the host reports for now. The per-path
-     * rules (cache, content types, the API's CORS) stay the host's.
+     * security policy among them is enforced, here as on the host (AF-126):
+     * a refusal in preview breaks what it refuses, so the smoke test fails
+     * on it rather than logging a warning nobody reads. The per-path rules
+     * (cache, content types, the API's CORS) stay the host's.
      */
     const headersFile = join(dist, '_headers')
-    const everywhere = existsSync(headersFile)
-      ? everyPath(readFileSync(headersFile, 'utf8')).map(([name, value]) => [
-          name.replace(/^Content-Security-Policy-Report-Only$/i, 'Content-Security-Policy'),
-          value,
-        ])
-      : []
+    const everywhere = existsSync(headersFile) ? everyPath(readFileSync(headersFile, 'utf8')) : []
     server.middlewares.use((_req, res, next) => {
       for (const [name, value] of everywhere) res.setHeader(name, value)
       next()

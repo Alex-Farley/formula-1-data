@@ -291,8 +291,8 @@ writeFileSync(
   join(publicDir, '_headers'),
   [
     // Every path: the content security policy and the three headers beside
-    // it (AF-76). scripts/headers.js says what each source is for, and why
-    // the policy reports rather than refuses for now.
+    // it (AF-76). scripts/headers.js says what each source is for, and how
+    // the policy came to be enforced (AF-126).
     '/*',
     ...SECURITY_HEADERS.map(([name, value]) => `  ${name}: ${value}`),
     '',
