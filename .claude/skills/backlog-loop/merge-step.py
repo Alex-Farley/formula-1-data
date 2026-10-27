@@ -219,11 +219,13 @@ def after(n):
     failed = []
     closed, refs = issues_in(pr["body"])
     filer = os.path.join(HERE, "file.py")
-    for i in closed:
-        code, out = run([sys.executable, filer, "status", str(i), "Done"])
+    # One call for every issue the PR closes, which file.py sends as one
+    # request `PM-45`; its output names any it could not confirm.
+    if closed:
+        code, out = run([sys.executable, filer, "status", *map(str, closed), "Done"])
         print(out)
         if code:
-            failed.append(f"status #{i} Done")
+            failed.append(f"status {' '.join(f'#{i}' for i in closed)} Done")
     alarms = []
     for i in refs:
         try:
@@ -234,11 +236,11 @@ def after(n):
             continue
         if issue["state"] == "OPEN" and {lab["name"] for lab in issue["labels"]} & ALARMS:
             alarms.append(i)
-    for i in alarms:
-        code, out = run([sys.executable, filer, "status", str(i), "Now"])
+    if alarms:
+        code, out = run([sys.executable, filer, "status", *map(str, alarms), "Now"])
         print(out)
         if code:
-            failed.append(f"status #{i} Now")
+            failed.append(f"status {' '.join(f'#{i}' for i in alarms)} Now")
     if alarms:
         code, out = run(["gh", "workflow", "run", "refresh.yml"])
         print(out or "refresh.yml started: the run that proves the fix")

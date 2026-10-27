@@ -8,6 +8,7 @@ status, or record the rerun of a flaky check.
     python3 .claude/skills/backlog-loop/file.py new AF "Title." --size M --body "one paragraph" --decision
     python3 .claude/skills/backlog-loop/file.py new CR "Title." --size S --body "..." --where "web/src/pages/Glossary.jsx, web/src/queries/glossary.js"
     python3 .claude/skills/backlog-loop/file.py status 123 "In progress"     # or Now, Next, Someday, Done
+    python3 .claude/skills/backlog-loop/file.py status 123 124 125 "In progress"   # a group, one request
     python3 .claude/skills/backlog-loop/file.py blocked 123 "why, in one clause"
     python3 .claude/skills/backlog-loop/file.py decision 123 "what a person must decide"
     python3 .claude/skills/backlog-loop/file.py blocked-by 124 125 --on 123   # 124 and 125 wait for 123 to close
@@ -42,6 +43,19 @@ the `size:` label, and puts it on the board under the status given
 a discovered item joins the queue where nobody has judged it yet rather than
 above everything a person has already ranked below it `[D-36]`. `--decision`
 adds the label that keeps the loop off it.
+
+`status` given several issues sets them all in one request rather than one
+each, so a group pays one board write on the way in and one on the way out
+where it paid one per issue each way `PM-45`. The request is an aliased field
+update per issue, and GraphQL can answer it half-done - `errors` beside
+whatever `data` it managed - so the answer is read issue by issue, never by
+its exit status: each issue it confirms is printed as set, and each it does
+not is written again alone, the way a single issue always is. A status write
+is idempotent, so writing one again whose first outcome was unknown costs a
+call and nothing else. A refusal no retry can improve on - the limiter, or
+an authorisation refusal - ends the run instead, since against the limiter
+a retry extends it `[D-27]`; either way the run names every issue
+not confirmed, so none is left at an old status with nobody told.
 
 `decline` closes an open issue as *not planned* with the reason as a comment
 and refuses a closed one, so a landed record cannot be turned into a
@@ -285,6 +299,107 @@ def set_status(number, status):
             sys.exit(err or "gh project item-edit failed")
         loop_cache.drop("board")
         loop_cache.drop("items")
+
+
+def status_mutation(count):
+    """One request that sets a status on `count` items: an aliased field
+    update per item, `s0`, `s1`, ..., so the answer names each one. Every id
+    travels as a variable, never spliced into the query text."""
+    head = ", ".join(["$project: ID!", "$field: ID!", "$option: String!"]
+                     + [f"$i{k}: ID!" for k in range(count)])
+    body = "\n".join(
+        f"  s{k}: updateProjectV2ItemFieldValue(input: {{projectId: $project, itemId: $i{k}, "
+        f"fieldId: $field, value: {{singleSelectOptionId: $option}}}}) {{ projectV2Item {{ id }} }}"
+        for k in range(count))
+    return f"mutation({head}) {{\n{body}\n}}"
+
+
+def confirmed(out, batch, ids):
+    """The issues of `batch` that GitHub's answer says it set: those whose
+    alias came back naming their own item. GraphQL answers a half-done
+    request with `errors` beside the `data` it managed, and `gh api` prints
+    that body while it exits 1, so this reads the body and never the exit
+    status. An answer that cannot be read confirms nothing."""
+    try:
+        data = json.loads(out).get("data")
+    except (ValueError, AttributeError):
+        return []
+
+    def field(node, key):
+        return node.get(key) if isinstance(node, dict) else None
+
+    return [n for k, n in enumerate(batch)
+            if field(field(field(data, f"s{k}"), "projectV2Item"), "id") == ids[n]]
+
+
+def batch_status(numbers, status):
+    """(set, not set, refusal): `status` written in one request to every
+    issue of `numbers` the item map has an id for, when there are two or
+    more. `set` is what the answer confirms; `not set` is the rest, in the
+    order given, each still to be written alone; `refusal` is GitHub's
+    message when it is one no retry can improve on (`REFUSED`: the limiter,
+    or an authorisation refusal), and None otherwise."""
+    proj_id, field_id, options = board()
+    if status not in options:
+        proj_id, field_id, options = board(fresh=True)
+        if status not in options:
+            sys.exit(f"the board has no status {status!r}; it has {', '.join(sorted(options))}")
+    ids = item_ids()
+    batch = [n for n in numbers if n in ids]
+    if len(batch) < 2:
+        return [], list(numbers), None
+    args = ["api", "graphql", "-f", f"query={status_mutation(len(batch))}", "-f", f"project={proj_id}",
+            "-f", f"field={field_id}", "-f", f"option={options[status]}"]
+    for k, n in enumerate(batch):
+        args += ["-f", f"i{k}={ids[n]}"]
+    ok, err, out = gh_try(*args, out=True)
+    done = confirmed(out, batch, ids)
+    if done:
+        loop_cache.drop("queue")
+    left = [n for n in numbers if n not in done]
+    if not ok and REFUSED.search(err):
+        return done, left, err or "gh api graphql failed"
+    if len(done) < len(batch):
+        # A stale id is the likeliest reason one was not set; the one-issue
+        # path then reads the board afresh rather than repeat it.
+        loop_cache.drop("board")
+        loop_cache.drop("items")
+    return done, left, None
+
+
+def not_confirmed(left, status, said):
+    when = ("once the limiter has cleared" if gh_preflight.LIMITER.search(said or "")
+            else "once the cause is fixed")
+    return (f"not confirmed, so each may still hold its old status: {', '.join(f'#{n}' for n in left)}; "
+            f"run `file.py status {' '.join(map(str, left))} \"{status}\"` again {when}")
+
+
+def set_statuses(numbers, status):
+    """`status` on every issue named, printing `#n <status>` for each the
+    moment it is set: one request for the group, then one each for whatever
+    it did not confirm. A failure ends the run naming every issue not yet
+    confirmed, so the caller knows exactly which to write again."""
+    if status not in STATUSES:
+        sys.exit(f"status must be one of {', '.join(STATUSES)}")
+    numbers = list(dict.fromkeys(numbers))
+    left, refused = numbers, None
+    if len(numbers) > 1:
+        try:
+            done, left, refused = batch_status(numbers, status)
+        except SystemExit as stop:
+            said = stop.code if isinstance(stop.code, str) else "gh failed"
+            sys.exit(f"{said}\n{not_confirmed(numbers, status, said)}")
+        for n in done:
+            print(f"#{n} {status}", flush=True)
+    if refused:
+        sys.exit(f"{refused}\n{not_confirmed(left, status, refused)}")
+    for k, n in enumerate(left):
+        try:
+            set_status(n, status)
+        except SystemExit as stop:
+            said = stop.code if isinstance(stop.code, str) else "gh project item-edit failed"
+            sys.exit(f"{said}\n{not_confirmed(left[k:], status, said)}")
+        print(f"#{n} {status}", flush=True)
 
 
 def where_line(body, where):
@@ -689,7 +804,7 @@ def main():
     n.add_argument("--where", help="comma-separated file paths the work would touch")
     n.add_argument("--decision", action="store_true")
     s = sub.add_parser("status")
-    s.add_argument("number", type=int)
+    s.add_argument("numbers", type=int, nargs="+", metavar="number")
     s.add_argument("status")
     for name in ("blocked", "decision", "decline", "decided"):
         q = sub.add_parser(name)
@@ -714,8 +829,7 @@ def main():
     if a.cmd == "new":
         new(a)
     elif a.cmd == "status":
-        set_status(a.number, a.status)
-        print(f"#{a.number} {a.status}")
+        set_statuses(a.numbers, a.status)
     elif a.cmd == "blocked":
         mark(a, "blocked", "Blocked")
     elif a.cmd == "decision":

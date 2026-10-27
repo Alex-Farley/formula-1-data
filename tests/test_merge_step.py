@@ -106,6 +106,13 @@ class AfterRefusesAnUnmergedPullRequest(unittest.TestCase):
         self.assertFalse([c for c in fake.ran if "push" in c or "--delete" in c],
                          "after deleted a remote branch: the repository does that on merge")
 
+    def test_every_closed_issue_is_one_status_call(self):
+        # PM-45: file.py sends a group's statuses as one request.
+        fake = Fake(state="MERGED", body="Closes #4\nCloses #1")
+        patched(fake, ms.after, 7)
+        statuses = [c[2:] for c in fake.ran if c[1:2] and c[1].endswith("file.py")]
+        self.assertEqual(statuses, [["status", "1", "4", "Done"]])
+
     def test_no_alarm_no_refresh_run(self):
         fake = Fake(state="MERGED", body="Closes #1")
         patched(fake, ms.after, 7)
