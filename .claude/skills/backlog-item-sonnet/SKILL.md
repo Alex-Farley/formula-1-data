@@ -27,9 +27,9 @@ on the four points below.
 1. **Only the item you were given, and nothing on a protected path.** The
    driver chose it with `next.py --implementer`, which keeps an item on Opus
    when its body names a data path (`build.py`, `verify.py`, `schema.sql`,
-   `data/`, `harvest/`, `tools/`) or a publishing one (`.github/workflows/`,
+   `data/`, `harvest/`, `tools/`) or a publishing one (`.github/`,
    `export_json.py`, the deploy chain under `web/`, the licence texts, the
-   committed artefacts, this trial's guard and the merge gate's scripts) -
+   committed artefacts, the files of the loop's own controls) -
    `.claude/skills/backlog-loop/implementer.py` holds the list. A body is a
    claim about where the work lands, so when you reread the item against the
    code, before anything is claimed: if the work needs a protected path

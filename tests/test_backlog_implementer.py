@@ -58,6 +58,9 @@ class ProtectedPaths(unittest.TestCase):
             ("f1_compat.json goes stale", "f1_compat.json"),
             ("a check in precheck.sh", "precheck.sh"),
             ("(.github/dependabot.yml)", ".github/"),
+            ("<code>harvest/x.txt</code>", "harvest/"),
+            ("paths: tools/a.py,data/b.py", "data/"),
+            ("the rule in .claude/agents/frontend-reviewer.md", ".claude/agents/"),
         ):
             self.assertIn(want, imp.protected_in_text(text), text)
 
@@ -73,10 +76,12 @@ class ProtectedPaths(unittest.TestCase):
             "data/current.py", "web/src/data/drivers.js", "verify.py", "web/scripts/prerender.js",
             ".github/workflows/ci.yml", ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json",
             "f1.db", ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md",
-            "docs/DECISIONS.md", ".claude/skills/backlog-loop/next.py", ""]),
+            "docs/DECISIONS.md", ".claude/skills/backlog-loop/file.py", ".claude/agents/licence-reviewer.md",
+            ".claude/skills/backlog-item/land.md", ""]),
             ["data/current.py", "verify.py", "web/scripts/prerender.js", ".github/workflows/ci.yml",
              ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json", "f1.db",
-             ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md"])
+             ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md",
+             ".claude/agents/licence-reviewer.md", ".claude/skills/backlog-item/land.md"])
 
     def test_the_script_exits_one_on_a_protected_diff_and_zero_otherwise(self):
         script = os.path.join(LOOP, "implementer.py")
@@ -250,10 +255,6 @@ class PrecheckRefusesAProtectedPathOnSonnet(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 def load_next():
     spec = importlib.util.spec_from_file_location("backlog_next_for_implementer", os.path.join(LOOP, "next.py"))
     module = importlib.util.module_from_spec(spec)
@@ -305,3 +306,7 @@ class NextImplementer(unittest.TestCase):
         self.assertTrue(self.said("--max-size", "S").startswith("sonnet"))
         self.nxt.claude_branches = lambda: ["claude/af-03-x"]
         self.assertIn("is open", self.said("--max-size", "S"))
+
+
+if __name__ == "__main__":
+    unittest.main()

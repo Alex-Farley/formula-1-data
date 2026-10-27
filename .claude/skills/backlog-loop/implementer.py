@@ -52,16 +52,19 @@ SMALL = ("XS", "S")
 # the rest of the deploy chain CLAUDE.md names (package.json and its lock,
 # parquet-bundle.mjs, wrangler.jsonc), and the licence texts, which are what
 # make the published database redistributable. Then the committed artefacts,
-# and the guard's own files and the merge gate's: a diff that could rewrite
-# the rule could pass its own check.
+# and the files of the loop's controls - this guard, the precheck and its
+# floors, the verdict, the merge gate, the reviewers and the procedure they
+# enforce: a diff that could rewrite the rule could pass its own check.
 PROTECTED_FILES = ("build.py", "verify.py", "schema.sql", "export_json.py",
                    "prepare-assets.js", "prerender.js", "parquet-bundle.mjs",
                    "package.json", "package-lock.json", "wrangler.jsonc", "ATTRIBUTION.md",
                    "CODEOWNERS", "f1.db", "f1-geometry.db", "f1_compat.json",
-                   "implementer.py", "precheck.sh", "verdict.sh", "merge-step.py", "ci-wait.sh")
+                   "implementer.py", "precheck.sh", "verdict.sh", "merge-step.py", "ci-wait.sh",
+                   "floors.py", "merge-main.py", "review-prompt.md", "next.py")
 # LICENSE, LICENSE-DATA, LICENSE-GEOMETRY and whatever joins them.
 LICENCE = re.compile(r"(?<![\w-])LICEN[CS]E[\w.-]*")
-PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/", ".claude/skills/backlog-item-sonnet/")
+PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/", ".claude/agents/",
+                  ".claude/skills/backlog-item/", ".claude/skills/backlog-item-sonnet/")
 # The release is a workflow (release.yml), and so is the refresh; a body names
 # one by its file name more often than by its directory.
 WORKFLOW = re.compile(r"\b[\w-]+\.ya?ml\b")
@@ -75,7 +78,7 @@ DATA_SOURCES = ("source: live data", "source: Wikipedia survey", "source: projec
 def _dir_pattern(d):
     # After the start, a space, a quote, a bracket or emphasis, or a GitHub
     # file URL's branch segment - each lookbehind fixed width, as re needs.
-    before = (r"^", r"(?<=[\s`'\"(\[*])", r"(?<=/blob/main/)", r"(?<=/tree/main/)")
+    before = (r"^", r"(?<=[\s`'\"(\[*>:,])", r"(?<=/blob/main/)", r"(?<=/tree/main/)")
     return re.compile(r"(?:" + "|".join(before) + r")(?:\./)?" + re.escape(d), re.M)
 
 

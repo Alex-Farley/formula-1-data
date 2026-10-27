@@ -902,9 +902,10 @@ the target `next` or `until-paused`, the driver runs `next.py
   Opus first pass (`schema.sql`, `prerender.js`), the rest of the deploy
   chain CLAUDE.md names (`package.json` and its lock, `parquet-bundle.mjs`,
   `wrangler.jsonc`), all of `.github/`, any `.yml`, the licence texts, the
-  committed artefacts, and the scripts of this guard and of the merge gate
-  (`implementer.py`, `precheck.sh`, `verdict.sh`, `merge-step.py`,
-  `ci-wait.sh`). Over-matching keeps an item on Opus, which is the safe
+  committed artefacts, and the files of the loop's own controls
+  (`implementer.py`, `precheck.sh`, `floors.py`, `verdict.sh`,
+  `merge-step.py`, `merge-main.py`, `ci-wait.sh`, `next.py`,
+  `review-prompt.md`, `.claude/agents/`, both item skills). Over-matching keeps an item on Opus, which is the safe
   direction;
 - fewer than ten pull requests, merged or open, carry the label
   `implementer: sonnet`. **The trial stops itself at ten** and waits to be
