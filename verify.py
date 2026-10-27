@@ -5414,8 +5414,14 @@ def redistribution():
 # caught was here, not in either licence document: /about offering "this
 # project's own writing under CC BY 4.0" with no scope, in nearly the words
 # source_registry entry 18 uses for tables the grant deliberately left out.
-GRANT_PAGES = ("web/src/lib/site.js", "web/src/pages/Data.jsx",
-               "web/scripts/prerender.js")
+#
+# Each page with the number of grant sentences found on it at PM-50, as a
+# floor: a reading that finds none passes on everything, so one of these that
+# stops being found - rephrased past _OWN_WRITING, cut by a quotation, moved -
+# fails rather than going unread. Per page, so a sentence added on one cannot
+# stand in for one lost on another.
+GRANT_PAGES = {"web/src/lib/site.js": 2, "web/src/pages/Data.jsx": 1,
+               "web/scripts/prerender.js": 1}
 
 # A sentence about what this project wrote. The net is these words, which is
 # how every statement of the grant is phrased today; one that names the
@@ -5430,9 +5436,13 @@ def source_sentences(source):
     {' '} a space, \\u2019 and \\u2014 the characters they escape, and every
     run of white space one space. A sentence then ends at a full stop before
     a capital or markup, or where a string literal closes into a comma, a
-    bracket or a parenthesis. Code and comments come along as text: a
-    sentence that is not one costs a false alarm, which is the direction a
-    licence check should err in."""
+    bracket or a parenthesis. Code and comments come along as text, and a
+    run of code read as a sentence costs a false alarm, which is the
+    direction a licence check should err in. A cut can err the other way: a
+    quotation closing into a comma or a bracket inside a sentence -
+    `(see "LICENSE-DATA")` - ends it there, and a grant on the far side of
+    the cut goes unread. GRANT_PAGES' floors are what catch that for the
+    sentences the site states today."""
     t = source.replace("\\u2019", "\u2019").replace("\\u2014", "\u2014")
     t = re.sub(r"(['\"])\s*\+\s*\1", "", t)
     t = t.replace("{' '}", " ")
@@ -5454,7 +5464,13 @@ def grant_scope_faults(source, granted, authored):
     any of the three, or stating a different pair of figures, is a fault -
     a reader cannot tell from it that the rest of entry 18 stays CC BY-SA.
     A sentence that names the facts artefact's CC BY 4.0 and not this
-    project's writing is not a grant of it, and is not read."""
+    project's writing is not a grant of it, and is not read.
+
+    What it looks for is the scope's presence, not a wider grant's absence:
+    "everything this project wrote is CC BY 4.0, with its reading of each
+    disagreement, ..." names all three parts and passes, though it grants
+    all twelve tables. Reading for that is reading prose for meaning, which
+    a pattern does not do; a reviewer of the sentence does."""
     lf = _lede_figures()
     tables = re.compile(rf"prose of (?P<n>{lf.CARDINAL}) of its "
                         rf"(?P<m>{lf.CARDINAL}) reference tables", re.IGNORECASE)
@@ -5618,24 +5634,21 @@ def project_prose():
     # And where the site says it (PM-50): every sentence on it that puts this
     # project's writing under CC BY 4.0 says which of it, with the figures
     # the grant has.
-    stated = 0
-    for page in GRANT_PAGES:
+    for page, floor in GRANT_PAGES.items():
         try:
             with open(os.path.join(here, page), encoding="utf-8") as f:
                 source = f.read()
         except OSError as e:
             check(f"{page} is readable", False, str(e))
             continue
-        stated += sum("CC BY 4.0" in x and bool(_OWN_WRITING.search(x))
-                      for x in source_sentences(source))
+        stated = sum("CC BY 4.0" in x and bool(_OWN_WRITING.search(x))
+                     for x in source_sentences(source))
+        check(f"{page} states the grant where it did at PM-50 "
+              f"(at least {floor} sentence{'s' if floor > 1 else ''})",
+              stated >= floor, f"{stated} found")
         faults = grant_scope_faults(source, len(granted_authored), len(authored))
         check(f"{page} scopes every CC BY 4.0 grant of this project's writing",
               not faults, "; ".join(faults))
-    # A reading that finds no grant sentence at all passes on everything, so
-    # the four the site states today are a floor: one that stops being found
-    # (rephrased past _OWN_WRITING, or moved) fails here, not silently.
-    check("the site states the grant where it did at PM-50 (at least 4 sentences)",
-          stated >= 4, f"{stated} found")
 
 
 # ---------------------------------------------------------------------------
