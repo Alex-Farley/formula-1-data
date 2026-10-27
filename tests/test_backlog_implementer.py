@@ -10,7 +10,9 @@ WHY THIS FILE EXISTS
     for the reason it gives - the ten-item stop included, which is what keeps
     the trial from running on unmeasured.
 """
+import contextlib
 import importlib.util
+import io
 import os
 import shutil
 import subprocess
@@ -45,10 +47,17 @@ class ProtectedPaths(unittest.TestCase):
             ("web/scripts/prepare-assets.js", "prepare-assets.js"),
             ("web/scripts/prerender.js", "prerender.js"),
             ("the step in release.yml", "release.yml"),
-            ("(.github/workflows/ci.yml)", ".github/workflows/"),
+            ("(.github/workflows/ci.yml)", ".github/"),
             ("LICENSE-DATA says", "LICENSE-DATA"),
             ("ATTRIBUTION.md's table", "ATTRIBUTION.md"),
             ("web/package.json", "package.json"),
+            ("https://github.com/o/r/blob/main/data/drivers.py", "data/"),
+            ("see [data/x.py](https://example.invalid)", "data/"),
+            ("**tools/** is where", "tools/"),
+            ("the rows in f1.db", "f1.db"),
+            ("f1_compat.json goes stale", "f1_compat.json"),
+            ("a check in precheck.sh", "precheck.sh"),
+            ("(.github/dependabot.yml)", ".github/"),
         ):
             self.assertIn(want, imp.protected_in_text(text), text)
 
@@ -62,9 +71,12 @@ class ProtectedPaths(unittest.TestCase):
     def test_a_diff_is_read_by_file(self):
         self.assertEqual(imp.protected_files([
             "data/current.py", "web/src/data/drivers.js", "verify.py", "web/scripts/prerender.js",
-            ".github/workflows/ci.yml", "LICENSE-DATA", "web/package-lock.json", "docs/DECISIONS.md", ""]),
+            ".github/workflows/ci.yml", ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json",
+            "f1.db", ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md",
+            "docs/DECISIONS.md", ".claude/skills/backlog-loop/next.py", ""]),
             ["data/current.py", "verify.py", "web/scripts/prerender.js", ".github/workflows/ci.yml",
-             "LICENSE-DATA", "web/package-lock.json"])
+             ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json", "f1.db",
+             ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md"])
 
     def test_the_script_exits_one_on_a_protected_diff_and_zero_otherwise(self):
         script = os.path.join(LOOP, "implementer.py")
@@ -102,6 +114,9 @@ class Choose(unittest.TestCase):
             ("an alarm", row("S", "x", "refresh-failing"), False),
             ("results late", row("S", "x", "results-late"), False),
             ("a security alert", row("S", "x", "source: security"), False),
+            ("live data", row("S", "x", "source: live data"), False),
+            ("a Wikipedia survey", row("S", "x", "source: Wikipedia survey"), False),
+            ("the project record", row("S", "x", "source: project record"), False),
             ("a protected path", row("S", "**Where:** data/current.py"), False),
         )
         for what, head, open_work in cases:
@@ -151,22 +166,36 @@ exit 0
 '''
 
 
+def write(d, rel, text):
+    path = os.path.join(d, rel)
+    os.makedirs(os.path.dirname(path) or d, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
 class PrecheckRefusesAProtectedPathOnSonnet(unittest.TestCase):
-    def run_on(self, changed, labels):
+    def run_on(self, changed, labels, env_sonnet=False, base=None, moved=None, main_rule=None):
+        """precheck.sh on a branch that writes `changed` (or `git mv`s
+        `moved` = (old, new)) over a base holding `base`, and `main_rule` as
+        origin/main's implementer.py when given."""
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         git(d, "init", "-q")
         git(d, "config", "user.email", "t@example.invalid")
         git(d, "config", "user.name", "T")
-        with open(os.path.join(d, "README"), "w", encoding="utf-8") as f:
-            f.write("x\n")
+        write(d, "README", "x\n")
+        for rel in base or ():
+            write(d, rel, "a long enough line that a rename is detected as one\n" * 5)
+        if main_rule is not None:
+            write(d, ".claude/skills/backlog-loop/implementer.py", main_rule)
         git(d, "add", "-A")
         git(d, "commit", "-q", "-m", "base")
         git(d, "update-ref", "refs/remotes/origin/main", "HEAD")
-        path = os.path.join(d, changed)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("a change\n")
+        if moved:
+            os.makedirs(os.path.dirname(os.path.join(d, moved[1])) or d, exist_ok=True)
+            git(d, "mv", *moved)
+        if changed:
+            write(d, changed, "a change\n")
         git(d, "add", "-A")
         git(d, "commit", "-q", "-m", "AF-12: a change")
         bin_dir = tempfile.mkdtemp()
@@ -175,6 +204,9 @@ class PrecheckRefusesAProtectedPathOnSonnet(unittest.TestCase):
             f.write(GH.replace("{labels}", labels))
         os.chmod(os.path.join(bin_dir, "gh"), 0o755)
         env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+        env.pop("LOOP_IMPLEMENTER", None)
+        if env_sonnet:
+            env["LOOP_IMPLEMENTER"] = "sonnet"
         r = subprocess.run(["bash", PRECHECK, "AF-12"], cwd=d, env=env,
                            capture_output=True, text=True, check=False)
         return r.returncode, r.stdout
@@ -190,6 +222,28 @@ class PrecheckRefusesAProtectedPathOnSonnet(unittest.TestCase):
         self.assertIn("implemented on Sonnet, and no protected path changed", out)
         self.assertEqual(code, 0, out)
 
+    def test_a_file_moved_out_of_a_protected_path_fails(self):
+        code, out = self.run_on(None, imp.LABEL, base=("tools/x.txt",), moved=("tools/x.txt", "y.txt"))
+        self.assertIn("tools/x.txt", out)
+        self.assertEqual(code, 1, out)
+
+    def test_run_as_sonnet_the_diff_is_checked_even_unlabelled_and_the_label_is_required(self):
+        code, out = self.run_on("data/current.txt", "", env_sonnet=True)
+        self.assertIn("changes a protected path", out)
+        self.assertIn("not labelled", out)
+        self.assertEqual(code, 1, out)
+        code, out = self.run_on("web/src/App.txt", "", env_sonnet=True)
+        self.assertIn("not labelled", out)
+        self.assertEqual(code, 1, out)
+
+    def test_the_rule_is_origin_main_s_not_the_branch_s(self):
+        # origin/main's rule protects everything; the branch's would pass a
+        # web file. The check must use main's, so it fails.
+        strict = "import sys\nprint(sys.stdin.read().split()[0])\nsys.exit(1)\n"
+        code, out = self.run_on("web/src/App.txt", imp.LABEL, main_rule=strict)
+        self.assertIn("changes a protected path", out)
+        self.assertEqual(code, 1, out)
+
     def test_an_opus_pr_on_a_protected_path_is_not_this_check_s_business(self):
         code, out = self.run_on("data/current.txt", "")
         self.assertNotIn("protected path", out)
@@ -198,3 +252,56 @@ class PrecheckRefusesAProtectedPathOnSonnet(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def load_next():
+    spec = importlib.util.spec_from_file_location("backlog_next_for_implementer", os.path.join(LOOP, "next.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def qrow(n, ident, size, status="Next", *labels):
+    return dict(status=status, number=n, ident=ident, title=f"{ident}: x", body="",
+                labels=sorted([f"size: {size}", *labels]), url="u", waits=0)
+
+
+class NextImplementer(unittest.TestCase):
+    """`next.py --implementer` reads the head the fork would take, under the
+    same --skip and --max-size, and counts only what the trial implemented."""
+
+    def setUp(self):
+        self.nxt = load_next()
+        self.ranked = [qrow(1, "AF-01", "M"), qrow(2, "AF-02", "S", "Next", "blocked"),
+                       qrow(3, "AF-03", "S"), qrow(4, "AF-04", "XS")]
+        self.nxt.load = lambda **kw: (self.ranked, [], [])
+        self.nxt.one_body = lambda n: "**Where:** web/src/pages/Glossary.jsx"
+        self.nxt.claude_branches = lambda: []
+        self.prs = {"open": [], "all": []}
+        self.nxt.gh = lambda *a: self.prs["all" if "all" in a else "open"]
+
+    def said(self, *argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.nxt.main(["--implementer", *argv])
+        return out.getvalue().strip()
+
+    def test_the_head_is_the_fork_s_under_the_same_skip_and_cap(self):
+        self.assertTrue(self.said().startswith("opus - AF-01 is size M"), self.said())
+        # The cap passes over the M and the blocked S, as the fork's --group would.
+        self.assertTrue(self.said("--max-size", "S").startswith("sonnet AF-03 - "))
+        self.assertTrue(self.said("--max-size", "S", "--skip", "AF-03").startswith("sonnet AF-04 - "))
+
+    def test_only_merged_and_open_labelled_prs_count(self):
+        self.prs["all"] = [{"state": "MERGED"}] * 9 + [{"state": "CLOSED"}] * 5
+        self.assertTrue(self.said("--max-size", "S").startswith("sonnet AF-03"))
+        self.prs["all"].append({"state": "OPEN"})
+        self.assertIn("waits to be measured", self.said("--max-size", "S"))
+
+    def test_open_work_keeps_opus_whatever_the_head(self):
+        self.prs["open"] = [{"headRefName": "claude/vd-33-photographs"}]
+        self.assertIn("claude/ branch or pull request is open", self.said("--max-size", "S"))
+        self.prs["open"] = [{"headRefName": "refresh/2026-10-27"}]
+        self.assertTrue(self.said("--max-size", "S").startswith("sonnet"))
+        self.nxt.claude_branches = lambda: ["claude/af-03-x"]
+        self.assertIn("is open", self.said("--max-size", "S"))

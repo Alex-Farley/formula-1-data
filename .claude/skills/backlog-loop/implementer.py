@@ -22,7 +22,7 @@ WHAT KEEPS AN ITEM ON OPUS
     `choose()` below, in the order it asks, which is cheapest first:
     a `claude/` branch or pull request already open, which the next fork
     finishes whatever it is; no eligible head; an alarm or a security alert;
-    a size other than XS or S, `?` included; a protected path named anywhere
+    a data item by its source label (DATA_SOURCES); a size other than XS or S, `?` included; a protected path named anywhere
     in the title or body; and the trial already holding TRIAL_ITEMS pull
     requests, merged or open, labelled LABEL, so that the trial stops itself
     at ten and waits for the item that measures it (AF-146) rather than
@@ -33,8 +33,9 @@ WHAT KEEPS AN ITEM ON OPUS
     gives an Opus first pass. The body is a claim about where the work lands
     (D-34), so the fork checks again against the code before claiming, and
     `precheck.sh` checks the diff itself: a pull request labelled LABEL that
-    touches a protected path is refused there. Run with paths on stdin, this
-    script prints the protected ones and exits 1 when there are any.
+    touches a protected path is refused there, with this script read from
+    origin/main rather than the branch. Run with paths on stdin, it prints
+    the protected ones and exits 1 when there are any.
 """
 import re
 import sys
@@ -50,20 +51,32 @@ SMALL = ("XS", "S")
 # the rest of what D-19 gives an Opus first pass (schema.sql, prerender.js),
 # the rest of the deploy chain CLAUDE.md names (package.json and its lock,
 # parquet-bundle.mjs, wrangler.jsonc), and the licence texts, which are what
-# make the published database redistributable.
+# make the published database redistributable. Then the committed artefacts,
+# and the guard's own files and the merge gate's: a diff that could rewrite
+# the rule could pass its own check.
 PROTECTED_FILES = ("build.py", "verify.py", "schema.sql", "export_json.py",
                    "prepare-assets.js", "prerender.js", "parquet-bundle.mjs",
-                   "package.json", "package-lock.json", "wrangler.jsonc", "ATTRIBUTION.md")
+                   "package.json", "package-lock.json", "wrangler.jsonc", "ATTRIBUTION.md",
+                   "CODEOWNERS", "f1.db", "f1-geometry.db", "f1_compat.json",
+                   "implementer.py", "precheck.sh", "verdict.sh", "merge-step.py", "ci-wait.sh")
 # LICENSE, LICENSE-DATA, LICENSE-GEOMETRY and whatever joins them.
 LICENCE = re.compile(r"(?<![\w-])LICEN[CS]E[\w.-]*")
-PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/workflows/")
+PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/", ".claude/skills/backlog-item-sonnet/")
 # The release is a workflow (release.yml), and so is the refresh; a body names
 # one by its file name more often than by its directory.
 WORKFLOW = re.compile(r"\b[\w-]+\.ya?ml\b")
+# Items whose source is the data itself: live and current-season rows, what
+# Wikipedia tabulates, and the project's own record (known_gaps,
+# discrepancies, a verify.py warning). Their work lands in data/ or harvest/
+# whether or not the body says so - LV-11 names no path at all.
+DATA_SOURCES = ("source: live data", "source: Wikipedia survey", "source: project record")
 
 
 def _dir_pattern(d):
-    return re.compile(r"(?:^|(?<=[\s`'\"(]))(?:\./)?" + re.escape(d))
+    # After the start, a space, a quote, a bracket or emphasis, or a GitHub
+    # file URL's branch segment - each lookbehind fixed width, as re needs.
+    before = (r"^", r"(?<=[\s`'\"(\[*])", r"(?<=/blob/main/)", r"(?<=/tree/main/)")
+    return re.compile(r"(?:" + "|".join(before) + r")(?:\./)?" + re.escape(d), re.M)
 
 
 DIRS = [_dir_pattern(d) for d in PROTECTED_DIRS]
@@ -115,6 +128,9 @@ def choose(head, open_work, trial_count):
     labels = set(head["labels"])
     if labels & {"refresh-failing", "results-late"} or "source: security" in labels:
         return "opus", f"{head['ident']} is an alarm or a security alert"
+    data = sorted(labels & set(DATA_SOURCES))
+    if data:
+        return "opus", f"{head['ident']} is a data item ({data[0]})"
     size = next((lb[6:] for lb in head["labels"] if lb.startswith("size: ")), "?")
     if size not in SMALL:
         return "opus", f"{head['ident']} is size {size}"

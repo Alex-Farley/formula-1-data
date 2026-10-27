@@ -874,9 +874,13 @@ chooses per fork within the session it already runs. That holds for
 `/backlog-loop` typed by a person as much as unattended, and needs no change
 to how `supervise.py` starts the manager. `backlog-item-sonnet` is
 `context: fork` with `model: sonnet`, and its body sends the fork to
-`backlog-item/SKILL.md` with four additions. So the procedure still has one
-copy, and the trial is reverted by deleting one folder, one step and
-one script.
+`backlog-item/SKILL.md` with four additions, so the procedure still has one
+copy. Reverting the trial takes out: the `backlog-item-sonnet` folder;
+`implementer.py`, with the `import implementer`, `open_claude_work()`,
+`trial_count()` and the `--implementer` branch in `next.py`; precheck
+check 8; the implementer step and the `REROUTE` line in the driver's
+procedure; the lines naming the trial in `backlog-manager.md` and
+`supervise.py`'s docstring; and `tests/test_backlog_implementer.py`.
 
 **What is chosen, and how.** Before a fork at `balanced` or `thorough`, for
 the target `next` or `until-paused`, the driver runs `next.py
@@ -886,6 +890,10 @@ the target `next` or `until-paused`, the driver runs `next.py
 - no `claude/` branch or pull request is open. The next fork finishes one
   whatever it is, so its model is not chosen by the item at the head;
 - the head is not an alarm or a security alert;
+- its source is not the data itself (`source: live data`,
+  `source: Wikipedia survey`, `source: project record`): that work lands in
+  `data/` or `harvest/` whether or not the body says so, and the first
+  review of this entry found an LV item naming no path at all;
 - it is labelled XS or S. An unsized `?` is not;
 - its title and body name no protected path. The item's list is the data
   paths (`build.py`, `verify.py`, `data/`, `harvest/`, `tools/`) and the
@@ -893,8 +901,11 @@ the target `next` or `until-paused`, the driver runs `next.py
   `prepare-assets.js`). Beside those come the rest of what `[D-19]` gives an
   Opus first pass (`schema.sql`, `prerender.js`), the rest of the deploy
   chain CLAUDE.md names (`package.json` and its lock, `parquet-bundle.mjs`,
-  `wrangler.jsonc`), any `.yml`, and the licence texts. Over-matching keeps
-  an item on Opus, which is the safe direction;
+  `wrangler.jsonc`), all of `.github/`, any `.yml`, the licence texts, the
+  committed artefacts, and the scripts of this guard and of the merge gate
+  (`implementer.py`, `precheck.sh`, `verdict.sh`, `merge-step.py`,
+  `ci-wait.sh`). Over-matching keeps an item on Opus, which is the safe
+  direction;
 - fewer than ten pull requests, merged or open, carry the label
   `implementer: sonnet`. **The trial stops itself at ten** and waits to be
   measured, rather than running on unmeasured.
@@ -908,9 +919,13 @@ because the script reads the queue's head, not the item named.
 the item against the code before it claims anything. Where the work needs a
 protected path after all, it returns `REROUTE <ID>: <path>`, and the driver
 hands the item to the ordinary fork. `precheck.sh` then checks the diff
-itself. A pull request labelled `implementer: sonnet` that changes a
-protected path is a FAIL, and the fork closes that pull request unmerged and
-reroutes. It never takes the label off. The label is also the trial's
+itself, with renames split into both sides, against `implementer.py` as
+`origin/main` holds it so that a diff cannot rewrite its own rule. The Sonnet
+fork runs it under `LOOP_IMPLEMENTER=sonnet`. A pull request so run or
+labelled `implementer: sonnet` that changes a protected path is a FAIL, and
+the fork closes that pull request unmerged and reroutes. The variable without
+the label is a FAIL too, because the label is what the trial counts. The
+fork never takes the label off. The label is also the trial's
 record: the fork writes `implementer: sonnet` into its *item chosen*
 progress line, so `progress.log` attributes the `usage` lines around it.
 

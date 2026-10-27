@@ -7,6 +7,9 @@ context: fork
 # a headless session reports, an Opus session's fork of a skill naming
 # sonnet ran on Sonnet and one naming nothing ran on Opus. D-60.
 model: sonnet
+# Kept for the reason backlog-item keeps it: probed and apparently inert,
+# and deleting it would drop the fork's effort if it is live. D-35.
+effort: high
 ---
 
 # One backlog item, on Sonnet
@@ -25,7 +28,8 @@ on the four points below.
    driver chose it with `next.py --implementer`, which keeps an item on Opus
    when its body names a data path (`build.py`, `verify.py`, `schema.sql`,
    `data/`, `harvest/`, `tools/`) or a publishing one (`.github/workflows/`,
-   `export_json.py`, the deploy chain under `web/`, the licence texts) -
+   `export_json.py`, the deploy chain under `web/`, the licence texts, the
+   committed artefacts, this trial's guard and the merge gate's scripts) -
    `.claude/skills/backlog-loop/implementer.py` holds the list. A body is a
    claim about where the work lands, so when you reread the item against the
    code, before anything is claimed: if the work needs a protected path
@@ -38,8 +42,12 @@ on the four points below.
    The label is how the trial is counted (`next.py --implementer` stops
    choosing Sonnet at ten) and how it is measured (AF-146, #1175). A pull
    request implemented here and not labelled is lost to the trial.
-3. **`precheck.sh` refuses a labelled pull request that touches a protected
-   path.** Never take the label off to pass it. If it refuses, close the pull
+3. **Run the precheck as `LOOP_IMPLEMENTER=sonnet bash
+   .claude/skills/backlog-loop/precheck.sh <ID>...`.** It refuses a pull
+   request implemented here that touches a protected path, or that is not
+   labelled. Never take the label off, or run it without the variable, to
+   pass it. A missing label is fixed by adding it (`gh pr edit <N>
+   --add-label "implementer: sonnet"`). On a protected path, close the pull
    request unmerged with a comment naming the path (`gh pr close <N>
    --comment "..." --delete-branch`), remove the worktree, put every status
    back, and return `REROUTE <ID>: <the path>`; the Opus fork starts the item

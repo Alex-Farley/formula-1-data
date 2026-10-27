@@ -205,17 +205,34 @@ if [ -n "$vchanged" ]; then
 fi
 # 8. a pull request implemented on Sonnet under the AF-144 trial touches no
 # protected path (D-60). The fork checks the item before claiming it; this
-# checks the diff, which is what the rule is about. implementer.py holds the
-# list. A label gh could not read is a warning, as an unread body is above.
+# checks the diff, which is what the rule is about. Sonnet is known two ways,
+# the PR's label and LOOP_IMPLEMENTER=sonnet, which backlog-item-sonnet runs
+# this under; either one checks the diff, and the variable without the label
+# is a FAIL, since an unlabelled PR is lost to the trial's count. The rule is
+# implementer.py as origin/main has it, so a diff cannot rewrite the rule it
+# is checked against (the branch's copy only until main first carries it).
+# --no-renames: a file moved out of a protected path lists both sides.
 labels=$(gh pr view --json labels --jq '.labels[].name' 2>"$errf"); lrc=$?
-if [ $lrc -ne 0 ]; then
-  say WARN "the PR's labels were not read (none yet, or gh failed: $(head -1 "$errf" | cut -c1-56)), so the Sonnet trial's paths are unchecked"
-elif printf '%s\n' "$labels" | grep -qx 'implementer: sonnet'; then
-  impl="$(dirname "${BASH_SOURCE[0]}")/implementer.py"
-  if hits=$(git diff --name-only origin/main...HEAD | python3 "$impl"); then
+labelled=0
+[ $lrc -eq 0 ] && printf '%s\n' "$labels" | grep -qx 'implementer: sonnet' && labelled=1
+if [ "${LOOP_IMPLEMENTER:-}" = sonnet ] || [ $labelled = 1 ]; then
+  impl=$(mktemp)
+  trap 'rm -f "$errf" "$impl" ${oldv:+"$oldv"} ${newv:+"$newv"} ${bodyf:+"$bodyf"}' EXIT
+  if ! git show origin/main:.claude/skills/backlog-loop/implementer.py >"$impl" 2>/dev/null; then
+    cp "$(dirname "${BASH_SOURCE[0]}")/implementer.py" "$impl"
+    say WARN "origin/main has no implementer.py yet, so the Sonnet trial's paths are read from this branch"
+  fi
+  if hits=$(git diff --no-renames --name-only origin/main...HEAD | python3 "$impl"); then
     say ok "implemented on Sonnet, and no protected path changed"
   else
-    say FAIL "implemented on Sonnet (label 'implementer: sonnet') and changes a protected path, which AF-144 keeps on Opus: $(printf '%s' "$hits" | tr '\n' ' ')"; fail=1
+    say FAIL "implemented on Sonnet and changes a protected path, which AF-144 keeps on Opus: $(printf '%s' "$hits" | tr '\n' ' ')"; fail=1
   fi
+  if [ $labelled = 0 ]; then
+    if [ $lrc -ne 0 ]; then say FAIL "implemented on Sonnet, and the PR's label could not be read (none yet, or gh failed: $(head -1 "$errf" | cut -c1-56))"
+    else say FAIL "implemented on Sonnet and the PR is not labelled 'implementer: sonnet' - the trial counts by the label"; fi
+    fail=1
+  fi
+elif [ $lrc -ne 0 ]; then
+  say WARN "the PR's labels were not read (none yet, or gh failed: $(head -1 "$errf" | cut -c1-56))"
 fi
 if [ $fail = 0 ]; then echo "precheck: ready for review"; else echo "precheck: fix before asking a reviewer"; exit 1; fi
