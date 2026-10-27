@@ -3571,6 +3571,7 @@ try {
         results: cars.map((g) => g.querySelector('.flag-result')?.textContent.trim()),
         grids: cars.map((g) => g.querySelector('text')?.textContent.trim()),
         out: cars.map((g) => g.classList.contains('flag-out')),
+        won: cars.map((g) => g.classList.contains('flag-won')),
         crosses: svg.querySelectorAll('g.flag-out path.flag-cross').length,
         ends: cars.map((g) => Number(g.querySelector('line.flag-line')?.getAttribute('x2'))),
         rows: figure.querySelectorAll('table tbody tr').length,
@@ -3593,6 +3594,7 @@ try {
     const raceId = one('SELECT id FROM races WHERE year = 1976 AND round = 9')
     const cars = count(`SELECT COUNT(*) FROM race_entries WHERE ${drawn}`, raceId)
     const out = count(`SELECT COUNT(*) FROM race_entries WHERE ${drawn} AND finish_position IS NULL`, raceId)
+    const won = count(`SELECT COUNT(*) FROM race_entries WHERE ${drawn} AND finish_position = 1`, raceId)
     truthy(out > 0, `/races/1976/9 has ${out} cars the result does not classify, to read the staircase on`)
     const { served, app } = await both('/races/1976/9')
     for (const [half, got] of [['the app', app], ['the static page', served]]) {
@@ -3603,6 +3605,9 @@ try {
       is(got.crosses, out, `${half}: and ends on a cross`)
       is(got.rows, cars, `${half}: the figure's table carries every car it draws`)
       is(got.results[0], '1', `${half}: the winner ends at the top`)
+      // VD-94: the winner's line is the one in the accent, and no other.
+      is(got.won.filter(Boolean).length, won, `${half}: every car classified first is drawn in the accent`)
+      is(got.won[0], true, `${half}: and it is the line that ends at the top`)
       const outEnds = got.ends.filter((_, i) => got.out[i])
       const flag = Math.max(...got.ends)
       truthy(Math.min(...outEnds) < flag, `${half}: a retirement stops short of the flag`)
@@ -5609,6 +5614,28 @@ try {
       truthy(
         cards.every((n) => n === 1),
         `every card reaches its car page once from the keyboard (${cards.join(',')})`,
+      )
+    }
+
+    // AF-58: a card's meta line carries the builder's mark where the car's
+    // last season is in a colour era (before 1968, from 2010), and none in
+    // the declared 1968-2009 gap. Read per card against the car's to_year.
+    {
+      const marks = await page.$$eval('#root main .carcard', (els) =>
+        els.map((card) => ({
+          id: card.querySelector('h3 a')?.getAttribute('href')?.split('/').pop(),
+          mark: Boolean(card.querySelector('.carcard-meta i.livery')),
+        })),
+      )
+      const eras = marks.map(({ id }) => {
+        const year = count('SELECT to_year FROM cars WHERE id = ?', id)
+        return year < 1968 || year >= 2010
+      })
+      truthy(eras.some(Boolean) && eras.some((e) => !e), 'the cards span a colour era and the gap')
+      is(
+        marks.filter((m, i) => m.mark !== eras[i]).map((m) => m.id).join(','),
+        '',
+        'a card carries a mark exactly when its last season is in a colour era',
       )
     }
 

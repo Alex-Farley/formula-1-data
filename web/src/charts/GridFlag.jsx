@@ -1,4 +1,4 @@
-import { GRID_FLAG_HEADS, GRID_FLAG_WIDTH, crossPath, gridFlagLayout } from './gridFlag.js'
+import { GRID_FLAG_HEADS, GRID_FLAG_WIDTH, crossPath, flagCarClass, gridFlagLayout } from './gridFlag.js'
 import { useMeasure } from './useMeasure.js'
 
 /**
@@ -35,7 +35,7 @@ export default function GridFlag({ entries, label }) {
           {GRID_FLAG_HEADS.result}
         </text>
         {cars.map((car) => (
-          <g key={car.key} className={car.out ? 'flag-car flag-out' : 'flag-car'}>
+          <g key={car.key} className={flagCarClass(car)}>
             <text className="axis-text" x={layout.gridX} y={car.y1} textAnchor="end" dominantBaseline="middle">
               {car.grid}
             </text>

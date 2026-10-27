@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { lineLayout } from './lineChart.js'
-import { seriesColour, seriesDash } from './palette.js'
+import { seriesDash, slotColour } from './palette.js'
 import { LineKey } from './Figure.jsx'
 import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
@@ -18,7 +18,8 @@ import { useMeasure } from './useMeasure.js'
  * rendering the mark's lead so the line and the team's mark read as one
  * colour (AF-57). With a colour the <g> wears the pair as custom properties
  * and the strokes read --livery, which styles/app.css resolves per theme;
- * without one the series takes its slot in the neutral palette.
+ * without one a lone series is drawn in ink, and each of several takes its
+ * slot in the neutral palette (VD-94; charts/palette.js).
  *
  * Every series also takes its slot's dash - solid, dashed, dotted - whatever
  * its colour (AX-16). A dropped end label leaves the legend as the key to
@@ -26,7 +27,6 @@ import { useMeasure } from './useMeasure.js'
  * Figure takes `marks="line"` so the legend draws the same strokes.
  */
 const seriesStyle = (s) => (s.colour ? { '--livery-light': s.colour.light, '--livery-dark': s.colour.dark } : undefined)
-const seriesPaint = (s, i) => (s.colour ? 'var(--livery)' : seriesColour(i))
 export default function LineChart({
   series,
   height = 240,
@@ -37,6 +37,7 @@ export default function LineChart({
 }) {
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
+  const seriesPaint = (s, i) => (s.colour ? 'var(--livery)' : slotColour(i, series.length))
 
   // The geometry, the crosshair's columns and which line ends carry a label
   // are charts/lineChart.js's, which the static page draws from too (VD-73).
@@ -136,7 +137,7 @@ export default function LineChart({
             if (!point) return null
             return (
               <span className="row" key={s.name}>
-                <LineKey index={i} colour={s.colour} />
+                <LineKey index={i} count={series.length} colour={s.colour} />
                 {series.length > 1 && `${s.name} `}
                 <b style={{ display: 'inline', color: 'var(--ink)' }}>{format(point.y)}</b>
               </span>

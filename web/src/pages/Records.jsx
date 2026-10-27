@@ -58,6 +58,7 @@ import {
   holderPath,
   latestDecade as latestOf,
   leadersDrawn,
+  markLeaders,
   poleToWinRows,
   recordColumns,
   recordFamilies,
@@ -243,8 +244,8 @@ function Body({ data }) {
   // non-colour rather than a neutral that could be read as a livery, which is
   // the same mark DotPlot gives a colourless season and the same rule.
   //
-  // As on the driver page, a chart no bar of which has a colour keeps the
-  // plain neutral series: nothing is there for a neutral to be misread
+  // As on the driver page, a chart no bar of which has a colour is drawn
+  // plainly in ink (VD-94): nothing is there for a neutral to be misread
   // against. No figure is written down for how many of the fifteen fall
   // either side, because the split turns as the top fifteen does and nothing
   // would check a number stated here.
@@ -319,7 +320,7 @@ function Body({ data }) {
               table={{ rows: driverWins, columns: withApp(DRIVER_WINS_COLUMNS, { full_name: driverLink }) }}
             >
               <BarChart
-                data={winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+                data={markLeaders(winBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins })))}
                 label={DRIVER_WINS_FIGURE.label(winBars.length)}
               />
             </Figure>
@@ -331,7 +332,7 @@ function Body({ data }) {
               table={{ rows: driverPoles, columns: withApp(DRIVER_POLES_COLUMNS, { full_name: driverLink }) }}
             >
               <BarChart
-                data={poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
+                data={markLeaders(poleBars.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles })))}
                 label={DRIVER_POLES_FIGURE.label(poleBars.length)}
               />
             </Figure>
@@ -405,7 +406,7 @@ function Body({ data }) {
         <FigurePart title={decadeFigureTitle(decade)}>
           <Figure note={DECADE_NOTE} table={{ rows: decadeRows, columns: withApp(DECADE_COLUMNS, { full_name: driverLink }) }}>
             <BarChart
-              data={decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+              data={markLeaders(decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins })))}
               label={`Drivers with the most wins in the ${decade}s`}
             />
           </Figure>

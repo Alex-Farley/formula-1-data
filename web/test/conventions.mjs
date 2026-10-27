@@ -1145,6 +1145,35 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
     })
   }
 
+  // VD-94: a chart with no owner draws in --series-ink and its one stated
+  // value in --series-mark. Each is declared once, as a reference to an ink
+  // and the accent, so the hex each theme draws is the referenced token's:
+  // resolved here per block and measured as the slots are.
+  it('the ink pair is a reference to an ink and the accent, and each clears 3:1 on --panel in both themes (VD-94)', () => {
+    const refs = Object.fromEntries([...css.matchAll(/--(series-ink|series-mark):\s*var\(--([a-z-]+)\)/g)].map((m) => [m[1], m[2]]))
+    assert.deepEqual(Object.keys(refs).sort(), ['series-ink', 'series-mark'], 'tokens.css declares --series-ink and --series-mark as var() references')
+    assert.match(refs['series-ink'], /^ink(-soft|-faint)?$/, `--series-ink is var(--${refs['series-ink']}), not an ink`)
+    assert.equal(refs['series-mark'], 'accent', '--series-mark is the accent')
+    for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
+      const t = tokens(block)
+      for (const [name, ref] of Object.entries(refs)) {
+        assert.ok(t[ref], `${label} block has no six-digit --${ref} for --${name} to resolve to`)
+        const ratio = contrast(t[ref], t.panel)
+        assert.ok(ratio >= 3, `${label}: --${name} (${t[ref]}) on --panel is ${ratio.toFixed(2)}:1`)
+      }
+    }
+  })
+
+  // VD-94's Done-when: no one-series chart falls back to a palette slot. The
+  // slots are reached only through slotColour(), which gives one series ink,
+  // and the stylesheet paints no mark in a slot directly.
+  it('no chart draws a reference slot where it has one series: only palette.js names a slot, and nothing else reaches one but through slotColour() (VD-94)', () => {
+    const files = [...sourceFiles(join(web, 'src'), /\.(jsx?|css)$/), ...sourceFiles(join(web, 'scripts'), /\.m?js$/)]
+    const reaches = (pattern) => files.filter((file) => pattern.test(read(file))).map(rel)
+    assert.deepEqual(reaches(/\bseriesColour\(|[{,]\s*SERIES\s*[,}]|\bSERIES\[/), ['src/charts/palette.js'], 'a slot is reached other than through slotColour()')
+    assert.deepEqual(reaches(/var\(--series-[123]\)/), ['src/charts/palette.js'], 'a slot is named outside palette.js')
+  })
+
   it('the ring round a title is drawn at full strength, in colours that clear 3:1 (AX-23)', () => {
     // The halo takes the dot's own colour - a series slot, or a livery pair
     // the livery checks above hold to 3:1 on the panel - so the pair's ratio

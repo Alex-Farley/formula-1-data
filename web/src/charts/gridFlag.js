@@ -192,6 +192,10 @@ export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
       return {
         key: r.entry.id ?? r.entry.driver_id,
         out: r.out,
+        // The winner's line wears the accent (VD-94): the race's lede says
+        // who won, and this is that line. Every car classified first, so a
+        // shared winning drive marks both of its drivers.
+        won: r.entry.finish_position === 1,
         x1: round(x(0)),
         y1: round(y(r.start)),
         x2: round(end),
@@ -207,6 +211,13 @@ export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
     }),
   }
 }
+
+/**
+ * A car's group class, which both renderers write: a car that was not
+ * classified is `flag-out`, dashed and ending on a cross, and the winner
+ * `flag-won`, in the accent (styles/app.css).
+ */
+export const flagCarClass = (car) => `flag-car${car.out ? ' flag-out' : ''}${car.won ? ' flag-won' : ''}`
 
 /** The cross a car that was not classified ends on, as path data. */
 export const crossPath = (x, y, size = 3) =>

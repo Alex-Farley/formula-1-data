@@ -25,8 +25,8 @@
  * and not the marks alone.
  *
  * With no colour the caller gets no class and no properties, and the chart's
- * own `seriesColour(0)` fallback stands - which is what a constructor with no
- * sourced livery and no recognised national colour gets.
+ * own fallback stands - ink, charts/palette.js's INK (VD-94) - which is what a
+ * constructor with no sourced livery and no recognised national colour gets.
  */
 export function ownColour(colour) {
   if (!colour) return { className: undefined, style: undefined, paint: null }

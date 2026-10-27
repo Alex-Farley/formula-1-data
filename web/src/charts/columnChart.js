@@ -11,11 +11,16 @@ export const COLUMN_MARGIN = { top: 16, right: 10, bottom: 30, left: 44 }
 export const MAX_THICKNESS = 24
 
 /**
- * `data` as ColumnChart takes it: `{ key, value, label }` per column. Null
- * where there is nothing to draw. Each column carries its hit target (the
- * full step), its rounded-top path, whether its value is printed over it
- * (the peak, where the column is tall enough to hold the number), and
- * whether its axis label is drawn (every `labelEvery`th).
+ * `data` as ColumnChart takes it: `{ key, value, label }` per column, and
+ * optionally `print`, `mark` and `hollow` (VD-94; ColumnChart says what each
+ * draws). Null where there is nothing to draw. Each column carries its hit
+ * target (the full step), its rounded-top path, whether its value is printed
+ * over it, and whether its axis label is drawn (every `labelEvery`th).
+ *
+ * The value printed is the peak's, where the column is tall enough to hold
+ * the number - unless any datum carries `print`, when it is those columns'
+ * instead: the figures the page's note states, put where the reader is
+ * looking (VD-94), rather than a peak the note does not mention.
  */
 export function columnLayout({
   data,
@@ -33,6 +38,8 @@ export function columnLayout({
   const y = linear(niceDomain(data.map((d) => d.value)), [height - M.bottom, M.top])
   const thickness = Math.min(x.bandwidth, MAX_THICKNESS)
   const peak = data.reduce((a, b) => (b.value > a.value ? b : a), data[0])
+  const printed = data.some((d) => d.print)
+  const prints = (d) => (printed ? Boolean(d.print) : labelPeak && d.key === peak.key)
   const radius = Math.min(4, thickness / 2)
   const columns = data.map((d, i) => {
     const centre = x.centre(d.key)
@@ -48,7 +55,7 @@ export function columnLayout({
       path: `M${left},${bottom} L${left},${top + radius} Q${left},${top} ${left + radius},${top}
                     L${left + thickness - radius},${top} Q${left + thickness},${top} ${left + thickness},${top + radius}
                     L${left + thickness},${bottom} Z`,
-      value: labelPeak && d.key === peak.key && tall > 14 ? format(d.value) : null,
+      value: prints(d) && tall > 14 ? format(d.value) : null,
       label: i % labelEvery === 0 ? (d.label ?? d.key) : null,
     }
   })

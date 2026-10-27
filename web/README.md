@@ -448,15 +448,22 @@ into anything else.
 
 A few rules the toolkit enforces, worth knowing before adding a fifth chart:
 
+- **Colour follows the owner, then ink** (VD-94). A series that belongs to a
+  team or a driver wears its sourced livery or racing colour; a chart with
+  one series and nobody's colour is drawn in ink, with the accent on the one
+  value its page states; several series with no sourced colour take the
+  three series slots. `src/charts/palette.js` holds the order.
 - **Colour is validated, not chosen by eye.** The three series colours are
   slots 1–3 of the reference categorical palette, run through the palette
   validator against this app's own light and dark chart surfaces with every
   pair in play. `src/charts/palette.js` records the numbers it returned. Three
   is the cap: the fourth slot puts yellow beside orange and that pair fails the
   all-pairs floors.
-- **The brand red is never a data mark.** It is the one interactive colour —
-  links, the focus ring, the current nav item — and a mark wearing it would be
-  a mark that looks clickable. It also fails the dark-mode lightness band.
+- **The brand red is never a series.** It is the one interactive colour —
+  links, the focus ring, the current nav item — and a line or a set of bars
+  wearing it would look clickable. On a chart it is spent only on the one
+  value an ink chart's page states, beside the value or name printed for it
+  (`[D-61]`).
 - **Text never wears the series colour.** Marks carry the colour; values,
   labels and ticks use ink tokens.
 - **Direct-label selectively, and drop a label that would collide.** Lines

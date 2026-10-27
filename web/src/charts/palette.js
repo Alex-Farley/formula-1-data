@@ -1,7 +1,20 @@
 /**
  * The chart colours, and the record of how they were checked.
  *
- * These are slots 1-3 of the reference categorical palette. They were not
+ * WHICH COLOUR A CHART DRAWS IN (VD-94, [D-61]), in order:
+ *
+ *   1. A series that belongs to a team or a driver wears its sourced colour -
+ *      the livery from 2010, the national racing colour before 1968 - as the
+ *      {light, dark} pair charts/own.js hands an element.
+ *   2. A chart with ONE series and no such colour is drawn in INK, with MARK
+ *      on the one value its page states: the season a note names, the
+ *      record's holder, the race's winner. Colour then means something on the
+ *      one mark it is spent on, rather than being the same blue on every
+ *      first series on the site, which is what the reference palette was.
+ *   3. Several series with no sourced colour, or with colours that cannot be
+ *      told apart, take slots 1-3 below.
+ *
+ * Slots 1-3 of the reference categorical palette. They were not
  * chosen by eye: the palette validator was run against this app's own chart
  * surface — white in light, #191920 in dark — with every pair in play, and
  * these are the numbers it returned.
@@ -40,14 +53,44 @@
  * fourth hue: the fourth slot puts yellow beside orange, and that pair fails
  * the all-pairs floors.
  *
- * The brand red is deliberately absent. It is this app's one interactive
- * colour — links, the focus ring, the current nav item — and a data mark
- * wearing it would be a mark that looks clickable. It also fails the dark
- * lightness band.
+ * The brand red is absent from the slots. It is this app's one interactive
+ * colour — links, the focus ring, the current nav item — and a series wearing
+ * it would be a line that looks clickable; it also fails the dark lightness
+ * band as a categorical hue. It is drawn on ONE mark of an ink chart, as
+ * MARK, where it says "this is the value the page states", the same job it
+ * already did for the fastest lap; the maintainer accepted that on #924.
  */
 export const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)']
 
 export const seriesColour = (i) => SERIES[i % SERIES.length]
+
+/**
+ * The ink pair (VD-94): --series-ink is --ink-soft and --series-mark is
+ * --accent, in each theme (styles/tokens.css). The same validator, run on the
+ * pair with --pairs all:
+ *
+ *   light (surface #ffffff)   #4f5561 / #c81028: CVD ΔE 8.5 (protan) ·
+ *                             tritan 27.2 · normal-vision 23.4 · both at or
+ *                             above 3:1
+ *   dark  (surface #14161b)   #9aa1ae / #ff4757: CVD ΔE 11.8 (deutan) ·
+ *                             tritan 27.9 · normal-vision 23.2 · both at or
+ *                             above 3:1
+ *
+ * It reports the ink as under its chroma floor, and in dark outside its
+ * lightness band: those are the checks that a categorical HUE reads as one,
+ * and the ink is meant to read as no hue at all - the grey the dataviz
+ * method's emphasis pattern ("highlight one, grey the rest") asks for. The
+ * mark is never the only cue either: the value it carries, or the name it
+ * belongs to, is printed on or beside it.
+ */
+export const INK = 'var(--series-ink)'
+export const MARK = 'var(--series-mark)'
+
+/**
+ * Slot `i` of `count` series with no sourced colour: ink where it is the
+ * only one (rule 2 above), the palette's slot otherwise (rule 3).
+ */
+export const slotColour = (i, count) => (count === 1 ? INK : seriesColour(i))
 
 /**
  * The second channel: every series its own stroke, solid, dashed, dotted

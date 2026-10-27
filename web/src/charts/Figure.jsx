@@ -2,15 +2,17 @@ import { useContext, useId } from 'react'
 import DataTable from '../components/DataTable.jsx'
 import { SectionTitle } from '../components/Page.jsx'
 import { UNFOLDED } from '../lib/table.js'
-import { seriesColour, seriesDash } from './palette.js'
+import { seriesDash, slotColour } from './palette.js'
 
 /**
  * The key to one line: a short stroke in the series' colour and its dash
  * (AX-16), so the legend and the tooltip show the same pattern the line is
  * drawn in. `colour` is a {light, dark} livery pair or null; with one the
- * stroke reads --livery, which `.livery-series` resolves per theme.
+ * stroke reads --livery, which `.livery-series` resolves per theme; without
+ * one it is the slot's colour among `count` series, ink where it is the only
+ * one (VD-94).
  */
-export function LineKey({ index, colour }) {
+export function LineKey({ index, count, colour }) {
   return (
     <svg
       className={colour ? 'line-key livery-series' : 'line-key'}
@@ -26,7 +28,7 @@ export function LineKey({ index, colour }) {
         x2="18"
         y1="4"
         y2="4"
-        stroke={colour ? 'var(--livery)' : seriesColour(index)}
+        stroke={colour ? 'var(--livery)' : slotColour(index, count)}
         strokeWidth="2"
         strokeDasharray={seriesDash(index)}
         strokeLinecap="round"
@@ -88,7 +90,7 @@ export default function Figure({ note, legend, marks = 'swatch', lead = false, t
         return (
           <span key={entry.name}>
             {marks === 'line' ? (
-              <LineKey index={i} colour={entry.colour} />
+              <LineKey index={i} count={legend.length} colour={entry.colour} />
             ) : entry.colour ? (
               <i
                 className="livery-series"
@@ -96,7 +98,7 @@ export default function Figure({ note, legend, marks = 'swatch', lead = false, t
                 aria-hidden="true"
               />
             ) : (
-              <i style={{ background: seriesColour(i) }} aria-hidden="true" />
+              <i style={{ background: slotColour(i, legend.length) }} aria-hidden="true" />
             )}
             {entry.name}
           </span>

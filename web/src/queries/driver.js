@@ -315,8 +315,8 @@ export const FINISHES_COLUMNS = [
  * season that gap covers is drawn hollow instead: outlined and unfilled,
  * visibly a non-colour rather than a neutral that could be read as a team,
  * which is the objection the old rule existed to answer. A chart NO dot of
- * which has a colour keeps the plain neutral series, as every other chart on
- * the site does: there are no liveries for a neutral to be misread against,
+ * which has a colour is drawn plainly in ink, as every other chart on the site
+ * that belongs to no colour is (VD-94): there are no liveries for a neutral to be misread against,
  * and a page of outlines would say "missing" about a career where nothing is
  * missing that the site records anywhere.
  *

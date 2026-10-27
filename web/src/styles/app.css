@@ -1526,7 +1526,7 @@ td.spark svg.spark {
 
 .spark-line {
   fill: none;
-  stroke: var(--series-1);
+  stroke: var(--series-ink);
   stroke-width: 1.5;
   stroke-linejoin: round;
   stroke-linecap: round;
@@ -1534,7 +1534,7 @@ td.spark svg.spark {
 
 .spark-end,
 .spark-run {
-  fill: var(--series-1);
+  fill: var(--series-ink);
 }
 
 .spark-track {
@@ -3080,34 +3080,46 @@ figure.figure > .figure-note:first-child {
 
 /* The bar form of the same mark. A bar is long enough that the outline alone
    carries the length, so no hatch is needed to make it read. */
-.figure .bar-hollow {
+.figure .bar-hollow,
+.figure .column-hollow {
   fill: none;
   stroke: var(--ink-soft);
   stroke-width: 1.5;
 }
 
-/* Grid to flag (PD-30): a car that finished in the first series colour,
-   one that was not classified in ink, dashed, ending on a cross - three
-   channels, so the colour is never the only one. The names are ink at the
+/* Grid to flag (PD-30): a car that finished in ink, the winner in the
+   accent (VD-94), one that was not classified fainter, dashed, ending on a
+   cross - three channels, so the colour is never the only one, and the
+   winner's result and name are printed at its end. The names are ink at the
    axis size; the leader is the gridline's own faint rule, dotted. */
 .figure .flag-line {
-  stroke: var(--series-1);
+  stroke: var(--series-ink);
   stroke-width: 1.5;
   fill: none;
 }
 
 .figure .flag-start,
 .figure .flag-end {
-  fill: var(--series-1);
+  fill: var(--series-ink);
+}
+
+.figure .flag-won .flag-line {
+  stroke: var(--series-mark);
+  stroke-width: 2;
+}
+
+.figure .flag-won .flag-start,
+.figure .flag-won .flag-end {
+  fill: var(--series-mark);
 }
 
 .figure .flag-out .flag-line {
-  stroke: var(--ink-soft);
+  stroke: var(--ink-faint);
   stroke-dasharray: 4 3;
 }
 
 .figure .flag-out .flag-start {
-  fill: var(--ink-soft);
+  fill: var(--ink-faint);
 }
 
 .figure .flag-cross {
@@ -3127,12 +3139,13 @@ figure.figure > .figure-note:first-child {
   font-size: var(--size-2);
 }
 
-/* Stint windows (PD-56): every stint in the first series colour, one hue for
-   all of them, because a second would read as a tyre compound and the record
-   holds none. A stop is a break in the bar and an ink tick across it - shape,
-   not colour - and a car not classified ends on the grid-to-flag cross. */
+/* Stint windows (PD-56): every stint in the chart ink (VD-94), one colour for
+   all of them, because a hue would read as a tyre compound and the record
+   holds none. A stop is a break in the bar and an ink tick across it, past
+   the bar's edges - shape, not colour - and a car not classified ends on the
+   grid-to-flag cross. */
 .figure .stint {
-  fill: var(--series-1);
+  fill: var(--series-ink);
 }
 
 .figure .stint-stop {

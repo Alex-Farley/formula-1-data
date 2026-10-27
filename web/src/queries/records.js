@@ -192,6 +192,18 @@ export function leadersDrawn(rows, key) {
   return rows.slice(0, n)
 }
 
+/**
+ * A leaderboard's bars with the record's holder marked (VD-94): the bar a
+ * page about the record is stating, drawn in the accent on a chart otherwise
+ * in ink. Every bar level with the top is marked, so a record two drivers
+ * share marks both rather than whichever the sort put first; an empty board
+ * marks nothing.
+ */
+export function markLeaders(bars) {
+  const top = Math.max(...bars.map((bar) => bar.value))
+  return bars.map((bar) => ({ ...bar, mark: bar.value === top }))
+}
+
 // "fifteen" where the cut is clean, the count where a tie has lengthened it.
 const howMany = (n) => (n === LEADERS_DRAWN ? 'fifteen' : String(n))
 

@@ -3,9 +3,11 @@
  *
  * Five colour families, each with one job, kept apart on purpose:
  *
- *   --accent      one red, and it means "you can act on this" or "this was
- *                 fastest". Links, focus, the current nav item, the fastest
- *                 lap. Identity and state have families of their own below;
+ *   --accent      one red, and it means "you can act on this", "this was
+ *                 fastest", or - on a chart, as --series-mark - "this is the
+ *                 value the page states" (VD-94, [D-61]). Links, focus, the
+ *                 current nav item, the fastest lap, one mark on a figure
+ *                 drawn in ink. Identity and state have families of their own below;
  *                 two of them sit on or beside its hex - the podium rail and
  *                 Italian racing red - and each is its own token so that it
  *                 can part from the accent without moving it.
@@ -23,11 +25,16 @@
  *                 draws nothing, because nothing sourced says what to draw.
  *   --rail-*      state: podium, scored, classified, retired - the result
  *                 rail on a row.
- *   --series-*    the chart colours. Slots 1-3 of the reference categorical
- *                 palette, validated by script against these exact surfaces
- *                 rather than chosen by eye, and each clears 3:1 on --panel,
- *                 the surface every figure draws on, in both themes. Never
- *                 text.
+ *   --series-*    the chart colours. A chart that belongs to nobody draws
+ *                 in --series-ink, with --series-mark on the one value its
+ *                 page states (VD-94); one whose series are teams or
+ *                 drivers wears their --livery or --racing-* colour; slots
+ *                 1-3 of the reference categorical palette are the fallback
+ *                 for several series with no sourced colour, or none that
+ *                 can be told apart. Each slot was validated by script
+ *                 against these exact surfaces rather than chosen by eye,
+ *                 and each clears 3:1 on --panel, the surface every figure
+ *                 draws on, in both themes. Never text.
  *
  * And three scales, so that a new component picks a step rather than a
  * number (VD-03): --size-* for type, --weight-* for weight and --space-* for
@@ -106,6 +113,13 @@
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #15a174;
+  /* A chart with one series and no owner (VD-94): ink, and the accent on the
+     one value its page states. Declared once, as references, so each theme's
+     ink and accent are what a chart draws: charts/palette.js records the
+     validator run on the pair, and test/conventions.mjs measures both
+     against --panel in both themes. */
+  --series-ink: var(--ink-soft);
+  --series-mark: var(--accent);
   --grid: #e3e5ea;
 
   /* national racing colours (lib/racingColours.js names them). One hex served

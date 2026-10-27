@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { columnLayout } from './columnChart.js'
 import { ownColour } from './own.js'
-import { seriesColour } from './palette.js'
+import { INK, MARK } from './palette.js'
 import Tooltip from './Tooltip.jsx'
 import { useMeasure } from './useMeasure.js'
 
@@ -12,6 +12,14 @@ import { useMeasure } from './useMeasure.js'
  * a bar that fills its slot has no gap to separate it from its neighbour, and
  * the gap is what does the separating. Rounded at the data end only: the
  * baseline end is square because that is where the measurement starts.
+ *
+ * The colour (VD-94; charts/palette.js has the order): the owner's, where the
+ * chart has one, and ink where it has none. A datum may carry `mark`, drawn
+ * in the accent - the one value the page states - and `print`, which prints
+ * its value over it (charts/columnChart.js). A datum may instead be `hollow`:
+ * outlined in ink and unfilled, for a column that is not a measurement of the
+ * same kind as the rest - the home page's calendars, which are not results.
+ * Each carries a second cue beside the colour: the printed value, the fill.
  */
 export default function ColumnChart({
   data,
@@ -24,7 +32,7 @@ export default function ColumnChart({
   // result, so a constructor's wins are drawn in the constructor's colour
   // rather than in slot one of the shared palette (VD-34). Null on every
   // chart that belongs to no single entity - the home page's, the quality
-  // page's - which keep the palette.
+  // page's - which are drawn in ink.
   colour = null,
   // Whole-number ticks for a count; a wins axis ticked at 2.5 is an axis
   // that lies (web/README.md says so, and scales.js already supports it).
@@ -41,7 +49,9 @@ export default function ColumnChart({
   if (!layout) return null
   const { x, y } = layout
 
-  const paint = own.paint ?? seriesColour(0)
+  // The owner's colour outranks `mark`, as in BarChart: a chart in liveries
+  // takes no accent (charts/palette.js).
+  const paint = (d) => (d.hollow ? 'none' : (own.paint ?? (d.mark ? MARK : INK)))
 
   return (
     // The class and the properties go on the HOLDER, not the <svg>: the
@@ -78,7 +88,12 @@ export default function ColumnChart({
                 height={column.hit.height}
                 fill="transparent"
               />
-              <path d={column.path} fill={paint} opacity={hover && hover.key !== d.key ? 0.55 : 1} />
+              <path
+                className={d.hollow ? 'column-hollow' : undefined}
+                d={column.path}
+                fill={paint(d)}
+                opacity={hover && hover.key !== d.key ? 0.55 : 1}
+              />
               {column.value !== null && (
                 <text className="value-text" x={column.centre} y={column.top - 6} textAnchor="middle">
                   {column.value}
@@ -104,7 +119,11 @@ export default function ColumnChart({
               heading. On the home page that is nine columns in ten. */}
           <b>{hover.label || hover.key}</b>
           <span className="row">
-            <i style={{ background: paint }} aria-hidden="true" />
+            {hover.hollow ? (
+              <i className="swatch-hollow" aria-hidden="true" />
+            ) : (
+              <i style={{ background: paint(hover) }} aria-hidden="true" />
+            )}
             {format(hover.value)}
             {hover.note ? ` · ${hover.note}` : ''}
           </span>
