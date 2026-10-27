@@ -934,12 +934,58 @@ class TheZenodoDepositSaysWhatTheCitationSays(unittest.TestCase):
         by_sa = [b for b in bullets if "CC BY-SA 4.0" in b]
         self.assertEqual(len(odbl), 1, ".zenodo.json's notes have no single ODbL bullet")
         self.assertEqual(len(by_sa), 1, ".zenodo.json's notes have no single CC BY-SA bullet")
-        for named in ("harvest/circuit_geometry.txt", "f1-geometry.db"):
+        for named in OSM_HARVEST + ("f1-geometry.db",):
             self.assertIn(named, odbl[0],
                           f".zenodo.json's notes do not put {named} under ODbL 1.0")
         self.assertIn("harvest/ except harvest/circuit_geometry.txt", by_sa[0],
                       ".zenodo.json's notes do not carve the OpenStreetMap centrelines "
                       "out of harvest/'s CC BY-SA 4.0")
+        exception = by_sa[0].split("harvest/ except ", 1)[1].split(", f1.db", 1)[0]
+        for named in OSM_HARVEST:
+            self.assertIn(named, exception,
+                          f".zenodo.json's notes do not carve {named} out of harvest/'s "
+                          "CC BY-SA 4.0")
+
+
+# The harvest files holding OpenStreetMap data, which LICENSE-DATA, ATTRIBUTION.md
+# and .zenodo.json carve out of harvest/'s CC BY-SA 4.0 as ODbL 1.0 (CR-102).
+OSM_HARVEST = ("harvest/circuit_geometry.txt", "harvest/circuit_geometry.log",
+               "harvest/circuit_wikidata.txt")
+
+
+class TheOpenStreetMapHarvestIsNamedAsOdbl(unittest.TestCase):
+    """harvest/ is CC BY-SA 4.0 but for the three files holding OpenStreetMap
+    data, which are ODbL 1.0 (CR-102, ruled on #1095). LICENSE-DATA's
+    *Circuit geometry* section and ATTRIBUTION.md's *OpenStreetMap* section
+    name each, so a fourth such file, or one renamed, is not covered by
+    harvest/'s share-alike by silence."""
+
+    def section(self, rel, heading):
+        """From the heading to the next heading of any level."""
+        m = re.search(rf"^{re.escape(heading)}.*?(?=^#|\Z)", read(rel), re.M | re.S)
+        self.assertIsNotNone(m, f"{rel} has no {heading!r} section")
+        return m.group(0)
+
+    def test_each_file_exists(self):
+        for rel in OSM_HARVEST:
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, rel)),
+                            f"{rel} is named as ODbL and is not in harvest/")
+
+    def test_licence_data_and_attribution_name_each_under_odbl(self):
+        for rel, heading in (("LICENSE-DATA", "## Circuit geometry"),
+                             ("ATTRIBUTION.md", "### OpenStreetMap")):
+            body = self.section(rel, heading)
+            self.assertIn("ODbL 1.0", body, f"{rel}'s {heading!r} names no ODbL 1.0")
+            for named in OSM_HARVEST:
+                self.assertIn(named, body,
+                              f"{rel}'s {heading!r} section does not name {named} as "
+                              "ODbL, so harvest/'s CC BY-SA 4.0 reads as covering it")
+
+    def test_no_line_says_nothing_else_derives_from_openstreetmap(self):
+        text = " ".join(read("ATTRIBUTION.md").split())
+        self.assertNotIn("else in the project derives from OpenStreetMap", text,
+                         "ATTRIBUTION.md says nothing else in the project derives from "
+                         "OpenStreetMap, and three harvest/ files do")
 
 
 class NoLineOpensOnAFigureSpan(unittest.TestCase):

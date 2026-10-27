@@ -1,14 +1,16 @@
 Data licence — CC BY-SA 4.0, except the project's own writing named below (CC BY 4.0)
 
 This licence covers the data in this repository and every file it is
-published as: data/, harvest/, f1.db, f1.db.gz (f1.db compressed, as
+published as: data/, harvest/ (less the three files of OpenStreetMap data
+named under *Circuit geometry* below), f1.db, f1.db.gz (f1.db compressed, as
 lapledger.org serves it), f1-parquet.zip (every table of f1.db as Parquet),
 f1_database.json (released compressed, as f1_database.json.gz),
 f1_compat.json, and the JSON files lapledger.org serves under /api/v1/
 (the rows of f1.db, one file per driver, constructor, circuit, season and
 race). The published files are copies of f1.db in other formats and
-carry its terms. It does not cover the code (see LICENSE), nor f1-geometry.db,
-whose terms are under *Circuit geometry* below, nor f1-facts.db, which is
+carry its terms. It does not cover the code (see LICENSE), nor f1-geometry.db
+and those three harvest/ files, whose terms are under *Circuit geometry*
+below, nor f1-facts.db, which is
 CC BY 4.0 whole, under *The facts artefact* below. The views.sql in
 f1-parquet.zip is the views' SQL as schema.sql writes it, and like schema.sql
 it is also available under LICENSE (MIT).
@@ -198,6 +200,20 @@ reached the trunk only when it was merged. No commit from `6610b6da` onward
 has a row in `circuit_geometry` in `f1.db`. The historical files are kept
 rather than rewritten out, because the history of a licence decision is part
 of the record.
+
+Three files in the repository's harvest/ hold OpenStreetMap data. They are
+**ODbL 1.0, (c) OpenStreetMap contributors**, and are not covered by this
+licence, which covers the rest of harvest/:
+
+  - `harvest/circuit_geometry.txt` — the centrelines themselves, which
+    f1-geometry.db is built from.
+  - `harvest/circuit_geometry.log` — the OpenStreetMap relation each circuit
+    was admitted on, and the length measured from its geometry.
+  - `harvest/circuit_wikidata.txt` — the candidate relations for each
+    circuit, and the length measured from each one's geometry.
+
+The Wikidata item ids in circuit_wikidata.txt's wikidata_id column stay
+CC0, as its header says.
 
 ## Live timing data
 

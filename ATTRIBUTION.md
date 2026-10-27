@@ -255,8 +255,9 @@ derivative, so the obligation follows the file it belongs to and no further.
 - **Want the maps?** `python3 tools/geometry_overlay.py --apply` merges them
   into your copy. That copy is then a Derivative Database under ODbL — fine
   to hold, not the file to redistribute, and `verify.py` says so.
-- **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Nothing
-  else in the project derives from OpenStreetMap.
+- **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Of what
+  is published, nothing else derives from OpenStreetMap; in the repository,
+  the three `harvest/` files below do.
 - The website merges the two **in your browser**, which is why the track maps
   work without `f1.db` ever containing the data.
 
@@ -267,6 +268,20 @@ Any use of the geometry must credit **© OpenStreetMap contributors** and share
 derived geometry under ODbL. The relation ids come from
 [Wikidata](https://www.wikidata.org/), which is **CC0** and places no
 obligation on anything at all.
+
+Three files in the repository's `harvest/` hold OpenStreetMap data, and are
+**ODbL 1.0, © OpenStreetMap contributors**, carved out of the CC BY-SA 4.0
+the rest of `harvest/` is under (`CR-102`):
+
+- `harvest/circuit_geometry.txt` — the centrelines themselves, which
+  `f1-geometry.db` is built from;
+- `harvest/circuit_geometry.log` — the OpenStreetMap relation each circuit
+  was admitted on, and the length measured from its geometry;
+- `harvest/circuit_wikidata.txt` — the candidate relations for each circuit,
+  and the length measured from each one's geometry.
+
+The Wikidata item ids in `circuit_wikidata.txt`'s `wikidata_id` column stay
+CC0, as its header says.
 
 ## What this project wrote — CC BY 4.0
 
@@ -394,12 +409,17 @@ Two licences, which is normal for a data project:
   `tools/`, `schema.sql`, and `views.sql` in `f1-parquet.zip` — under MIT,
   or whatever you prefer. `views.sql` is the views' statements as `schema.sql`
   writes them, so it is offered on the same terms (`PM-64`).
-- **Data** — `data/`, `harvest/`, `f1.db`, `f1.db.gz`, `f1-parquet.zip`,
-  `f1_database.json` — under CC BY-SA 4.0, with attribution to Wikipedia
+- **Data** — `data/`, `harvest/` less the three files below, `f1.db`,
+  `f1.db.gz`, `f1-parquet.zip`, `f1_database.json` — under CC BY-SA 4.0,
+  with attribution to Wikipedia
   contributors, except the columns under *What this project wrote*,
   which are CC BY 4.0. `views.sql` is also offered under MIT, as above.
 - **The facts artefact** — `f1-facts.db` — under CC BY 4.0, with the credit
   under *The facts artefact*.
+- **The circuit centrelines** — `f1-geometry.db`, and
+  `harvest/circuit_geometry.txt`, `harvest/circuit_geometry.log` and
+  `harvest/circuit_wikidata.txt` — under ODbL 1.0, © OpenStreetMap
+  contributors, as under *OpenStreetMap* above.
 
 Add a `LICENSE` for the code and a `LICENSE-DATA` for the data, and say which
 covers what in the README. I have deliberately not chosen for you.
