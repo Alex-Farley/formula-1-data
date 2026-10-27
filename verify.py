@@ -2881,6 +2881,17 @@ def the_driver_register():
           _span == _declared,
           "undeclared: " + (", ".join(sorted(_span - _declared)) or "none")
           + "; no longer differing: " + (", ".join(sorted(_declared - _span)) or "none"))
+    # The check above passes over a NULL, so a driver with race entries and no
+    # span at all - 62 podium-only drivers once (CR-104) - escaped it, and the
+    # register printed an em dash for seasons the records establish. A NULL
+    # last_season is an open span, which only an active driver has.
+    _unspanned = [r[0] for r in con.execute("""SELECT d.id FROM drivers d
+        WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)
+          AND (d.first_season IS NULL
+               OR (d.last_season IS NULL AND COALESCE(d.status, '') != 'active'))
+        ORDER BY d.id""")]
+    check("every driver with a race entry has a first season, and a last one unless active",
+          not _unspanned, f"{len(_unspanned)}: " + ", ".join(_unspanned[:6]))
 
 
 @section('THE WEEKEND TIMETABLE')
