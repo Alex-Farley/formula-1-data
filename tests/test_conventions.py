@@ -156,6 +156,8 @@ class PublishingPathsCarryBothDatabases(unittest.TestCase):
         self.assertRegex(checkout.group(1),
                          r"(?m)^\s+ref: refs/tags/\$\{\{ github\.event\.inputs\.tag \|\| github\.ref_name \}\}$",
                          "release.yml does not check out the tag it publishes")
+        self.assertRegex(checkout.group(1), r"(?m)^\s+persist-credentials: false$",
+                         "release.yml's checkout leaves its contents: write token in .git/config")
 
     def test_site_stages_both(self):
         staging = read("web/scripts/prepare-assets.js")
