@@ -49,8 +49,9 @@ export default function ColumnChart({
   if (!layout) return null
   const { x, y } = layout
 
-  const base = own.paint ?? INK
-  const paint = (d) => (d.hollow ? 'none' : d.mark ? MARK : base)
+  // The owner's colour outranks `mark`, as in BarChart: a chart in liveries
+  // takes no accent (charts/palette.js).
+  const paint = (d) => (d.hollow ? 'none' : (own.paint ?? (d.mark ? MARK : INK)))
 
   return (
     // The class and the properties go on the HOLDER, not the <svg>: the

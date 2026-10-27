@@ -260,6 +260,10 @@ phone. What the third costs is a sighted reader of a wide table on a phone,
 who loses the column names once the heads scroll away; that is VD-99
 (#972), an item of its own.
 
+`smoke.mjs` (*Sticky column heads*) holds all three cases: heads under the
+masthead on a table that fits, at the top of the box on a figure's numbers,
+and not sticky on a table wider than its box.
+
 ### D-61 · A chart with no owner is drawn in ink, the accent on the value the page states — 2026-10-27 (`VD-94`, #924)
 Every chart that belonged to no team or driver drew its marks in
 `--series-1`, slot one of the dataviz skill's reference categorical palette,
@@ -286,10 +290,6 @@ through the same validator as the slots, and the numbers are in
 three slots are still the cap where several series have no sourced colour,
 and a chart in liveries takes no accent, because a red mark among team
 colours would read as Ferrari's.
-
-`smoke.mjs` (*Sticky column heads*) holds all three cases: heads under the
-masthead on a table that fits, at the top of the box on a figure's numbers,
-and not sticky on a table wider than its box.
 
 ---
 

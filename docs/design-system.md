@@ -89,7 +89,7 @@ file, in the same change.
 | Colour, type, weight, spacing, measure, page width, radius, fonts | `web/src/styles/tokens.css` |
 | Grid columns, gutter, spans, breakpoints | `tokens.css`, the grid block. A custom property cannot stand in a media query, so `app.css` writes the two breakpoints as literals and `conventions.mjs` refuses any other |
 | Livery and national racing colours | `lib/liveries.js`, `lib/racingColours.js`, the `--racing-*` pairs in `tokens.css`, `--livery*` set per element in `app.css`. They are data, with sources |
-| Chart series and grid | `--series-1..3`, `--grid` in `tokens.css`; the validator record in `charts/palette.js` |
+| Chart series and grid | `--series-ink`, `--series-mark`, `--series-1..3`, `--grid` in `tokens.css`; the validator record in `charts/palette.js` |
 | Counts that shape a layout | stay in JS, one name each: `FOLD_TO` (`lib/table.js`), `PHOTOGRAPHS_SHOWN` and `PHOTOGRAPH_WIDTH` (`lib/site.js`) |
 | Inline sizes in JSX | none. `conventions.mjs` refuses a size written as a literal in a `style={{ }}` (VD-60 #615, folded into VD-78) |
 

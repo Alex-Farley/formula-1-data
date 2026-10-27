@@ -1167,12 +1167,11 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
   // VD-94's Done-when: no one-series chart falls back to a palette slot. The
   // slots are reached only through slotColour(), which gives one series ink,
   // and the stylesheet paints no mark in a slot directly.
-  it('no chart draws a reference slot where it has one series: seriesColour() is called only by palette.js, and app.css names no slot (VD-94)', () => {
-    const callers = [...sourceFiles(join(web, 'src'), /\.jsx?$/), join(web, 'scripts', 'prerender.js')]
-      .filter((file) => /\bseriesColour\(/.test(read(file)))
-      .map(rel)
-    assert.deepEqual(callers, ['src/charts/palette.js'])
-    assert.deepEqual(app.match(/var\(--series-[123]\)/g) ?? [], [], 'app.css paints a mark in a reference slot')
+  it('no chart draws a reference slot where it has one series: only palette.js names a slot, and nothing else reaches one but through slotColour() (VD-94)', () => {
+    const files = [...sourceFiles(join(web, 'src'), /\.(jsx?|css)$/), ...sourceFiles(join(web, 'scripts'), /\.m?js$/)]
+    const reaches = (pattern) => files.filter((file) => pattern.test(read(file))).map(rel)
+    assert.deepEqual(reaches(/\bseriesColour\(|[{,]\s*SERIES\s*[,}]|\bSERIES\[/), ['src/charts/palette.js'], 'a slot is reached other than through slotColour()')
+    assert.deepEqual(reaches(/var\(--series-[123]\)/), ['src/charts/palette.js'], 'a slot is named outside palette.js')
   })
 
   it('the ring round a title is drawn at full strength, in colours that clear 3:1 (AX-23)', () => {

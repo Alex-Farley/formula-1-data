@@ -1409,8 +1409,7 @@ const dotPlotSvg = (chart, width) => {
 const columnSvg = (chart, colour, width) => {
   const layout = columnLayout({ ...chart, width })
   if (!layout) return ''
-  const base = colour ? 'var(--livery)' : INK
-  const paint = (d) => (d.hollow ? 'none' : d.mark ? MARK : base)
+  const paint = (d) => (d.hollow ? 'none' : colour ? 'var(--livery)' : d.mark ? MARK : INK)
   const columns = layout.columns
     .map(
       (c) =>
