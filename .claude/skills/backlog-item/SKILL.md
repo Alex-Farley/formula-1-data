@@ -166,8 +166,10 @@ named for the head alone — so a fork inheriting a worktree reads `next.py`'s
 *In progress elsewhere* footer first, and `start-check.sh` prints the open
 PRs and worktrees before that.
 
-Every issue in the group gets `file.py status <n> "In progress"` when the
-worktree opens and a `Closes #<n>` line of its own in the PR body. The branch
+Every issue in the group gets *In progress* when the worktree opens — one
+call for the lot, `file.py status <n> <n>... "In progress"`, which is one
+board write rather than one per issue `PM-45` — and a `Closes #<n>` line of
+its own in the PR body. The branch
 is named for the head (`claude/vd-33-photographs`); progress lines and the
 result line name the group (`VD-33+AX-13`). The PR body has a short section
 per item.
@@ -224,8 +226,8 @@ line could not be written; say so in the stock-take and carry on.
   or when the pages it reaches cannot be named. A change that reaches no page — the loop's own scripts, docs,
   `tests/` — runs `npm run test:units` alone. CI's `web` job always runs the
   whole suite, and it is still one of the four checks that never slide.
-- **The issue:** `file.py status <n> "In progress"` for every issue in the
-  group when the worktree opens; `Closes #<n>` on its own line for each in
+- **The issue:** `file.py status <n> <n>... "In progress"`, every issue in
+  the group in one call, when the worktree opens; `Closes #<n>` on its own line for each in
   the PR body, which is the record of what was done and what was left.
   **An alarm** (`refresh-failing`, `results-late`) **or a security alert**
   (`source: security`) is the exception: read
@@ -482,7 +484,7 @@ way, read
 the five steps of a hold `[D-52]`, and what stops the loop outright.
 
 **Put every issue's status back before you stop, skip or hold**, the head and each
-companion — except on the two of these returns that *Grouping* exempts, a
+companion, in one `file.py status` call where they go back to the same status — except on the two of these returns that *Grouping* exempts, a
 `LIMIT:` and the limiter refusing the board, where the call that would put it
 back is the call being refused. An item left at *In progress* for any other
 reason is one `next.py` never returns, and that is the one way this loop

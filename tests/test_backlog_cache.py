@@ -15,11 +15,14 @@ WHY THIS FILE EXISTS
     picking the next item always reads GitHub, and every cached id is
     re-read the moment GitHub disagrees with it.
 """
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOOP = os.path.join(ROOT, ".claude", "skills", "backlog-loop")
@@ -46,8 +49,15 @@ class FakeGh:
     """`gh` as file.py calls it, counting what it was asked for."""
 
     def __init__(self, items=(291, 292), reject=(), error="could not resolve to a node",
-                 die_on=None, auto_added=(), add_error=None, lagging=False):
+                 die_on=None, auto_added=(), add_error=None, lagging=False, batch="answers"):
         self.items = {n: f"I_{n}" for n in items}
+        # How the one-request status write answers: "answers" sets every item
+        # it is not told to reject and says so alias by alias; "unreadable"
+        # fails with no body; anything else is the stderr of a refusal with
+        # no body, as the limiter gives.
+        self.batch = batch
+        self.mutations = []            # the -f fields of each one-request write
+        self.batched = []              # item ids a one-request write set
         self.reject = set(reject)      # item ids item-edit refuses, as a stale id would be
         self.error = error
         # Issues the project's auto-add puts on the board just before
@@ -62,6 +72,24 @@ class FakeGh:
     def try_(self, *args, out=False):
         """`gh_try`: (succeeded, stderr), or with `out` (succeeded, stderr, stdout)."""
         self.calls.append(args[:2])
+        if args[:2] == ("api", "graphql"):
+            fields = dict(args[k + 1].split("=", 1) for k, a in enumerate(args) if a == "-f")
+            self.mutations.append(fields)
+            if self.batch == "unreadable":
+                return False, "connection reset by peer", ""
+            if self.batch != "answers":
+                return False, self.batch, ""
+            data, errors = {}, []
+            for key, item in fields.items():
+                if key[:1] == "i" and key[1:].isdigit():
+                    if item in self.reject:
+                        data[f"s{key[1:]}"] = None
+                        errors.append({"path": [f"s{key[1:]}"], "message": self.error})
+                    else:
+                        data[f"s{key[1:]}"] = {"projectV2Item": {"id": item}}
+                        self.batched.append(item)
+            body = {"data": data, **({"errors": errors} if errors else {})}
+            return not errors, (f"gh: {self.error}" if errors else ""), json.dumps(body)
         if args[:2] == ("project", "item-add"):
             number = int(args[args.index("--url") + 1].rsplit("/", 1)[1])
             if self.add_error:
@@ -268,6 +296,111 @@ class SettingAStatus(CacheIsolated):
         with self.assertRaises(SystemExit):
             file_py.set_status(291, "Somewhen")
         self.assertEqual(fake.calls, [])
+
+
+class SettingAGroupsStatus(CacheIsolated):
+    """PM-45: a group's statuses in one request each way, and never an issue
+    left at an old status without the run saying which."""
+    use = SettingAStatus.use
+
+    def run_(self, numbers, status="In progress"):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            try:
+                file_py.set_statuses(numbers, status)
+            finally:
+                self.printed = out.getvalue().split("\n")
+        return self.printed
+
+    def test_a_group_of_four_is_one_write_not_four(self):
+        fake = FakeGh(items=(1, 2, 3, 4))
+        self.use(fake)
+        printed = self.run_([1, 2, 3, 4])
+        self.assertEqual(len(fake.mutations), 1)
+        self.assertEqual(fake.count("item-edit"), 0)
+        self.assertEqual(sorted(fake.batched), ["I_1", "I_2", "I_3", "I_4"])
+        self.assertEqual(printed[:4], [f"#{n} In progress" for n in (1, 2, 3, 4)])
+        self.assertEqual(fake.mutations[0]["option"], "O_In progress")
+
+    def test_the_ids_are_variables_never_query_text(self):
+        fake = FakeGh(items=(1, 2))
+        self.use(fake)
+        self.run_([1, 2])
+        query = fake.mutations[0]["query"]
+        self.assertNotIn("I_1", query)
+        self.assertEqual(query.count("updateProjectV2ItemFieldValue"), 2)
+
+    def test_a_half_done_batch_writes_only_the_unconfirmed_issue_again(self):
+        # GraphQL answers 200 with errors beside the data it managed.
+        loop_cache.write("items", {"1": "I_1", "2": "I_stale", "3": "I_3"})
+        fake = FakeGh(items=(1, 2, 3), reject=("I_stale",))
+        self.use(fake)
+        printed = self.run_([1, 2, 3])
+        self.assertEqual(sorted(fake.batched), ["I_1", "I_3"])
+        self.assertEqual(fake.count("item-edit"), 1)
+        self.assertEqual(fake.edited, "I_2")              # against a fresh id
+        self.assertEqual(sorted(printed[:3]), [f"#{n} In progress" for n in (1, 2, 3)])
+
+    def test_an_answer_that_cannot_be_read_confirms_nothing(self):
+        fake = FakeGh(items=(1, 2, 3), batch="unreadable")
+        self.use(fake)
+        printed = self.run_([1, 2, 3])
+        self.assertEqual(fake.count("item-edit"), 3)      # each written alone
+        self.assertEqual(printed[:3], [f"#{n} In progress" for n in (1, 2, 3)])
+
+    def test_the_limiter_refusing_the_batch_ends_the_run_naming_every_issue(self):
+        fake = FakeGh(items=(1, 2, 3), batch="GraphQL: was submitted too quickly (secondary rate limit)")
+        self.use(fake)
+        with self.assertRaises(SystemExit) as stopped:
+            self.run_([1, 2, 3])
+        self.assertEqual(fake.count("item-edit"), 0)      # retrying extends it
+        said = str(stopped.exception.code)
+        self.assertIn("#1, #2, #3", said)
+        self.assertIn('file.py status 1 2 3 "In progress"', said)
+        self.assertIn("once the limiter has cleared", said)
+
+    def test_a_failure_one_at_a_time_names_what_is_not_yet_set(self):
+        # #2's fallback write fails against fresh ids too; #1 is confirmed,
+        # #2 and #3 are not, and the run says so.
+        loop_cache.write("items", {"1": "I_1", "2": "I_2", "3": "I_3"})
+        fake = FakeGh(items=(1, 2, 3), reject=("I_2",))
+        fake.batch = "answers"
+        self.use(fake)
+        with self.assertRaises(SystemExit) as stopped:
+            self.run_([2, 1, 3])
+        self.assertEqual(self.printed[:2], ["#1 In progress", "#3 In progress"])
+        self.assertIn("not confirmed", str(stopped.exception.code))
+        self.assertIn("#2;", str(stopped.exception.code))
+
+    def test_one_issue_is_the_one_issue_path(self):
+        fake = FakeGh(items=(1,))
+        self.use(fake)
+        self.assertEqual(self.run_([1, 1], "Done")[0], "#1 Done")   # named twice, written once
+        self.assertEqual(fake.mutations, [])
+        self.assertEqual(fake.count("item-edit"), 1)
+
+    def test_an_issue_off_the_board_is_added_alone_and_the_rest_batched(self):
+        fake = FakeGh(items=(1, 2))
+        self.use(fake)
+        printed = self.run_([1, 2, 999])
+        self.assertEqual(sorted(fake.batched), ["I_1", "I_2"])
+        self.assertEqual(fake.count("item-add"), 1)
+        self.assertEqual(fake.edited, "I_999")
+        self.assertEqual(printed[:3], ["#1 In progress", "#2 In progress", "#999 In progress"])
+
+    def test_a_bad_status_is_refused_before_any_call(self):
+        fake = FakeGh(items=(1, 2))
+        self.use(fake)
+        with self.assertRaises(SystemExit):
+            self.run_([1, 2], "Somewhen")
+        self.assertEqual(fake.calls, [])
+
+    def test_the_command_line_takes_several_numbers_then_the_status(self):
+        seen = []
+        with mock.patch.object(file_py, "set_statuses", lambda ns, s: seen.append((ns, s))), \
+                mock.patch("sys.argv", ["file.py", "status", "451", "450", "In progress"]):
+            file_py.main()
+        self.assertEqual(seen, [([451, 450], "In progress")])
 
 
 class ReadingTheQueue(CacheIsolated):

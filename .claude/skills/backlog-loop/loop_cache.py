@@ -28,7 +28,9 @@ WHAT IS CACHED, AND WHY STALENESS CANNOT COST ANYTHING
       visible: the status name is absent from the map, so it refetches.
     - The issue -> project item id map is stable while an item is on the
       board, and a wrong id makes `item-edit` fail, which drops the cache and
-      retries once against fresh data.
+      retries once against fresh data. A group's one-request write `PM-45`
+      drops it the same way for any issue the answer does not confirm, and
+      writes that issue alone.
     - The queue `next.py` reads is cached **only for a call that names its
       items**, where the ids are already chosen and a body two minutes old
       changes nothing. Choosing the next item always reads GitHub: that is
