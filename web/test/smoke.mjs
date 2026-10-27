@@ -345,8 +345,8 @@ try {
 
     // Every refusal the content security policy makes, on every page of the
     // run and not only the one the Console section watches (AF-76). The
-    // preview server enforces the policy the host only reports
-    // (vite.config.js), so a refusal here is something the site would lose.
+    // preview server serves the policy enforced, as the host does (AF-126),
+    // so a refusal here is something the site would lose.
     // Browser.newPage goes through newContext, so wrapping that one method
     // reaches every page the run opens. Two listeners, because a context
     // with JavaScript off runs no init script: Chromium's own console line
