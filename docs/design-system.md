@@ -490,14 +490,16 @@ inside it is scaled, until the app redraws it at the width it occupies.
   past their box on /races/2024/21. Their Driver and Constructor carry
   `.wraps`. At 768 every sheet then fitted in the static page, read for
   each season from 2006 and every fourth before it, and in the app on
-  seven races chosen to stretch it. A sheet that also carries a derived
+  seven races chosen to stretch it. A qualifying sheet that also carries a derived
   column (AF-131: *≈ Distance*, marked by its `derived` class) is about
   97 px wider, and at 768 all but 2 of the 441 sheets from 2006 then ran
   over, by up to 54 px, so between the breakpoints its heads may also
-  break at a space and its cells pad `--space-2` a side. Every sheet from
-  2006, and every fourth season's before, then fitted at 768 in the static
-  page. The sprint's classification and the practice
-  sheets are not yet held to it (IX-49 #944). Still provisional: §8
+  break at a space and its cells pad `--space-2` a side. Every qualifying
+  and sprint qualifying sheet from 2006, and every fourth season's before,
+  then fitted at 768 in the static page. The sprint's classification and the practice
+  sheets are not yet held to it (IX-49 #944); the practice sheets carry
+  the derived column too, keep one line, and since it some run over at
+  900 as well as at 768. Still provisional: §8
   promotes on a second *page*, and both users are on the race page.
   What it costs: between the breakpoints a long name takes two lines, so
   the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024

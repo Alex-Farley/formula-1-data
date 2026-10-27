@@ -37,7 +37,10 @@ export const LAYOUT_RACED_JOIN = `LEFT JOIN circuit_layouts cl ON cl.circuit_id 
  * AF-131: how many laps the grid time is the sum of - 2 in the aggregate
  * qualifying of 2005's first six rounds, 1 in every period qualifying_formats
  * dates otherwise, and NULL before 1996, where it dates none and each time is
- * one lap. Read by RACE and by the static race pages' own query.
+ * one lap. It reads `sessions`, how many timed sessions' times went into the
+ * grid, because each of those times is one lap: the only period with two is
+ * 2005's "single lap, aggregate". Read by RACE and by the static race pages'
+ * own query.
  */
 export const QUALIFYING_LAPS = `(SELECT qf.sessions FROM qualifying_formats qf
      WHERE qf.session = 'race'
@@ -521,7 +524,8 @@ export const withDistance = (rows, km, laps = 1) => {
   }
   return rows.map((row) => {
     const part = parts.find((p) => lapSeconds(row[p]) !== null)
-    const time = part ? lapSeconds(row[part]) : null
+    const own = part ? lapSeconds(row[part]) : null
+    const time = own !== null && own > 0 ? own : null
     const fastest = part ? best[part] : null
     const distance_m =
       length !== null && time !== null && fastest !== null ? Math.round(((time - fastest) * length * 1000) / fastest) : null
@@ -560,7 +564,9 @@ export const distanceMethod = (rows, laps = 1) =>
  * columns, and from 768 to 900 px they scrolled 112 px out of view on
  * /races/2024/21, in both qualifying and sprint qualifying (IX-48). So its
  * two columns of words take `WRAPS`, the classification's rule for a table
- * that fits its box. The practice sheets fit at one line and keep it.
+ * that fits its box. The practice sheets keep one line and are not held to
+ * it (IX-49): with AF-131's distance column some run past their box at 900
+ * as well as at 768, and scroll there.
  */
 export const qualifyingColumns = (rows) => [
   { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },

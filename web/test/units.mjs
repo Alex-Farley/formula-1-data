@@ -3579,6 +3579,8 @@ describe('a session gap as a distance on the track (AF-131)', () => {
     assert.deepEqual(byDriver(withDistance(aggregate, 5, 2)), { a: 0, b: 56, c: null })
     assert.deepEqual(byDriver(withDistance(aggregate, 5)), { a: 0, b: 28, c: null })
     for (const laps of [null, undefined, 1]) assert.deepEqual(byDriver(withDistance(aggregate, 5, laps)), { a: 0, b: 28, c: null })
+    // A time of nothing is not a lap: no distance, never a negative one.
+    assert.deepEqual(byDriver(withDistance([...aggregate, row('d', { time: '0.000' })], 5)), { a: 0, b: 28, c: null, d: null })
     assert.equal(distanceMethod(withDistance(aggregate, 5, 2), 2), `${DISTANCE_METHOD} ${AGGREGATE_METHOD}`)
     assert.equal(distanceMethod(withDistance(aggregate, 5), 1), DISTANCE_METHOD)
   })
