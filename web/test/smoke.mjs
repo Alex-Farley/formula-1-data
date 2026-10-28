@@ -6298,18 +6298,20 @@ try {
       // page is still a skeleton a tenth of its height: scrollTo clamps, and
       // the browser's scroll anchoring then carried the view to the page's
       // foot as the page grew - which the handover read as the reader
-      // scrolling and gave up. It showed at 400 and 900, never at 1280, and
+      // scrolling and gave up. It was reported at 400 and 900, never at 1280, and
       // a fast local run never leaves a skeleton to swap over, so this
       // holds the sections back for 700 ms after the static page goes, the
       // same shape without waiting on the network.
-      for (const [width, height] of [[1280, 900], [900, 900], [400, 800]]) {
+      // 1280 runs twice: as a fast load leaves it, then under the hold.
+      for (const [width, height, held] of [[1280, 900, false], [1280, 900, true], [900, 900, true], [400, 800, true]]) {
         const cold = await browser.newPage({ viewport: { width, height } })
-        await cold.addInitScript(() => {
+        await cold.addInitScript((held) => {
           window.__staticY = 0
           const id = setInterval(() => {
             if (document.getElementById('prerendered')) window.__staticY = Math.max(window.__staticY, window.scrollY)
             else if (document.readyState !== 'loading') clearInterval(id)
           }, 16)
+          if (!held) return
           document.addEventListener('DOMContentLoaded', () => {
             const watch = new MutationObserver(() => {
               if (document.getElementById('prerendered') || !document.querySelector('#root main h1')) return
@@ -6321,17 +6323,17 @@ try {
             })
             watch.observe(document, { childList: true, subtree: true })
           })
-        })
+        }, held)
         await cold.bringToFront()
         await cold.goto(`${BASE}/records#${family.anchor}`, { waitUntil: 'domcontentloaded' })
         await cold.waitForSelector('#root main h1', { timeout: 60000 })
         await cold.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
         await cold.waitForTimeout(1500)
-        atLeast(await cold.evaluate(() => window.__staticY), 500, `the static page opened at #${family.anchor}, down the page, at ${width} px`)
+        atLeast(await cold.evaluate(() => window.__staticY), 500, `the static page opened at #${family.anchor}, down the page, at ${width} px${held ? ', body held back' : ''}`)
         const top = await cold.evaluate((id) => document.getElementById(id)?.getBoundingClientRect().top ?? null, family.anchor)
         truthy(
           top !== null && top > -450 && top < height,
-          `and after the handover the app's #${family.anchor} is still on screen at ${width} px (its top at ${Math.round(top)} px)`,
+          `and after the handover the app's #${family.anchor} is still on screen at ${width} px${held ? ', body held back' : ''} (its top at ${Math.round(top)} px)`,
         )
         await cold.close()
       }

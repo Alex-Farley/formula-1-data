@@ -160,9 +160,9 @@ function settle(y) {
    * skeleton about 1,560 px tall, scrollTo clamps to the foot; as the page
    * then grows the browser's anchoring follows the content and carries the
    * view to the foot of a 24,000 px page with no script call, and the check
-   * above read that movement as the reader scrolling and gave up: measured
+   * above read that movement as the reader scrolling and gave up: reported
    * at 400 and 900 px wide on a cold /records#wins, where it ended at the
-   * foot. With anchoring off the only thing that moves the view is land() or
+   * foot, and reproduced at 400. With anchoring off the only thing that moves the view is land() or
    * the reader.
    */
   root.style.overflowAnchor = 'none'
