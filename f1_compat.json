@@ -57,7 +57,7 @@
     ]
   },
   "id_stability": "Integer `id` columns are surrogates, handed out by the build in insert order, and are NOT stable between releases except in the tables named by meta.id_stability_stable. There the maintainers undertake not to renumber them; nothing in the build measures that, because no release is compared with the one before it. Join on the natural keys published in meta.id_stability_keys - a `?` in one of those marks a column that holds NULL, so join it with IS rather than =. A text id is a natural key and does not move.",
-  "id_stability_keys": "circuit_layouts(circuit_id, layout_key); discrepancies(key); known_gaps(key); pit_stops(race_id, source, driver_key, stop_number); practice(race_id, session, driver_id); qualifying(race_id, driver_id); race_entries(race_id, driver_id); races(year, round); records(key); season_entrants(year, entrant_id, f1db_constructor_id, engine_manufacturer_id); sprint_qualifying(race_id, driver_id); sprint_results(race_id, driver_id); standings(year, table_type, after_round, basis, driver_id, constructor_id, engine_id, source, position_text)",
+  "id_stability_keys": "circuit_layouts(circuit_id, layout_key); discrepancies(key); known_gaps(key); pit_stops(race_id, source, driver_key, stop_number); practice(race_id, session, driver_id); qualifying(race_id, driver_id); race_entries(race_id, driver_id); race_weather_modelled(race_id); race_weather_reported(race_id); races(year, round); records(key); season_entrants(year, entrant_id, f1db_constructor_id, engine_manufacturer_id); sprint_qualifying(race_id, driver_id); sprint_results(race_id, driver_id); standings(year, table_type, after_round, basis, driver_id, constructor_id, engine_id, source, position_text)",
   "id_stability_stable": "circuit_layouts, pit_stops, qualifying, race_entries, races, season_entrants, sprint_results",
   "teams_2026": [
     {
@@ -831,7 +831,7 @@
       "priority": 8,
       "source": "Wikipedia season results tables",
       "url": "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Championship_points_scoring_systems",
-      "use": "Admitted as a REFERENCE source for race-by-race results (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications, and a race winner harvested from them is compared on load with F1DB's. Its per-race articles are cited for two things beyond that, both admitted on the record: the team radio quotations, which are narrative and a declared deviation, and the race entry notes saying why a finisher inside the paid places scored nothing, which are classification facts as the race's article states them. Otherwise not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.",
+      "use": "Admitted as a REFERENCE source for race-by-race results (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications, and a race winner harvested from them is compared on load with F1DB's. Its per-race articles are cited for three things beyond that, all admitted on the record: the team radio quotations, which are narrative and a declared deviation; the race entry notes saying why a finisher inside the paid places scored nothing, which are classification facts as the race's article states them; and each race's reported weather, the infobox's own words, from which the build reads wet or dry (AF-136). Otherwise not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.",
       "authority": "reference",
       "licence": "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see ATTRIBUTION.md.",
       "cadence": "Continuous, by anyone.",
@@ -990,6 +990,21 @@
       "share_alike": 1,
       "attribution_required": 1,
       "domains": null
+    },
+    {
+      "id": 19,
+      "priority": 19,
+      "source": "Open-Meteo historical weather API (ERA5 reanalysis)",
+      "url": "https://open-meteo.com/",
+      "use": "Race-day weather, modelled: each race's highest air temperature, rain, hours of rain and strongest wind over the circuit's local day, from ERA5-Land where it covers the point and ERA5 elsewhere (model era5_seamless), at the circuit's coordinates as F1DB gives them. Loaded by tools/race_weather.py into race_weather_modelled (AF-136). Whether a race was wet or dry is not taken from it: that is the race article's report, in race_weather_reported.",
+      "authority": "reference",
+      "licence": "CC BY 4.0 for the API's data, as Open-Meteo's licence page (https://open-meteo.com/en/licence) offers it. The figures are the Copernicus Climate Change Service's ERA5, for which that page links the Licence to use Copernicus Products, whose credit for modified information is carried beside Open-Meteo's. Open-Meteo's free API is for non-commercial use - a project with no advertising or subscriptions, as this one is - and asks for a link to open-meteo.com beside wherever its data is shown; see ATTRIBUTION.md.",
+      "cadence": "Daily, some days behind the present: ERA5 is published about five days after the fact, as a preliminary release that the final one later replaces. The harvest is run by hand, so a race run since the last run has no modelled row until the next.",
+      "checkability": "Weak by its nature, and labelled so. A reanalysis is a weather model run over the day's observations on a grid of about 9 km (ERA5-Land) or 28 km (ERA5), so a figure is the grid cell's and not the track's, and a shower over one circuit can be missing from it. It is held at 'medium', and checked against the race article's report: a wet race on a day the model holds no rain, or a dry one on a day it holds 10 mm or more, is filed in discrepancies rather than settled.",
+      "redistributable": "yes",
+      "share_alike": 0,
+      "attribution_required": 1,
+      "domains": "open-meteo.com"
     }
   ]
 }

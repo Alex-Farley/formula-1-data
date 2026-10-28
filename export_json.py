@@ -172,6 +172,10 @@ def main():
         # The current season's timetable (LV-02): starts in UTC with the
         # circuit's zone, keyed to races by race_id.
         "sessions": dump(con, "sessions", "race_id, start_utc"),
+        # Race-day weather (AF-136): the race article's report, and ERA5's
+        # model of the day at the circuit - two sources, two tables.
+        "race_weather_reported": dump(con, "race_weather_reported", "race_id"),
+        "race_weather_modelled": dump(con, "race_weather_modelled", "race_id"),
         "race_entries": dump(con, "race_entries", "race_id, id"),
         # A separate race with its own grid, classification and points, not a
         # session of the grand prix beside it — so its own array, ordered the

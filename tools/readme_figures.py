@@ -725,7 +725,8 @@ class Figures:
     # claims to have accounted for every one.
     WIKI = "en.wikipedia.org"
     WIKI_ITEMISED = ("races", "race_entries", "claims", "drivers", "cars",
-                     "regulation_limits", "team_radio", "driver_note_sources")
+                     "regulation_limits", "team_radio", "driver_note_sources",
+                     "race_weather_reported")
 
     def _wp(self, table):
         return self._licence_tally()[3].get((table, self.WIKI), 0)
@@ -770,6 +771,7 @@ class Figures:
     def wp_regulation_limits(self): return n(self._wp("regulation_limits"))
     def wp_radio(self):             return n(self._wp("team_radio"))
     def wp_note_sources(self):      return n(self._wp("driver_note_sources"))
+    def wp_weather(self):           return n(self._wp("race_weather_reported"))
     def wp_entry_notes(self):       return n(self.count("claims", "tbl = 'race_entries' AND field = 'note'"))
 
     # The season articles' URL, which is what data/harvest.py cites; a
@@ -1149,20 +1151,25 @@ class Figures:
     # The registry entry for F1DB owns both of these domains, so a row
     # resolving to either is F1DB's by the same rule `./f1 licences` applies.
     F1DB_DOMAINS = ("github.com", "f1db")
+    # Open-Meteo's modelled race-day weather (AF-136): CC BY 4.0 like F1DB,
+    # and the third part of the edition the note names.
+    METEO_DOMAINS = ("open-meteo.com",)
 
     def edition_rows(self):
         # Every sourced row that does not cite Wikipedia: what a CC BY 4.0
         # facts edition holds before anything is re-sourced. The note says
-        # that is F1DB's rows and the facts-only rows and nothing else, so a
-        # row from any other source stops the writer.
+        # that is F1DB's rows, the facts-only rows and Open-Meteo's, and
+        # nothing else, so a row from any other source stops the writer.
         by_class, by_domain = self._licence_tally()[:2]
         other = sorted(d or "an unresolved source" for d in by_domain
                        if d != self.WIKI and d not in self.F1DB_DOMAINS
+                       and d not in self.METEO_DOMAINS
                        and d not in self._facts_only_domains())
         if other:
             raise SystemExit(
                 f"sourced rows cite {', '.join(other)}: docs/COMMERCIAL-READINESS.md "
-                f"counts the facts edition as F1DB's rows and the facts-only rows alone")
+                f"counts the facts edition as F1DB's rows, the facts-only rows "
+                f"and Open-Meteo's alone")
         return n(sum(by_class.values()) - by_domain.get(self.WIKI, 0))
 
     def _facts_only_domains(self):
@@ -1171,6 +1178,10 @@ class Figures:
     def f1db_rows(self):
         by_domain = self._licence_tally()[1]
         return n(sum(by_domain.get(d, 0) for d in self.F1DB_DOMAINS))
+
+    def meteo_rows(self):
+        by_domain = self._licence_tally()[1]
+        return n(sum(by_domain.get(d, 0) for d in self.METEO_DOMAINS))
 
     def fo_drivers(self):            return self._fo("drivers")
     def fo_circuits(self):           return self._fo("circuits")

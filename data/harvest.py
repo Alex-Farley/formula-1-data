@@ -16,6 +16,7 @@ Every row is validated on load:
   - every driver and constructor name must map to a known id, or be
     declared below as a deliberate non-mapping
 """
+import datetime
 import os
 import re
 import unicodedata
@@ -2826,3 +2827,174 @@ def load_circuit_geometry():
     belongs where the row is admitted, not only where it was written.
     """
     return _read_named(GEOMETRY_FILE, "tools/osm_geometry.py")
+
+
+# ---------------------------------------------------------------------
+# Race-day weather (AF-136). Two harvests by tools/race_weather.py, one per
+# source, each for what it is good at (the maintainer's ruling, 2026-10-24):
+# a race article's infobox reports the weather, and decides wet or dry; ERA5's
+# reanalysis, through Open-Meteo, models the day's air temperature, rain and
+# wind at the circuit. build.py loads the first into race_weather_reported
+# and the second into race_weather_modelled, and files a discrepancy where
+# the two cannot both be true.
+WEATHER_REPORTED_FILE = os.path.join(HERE, "..", "harvest", "race_weather_reported.txt")
+WEATHER_REPORTED_LOG = os.path.join(HERE, "..", "harvest", "race_weather_reported.log")
+WEATHER_MODELLED_FILE = os.path.join(HERE, "..", "harvest", "race_weather_modelled.txt")
+WEATHER_MODELLED_LOG = os.path.join(HERE, "..", "harvest", "race_weather_modelled.log")
+
+# The request, one place, so the URL a row cites is the one that was asked.
+# era5_seamless is ERA5-Land where it covers the point and ERA5 elsewhere;
+# one model for every race, so 1950 and 2026 are read alike.
+WEATHER_MODEL = "era5_seamless"
+WEATHER_MODEL_DAILY = ("temperature_2m_max", "precipitation_sum",
+                       "precipitation_hours", "wind_speed_10m_max")
+WEATHER_MODEL_API = "https://archive-api.open-meteo.com/v1/archive"
+# Open-Meteo asks for a link to it beside wherever its data is shown. A
+# discrepancy's assessment is shown wherever the row is - a race page's
+# disagreement box, /data/quality, the API - so the credit is in its text,
+# as every assessment's source is.
+WEATHER_CREDIT_URL = "https://open-meteo.com/"
+
+
+def weather_model_source(lat, lon, day):
+    """What a race_weather_modelled row cites: the point, the local day and
+    the model it was asked for. The request adds the four daily figures,
+    which are the row's columns; cited without them, the URL stays short
+    enough to read as an address rather than prose (the facts artefact's
+    screen, verify.py)."""
+    return WEATHER_MODEL_API + "?" + "&".join([
+        f"latitude={lat}", f"longitude={lon}",
+        f"start_date={day}", f"end_date={day}",
+        f"models={WEATHER_MODEL}", "timezone=auto",
+    ])
+
+
+def weather_model_url(lat, lon, day):
+    """The Open-Meteo request for one point and one local day."""
+    return (weather_model_source(lat, lon, day)
+            + "&daily=" + ",".join(WEATHER_MODEL_DAILY))
+
+
+def weather_day(date_iso, circuit_id, after_midnight, date_to=None):
+    """The race's local day, which is the day the model is asked for.
+    date_iso is F1DB's, the UTC day; at a circuit in `after_midnight` -
+    data/current.py RACE_DAY_AFTER_WEEKEND, whose race starts after midnight
+    UTC - the local day is the one before. Only where date_iso is that UTC
+    day, though: a round dated off formula1.com's calendar carries the
+    weekend's last local day as date_iso, the same day as its date_to, and
+    that is already the local day (Las Vegas 2027 until F1DB re-dates it)."""
+    if circuit_id in after_midnight and (date_to is None or date_iso > date_to):
+        return (datetime.date.fromisoformat(date_iso)
+                - datetime.timedelta(days=1)).isoformat()
+    return date_iso
+
+
+# WET OR DRY, FROM THE WORDS. A race is 'wet' where its article's infobox
+# mentions rain, showers, drizzle, a damp, wet, drying or humid track or a
+# thunderstorm at all - "Wet at start, dry later" and "Dry, rain later" are
+# both wet races, because rain fell on them - and 'dry' where it mentions none
+# of those and
+# does describe the conditions: sunny, dry, cloudy, hot. A phrase that only
+# gives figures - "Temperatures up to 75.9 °F; wind speeds up to 11.39 mph" -
+# says neither, and the reading is NULL. The phrase itself is stored beside
+# the reading, so the page can show what the article said and not only the
+# word this rule made of it.
+# "Drying" says the track was wet ("Cloudy, drying"), and a "humid track" is a
+# damp one ("Partly cloudy with humid track", 2025 Belgium, whose start was
+# delayed by rain).
+WEATHER_WET = re.compile(
+    r"\b(rain\w*|wet\w*|showers?|drizzl\w*|damp\w*|thunderstorms?|monsoon|"
+    r"drying|humid\s+track)\b", re.I)
+WEATHER_STATED = re.compile(
+    r"\b(dry|sunny|sunshine|clear|fine|cloud\w*|overcast|hot|warm|mild|cool|"
+    r"cold|chilly|fresh|hazy|humid|dull|grey|gray|windy|bright|fair|misty|"
+    r"foggy)\b", re.I)
+
+# The phrases the rule above reads wrongly, each with what it does say. Keyed
+# by race, and holding the phrase, so a declaration whose article has since
+# been edited stops the build rather than overruling words it never read.
+#   (year, round): (phrase, reading or None, why)
+WEATHER_READINGS = {
+    (2002, 4): ("Scattered thunderstorms, but remaining dry. Air Temp: 18°C", "dry",
+                "the thunderstorms were in the area; the race stayed dry"),
+    (2003, 6): ("Mostly cloudy with isolated showers in the area", None,
+                "showers in the area, and nothing said of the track"),
+    (2005, 12): ("Cloudy with drizzle, but staying dry during the race. Air temp: 24°C", "dry",
+                 "the drizzle was not during the race"),
+    (2012, 6): ("Fine and Dry, showers threatening at end", "dry",
+                "the showers threatened; the phrase does not say they came"),
+    (1998, 3): ("Cloudy with variable levels of dryness; temperatures reaching up to 19 °C",
+                None, "variable dryness says the track was not dry throughout, "
+                "and not that rain fell"),
+}
+
+
+def weather_rule(phrase):
+    """'wet', 'dry' or None for a phrase by the rule alone, before any
+    declaration."""
+    if WEATHER_WET.search(phrase):
+        return "wet"
+    if WEATHER_STATED.search(phrase):
+        return "dry"
+    return None
+
+
+def weather_reading(year, rnd, phrase):
+    """'wet', 'dry' or None for one race's reported phrase, by the rule above
+    and its declared exceptions."""
+    declared = WEATHER_READINGS.get((year, rnd))
+    if declared is not None and declared[0] == phrase:
+        return declared[1]
+    return weather_rule(phrase)
+
+
+# WHICH ARTICLE IS THE RACE'S. The harvest asks for "<year> <name the race
+# ran under>" and follows Wikipedia's redirects, so a row's article is that
+# title up to accents and hyphens ("2021 São Paulo Grand Prix" for "Sao Paulo
+# Grand Prix", "Emilia-Romagna" for "Emilia Romagna"), or a redirect declared
+# here by race. The build holds every row to it, so a harvest read before a
+# round was renumbered cannot hand one race's weather to another.
+#   (year, round): the article the race's title redirects to
+WEATHER_ARTICLES = {
+    (2020, 5): "70th Anniversary Grand Prix",
+    (2026, 16): "2026 Bahrain Grand Prix in Malaysia",
+}
+
+
+def _title_key(title):
+    plain = unicodedata.normalize("NFKD", title)
+    plain = "".join(ch for ch in plain if not unicodedata.combining(ch))
+    return " ".join(plain.replace("-", " ").replace("_", " ").casefold().split())
+
+
+def weather_article_is_the_races(year, rnd, name_used, article):
+    """Whether `article` is the race's own: its title, or its declared
+    redirect."""
+    if (year, rnd) in WEATHER_ARTICLES:
+        return article == WEATHER_ARTICLES[(year, rnd)]
+    return _title_key(article) == _title_key(f"{year} {name_used}")
+
+
+# WHEN THE TWO DISAGREE. A model's day and an article's race can both be
+# true where they look different: rain at dawn and a dry race in the
+# afternoon. A discrepancy is filed only where they cannot be:
+#   - the article reports a wet race and the model has no rain at all that
+#     day at the circuit, 0.0 mm; and
+#   - the article reports a dry race and the model has a heavy-precipitation
+#     day there, 10 mm or more - the ETCCDI's R10mm, the climate-index
+#     threshold for one - which is more rain than a dry race-day afternoon
+#     leaves room for, though a daily total cannot say when it fell.
+WEATHER_HEAVY_MM = 10.0
+
+
+def load_weather_reported():
+    """year, round, article, revision, reported - one row per race whose
+    article's infobox states the weather."""
+    return _read_named(WEATHER_REPORTED_FILE, "tools/race_weather.py reported")
+
+
+def load_weather_modelled():
+    """year, round, day, f1db_circuit, latitude, longitude, timezone,
+    air_max_c, rain_mm, rain_hours, wind_max_kmh - one row per race ERA5
+    covers."""
+    return _read_named(WEATHER_MODELLED_FILE, "tools/race_weather.py modelled")

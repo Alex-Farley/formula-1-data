@@ -1245,6 +1245,58 @@ CREATE TABLE sessions (
     UNIQUE (race_id, kind)
 );
 
+-- RACE-DAY WEATHER (AF-136), in two tables because it comes from two
+-- sources that claim different things, and a row carries one source.
+--
+-- race_weather_reported is what the race's Wikipedia article reports: the
+-- `Weather` line of its infobox, markup removed, at the revision named
+-- (tools/race_weather.py). `conditions` is that phrase read as wet or dry by
+-- data/harvest.py's rule - 'wet' where it mentions rain, showers, drizzle, a
+-- damp, wet, drying or humid track or a thunderstorm at all, so a race that started wet and
+-- finished dry is wet; 'dry' where it mentions none and does describe the
+-- conditions; NULL where it gives only figures, or a declared exception says
+-- the phrase does not settle it. A race whose article states no weather has
+-- no row: not established, which is what a missing row says here.
+CREATE TABLE race_weather_reported (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL UNIQUE REFERENCES races(id),
+    reported        TEXT NOT NULL,             -- the infobox's words: "Wet, drying later"
+    conditions      TEXT CHECK (conditions IN ('wet', 'dry')),
+    article         TEXT NOT NULL,             -- the article title read
+    revision        INTEGER NOT NULL,          -- its revision id
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT NOT NULL
+);
+
+-- race_weather_modelled is ERA5's reanalysis of the race's day, through
+-- Open-Meteo's historical weather API (model era5_seamless: ERA5-Land where
+-- it covers the point, ERA5 elsewhere), at the circuit's coordinates as F1DB
+-- gives them. MODELLED, NOT MEASURED: a weather model run over the day's
+-- observations on a grid of about 9 km (ERA5-Land) or 28 km (ERA5), so each
+-- figure is for the grid cell the circuit sits in, and a shower over one
+-- track can be missing from it. The figures are for the circuit's whole
+-- local day, not the race's hours - nothing here holds a start time before
+-- 2023 - so a dry race and a wet morning can share a row. `day` is that
+-- local day: races.date_iso, the UTC day, except at a circuit whose race
+-- starts after midnight UTC (data/current.py RACE_DAY_AFTER_WEEKEND), where
+-- it is the day before. Held at 'medium': correct in substance, and not a
+-- figure to state as the track's. `source` is the request's point, day and
+-- model; tools/race_weather.py adds the four daily figures asked for.
+CREATE TABLE race_weather_modelled (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL UNIQUE REFERENCES races(id),
+    day             TEXT NOT NULL,             -- YYYY-MM-DD, the circuit's local day
+    latitude        REAL NOT NULL,             -- the point asked for: F1DB's, for the circuit raced
+    longitude       REAL NOT NULL,
+    timezone        TEXT NOT NULL,             -- IANA zone the day is read in
+    air_max_c       REAL NOT NULL,             -- the day's highest air temperature at 2 m, C
+    rain_mm         REAL NOT NULL,             -- the day's precipitation, mm of water
+    rain_hours      REAL NOT NULL,             -- hours of the day with any
+    wind_max_kmh    REAL NOT NULL,             -- the day's strongest wind at 10 m, km/h
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    source          TEXT NOT NULL
+);
+
 CREATE TABLE race_entries (
     id              INTEGER PRIMARY KEY,
     race_id         INTEGER NOT NULL REFERENCES races(id),
@@ -1981,6 +2033,7 @@ CREATE TABLE discrepancies (
                         'car-chassis',         -- a car's figure against its one chassis's
                         'session-sheet',       -- F1DB's race result against its own session sheets
                         'race-classification', -- F1DB's race result against another source's
+                        'race-weather',        -- a race article's wet or dry against the model's day
                         'jolpica-result')),    -- tools/ergast_load.py, local only
     subject         TEXT NOT NULL,
     tbl             TEXT NOT NULL,

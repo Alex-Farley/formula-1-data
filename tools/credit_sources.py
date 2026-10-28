@@ -86,6 +86,7 @@ NAMES = {
     "Wikipedia": "en.wikipedia.org",
     "Wikimedia Commons": "commons.wikimedia.org",
     "OpenStreetMap": "openstreetmap.org",
+    "Open-Meteo": "open-meteo.com",
     "formula1.com": "formula1.com",
     "FIA": "fia.com",
     "Jolpica": "jolpica",

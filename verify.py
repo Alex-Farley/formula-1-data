@@ -2958,6 +2958,95 @@ def the_weekend_timetable():
     print(f"  [info] {len(rows)} sessions across {len(by_round)} weekends")
 
 
+@section('RACE-DAY WEATHER')
+def race_day_weather():
+    """race_weather_reported and race_weather_modelled (AF-136): each row
+    against its race, its rule and the request it cites, and the
+    disagreements between them against the ones filed."""
+    H = harvest_module()
+    from data import current as _N
+    stray = con.execute("""SELECT COUNT(*) FROM (
+        SELECT race_id FROM race_weather_reported UNION ALL
+        SELECT race_id FROM race_weather_modelled)
+        WHERE race_id NOT IN (SELECT id FROM races WHERE status = 'completed')""").fetchone()[0]
+    check("race weather is held only for races that have been run", stray == 0,
+          f"{stray} rows")
+    # The reading is the rule's, from the words stored beside it: a value
+    # edited in f1.db, or a rule changed without a rebuild, fails here.
+    misread = [f"{y} round {r}: {c!r} for {w!r}" for y, r, w, c in con.execute("""
+        SELECT r.year, r.round, w.reported, w.conditions
+          FROM race_weather_reported w JOIN races r ON r.id = w.race_id""")
+        if H.weather_reading(y, r, w) != c]
+    check("every reported race's wet or dry is data/harvest.py's reading of its words",
+          not misread, "; ".join(misread[:5]))
+    # A row whose reading is not the rule's - wet, dry and NULL alike - is
+    # declared in WEATHER_READINGS, and every declaration overrules a row.
+    # The rule is spelt out here with the two expressions, not called
+    # through weather_rule(), so a declaration the rule now agrees with -
+    # one nobody needs - is caught rather than trusted.
+    def by_rule(words):
+        if H.WEATHER_WET.search(words):
+            return "wet"
+        return "dry" if H.WEATHER_STATED.search(words) else None
+    overruled = {(y, r) for y, r, w, c in con.execute("""
+        SELECT r.year, r.round, w.reported, w.conditions
+          FROM race_weather_reported w JOIN races r ON r.id = w.race_id""")
+        if c != by_rule(w)}
+    check("the reported readings that overrule the words are exactly the declared ones",
+          overruled == set(H.WEATHER_READINGS),
+          f"undeclared {sorted(overruled - set(H.WEATHER_READINGS))}, "
+          f"declared and unused {sorted(set(H.WEATHER_READINGS) - overruled)}")
+    unpinned = con.execute("""SELECT COUNT(*) FROM race_weather_reported
+        WHERE revision <= 0 OR source <> 'https://en.wikipedia.org/wiki/'
+                                       || REPLACE(article, ' ', '_')""").fetchone()[0]
+    check("every reported row cites the article it names, at a revision", unpinned == 0,
+          f"{unpinned} rows")
+    foreign = [f"{y} round {r}: {a}" for y, r, n, a in con.execute("""
+        SELECT r.year, r.round, r.name_used, w.article
+          FROM race_weather_reported w JOIN races r ON r.id = w.race_id""")
+        if not H.weather_article_is_the_races(y, r, n, a)]
+    check("every reported row's article is its own race's", not foreign,
+          "; ".join(foreign[:5]))
+    # The modelled day is the race's local day, and the row cites the very
+    # request that asked for it.
+    wrong_day, wrong_url, odd = [], [], []
+    for y, r, d, dto, cid, day, lat, lon, src, t, mm, hrs, wind in con.execute("""
+        SELECT r.year, r.round, r.date_iso, r.date_to, r.circuit_id, m.day, m.latitude,
+               m.longitude, m.source, m.air_max_c, m.rain_mm, m.rain_hours,
+               m.wind_max_kmh
+          FROM race_weather_modelled m JOIN races r ON r.id = m.race_id"""):
+        if day != H.weather_day(d, cid, _N.RACE_DAY_AFTER_WEEKEND, dto):
+            wrong_day.append(f"{y} round {r}: {day} for {d}")
+        if src != H.weather_model_source(lat, lon, day):
+            wrong_url.append(f"{y} round {r}")
+        # Bounds of the possible, not of the likely: the hottest and coldest
+        # air ever measured, a day's hours, and no negative rain or wind.
+        if not (-90 < t < 57 and mm >= 0 and 0 <= hrs <= 24 and wind >= 0):
+            odd.append(f"{y} round {r}: {t} C, {mm} mm, {hrs} h, {wind} km/h")
+    check("every modelled row is the race's local day", not wrong_day,
+          "; ".join(wrong_day[:5]))
+    check("every modelled row cites the model, point and day it was asked for", not wrong_url,
+          f"{len(wrong_url)}: " + ", ".join(wrong_url[:5]))
+    check("every modelled day is a possible day", not odd, "; ".join(odd[:5]))
+    # The disagreements, recomputed here by their own query, against the ones
+    # build.py filed: none missing, none extra, and each still about what it
+    # names.
+    expected = {str(rid): cond for rid, cond in con.execute("""
+        SELECT w.race_id, w.conditions FROM race_weather_reported w
+          JOIN race_weather_modelled m USING (race_id)
+         WHERE CASE w.conditions WHEN 'wet' THEN m.rain_mm <= 0
+                                 WHEN 'dry' THEN m.rain_mm >= ? END""",
+        (H.WEATHER_HEAVY_MM,))}
+    filed = {k: v for k, v in con.execute("""SELECT row_key, stored_value
+        FROM discrepancies WHERE kind = 'race-weather'
+         AND tbl = 'race_weather_reported' AND field = 'conditions'
+         AND status = 'open'""")}
+    total = con.execute("SELECT COUNT(*) FROM discrepancies WHERE kind = 'race-weather'").fetchone()[0]
+    check("the race-weather disagreements filed are exactly the ones the two tables hold",
+          filed == expected and total == len(filed),
+          f"{len(expected)} expected, {len(filed)} filed of {total}")
+
+
 def base_country_faults(rows, registry):
     """Each constructor whose base does not end in a registry country.
 
