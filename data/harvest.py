@@ -2,8 +2,9 @@
 """
 Loader for the Wikipedia race-result harvest (harvest/races.txt).
 
-Source: the '<year> Formula One World Championship' / '<year> Formula One
-season' articles on en.wikipedia.org, harvested 2026-09-04.
+Source: the '<year> Formula One season' articles to 1980 and the '<year>
+Formula One World Championship' articles from 1981, on en.wikipedia.org,
+harvested 2026-09-04. season_source() says which a season cites.
 
 Confidence: 'reference'. Wikipedia's season results tables are transcribed
 from FIA classifications and are heavily cross-checked, but they are not an
@@ -24,7 +25,24 @@ import unicodedata
 HERE = os.path.dirname(os.path.abspath(__file__))
 RACES_FILE = os.path.join(HERE, "..", "harvest", "races.txt")
 
-SOURCE = "https://en.wikipedia.org/wiki/{year}_Formula_One_World_Championship"
+# A season's Wikipedia article is cited by the title it has, so that the link
+# opens the article rather than a redirect or nothing (PM-70, #913). Read from
+# the Wikipedia API on 2026-10-28: every season to 1980 is titled
+# '<year> Formula One season', and from 1981 '<year> Formula One World
+# Championship'. The other spelling redirects to the article for 1952, 1960,
+# 1963, 1965, 1979 and every season from 1981, and is missing for the other 26
+# seasons to 1980, each of which cited it until PM-70.
+SEASON_TITLED_SEASON_THROUGH = 1980
+SEASON_ARTICLE = "https://en.wikipedia.org/wiki/{year}_Formula_One_{title}"
+
+
+def season_source(year):
+    """The URL of a season's Wikipedia article, under its own title."""
+    year = int(year)
+    title = "season" if year <= SEASON_TITLED_SEASON_THROUGH else "World_Championship"
+    return SEASON_ARTICLE.format(year=year, title=title)
+
+
 CONFIDENCE = "reference"
 
 
@@ -158,7 +176,7 @@ def load():
                 "co_winner_name": names[1] if len(names) > 1 else None,
                 "entrant": constructor,
                 "chassis": constructor.split("-")[0].strip(),
-                "source": SOURCE.format(year=year),
+                "source": season_source(year),
                 "confidence": CONFIDENCE,
             })
     return rows
@@ -184,7 +202,7 @@ def load_poles():
                 continue
             year, rnd, pole, fl, winner = line.split("|")
             fl = None if fl.strip() in ("?", "") else fl.strip()
-            fl_source = SOURCE.format(year=int(year))
+            fl_source = season_source(year)
             shared = SHARED_FASTEST_LAPS.get((int(year), int(rnd)))
             if shared:
                 held, names, src, _ = shared
@@ -205,7 +223,7 @@ def load_poles():
                 "fastest_lap_source": fl_source,
                 "shared_override": bool(shared),
                 "winner_check": winner.strip(),
-                "source": SOURCE.format(year=int(year)),
+                "source": season_source(year),
             })
     missing = sorted(set(SHARED_FASTEST_LAPS) - applied)
     if missing:
@@ -364,7 +382,7 @@ def load_venues():
                 "venue": venue.strip(),
                 "circuit_id": venue_circuit_id(venue, year),
                 "winner_check": winner.strip(),
-                "source": SOURCE.format(year=year),
+                "source": season_source(year),
             })
     return rows
 

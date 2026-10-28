@@ -695,7 +695,10 @@ SOURCE_PATTERNS = [
      "the FIA's older document server, which still serves the Sporting "
      "Regulations issues from 2009 to 2013 that qualifying_formats reads"),
     (3,  r"^https://www\.formula1\.com/", "all of formula1.com; entries 4-7 are its sections"),
-    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_World_Championship",
+    # Both titles: a season's article is '<year> Formula One season' to 1980
+    # and '<year> Formula One World Championship' from 1981, and each is
+    # cited by its own (season_source in data/harvest.py, PM-70).
+    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_(?:World_Championship|season)$",
      "season articles - the results, pole and venue harvests"),
     (8,  r"^https://en\.wikipedia\.org/wiki/List_of_Formula_One", "the list articles"),
     (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio, and why a finisher inside the paid places scored nothing"),
