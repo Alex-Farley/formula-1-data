@@ -31,6 +31,7 @@ import {
   WINS_FIGURE_COLUMNS,
   WINS_HEADING,
   constructorSeasons,
+  lineageChains,
   recordFigures,
   teamStrip,
   winsFigure,
@@ -117,7 +118,7 @@ function ConstructorBody({ constructor, data }) {
   const standings = rows(data, 'standings')
   const wins = rows(data, 'wins')
   const designs = rows(data, 'designs')
-  const lineage = rows(data, 'lineage')
+  const lineage = lineageChains(rows(data, 'lineage'), constructor)
   const images = rows(data, 'images')
 
   // The wins chart, worked out in queries/constructor.js so the static page
@@ -192,25 +193,30 @@ function ConstructorBody({ constructor, data }) {
         </Section>
       )}
 
-      {lineage.length > 1 && (
+      {lineage.map((steps) => (
         <Section
-          title={lineage[0].chain_name}
-          note="One factory, several names. Each name keeps its own record here; the chain is what connects them."
+          key={steps[0].chain_id}
+          title={steps[0].chain_name}
+          note={
+            steps.length > 1
+              ? 'One factory, several names. Each name keeps its own record here; the chain is what connects them.'
+              : undefined
+          }
         >
           <div className="timeline">
-            {lineage.map((step) => (
+            {steps.map((step) => (
               <article key={step.id}>
                 <h3>
                   {step.entity_name}
                   <span className="years">{span(step.from_year, step.to_year)}</span>
-                  {step.entity_name === constructor.name && <span className="pill">this page</span>}
+                  {step.constructor_id === constructor.id && <span className="pill">this page</span>}
                 </h3>
                 {step.note && <p>{step.note}</p>}
               </article>
             ))}
           </div>
         </Section>
-      )}
+      ))}
 
       <Disagreement rows={rows(data, 'disagreements')} what="this team" />
 
