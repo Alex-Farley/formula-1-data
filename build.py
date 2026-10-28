@@ -366,14 +366,14 @@ def _stage_02_drivers(b):
             born, died, first_season, last_season, wins, poles, titles, status, notes,
             confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (did, name, nat, code, born, died, first, last, wins, poles, titles, status,
-             notes, conf, HV.SOURCE.format(year=first)))
+             notes, conf, HV.season_source(first)))
 
     for did, name, nat, code, year in HV.INDY_WINNERS:
         cur.execute("""INSERT INTO drivers (id, full_name, nationality, nationality_code,
             first_season, last_season, wins, titles, status, notes, confidence, source)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             (did, name, nat, code, year, year, None, 0, "deceased", HV.INDY_NOTE,
-             "reference", HV.SOURCE.format(year=year)))
+             "reference", HV.season_source(year)))
 
     # notes is the page's lede and its meta description, so it holds only what
     # is said about the driver; how the row got here goes in provenance.

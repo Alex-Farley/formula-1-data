@@ -756,7 +756,7 @@ class Figures:
     _WP_POLESITTERS = "source = 'https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters'"
 
     def _wp_drivers_split(self):
-        season = self.count("drivers", self._WP_RACE)
+        season = self.count("drivers", self._wp_race())
         poles = self.count("drivers", self._WP_POLESITTERS)
         if season + poles != self._wp("drivers"):
             raise SystemExit(
@@ -774,13 +774,16 @@ class Figures:
     def wp_weather(self):           return n(self._wp("race_weather_reported"))
     def wp_entry_notes(self):       return n(self.count("claims", "tbl = 'race_entries' AND field = 'note'"))
 
-    # The season articles' URL, which is what data/harvest.py cites; a
-    # Wikipedia race row citing anything else would be a second harvest the
-    # note has not read.
-    _WP_RACE = "source LIKE 'https://en.wikipedia.org/wiki/%_Formula_One_World_Championship'"
+    # The season articles' URLs, under either title, which is what
+    # data/harvest.py cites; a Wikipedia race row citing anything else would
+    # be a second harvest the note has not read.
+    @staticmethod
+    def _wp_race(col="source"):
+        return (f"({col} LIKE 'https://en.wikipedia.org/wiki/%_Formula_One_World_Championship' "
+                f"OR {col} LIKE 'https://en.wikipedia.org/wiki/%_Formula_One_season')")
 
     def _wp_race_one(self, sql):
-        cited = self.one(f"SELECT COUNT(*) FROM races WHERE {self._WP_RACE}")
+        cited = self.one(f"SELECT COUNT(*) FROM races WHERE {self._wp_race()}")
         if cited != self._wp("races"):
             raise SystemExit(
                 f"{self._wp('races')} races cite Wikipedia and {cited} cite a "
@@ -789,16 +792,16 @@ class Figures:
         return self.one(sql)
 
     def wp_first_season(self):
-        return str(self._wp_race_one(f"SELECT MIN(year) FROM races WHERE {self._WP_RACE}"))
+        return str(self._wp_race_one(f"SELECT MIN(year) FROM races WHERE {self._wp_race()}"))
 
     def wp_last_season(self):
-        return str(self._wp_race_one(f"SELECT MAX(year) FROM races WHERE {self._WP_RACE}"))
+        return str(self._wp_race_one(f"SELECT MAX(year) FROM races WHERE {self._wp_race()}"))
 
     def wp_races_f1db(self):
         # Wikipedia-cited races F1DB also classifies: the ones the winner
         # cross-check in build.py ran on, and would have refused whole on a
         # disagreement.
-        return n(self._wp_race_one(f"""SELECT COUNT(*) FROM races r WHERE r.{self._WP_RACE}
+        return n(self._wp_race_one(f"""SELECT COUNT(*) FROM races r WHERE {self._wp_race('r.source')}
             AND EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id
                         AND e.source = 'https://github.com/f1db/f1db')"""))
 
@@ -807,7 +810,7 @@ class Figures:
         # filled - laps, points, grid - under the COALESCE in build.py. The
         # note says "all" of them, so a shortfall stops the writer rather
         # than printing a smaller number under the same word.
-        filled = self.count("race_entries", f"{self._WP_RACE} AND laps_completed IS NOT NULL")
+        filled = self.count("race_entries", f"{self._wp_race()} AND laps_completed IS NOT NULL")
         if filled != self._wp("race_entries"):
             raise SystemExit(
                 f"{filled} of {self._wp('race_entries')} Wikipedia-cited winner rows "
@@ -815,10 +818,10 @@ class Figures:
         return n(filled)
 
     def wp_poles(self):
-        return n(self.count("race_entries", f"{self._WP_RACE} AND pole = 1"))
+        return n(self.count("race_entries", f"{self._wp_race()} AND pole = 1"))
 
     def wp_fastest_laps(self):
-        return n(self.count("race_entries", f"{self._WP_RACE} AND fastest_lap = 1"))
+        return n(self.count("race_entries", f"{self._wp_race()} AND fastest_lap = 1"))
 
     # What the season-article harvests credit (CR-91). harvest/poles.txt and
     # harvest/venues.txt are read by hand and stop at the last round read;
@@ -870,7 +873,7 @@ class Figures:
             own = (f" AND (e.source IS NULL OR e.source NOT LIKE 'https://{self.WIKI}/%')"
                    if "source" in cols else "")
             total += self._wp_race_one(f"""SELECT COUNT(*) FROM "{t}" e
-                JOIN races r ON r.id = e.race_id WHERE r.{self._WP_RACE}{own}""")
+                JOIN races r ON r.id = e.race_id WHERE {self._wp_race('r.source')}{own}""")
         return n(total)
 
     # Wikipedia values on rows that cite something else, which a count by
@@ -966,7 +969,7 @@ class Figures:
         # race belongs to. The note says every one, so a shortfall stops it.
         agree = self._wp_race_one(f"""SELECT COUNT(*) FROM races r
             JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
-            WHERE r.{self._WP_RACE} AND o.circuit_id = r.circuit_id""")
+            WHERE {self._wp_race('r.source')} AND o.circuit_id = r.circuit_id""")
         if agree != self._wp("races"):
             raise SystemExit(
                 f"{agree} of {self._wp('races')} Wikipedia-cited races have the circuit "
@@ -980,7 +983,7 @@ class Figures:
         return n(self.count("race_entries", "pole = 1"))
 
     def pole_credits_elsewhere(self):
-        return n(self.count("race_entries", f"pole = 1 AND NOT {self._WP_RACE}"))
+        return n(self.count("race_entries", f"pole = 1 AND NOT {self._wp_race()}"))
 
     def pole_grid_one(self):
         return n(self.count("race_entries", "pole = 1 AND grid = 1"))
@@ -1034,7 +1037,7 @@ class Figures:
     def fl_f1db_shares(self):     return n(self._fl()[4])
 
     def fl_credits_elsewhere(self):
-        return n(self.count("race_entries", f"fastest_lap = 1 AND NOT {self._WP_RACE}"))
+        return n(self.count("race_entries", f"fastest_lap = 1 AND NOT {self._wp_race()}"))
 
     # The race names and grand-prix keys against F1DB's (PD-53, the ruling of
     # 2026-10-06): harvest/race_grands_prix.txt and f1db_grands_prix.txt,
@@ -1060,7 +1063,7 @@ class Figures:
         full = {g: f for g, _, f, _, _ in self._f1db_file("f1db_grands_prix.txt")}
         ours = dict(self.con.execute("SELECT id, name FROM grands_prix").fetchall())
         rows = self.con.execute(f"""SELECT year, round, gp_id, name_used FROM races
-            WHERE {self._WP_RACE}""").fetchall()
+            WHERE {self._wp_race()}""").fetchall()
         if len(rows) != self._wp("races") or any((y, r) not in theirs for y, r, _, _ in rows):
             raise SystemExit("a Wikipedia-cited race has no grand prix in "
                              "harvest/race_grands_prix.txt: docs/COMMERCIAL-READINESS.md "
@@ -1118,7 +1121,7 @@ class Figures:
         for y, r, d, cons, grid, laps in self.con.execute(f"""SELECT r.year, r.round,
                 e.driver_id, e.constructor_id, e.grid, e.laps_completed
                 FROM race_entries e JOIN races r ON r.id = e.race_id
-                WHERE e.{self._WP_RACE}"""):
+                WHERE {self._wp_race('e.source')}"""):
             f = theirs.get((y, r, d))
             if f is None:
                 raise SystemExit(f"{y} round {r}: a Wikipedia-cited winner F1DB does not "
