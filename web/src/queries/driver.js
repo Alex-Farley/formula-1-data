@@ -26,9 +26,12 @@ export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
  * The career, counted from the race records rather than read from a column.
  *
  * The stored figures are shown beside these on the page, because where they
- * differ the difference is the interesting part: career_points is a gross
- * total here and a net one in the register for every season that ran the
- * best-N-results rule, which is every season up to 1990.
+ * differ the difference is the interesting part. points here is everything
+ * the driver scored. Where the register holds a career_points at all it is
+ * the same kind of total, except Fangio's and Senna's, which are
+ * championship totals net of the scores the best-results rule dropped
+ * (schema.sql). Every difference is a 'stored-total' row in discrepancies,
+ * shown on the page with its assessment (DA-43).
  *
  * first_year and last_year are for the static page's meta description
  * (CD-20), which is one sentence built from this row and never from a
@@ -989,9 +992,11 @@ export function record(driver) {
 
 /**
  * Whether the stored career total and the points scored differ beyond
- * rounding. The stored total is net of dropped scores wherever the season's
- * rules dropped any; the derived one adds up every point scored. Saying so
- * is better than showing one and hiding the other.
+ * rounding. The derived one adds up every point the race records hold; the
+ * stored one is a source's total, and why the two differ is a 'stored-total'
+ * row in discrepancies - net of dropped scores for Fangio and Senna only, an
+ * older figure for a current driver, a car the records do not hold, or not
+ * yet established. Saying so is better than showing one and hiding the other.
  */
 export const pointsDiffer = (driver, derived) =>
   !missing(driver.career_points) &&
@@ -1000,9 +1005,11 @@ export const pointsDiffer = (driver, derived) =>
 
 export const pointsNote = (driver, derived) => ({
   head: `Two career points totals: ${points(driver.career_points)} published, ${points(derived.points)} scored.`,
+  // Not a reason: the reasons differ from driver to driver, and the recorded
+  // reading the page shows beside the figures gives this driver's (DA-43).
   body:
-    "Both are right. Up to 1990 only a driver's best few results counted towards the " +
-    'championship, so the published total is net of the points that were dropped.',
+    "The published total is a source's and the scored one adds up every point the race " +
+    'records hold. Neither is corrected, and the recorded reading on this page gives what is known of why they differ.',
 })
 
 /** "Ferrari", "Ferrari and Matra", "Mercedes, McLaren and Ferrari", "Ferrari, Matra and 6 other constructors". */

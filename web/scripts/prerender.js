@@ -151,7 +151,7 @@ import {
   NOT_FOUND_LEDE,
   titled,
 } from '../src/lib/site.js'
-import { EXPLAINED_FOOTER, EXPLAINED_SPAN, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
+import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading } from '../src/lib/disagreement.js'
 import {
   CHANGES_DESCRIPTION,
   CHANGES_LEDE,
@@ -1839,16 +1839,18 @@ const namesItsMaker = (name, maker) => {
  * avoid. Markup and class names match components/Disagreement.jsx, so the static
  * page and the app render the same thing.
  */
-const disagree = (rows, what) => {
-  if (!rows.length) return ''
-  // The same two readings as the app's Disagreement component: explained
-  // rows - a span the register and the records define differently (CD-25) -
-  // are introduced as readings, open ones as a disagreement to settle.
+const disagree = (rows, what) => byReading(rows).map((group) => readings(group, what)).join('\n')
+
+// The same two readings as the app's Disagreement component, each group in an
+// aside of its own: explained rows - a span the register and the records
+// define differently (CD-25), a stored total with its gap explained (DA-43) -
+// are introduced as readings, open ones as a disagreement to settle.
+const readings = (rows, what) => {
   const explained = allExplained(rows)
   return `<aside class="disagreement" aria-label="${explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}">
     <h2>${
       explained
-        ? `Two readings of ${esc(what)}, each right about something`
+        ? esc(explainedHeading(what))
         : rows.length === 1
           ? `Two sources disagree about ${esc(what)}`
           : `Two sources disagree about ${esc(what)}, in ${rows.length} places`
@@ -3375,13 +3377,13 @@ const seasonsTable = (rows) =>
   // figure. verify.py refuses a subject shape that resolves to nothing, so a
   // silent empty join cannot survive a build.
   const careerDisagreements = db.prepare(
-    `SELECT d.field, d.status, d.status_note, d.assessment,
+    `SELECT d.id, d.kind, d.field, d.status, d.status_note, d.assessment,
             COALESCE(s.full_name, d.stored_value)  AS stored_value,
             COALESCE(v.full_name, d.derived_value) AS derived_value
        FROM discrepancies d
        LEFT JOIN drivers s ON s.id = d.stored_value
        LEFT JOIN drivers v ON v.id = d.derived_value
-      WHERE d.subject = ? AND (d.status = 'open' OR (d.status = 'explained' AND d.status_note = '${EXPLAINED_SPAN}'))
+      WHERE d.subject = ? AND ${DRIVER_READINGS}
       ORDER BY d.id`,
   )
 

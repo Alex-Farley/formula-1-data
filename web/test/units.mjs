@@ -89,7 +89,7 @@ import { EXAMPLES, QUESTIONS, TOPICS, questionPath } from '../src/lib/questions.
 import { complaint, emptyTimingTableRead, nearestStatement } from '../src/lib/sql.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { KEY_SHAPE, holderPath, recordPath } from '../src/queries/records.js'
-import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
+import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading } from '../src/lib/disagreement.js'
 import { SESSION_COLUMNS, clock, eventDay, nextSession, raceStage, until, utc, yourTimeColumn } from '../src/queries/sessions.js'
 import {
   SEASON_COLUMNS,
@@ -693,7 +693,9 @@ describe('the disagreement aside', () => {
       assert.ok(footer.startsWith('Recorded'))
       assert.ok(footer.endsWith(' listed on '))
     }
-    assert.ok(EXPLAINED_FOOTER.includes('the published span'))
+    // DA-43: points and entries are explained here too, so the words are not a span's.
+    assert.ok(EXPLAINED_FOOTER.includes('the published figure'))
+    assert.ok(!EXPLAINED_FOOTER.includes('span'))
   })
   it('introduces a set of explained rows as readings, and anything else as a disagreement', () => {
     const explained = { status: 'explained', status_note: 'each side is right about something' }
@@ -705,6 +707,21 @@ describe('the disagreement aside', () => {
     assert.equal(allExplained([open]), false)
     assert.equal(allExplained([explained, open]), false)
     assert.equal(allExplained([]), false)
+    // DA-43: a stored total explained on the record is a reading too, and the
+    // kind decides it - the same note on another kind is not.
+    const total = { kind: 'stored-total', status: 'explained', status_note: 'net of dropped scores' }
+    assert.equal(allExplained([total]), true)
+    assert.equal(allExplained([total, explained]), true)
+    assert.equal(allExplained([{ ...older, kind: 'external-figure' }]), false)
+    assert.equal(allExplained([{ ...total, status: 'open' }]), false)
+  })
+  it('splits open rows from explained ones, open first, and drops an empty group', () => {
+    const open = { id: 1, kind: 'stored-total', status: 'open', status_note: 'sources differ' }
+    const total = { id: 2, kind: 'stored-total', status: 'explained', status_note: 'external figure is older' }
+    assert.deepEqual(byReading([total, open]), [[open], [total]])
+    assert.deepEqual(byReading([open]), [[open]])
+    assert.deepEqual(byReading([total]), [[total]])
+    assert.deepEqual(byReading([]), [])
   })
 })
 
