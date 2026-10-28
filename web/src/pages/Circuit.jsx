@@ -1,5 +1,8 @@
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
+import Figure from '../charts/Figure.jsx'
+import GridStarts from '../charts/GridStarts.jsx'
+import { drawnColours } from '../charts/gridStarts.js'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
@@ -40,15 +43,29 @@ import {
   RACES,
   RACES_HEADING,
   RACE_COLUMNS,
+  STARTS,
+  STARTS_COLUMNS,
+  STARTS_EVERYWHERE,
+  STARTS_HEADING,
   TEAMS,
+  TIMELINE_HEADING,
   TEAM_COLUMNS,
   TRACE_COVERAGE,
   WINNERS,
   WINNER_COLUMNS,
+  byDecade,
+  chipRace,
+  chipStart,
   circuitStrip,
   heldAs,
   photographAlt,
   racesCount,
+  startsFigures,
+  startsLabel,
+  startsLine,
+  startsNote,
+  startsTable,
+  winnerStarts,
 } from '../queries/circuit.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -117,6 +134,8 @@ export default function Circuit() {
     winners: [WINNERS, [id]],
     teams: [TEAMS, [id]],
     grandsPrix: [GRANDS_PRIX, [id]],
+    starts: [STARTS, [id]],
+    everywhere: [STARTS_EVERYWHERE, [id]],
     sources: [CIRCUIT_SOURCES, [id]],
   })
 
@@ -307,6 +326,14 @@ function CircuitBody({ circuit, data }) {
         )}
       </div>
 
+      <WinnerStarts
+        races={winnerStarts(rows(data, 'starts'))}
+        everywhere={firstRow(data, 'everywhere')}
+        layouts={layouts.length}
+        winners={winners}
+        teams={teams}
+      />
+
       {/* AF-23: this page used to draw the circuit twice — the ODbL trace and
           then every layout F1DB draws (AF-03) — two pictures of one thing,
           from two sources, with no rule for which to believe. The outline is
@@ -418,6 +445,48 @@ function CircuitBody({ circuit, data }) {
 
       <Onward {...ONWARD.circuit({ races, winners })} />
     </Page>
+  )
+}
+
+/**
+ * Where winners start here (AF-133): the figures, the grid (or, on a phone,
+ * the strip) with its numbers, and the chips by decade - all from
+ * queries/circuit.js, which scripts/prerender.js prints too. Nothing where
+ * no race here has been run.
+ */
+function WinnerStarts({ races, everywhere, layouts, winners, teams }) {
+  if (races.length === 0) return null
+  const table = startsTable(races)
+  return (
+    <Section title={STARTS_HEADING} note={startsLine(races, layouts)}>
+      <Fields items={startsFigures(races, everywhere, winners, teams)} />
+      {table.some((row) => row.key.startsWith('slot-')) && (
+        <Figure note={startsNote(drawnColours(races))} table={{ rows: table, columns: STARTS_COLUMNS }}>
+          <GridStarts races={races} label={startsLabel(table)} />
+        </Figure>
+      )}
+      <h3>{TIMELINE_HEADING}</h3>
+      <ol className="win-decades">
+        {byDecade(races).map(({ decade, races: here }) => (
+          <li key={decade}>
+            <span className="win-decade">{decade}</span>
+            <ol className="win-chips">
+              {here.map((race) => (
+                <li key={race.key} className="win-chip">
+                  {race.colour && <LiveryMark colour={race.colour} year={race.year} />}
+                  <Link to={`/races/${race.year}/${race.round}`}>
+                    {race.year}
+                    <span className="sr-only">{chipRace(race)}</span>
+                  </Link>{' '}
+                  {race.team ?? EMPTY}{' '}
+                  <b>{chipStart(race)}</b>
+                </li>
+              ))}
+            </ol>
+          </li>
+        ))}
+      </ol>
+    </Section>
   )
 }
 

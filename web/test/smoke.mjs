@@ -140,7 +140,18 @@ import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/t
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
-import { CIRCUIT_SOURCES, PHOTOGRAPH as CIRCUIT_PHOTOGRAPH, photographAlt as circuitPhotographAlt } from '../src/queries/circuit.js'
+import {
+  CIRCUIT_SOURCES,
+  PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
+  STARTS,
+  STARTS_EVERYWHERE,
+  STARTS_HEADING,
+  TEAMS as CIRCUIT_TEAMS,
+  WINNERS as CIRCUIT_WINNERS,
+  photographAlt as circuitPhotographAlt,
+  startsFigures,
+  winnerStarts,
+} from '../src/queries/circuit.js'
 import { CONSTRUCTOR_SOURCES } from '../src/queries/constructor.js'
 import { GRAND_PRIX_SOURCES } from '../src/queries/grandprix.js'
 
@@ -5307,6 +5318,65 @@ try {
     }
   })
 
+  /*
+   * AF-133: where winners start, on Austin's page and Monza's, in both
+   * halves - the figures in the words the functions give them, one chip per
+   * race, Monza's first slot as its count, and the grid shown from 768 px
+   * with the strip below it.
+   */
+  await section('/circuits/cota /circuits/monza  (where winners start: AF-133)', async () => {
+    const read = (root) => {
+      const main = document.querySelector(root)
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const shown = (node) => !!node && getComputedStyle(node).display !== 'none'
+      return {
+        fields: [...main.querySelectorAll('dl.fields')].map((dl) =>
+          [...dl.querySelectorAll('dt')].map((dt) => `${clean(dt)}: ${clean(dt.nextElementSibling)}`),
+        ).flat(),
+        chips: main.querySelectorAll('.win-chip').length,
+        counts: [...main.querySelectorAll('svg.grid-starts-grid .value-text')].map(clean),
+        grid: shown(main.querySelector('svg.grid-starts-grid')),
+        strip: shown(main.querySelector('svg.grid-starts-strip')),
+      }
+    }
+    for (const id of ['cota', 'monza']) {
+      const route = `/circuits/${id}`
+      const races = winnerStarts(db.prepare(STARTS).all(id))
+      const items = startsFigures(
+        races,
+        db.prepare(STARTS_EVERYWHERE).get(id) ?? null,
+        db.prepare(CIRCUIT_WINNERS).all(id),
+        db.prepare(CIRCUIT_TEAMS).all(id),
+      )
+      truthy(items.length >= 4, `${route} has its figures to show`)
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await go(route, db.prepare('SELECT name FROM circuits WHERE id = ?').get(id).name)
+      await page.waitForSelector('#root main .win-chip', { timeout: 20000 })
+      const app = await page.evaluate(read, '#root main')
+      const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+      const plain = await noJs.newPage()
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const served = await plain.evaluate(read, '#prerendered')
+      await noJs.close()
+      for (const [half, got] of [['app', app], ['static page', served]]) {
+        for (const { label, value } of items) truthy(got.fields.includes(`${label}: ${value}`), `${route}, ${half}: "${label}: ${value}"`)
+        is(got.chips, races.length, `${route}, ${half}: one chip per race won here`)
+        truthy(got.grid && !got.strip, `${route}, ${half}: the grid at 1440, not the strip`)
+      }
+      if (id === 'monza') {
+        const first = races.filter((race) => race.slot === 1).length
+        truthy(first > 8, `Monza's first slot holds ${first}, more than a box draws`)
+        for (const [half, got] of [['app', app], ['static page', served]]) {
+          truthy(got.counts.includes(String(first)), `/circuits/monza, ${half}: the first slot drawn as its count, ${first}`)
+        }
+      }
+      await page.setViewportSize({ width: 375, height: 800 })
+      const phone = await page.evaluate(read, '#root main')
+      truthy(phone.strip && !phone.grid, `${route} at 375: the strip, not the grid`)
+      await page.setViewportSize({ width: 1280, height: 900 })
+    }
+  })
+
   await section('/circuits/silverstone', async () => {
     await go('/circuits/silverstone', 'Silverstone')
     const silverstone = await tableRows()
@@ -5513,7 +5583,7 @@ try {
           hidden: main.querySelectorAll('details.layout-cards .outline-card').length,
         }
       }
-      const order = ['Most wins here', 'Constructors here', 'Every layout raced here', 'Every race here']
+      const order = ['Most wins here', 'Constructors here', STARTS_HEADING, 'Every layout raced here', 'Every race here']
       const inOrder = (blocks, names) => {
         const at = names.map((name) => blocks.findIndex((b) => b.startsWith(name)))
         return at.every((i, k) => i >= 0 && (k === 0 || i > at[k - 1]))

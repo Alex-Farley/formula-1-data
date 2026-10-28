@@ -3906,3 +3906,180 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
     assert.deepEqual(shared.cars.map((car) => car.won), [true, true, false])
   })
 })
+
+describe('where winners start at a circuit (AF-133)', async () => {
+  const {
+    STARTS_COLUMNS,
+    startsFigures,
+    startsLine,
+    startsNote,
+    startsTable,
+    winnerStarts,
+    byDecade,
+    chipStart,
+  } = await import('../src/queries/circuit.js')
+  const { STARTS_CAP, dotStrip, gridDiagram, slotsDrawn } = await import('../src/charts/gridStarts.js')
+  // One STARTS row: a winning entry of a race run here.
+  const won = (year, grid, driver, constructor, extra = {}) => ({
+    year,
+    round: 1,
+    name_used: 'Grand Prix',
+    grid,
+    grid_text: grid === null ? null : String(grid),
+    driver_id: driver.toLowerCase().replace(/\W+/g, '-'),
+    driver,
+    constructor_id: constructor.toLowerCase().replace(/\W+/g, '-'),
+    constructor,
+    constructor_country: null,
+    winners: 1,
+    ...extra,
+  })
+  // Austin as the item worked it, 2012 to 2025: thirteen races, no 2020.
+  const AUSTIN = [
+    [2012, 2, 'Sir Lewis Hamilton', 'McLaren'],
+    [2013, 1, 'Sebastian Vettel', 'Red Bull'],
+    [2014, 2, 'Sir Lewis Hamilton', 'Mercedes'],
+    [2015, 2, 'Sir Lewis Hamilton', 'Mercedes'],
+    [2016, 1, 'Sir Lewis Hamilton', 'Mercedes'],
+    [2017, 1, 'Sir Lewis Hamilton', 'Mercedes'],
+    [2018, 2, 'Kimi Raikkonen', 'Ferrari'],
+    [2019, 1, 'Valtteri Bottas', 'Mercedes'],
+    [2021, 1, 'Max Verstappen', 'Red Bull'],
+    [2022, 2, 'Max Verstappen', 'Red Bull'],
+    [2023, 6, 'Max Verstappen', 'Red Bull'],
+    [2024, 4, 'Charles Leclerc', 'Ferrari'],
+    [2025, 1, 'Max Verstappen', 'Red Bull'],
+  ].map(([year, grid, driver, team]) => won(year, grid, driver, team))
+  // WINNERS and TEAMS as the views give them, most wins first.
+  const tally = (key) =>
+    [...AUSTIN.reduce((m, r) => m.set(r[key], (m.get(r[key]) ?? 0) + 1), new Map())]
+      .map(([name, wins]) => ({ [key]: name, wins }))
+      .sort((a, b) => b.wins - a.wins || a[key].localeCompare(b[key]))
+  const value = (items, label) => items.find((item) => item.label === label)?.value
+
+  it("pins Austin's figures as the item worked them", () => {
+    const races = winnerStarts(AUSTIN)
+    assert.equal(races.length, 13)
+    const items = startsFigures(races, { placed: 308, first: 167, front: 250 }, tally('driver'), tally('constructor'))
+    assert.equal(value(items, 'Won from first on the grid'), '6 of 13 (46%), against 167 of 308 (54%) at every circuit, 2012–2025')
+    assert.equal(value(items, 'Won from the first two slots'), '11 of 13 (85%), against 250 of 308 (81%) at every circuit')
+    assert.equal(value(items, 'Lowest winning grid slot'), '6th — Max Verstappen, 2023')
+    assert.equal(value(items, 'Most wins by a driver'), 'Sir Lewis Hamilton, 5')
+    assert.equal(value(items, 'Most wins by a team'), 'Mercedes and Red Bull, 5 each')
+    assert.equal(value(items, 'Not counted as a slot'), undefined, 'every Austin winner has a slot')
+    assert.equal(startsLine(races, 0), 'All 13 races won here, counted together. No layout timeline is recorded for this circuit.')
+    // The table: one row per slot won from, in slot order, every race named.
+    const table = startsTable(races)
+    assert.deepEqual(table.map((row) => [row.start, row.wins]), [['1st', 6], ['2nd', 5], ['4th', 1], ['6th', 1]])
+    const named = STARTS_COLUMNS.find((c) => c.key === 'races').text(table[3].races)
+    assert.equal(named, '2023 Max Verstappen (Red Bull)')
+    // The drawings: six slots, a whole row past the 6th; every race a dot.
+    const grid = gridDiagram(races)
+    assert.equal(grid.boxes.length, 6)
+    assert.equal(grid.boxes.flatMap((b) => b.dots).length, 13)
+    assert.ok(grid.boxes.every((b) => b.count === null))
+    // The even slots stand half a box back of the odd ones beside them.
+    const [p1, p2] = grid.boxes
+    assert.ok(p2.x > p1.x && p2.y > p1.y)
+    assert.equal(dotStrip(races).columns.length, 6)
+    assert.deepEqual(byDecade(races).map((d) => [d.decade, d.races.length]), [['2010s', 8], ['2020s', 5]])
+  })
+
+  it("draws Monza's first slot as its count, 26, not as 26 dots", () => {
+    const monza = Array.from({ length: 26 }, (_, i) => won(1950 + i, 1, `Driver ${i}`, 'Ferrari'))
+    monza.push(won(2026, 19, 'Andrea Kimi Antonelli', 'Mercedes'))
+    const races = winnerStarts(monza)
+    const grid = gridDiagram(races)
+    assert.ok(26 > STARTS_CAP)
+    assert.equal(grid.boxes.length, 20, '19th is drawn, with its partner in the 20th')
+    assert.equal(grid.boxes[0].count, 26)
+    assert.deepEqual(grid.boxes[0].dots, [])
+    assert.equal(grid.boxes[18].dots.length, 1, 'the 19th is stated, not hidden')
+    const strip = dotStrip(races)
+    assert.equal(strip.columns[0].count, 26)
+    assert.ok(strip.columns[0].bar && strip.columns[0].dots.length === 0)
+    // The strip is as tall as STARTS_CAP where a count stands in, and the
+    // bar runs from its top to the baseline.
+    assert.equal(strip.columns[0].bar.y + strip.columns[0].bar.height, strip.baseline - 1)
+    // Two counts side by side are written at different heights, and a
+    // third beside them goes back down, so no two neighbours share a line.
+    const three = winnerStarts([1, 2, 3].flatMap((slot) => Array.from({ length: 9 }, (_, i) => won(1950 + slot * 10 + i, slot, 'D', 'T'))))
+    const ys = dotStrip(three).columns.slice(0, 3).map((c) => c.countY)
+    assert.ok(ys[0] !== ys[1] && ys[1] !== ys[2] && ys[0] === ys[2], `count heights ${ys}`)
+    assert.ok(Math.min(...ys) > 0, 'and every count is inside the drawing')
+    // A slot of exactly STARTS_CAP is still dots.
+    const eight = winnerStarts(Array.from({ length: STARTS_CAP }, (_, i) => won(2000 + i, 3, 'D', 'T')))
+    assert.equal(gridDiagram(eight).boxes[2].dots.length, STARTS_CAP)
+    assert.equal(slotsDrawn(new Map([[3, []]])), 4)
+  })
+
+  it('keeps a pit-lane start, a slot not recorded and a shared drive apart from the slots', () => {
+    const rows = [
+      won(1950, 1, 'A', 'Alfa Romeo'),
+      won(1951, null, 'B', 'Ferrari', { grid_text: 'PL' }),
+      won(1952, null, 'C', 'Ferrari'),
+      won(1953, 1, 'D', 'Maserati', { round: 2, winners: 2 }),
+      won(1953, 7, 'E', 'Maserati', { round: 2, winners: 2 }),
+    ]
+    const races = winnerStarts(rows)
+    assert.deepEqual(races.map((r) => [r.kind, r.slot]), [['slot', 1], ['pit', null], ['none', null], ['shared', null]])
+    assert.deepEqual(races.map(chipStart), ['1st', 'pit lane', 'grid not recorded', 'shared drive'])
+    // Only the one race with a slot is counted, and the rest are said.
+    const items = startsFigures(races, null, [], [])
+    assert.equal(value(items, 'Won from first on the grid'), '1 of 1 (100%)')
+    assert.equal(value(items, 'Not counted as a slot'), '1 pit lane · 1 grid not recorded · 1 shared drive')
+    assert.deepEqual(startsTable(races).map((r) => r.start), ['1st', 'pit lane', 'grid not recorded', 'shared drive'])
+    // None of them is a dot, or a zero.
+    assert.equal(gridDiagram(races).boxes.flatMap((b) => b.dots).length, 1)
+    // Nothing with a slot: nothing to draw, and no slot figures.
+    const unplaced = winnerStarts([rows[1]])
+    assert.equal(gridDiagram(unplaced), null)
+    assert.equal(dotStrip(unplaced), null)
+    assert.equal(value(startsFigures(unplaced, null, [], []), 'Won from first on the grid'), undefined)
+  })
+
+  it('names ties in full up to three, then counts them', () => {
+    const races = winnerStarts([won(2000, 9, 'A', 'T'), won(2001, 9, 'B', 'T'), won(2002, 9, 'C', 'T'), won(2003, 9, 'D', 'T')])
+    assert.equal(value(startsFigures(races, null, [], []), 'Lowest winning grid slot'), '9th — A, 2000; B, 2001; C, 2002 and 1 more')
+    const four = ['A', 'B', 'C', 'D'].map((driver) => ({ driver, wins: 1 }))
+    assert.equal(value(startsFigures(races, null, four, []), 'Most wins by a driver'), '4 drivers, 1 each')
+    assert.equal(value(startsFigures(races, null, four.slice(0, 2), []), 'Most wins by a driver'), 'A and B, 1 each')
+  })
+
+  it('the note names only the colours of dots drawn, never of races folded into a count', async () => {
+    const { drawnColours } = await import('../src/charts/gridStarts.js')
+    // Nine 2010s wins from one slot are a count; the one dot drawn is 1990's, in the gap.
+    const rows = Array.from({ length: 9 }, (_, i) => won(2011 + i, 2, 'A', 'Mercedes'))
+    rows.push(won(1990, 1, 'B', 'McLaren'))
+    rows.sort((a, b) => a.year - b.year)
+    const races = winnerStarts(rows)
+    assert.ok(races.some((race) => race.colour), 'the folded races do carry a colour')
+    assert.deepEqual(drawnColours(races), [null])
+    assert.doesNotMatch(startsNote(drawnColours(races)), /livery/)
+    assert.match(startsNote(drawnColours(races)), /every dot is hollow/)
+    // Every slot a count: no dot, and nothing said of colour.
+    const folded = winnerStarts(rows.filter((row) => row.year > 2000))
+    assert.deepEqual(drawnColours(folded), [])
+    assert.doesNotMatch(startsNote([]), /olour/)
+  })
+
+  it('a chip names its race for a screen reader, and a shared drive with no team reads as not established', async () => {
+    const { chipRace } = await import('../src/queries/circuit.js')
+    const races = winnerStarts([
+      won(2020, 1, 'A', 'Mercedes', { round: 1, name_used: 'Austrian Grand Prix' }),
+      won(2020, 1, 'A', 'Mercedes', { round: 2, name_used: 'Styrian Grand Prix' }),
+    ])
+    assert.notEqual(chipRace(races[0]), chipRace(races[1]))
+    const shared = winnerStarts([won(1953, 1, 'D', 'Maserati', { winners: 2 }), won(1953, 7, 'E', 'Ferrari', { winners: 2, constructor: null, constructor_id: null })])
+    assert.equal(shared[0].team, 'Maserati / —')
+  })
+
+  it('a team with no colour on record is hollow, and the note says so', () => {
+    // 1990: the declared gap, where no row can carry a colour.
+    const races = winnerStarts([won(1990, 1, 'A', 'McLaren')])
+    assert.equal(races[0].colour, null)
+    assert.match(startsNote([null]), /every dot is hollow/)
+    assert.doesNotMatch(startsNote([{ kind: 'livery' }]), /hollow/)
+    assert.match(startsNote([{ kind: 'livery' }, null]), /A hollow dot has no colour on record\./)
+  })
+})
