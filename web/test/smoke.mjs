@@ -4308,6 +4308,56 @@ try {
 
   })
 
+  await section('/drivers/<id>  (a stored total and why the records differ: DA-43)', async () => {
+    // DA-43: a stored total the race records do not equal is shown with its
+    // reason, the explained ones in an aside of their own after the open
+    // ones, in both renderers. Read off the database, not typed: the driver
+    // is one with an open and an explained stored-total row both.
+    const both = db
+      .prepare(
+        `SELECT x.id, x.full_name FROM drivers x
+          WHERE EXISTS (SELECT 1 FROM discrepancies d WHERE d.subject = x.full_name AND d.kind = 'stored-total' AND d.status = 'open')
+            AND EXISTS (SELECT 1 FROM discrepancies d WHERE d.subject = x.full_name AND d.kind = 'stored-total' AND d.status = 'explained')
+          ORDER BY x.id LIMIT 1`,
+      )
+      .get()
+    truthy(both !== undefined, 'some driver has an open stored total and an explained one')
+    if (both) {
+      const want = db
+        .prepare(
+          `SELECT d.status, d.stored_value || '/' || d.derived_value AS pair FROM discrepancies d JOIN drivers x ON x.full_name = d.subject
+            WHERE x.id = ? AND d.kind = 'stored-total' AND d.status IN ('open', 'explained') ORDER BY d.status = 'explained', d.id`,
+        )
+        .all(both.id)
+      const pairs = want.map((r) => r.pair).join(',')
+      await go(`/drivers/${both.id}`, both.full_name)
+      const asides = await page.$$eval('#root main aside.disagreement', (nodes) =>
+        nodes.map((a) => ({
+          heading: a.querySelector('h2')?.textContent ?? '',
+          settle: a.querySelectorAll('a[href*="/issues/new"]').length,
+          pairs: [...a.querySelectorAll('.disagreement-pair')].map((p) =>
+            [...p.querySelectorAll('span')].filter((s) => !s.classList.contains('disagreement-vs')).map((s) => s.textContent).join('/'),
+          ),
+        })),
+      )
+      is(asides.length, 2, `/drivers/${both.id}: an aside for the open rows and one for the explained`)
+      is(asides.flatMap((a) => a.pairs).join(','), pairs, `/drivers/${both.id}: every stored total the records differ from, open ones first`)
+      truthy(
+        asides.length === 2 && asides[0].settle > 0 && asides[1].settle === 0 && asides[1].heading.includes('and why they differ'),
+        'the open aside asks a reader to settle it and the explained one does not',
+      )
+      const html = await (await fetch(`${BASE}/drivers/${both.id}`)).text()
+      const statics = [...html.matchAll(/<aside class="disagreement"[\s\S]*?<\/aside>/g)].map((m) => m[0])
+      const staticPairs = statics.flatMap((a) =>
+        [...a.matchAll(/disagreement-pair num"><span>([^<]*)<\/span><span class="disagreement-vs">against<\/span><span>([^<]*)<\/span>/g)].map(
+          (m) => `${m[1]}/${m[2]}`,
+        ),
+      )
+      is(statics.length, 2, `the static /drivers/${both.id} has the same two asides`)
+      is(staticPairs.join(','), pairs, 'carrying the same readings in the same order')
+    }
+  })
+
   await section('/drivers/senna', async () => {
     await go('/drivers/senna', 'Ayrton Senna')
     const senna = await tableRows()
@@ -7354,9 +7404,13 @@ try {
         .get()
       if (two) {
         await go(`/drivers/${two.id}`)
-        const appNote = await page.waitForSelector('#root main .source-note', { timeout: 20000 }).then((n) => n.textContent())
         const says = 'both are shown and neither is corrected'
-        truthy(appNote.includes(says), `the app says why ${two.id} has two counts of the same thing`)
+        // Any source note, not the first: since DA-43 the explained-readings
+        // aside, with a source note of its own, stands above the provenance one.
+        const appSays = await page
+          .waitForFunction((text) => [...document.querySelectorAll('#root main .source-note')].some((n) => n.textContent.includes(text)), says, { timeout: 20000 })
+          .then(() => true, () => false)
+        truthy(appSays, `the app says why ${two.id} has two counts of the same thing`)
         const html = await (await fetch(`${BASE}/drivers/${two.id}`)).text()
         truthy(
           html.includes(says) && html.includes('Entries (published)') && html.includes('Starts (published)'),
@@ -7389,10 +7443,10 @@ try {
       await go('/drivers/cevert', 'Francois Cevert')
       const app = await page.$eval('#root main', (m) => m.textContent)
       truthy(app.includes('1969–1973 in the race records, 1970–1973 published'), "the app's Seasons note gives both spans, labelled, where they differ")
-      truthy(app.includes('each right about something') && app.includes('Formula 2'), "and the reason - a Formula 2 class at the 1969 German Grand Prix - is on the page, not in a comment")
+      truthy(app.includes('and why they differ') && app.includes('Formula 2'), "and the reason - a Formula 2 class at the 1969 German Grand Prix - is on the page, not in a comment")
       const html = await (await fetch(`${BASE}/drivers/cevert`)).text()
       truthy(html.includes('1969–1973 in the race records') && html.includes('across 1969–1973'), 'the static page says the same, beside a description that derives its years')
-      truthy(html.includes('each right about something') && html.includes('Formula 2'), 'and carries the same explained reading')
+      truthy(html.includes('and why they differ') && html.includes('Formula 2'), 'and carries the same explained reading')
     }
 
     // Record holders link to their pages (PD-26), in both renderers; a shared

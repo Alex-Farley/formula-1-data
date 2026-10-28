@@ -21,7 +21,7 @@
  */
 import { Link } from 'react-router-dom'
 import { Dated } from './Dates.jsx'
-import { EXPLAINED_FOOTER, EXPLAINED_SPAN, OPEN_FOOTER, allExplained } from '../lib/disagreement.js'
+import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading } from '../lib/disagreement.js'
 import { REPORT_URL, SETTLE_ASK, SETTLE_LINK } from '../lib/site.js'
 
 /*
@@ -32,7 +32,7 @@ import { REPORT_URL, SETTLE_ASK, SETTLE_LINK } from '../lib/site.js'
  * unaffected.
  */
 const RESOLVED = `
-  SELECT d.id, d.field, d.status, d.status_note, d.assessment,
+  SELECT d.id, d.kind, d.field, d.status, d.status_note, d.assessment,
          COALESCE(s.full_name, d.stored_value)  AS stored_value,
          COALESCE(v.full_name, d.derived_value) AS derived_value
     FROM discrepancies d
@@ -51,12 +51,13 @@ export const RACE_DISAGREEMENTS = `
 /**
  * Open disagreements about one driver's career figures, and the explained
  * ones - where the register and the race records read a span differently and
- * each is right about something (CD-25). Args: [driver id].
+ * each is right about something (CD-25), or a stored total differs from the
+ * records' count for a reason on the record (DA-43). Args: [driver id].
  */
 export const DRIVER_DISAGREEMENTS = `
   ${RESOLVED}
    WHERE d.subject = (SELECT full_name FROM drivers WHERE id = ?1)
-     AND (d.status = 'open' OR (d.status = 'explained' AND d.status_note = '${EXPLAINED_SPAN}'))
+     AND ${DRIVER_READINGS}
    ORDER BY d.id
 `
 
@@ -78,16 +79,23 @@ export const CONSTRUCTOR_DISAGREEMENTS = `
  * Both are shown because neither has been established as the right one — that
  * is the whole claim. Naming one "correct" here would be the silent pick the
  * table exists to avoid.
+ *
+ * Open rows and explained ones each get an aside of their own, open first
+ * (byReading), so neither is introduced in the other's words.
  */
 export default function Disagreement({ rows, what = 'this' }) {
   if (!rows || rows.length === 0) return null
+  return byReading(rows).map((group) => <Readings key={group[0].id} rows={group} what={what} />)
+}
+
+function Readings({ rows, what }) {
   const explained = allExplained(rows)
 
   return (
     <aside className="disagreement" aria-label={explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}>
       <h2>
         {explained
-          ? `Two readings of ${what}, each right about something`
+          ? explainedHeading(what)
           : rows.length === 1
             ? 'Two sources disagree about ' + what
             : `Two sources disagree about ${what}, in ${rows.length} places`}
