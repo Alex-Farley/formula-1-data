@@ -144,15 +144,28 @@ function settle(y) {
    * up the moment the reader scrolls for themselves -- being dragged back to
    * where you were a second ago is worse than the thing being fixed.
    */
+  const root = document.documentElement
+  const done = () => root.style.removeProperty('overflow-anchor')
   const land = (tries, left) => {
-    if (left !== null && window.scrollY !== left) return
+    if (left !== null && window.scrollY !== left) return done()
     window.scrollTo(0, y)
-    const room = document.documentElement.scrollHeight - window.innerHeight
+    const room = root.scrollHeight - window.innerHeight
     if (tries > 0 && window.scrollY < y && room < y) {
       const at = window.scrollY
       requestAnimationFrame(() => land(tries - 1, at))
-    }
+    } else done()
   }
+  /*
+   * Scroll anchoring is off while land() is retrying (CR-72). Against a
+   * skeleton about 1,560 px tall, scrollTo clamps to the foot; as the page
+   * then grows the browser's anchoring follows the content and carries the
+   * view to the foot of a 24,000 px page with no script call, and the check
+   * above read that movement as the reader scrolling and gave up: reported
+   * at 400 and 900 px wide on a cold /records#wins, where it ended at the
+   * foot, and reproduced at 400. With anchoring off the only thing that moves the view is land() or
+   * the reader.
+   */
+  root.style.overflowAnchor = 'none'
 
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
