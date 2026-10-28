@@ -10,6 +10,7 @@ database, with the attribution needed to display it.
     python3 tools/wikimedia_images.py --route race       # ~1,000 requests
     python3 tools/wikimedia_images.py --thumbs      # thumb_url only, all four files
     python3 tools/wikimedia_images.py --sizes       # width and height only, all four
+    python3 tools/wikimedia_images.py --links       # the credits a link's text stood in
 
 Reads:   harvest/car_specs.txt      the articles the spec harvest accepted
 Writes:  harvest/article_images.txt the accepted rows
@@ -61,6 +62,17 @@ unscaled, as itself - that overstates the file: Monza_1950.jpg is 583 px
 wide and was reported 800. drawn_size() takes the original's own size there.
 `--sizes` refreshes those two columns in the committed files, the way
 `--thumbs` refreshes `thumb_url`, and changes nothing else.
+
+A link's address, where its text names nothing (CR-71)
+------------------------------------------------------
+Commons renders a source given as a bare address as a numbered link, and
+plain() used to keep its text - "[2]" - and drop the address, so a
+photograph whose author is unknown was credited "Unknown photographer" with
+the source one click away. A field that is only a link whose text is a
+footnote marker or "here" is now stored as the link's http or https address
+(link_address()), which the credit rule reads as naming a source. `--links`
+re-fetches artist and credit for the committed rows that still hold such a
+text, and only those, and changes nothing else.
 
 What is checked, and what cannot be
 -----------------------------------
@@ -352,19 +364,66 @@ def title_key(name):
     return (name or "").replace("_", " ").strip()
 
 
+# The text of a link that names nothing: the footnote marker Commons numbers
+# a bare external link with ("[2]", wikitext "[https://...]"), or "here".
+LINK_TEXT_NAMES_NOTHING = re.compile(r"^\s*(\[\d+\]|here)\s*$", re.I)
+_ANCHOR = re.compile(r"<a\b([^>]*)>(.*?)</a\s*>", re.I | re.S)
+# One attribute of a tag, read in order, so a quoted value is consumed whole
+# and an "href" inside another attribute's value is never taken for one.
+_ATTR = re.compile(r"""([^\s=>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?""")
+
+
+def _text(value):
+    """HTML reduced to its text, whitespace collapsed."""
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", value)).split())
+
+
+def link_address(value):
+    """The address of a link that is the whole field and whose text names
+    nothing, or None (CR-71). Commons renders a source given as a bare
+    address as a numbered link - `<a class="external autonumber"
+    href="https://...">[2]</a>` - and the text alone is a footnote marker
+    with nothing under it; the address is all the field says. Only an http
+    or https address is taken. A link with something beside it ("Flickr
+    [1]") is left to plain(): the text there names somebody."""
+    anchors = list(_ANCHOR.finditer(value))
+    if len(anchors) != 1:
+        return None
+    a = anchors[0]
+    if _text(value[:a.start()] + value[a.end():]).strip("."):
+        return None
+    if not LINK_TEXT_NAMES_NOTHING.match(_text(a.group(2))):
+        return None
+    hrefs = [m.group(2) or m.group(3) or m.group(4) or ""
+             for m in _ATTR.finditer(a.group(1))
+             if m.group(1).lower() == "href"]
+    if len(hrefs) != 1:
+        return None
+    href = html.unescape(hrefs[0]).strip()
+    # An address has no whitespace in it; one that does would split the
+    # harvest line it is written to.
+    if re.search(r"\s", href):
+        return None
+    if href.startswith("//"):
+        href = "https:" + href
+    parts = urllib.parse.urlsplit(href)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        return None
+    return href
+
+
 def plain(value):
     """extmetadata fields arrive as HTML. Reduce to displayable text.
 
     Artist is routinely a link - `<a href="...">Morio</a>` - and Credit is
     routinely a `<span>` wrapping "Own work". Storing the markup would put
     someone else's HTML into a field this project renders, so it is stripped
-    here rather than trusted downstream.
+    here rather than trusted downstream. A field that is only a link whose
+    text names nothing is its address (link_address).
     """
     if not value:
         return None
-    text = re.sub(r"<[^>]+>", " ", value)
-    text = html.unescape(text)
-    text = " ".join(text.split())
+    text = link_address(value) or _text(value)
     # A pipe would split the field on read. Nothing legitimate needs one.
     text = text.replace("|", "/")
     return text or None
@@ -1539,6 +1598,10 @@ def main():
                     help="re-read artist and credit in the four committed "
                          "files through the credit rule, offline, and "
                          "nothing else")
+    ap.add_argument("--links", action="store_true",
+                    help="re-fetch artist and credit where the four "
+                         "committed files hold a link's text that names "
+                         "nothing ('[2]', 'here'), and nothing else")
     args = ap.parse_args()
     if args.thumbs:
         return main_thumbs()
@@ -1546,6 +1609,8 @@ def main():
         return main_sizes()
     if args.credits:
         return main_credits()
+    if args.links:
+        return main_links()
     if args.route == "category":
         return main_category(args)
     if args.route == "circuit":
@@ -1653,6 +1718,9 @@ SIZES_NOTE = ("# width and height last fetched by tools/wikimedia_images.py "
               "--sizes on ")
 CREDITS_NOTE = ("# artist and credit last re-read by tools/wikimedia_images.py "
                 "--credits on ")
+LINKS_NOTE = ("# artist and credit of the rows naming a link's text and not "
+              "its address last re-fetched by tools/wikimedia_images.py "
+              "--links on ")
 
 # The four committed files: name, the column a row is keyed on, the columns
 # this tool writes, and the API that answers for the route's files.
@@ -1791,6 +1859,49 @@ def main_credits():
               flush=True)
         if changed:
             write_committed(name, columns, notes, rows, CREDITS_NOTE)
+
+
+def main_links():
+    """Re-fetch artist and credit for the rows of the four committed files
+    where either field is a link's text that names nothing - "[2]", "here" -
+    which plain() kept before it took the link's address (CR-71), put them
+    through the credit rule admit() applies, and change nothing else. Only
+    those rows are asked for, so no file is chosen afresh and no other
+    row's credit moves. A file the API no longer answers for keeps what it
+    has and is named; a row the rule would leave naming nobody stops the
+    pass, as main_credits() does."""
+    H, _register = circuit_data()
+    for name, _key, columns, endpoint in COMMITTED:
+        notes, rows = read_committed(name, columns, LINKS_NOTE)
+        held = [r for r in rows
+                if LINK_TEXT_NAMES_NOTHING.match(r["artist"] or "")
+                or LINK_TEXT_NAMES_NOTHING.match(r["credit"] or "")]
+        if not held:
+            print(f"{name}: no row holds a link's text alone", flush=True)
+            continue
+        info = file_info(sorted({r["file_name"] for r in held}), [],
+                         endpoint=endpoint)
+        changed, nobody = 0, []
+        for r in held:
+            meta = info.get(title_key(r["file_name"]))
+            if not meta:
+                print(f"  NO ANSWER  {r['file_name']}: kept as it was")
+                continue
+            artist, credit = H.clean_credit(meta["artist"], meta["credit"])
+            if not (artist or credit):
+                nobody.append(r["file_name"])
+            if (artist or "", credit or "") != (r["artist"], r["credit"]):
+                changed += 1
+                r["artist"], r["credit"] = artist or "", credit or ""
+        if nobody:
+            raise SystemExit(f"{name}: {len(nobody)} rows would name nobody "
+                             f"to credit ({'; '.join(nobody[:3])}); rerun "
+                             f"the full harvest of that route")
+        print(f"{name}: {len(held)} rows asked, {changed} credits changed",
+              flush=True)
+        if changed:
+            write_committed(name, columns, notes, rows, LINKS_NOTE)
+
 
 
 if __name__ == "__main__":

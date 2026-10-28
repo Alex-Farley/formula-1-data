@@ -270,5 +270,67 @@ class TheCreditIsAName(unittest.TestCase):
         self.assertEqual((row["artist"], row["credit"]), ("Kolforn", None))
 
 
+class TheLinkIsTheSource(unittest.TestCase):
+    """CR-71: a field that is only a link whose text names nothing is its
+    address. Each HTML string is one Commons answered for a committed row."""
+
+    EBAY = ('<a rel="nofollow" class="external autonumber" '
+            'href="https://www.ebay.com/itm/382614988908">[2]</a>')
+
+    def test_a_numbered_link_is_its_address(self):
+        self.assertEqual(WI.plain(self.EBAY),
+                         "https://www.ebay.com/itm/382614988908")
+        # The address is unescaped as the text always was.
+        self.assertEqual(
+            WI.plain('<a class="external autonumber" '
+                     'href="https://a.example/p?x=1&amp;y=2">[2]</a>'),
+            "https://a.example/p?x=1&y=2")
+
+    def test_a_link_reading_here_is_its_address(self):
+        self.assertEqual(
+            WI.plain('<a rel="nofollow" class="external text" '
+                     'href="https://www.pagina12.com.ar/397028/">here</a>'),
+            "https://www.pagina12.com.ar/397028/")
+
+    def test_a_link_beside_other_text_is_left_as_text(self):
+        self.assertEqual(
+            WI.plain('Flickr <a class="external autonumber" '
+                     'href="https://www.flickr.com/x">[1]</a>'), "Flickr [1]")
+        # A link whose text names somebody, or a wiki, keeps its text.
+        self.assertEqual(
+            WI.plain('<bdi>Transferred from <span class="plainlinks"><a '
+                     'class="external text" href="https://it.wikipedia.org">'
+                     'it.wikipedia</a></span> to Commons.</bdi>'),
+            "Transferred from it.wikipedia to Commons.")
+        self.assertEqual(WI.plain('<a href="https://m.example/">Morio</a>'),
+                         "Morio")
+
+    def test_only_a_web_address_is_taken(self):
+        for href in ("javascript:alert(1)", "mailto:a@example.org", "", "x"):
+            self.assertEqual(WI.plain(f'<a href="{href}">[2]</a>'), "[2]",
+                             href)
+        self.assertEqual(WI.plain('<a href="//a.example/b">[3]</a>'),
+                         "https://a.example/b")
+        # The address is the href attribute's own, never one named inside
+        # another attribute, and never one with whitespace in it.
+        for tag in ('<a data-href="https://x.example/" href="javascript:1">',
+                    '<a title="href=\'https://x.example/\'">',
+                    '<a href="https://x.example/&#10;y">'):
+            self.assertEqual(WI.plain(tag + "[2]</a>"), "[2]", tag)
+        self.assertEqual(
+            WI.plain("<a class='external' href='https://x.example/'>[2]</a>"),
+            "https://x.example/")
+        self.assertEqual(
+            WI.plain('<a data-href="https://decoy.example/" '
+                     'href="https://real.example/">[2]</a>'),
+            "https://real.example/")
+
+    def test_the_unknown_author_gives_way_to_it(self):
+        self.assertEqual(
+            H.clean_credit(WI.plain("Unknown photographer"),
+                           WI.plain(self.EBAY)),
+            (None, "https://www.ebay.com/itm/382614988908"))
+
+
 if __name__ == "__main__":
     unittest.main()
