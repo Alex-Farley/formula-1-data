@@ -4747,6 +4747,24 @@ try {
     }
   })
 
+  // DA-32: a lineage step is "this page" by the register id it is recorded
+  // under, and the page draws every chain with a step under that id.
+  await section('/constructors/lineage', async () => {
+    for (const id of ['renault', 'williams', 'sauber', 'mercedes']) {
+      await go(`/constructors/${id}`, db.prepare('SELECT name FROM constructors WHERE id = ?').get(id).name)
+      const steps = db.prepare('SELECT chain_id, entity_name FROM constructor_lineage WHERE constructor_id = ?').all(id)
+      const chains = new Set(steps.map((r) => r.chain_id))
+      const own = db.prepare('SELECT lineage_chain FROM constructors WHERE id = ?').get(id).lineage_chain
+      const sizes = db.prepare('SELECT chain_id, COUNT(*) AS n FROM constructor_lineage GROUP BY chain_id').all()
+      const drawn = [...chains].filter((c) => c !== own || sizes.find((z) => z.chain_id === c).n > 1)
+      const shown = await page.$$eval('#root main .timeline', (lines) =>
+        lines.map((l) => [...l.querySelectorAll('article')].map((a) => ({ pill: !!a.querySelector('.pill'), name: a.querySelector('h3').firstChild.textContent.trim() }))),
+      )
+      is(shown.length, drawn.length, `/constructors/${id} draws a timeline for each chain it has a step in`)
+      is(shown.flat().filter((s) => s.pill).length, steps.length, `/constructors/${id} marks every step recorded under its id, whatever name it raced under`)
+    }
+  })
+
   await section('/constructors/ferrari', async () => {
     await go('/constructors/ferrari', 'Ferrari')
     const ferrari = await tableRows()

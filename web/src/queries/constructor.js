@@ -141,11 +141,46 @@ export const DESIGNS = `
    ORDER BY ch.first_year IS NULL, ch.first_year, ch.name, ch.id
 `
 
+/**
+ * The chains the page draws (DA-32): every chain with a period recorded under
+ * this constructor's id, not the one chain `constructors.lineage_chain` names
+ * - that is the chain the name last belonged to, so /constructors/renault
+ * read Enstone and not the works Renault team of 1977-85 (`renault-1977`),
+ * which DA-02 recorded as a chain of its own. A chain of one step is drawn
+ * only when it is not the constructor's own `lineage_chain`: a lone name in
+ * its own chain has no other name to connect it to. Takes `?1`, the id.
+ */
+const DRAWN_CHAINS = `
+  SELECT l.chain_id FROM constructor_lineage l
+   WHERE l.constructor_id = ?1
+     AND (l.chain_id IS NOT (SELECT lineage_chain FROM constructors WHERE id = ?1)
+          OR (SELECT COUNT(*) FROM constructor_lineage m WHERE m.chain_id = l.chain_id) > 1)
+`
+
 export const LINEAGE = `
   SELECT l.* FROM constructor_lineage l
-   WHERE l.chain_id = (SELECT lineage_chain FROM constructors WHERE id = ?)
-   ORDER BY l.sequence
+   WHERE l.chain_id IN (${DRAWN_CHAINS})
+   ORDER BY l.chain_id, l.sequence
 `
+
+/**
+ * LINEAGE's rows as one list of steps per chain: the constructor's own
+ * `lineage_chain` first, then the others by the year their first name
+ * began. A step is "this page" by `constructor_id`, which names the register
+ * row, and not by `entity_name`, which is the name as raced and differs from
+ * the register's for Williams, Jordan, Racing Bulls, BAR and Midland (DA-32).
+ */
+export function lineageChains(rows, constructor) {
+  const chains = new Map()
+  for (const step of rows) {
+    if (!chains.has(step.chain_id)) chains.set(step.chain_id, [])
+    chains.get(step.chain_id).push(step)
+  }
+  const start = (steps) => steps[0].from_year ?? Infinity
+  return [...chains.entries()]
+    .sort(([ia, a], [ib, b]) => (ib === constructor.lineage_chain) - (ia === constructor.lineage_chain) || start(a) - start(b) || (ia < ib ? -1 : 1))
+    .map(([, steps]) => steps.sort((a, b) => a.sequence - b.sequence))
+}
 
 /**
  * The registry entries behind the rows this page prints, for the citation's
@@ -156,7 +191,7 @@ export const LINEAGE = `
  * standings row the championship column is read from, by the rule
  * DRIVER_SOURCES gives for the same view. The lineage is a table with no
  * `source_id`; its whole-table entry in `table_provenance` stands for its
- * rows, read only where the app draws the chain (more than one name in it).
+ * rows, read only where the app draws a chain (DRAWN_CHAINS says which).
  * The static page does not draw it yet and names it all the same: the
  * sentence cites the address the two share, and is one sentence in both.
  * A name joined in only to label a row - a circuit, a driver - is the
@@ -179,8 +214,7 @@ export const CONSTRUCTOR_SOURCES = `
                                      AND f.basis = 'final'))
      UNION SELECT p.source_id FROM table_provenance p
             WHERE p.tbl = 'constructor_lineage'
-              AND (SELECT COUNT(*) FROM constructor_lineage l
-                    WHERE l.chain_id = (SELECT lineage_chain FROM constructors WHERE id = ?1)) > 1)
+              AND EXISTS (${DRAWN_CHAINS}))
    ORDER BY s.priority, s.id
 `
 

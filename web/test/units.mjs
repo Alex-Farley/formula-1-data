@@ -154,7 +154,7 @@ import {
   titleRaceText,
 } from '../src/charts/spark.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
-import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, recordFigures } from '../src/queries/constructor.js'
+import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, lineageChains, recordFigures } from '../src/queries/constructor.js'
 import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
 import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
 import { ONWARD, raceSteps } from '../src/lib/wayfinding.js'
@@ -1750,6 +1750,25 @@ describe('the queries a page and the prerenderer share', () => {
     }
     // No stop held anywhere: nothing to be before or after.
     assert.match(stintsEmpty({ year: 2026, round: 16 }, undefined), /^F1DB records no pit stop for this race/)
+  })
+
+  it('groups a constructor’s lineage into chains, its own first, in order (DA-32)', () => {
+    const step = (chain_id, sequence, from_year, constructor_id) => ({ chain_id, sequence, from_year, constructor_id })
+    const rows = [
+      step('renault-1977', 1, 1977, 'renault'),
+      step('enstone', 6, 2021, 'alpine'),
+      step('enstone', 3, 2002, 'renault'),
+      step('enstone', 1, 1981, 'toleman'),
+    ]
+    const chains = lineageChains(rows, { id: 'renault', lineage_chain: 'enstone' })
+    assert.deepEqual(chains.map((c) => c[0].chain_id), ['enstone', 'renault-1977'], 'the constructor’s own chain leads')
+    assert.deepEqual(chains[0].map((s) => s.sequence), [1, 3, 6], 'steps in sequence order')
+    const later = lineageChains(
+      [step('b', 1, 2000, 'x'), step('a', 1, 1990, 'x'), step('c', 1, null, 'x')],
+      { id: 'x', lineage_chain: null },
+    )
+    assert.deepEqual(later.map((c) => c[0].chain_id), ['a', 'b', 'c'], 'otherwise by first year, a chain with no year last')
+    assert.deepEqual(lineageChains([], { id: 'x', lineage_chain: null }), [])
   })
 
   it('joins a constructor’s seasons to their championship position, newest first', () => {
