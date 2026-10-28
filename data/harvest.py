@@ -2520,6 +2520,9 @@ CREDIT_UNKNOWN = re.compile(
     r"\s*\.?\s*$", re.I)
 
 # A footnote marker left where the source should be ("[2]"): names nobody.
+# The harvest stores the address of a numbered link instead of its marker
+# (tools/wikimedia_images.py link_address, CR-71), so a marker it stores is
+# one with no web address behind it.
 CREDIT_REFERENCE = re.compile(r"^\s*\[\d+\]\s*$")
 
 # A credit field that says only how the file reached Commons, or keeps the
