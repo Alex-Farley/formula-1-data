@@ -377,7 +377,7 @@ export function winnerStarts(rows) {
       kind,
       slot: kind === START_KINDS.slot ? first.grid : null,
       winners: entries.map((e) => ({ driver: e.driver, driver_id: e.driver_id, constructor: e.constructor, constructor_id: e.constructor_id })),
-      team: teams.length === 1 ? first.constructor : entries.map((e) => e.constructor).join(' / '),
+      team: teams.length === 1 ? first.constructor : entries.map((e) => text(e.constructor)).join(' / '),
       colour:
         teams.length === 1
           ? colourForEntry({ constructorId: first.constructor_id, country: first.constructor_country, year: race.year, team: first.constructor })
@@ -458,7 +458,10 @@ export function startsFigures(races, everywhere, winners, teams) {
         ? `${share(first, placed)}, against ${share(everywhere.first, everywhere.placed)} at every circuit, ${years}`
         : share(first, placed),
     })
-    items.push({ label: 'Won from the first two slots', value: share(front, placed) })
+    items.push({
+      label: 'Won from the first two slots',
+      value: everywhere?.placed ? `${share(front, placed)}, against ${share(everywhere.front, everywhere.placed)} at every circuit` : share(front, placed),
+    })
     const lowest = Math.max(...slots.map((race) => race.slot))
     const from = slots.filter((race) => race.slot === lowest)
     const named = from.slice(0, MOST_NAMED).map((race) => `${winnerNames(race)}, ${race.year}`)
@@ -489,13 +492,21 @@ export function startsLine(races, layouts) {
   return `${all}. No layout timeline is recorded for this circuit.`
 }
 
-/** The figure's note: 50 words at its longest (conventions.mjs), with a hollow dot and both kinds of colour. */
+/**
+ * The figure's note: 50 words at its longest (conventions.mjs), with a
+ * hollow dot and both kinds of colour. `colours` are those of the dots
+ * drawn (drawnColours in charts/gridStarts.js), never of the races folded
+ * into a count, so the note names no colour the drawing does not show; with
+ * no dot drawn at all it says nothing of colour.
+ */
 export const startsNote = (colours) => {
   const drawn = colours.filter(Boolean)
   const hollow = drawn.length < colours.length
   const colour = drawn.length
     ? ` Coloured by winner: ${colourSource(drawn)}.${hollow ? ' A hollow dot has no colour on record.' : ''}`
-    : ' No winner here has a colour on record, so every dot is hollow.'
+    : colours.length
+      ? ' No winner drawn here has a colour on record, so every dot is hollow.'
+      : ''
   return `A dot is a race won from that slot; over eight, the box shows the count. Boxes stand two abreast, as grids do now.${colour}`
 }
 
@@ -526,6 +537,13 @@ export const startsLabel = (rows) => `Wins here by grid slot: ${rows.map((row) =
 
 /** The timeline's heading, under the figure. */
 export const TIMELINE_HEADING = 'Race by race'
+
+/**
+ * A chip's link: the year, which is what it shows, and the race's name for
+ * a screen reader, since one season can hold two races at a circuit (the
+ * Austrian and Styrian Grands Prix of 2020) whose chips otherwise read alike.
+ */
+export const chipRace = (race) => ` ${text(race.name)}`
 
 /** The races by decade, oldest first: [{ decade: '1950s', races }]. */
 export function byDecade(races) {

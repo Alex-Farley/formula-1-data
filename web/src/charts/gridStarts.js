@@ -90,6 +90,13 @@ export function gridDiagram(races) {
   return { width, height, boxes }
 }
 
+/**
+ * The colours of the dots the drawings actually draw, for the note under
+ * them: a race folded into a count draws no dot, so its colour is not one
+ * the note may name (the grid and the strip fold the same slots).
+ */
+export const drawnColours = (races) => (gridDiagram(races)?.boxes ?? []).flatMap((box) => box.dots.map((dot) => dot.race.colour))
+
 // The strip: one column per slot, the dots stacked up from a baseline.
 const STRIP_PITCH = 16
 const STRIP_STEP = 12

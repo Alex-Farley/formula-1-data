@@ -3962,7 +3962,7 @@ describe('where winners start at a circuit (AF-133)', async () => {
     assert.equal(races.length, 13)
     const items = startsFigures(races, { placed: 308, first: 167, front: 250 }, tally('driver'), tally('constructor'))
     assert.equal(value(items, 'Won from first on the grid'), '6 of 13 (46%), against 167 of 308 (54%) at every circuit, 2012–2025')
-    assert.equal(value(items, 'Won from the first two slots'), '11 of 13 (85%)')
+    assert.equal(value(items, 'Won from the first two slots'), '11 of 13 (85%), against 250 of 308 (81%) at every circuit')
     assert.equal(value(items, 'Lowest winning grid slot'), '6th — Max Verstappen, 2023')
     assert.equal(value(items, 'Most wins by a driver'), 'Sir Lewis Hamilton, 5')
     assert.equal(value(items, 'Most wins by a team'), 'Mercedes and Red Bull, 5 each')
@@ -4044,6 +4044,34 @@ describe('where winners start at a circuit (AF-133)', async () => {
     const four = ['A', 'B', 'C', 'D'].map((driver) => ({ driver, wins: 1 }))
     assert.equal(value(startsFigures(races, null, four, []), 'Most wins by a driver'), '4 drivers, 1 each')
     assert.equal(value(startsFigures(races, null, four.slice(0, 2), []), 'Most wins by a driver'), 'A and B, 1 each')
+  })
+
+  it('the note names only the colours of dots drawn, never of races folded into a count', async () => {
+    const { drawnColours } = await import('../src/charts/gridStarts.js')
+    // Nine 2010s wins from one slot are a count; the one dot drawn is 1990's, in the gap.
+    const rows = Array.from({ length: 9 }, (_, i) => won(2011 + i, 2, 'A', 'Mercedes'))
+    rows.push(won(1990, 1, 'B', 'McLaren'))
+    rows.sort((a, b) => a.year - b.year)
+    const races = winnerStarts(rows)
+    assert.ok(races.some((race) => race.colour), 'the folded races do carry a colour')
+    assert.deepEqual(drawnColours(races), [null])
+    assert.doesNotMatch(startsNote(drawnColours(races)), /livery/)
+    assert.match(startsNote(drawnColours(races)), /every dot is hollow/)
+    // Every slot a count: no dot, and nothing said of colour.
+    const folded = winnerStarts(rows.filter((row) => row.year > 2000))
+    assert.deepEqual(drawnColours(folded), [])
+    assert.doesNotMatch(startsNote([]), /olour/)
+  })
+
+  it('a chip names its race for a screen reader, and a shared drive with no team reads as not established', async () => {
+    const { chipRace } = await import('../src/queries/circuit.js')
+    const races = winnerStarts([
+      won(2020, 1, 'A', 'Mercedes', { round: 1, name_used: 'Austrian Grand Prix' }),
+      won(2020, 1, 'A', 'Mercedes', { round: 2, name_used: 'Styrian Grand Prix' }),
+    ])
+    assert.notEqual(chipRace(races[0]), chipRace(races[1]))
+    const shared = winnerStarts([won(1953, 1, 'D', 'Maserati', { winners: 2 }), won(1953, 7, 'E', 'Ferrari', { winners: 2, constructor: null, constructor_id: null })])
+    assert.equal(shared[0].team, 'Maserati / —')
   })
 
   it('a team with no colour on record is hollow, and the note says so', () => {

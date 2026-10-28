@@ -406,6 +406,7 @@ import {
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
   byDecade,
+  chipRace,
   chipStart,
   circuitStrip,
   heldAs,
@@ -690,7 +691,7 @@ import { dotPlotLayout } from '../src/charts/dotPlot.js'
 import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
 import { reachLayout } from '../src/charts/reachChart.js'
-import { dotStrip, gridDiagram } from '../src/charts/gridStarts.js'
+import { dotStrip, drawnColours, gridDiagram } from '../src/charts/gridStarts.js'
 import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
 import {
   STINT_HEADS,
@@ -1554,7 +1555,7 @@ const startsBlock = (races, everywhere, layouts, winners, teams) => {
   const drawn = table.some((row) => row.key.startsWith('slot-'))
     ? figure(
         STARTS_HEADING,
-        startsNote(races.filter((race) => race.slot !== null).map((race) => race.colour)),
+        startsNote(drawnColours(races)),
         fromColumns(STARTS_COLUMNS, table, {}, { unfolded: UNFOLDED.figure }),
         { plot: gridStartsSvg(races, startsLabel(table)) },
       )
@@ -1565,14 +1566,17 @@ const startsBlock = (races, everywhere, layouts, winners, teams) => {
         `<li><span class="win-decade">${esc(decade)}</span><ol class="win-chips">${here
           .map(
             (race) =>
-              `<li class="win-chip">${liveryMark(race.colour)}${link(`races/${race.year}/${race.round}`, race.year)} ${text(race.team)} <b>${esc(
+              `<li class="win-chip">${liveryMark(race.colour)}<a href="${esc(href(`races/${race.year}/${race.round}`))}">${esc(race.year)}<span class="sr-only">${esc(
+                chipRace(race),
+              )}</span></a> ${text(race.team)} <b>${esc(
                 chipStart(race),
               )}</b></li>`,
           )
           .join('')}</ol></li>`,
     )
     .join('')
-  return `${heading(STARTS_HEADING)}${note(startsLine(races, layouts))}${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
+  // The line under the heading is the section's note, as Section writes it in the app.
+  return `${heading(STARTS_HEADING)}<p class="note">${esc(startsLine(races, layouts))}</p>${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
 }
 
 /* Figure.jsx's legend: a stroke in the series' dash for a line chart, as

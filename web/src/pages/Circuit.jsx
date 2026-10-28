@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
 import Figure from '../charts/Figure.jsx'
 import GridStarts from '../charts/GridStarts.jsx'
+import { drawnColours } from '../charts/gridStarts.js'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
@@ -53,6 +54,7 @@ import {
   WINNERS,
   WINNER_COLUMNS,
   byDecade,
+  chipRace,
   chipStart,
   circuitStrip,
   heldAs,
@@ -459,7 +461,7 @@ function WinnerStarts({ races, everywhere, layouts, winners, teams }) {
     <Section title={STARTS_HEADING} note={startsLine(races, layouts)}>
       <Fields items={startsFigures(races, everywhere, winners, teams)} />
       {table.some((row) => row.key.startsWith('slot-')) && (
-        <Figure note={startsNote(races.filter((race) => race.slot !== null).map((race) => race.colour))} table={{ rows: table, columns: STARTS_COLUMNS }}>
+        <Figure note={startsNote(drawnColours(races))} table={{ rows: table, columns: STARTS_COLUMNS }}>
           <GridStarts races={races} label={startsLabel(table)} />
         </Figure>
       )}
@@ -472,7 +474,11 @@ function WinnerStarts({ races, everywhere, layouts, winners, teams }) {
               {here.map((race) => (
                 <li key={race.key} className="win-chip">
                   {race.colour && <LiveryMark colour={race.colour} year={race.year} />}
-                  <Link to={`/races/${race.year}/${race.round}`}>{race.year}</Link> {race.team ?? EMPTY}{' '}
+                  <Link to={`/races/${race.year}/${race.round}`}>
+                    {race.year}
+                    <span className="sr-only">{chipRace(race)}</span>
+                  </Link>{' '}
+                  {race.team ?? EMPTY}{' '}
                   <b>{chipStart(race)}</b>
                 </li>
               ))}
