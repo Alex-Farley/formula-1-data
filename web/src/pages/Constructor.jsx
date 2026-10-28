@@ -200,7 +200,7 @@ function ConstructorBody({ constructor, data }) {
           note={
             steps.length > 1
               ? 'One factory, several names. Each name keeps its own record here; the chain is what connects them.'
-              : 'Recorded as a chain of its own.'
+              : undefined
           }
         >
           <div className="timeline">
