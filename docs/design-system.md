@@ -493,6 +493,38 @@ and word everything else.
   counts, the figures as `Fields`, the figure, then *Race by race* (h3) and
   the chips.
 
+**The stint figure and its pit wave** (provisional, AF-134; the bars are
+PD-56's). One question asked of a race: when the field stopped.
+`charts/stints.js` lays out both parts for both renderers on one lap axis;
+`queries/race.js` words the note, the label and the empty state.
+
+- **The pit wave:** a strip above the bars, one thin column per lap with a
+  stop recorded, its height the stops on that lap across the field (every
+  stop recorded for the race, a car with no lap count included), on a
+  hairline base. No y axis: the strip's name, drawn above it, gives the
+  tallest column's count (*Stops on each lap (up to 4)*). A column is
+  three-fifths of a lap wide, at least 1 px and never wider than a bar is
+  tall.
+- **The bars:** one per driver who started with a lap count, in finishing
+  order, from lap 0 to the last lap completed, broken with an ink tick at
+  each stop; a car not classified ends on grid to flag's cross.
+- **Colour:** rule 2 above, every stint and every column in
+  `--series-ink`; no accent, since the page states no one value of it, and
+  no second shade or hue between stints, which would read as a tyre
+  compound the record does not hold. A stint is told from the next by the
+  break and the tick, which is shape, not colour (1.4.1).
+- **What it may say:** the lap of each stop and no more. Nothing in the
+  figure, its note or its label gives a stop's length, tyre or cause (no
+  safety car: `race_control_messages` stays empty), or what it gained.
+- **Second cue:** the table under the figure gives every driver's stop laps,
+  from which every column follows; the drawing's accessible name gives the
+  most stops on one lap and every lap that holds them.
+- **States:** a race before the first season with a stop recorded, one with
+  none, and one whose stops have not arrived each say so in one sentence in
+  the section's place (§3, Figure, *States*).
+- **Placement:** its own section, *Pit stops*, below the classification and
+  qualifying; who stopped first between neighbours follows under an h3.
+
 ### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.

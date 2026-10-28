@@ -24,13 +24,27 @@
  * A stop recorded on the lap a driver retired on - they came in and did not
  * go out again - falls after the last lap they completed, and is marked at
  * the end of their bar rather than past it; the table says the lap.
+ *
+ * THE PIT WAVE (AF-134)
+ *     Above the bars, on the same lap axis, a strip of thin columns: how many
+ *     stops the record holds on each lap, across the field - every stop
+ *     recorded for the race, as the section's count of stops is, a car with
+ *     no lap count included. A cluster of
+ *     stops shows as a spike. It counts and no more: nothing here holds a
+ *     safety car or any other reason for a stop (`race_control_messages`
+ *     stays empty for the same licence reasons as `laps`), so nothing that
+ *     prints it may give one.
  */
 import { classificationOrder, missing, result } from '../lib/format.js'
 import { NOT_STARTED, crossPath, driverLabels, textWidth } from './gridFlag.js'
 import { linear, ticks } from './scales.js'
 
 /** The words drawn inside the figure, which both renderers print. */
-export const STINT_HEADS = { axis: 'Lap' }
+export const STINT_HEADS = {
+  axis: 'Lap',
+  // The strip's name, with its tallest column's count as its only scale.
+  wave: (most) => `Stops on each lap (up to ${most})`,
+}
 
 /** The width the static page draws at, and the app's before it has measured. */
 export const STINTS_WIDTH = 640
@@ -38,6 +52,11 @@ export const STINTS_WIDTH = 640
 const ROW = 16
 const BAR = 8
 const TOP = 6
+// The pit wave: its name's baseline below TOP, then the strip, then the gap
+// above the first bar.
+const WAVE_HEAD = 10
+const WAVE = 22
+const WAVE_GAP = 10
 const BOTTOM = 38
 const RIGHT = 16
 const GAP = 8
@@ -81,6 +100,33 @@ export function stintRows(entries, pits) {
 export const stintsShown = (rows) =>
   rows.length >= 2 && rows.some((r) => r.stops.length > 0) && Math.max(...rows.map((r) => r.entry.laps_completed)) > 0
 
+/**
+ * The pit wave (AF-134): the stops recorded on each lap, across the field,
+ * over the laps the figure draws - `laps`, the most any bar runs. A stop past
+ * that lap is counted on it, as a tick past a bar's end is drawn at that end.
+ * `counts` holds only the laps with a stop, in lap order; `busiest` every lap
+ * on which `most` were made, so a tie names them all.
+ */
+export function pitWave(pits, laps) {
+  const counts = new Map()
+  for (const stop of pits) {
+    if (missing(stop.lap_number)) continue
+    const lap = Math.max(0, Math.min(stop.lap_number, laps))
+    counts.set(lap, (counts.get(lap) ?? 0) + 1)
+  }
+  const list = [...counts].sort(([a], [b]) => a - b).map(([lap, count]) => ({ lap, count }))
+  const most = list.length ? Math.max(...list.map((c) => c.count)) : 0
+  return {
+    counts: list,
+    stops: list.reduce((sum, c) => sum + c.count, 0),
+    most,
+    busiest: list.filter((c) => c.count === most).map((c) => c.lap),
+  }
+}
+
+/** The laps the figure draws: the most any of its bars runs. */
+export const stintLaps = (rows) => Math.max(...rows.map((r) => r.entry.laps_completed))
+
 /** Stops recorded on the lap a driver went out on, after the last lap they completed. */
 export const lateStops = (rows) => rows.filter((r) => r.stops.some((lap) => lap > r.entry.laps_completed))
 
@@ -120,7 +166,8 @@ export function stintTableRows(entries, pits) {
 export function stintLayout(entries, pits, width = STINTS_WIDTH) {
   const rows = stintRows(entries, pits)
   if (!stintsShown(rows)) return null
-  const laps = Math.max(...rows.map((r) => r.entry.laps_completed))
+  const laps = stintLaps(rows)
+  const wave = pitWave(pits, laps)
 
   const resultWidth = Math.max(...rows.map((r) => textWidth(result(r.entry))))
   const reserved = resultWidth + SPACE + GAP
@@ -131,8 +178,15 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
   )
   const left = reserved + Math.max(...names.map(textWidth))
   const x = linear([0, laps], [left, width - RIGHT])
-  const y = (slot) => TOP + slot * ROW + ROW / 2
-  const plotBottom = TOP + rows.length * ROW
+  const waveTop = TOP + WAVE_HEAD
+  const waveBase = waveTop + WAVE
+  const top = waveBase + WAVE_GAP
+  const y = (slot) => top + slot * ROW + ROW / 2
+  const plotBottom = top + rows.length * ROW
+  // A column three-fifths of a lap wide, so neighbouring laps stay apart, at
+  // least a pixel, and never wider than a bar is tall, so a short race does
+  // not draw blocks.
+  const column = Math.max(1, Math.min(BAR, ((x(laps) - x(0)) / laps) * 0.6))
 
   return {
     width,
@@ -140,8 +194,17 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
     laps,
     start: round(x(0)),
     finish: round(x(laps)),
-    top: TOP,
+    top: waveTop,
     bottom: plotBottom,
+    wave: {
+      head: STINT_HEADS.wave(wave.most),
+      headY: TOP + WAVE_HEAD - 3,
+      base: waveBase,
+      columns: wave.counts.map(({ lap, count }) => {
+        const height = (count / wave.most) * WAVE
+        return { lap, count, x: round(x(lap) - column / 2), y: round(waveBase - height), width: round(column), height: round(height) }
+      }),
+    },
     resultX: round(resultWidth),
     nameX: round(resultWidth + SPACE),
     bar: BAR,

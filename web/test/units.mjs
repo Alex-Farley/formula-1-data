@@ -139,9 +139,9 @@ import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
-import { driverName, fastestLapMark, inClassificationOrder, outcome, position, RACE_HISTORY, raceAftermath, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty } from '../src/queries/race.js'
+import { driverName, fastestLapMark, inClassificationOrder, outcome, position, RACE_HISTORY, raceAftermath, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty, stintsLabel } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
-import { pitPairs, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
+import { STINT_HEADS, pitPairs, pitWave, stintLaps, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
 import {
   SEASONS_RACED_WIDTH,
   SPARK_HEIGHT,
@@ -3375,6 +3375,84 @@ describe('stint windows and the pit order (PD-56)', () => {
       ],
     )
     assert.deepEqual(pitPairs(field, []), [], 'no stop, no pair')
+  })
+
+  it('counts every recorded stop on its lap for the pit wave, a stop past the last lap on that lap (AF-134)', () => {
+    const rows = stintRows(entries, pits)
+    const wave = pitWave(pits, stintLaps(rows))
+    // d, disqualified with no lap count, is in the table and so in the wave;
+    // c's lap-21 stop is past c's last lap but inside the race's fifty.
+    assert.deepEqual(
+      wave.counts.map((c) => [c.lap, c.count]),
+      [
+        [10, 1],
+        [18, 1],
+        [20, 1],
+        [21, 1],
+        [35, 1],
+      ],
+    )
+    assert.equal(wave.stops, pits.length)
+    assert.deepEqual(pitWave([stop('a', 1, 60), stop('b', 1, null)], 50).counts, [{ lap: 50, count: 1 }], 'past the last lap counts on it; no lap, not counted')
+    assert.deepEqual(pitWave([], 50), { counts: [], stops: 0, most: 0, busiest: [] })
+  })
+
+  it('draws a column per lap with a stop, the tallest the strip, every column inside it', () => {
+    const layout = stintLayout(entries, pits)
+    const { wave } = layout
+    assert.equal(wave.columns.length, 5)
+    assert.equal(wave.head, STINT_HEADS.wave(1))
+    for (const c of wave.columns) {
+      assert.equal(c.y + c.height, wave.base, `lap ${c.lap} stands on the base`)
+      assert.ok(c.x >= layout.start - c.width && c.x + c.width <= layout.width, `lap ${c.lap} is inside the drawing`)
+      assert.ok(c.width >= 1)
+    }
+    assert.ok(wave.base < layout.cars[0].barY, 'the strip is above the first bar')
+    assert.ok(wave.headY < Math.min(...wave.columns.map((c) => c.y)), 'and its name above the strip')
+  })
+})
+
+/*
+ * AF-134's own example, pinned: the 2025 United States Grand Prix, 56 laps,
+ * as F1DB records it and f1.db held it when the item was worked. The top
+ * eight all stopped once, between laps 22 and 33, Leclerc first, on lap 22,
+ * and finished third. The fixture is literal so the test does not read the
+ * committed database; smoke.mjs checks the page against the database.
+ */
+describe('the pit wave at Austin 2025 (AF-134)', () => {
+  const order = ['verstappen', 'norris', 'leclerc', 'hamilton', 'piastri', 'russell', 'tsunoda', 'hulkenberg', 'bearman', 'alonso',
+    'lawson', 'stroll', 'antonelli', 'albon', 'ocon', 'hadjar', 'colapinto', 'bortoleto', 'gasly']
+  const entries = [
+    ...order.map((id, i) => ({ id, driver_id: id, driver: id, finish_position: i + 1, position_text: String(i + 1), laps_completed: i >= 16 ? 55 : 56 })),
+    { id: 'sainz', driver_id: 'sainz', driver: 'sainz', finish_position: null, position_text: 'DNF', laps_completed: 5 },
+  ]
+  const pits = [
+    ['albon', 1, 7], ['bortoleto', 1, 14], ['leclerc', 1, 22], ['ocon', 1, 24], ['gasly', 1, 27], ['stroll', 1, 28],
+    ['hadjar', 1, 28], ['tsunoda', 1, 29], ['piastri', 1, 30], ['bearman', 1, 30], ['alonso', 1, 30], ['lawson', 1, 30],
+    ['hamilton', 1, 31], ['antonelli', 1, 31], ['norris', 1, 32], ['colapinto', 1, 32], ['verstappen', 1, 33], ['russell', 1, 33],
+    ['hulkenberg', 1, 33], ['albon', 2, 36], ['bortoleto', 2, 36],
+  ].map(([driver_id, stop_number, lap_number]) => ({ driver_id, stop_number, lap_number }))
+
+  it('stopped the top eight once each, between laps 22 and 33, Leclerc first', () => {
+    const rows = stintRows(entries, pits)
+    const top = rows.slice(0, 8)
+    assert.ok(top.every((r) => r.stops.length === 1 && r.stops[0] >= 22 && r.stops[0] <= 33))
+    const first = [...top].sort((a, b) => a.stops[0] - b.stops[0])[0]
+    assert.deepEqual([first.entry.id, first.stops[0], first.entry.finish_position], ['leclerc', 22, 3])
+    assert.equal(stintLaps(rows), 56)
+  })
+
+  it('peaks at four stops on lap 30, and names the lap to a screen reader', () => {
+    const rows = stintRows(entries, pits)
+    const wave = pitWave(pits, stintLaps(rows))
+    assert.equal(wave.stops, 21)
+    assert.equal(wave.most, 4)
+    assert.deepEqual(wave.busiest, [30])
+    assert.equal(stintLayout(entries, pits).wave.head, 'Stops on each lap (up to 4)')
+    assert.match(stintsLabel(rows, wave), /20 drivers’ races in finishing order, split at 21 recorded stops\. The most on one lap: 4, on lap 30\.$/)
+    // A tie names every lap it holds.
+    const tied = pits.filter((p) => p.lap_number !== 30 && p.driver_id !== 'hulkenberg')
+    assert.match(stintsLabel(rows, pitWave(tied, 56)), / The most on one lap: 2, on laps 28, 31, 32, 33 and 36\.$/)
   })
 })
 
