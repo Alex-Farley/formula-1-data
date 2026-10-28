@@ -2891,8 +2891,9 @@ def weather_day(date_iso, circuit_id, after_midnight, date_to=None):
 
 # WET OR DRY, FROM THE WORDS. A race is 'wet' where its article's infobox
 # mentions rain, showers, drizzle, a damp, wet, drying or humid track or a
-# thunderstorm at all - "Wet at start, dry later" and "Dry, rain later" are both wet races,
-# because rain fell on them - and 'dry' where it mentions none of those and
+# thunderstorm at all - "Wet at start, dry later" and "Dry, rain later" are
+# both wet races, because rain fell on them - and 'dry' where it mentions none
+# of those and
 # does describe the conditions: sunny, dry, cloudy, hot. A phrase that only
 # gives figures - "Temperatures up to 75.9 °F; wind speeds up to 11.39 mph" -
 # says neither, and the reading is NULL. The phrase itself is stored beside

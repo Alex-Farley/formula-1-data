@@ -872,9 +872,10 @@ SOURCE_LICENCE = {
     # ODbL: share-alike AND a database right, confined to circuit_geometry.
     16: ("yes", 1, 1, "openstreetmap.org"),
 
-    # CC BY 4.0, the API's data and the ERA5 reanalysis under it alike: no
-    # share-alike, attribution required (AF-136). The free API's
-    # non-commercial term governs calling it, not the data a call returns.
+    # CC BY 4.0 for the API's data, as open-meteo.com/en/licence offers it: no
+    # share-alike, attribution required (AF-136). The ERA5 under it is the
+    # Licence to use Copernicus Products', whose credit rides beside
+    # Open-Meteo's. The free API's non-commercial term governs calling it.
     19: ("yes", 0, 1, "open-meteo.com"),
 
     # The project's own writing. It has no upstream to be licensed FROM and no

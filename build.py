@@ -2884,10 +2884,10 @@ def _file_weather_disagreements(cur):
                    f"Open-Meteo.com, {HV.WEATHER_CREDIT_URL}")
         else:
             model = f"{_points_text(mm)} mm of rain on the day, modelled"
-            why = (f"The race's Wikipedia article describes the weather "
-                   f"without mentioning rain, showers or a wet track, so its "
-                   f"words are read as dry (race_weather_reported holds "
-                   f"them). ERA5's "
+            why = (f"The race's Wikipedia article's words are read as dry: "
+                   f"by data/harvest.py's rule, which finds no rain, showers "
+                   f"or wet track in them, or by a reading declared there "
+                   f"(race_weather_reported holds the words). ERA5's "
                    f"reanalysis of {day}, through Open-Meteo, holds "
                    f"{_points_text(mm)} mm of rain over "
                    f"{_points_text(hours)} hours of that day in the grid cell "
