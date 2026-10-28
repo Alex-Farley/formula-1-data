@@ -664,9 +664,12 @@ SOURCE_REGISTRY = [
      "a race was wet or dry is not taken from it: that is the race "
      "article's report, in race_weather_reported.",
      "reference",
-     "CC BY 4.0 for the API's data, which is ERA5's, published by the "
-     "Copernicus Climate Change Service under CC BY 4.0 too. Open-Meteo's "
-     "free API is for non-commercial use - a project with no advertising or "
+     "CC BY 4.0 for the API's data, as Open-Meteo's licence page "
+     "(https://open-meteo.com/en/licence) offers it. The figures are the "
+     "Copernicus Climate Change Service's ERA5, for which that page links the "
+     "Licence to use Copernicus Products, whose credit for modified "
+     "information is carried beside Open-Meteo's. Open-Meteo's free API is "
+     "for non-commercial use - a project with no advertising or "
      "subscriptions, as this one is - and asks for a link to open-meteo.com "
      "beside wherever its data is shown; see ATTRIBUTION.md.",
      "Daily, some days behind the present: ERA5 is published about five days "

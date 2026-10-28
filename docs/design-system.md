@@ -778,9 +778,7 @@ citation, is already one system and is kept.
 ### Event pages: race
 
 Race pages follow the entity layout (DP-11): the header beside the outline
-slot; tiles, which on a run race include its reported *Weather*, with the
-modelled day and Open-Meteo's credit in a note under the strip (AF-136); the
-classification at full width; Grid to flag; qualifying; pit
+slot; tiles; the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
 photographs. The page of the next round to run, while the season has no
 drivers' champion on record and its results have not landed, carries

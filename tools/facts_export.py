@@ -341,6 +341,17 @@ RECORDS_READ = {
 
 # ------------------------------------------------------------- the file
 
+# Open-Meteo's credit, with its link, and the Copernicus licence's for the
+# modified ERA5 information under it, as ATTRIBUTION.md gives them.
+WEATHER_CREDIT = ("Race-day air temperature, rain and wind (race_weather_modelled) are "
+                  "modelled, from the Copernicus Climate Change Service's ERA5 reanalysis: "
+                  "weather data by Open-Meteo.com (https://open-meteo.com/), licensed under "
+                  "CC BY 4.0. Contains modified Copernicus Climate Change Service "
+                  "information 2026. Neither the European Commission nor ECMWF is "
+                  "responsible for any use that may be made of the Copernicus "
+                  "information or data it contains.")
+
+
 def _meta(src, records_out=()):
     """The artefact's own meta: f1.db's version, build date and current
     season, which it is built from (two views read the season), and its own
@@ -350,6 +361,10 @@ def _meta(src, records_out=()):
     f1db = fa.f1db_source(src)
     name, url = src.execute("SELECT source, url FROM source_registry WHERE id = ?",
                             (f1db,)).fetchone()
+    # The race-day weather Open-Meteo modelled (AF-136) carries its own
+    # credit, and its link, wherever it goes: this file is the one built to
+    # be handed on.
+    weather = src.execute("SELECT COUNT(*) FROM race_weather_modelled").fetchone()[0]
     return [
         ("database_name", "F1 facts (the CC BY 4.0 subset of f1.db)"),
         ("version", held["version"]),
@@ -359,7 +374,8 @@ def _meta(src, records_out=()):
         ("licence_url", LICENCE_URL),
         ("attribution", f"Lap Ledger (https://lapledger.org), built from {name} by "
                         f"{F1DB_CREATOR} ({url}, CC BY 4.0) and the other sources its rows cite: each row's "
-                        "source_id names one in source_registry"),
+                        "source_id names one in source_registry"
+                        + (f". {WEATHER_CREDIT}" if weather else "")),
         ("companion", "f1.db, the whole database, under CC BY-SA 4.0 as its LICENSE-DATA "
                       "says; this file is the part of it that may be offered under "
                       "CC BY 4.0"),

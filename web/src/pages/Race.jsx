@@ -62,7 +62,6 @@ import {
   qualifyingColumns,
   raceLede,
   raceStrip,
-  raceWeatherLine,
   railOf,
   scheduledNote,
   withDistance,
@@ -327,8 +326,6 @@ function RaceBody({ race, data, year, round }) {
   const fight = currentTitle((key) => rows(data, key), currentProgress().manifest?.built)
   const stake = isUpcoming(fight, race) ? fight : null
 
-  // AF-136: the modelled day, under the tiles, with Open-Meteo's credit.
-  const weather = raceWeatherLine(race)
   const timetable = sessions.length > 0 && (
     <Section title="Timetable" count={`${sessions.length} sessions`}>
       <DataTable
@@ -364,15 +361,6 @@ function RaceBody({ race, data, year, round }) {
       <Section>
         {/* queries/race.js's strip, which the static page draws too (VD-49). */}
         <Stats items={raceStrip(race, entries, qualifying)} />
-        {weather && (
-          <p className="note follows">
-            {weather.text}
-            <a href={weather.href} target="_blank" rel="noreferrer noopener">
-              {weather.credit}
-            </a>
-            .
-          </p>
-        )}
       </Section>
 
       {/* PD-57: what the reader came for, straight under the figures - the

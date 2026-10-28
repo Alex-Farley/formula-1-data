@@ -231,26 +231,29 @@ Three things are enforced, at harvest time and again on every build:
 - it must name someone to attribute. Eight files were refused on the run that
   produced the committed data: seven name no author, one states no licence.
 
-### Open-Meteo and ERA5 — CC BY 4.0
+### Open-Meteo and ERA5 — CC BY 4.0, and the Copernicus licence
 
 `race_weather_modelled` holds each race day's highest air temperature, rain,
 hours of rain and strongest wind at the circuit, from
 [Open-Meteo](https://open-meteo.com/)'s historical weather API
-(`tools/race_weather.py`, AF-136). Open-Meteo offers its API data under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), and the figures
-are the Copernicus Climate Change Service's ERA5 and ERA5-Land reanalyses,
-which Copernicus publishes under CC BY 4.0 too: attribution, no share-alike.
-Copernicus's own wording of the credit is *Generated using Copernicus Climate
-Change Service information. Neither the European Commission nor ECMWF is
-responsible for any use that may be made of the Copernicus information or
-data it contains.*
+(`tools/race_weather.py`, AF-136). Open-Meteo's
+[licence page](https://open-meteo.com/en/licence) offers its API data under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): attribution, no
+share-alike. The figures are the Copernicus Climate Change Service's ERA5
+and ERA5-Land reanalyses, for which the same page links the *Licence to use
+Copernicus Products* rather than CC BY 4.0. That licence asks for its own
+credit, and these figures are changed from the reanalysis - daily figures
+for one point, worked out by Open-Meteo - so the credit is the wording it
+gives for modified information, carried wherever Open-Meteo's is:
+*Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.*
 Open-Meteo asks for a link to it beside wherever its data is shown, so each
 weather disagreement in `discrepancies` ends its assessment with *weather
 data by Open-Meteo.com* and the address, wherever that row is shown, and a
 republisher showing these figures owes the same link. Its free API is for
 non-commercial use, which this project is — no advertising, no subscriptions
-— and the harvest is one request per race; that term governs calling the
-API, not the data a call returns, which stays CC BY 4.0 in any hands.
+— and the harvest is one request per race. That term governs calling the
+API; the licence page offers the data a call returns under CC BY 4.0, to
+copy, redistribute and adapt, with the credits above.
 
 The figures are a model's, for the grid cell the circuit sits in over its
 whole local day, and not a measurement at the track; say so wherever they are
@@ -270,7 +273,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->180,682<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->180,679<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -318,7 +321,7 @@ the share-alike above. First, its account of its own sources and state:
 
 | Column | What it holds | Chars |
 |---|---|---:|
-| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->62,172<!-- /fig --> |
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->62,716<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,933<!-- /fig --> |
 | `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->14,680<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,544<!-- /fig --> |
@@ -341,7 +344,7 @@ entry 18 records as written for this project (`PM-49`, #573):
 | `engine_manufacturers.notes` | notes on each engine manufacturer |
 
 Every figure here is a span this build rewrites from the database
-itself: <!-- fig:prose_kb -->108 KB<!-- /fig --> between all of them, of
+itself: <!-- fig:prose_kb -->109 KB<!-- /fig --> between all of them, of
 which <!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and
@@ -472,7 +475,8 @@ the two drift apart.
 > <!-- credit:race_weather_modelled -->Race-day air temperature, rain and wind are modelled, from the
 > Copernicus Climate Change Service's ERA5 reanalysis: weather data by
 > [Open-Meteo.com](https://open-meteo.com/)<!-- /credit -->, licensed under
-> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Circuit
+> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Contains modified Copernicus Climate Change Service information 2026.
+> Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains. Circuit
 > centrelines, published separately as `f1-geometry.db`, are © OpenStreetMap
 > contributors, licensed under
 > [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation

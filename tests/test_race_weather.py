@@ -53,7 +53,8 @@ class Reading(unittest.TestCase):
     def test_any_rain_on_the_day_of_the_race_is_wet(self):
         for phrase in ("Wet, drying later", "Dry, then wet at the end",
                        "Sunny at start, brief showers late", "Drizzly",
-                       "Dry at the start, damp in the end"):
+                       "Dry at the start, damp in the end", "Cloudy, drying",
+                       "Partly cloudy with humid track"):
             self.assertEqual(HV.weather_reading(1999, 1, phrase), "wet", phrase)
 
     def test_conditions_with_no_rain_are_dry(self):
@@ -87,6 +88,33 @@ class Day(unittest.TestCase):
                          "2024-11-24")
         self.assertEqual(HV.weather_day("2024-03-01", "las-vegas", {"las-vegas"}),
                          "2024-02-29")
+
+    def test_a_date_already_the_last_local_day_is_kept(self):
+        # F1DB's 2026 date is the UTC Sunday, after the weekend's Saturday;
+        # formula1.com's 2027 date is the Saturday itself.
+        self.assertEqual(HV.weather_day("2026-11-22", "las-vegas", {"las-vegas"},
+                                        "2026-11-21"), "2026-11-21")
+        self.assertEqual(HV.weather_day("2027-11-20", "las-vegas", {"las-vegas"},
+                                        "2027-11-20"), "2027-11-20")
+
+
+class Article(unittest.TestCase):
+    def test_the_races_title_up_to_accents_and_hyphens(self):
+        self.assertTrue(HV.weather_article_is_the_races(
+            2021, 19, "Sao Paulo Grand Prix", "2021 São Paulo Grand Prix"))
+        self.assertTrue(HV.weather_article_is_the_races(
+            2020, 13, "Emilia Romagna Grand Prix", "2020 Emilia-Romagna Grand Prix"))
+
+    def test_another_races_article_is_refused(self):
+        # A round renumbered since the harvest: round 9's row read as round 10's.
+        self.assertFalse(HV.weather_article_is_the_races(
+            2026, 10, "British Grand Prix", "2026 Belgian Grand Prix"))
+
+    def test_a_declared_redirect_and_only_it(self):
+        self.assertTrue(HV.weather_article_is_the_races(
+            2020, 5, "70th Anniversary Grand Prix", "70th Anniversary Grand Prix"))
+        self.assertFalse(HV.weather_article_is_the_races(
+            2020, 5, "70th Anniversary Grand Prix", "2020 British Grand Prix"))
 
     def test_the_request_names_its_point_day_and_model(self):
         url = HV.weather_model_url(52.078611, -1.016944, "1950-05-13")

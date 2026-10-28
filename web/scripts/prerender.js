@@ -364,11 +364,8 @@ import {
   qualifyingColumns,
   raceLede,
   raceStrip,
-  raceWeatherLine,
   railOf,
   scheduledNote,
-  RACE_WEATHER_COLUMNS,
-  RACE_WEATHER_JOIN,
 } from '../src/queries/race.js'
 import {
   BY_SEASON as TEAM_BY_SEASON,
@@ -1166,13 +1163,6 @@ const prose = (value) => (value ? `<p class="measure">${esc(value)}</p>` : '')
 // panel, not a paragraph. Four of these read as ordinary prose on the static
 // page while the app set them apart, which is the same second vocabulary
 // VD-01 is about.
-// The modelled race-day weather under a race's tiles, and Open-Meteo's credit
-// beside it, as Race.jsx draws it (AF-136).
-const weatherLine = (w) =>
-  w
-    ? `<p class="note follows">${esc(w.text)}<a href="${esc(w.href)}" target="_blank" rel="noreferrer noopener">${esc(w.credit)}</a>.</p>`
-    : ''
-
 const noteBox = (head, body) => `<div class="note-box"><strong>${esc(head)}</strong> ${esc(body)}</div>`
 // The same box with the ISO days in its body drawn as dates (CD-57), for a
 // body the app draws through <Dated>.
@@ -3034,13 +3024,11 @@ const seasonsTable = (rows) =>
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
             r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
             cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
-            ${QUALIFYING_LAPS} AS qualifying_laps,
-            ${RACE_WEATHER_COLUMNS}
+            ${QUALIFYING_LAPS} AS qualifying_laps
        FROM races r
        LEFT JOIN grands_prix g ON g.id = r.gp_id
        LEFT JOIN circuits c ON c.id = r.circuit_id
        ${LAYOUT_RACED_JOIN}
-       ${RACE_WEATHER_JOIN}
        LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
        LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
       ORDER BY r.year DESC, r.round DESC`,
@@ -3230,7 +3218,7 @@ const seasonsTable = (rows) =>
       body: `
         ${opening({ eyebrow: EYEBROWS.race(r.round, neighbours.rounds, r.date_iso), title: headline, lede: standfirst })}
         ${stepperNav(raceSteps(neighbours))}
-        <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}${weatherLine(raceWeatherLine(r))}</section>
+        <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
         ${isUpcoming(TITLE, r) ? ownSection(`<h2>${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p><p class="faint">${dated(TITLE.basis)}</p>`) : ''}

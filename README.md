@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->180,682<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->180,679<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -1250,8 +1250,8 @@ and `known_gaps` says so.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->156<!-- /fig -->
-rows: <!-- fig:discrepancies_open -->76<!-- /fig -->
+holds <!-- fig:discrepancies -->153<!-- /fig -->
+rows: <!-- fig:discrepancies_open -->73<!-- /fig -->
 open, <!-- fig:discrepancies_explained -->23<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
 the best-results rule dropped, an entry or a car a source counts that the race

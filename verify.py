@@ -2979,14 +2979,19 @@ def race_day_weather():
         if H.weather_reading(y, r, w) != c]
     check("every reported race's wet or dry is data/harvest.py's reading of its words",
           not misread, "; ".join(misread[:5]))
-    # A row that says 'dry' over words that mention rain, or 'wet' over words
-    # that do not, is declared in WEATHER_READINGS or it is wrong. Read with
-    # the regular expression directly, not through weather_reading(), so the
-    # declarations are counted rather than trusted.
+    # A row whose reading is not the rule's - wet, dry and NULL alike - is
+    # declared in WEATHER_READINGS, and every declaration overrules a row.
+    # The rule is spelt out here with the two expressions, not called
+    # through weather_rule(), so a declaration the rule now agrees with -
+    # one nobody needs - is caught rather than trusted.
+    def by_rule(words):
+        if H.WEATHER_WET.search(words):
+            return "wet"
+        return "dry" if H.WEATHER_STATED.search(words) else None
     overruled = {(y, r) for y, r, w, c in con.execute("""
         SELECT r.year, r.round, w.reported, w.conditions
           FROM race_weather_reported w JOIN races r ON r.id = w.race_id""")
-        if (c == "wet") != bool(H.WEATHER_WET.search(w))}
+        if c != by_rule(w)}
     check("the reported readings that overrule the words are exactly the declared ones",
           overruled == set(H.WEATHER_READINGS),
           f"undeclared {sorted(overruled - set(H.WEATHER_READINGS))}, "
@@ -2996,15 +3001,21 @@ def race_day_weather():
                                        || REPLACE(article, ' ', '_')""").fetchone()[0]
     check("every reported row cites the article it names, at a revision", unpinned == 0,
           f"{unpinned} rows")
+    foreign = [f"{y} round {r}: {a}" for y, r, n, a in con.execute("""
+        SELECT r.year, r.round, r.name_used, w.article
+          FROM race_weather_reported w JOIN races r ON r.id = w.race_id""")
+        if not H.weather_article_is_the_races(y, r, n, a)]
+    check("every reported row's article is its own race's", not foreign,
+          "; ".join(foreign[:5]))
     # The modelled day is the race's local day, and the row cites the very
     # request that asked for it.
     wrong_day, wrong_url, odd = [], [], []
-    for y, r, d, cid, day, lat, lon, src, t, mm, hrs, wind in con.execute("""
-        SELECT r.year, r.round, r.date_iso, r.circuit_id, m.day, m.latitude,
+    for y, r, d, dto, cid, day, lat, lon, src, t, mm, hrs, wind in con.execute("""
+        SELECT r.year, r.round, r.date_iso, r.date_to, r.circuit_id, m.day, m.latitude,
                m.longitude, m.source, m.air_max_c, m.rain_mm, m.rain_hours,
                m.wind_max_kmh
           FROM race_weather_modelled m JOIN races r ON r.id = m.race_id"""):
-        if day != H.weather_day(d, cid, _N.RACE_DAY_AFTER_WEEKEND):
+        if day != H.weather_day(d, cid, _N.RACE_DAY_AFTER_WEEKEND, dto):
             wrong_day.append(f"{y} round {r}: {day} for {d}")
         if src != H.weather_model_source(lat, lon, day):
             wrong_url.append(f"{y} round {r}")

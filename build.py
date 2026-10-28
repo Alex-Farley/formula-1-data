@@ -2884,8 +2884,10 @@ def _file_weather_disagreements(cur):
                    f"Open-Meteo.com, {HV.WEATHER_CREDIT_URL}")
         else:
             model = f"{_points_text(mm)} mm of rain on the day, modelled"
-            why = (f"The race's Wikipedia article reports it dry, with no "
-                   f"rain (race_weather_reported holds its words). ERA5's "
+            why = (f"The race's Wikipedia article describes the weather "
+                   f"without mentioning rain, showers or a wet track, so its "
+                   f"words are read as dry (race_weather_reported holds "
+                   f"them). ERA5's "
                    f"reanalysis of {day}, through Open-Meteo, holds "
                    f"{_points_text(mm)} mm of rain over "
                    f"{_points_text(hours)} hours of that day in the grid cell "
@@ -5429,23 +5431,27 @@ def _stage_36c_race_day_weather_reported_and_modelled(b):
     # Like the race photographs, the harvests read their races from the last
     # build, so a row whose race has since been renumbered or is not a
     # completed race of this build is passed over and counted, never a stop;
-    # the race loses its weather until the next harvest.
-    races = {(y, r): (rid, status, date_iso, cid) for rid, y, r, status, date_iso, cid
+    # the race loses its weather until the next harvest. A reported row is
+    # the race's only if its article is (data/harvest.py), and a modelled one
+    # only if its day still is: a renumbered round fails one or the other.
+    races = {(y, r): (rid, status, date_iso, cid, name, date_to)
+             for rid, y, r, status, date_iso, cid, name, date_to
              in cur.execute("""SELECT id, year, round, status, date_iso,
-                                      circuit_id FROM races""")}
+                                      circuit_id, name_used, date_to FROM races""")}
 
     def race_of(row, where):
         try:
             key = (int(row.get("year") or ""), int(row.get("round") or ""))
         except ValueError:
             raise SystemExit(f"{where}: a row names no season and round") from None
-        rid, status, date_iso, cid = races.get(key, (None, None, None, None))
-        return key, (rid if status == "completed" else None), date_iso, cid
+        rid, status, *rest = races.get(key, (None,) * 6)
+        return key, (rid if status == "completed" else None), *rest
 
     reported, stale = [], 0
     for row in HV.load_weather_reported():
-        key, rid, _, _ = race_of(row, "race_weather_reported")
-        if rid is None:
+        key, rid, _, _, name, _ = race_of(row, "race_weather_reported")
+        if rid is None or not HV.weather_article_is_the_races(
+                key[0], key[1], name, row.get("article") or ""):
             stale += 1
             continue
         phrase = row.get("reported")
@@ -5472,11 +5478,11 @@ def _stage_36c_race_day_weather_reported_and_modelled(b):
 
     modelled, stale_m = [], 0
     for row in HV.load_weather_modelled():
-        key, rid, date_iso, cid = race_of(row, "race_weather_modelled")
+        key, rid, date_iso, cid, _, date_to = race_of(row, "race_weather_modelled")
         # The day asked for must still be the race's local day: a race F1DB
         # has since re-dated was modelled on the wrong day.
         if rid is None or row.get("day") != HV.weather_day(
-                date_iso, cid, N.RACE_DAY_AFTER_WEEKEND):
+                date_iso, cid, N.RACE_DAY_AFTER_WEEKEND, date_to):
             stale_m += 1
             continue
         lat, lon = float(row["latitude"]), float(row["longitude"])

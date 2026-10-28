@@ -1252,7 +1252,7 @@ CREATE TABLE sessions (
 -- `Weather` line of its infobox, markup removed, at the revision named
 -- (tools/race_weather.py). `conditions` is that phrase read as wet or dry by
 -- data/harvest.py's rule - 'wet' where it mentions rain, showers, drizzle, a
--- damp or wet track or a thunderstorm at all, so a race that started wet and
+-- damp, wet, drying or humid track or a thunderstorm at all, so a race that started wet and
 -- finished dry is wet; 'dry' where it mentions none and does describe the
 -- conditions; NULL where it gives only figures, or a declared exception says
 -- the phrase does not settle it. A race whose article states no weather has

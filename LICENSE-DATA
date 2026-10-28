@@ -165,7 +165,7 @@ engine and season-entrant register are derived from F1DB by Marcel Overdijk,
 published under CC BY 4.0, as are F1DB's circuit outlines, drawn by Jules Roy.
 Race-day air temperature, rain and wind are modelled, from the Copernicus
 Climate Change Service's ERA5 reanalysis: weather data by Open-Meteo.com,
-licensed under CC BY 4.0. Circuit centrelines, published separately as `f1-geometry.db`, are ©
+licensed under CC BY 4.0. Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains. Circuit centrelines, published separately as `f1-geometry.db`, are ©
 OpenStreetMap contributors, licensed under ODbL 1.0; their relation ids come
 from Wikidata (CC0). Car, circuit and race photographs are hosted on
 Wikimedia Commons, and each carries its own licence and credit, recorded per file in

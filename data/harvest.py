@@ -2875,28 +2875,35 @@ def weather_model_url(lat, lon, day):
             + "&daily=" + ",".join(WEATHER_MODEL_DAILY))
 
 
-def weather_day(date_iso, circuit_id, after_midnight):
+def weather_day(date_iso, circuit_id, after_midnight, date_to=None):
     """The race's local day, which is the day the model is asked for.
     date_iso is F1DB's, the UTC day; at a circuit in `after_midnight` -
     data/current.py RACE_DAY_AFTER_WEEKEND, whose race starts after midnight
-    UTC - the local day is the one before."""
-    if circuit_id in after_midnight:
+    UTC - the local day is the one before. Only where date_iso is that UTC
+    day, though: a round dated off formula1.com's calendar carries the
+    weekend's last local day as date_iso, the same day as its date_to, and
+    that is already the local day (Las Vegas 2027 until F1DB re-dates it)."""
+    if circuit_id in after_midnight and (date_to is None or date_iso > date_to):
         return (datetime.date.fromisoformat(date_iso)
                 - datetime.timedelta(days=1)).isoformat()
     return date_iso
 
 
 # WET OR DRY, FROM THE WORDS. A race is 'wet' where its article's infobox
-# mentions rain, showers, drizzle, a damp or wet track or a thunderstorm at
-# all - "Wet at start, dry later" and "Dry, rain later" are both wet races,
+# mentions rain, showers, drizzle, a damp, wet, drying or humid track or a
+# thunderstorm at all - "Wet at start, dry later" and "Dry, rain later" are both wet races,
 # because rain fell on them - and 'dry' where it mentions none of those and
 # does describe the conditions: sunny, dry, cloudy, hot. A phrase that only
 # gives figures - "Temperatures up to 75.9 °F; wind speeds up to 11.39 mph" -
 # says neither, and the reading is NULL. The phrase itself is stored beside
 # the reading, so the page can show what the article said and not only the
 # word this rule made of it.
+# "Drying" says the track was wet ("Cloudy, drying"), and a "humid track" is a
+# damp one ("Partly cloudy with humid track", 2025 Belgium, whose start was
+# delayed by rain).
 WEATHER_WET = re.compile(
-    r"\b(rain\w*|wet\w*|showers?|drizzl\w*|damp\w*|thunderstorms?|monsoon)\b", re.I)
+    r"\b(rain\w*|wet\w*|showers?|drizzl\w*|damp\w*|thunderstorms?|monsoon|"
+    r"drying|humid\s+track)\b", re.I)
 WEATHER_STATED = re.compile(
     r"\b(dry|sunny|sunshine|clear|fine|cloud\w*|overcast|hot|warm|mild|cool|"
     r"cold|chilly|fresh|hazy|humid|dull|grey|gray|windy|bright|fair|misty|"
@@ -2915,7 +2922,20 @@ WEATHER_READINGS = {
                  "the drizzle was not during the race"),
     (2012, 6): ("Fine and Dry, showers threatening at end", "dry",
                 "the showers threatened; the phrase does not say they came"),
+    (1998, 3): ("Cloudy with variable levels of dryness; temperatures reaching up to 19 °C",
+                None, "variable dryness says the track was not dry throughout, "
+                "and not that rain fell"),
 }
+
+
+def weather_rule(phrase):
+    """'wet', 'dry' or None for a phrase by the rule alone, before any
+    declaration."""
+    if WEATHER_WET.search(phrase):
+        return "wet"
+    if WEATHER_STATED.search(phrase):
+        return "dry"
+    return None
 
 
 def weather_reading(year, rnd, phrase):
@@ -2924,11 +2944,34 @@ def weather_reading(year, rnd, phrase):
     declared = WEATHER_READINGS.get((year, rnd))
     if declared is not None and declared[0] == phrase:
         return declared[1]
-    if WEATHER_WET.search(phrase):
-        return "wet"
-    if WEATHER_STATED.search(phrase):
-        return "dry"
-    return None
+    return weather_rule(phrase)
+
+
+# WHICH ARTICLE IS THE RACE'S. The harvest asks for "<year> <name the race
+# ran under>" and follows Wikipedia's redirects, so a row's article is that
+# title up to accents and hyphens ("2021 São Paulo Grand Prix" for "Sao Paulo
+# Grand Prix", "Emilia-Romagna" for "Emilia Romagna"), or a redirect declared
+# here by race. The build holds every row to it, so a harvest read before a
+# round was renumbered cannot hand one race's weather to another.
+#   (year, round): the article the race's title redirects to
+WEATHER_ARTICLES = {
+    (2020, 5): "70th Anniversary Grand Prix",
+    (2026, 16): "2026 Bahrain Grand Prix in Malaysia",
+}
+
+
+def _title_key(title):
+    plain = unicodedata.normalize("NFKD", title)
+    plain = "".join(ch for ch in plain if not unicodedata.combining(ch))
+    return " ".join(plain.replace("-", " ").replace("_", " ").casefold().split())
+
+
+def weather_article_is_the_races(year, rnd, name_used, article):
+    """Whether `article` is the race's own: its title, or its declared
+    redirect."""
+    if (year, rnd) in WEATHER_ARTICLES:
+        return article == WEATHER_ARTICLES[(year, rnd)]
+    return _title_key(article) == _title_key(f"{year} {name_used}")
 
 
 # WHEN THE TWO DISAGREE. A model's day and an article's race can both be
