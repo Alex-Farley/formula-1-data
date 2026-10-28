@@ -459,13 +459,22 @@ SOURCE_REGISTRY = [
      "technical specifications at all, so nothing it says can be mistaken "
      "for one."),
 
-    (11, "Wikipedia per-car articles ({{Racing car}} infobox)",
+    (11, "Wikipedia car, driver and topic articles",
      "https://en.wikipedia.org/wiki/Category:Formula_One_cars",
      "Chassis specifications: construction, suspension, engine, gearbox, "
      "brakes, weight, wheelbase, track, tyres, designers, predecessor and "
-     "successor. There is no unified specification dataset for Formula One "
-     "cars anywhere; this is where the data lives. Harvested by "
-     "tools/wikispec_fetch.py.", "reference",
+     "successor, from the {{Racing car}} infobox on each car's own article. "
+     "There is no unified specification dataset for Formula One cars "
+     "anywhere; this is where the data lives. Harvested by "
+     "tools/wikispec_fetch.py. The same articles give each car's published "
+     "race, win and pole totals, and the curated cars' design histories - "
+     "each from the car's own article, but the Vanwall's from the team's. "
+     "Every en.wikipedia.org article that no narrower pattern takes resolves "
+     "here as well, so the entry also holds a driver's own article - cited "
+     "for a few career totals as that article publishes them, and for the "
+     "background line on a driver who only ran in Friday practice - and a "
+     "topic article, History of Formula One regulations, for some of the "
+     "regulation limits.", "reference",
      "CC BY-SA 4.0.", "Continuous, by anyone; a historic car's article may "
      "not change for years, which for a fixed specification is a feature.",
      "Three checks, all of which must pass before a page is read at all: "
@@ -473,7 +482,10 @@ SOURCE_REGISTRY = [
      "chassis; the years it reports must fall inside the seasons F1DB "
      "records it entered; and the article title must be a form of the "
      "chassis's own name. Afterwards its published win total is reconciled "
-     "against the wins derived from this database's race records."),
+     "against the wins derived from this database's race records. Those "
+     "checks are the chassis harvest's alone. A career total taken from a "
+     "driver's article is stored as that article's figure, in an `_external` "
+     "column beside the one derived here rather than in place of it."),
 
     (12, "Jolpica-F1 (Ergast's maintained successor)",
      "https://api.jolpi.ca/ergast/f1/",
@@ -659,9 +671,10 @@ SOURCE_PATTERNS = [
     (12, r"^https://api\.jolpi\.ca/", None),
     (15, r"^https://commons\.wikimedia\.org/", None),
     (16, r"^https://www\.openstreetmap\.org/", None),
-    # Everything else on en.wikipedia is a topic or per-car article. Last, so
-    # the three specific Wikipedia patterns above win first.
-    (11, r"^https://en\.wikipedia\.org/wiki/", "per-car and per-topic articles"),
+    # Everything else on en.wikipedia is a car, driver or topic article, which
+    # is what entry 11 is named for (DA-40). Last, so the three specific
+    # Wikipedia patterns above win first.
+    (11, r"^https://en\.wikipedia\.org/wiki/", "car, driver and topic articles"),
     # The bare token pit_stops carries. It is part of that table's natural
     # key, so it stays a token rather than becoming the URL. Until it had a
     # pattern its 22,506 rows resolved to nothing and no check noticed: the
