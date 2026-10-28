@@ -3920,7 +3920,7 @@ try {
     for (const [half, got] of [['the app', usgp.app], ['the static page', usgp.served]]) {
       truthy(got?.drawn, `/races/2025/19, ${half}: the stints and the pit wave are drawn`)
       is(got?.waveHead, STINT_HEADS.wave(4), `/races/2025/19, ${half}: the wave peaks at four stops on one lap`)
-      truthy((got?.label ?? '').endsWith('The most on one lap: 4, on lap 30.'), `/races/2025/19, ${half}: on lap 30, said to a screen reader — “${got?.label}”`)
+      truthy((got?.label ?? '').endsWith('Of 21 recorded in all, the most on one lap: 4, on lap 30.'), `/races/2025/19, ${half}: on lap 30, said to a screen reader — “${got?.label}”`)
       truthy(
         (got?.cells ?? []).length >= 8 &&
           got.cells.slice(0, 8).every((row) => row.at(-2) === '1' && Number(row.at(-1)) >= 22 && Number(row.at(-1)) <= 33),
@@ -3970,9 +3970,12 @@ try {
     }
     await noJs.close()
 
-    // Every label inside the drawing at a phone's width.
+    // Every label inside the drawing at a phone's width: 1995/7 has full
+    // names in the label column, which pushed the pit wave's name past the
+    // edge (AF-134).
     await page.setViewportSize({ width: 320, height: 900 })
-    await go('/races/2024/21')
+    for (const route of ['/races/2024/21', '/races/1995/7']) {
+    await go(route)
     await page.waitForSelector('#root main svg.stints', { timeout: 5000 }).catch(() => null)
     const over = await page.evaluate(() => {
       const svg = document.querySelector('#root main svg.stints')
@@ -3985,7 +3988,8 @@ try {
         })
         .filter(Boolean)
     })
-    is(over.join(' · '), '', '/races/2024/21 at 320 px: every label is inside the drawing')
+    is(over.join(' · '), '', `${route} at 320 px: every label is inside the drawing`)
+    }
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 

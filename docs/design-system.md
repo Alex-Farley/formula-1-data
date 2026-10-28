@@ -501,10 +501,11 @@ PD-56's). One question asked of a race: when the field stopped.
 - **The pit wave:** a strip above the bars, one thin column per lap with a
   stop recorded, its height the stops on that lap across the field (every
   stop recorded for the race, a car with no lap count included), on a
-  hairline base. No y axis: the strip's name, drawn above it, gives the
-  tallest column's count (*Stops on each lap (up to 4)*). A column is
+  hairline base. No y axis: the strip's name, drawn above it from where the bars start
+  (moved left over the label column where it would run past the edge),
+  gives the tallest column's count (*Stops on each lap (up to 4)*). A column is
   three-fifths of a lap wide, at least 1 px and never wider than a bar is
-  tall.
+  tall, and at least 2 px high.
 - **The bars:** one per driver who started with a lap count, in finishing
   order, from lap 0 to the last lap completed, broken with an ink tick at
   each stop; a car not classified ends on grid to flag's cross.

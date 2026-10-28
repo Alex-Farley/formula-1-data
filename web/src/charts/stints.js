@@ -187,6 +187,11 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
   // least a pixel, and never wider than a bar is tall, so a short race does
   // not draw blocks.
   const column = Math.max(1, Math.min(BAR, ((x(laps) - x(0)) / laps) * 0.6))
+  // The strip's name starts where the bars do, unless it would run past the
+  // drawing's edge - at a phone's width, with full names in the label column
+  // - when it moves left over that column, which is empty at its height.
+  const head = STINT_HEADS.wave(wave.most)
+  const headX = Math.max(0, Math.min(x(0), width - RIGHT - textWidth(head)))
 
   return {
     width,
@@ -197,11 +202,13 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
     top: waveTop,
     bottom: plotBottom,
     wave: {
-      head: STINT_HEADS.wave(wave.most),
+      head,
+      headX: round(headX),
       headY: TOP + WAVE_HEAD - 3,
       base: waveBase,
       columns: wave.counts.map(({ lap, count }) => {
-        const height = (count / wave.most) * WAVE
+        // At least 2 px, so one stop beside a peak of sixteen is still seen.
+        const height = Math.max(2, (count / wave.most) * WAVE)
         return { lap, count, x: round(x(lap) - column / 2), y: round(waveBase - height), width: round(column), height: round(height) }
       }),
     },

@@ -229,7 +229,7 @@ import {
   tiersOf,
 } from '../src/queries/records.js'
 import { columnLayout } from '../src/charts/columnChart.js'
-import { flagCarClass, gridFlagLayout } from '../src/charts/gridFlag.js'
+import { flagCarClass, gridFlagLayout, textWidth } from '../src/charts/gridFlag.js'
 import { INK, slotColour } from '../src/charts/palette.js'
 import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 import { unestablished } from '../src/lib/tiles.js'
@@ -3409,6 +3409,17 @@ describe('stint windows and the pit order (PD-56)', () => {
     }
     assert.ok(wave.base < layout.cars[0].barY, 'the strip is above the first bar')
     assert.ok(wave.headY < Math.min(...wave.columns.map((c) => c.y)), 'and its name above the strip')
+    assert.ok(wave.columns.every((c) => c.height >= 2), 'every column at least 2 px tall')
+  })
+
+  it("keeps the strip's name inside a phone-width drawing, with full names in the label column", () => {
+    const long = (id, finish) => entry(id, finish, 60, finish, { driver: 'Heinz-Harald Frentzen-Montoya' })
+    const field = [long('x', 1), long('y', 2)]
+    const layout = stintLayout(field, [stop('x', 1, 30)], 250)
+    const { wave } = layout
+    assert.ok(wave.headX >= 0, 'not past the left edge')
+    assert.ok(wave.headX + textWidth(wave.head) <= layout.width, `“${wave.head}” ends inside the 250 px drawing`)
+    assert.ok(stintLayout(entries, pits).wave.headX === stintLayout(entries, pits).start, 'and starts with the bars where it fits')
   })
 })
 
@@ -3449,10 +3460,10 @@ describe('the pit wave at Austin 2025 (AF-134)', () => {
     assert.equal(wave.most, 4)
     assert.deepEqual(wave.busiest, [30])
     assert.equal(stintLayout(entries, pits).wave.head, 'Stops on each lap (up to 4)')
-    assert.match(stintsLabel(rows, wave), /20 drivers’ races in finishing order, split at 21 recorded stops\. The most on one lap: 4, on lap 30\.$/)
+    assert.match(stintsLabel(rows, wave), /20 drivers’ races in finishing order, split at 21 recorded stops\. Of 21 recorded in all, the most on one lap: 4, on lap 30\.$/)
     // A tie names every lap it holds.
     const tied = pits.filter((p) => p.lap_number !== 30 && p.driver_id !== 'hulkenberg')
-    assert.match(stintsLabel(rows, pitWave(tied, 56)), / The most on one lap: 2, on laps 28, 31, 32, 33 and 36\.$/)
+    assert.match(stintsLabel(rows, pitWave(tied, 56)), / Of 16 recorded in all, the most on one lap: 2, on laps 28, 31, 32, 33 and 36\.$/)
   })
 })
 

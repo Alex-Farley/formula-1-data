@@ -29,7 +29,7 @@ export default function Stints({ entries, pits, label }) {
           {STINT_HEADS.axis}
         </text>
         <g className="stint-wave">
-          <text className="axis-text stint-wave-head" x={layout.start} y={layout.wave.headY}>
+          <text className="axis-text stint-wave-head" x={layout.wave.headX} y={layout.wave.headY}>
             {layout.wave.head}
           </text>
           <line className="stint-wave-base" x1={layout.start} x2={layout.finish} y1={layout.wave.base} y2={layout.wave.base} />

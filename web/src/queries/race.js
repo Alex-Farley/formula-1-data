@@ -806,7 +806,8 @@ export const stintsUnbarred = (unbarred) =>
  * The figure's name for a screen reader, which hears the table and the note
  * with it: the bars, then the pit wave's tallest column (charts/stints.js's
  * pitWave), every lap of a tie named, which the drawing gives only as a
- * height.
+ * height. The wave counts every stop recorded, a car with no lap count
+ * included, where the bars' ticks do not, so it gives its own total.
  */
 export const stintsLabel = (rows, wave) => {
   const stops = rows.reduce((sum, r) => sum + r.stops.length, 0)
@@ -814,7 +815,7 @@ export const stintsLabel = (rows, wave) => {
   if (!wave?.most) return bars
   const laps = wave.busiest
   const where = laps.length === 1 ? `lap ${laps[0]}` : `laps ${laps.slice(0, -1).join(', ')} and ${laps[laps.length - 1]}`
-  return `${bars} The most on one lap: ${number(wave.most)}, on ${where}.`
+  return `${bars} Of ${number(wave.stops)} recorded in all, the most on one lap: ${number(wave.most)}, on ${where}.`
 }
 
 /**

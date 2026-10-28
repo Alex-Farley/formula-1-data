@@ -1336,7 +1336,7 @@ const stintsSvg = (layout, label) => {
     )
     .join('')}${t('axis-text', (layout.start + layout.finish) / 2, layout.axisY, STINT_HEADS.axis, ' text-anchor="middle"')}<g class="stint-wave">${t(
     'axis-text stint-wave-head',
-    layout.start,
+    layout.wave.headX,
     layout.wave.headY,
     layout.wave.head,
   )}<line class="stint-wave-base" x1="${layout.start}" x2="${layout.finish}" y1="${layout.wave.base}" y2="${layout.wave.base}"/>${layout.wave.columns
