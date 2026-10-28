@@ -311,6 +311,15 @@ class TheLinkIsTheSource(unittest.TestCase):
                              href)
         self.assertEqual(WI.plain('<a href="//a.example/b">[3]</a>'),
                          "https://a.example/b")
+        # The address is the href attribute's own, never one named inside
+        # another attribute, and never one with whitespace in it.
+        for tag in ('<a data-href="https://x.example/" href="javascript:1">',
+                    '<a title="href=\'https://x.example/\'">',
+                    '<a href="https://x.example/&#10;y">'):
+            self.assertEqual(WI.plain(tag + "[2]</a>"), "[2]", tag)
+        self.assertEqual(
+            WI.plain("<a class='external' href='https://x.example/'>[2]</a>"),
+            "https://x.example/")
 
     def test_the_unknown_author_gives_way_to_it(self):
         self.assertEqual(

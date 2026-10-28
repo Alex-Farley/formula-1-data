@@ -368,7 +368,9 @@ def title_key(name):
 # a bare external link with ("[2]", wikitext "[https://...]"), or "here".
 LINK_TEXT_NAMES_NOTHING = re.compile(r"^\s*(\[\d+\]|here)\s*$", re.I)
 _ANCHOR = re.compile(r"<a\b([^>]*)>(.*?)</a\s*>", re.I | re.S)
-_HREF = re.compile(r"""\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
+# One attribute of a tag, read in order, so a quoted value is consumed whole
+# and an "href" inside another attribute's value is never taken for one.
+_ATTR = re.compile(r"""([^\s=>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?""")
 
 
 def _text(value):
@@ -392,8 +394,16 @@ def link_address(value):
         return None
     if not LINK_TEXT_NAMES_NOTHING.match(_text(a.group(2))):
         return None
-    m = _HREF.search(a.group(1))
-    href = html.unescape(m.group(1) or m.group(2) or "").strip() if m else ""
+    hrefs = [m.group(2) or m.group(3) or m.group(4) or ""
+             for m in _ATTR.finditer(a.group(1))
+             if m.group(1).lower() == "href"]
+    if len(hrefs) != 1:
+        return None
+    href = html.unescape(hrefs[0]).strip()
+    # An address has no whitespace in it; one that does would split the
+    # harvest line it is written to.
+    if re.search(r"\s", href):
+        return None
     if href.startswith("//"):
         href = "https:" + href
     parts = urllib.parse.urlsplit(href)
