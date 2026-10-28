@@ -697,6 +697,8 @@ import {
   STINT_HEADS,
   lateStops,
   pitPairs,
+  pitWave,
+  stintLaps,
   stintLayout,
   stintRows,
   stintTableRows,
@@ -1313,7 +1315,8 @@ const seasonsRacedSvg = (value, first, last, label) =>
  * Stint windows (PD-56), drawn: charts/Stints.jsx's elements and classes,
  * from the layout charts/stints.js gives both renderers, at the width the
  * app draws at before it has measured - grid to flag's arrangement above,
- * and `.grid-flag-static`'s sizing (app.css) for the same reason.
+ * and `.grid-flag-static`'s sizing (app.css) for the same reason. The pit
+ * wave (AF-134) is drawn above the bars, after the axis, as the app does.
  */
 const stintsSvg = (layout, label) => {
   if (!layout) return ''
@@ -1331,7 +1334,14 @@ const stintsSvg = (layout, label) => {
           ' text-anchor="middle"',
         )}</g>`,
     )
-    .join('')}${t('axis-text', (layout.start + layout.finish) / 2, layout.axisY, STINT_HEADS.axis, ' text-anchor="middle"')}${layout.cars
+    .join('')}${t('axis-text', (layout.start + layout.finish) / 2, layout.axisY, STINT_HEADS.axis, ' text-anchor="middle"')}<g class="stint-wave">${t(
+    'axis-text stint-wave-head',
+    layout.wave.headX,
+    layout.wave.headY,
+    layout.wave.head,
+  )}<line class="stint-wave-base" x1="${layout.start}" x2="${layout.finish}" y1="${layout.wave.base}" y2="${layout.wave.base}"/>${layout.wave.columns
+    .map((c) => `<rect class="stint-wave-lap" x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}"/>`)
+    .join('')}</g>${layout.cars
     .map(
       (car) =>
         `<g class="${car.out ? 'stint-car stint-out' : 'stint-car'}">` +
@@ -1634,7 +1644,7 @@ const pitSection = (race, entryRows, pits, span) => {
   if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
   const pairs = pitPairs(entryRows, pits)
   return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure, footer: stintsUnbarred(unbarredOf(entryRows, pits)) }), {
-    plot: stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows)),
+    plot: stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows, pitWave(pits, stintLaps(rows)))),
   })}${
     pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs, {}, { unfolded: UNFOLDED.subject, footer: PIT_ORDER_NOTE })}` : ''
   }`

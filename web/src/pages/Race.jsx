@@ -91,7 +91,7 @@ import Figure from '../charts/Figure.jsx'
 import GridFlag from '../charts/GridFlag.jsx'
 import { gridFlagRows, gridFlagShown, undrawnOf } from '../charts/gridFlag.js'
 import Stints from '../charts/Stints.jsx'
-import { lateStops, pitPairs, stintRows, stintTableRows, stintsShown, unbarredOf } from '../charts/stints.js'
+import { lateStops, pitPairs, pitWave, stintLaps, stintRows, stintTableRows, stintsShown, unbarredOf } from '../charts/stints.js'
 
 import { ONWARD, TRAIL, raceSteps } from '../lib/wayfinding.js'
 /*
@@ -504,7 +504,7 @@ function RaceBody({ race, data, year, round }) {
                 note={stintsNote(stints, lateStops(stints))}
                 table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS, footer: stintsUnbarred(unbarredOf(entries, pits)) }}
               >
-                <Stints entries={entries} pits={pits} label={stintsLabel(stints)} />
+                <Stints entries={entries} pits={pits} label={stintsLabel(stints, pitWave(pits, stintLaps(stints)))} />
               </Figure>
               {pairs.length > 0 && (
                 <>

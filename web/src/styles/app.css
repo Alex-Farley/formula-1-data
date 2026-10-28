@@ -3283,6 +3283,19 @@ figure.figure > .figure-note:first-child {
   font-size: var(--size-2);
 }
 
+/* The pit wave (AF-134): the stops on each lap as thin columns in the same
+   ink as the bars, one series with no owner (VD-94), on a hairline base. Its
+   name, in the drawing, gives the tallest column's count; no accent, since
+   the page states no one value of it. */
+.figure .stint-wave-lap {
+  fill: var(--series-ink);
+}
+
+.figure .stint-wave-base {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
 /* The pit order's heading, under the stint figure in the same section: clear
    of the figure's frame, and a step down from the section's own h2. */
 .figure + h3 {

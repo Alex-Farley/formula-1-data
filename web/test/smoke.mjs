@@ -56,7 +56,7 @@ import {
   RACE_SOURCES,
 } from '../src/queries/race.js'
 import { GRID_FLAG_WIDTH } from '../src/charts/gridFlag.js'
-import { STINTS_WIDTH } from '../src/charts/stints.js'
+import { STINT_HEADS, STINTS_WIDTH } from '../src/charts/stints.js'
 import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
@@ -3815,6 +3815,17 @@ try {
         orderRows: order ? [...order.querySelectorAll('tbody tr')].map((tr) => tr.textContent.replace(/\s+/g, ' ').trim()) : [],
         orderCaption: order?.querySelector('caption')?.textContent.trim() ?? '',
         width: svg ? Number(svg.getAttribute('viewBox')?.split(' ')[2]) : 0,
+        cells: figure
+          ? [...figure.querySelectorAll('table tbody tr')].map((tr) => [...tr.querySelectorAll('th, td')].map((c) => c.textContent.trim()))
+          : [],
+        // AF-134: the pit wave, above the bars.
+        waveHead: svg?.querySelector('g.stint-wave .stint-wave-head')?.textContent.trim() ?? '',
+        waveLaps: svg ? svg.querySelectorAll('g.stint-wave rect.stint-wave-lap').length : 0,
+        waveAbove: (() => {
+          const base = Number(svg?.querySelector('line.stint-wave-base')?.getAttribute('y1'))
+          const bars = svg ? [...svg.querySelectorAll('rect.stint')].map((r) => Number(r.getAttribute('y'))) : []
+          return Number.isFinite(base) && bars.length > 0 && base < Math.min(...bars)
+        })(),
       }
     }
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
@@ -3855,6 +3866,12 @@ try {
         WHERE b.grid - a.grid = 1 OR ABS(a.finish_position - b.finish_position) = 1`,
       raceId,
     )
+    // AF-134: every stop recorded, on its lap, past the longest bar on its
+    // last lap - which a race's stops never are, so the clamp is not written here.
+    const [waveLaps, waveMost] = [
+      count('SELECT COUNT(DISTINCT lap_number) FROM pit_stops WHERE race_id = ? AND lap_number IS NOT NULL', raceId),
+      count('SELECT MAX(n) FROM (SELECT COUNT(*) AS n FROM pit_stops WHERE race_id = ? AND lap_number IS NOT NULL GROUP BY lap_number)', raceId),
+    ]
     truthy(out > 0 && unbarred > 0, `/races/2024/21 has ${out} cars not classified and ${unbarred} with stops and no lap count`)
     const { served, app } = await both('/races/2024/21')
     for (const [half, got] of [['the app', app], ['the static page', served]]) {
@@ -3867,7 +3884,11 @@ try {
       is(got.results[0], '1', `${half}: the winner's bar is at the top`)
       is(got.rows, cars + unbarred, `${half}: the figure's table carries every bar, and the ${unbarred} driver with stops and no bar`)
       truthy(/in the table and not drawn/.test(got.text), `${half}: and the note says so`)
-      truthy(/not a stop’s length, tyres or gain/.test(got.text), `${half}: the note says the bars measure nothing`)
+      truthy(/Ticks and strip mark only the lap: not a stop’s length, cause, tyres or gain/.test(got.text), `${half}: the note says the bars and the wave measure nothing`)
+      is(got.waveLaps, waveLaps, `${half}: the pit wave has a column for each of the ${waveLaps} laps with a stop recorded`)
+      is(got.waveHead, STINT_HEADS.wave(waveMost), `${half}: and is named for its tallest, ${waveMost} on one lap`)
+      truthy(got.waveAbove, `${half}: above the bars`)
+      is(/safety car|virtual safety|red flag/i.test(got.text), false, `${half}: and nothing gives a reason for a stop`)
       is(/undercut|overcut/i.test(got.text), false, `${half}: and nothing on the section talks of an undercut`)
       is(got.orderRows.length, pairs, `${half}: one pit-order row per pair of classified neighbours, on the grid or at the flag`)
       is(got.orderCaption, PIT_ORDER_HEADING, `${half}: the pit-order table is named for its own heading, not the figure's`)
@@ -3879,6 +3900,32 @@ try {
       is(served.tableRows.join(' / '), app.tableRows.join(' / '), 'and the same figure table, row for row')
       is(served.heads.join(' / '), app.heads.join(' / '), 'under the same headers')
       is(served.width, STINTS_WIDTH, `the static page draws at ${STINTS_WIDTH}, the width the app starts at`)
+    }
+
+    // AF-134's own example: Austin 2025, 56 laps. The top eight all stopped
+    // once, between laps 22 and 33; Leclerc went first, on lap 22, and
+    // finished third. Read from the database and then held to the item's
+    // figures, so a correction to the record fails here and is looked at.
+    const austin = one('SELECT id FROM races WHERE year = 2025 AND round = 19')
+    const topEight = db.prepare(
+      `SELECT e.driver_id, COUNT(p.id) AS stops, MIN(p.lap_number) AS lap, e.finish_position AS pos
+         FROM race_entries e LEFT JOIN pit_stops p ON p.race_id = e.race_id AND p.driver_id = e.driver_id
+        WHERE e.race_id = ? AND e.finish_position <= 8 GROUP BY e.id ORDER BY e.finish_position`,
+    ).all(austin)
+    is(topEight.length, 8, '/races/2025/19: eight finishers in the top eight')
+    truthy(topEight.every((r) => r.stops === 1 && r.lap >= 22 && r.lap <= 33), '/races/2025/19: each stopped once, between laps 22 and 33')
+    const earliest = [...topEight].sort((a, b) => a.lap - b.lap)[0]
+    is(`${earliest?.driver_id} ${earliest?.lap} ${earliest?.pos}`, 'leclerc 22 3', '/races/2025/19: Leclerc first, on lap 22, third at the flag')
+    const usgp = await both('/races/2025/19')
+    for (const [half, got] of [['the app', usgp.app], ['the static page', usgp.served]]) {
+      truthy(got?.drawn, `/races/2025/19, ${half}: the stints and the pit wave are drawn`)
+      is(got?.waveHead, STINT_HEADS.wave(4), `/races/2025/19, ${half}: the wave peaks at four stops on one lap`)
+      truthy((got?.label ?? '').endsWith('Of 21 recorded in all, the most on one lap: 4, on lap 30.'), `/races/2025/19, ${half}: on lap 30, said to a screen reader — “${got?.label}”`)
+      truthy(
+        (got?.cells ?? []).length >= 8 &&
+          got.cells.slice(0, 8).every((row) => row.at(-2) === '1' && Number(row.at(-1)) >= 22 && Number(row.at(-1)) <= 33),
+        `/races/2025/19, ${half}: the table gives the top eight one stop each, laps 22 to 33`,
+      )
     }
 
     // A driver with no stop recorded is not said not to have stopped: F1DB
@@ -3923,9 +3970,12 @@ try {
     }
     await noJs.close()
 
-    // Every label inside the drawing at a phone's width.
+    // Every label inside the drawing at a phone's width: 1995/7 has full
+    // names in the label column, which pushed the pit wave's name past the
+    // edge (AF-134).
     await page.setViewportSize({ width: 320, height: 900 })
-    await go('/races/2024/21')
+    for (const route of ['/races/2024/21', '/races/1995/7']) {
+    await go(route)
     await page.waitForSelector('#root main svg.stints', { timeout: 5000 }).catch(() => null)
     const over = await page.evaluate(() => {
       const svg = document.querySelector('#root main svg.stints')
@@ -3938,7 +3988,8 @@ try {
         })
         .filter(Boolean)
     })
-    is(over.join(' · '), '', '/races/2024/21 at 320 px: every label is inside the drawing')
+    is(over.join(' · '), '', `${route} at 320 px: every label is inside the drawing`)
+    }
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 

@@ -201,6 +201,10 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // three-letter abbreviation, counted as they are read; one not yet seen
     // has been seen by none.
     ['src/charts/gridFlag.js', [1, 'drivers in one figure sharing an abbreviation']],
+    // AF-134: the pit wave's stops on one lap, counted as the race's stops
+    // are read; a lap no stop has been seen on has none so far. It counts
+    // pit_stops rows, never reads a stored column as a figure.
+    ['src/charts/stints.js', [1, 'stops on one lap, in the pit wave']],
     // IX-19: how many rows the static page drew for a table of this name.
     // A name the static half does not hold - a table it never drew, or one
     // heading over two tables, which is dropped rather than guessed at -

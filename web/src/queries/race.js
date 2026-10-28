@@ -757,7 +757,9 @@ export const gridFlagLabel = (rows) => {
  * columns that were then empty on every row. The figure's table carries
  * every lap that table did, driver by driver. Since AF-140 `pit_stops`
  * holds each stop's pit-lane time as well, which neither the figure nor its
- * table shows yet, so the note says the ticks give the lap and no more.
+ * table shows yet, so the note says the ticks give the lap and no more. The
+ * pit wave above the bars (AF-134) counts the same stops lap by lap, and
+ * the note holds it to the same: the lap, and no reason for a stop.
  */
 export const PITS_HEADING = 'Pit stops'
 
@@ -776,17 +778,18 @@ export const STINT_COLUMNS = [
  * What the bars mean and what they cannot, and - only where the page has
  * one - a gap in the record, a car out and a stop on the lap a driver went
  * out on: 49 words at the longest, under the 50 the figure grammar allows
- * (VD-80). The sentence on what the ticks show is the one that must never
- * be lost: the lap of each stop, and not its length, a tyre or a lap time,
- * so nothing here is read as measuring what a stop gained.
+ * (VD-80). The sentence on what the ticks and the pit wave show is the one
+ * that must never be lost: the lap of each stop, and not its length, its
+ * cause, a tyre or a lap time, so nothing here is read as measuring what a
+ * stop gained or as saying why the field came in together (AF-134).
  */
 export const stintsNote = (rows, late) =>
   [
-    'Bars run in finishing order, ticked on each lap a driver stopped.',
+    'Bars run in finishing order, ticked at each stop.',
     rows.some((r) => r.stops.length === 0) ? 'An unticked bar may hide a stop: F1DB’s record has gaps.' : '',
     rows.some((r) => r.out) ? 'A cross is a driver not classified.' : '',
     late.length ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on their final lap.` : '',
-    'Ticks mark only the lap: not a stop’s length, tyres or gain.',
+    'Ticks and strip mark only the lap: not a stop’s length, cause, tyres or gain.',
   ]
     .filter(Boolean)
     .join(' ')
@@ -799,10 +802,20 @@ export const stintsUnbarred = (unbarred) =>
       } in the table and not drawn.`
     : undefined
 
-/** The figure's name for a screen reader, which hears the table and the note with it. */
-export const stintsLabel = (rows) => {
+/**
+ * The figure's name for a screen reader, which hears the table and the note
+ * with it: the bars, then the pit wave's tallest column (charts/stints.js's
+ * pitWave), every lap of a tie named, which the drawing gives only as a
+ * height. The wave counts every stop recorded, a car with no lap count
+ * included, where the bars' ticks do not, so it gives its own total.
+ */
+export const stintsLabel = (rows, wave) => {
   const stops = rows.reduce((sum, r) => sum + r.stops.length, 0)
-  return `Pit stops: ${rows.length} drivers’ races in finishing order, split at ${number(stops)} recorded ${stops === 1 ? 'stop' : 'stops'}.`
+  const bars = `Pit stops: ${rows.length} drivers’ races in finishing order, split at ${number(stops)} recorded ${stops === 1 ? 'stop' : 'stops'}.`
+  if (!wave?.most) return bars
+  const laps = wave.busiest
+  const where = laps.length === 1 ? `lap ${laps[0]}` : `laps ${laps.slice(0, -1).join(', ')} and ${laps[laps.length - 1]}`
+  return `${bars} Of ${number(wave.stops)} recorded in all, the most on one lap: ${number(wave.most)}, on ${where}.`
 }
 
 /**

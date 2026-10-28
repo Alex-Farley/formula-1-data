@@ -7,6 +7,7 @@ import { useMeasure } from './useMeasure.js'
  * markup here and stintsSvg() there are the same elements with the same
  * classes - the smoke suite compares them - and a change to one is a change
  * to both. There is no hover: the table under the figure has every lap.
+ * The pit wave (AF-134) is the strip of columns above the bars.
  */
 export default function Stints({ entries, pits, label }) {
   const [ref, width] = useMeasure(STINTS_WIDTH)
@@ -27,6 +28,15 @@ export default function Stints({ entries, pits, label }) {
         <text className="axis-text" x={(layout.start + layout.finish) / 2} y={layout.axisY} textAnchor="middle">
           {STINT_HEADS.axis}
         </text>
+        <g className="stint-wave">
+          <text className="axis-text stint-wave-head" x={layout.wave.headX} y={layout.wave.headY}>
+            {layout.wave.head}
+          </text>
+          <line className="stint-wave-base" x1={layout.start} x2={layout.finish} y1={layout.wave.base} y2={layout.wave.base} />
+          {layout.wave.columns.map((c) => (
+            <rect key={c.lap} className="stint-wave-lap" x={c.x} y={c.y} width={c.width} height={c.height} />
+          ))}
+        </g>
         {cars.map((car) => (
           <g key={car.key} className={car.out ? 'stint-car stint-out' : 'stint-car'}>
             <text className="axis-text stint-result" x={layout.resultX} y={car.y} textAnchor="end" dominantBaseline="middle">
