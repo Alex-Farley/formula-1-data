@@ -35,8 +35,9 @@ the prose uses for them, which is the registry's own `domains` - every
 formula1.com section is formula1.com, every Wikipedia article is Wikipedia -
 because a credit names a publisher, and the registry's finer entries are not
 always the finer source (a driver's own article resolves to entry 11,
-which holds car and topic articles too). The share is per table, so a source large in a small table is not
-hidden by a large one beside it in the same span.
+which holds car and topic articles too). The share is per table, so a
+source large in a small table is not hidden by a large one beside it in the
+same span.
 
 LICENSE-DATA's credit is the attribution text with its links and these
 markers dropped, word for word (tests/test_parquet_notice.py), so checking
