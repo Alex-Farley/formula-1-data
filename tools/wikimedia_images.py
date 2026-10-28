@@ -9,6 +9,7 @@ database, with the attribution needed to display it.
     python3 tools/wikimedia_images.py --route circuit    # ~30 requests
     python3 tools/wikimedia_images.py --route race       # ~1,000 requests
     python3 tools/wikimedia_images.py --thumbs      # thumb_url only, all four files
+    python3 tools/wikimedia_images.py --sizes       # width and height only, all four
 
 Reads:   harvest/car_specs.txt      the articles the spec harvest accepted
 Writes:  harvest/article_images.txt the accepted rows
@@ -49,6 +50,17 @@ left empty and logged, and a page with no `thumb_url` builds the
 nothing else: no file is chosen afresh and no credit is re-read, so the rows
 stay the rows the dated run above chose, and the note it adds to the header
 says when the addresses were last fetched.
+
+The size it is drawn at (PM-54)
+-------------------------------
+`width` and `height` are the size a page draws the photograph at: the
+THUMB_WIDTH thumbnail's, or the original's own where the original is
+narrower. Asked for THUMB_WIDTH, the API reports `thumbwidth` as that width
+whatever the file's size, and for an original narrower than it - served
+unscaled, as itself - that overstates the file: Monza_1950.jpg is 583 px
+wide and was reported 800. drawn_size() takes the original's own size there.
+`--sizes` refreshes those two columns in the committed files, the way
+`--thumbs` refreshes `thumb_url`, and changes nothing else.
 
 What is checked, and what cannot be
 -----------------------------------
@@ -632,6 +644,26 @@ def body_images(titles):
     return found
 
 
+def drawn_size(ii):
+    """(width, height) a page draws the file at, from one imageinfo answer.
+
+    The thumbnail's size, except where the original is narrower than the
+    width asked and is served as itself - a `thumburl` outside /thumb/: the
+    API still reports `thumbwidth` as THUMB_WIDTH there, and the file is
+    the original at its own size (PM-54). A file Commons scales up, as it
+    does a vector one, has a /thumb/ address and keeps the thumbnail's
+    size. Without a thumbnail size, the original's is what there is.
+    """
+    w, h = ii.get("width"), ii.get("height")
+    tw, th = ii.get("thumbwidth"), ii.get("thumbheight")
+    if not (tw and th):
+        return (w or None, h or None)
+    path = urllib.parse.urlsplit(ii.get("thumburl") or "").path
+    if w and h and w < tw and "/thumb/" not in path:
+        return (w, h)
+    return (tw, th)
+
+
 def file_info(files, log, endpoint=API):
     """'File:...' -> dict of repository, licence and attribution.
 
@@ -664,9 +696,8 @@ def file_info(files, log, endpoint=API):
                 "description_url": ii.get("descriptionurl"),
                 "thumb_url": thumb,
                 "attribution_required": (get("AttributionRequired") or ""),
-                "width": ii.get("thumbwidth") or ii.get("width"),
-                "height": ii.get("thumbheight") or ii.get("height"),
             }
+            info[name]["width"], info[name]["height"] = drawn_size(ii)
     return info
 
 
@@ -1501,6 +1532,9 @@ def main():
     ap.add_argument("--thumbs", action="store_true",
                     help="refresh thumb_url in the four committed files and "
                          "nothing else")
+    ap.add_argument("--sizes", action="store_true",
+                    help="refresh width and height in the four committed "
+                         "files and nothing else")
     ap.add_argument("--credits", action="store_true",
                     help="re-read artist and credit in the four committed "
                          "files through the credit rule, offline, and "
@@ -1508,6 +1542,8 @@ def main():
     args = ap.parse_args()
     if args.thumbs:
         return main_thumbs()
+    if args.sizes:
+        return main_sizes()
     if args.credits:
         return main_credits()
     if args.route == "category":
@@ -1613,6 +1649,8 @@ def main():
 
 
 THUMBS_NOTE = "# thumb_url last fetched by tools/wikimedia_images.py --thumbs on "
+SIZES_NOTE = ("# width and height last fetched by tools/wikimedia_images.py "
+              "--sizes on ")
 CREDITS_NOTE = ("# artist and credit last re-read by tools/wikimedia_images.py "
                 "--credits on ")
 
@@ -1692,6 +1730,36 @@ def main_thumbs():
         for line in check_thumbs(rows, key):
             print("  " + line.replace("\t", "  "))
         write_committed(name, columns, notes, rows, THUMBS_NOTE)
+
+
+def main_sizes():
+    """Refill width and height in the four committed files through
+    drawn_size(), and change nothing else (PM-54).
+
+    Read and written back as main_thumbs() does them. A file the API no
+    longer answers for keeps the size it has and is named: dropping it is
+    choosing, which is a full run's to do.
+    """
+    for name, key, columns, endpoint in COMMITTED:
+        notes, rows = read_committed(name, columns, SIZES_NOTE)
+        print(f"{name}: {len(rows)} rows", flush=True)
+        info = file_info(sorted({r["file_name"] for r in rows}), [],
+                         endpoint=endpoint)
+        changed, unanswered = 0, []
+        for r in rows:
+            meta = info.get(title_key(r["file_name"])) or {}
+            w, h = meta.get("width"), meta.get("height")
+            if not (w and h):
+                unanswered.append(f"{r[key]}  {r['file_name']}")
+                continue
+            if (str(w), str(h)) != (r["width"], r["height"]):
+                changed += 1
+                r["width"], r["height"] = str(w), str(h)
+        for line in unanswered:
+            print(f"  NO SIZE  {line}: kept as it was")
+        print(f"  {changed} sizes changed, {len(unanswered)} kept "
+              f"unanswered", flush=True)
+        write_committed(name, columns, notes, rows, SIZES_NOTE)
 
 
 def main_credits():
