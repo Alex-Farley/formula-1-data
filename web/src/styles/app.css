@@ -3105,6 +3105,106 @@ figure.figure > .figure-note:first-child {
   stroke-dasharray: 4 3;
 }
 
+/* Where winners start (AF-133): the starting grid and its phone form, the
+   dot strip, both in the markup and one shown - the grid from 768 px, the
+   strip below - so the static page is the app's at every width. Each keeps
+   its natural size and scales down to its box, as Grid to flag's static
+   drawing does. A box is a hairline in --rule-strong; a dot wears its
+   team's pair (.livery-series) or, with no colour on record, is hollow in
+   --series-ink at 1.5 px, never a guessed fill. A slot of more than eight
+   is its count, over a pale outlined bar in the strip. */
+.figure svg.grid-starts {
+  width: auto;
+  max-width: 100%;
+}
+
+.figure svg.grid-starts-grid {
+  display: none;
+}
+
+@media (width >= 768px) {
+  .figure svg.grid-starts-grid {
+    display: block;
+  }
+
+  .figure svg.grid-starts-strip {
+    display: none;
+  }
+}
+
+.figure .start-box {
+  fill: none;
+  stroke: var(--rule-strong);
+}
+
+.figure .start-baseline {
+  stroke: var(--rule-strong);
+}
+
+.figure .start-bar {
+  fill: var(--panel-sunk);
+  stroke: var(--series-ink);
+  stroke-width: 1.5;
+}
+
+.figure .start-dot-none {
+  stroke: var(--series-ink);
+  stroke-width: 1.5;
+}
+
+/* The winners by decade (AF-133): a decade's label, then its races as
+   chips that wrap - the year as a link to the race, the team after its
+   livery mark, and the grid slot in bold. The colour is the mark's, beside
+   the name it belongs to, so the chip's ground stays the panel's. */
+.win-decades {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.win-decades > li {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* Beside its chips from 768 px; above them on a phone, where the label's
+   column was the 4 px a Monza chip ran out of its row by at 320. */
+@media (width >= 768px) {
+  .win-decades > li {
+    grid-template-columns: 4em 1fr; /* a decade's label, "1950s", beside its chips */
+    gap: var(--space-6);
+    align-items: baseline;
+  }
+}
+
+.win-decade {
+  font-family: var(--mono);
+  font-size: var(--size-3);
+  color: var(--ink-faint);
+}
+
+.win-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.win-chip {
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font-size: var(--size-3);
+}
+
+.win-chip .livery {
+  margin-right: var(--space-3);
+}
+
 /* Grid to flag (PD-30): a car that finished in ink, the winner in the
    accent (VD-94), one that was not classified fainter, dashed, ending on a
    cross - three channels, so the colour is never the only one, and the

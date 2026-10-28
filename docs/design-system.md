@@ -454,6 +454,45 @@ the line never runs through one.
   `FigurePart` named for its title, side by side in `.split`; its numbers
   are a table, as every figure's are.
 
+**The starting grid, the dot strip and the winners' chips** (provisional,
+AF-133). One question asked of a circuit: where its winners started.
+`charts/gridStarts.js` lays out both drawings for both renderers;
+`winnerStarts()` and the functions beside it in `queries/circuit.js` choose
+and word everything else.
+
+- **The starting grid** (from 768 px): grid boxes in two lanes, the even
+  slots set half a box back, front at the left, each numbered outside its
+  box, as far as the furthest slot won from and always a whole row. One dot
+  per race won from a box, oldest first, four across and two down; a box of
+  more than eight (`STARTS_CAP`) holds its count in `.value-text` instead.
+  The boxes stand two abreast whatever the year, and the note says so,
+  because the database does not record how each grid was formed.
+- **The dot strip** (below 768 px): the grid's phone form, not a second
+  chart. One column per slot, numbered under a baseline, the dots stacked up
+  from it; a count stands over a pale bar outlined in `--series-ink`. Both
+  drawings are in the markup and `app.css` shows one, so the static page is
+  the app's at every width and nothing moves at the handover; each keeps its
+  natural size and scales down to its box.
+- **The chips:** one per race, by decade, oldest first, each a decade label
+  in `--mono` beside a wrapping row: the livery mark (the `LiveryMark`
+  element, beside the name it belongs to), the year as a link to the race,
+  the team, and the grid slot in bold. A hairline in `--rule` on the panel,
+  so the colour is the mark's and never the chip's ground.
+- **Colour:** rule 1 above for the dots, as the pair `charts/own.js`
+  writes; a team with no colour on record is a hollow dot outlined in
+  `--series-ink`, never a guessed fill. No accent.
+- **Second cue:** the team is named on every chip, and on every dot in its
+  tooltip; the table under the figure names every race, so colour is never
+  the only cue (1.4.1).
+- **Not a slot:** a pit-lane start, a slot nobody recorded and a shared
+  drive (whose drivers each have their own slot, and the car's is not
+  recorded) are never a box or a zero. They are rows of the table, words on
+  a chip, and one line of the figures above.
+- **Placement:** a section of its own, *Where winners start here*, on every
+  circuit page with a race run: a line saying how many races and layouts it
+  counts, the figures as `Fields`, the figure, then *Race by race* (h3) and
+  the chips.
+
 ### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848)
 
 - **Job:** every row, sortable, copyable.
@@ -673,7 +712,8 @@ citation, is already one system and is kept.
   win · Cars built · photographs.
 - **Circuit:** the current outline in the slot (VD-74, VD-84) · winners
   first on **all 80**, not only the 13 with a layout timeline (S2) ·
-  Constructors here · Every layout raced here (the timeline's rows or the
+  Constructors here · *Where winners start here*, the starting grid and the
+  chips (provisional, AF-133) · Every layout raced here (the timeline's rows or the
   other drawings behind one disclosure; absent where there are neither, and
   the slot's card then carries the rule) · Every race here.
 - **Season:** *Who can still win* takes the lede position on a season

@@ -2214,6 +2214,7 @@ describe('one figure grammar: the heading names the figure, and the note goes un
     const { progressionNote, reachNote } = await import('../src/queries/season.js')
     const { chartNote } = await import('../src/queries/home.js')
     const { CHASSIS_NOTE } = await import('../src/queries/quality.js')
+    const { startsNote } = await import('../src/queries/circuit.js')
     const { colourSource } = await import('../src/lib/liveries.js')
     const livery = colourSource([{ kind: 'livery' }])
     const national = colourSource([{ kind: 'national' }])
@@ -2245,6 +2246,9 @@ describe('one figure grammar: the heading names the figure, and the note goes un
         { year: 2028, rounds: 24, run: false },
       ]),
       'chassis named': CHASSIS_NOTE,
+      // AF-133: both kinds of colour and a hollow dot, as Monza's grid has.
+      'where winners start, both kinds and a hollow dot': startsNote([{ kind: 'livery' }, { kind: 'national' }, null]),
+      'where winners start, no colour': startsNote([null]),
     }
     for (const spec of [records.DRIVER_WINS_FIGURE, records.DRIVER_POLES_FIGURE, records.CONSTRUCTOR_WINS_FIGURE]) {
       notes[`${spec.title}, static`] = `${spec.note} ${records.leadersDrawnLine(many)}`

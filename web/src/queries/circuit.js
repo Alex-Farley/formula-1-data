@@ -11,7 +11,8 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { number, roundResult, span, text } from '../lib/format.js'
+import { number, ordinal, percent, roundResult, span, text } from '../lib/format.js'
+import { colourForEntry, colourSource } from '../lib/liveries.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 
 /**
@@ -269,3 +270,270 @@ export const circuitStrip = (circuit) => [
   { label: 'Direction', value: circuit.direction },
   { label: 'Type', value: circuit.circuit_type },
 ]
+
+/*
+ * WHERE WINNERS START HERE (AF-133)
+ *
+ * Every race run here, by the grid slot its winner started from, counted
+ * from race_entries (finish_position = 1, with `grid`) and drawn three ways:
+ * the starting grid with a dot in each box for every race won from it, its
+ * phone form as a strip of slots, and one chip per race by decade.
+ * charts/gridStarts.js lays the first two out for both renderers; the rest
+ * is here, read by Circuit.jsx and scripts/prerender.js alike.
+ *
+ * A RACE IS THE UNIT, not a winning entry. A race with two drivers
+ * classified first is a shared drive, and race_entries records each driver's
+ * own grid slot, and not the slot the winning car started from (Reims 1951:
+ * Fangio 1st on the grid, Fagioli 7th, in the one car). Those races are kept
+ * apart and labelled, never counted as either slot - and so are a winner
+ * who started from the pit lane (grid_text 'PL', grid NULL) and one whose
+ * slot nobody recorded (grid NULL). None of the three is a slot, and none is
+ * a zero.
+ */
+
+/** Every winning entry of every race run here, oldest first; `winners` is how many the race has. */
+export const STARTS = `
+  SELECT r.year, r.round, r.name_used, e.grid, e.grid_text,
+         e.driver_id, d.full_name AS driver,
+         e.constructor_id, k.name AS constructor, k.country AS constructor_country,
+         COUNT(*) OVER (PARTITION BY r.id) AS winners
+    FROM races r
+    JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
+    LEFT JOIN drivers d ON d.id = e.driver_id
+    LEFT JOIN constructors k ON k.id = e.constructor_id
+   WHERE r.circuit_id = ? AND r.status = 'completed'
+   ORDER BY r.year, r.round, e.id
+`
+
+/**
+ * The same count at every circuit over the seasons this one has run races
+ * in, its first to its last, for the
+ * comparison beside this one's: races whose one winner has a grid slot, and
+ * how many of those were won from the first slot and from the first two.
+ * The rule is startKind()'s - a shared drive and a winner with no slot are
+ * left out of both halves of the comparison alike.
+ */
+export const STARTS_EVERYWHERE = `
+  SELECT COUNT(*) AS placed,
+         COUNT(CASE WHEN w.grid = 1 THEN 1 END) AS first,
+         COUNT(CASE WHEN w.grid <= 2 THEN 1 END) AS front
+    FROM (SELECT MAX(e.grid) AS grid, COUNT(*) AS winners
+            FROM race_entries e JOIN races r ON r.id = e.race_id
+           WHERE e.finish_position = 1 AND r.status = 'completed'
+             AND r.year BETWEEN (SELECT MIN(year) FROM races WHERE circuit_id = ?1 AND status = 'completed')
+                            AND (SELECT MAX(year) FROM races WHERE circuit_id = ?1 AND status = 'completed')
+           GROUP BY e.race_id) w
+   WHERE w.winners = 1 AND w.grid IS NOT NULL
+`
+
+export const STARTS_HEADING = 'Where winners start here'
+
+/** What a race's start is: a slot, or one of the three things that are not one. */
+export const START_KINDS = {
+  slot: 'slot',
+  pit: 'pit',
+  none: 'none',
+  shared: 'shared',
+}
+
+/** How each start that is not a slot is written, in a chip and in the table. */
+export const START_WORDS = {
+  pit: 'pit lane',
+  none: 'grid not recorded',
+  shared: 'shared drive',
+}
+
+const startKind = (entries) => {
+  if (entries.length > 1) return START_KINDS.shared
+  const [e] = entries
+  if (e.grid !== null && e.grid !== undefined) return START_KINDS.slot
+  return e.grid_text === 'PL' ? START_KINDS.pit : START_KINDS.none
+}
+
+/**
+ * STARTS's rows as one record per race, oldest first: { key, year, round,
+ * name, kind, slot, winners, colour }. `slot` is the grid slot where `kind`
+ * is a slot and null otherwise. `colour` is the winning team's
+ * (colourForEntry: its livery from 2010, its national colour before 1968,
+ * null otherwise and for a shared drive whose drivers' teams differ).
+ */
+export function winnerStarts(rows) {
+  const races = []
+  for (const row of rows) {
+    const key = `${row.year}-${row.round}`
+    let race = races.at(-1)
+    if (!race || race.key !== key) {
+      race = { key, year: row.year, round: row.round, name: row.name_used, entries: [] }
+      races.push(race)
+    }
+    race.entries.push(row)
+  }
+  return races.map(({ entries, ...race }) => {
+    const kind = startKind(entries)
+    const teams = [...new Set(entries.map((e) => e.constructor_id ?? e.constructor))]
+    const [first] = entries
+    return {
+      ...race,
+      kind,
+      slot: kind === START_KINDS.slot ? first.grid : null,
+      winners: entries.map((e) => ({ driver: e.driver, driver_id: e.driver_id, constructor: e.constructor, constructor_id: e.constructor_id })),
+      team: teams.length === 1 ? first.constructor : entries.map((e) => e.constructor).join(' / '),
+      colour:
+        teams.length === 1
+          ? colourForEntry({ constructorId: first.constructor_id, country: first.constructor_country, year: race.year, team: first.constructor })
+          : null,
+    }
+  })
+}
+
+/** The races with a grid slot, by slot: a Map from slot to its races, oldest first. */
+export function bySlot(races) {
+  const slots = new Map()
+  for (const race of races) {
+    if (race.kind !== START_KINDS.slot) continue
+    if (!slots.has(race.slot)) slots.set(race.slot, [])
+    slots.get(race.slot).push(race)
+  }
+  return slots
+}
+
+/** "Max Verstappen", "Juan Manuel Fangio / Luigi Fagioli". */
+export const winnerNames = (race) => race.winners.map((w) => text(w.driver)).join(' / ')
+
+/** A race as one mark's words: "2023 Max Verstappen, Red Bull, from 6th". */
+export const startTitle = (race) =>
+  `${race.year} ${winnerNames(race)}, ${text(race.team)}, ${race.kind === START_KINDS.slot ? `from ${ordinal(race.slot)}` : START_WORDS[race.kind]}`
+
+/** What a chip carries after the year and the team: "6th", or the words for a start that is not a slot. */
+export const chipStart = (race) => (race.kind === START_KINDS.slot ? ordinal(race.slot) : START_WORDS[race.kind])
+
+/** "7 of 14 (50%)". */
+const share = (part, whole) => `${number(part)} of ${number(whole)} (${percent(part, whole, 0)})`
+
+/** Names joined as prose: "a", "a and b", "a, b and c". */
+const prose = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`)
+
+/** The most named in a "most wins" line before the rest become a count. */
+export const MOST_NAMED = 3
+
+/**
+ * "Sir Lewis Hamilton, 5", "Mercedes and Red Bull, 5 each", or, past
+ * MOST_NAMED tied, "4 drivers, 1 each". `rows` are WINNERS's or TEAMS's,
+ * most wins first; `name` reads a row's name and `noun` counts them.
+ */
+export function mostWins(rows, name, noun) {
+  if (!rows.length) return null
+  const top = rows[0].wins
+  const tied = rows.filter((row) => row.wins === top)
+  if (tied.length === 1) return `${text(name(tied[0]))}, ${number(top)}`
+  if (tied.length > MOST_NAMED) return `${number(tied.length)} ${noun}, ${number(top)} each`
+  return `${prose(tied.map((row) => text(name(row))))}, ${number(top)} each`
+}
+
+/**
+ * The few short figures under the heading, as { label, value } for Fields
+ * in both renderers. `everywhere` is STARTS_EVERYWHERE's row over the same
+ * seasons; `winners` and `teams` are the page's WINNERS and TEAMS rows, so
+ * "most wins" is the first line of the two tables beside it, not a second
+ * count of its own.
+ *
+ * The first slot and the first two are counted out of the races that have
+ * a slot - a pit-lane start, a slot not recorded and a shared drive are in
+ * neither the count nor the total, and the last line says how many there
+ * are. "First two slots" rather than "front row": the front row has not
+ * always been two cars wide, and this database does not record how each
+ * year's grid was formed.
+ */
+export function startsFigures(races, everywhere, winners, teams) {
+  const slots = races.filter((race) => race.kind === START_KINDS.slot)
+  const placed = slots.length
+  const items = []
+  if (placed) {
+    const first = slots.filter((race) => race.slot === 1).length
+    const front = slots.filter((race) => race.slot <= 2).length
+    const years = span(races[0].year, races.at(-1).year)
+    items.push({
+      label: 'Won from first on the grid',
+      value: everywhere?.placed
+        ? `${share(first, placed)}, against ${share(everywhere.first, everywhere.placed)} at every circuit, ${years}`
+        : share(first, placed),
+    })
+    items.push({ label: 'Won from the first two slots', value: share(front, placed) })
+    const lowest = Math.max(...slots.map((race) => race.slot))
+    const from = slots.filter((race) => race.slot === lowest)
+    const named = from.slice(0, MOST_NAMED).map((race) => `${winnerNames(race)}, ${race.year}`)
+    const more = from.length > MOST_NAMED ? ` and ${number(from.length - MOST_NAMED)} more` : ''
+    items.push({ label: 'Lowest winning grid slot', value: `${ordinal(lowest)} — ${named.join('; ')}${more}` })
+  }
+  const driver = mostWins(winners, (row) => row.driver, 'drivers')
+  if (driver) items.push({ label: 'Most wins by a driver', value: driver })
+  const team = mostWins(teams, (row) => row.constructor, 'teams')
+  if (team) items.push({ label: 'Most wins by a team', value: team })
+  const apart = [START_KINDS.pit, START_KINDS.none, START_KINDS.shared]
+    .map((kind) => [kind, races.filter((race) => race.kind === kind).length])
+    .filter(([, n]) => n > 0)
+    .map(([kind, n]) => `${number(n)} ${kind === START_KINDS.shared ? (n === 1 ? 'shared drive' : 'shared drives') : `${START_WORDS[kind]}`}`)
+  if (apart.length) items.push({ label: 'Not counted as a slot', value: apart.join(' · ') })
+  return items
+}
+
+/**
+ * The line under the heading: how many races, and across how many of the
+ * layouts the register records for the circuit (`circuit_layouts`, the
+ * thirteen circuits with a timeline; the rest record none).
+ */
+export function startsLine(races, layouts) {
+  const all = races.length === 1 ? 'The one race won here' : `All ${number(races.length)} races won here, counted together`
+  if (layouts > 1) return `${all}, across the ${number(layouts)} layouts the register records.`
+  if (layouts === 1) return `${all}, on the one layout the register records.`
+  return `${all}. No layout timeline is recorded for this circuit.`
+}
+
+/** The figure's note: 50 words at its longest (conventions.mjs), with a hollow dot and both kinds of colour. */
+export const startsNote = (colours) => {
+  const drawn = colours.filter(Boolean)
+  const hollow = drawn.length < colours.length
+  const colour = drawn.length
+    ? ` Coloured by winner: ${colourSource(drawn)}.${hollow ? ' A hollow dot has no colour on record.' : ''}`
+    : ' No winner here has a colour on record, so every dot is hollow.'
+  return `A dot is a race won from that slot; over eight, the box shows the count. Boxes stand two abreast, as grids do now.${colour}`
+}
+
+/** The figure's numbers: one row per slot won from, then each start that is not a slot. */
+export function startsTable(races) {
+  const rows = [...bySlot(races)]
+    .sort(([a], [b]) => a - b)
+    .map(([slot, won]) => ({ key: `slot-${slot}`, start: ordinal(slot), wins: won.length, races: won }))
+  for (const kind of [START_KINDS.pit, START_KINDS.none, START_KINDS.shared]) {
+    const won = races.filter((race) => race.kind === kind)
+    if (won.length) rows.push({ key: kind, start: START_WORDS[kind], wins: won.length, races: won })
+  }
+  return rows
+}
+
+export const STARTS_COLUMNS = [
+  { key: 'start', rowHeader: true, label: 'Grid slot' },
+  { key: 'wins', label: 'Wins', align: 'num' },
+  {
+    key: 'races',
+    label: 'Races won',
+    text: (races) => races.map((race) => `${race.year} ${winnerNames(race)} (${text(race.team)})`).join('; '),
+  },
+]
+
+/** The drawing's accessible name: what the table holds, in one line. "Wins here by grid slot: 1st 7, 2nd 5, 4th 1, 6th 1." */
+export const startsLabel = (rows) => `Wins here by grid slot: ${rows.map((row) => `${row.start} ${number(row.wins)}`).join(', ')}.`
+
+/** The timeline's heading, under the figure. */
+export const TIMELINE_HEADING = 'Race by race'
+
+/** The races by decade, oldest first: [{ decade: '1950s', races }]. */
+export function byDecade(races) {
+  const decades = []
+  for (const race of races) {
+    const decade = `${Math.floor(race.year / 10) * 10}s`
+    if (decades.at(-1)?.decade !== decade) decades.push({ decade, races: [] })
+    decades.at(-1).races.push(race)
+  }
+  return decades
+}

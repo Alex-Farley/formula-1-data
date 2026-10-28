@@ -398,12 +398,26 @@ import {
   TEAM_COLUMNS,
   OUTLINES as CIRCUIT_OUTLINES,
   PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
+  STARTS,
+  STARTS_COLUMNS,
+  STARTS_EVERYWHERE,
+  STARTS_HEADING,
+  TIMELINE_HEADING,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
+  byDecade,
+  chipStart,
   circuitStrip,
   heldAs,
   photographAlt as circuitPhotographAlt,
   racesCount as circuitRacesCount,
+  startTitle,
+  startsFigures,
+  startsLabel,
+  startsLine,
+  startsNote,
+  startsTable,
+  winnerStarts,
 } from '../src/queries/circuit.js'
 import { GRANDS_PRIX, GRANDS_PRIX_COLUMNS, GRANDS_PRIX_FOOTER, GRANDS_PRIX_LEDE } from '../src/queries/grandsprix.js'
 import {
@@ -676,6 +690,7 @@ import { dotPlotLayout } from '../src/charts/dotPlot.js'
 import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
 import { reachLayout } from '../src/charts/reachChart.js'
+import { dotStrip, gridDiagram } from '../src/charts/gridStarts.js'
 import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
 import {
   STINT_HEADS,
@@ -1477,6 +1492,87 @@ const reachSvg = (chart, width) => {
     .map(([y1, y2]) => `<line class="reach-leader" x1="${px(layout.lead.x)}" x2="${px(layout.lead.x)}" y1="${px(y1)}" y2="${px(y2)}"/>`)
     .join('')}<text class="axis-text" x="${px(layout.lead.textX)}" y="${px(layout.lead.textY)}" text-anchor="middle">${esc(layout.lead.text)}</text>`
   return `<div class="plot-holder">${plotSvg(layout, chart.label, `${bars}${lead}`)}</div>`
+}
+
+/* GridStarts.jsx (AF-133): the starting grid and the dot strip, both, as the
+   app draws them - app.css shows the grid from 768 px and the strip below,
+   so this markup is the app's at every width and nothing moves at the
+   handover. A dot wears its team's pair or is hollow in ink, and names its
+   race in its tooltip. */
+const startDot = (dot) => {
+  const colour = dot.race.colour
+  return `<circle${colour ? ownAttrs(colour) : ' class="start-dot-none"'} cx="${px(dot.cx)}" cy="${px(dot.cy)}" r="${dot.r}" fill="${
+    colour ? 'var(--livery)' : 'none'
+  }"><title>${esc(startTitle(dot.race))}</title></circle>`
+}
+const gridStartsSvg = (races, label) => {
+  const grid = gridDiagram(races)
+  const strip = dotStrip(races)
+  if (!grid || !strip) return ''
+  const svg = (cls, layout, body) =>
+    `<svg class="grid-starts ${cls}" width="${px(layout.width)}" height="${px(layout.height)}" viewBox="0 0 ${px(layout.width)} ${px(
+      layout.height,
+    )}" role="img" aria-label="${esc(label)}">${body}</svg>`
+  const boxes = grid.boxes
+    .map(
+      (box) =>
+        `<g><rect class="start-box" x="${px(box.x)}" y="${px(box.y)}" width="${box.width}" height="${box.height}" rx="3"/><text class="axis-text" x="${px(
+          box.labelX,
+        )}" y="${px(box.labelY)}" text-anchor="middle">${box.slot}</text>${
+          box.count !== null
+            ? `<text class="value-text" x="${px(box.labelX)}" y="${px(box.y + box.height / 2)}" text-anchor="middle" dominant-baseline="middle">${box.count}</text>`
+            : ''
+        }${box.dots.map(startDot).join('')}</g>`,
+    )
+    .join('')
+  const columns = strip.columns
+    .map(
+      (column) =>
+        `<g><text class="axis-text" x="${px(column.x)}" y="${px(column.labelY)}" text-anchor="middle">${column.slot}</text>${
+          column.bar
+            ? `<rect class="start-bar" x="${px(column.bar.x)}" y="${px(column.bar.y)}" width="${px(column.bar.width)}" height="${px(
+                column.bar.height,
+              )}" rx="3"/><text class="value-text" x="${px(column.x)}" y="${px(column.countY)}" text-anchor="middle">${column.count}</text>`
+            : ''
+        }${column.dots.map(startDot).join('')}</g>`,
+    )
+    .join('')
+  return `<div class="plot-holder">${svg('grid-starts-grid', grid, boxes)}${svg(
+    'grid-starts-strip',
+    strip,
+    `<line class="start-baseline" x1="0" x2="${px(strip.width)}" y1="${px(strip.baseline)}" y2="${px(strip.baseline)}"/>${columns}`,
+  )}</div>`
+}
+
+/* Circuit.jsx's WinnerStarts (AF-133): the heading and its line, the
+   figures, the figure with its numbers open beneath it, and the chips by
+   decade - nothing where no race here has been run. */
+const startsBlock = (races, everywhere, layouts, winners, teams) => {
+  if (!races.length) return ''
+  const table = startsTable(races)
+  const items = startsFigures(races, everywhere, winners, teams).map(({ label, value }) => [label, esc(value)])
+  const drawn = table.some((row) => row.key.startsWith('slot-'))
+    ? figure(
+        STARTS_HEADING,
+        startsNote(races.filter((race) => race.slot !== null).map((race) => race.colour)),
+        fromColumns(STARTS_COLUMNS, table, {}, { unfolded: UNFOLDED.figure }),
+        { plot: gridStartsSvg(races, startsLabel(table)) },
+      )
+    : ''
+  const decades = byDecade(races)
+    .map(
+      ({ decade, races: here }) =>
+        `<li><span class="win-decade">${esc(decade)}</span><ol class="win-chips">${here
+          .map(
+            (race) =>
+              `<li class="win-chip">${liveryMark(race.colour)}${link(`races/${race.year}/${race.round}`, race.year)} ${text(race.team)} <b>${esc(
+                chipStart(race),
+              )}</b></li>`,
+          )
+          .join('')}</ol></li>`,
+    )
+    .join('')
+  return `${heading(STARTS_HEADING)}${note(startsLine(races, layouts))}${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
 }
 
 /* Figure.jsx's legend: a stroke in the series' dash for a line chart, as
@@ -3714,6 +3810,10 @@ page({
     const cv = one(CIRCUIT_ROW, c.id) ?? {}
     const winnersHere = all(WINNERS_HERE, c.id)
     const teamsHere = all(TEAMS_HERE, c.id)
+    // Where winners start here (AF-133), Circuit.jsx's block from the same
+    // functions: the figures, the grid and the strip with their numbers, and
+    // the chips by decade.
+    const startsHere = winnerStarts(all(STARTS, c.id))
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
     const layoutsHere = all(CIRCUIT_LAYOUTS, c.id)
     const outlineSplit = leadOutline(outlinesHere)
@@ -3795,6 +3895,7 @@ page({
               }, { fold: FOLD_NOUN.constructors })}`
             : ''
         }
+        ${startsBlock(startsHere, one(STARTS_EVERYWHERE, c.id), layoutsHere.length, winnersHere, teamsHere)}
         ${
           // VD-83 (SD-41), as Circuit.jsx: after the winners on all 80.
           layoutHistory
