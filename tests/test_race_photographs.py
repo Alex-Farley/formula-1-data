@@ -320,6 +320,10 @@ class TheLinkIsTheSource(unittest.TestCase):
         self.assertEqual(
             WI.plain("<a class='external' href='https://x.example/'>[2]</a>"),
             "https://x.example/")
+        self.assertEqual(
+            WI.plain('<a data-href="https://decoy.example/" '
+                     'href="https://real.example/">[2]</a>'),
+            "https://real.example/")
 
     def test_the_unknown_author_gives_way_to_it(self):
         self.assertEqual(
