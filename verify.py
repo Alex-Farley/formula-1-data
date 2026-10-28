@@ -5403,10 +5403,97 @@ def redistribution():
 # nobody. A licence grant is only as good as its list of what it covers, and
 # a CC BY grant cannot be taken back from a copy already made — so what this
 # section checks is that the list, the database and the two licence documents
-# say the same thing, that nothing sourced has drifted onto the list, and
+# say the same thing, that nothing sourced has drifted onto the list,
 # (PM-49) that every granted column of an authored table is still the text
-# the prose pass read as original.
+# the prose pass read as original, and (PM-50) that the site never states the
+# grant without saying how far it reaches.
 # ---------------------------------------------------------------------------
+# PM-50 (#576). Where the site states the grant. site.js holds the words
+# /about and /data's list of documents print; Data.jsx and prerender.js write
+# /data's licence paragraph, once for each renderer. The defect PM-47's review
+# caught was here, not in either licence document: /about offering "this
+# project's own writing under CC BY 4.0" with no scope, in nearly the words
+# source_registry entry 18 uses for tables the grant deliberately left out.
+#
+# Each page with the number of grant sentences found on it at PM-50, as a
+# floor: a reading that finds none passes on everything, so one of these that
+# stops being found - rephrased past _OWN_WRITING, cut by a quotation, moved -
+# fails rather than going unread. Per page, so a sentence added on one cannot
+# stand in for one lost on another.
+GRANT_PAGES = {"web/src/lib/site.js": 2, "web/src/pages/Data.jsx": 1,
+               "web/scripts/prerender.js": 1}
+
+# A sentence about what this project wrote. The net is these words, which is
+# how every statement of the grant is phrased today; one that names the
+# project's writing in none of them is not read.
+_OWN_WRITING = re.compile(r"project|own writing|\bwrote\b", re.IGNORECASE)
+
+
+def source_sentences(source):
+    """The sentences of a front-end source file, read as the text it prints.
+
+    Adjacent string literals joined by `+` become one string, the JSX spacer
+    {' '} a space, \\u2019 and \\u2014 the characters they escape, and every
+    run of white space one space. A sentence then ends at a full stop before
+    a capital or markup, or where a string literal closes into a comma, a
+    bracket or a parenthesis. Code and comments come along as text, and a
+    run of code read as a sentence costs a false alarm, which is the
+    direction a licence check should err in. A cut can err the other way: a
+    quotation closing into a comma or a bracket inside a sentence -
+    `(see "LICENSE-DATA")` - ends it there, and a grant on the far side of
+    the cut goes unread. GRANT_PAGES' floors are what catch that for the
+    sentences the site states today."""
+    t = source.replace("\\u2019", "\u2019").replace("\\u2014", "\u2014")
+    t = re.sub(r"(['\"])\s*\+\s*\1", "", t)
+    t = t.replace("{' '}", " ")
+    t = re.sub(r"\s+", " ", t)
+    return [x.strip() for x in
+            re.split(r"(?<=\.)\s+(?=[A-Z<{`'\"])|['\"`]\s*[,)\]]", t)]
+
+
+def grant_scope_faults(source, granted, authored):
+    """Each sentence of `source` that puts this project's writing under
+    CC BY 4.0 without saying which of it.
+
+    granted   the authored tables the grant reaches (PM-49)
+    authored  the authored tables there are
+
+    The site states the scope in words rather than column names: the
+    reading of each disagreement, the account of each gap, and the prose of
+    `granted` of the `authored` reference tables. A grant sentence missing
+    any of the three, or stating a different pair of figures, is a fault -
+    a reader cannot tell from it that the rest of entry 18 stays CC BY-SA.
+    A sentence that names the facts artefact's CC BY 4.0 and not this
+    project's writing is not a grant of it, and is not read.
+
+    What it looks for is the scope's presence, not a wider grant's absence:
+    "everything this project wrote is CC BY 4.0, with its reading of each
+    disagreement, ..." names all three parts and passes, though it grants
+    all twelve tables. Reading for that is reading prose for meaning, which
+    a pattern does not do; a reviewer of the sentence does."""
+    lf = _lede_figures()
+    tables = re.compile(rf"prose of (?P<n>{lf.CARDINAL}) of its "
+                        rf"(?P<m>{lf.CARDINAL}) reference tables", re.IGNORECASE)
+    faults = []
+    for sentence in source_sentences(source):
+        if "CC BY 4.0" not in sentence or not _OWN_WRITING.search(sentence):
+            continue
+        lacks = [what for what, pattern in (
+            ("the disagreements", r"reading of (?:each|every) disagreement"),
+            ("the gaps", r"account of (?:each|every) gap"),
+            ("the reference tables", tables.pattern))
+            if not re.search(pattern, sentence, re.IGNORECASE)]
+        m = tables.search(sentence)
+        said = (lf.number(m["n"]), lf.number(m["m"])) if m else None
+        quoted = sentence if len(sentence) <= 90 else sentence[:87] + "..."
+        if lacks:
+            faults.append(f"names none of {', '.join(lacks)}: {quoted!r}")
+        elif said != (granted, authored):
+            faults.append(f"says {m['n']} of {m['m']} reference tables, and the "
+                          f"grant is {granted} of {authored}: {quoted!r}")
+    return faults
+
+
 @section("THE PROJECT'S OWN PROSE")
 def project_prose():
     from data import current as _N
@@ -5533,13 +5620,35 @@ def project_prose():
         section_ = text.split(heading, 1)[1].split("\n## ", 1)[0]
         # `table.column` in that section, and only where both halves are real
         # - `meta.project_prose` names a key, not a column, and is not one of
-        # these.
+        # these. Digits are in the class because the schema has column names
+        # that carry them (qualifying.q1, drivers.f1db_id); a column named in prose
+        # rather than in backticks is not caught, which is how neither
+        # document writes one (PM-50).
         offered = [f"{t}.{c}" for t, c in
-                   re.findall(r"`([a-z_]+)\.([a-z_]+)`", section_)
+                   re.findall(r"`([a-z0-9_]+)\.([a-z0-9_]+)`", section_)
                    if c in columns.get(t, ())]
         wider = sorted(set(offered) - set(declared))
         check(f"{doc} offers no column that PROJECT_PROSE_COLUMNS does not",
               not wider, ", ".join(wider))
+
+    # And where the site says it (PM-50): every sentence on it that puts this
+    # project's writing under CC BY 4.0 says which of it, with the figures
+    # the grant has.
+    for page, floor in GRANT_PAGES.items():
+        try:
+            with open(os.path.join(here, page), encoding="utf-8") as f:
+                source = f.read()
+        except OSError as e:
+            check(f"{page} is readable", False, str(e))
+            continue
+        stated = sum("CC BY 4.0" in x and bool(_OWN_WRITING.search(x))
+                     for x in source_sentences(source))
+        check(f"{page} states the grant where it did at PM-50 "
+              f"(at least {floor} sentence{'s' if floor > 1 else ''})",
+              stated >= floor, f"{stated} found")
+        faults = grant_scope_faults(source, len(granted_authored), len(authored))
+        check(f"{page} scopes every CC BY 4.0 grant of this project's writing",
+              not faults, "; ".join(faults))
 
 
 # ---------------------------------------------------------------------------
