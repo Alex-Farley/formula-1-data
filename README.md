@@ -43,14 +43,14 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->54<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->178,385<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->180,682<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1-facts.db` | The facts artefact: `f1.db` less everything that stays share-alike, for release under CC BY 4.0. **Not committed** — `make export` writes it with `tools/facts_export.py` from the set `tools/facts_artefact.py` declares, and the release workflow publishes it beside `f1.db`. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. Served at `lapledger.org/schema.sql`, so a downloader can read what the tables mean. |
-| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->41<!-- /fig --> named stages; `STAGES` is the schedule. |
+| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->42<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — plus `test_conventions.py`, the reviewer checklists' mechanical items as tests, and `test_verify_refuses.py`, the licence gate shown refusing each thing it exists to refuse. `make test`, stdlib only. |
 | `ruff.toml`, `web/biome.jsonc` | The linters CI runs on the Python and the front end, and every rule left out with its reason. `make lint`. Neither is a dependency of the build. |
@@ -76,6 +76,7 @@ here is a number the build checked.
 | `harvest/circuit_articles.txt`, `.log` | The Wikipedia article that describes each circuit, off the List of Formula One circuits and matched on country, seasons and races held, never on the name; every row and circuit not matched, and why. **Generated** by `tools/circuit_articles.py`. Loaded into `circuits.article` and `circuits.article_section`; `verify.py` checks it against the register. |
 | `harvest/circuit_images.txt`, `.log` | The aerial photograph of each circuit whose article carries one, and its licence; every mapped circuit refused, and why. **Generated** by `tools/wikimedia_images.py --route circuit`. |
 | `harvest/race_images.txt`, `.log` | Up to twelve photographs of each completed race from the Commons category named for it, and their licences; every race and file refused, and why. **Generated** by `tools/wikimedia_images.py --route race`. |
+| `harvest/race_weather_reported.txt`, `race_weather_modelled.txt`, and their `.log`s | Each race's weather twice over: the `Weather` line of its Wikipedia article's infobox, and ERA5's reanalysis of its day at the circuit through Open-Meteo, labelled modelled; every race with neither, and why. **Generated** by `tools/race_weather.py`. |
 | `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, practice, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
 | `tools/circuit_articles.py` | Maps each circuit to its Wikipedia article from one revision of the List of Formula One circuits, refusing any row whose country, seasons or race count is not one circuit's own. Needs network; not part of the build. |
@@ -453,6 +454,8 @@ doubles their rows instead of failing.
 | `qualifying_formats` | unstable | — |
 | `race_control_messages` | unstable | — |
 | `race_entries` | stable | `(race_id, driver_id)` |
+| `race_weather_modelled` | unstable | `(race_id)` |
+| `race_weather_reported` | unstable | `(race_id)` |
 | `races` | stable | `(year, round)` |
 | `records` | unstable | `(key)` |
 | `regulation_changes` | unstable | — |
@@ -1247,8 +1250,8 @@ and `known_gaps` says so.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->115<!-- /fig -->
-rows: <!-- fig:discrepancies_open -->35<!-- /fig -->
+holds <!-- fig:discrepancies -->156<!-- /fig -->
+rows: <!-- fig:discrepancies_open -->76<!-- /fig -->
 open, <!-- fig:discrepancies_explained -->23<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
 the best-results rule dropped, an entry or a car a source counts that the race

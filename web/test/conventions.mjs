@@ -1534,6 +1534,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
     'en.wikipedia.org': ['cite', 'the source behind a prose field or a register row'],
     'www.formula1.com': ['cite', 'the official record a figure is checked against'],
     'www.openstreetmap.org': ['cite', 'the ODbL attribution the centrelines carry'],
+    'open-meteo.com': ['cite', 'the credit the modelled race-day weather carries (AF-136)'],
     'schema.org': ['cite', 'the JSON-LD vocabulary, a namespace and not a fetch'],
     'www.w3.org': ['cite', 'an XML namespace, likewise'],
     'www.sitemaps.org': ['cite', 'the sitemap namespace, likewise'],

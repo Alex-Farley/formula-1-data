@@ -156,13 +156,16 @@ in f1-facts.db, some of whose columns are rebuilt or left out.
 ## Attribution
 
 Car and circuit data in this repository, each race's winner, pole position and
-fastest lap, some driver records, some regulation limits and six team radio
-quotations are derived from Wikipedia, licensed under CC BY-SA 4.0. Most driver and constructor
+fastest lap, some driver records, some regulation limits, six team radio
+quotations and each race's reported weather are derived from Wikipedia,
+licensed under CC BY-SA 4.0. Most driver and constructor
 records, the full race classification, sprint results, practice, qualifying
 and sprint qualifying, championship standings, pit stops, and the chassis,
 engine and season-entrant register are derived from F1DB by Marcel Overdijk,
 published under CC BY 4.0, as are F1DB's circuit outlines, drawn by Jules Roy.
-Circuit centrelines, published separately as `f1-geometry.db`, are ©
+Race-day air temperature, rain and wind are modelled, from the Copernicus
+Climate Change Service's ERA5 reanalysis: weather data by Open-Meteo.com,
+licensed under CC BY 4.0. Circuit centrelines, published separately as `f1-geometry.db`, are ©
 OpenStreetMap contributors, licensed under ODbL 1.0; their relation ids come
 from Wikidata (CC0). Car, circuit and race photographs are hosted on
 Wikimedia Commons, and each carries its own licence and credit, recorded per file in

@@ -39,6 +39,7 @@ the current position from the rows themselves.
 | Circuit register and layout timelines | <!-- credit:circuit_layouts -->Wikipedia per-circuit articles<!-- /credit --> | <!-- fig:circuits -->80<!-- /fig --> circuits, <!-- fig:wp_layouts -->51<!-- /fig --> layouts |
 | Car photographs (references and credits, not images) | <!-- credit:article_images -->[Wikimedia Commons](https://commons.wikimedia.org/)<!-- /credit --> | <!-- fig:images -->623<!-- /fig --> articles |
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
+| Race-day weather: wet or dry as reported, and the day's air temperature, rain and wind as modelled | <!-- credit:race_weather_reported -->Wikipedia per-race articles<!-- /credit -->, for the report; <!-- credit:race_weather_modelled -->[Open-Meteo](https://open-meteo.com/)'s historical weather API, ERA5 reanalysis<!-- /credit -->, for the model | see `race_weather_reported`, `race_weather_modelled` |
 | Notable team radio transcripts | <!-- credit:team_radio -->Wikipedia per-race articles<!-- /credit --> | <!-- fig:notable_radio -->6<!-- /fig --> |
 | Why a finisher inside the paid places scored nothing | Wikipedia per-race articles, cited row by row in `claims`; the notes are written for this project | <!-- fig:wp_entry_notes -->13<!-- /fig --> entries |
 | 2026 season, entry list, standings, calendar | <!-- credit:season_entries,sessions,standings,races -->formula1.com<!-- /credit --> | current season |
@@ -230,6 +231,32 @@ Three things are enforced, at harvest time and again on every build:
 - it must name someone to attribute. Eight files were refused on the run that
   produced the committed data: seven name no author, one states no licence.
 
+### Open-Meteo and ERA5 — CC BY 4.0
+
+`race_weather_modelled` holds each race day's highest air temperature, rain,
+hours of rain and strongest wind at the circuit, from
+[Open-Meteo](https://open-meteo.com/)'s historical weather API
+(`tools/race_weather.py`, AF-136). Open-Meteo offers its API data under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), and the figures
+are the Copernicus Climate Change Service's ERA5 and ERA5-Land reanalyses,
+which Copernicus publishes under CC BY 4.0 too: attribution, no share-alike.
+Copernicus's own wording of the credit is *Generated using Copernicus Climate
+Change Service information. Neither the European Commission nor ECMWF is
+responsible for any use that may be made of the Copernicus information or
+data it contains.*
+Open-Meteo asks for a link to it beside wherever its data is shown, so each
+weather disagreement in `discrepancies` ends its assessment with *weather
+data by Open-Meteo.com* and the address, wherever that row is shown, and a
+republisher showing these figures owes the same link. Its free API is for
+non-commercial use, which this project is — no advertising, no subscriptions
+— and the harvest is one request per race; that term governs calling the
+API, not the data a call returns, which stays CC BY 4.0 in any hands.
+
+The figures are a model's, for the grid cell the circuit sits in over its
+whole local day, and not a measurement at the track; say so wherever they are
+shown. Whether a race was wet or dry is not taken from them: that is the race
+article's report, in `race_weather_reported`, under *Wikipedia* above.
+
 ### OpenStreetMap — ODbL 1.0, and why it ships in a file of its own
 
 `circuit_geometry` holds circuit centrelines traced from OpenStreetMap, which
@@ -243,7 +270,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->178,385<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->180,682<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -291,7 +318,7 @@ the share-alike above. First, its account of its own sources and state:
 
 | Column | What it holds | Chars |
 |---|---|---:|
-| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->41,217<!-- /fig --> |
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->62,172<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,933<!-- /fig --> |
 | `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->14,680<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,544<!-- /fig --> |
@@ -314,7 +341,7 @@ entry 18 records as written for this project (`PM-49`, #573):
 | `engine_manufacturers.notes` | notes on each engine manufacturer |
 
 Every figure here is a span this build rewrites from the database
-itself: <!-- fig:prose_kb -->88 KB<!-- /fig --> between all of them, of
+itself: <!-- fig:prose_kb -->108 KB<!-- /fig --> between all of them, of
 which <!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and
@@ -432,16 +459,20 @@ for word, and the Parquet bundle's `README.txt` quotes that section, so a
 change here is a change to both; `tests/test_parquet_notice.py` fails if
 the two drift apart.
 
-> Car and circuit data in this repository, <!-- credit:cars,circuit_layouts,race_entries,drivers,team_radio,claims,driver_note_sources,regulation_limits -->each race's winner, pole position
-> and fastest lap, some driver records, some regulation limits and six team
-> radio quotations are derived from [Wikipedia](https://en.wikipedia.org/)<!-- /credit -->, licensed under
+> Car and circuit data in this repository, <!-- credit:cars,circuit_layouts,race_entries,drivers,team_radio,claims,driver_note_sources,regulation_limits,race_weather_reported -->each race's winner, pole position
+> and fastest lap, some driver records, some regulation limits, six team
+> radio quotations and each race's reported weather are derived from [Wikipedia](https://en.wikipedia.org/)<!-- /credit -->, licensed under
 > [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). <!-- credit:drivers,constructors,race_entries,sprint_results,practice,qualifying,sprint_qualifying,standings,pit_stops,chassis,engines,season_entrants,circuit_outlines,claims -->Most driver
 > and constructor records, the full race classification, sprint results,
 > practice, qualifying and sprint qualifying, championship standings, pit
 > stops, and the chassis, engine and season-entrant register are derived from
 > [F1DB](https://github.com/f1db/f1db) by Marcel Overdijk, published under
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as are F1DB's
-> circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit -->. Circuit
+> circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit -->.
+> <!-- credit:race_weather_modelled -->Race-day air temperature, rain and wind are modelled, from the
+> Copernicus Climate Change Service's ERA5 reanalysis: weather data by
+> [Open-Meteo.com](https://open-meteo.com/)<!-- /credit -->, licensed under
+> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Circuit
 > centrelines, published separately as `f1-geometry.db`, are © OpenStreetMap
 > contributors, licensed under
 > [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation

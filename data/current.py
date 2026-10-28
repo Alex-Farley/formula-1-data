@@ -403,11 +403,13 @@ SOURCE_REGISTRY = [
      "Admitted as a REFERENCE source for race-by-race results (see the "
      "'reference' confidence tier). Its season tables are transcribed from FIA "
      "classifications, and a race winner harvested from them is compared on "
-     "load with F1DB's. Its per-race articles are cited for two things beyond "
-     "that, both admitted on the record: the team radio quotations, which are "
-     "narrative and a declared deviation, and the race entry notes saying why "
-     "a finisher inside the paid places scored nothing, which are "
-     "classification facts as the race's article states them. Otherwise not "
+     "load with F1DB's. Its per-race articles are cited for three things "
+     "beyond that, all admitted on the record: the team radio quotations, "
+     "which are narrative and a declared deviation; the race entry notes "
+     "saying why a finisher inside the paid places scored nothing, which are "
+     "classification facts as the race's article states them; and each "
+     "race's reported weather, the infobox's own words, from which the build "
+     "reads wet or dry (AF-136). Otherwise not "
      "admissible for narrative, attribution or contested claims, and never "
      "promoted to 'verified' without an FIA/F1 check.", "reference",
      "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see "
@@ -651,6 +653,33 @@ SOURCE_REGISTRY = [
      "sit above 'medium', which is what that tier means: correct in "
      "substance, confirm the figure before publishing. It sat at 'high' "
      "until v2.16, which promised more than anything could deliver."),
+
+    (19, "Open-Meteo historical weather API (ERA5 reanalysis)",
+     "https://open-meteo.com/",
+     "Race-day weather, modelled: each race's highest air temperature, rain, "
+     "hours of rain and strongest wind over the circuit's local day, from "
+     "ERA5-Land where it covers the point and ERA5 elsewhere (model "
+     "era5_seamless), at the circuit's coordinates as F1DB gives them. Loaded "
+     "by tools/race_weather.py into race_weather_modelled (AF-136). Whether "
+     "a race was wet or dry is not taken from it: that is the race "
+     "article's report, in race_weather_reported.",
+     "reference",
+     "CC BY 4.0 for the API's data, which is ERA5's, published by the "
+     "Copernicus Climate Change Service under CC BY 4.0 too. Open-Meteo's "
+     "free API is for non-commercial use - a project with no advertising or "
+     "subscriptions, as this one is - and asks for a link to open-meteo.com "
+     "beside wherever its data is shown; see ATTRIBUTION.md.",
+     "Daily, some days behind the present: ERA5 is published about five days "
+     "after the fact, as a preliminary release that the final one later "
+     "replaces. The harvest is run by hand, so a race run since the last run "
+     "has no modelled row until the next.",
+     "Weak by its nature, and labelled so. A reanalysis is a weather model "
+     "run over the day's observations on a grid of about 9 km (ERA5-Land) or "
+     "28 km (ERA5), so a figure is the grid cell's and not the track's, and "
+     "a shower over one circuit can be missing from it. It is held at "
+     "'medium', and checked against the race article's report: a wet race "
+     "on a day the model holds no rain, or a dry one on a day it holds 10 mm "
+     "or more, is filed in discrepancies rather than settled."),
 ]
 
 # How a free-text `source` resolves to a registry entry. Anchored at the
@@ -667,6 +696,11 @@ SOURCE_PATTERNS = [
      "season articles - the results, pole and venue harvests"),
     (8,  r"^https://en\.wikipedia\.org/wiki/List_of_Formula_One", "the list articles"),
     (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio, and why a finisher inside the paid places scored nothing"),
+    # The one per-race article whose title opens on no year, which the
+    # pattern above misses and entry 11 would otherwise take: its weather
+    # line is read like every other race's (AF-136).
+    (8,  r"^https://en\.wikipedia\.org/wiki/70th_Anniversary_Grand_Prix$",
+     "the per-race article whose title opens on no year"),
     (10, r"^https://github\.com/f1db/f1db", None),
     (12, r"^https://api\.jolpi\.ca/", None),
     (15, r"^https://commons\.wikimedia\.org/", None),
@@ -687,6 +721,10 @@ SOURCE_PATTERNS = [
     # the mapping is that revision's. Last, so no id above moves.
     (17, r"^https://en\.wikipedia\.org/w/index\.php\?title=List_of_Formula_One_circuits&oldid=\d+$",
      "the revision of the circuit list the circuit-article mapping reads"),
+    # The request each race_weather_modelled row was read from (AF-136): the
+    # point, the day and the model, so the row can be asked for again.
+    (19, r"^https://archive-api\.open-meteo\.com/v1/archive\?",
+     "the historical weather request for one race's day"),
 ]
 
 # ------------------------------------------------------------------ claims
@@ -830,6 +868,11 @@ SOURCE_LICENCE = {
 
     # ODbL: share-alike AND a database right, confined to circuit_geometry.
     16: ("yes", 1, 1, "openstreetmap.org"),
+
+    # CC BY 4.0, the API's data and the ERA5 reanalysis under it alike: no
+    # share-alike, attribution required (AF-136). The free API's
+    # non-commercial term governs calling it, not the data a call returns.
+    19: ("yes", 0, 1, "open-meteo.com"),
 
     # The project's own writing. It has no upstream to be licensed FROM and no
     # domain to match a URL against. Nothing here may sit above 'medium' - see
@@ -1079,6 +1122,11 @@ ID_STABILITY = {
     # after it. The keys are each table's own UNIQUE.
     "practice":              ("unstable", ("race_id", "session", "driver_id")),
     "sprint_qualifying":     ("unstable", ("race_id", "driver_id")),
+    # New in AF-136 and not promised stable: one row per race in the
+    # harvest's order, so a race the next harvest reaches renumbers every row
+    # after it. The race is the key.
+    "race_weather_reported": ("unstable", ("race_id",)),
+    "race_weather_modelled": ("unstable", ("race_id",)),
 
     # Unstable, with no natural key published yet. Each is either a register
     # small enough to read whole or one of the timing tables that ship empty

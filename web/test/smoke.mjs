@@ -2311,6 +2311,34 @@ try {
     )
     is(strip.misalignedRows.join(' · '), '', 'no value sits below the values beside it')
 
+    // AF-136: the weather tile is the article's wet or dry, and the line
+    // under the strip is the model's day with Open-Meteo's link beside it,
+    // in both halves, read against the two tables rather than written here.
+    const told = db
+      .prepare(
+        `SELECT w.conditions, w.reported, m.air_max_c FROM race_weather_reported w
+           JOIN race_weather_modelled m USING (race_id) WHERE w.race_id = ?`,
+      )
+      .get(raceId)
+    truthy(told?.conditions, 'the race has both weather rows to show')
+    const word = told.conditions === 'wet' ? 'Wet' : 'Dry'
+    const appWeather = await page.evaluate(() => {
+      const dt = [...document.querySelectorAll('#root main dl.stats dt')].find((d) => d.textContent === 'Weather')
+      const line = document.querySelector('#root main .section > .note.follows a[href="https://open-meteo.com/"]')
+      return { tile: dt?.nextElementSibling?.textContent ?? '', line: line?.parentElement.textContent ?? '' }
+    })
+    // The article's words under the word, unless they are only the word.
+    const echoed = told.reported.trim().toLowerCase() === word.toLowerCase()
+    is(appWeather.tile, `${word}${echoed ? '' : `\u201c${told.reported}\u201d, `}as reported`, "the app's weather tile")
+    truthy(appWeather.line.includes(`a high of ${told.air_max_c} \u00b0C`), `the app's modelled line — "${appWeather.line}"`)
+    const staticWeather = await (await fetch(`${BASE}/races/1976/9`)).text()
+    truthy(staticWeather.includes(`<dt>Weather</dt><dd>${word}<small>`), 'the static weather tile says the same')
+    truthy(
+      /<p class="note follows">Modelled for the circuit[^<]*<a href="https:\/\/open-meteo\.com\/"/.test(staticWeather) &&
+        staticWeather.includes(`a high of ${told.air_max_c} \u00b0C`),
+      'and so does its modelled line, with the credit',
+    )
+
     // CD-03: the largest page type opens on a sentence. 1,194 of the 1,196
     // rounds carry no written note, and get it from the race records through
     // raceLede() in queries/race.js - the same expression the description is
@@ -3540,12 +3568,18 @@ try {
     // join could go unnoticed: a second connection shadows claims with a
     // TEMP copy citing a source nothing else here does, and RACE_SOURCES
     // must find it there.
+    // The source is the last one nothing else on the page cites, chosen
+    // rather than assumed: the race-day weather (AF-136) cites the newest.
     const probe = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    const spare = probe
+      .prepare('SELECT id, source FROM source_registry ORDER BY id DESC')
+      .all()
+      .find((s) => !behind.has(s.source))
     probe.exec(
       `CREATE TEMP TABLE claims AS SELECT * FROM main.claims;
-       UPDATE temp.claims SET source_id = (SELECT MAX(id) FROM source_registry) WHERE tbl = 'race_entries' AND field = 'note'`,
+       UPDATE temp.claims SET source_id = ${Number(spare.id)} WHERE tbl = 'race_entries' AND field = 'note'`,
     )
-    const only = probe.prepare('SELECT source FROM source_registry WHERE id = (SELECT MAX(id) FROM source_registry)').get().source
+    const only = spare.source
     truthy(!behind.has(only) && probe.prepare(RACE_SOURCES).all(1969, 7).some((s) => s.source === only), `RACE_SOURCES reads the note's own claim — "${only}"`)
     probe.close()
     const plainRace = await (await fetch(`${BASE}/races/1976/9`)).text()

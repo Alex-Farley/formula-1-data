@@ -2853,6 +2853,54 @@ def _file_session_sheet_disagreements(cur):
                           why, status, note)
 
 
+def _file_weather_disagreements(cur):
+    """File every race whose reported weather and modelled day cannot both
+    be true (AF-136), by data/harvest.py's rule: a wet race on a day the
+    model holds no rain at the circuit, or a dry one on a heavy-precipitation
+    day there. Open: neither source outranks the other here - a report can
+    misremember, and a model can miss a shower or put one in the next
+    valley - and a third reading, a contemporary race report, is what would
+    settle one."""
+    rows = cur.execute("""
+        SELECT r.id, r.year, r.round, w.conditions, w.article,
+               m.rain_mm, m.rain_hours, m.day
+          FROM race_weather_reported w
+          JOIN race_weather_modelled m ON m.race_id = w.race_id
+          JOIN races r ON r.id = w.race_id
+         WHERE (w.conditions = 'wet' AND m.rain_mm = 0)
+            OR (w.conditions = 'dry' AND m.rain_mm >= ?)
+         ORDER BY r.year, r.round""", (HV.WEATHER_HEAVY_MM,)).fetchall()
+    for rid, yr, rnd, cond, article, mm, hours, day in rows:
+        url = "https://en.wikipedia.org/wiki/" + article.replace(" ", "_")
+        if cond == "wet":
+            model = "no rain on the day, modelled"
+            why = (f"The race's Wikipedia article reports rain or a wet "
+                   f"track (race_weather_reported holds its words). ERA5's "
+                   f"reanalysis of {day}, through Open-Meteo, holds no rain "
+                   f"at all that day in the grid cell the circuit is in. A "
+                   f"reanalysis can miss a shower over one track, and an "
+                   f"article's phrase can misremember a race, so neither is "
+                   f"overruled. Source: {url}; weather data by "
+                   f"Open-Meteo.com, {HV.WEATHER_CREDIT_URL}")
+        else:
+            model = f"{_points_text(mm)} mm of rain on the day, modelled"
+            why = (f"The race's Wikipedia article reports it dry, with no "
+                   f"rain (race_weather_reported holds its words). ERA5's "
+                   f"reanalysis of {day}, through Open-Meteo, holds "
+                   f"{_points_text(mm)} mm of rain over "
+                   f"{_points_text(hours)} hours of that day in the grid cell "
+                   f"the circuit is in - a heavy-precipitation day, "
+                   f"{_points_text(HV.WEATHER_HEAVY_MM)} mm or more. A daily "
+                   f"total cannot say whether the rain fell during the race, "
+                   f"and a grid cell is not the track, so neither is "
+                   f"overruled. Source: {url}; weather data by "
+                   f"Open-Meteo.com, {HV.WEATHER_CREDIT_URL}")
+        _file_discrepancy(cur, "race-weather", "race_weather_reported",
+                          str(rid), "conditions", f"{yr} round {rnd}", cond,
+                          model, why, "open")
+    return len(rows)
+
+
 def _file_race_classification_disagreements(cur):
     """File every race result data/harvest.py
     RACE_CLASSIFICATION_DISAGREEMENTS says a second source classifies
@@ -4366,6 +4414,9 @@ def _stage_35_link_race_entries_to_the_curated(b):
     _file_car_chassis_disagreements(cur)
     _file_session_sheet_disagreements(cur)
     _file_race_classification_disagreements(cur)
+    weather_disagreements = _file_weather_disagreements(cur)
+    print(f"  race weather: {weather_disagreements} reported readings the "
+          f"model's day contradicts, filed open")
 
     # The two register spans the race records read differently, with the
     # reason beside the fact (CD-25). Not open: nothing is waiting to be
@@ -5366,6 +5417,87 @@ def _stage_36_what_f1db_publishes_about_a_driver_and(b):
           f"{coded} with a three-letter code, {numbered} with a permanent number")
 
 
+def _stage_36c_race_day_weather_reported_and_modelled(b):
+    """race-day weather: the race article's report, and ERA5's model of the day"""
+    cur = b.cur
+
+    # AF-136. Two harvests, two tables, each row citing its own source:
+    # what the race's article reports, read as wet or dry by
+    # data/harvest.py's rule on every build, and ERA5's reanalysis of the
+    # race's local day at the circuit, held at 'medium' because it is a
+    # model's figure for a grid cell and not a measurement at the track.
+    # Like the race photographs, the harvests read their races from the last
+    # build, so a row whose race has since been renumbered or is not a
+    # completed race of this build is passed over and counted, never a stop;
+    # the race loses its weather until the next harvest.
+    races = {(y, r): (rid, status, date_iso, cid) for rid, y, r, status, date_iso, cid
+             in cur.execute("""SELECT id, year, round, status, date_iso,
+                                      circuit_id FROM races""")}
+
+    def race_of(row, where):
+        try:
+            key = (int(row.get("year") or ""), int(row.get("round") or ""))
+        except ValueError:
+            raise SystemExit(f"{where}: a row names no season and round") from None
+        rid, status, date_iso, cid = races.get(key, (None, None, None, None))
+        return key, (rid if status == "completed" else None), date_iso, cid
+
+    reported, stale = [], 0
+    for row in HV.load_weather_reported():
+        key, rid, _, _ = race_of(row, "race_weather_reported")
+        if rid is None:
+            stale += 1
+            continue
+        phrase = row.get("reported")
+        if not phrase or not row.get("article") or not row.get("revision"):
+            raise SystemExit(f"race_weather_reported: {key[0]} round {key[1]} "
+                             f"lacks its phrase, article or revision.")
+        if HV.MARKUP.search(phrase) or HV.WIKILINK.search(phrase):
+            raise SystemExit(f"race_weather_reported: {key[0]} round {key[1]}'s "
+                             f"phrase carries markup: {phrase!r}")
+        url = "https://en.wikipedia.org/wiki/" + row["article"].replace(" ", "_")
+        reported.append((rid, phrase, HV.weather_reading(key[0], key[1], phrase),
+                         row["article"], int(row["revision"]), url))
+    # A declaration is about one phrase. One whose race has no row, or whose
+    # article now says something else, has nothing left to overrule.
+    held_by_race = {r[0]: r[1] for r in reported}
+    for key, (phrase, _, _) in HV.WEATHER_READINGS.items():
+        held = held_by_race.get(races.get(key, (None,))[0])
+        if held != phrase:
+            raise SystemExit(f"WEATHER_READINGS declares {key[0]} round {key[1]} "
+                             f"as {phrase!r}, and the harvest holds {held!r}. "
+                             f"Read the phrase again and redeclare or remove it.")
+    cur.executemany("""INSERT INTO race_weather_reported (race_id, reported,
+        conditions, article, revision, source) VALUES (?,?,?,?,?,?)""", reported)
+
+    modelled, stale_m = [], 0
+    for row in HV.load_weather_modelled():
+        key, rid, date_iso, cid = race_of(row, "race_weather_modelled")
+        # The day asked for must still be the race's local day: a race F1DB
+        # has since re-dated was modelled on the wrong day.
+        if rid is None or row.get("day") != HV.weather_day(
+                date_iso, cid, N.RACE_DAY_AFTER_WEEKEND):
+            stale_m += 1
+            continue
+        lat, lon = float(row["latitude"]), float(row["longitude"])
+        figures = [float(row[c]) for c in ("air_max_c", "rain_mm", "rain_hours",
+                                            "wind_max_kmh")]
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise SystemExit(f"race_weather_modelled: {key[0]} round {key[1]} "
+                             f"is at no point on Earth: {lat}, {lon}")
+        if figures[1] < 0 or not 0 <= figures[2] <= 24 or figures[3] < 0:
+            raise SystemExit(f"race_weather_modelled: {key[0]} round {key[1]} "
+                             f"holds an impossible day: {figures}")
+        modelled.append((rid, row["day"], lat, lon, row["timezone"], *figures,
+                         HV.weather_model_source(row["latitude"], row["longitude"],
+                                                 row["day"])))
+    cur.executemany("""INSERT INTO race_weather_modelled (race_id, day, latitude,
+        longitude, timezone, air_max_c, rain_mm, rain_hours, wind_max_kmh,
+        source) VALUES (?,?,?,?,?,?,?,?,?,?)""", modelled)
+    print(f"  race weather: {len(reported)} reported ({stale} passed over), "
+          f"{len(modelled)} modelled ({stale_m} passed over)")
+
+
 STAGES = [
     _stage_00_open_the_database,
     _stage_01_meta,
@@ -5407,6 +5539,7 @@ STAGES = [
     _stage_34_circuit_outlines_from_f1db,
     _stage_36_what_f1db_publishes_about_a_driver_and,
     _stage_36b_the_photographs_filed_under_each_race,
+    _stage_36c_race_day_weather_reported_and_modelled,
     # Last on purpose: it closes the build - the authored ceiling, the
     # geometry split and the VACUUM live at its end - so a loader after it
     # would write into a connection nothing commits.

@@ -42,6 +42,20 @@ export const LAYOUT_RACED_JOIN = `LEFT JOIN circuit_layouts cl ON cl.circuit_id 
  * 2005's "single lap, aggregate". Read by RACE and by the static race pages'
  * own query.
  */
+/*
+ * AF-136: the race-day weather, both halves - what the race's Wikipedia
+ * article reports (race_weather_reported: its words, and the wet or dry
+ * data/harvest.py reads from them) and ERA5's model of the circuit's day
+ * through Open-Meteo (race_weather_modelled). One row a race in each, so the
+ * joins cannot multiply the race. Read by RACE and by the static race pages'
+ * own query, which is why both are constants.
+ */
+export const RACE_WEATHER_COLUMNS = `wr.reported AS weather_reported, wr.conditions AS weather_conditions,
+         wm.air_max_c AS weather_air_c, wm.rain_mm AS weather_rain_mm,
+         wm.rain_hours AS weather_rain_hours, wm.wind_max_kmh AS weather_wind_kmh`
+export const RACE_WEATHER_JOIN = `LEFT JOIN race_weather_reported wr ON wr.race_id = r.id
+    LEFT JOIN race_weather_modelled wm ON wm.race_id = r.id`
+
 export const QUALIFYING_LAPS = `(SELECT qf.sessions FROM qualifying_formats qf
      WHERE qf.session = 'race'
        AND (qf.from_year < r.year OR (qf.from_year = r.year AND qf.from_round <= r.round))
@@ -53,10 +67,12 @@ export const RACE = `
          ${QUALIFYING_LAPS} AS qualifying_laps,
          cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
          g.name AS gp_full,
-         o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
+         o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
+         ${RACE_WEATHER_COLUMNS}
     FROM races r
     LEFT JOIN circuits c        ON c.id = r.circuit_id
     ${LAYOUT_RACED_JOIN}
+    ${RACE_WEATHER_JOIN}
     LEFT JOIN grands_prix g     ON g.id = r.gp_id
     LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
    WHERE r.year = ? AND r.round = ?
@@ -275,6 +291,8 @@ export const RACE_SOURCES = `
      UNION SELECT x.source_id FROM sprint_results x JOIN races r ON r.id = x.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT p.source_id FROM pit_stops p JOIN races r ON r.id = p.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT t.source_id FROM sessions t JOIN races r ON r.id = t.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT w.source_id FROM race_weather_reported w JOIN races r ON r.id = w.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT m.source_id FROM race_weather_modelled m JOIN races r ON r.id = m.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT c.source_id FROM claims c
              JOIN race_entries e ON c.tbl = 'race_entries' AND c.field = 'note' AND c.row_key = e.race_id || '|' || e.driver_id
              JOIN races r ON r.id = e.race_id
@@ -1098,6 +1116,55 @@ export const scheduledNote = (race, stage = 'awaited', late = null) => {
  */
 const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
 
+export const WEATHER_LABEL = 'Weather'
+const WEATHER_WORDS = { wet: 'Wet', dry: 'Dry' }
+
+const weatherTile = (race) => {
+  const word = WEATHER_WORDS[race.weather_conditions] ?? null
+  const words = race.weather_reported
+  const echoed = word && words && words.trim().toLowerCase() === word.toLowerCase()
+  return {
+    label: WEATHER_LABEL,
+    value: word,
+    note: !words ? undefined : echoed ? 'as reported' : `\u201c${words}\u201d, as reported`,
+  }
+}
+
+/** "1 hour", "8 hours": a whole count, singular at one. */
+const hours = (n) => `${number(n)} ${n === 1 ? 'hour' : 'hours'}`
+
+/**
+ * The race-day weather as ERA5 models it at the circuit (AF-136), as one
+ * sentence under the race's tiles, with the credit Open-Meteo asks for beside
+ * wherever its data is shown - drawn by both renderers from this one place.
+ * Null where no modelled row is held: a race too recent for the model, or a
+ * round not yet run.
+ *
+ * It says what the figures are, because a reader takes a number under a race
+ * as the track's: a reanalysis for the grid cell the circuit is in, over the
+ * circuit's whole local day rather than the race's hours. A day with no rain
+ * modelled says "no rain", which is the model's figure and not a NULL: the
+ * column is NOT NULL, and the row exists.
+ *
+ * `{ text, credit, href }`: the sentence, then the credit's words, which the
+ * renderer links to `href`.
+ */
+export const raceWeatherLine = (race) => {
+  if (race.status === 'scheduled' || missing(race.weather_air_c)) return null
+  const rain =
+    race.weather_rain_mm > 0
+      ? `${number(race.weather_rain_mm)} mm of rain${race.weather_rain_hours > 0 ? ` over ${hours(race.weather_rain_hours)}` : ''}`
+      : 'no rain'
+  return {
+    text:
+      `Modelled for the circuit on the day: a high of ${number(race.weather_air_c)} \u00b0C, ${rain}, ` +
+      `wind up to ${number(race.weather_wind_kmh)} km/h. A reanalysis for the grid cell the circuit is in, ` +
+      `over the whole day, not a measurement at the track; wet or dry is the race report's. Weather data by `,
+    credit: 'Open-Meteo.com',
+    href: 'https://open-meteo.com/',
+  }
+}
+
 /**
  * The race's tiles, as both renderers draw them (VD-49).
  *
@@ -1177,6 +1244,13 @@ export const raceStrip = (race, entries, qualifying) => {
           }`,
         },
     scheduled ? null : { label: 'Fastest lap', kind: 'name', ...names(fastest) },
+    // AF-136: wet or dry as the race's article reports it, its own words
+    // under the word. Every race that has been run had weather, so a race
+    // whose article states none, or states it in figures alone, draws the
+    // em dash: not established, never "dry". The words are not repeated
+    // where they are only the word ("Dry"). The modelled figures are not
+    // here: they are raceWeatherLine()'s, under the strip, with their credit.
+    scheduled ? null : weatherTile(race),
     entries.length === 0
       ? null
       : {
