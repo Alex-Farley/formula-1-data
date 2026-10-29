@@ -55,7 +55,8 @@ on the four points below.
 4. **Write `implementer: sonnet` in the progress line for *item chosen***,
    and pass `--implementer sonnet` to both usage readings, `--start` and
    `--end` (with `REROUTE` as the end's word where it is the result), so
-   `.claude/loop/progress.log` attributes the item's cost to the trial.
+   `loop_usage.py --costs` counts this fork's cost under sonnet, apart from
+   an Opus fork that takes a rerouted item over.
 
 Everything else - the pace table, the review on the models it names, the
 four checks, the stop conditions and the result lines - is the procedure's,

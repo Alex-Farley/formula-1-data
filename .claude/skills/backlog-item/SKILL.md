@@ -199,8 +199,12 @@ and as the last step before the result, with the result's first word:
 `<S>` is the item's size label, at the end the largest in the group, and the
 end's id is the group's. Each reads the 5-hour window as the driver's usage
 check does, at no model turn, and the end line names the start's window
-beside its own, so an item's cost survives a reset. Both exit 0 whatever
-they read. A fork that returns before choosing an item writes neither.
+beside its own, so an item's cost survives a reset. A fork that inherits an
+open PR writes its `--start` like any other: the end pairs with the earliest
+start no end line has closed, so a fork the limit killed before its own end
+line stays inside the cost. Whatever they read, each exits as `progress.sh`
+does, 1 only when the line could not be written — say so in the stock-take
+and carry on. A fork that returns before choosing an item writes neither.
 
 ## Doing the item
 

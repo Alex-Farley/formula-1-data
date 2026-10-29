@@ -15,19 +15,25 @@
 
     What a fork costs (AF-150). The `usage` lines the driver writes between
     forks measure an item only when both fall in one 5-hour window and both
-    are readable; on 2026-10-29 nine of the seventeen items merged since
-    AF-144 began had no figure. So each fork reads the session window itself
+    are readable, and an item that crossed a reset or started on an
+    unreadable window had no figure (#1205). So each fork reads the session window itself
     when it chooses its item (`--start`) and again when it returns (`--end`,
     with its contract word), and each reading is a line in progress.log
     under the fork's id. The end line carries the start reading beside its
     own, so the window either side of a reset is named in one line, and the
     points it cost: exact within one window; a range across one reset, since
     what the old window reached before it reset was not read; a lower bound
-    across more than one. A reading that is not whole is written
-    `unreadable` with why, never a figure. Neither changes a decision, and
-    both exit 0 whatever they read: a fork never waits on its own record.
-    `--costs` reads the end lines back and prints each item's cost, its
-    forks summed, then the items by size and implementer.
+    across more than one. The start an end line pairs with is the earliest
+    under the same head id and implementer that no end line has closed, so
+    a fork the session limit killed before its end line - most of them,
+    since a killed fork returns nothing - is counted in the range of the
+    fork that finishes the item, not lost from it. A reading that is not
+    whole is written `unreadable` with why, never a figure. Neither changes
+    a decision, and whatever they read they exit as progress.sh does: 1
+    only when the line could not be written. `--costs` reads the end lines
+    back and prints each item's cost per implementer, its forks summed,
+    then the items by size and implementer, and names any start no end line
+    has closed.
 
 WHY THIS EXISTS
     Until AF-108 the loop reacted to a usage limit only after hitting one:
@@ -469,10 +475,10 @@ SAME_WINDOW = dt.timedelta(hours=1)
 # first reading's.
 TWO_RESETS = dt.timedelta(hours=10)
 READING = r"session (?:(\d{1,3})% resets ([^\s;]+)|unreadable)"
-START_LINE = re.compile(r"^\d\d:\d\d:\d\d (\S+) usage start: ")
+START_LINE = re.compile(r"^\d\d:\d\d:\d\d (\S+) usage start: size \S+, implementer ([^\s,]+), ")
 END_LINE = re.compile(
-    r"^\d\d:\d\d:\d\d (\S+) usage end: ([A-Z]+), size (\S+), implementer (\S+); "
-    r"from (?:" + READING + r"|start not logged); to " + READING)
+    r"^\d\d:\d\d:\d\d (\S+) usage end: ([A-Z]+), size (\S+), implementer ([^\s;]+); "
+    r"from (?:" + READING + r"|start not logged)[^;]*; to " + READING)
 
 
 def session_reading(now=None, claude=None):
@@ -543,30 +549,39 @@ def read_log(path):
         return []
 
 
-def started(lines, item):
-    """This fork's start reading, from the log: the last start line under
-    the item's head id (a group's id is its head's and its companions',
-    joined by +) with no end line for that head after it. (reading, found)."""
-    head = item.split("+")[0]
-    found = None
+def open_starts(lines):
+    """{(head, implementer): [start lines no end line has closed]}, in log
+    order. A group's id is its head's and its companions', joined by +, and
+    its start was written under the head alone."""
+    out = {}
     for text in lines:
         m = START_LINE.match(text)
-        if m and m.group(1) == head:
-            found = text
+        if m:
+            out.setdefault((m.group(1), m.group(2)), []).append(text)
             continue
-        m = re.match(r"^\d\d:\d\d:\d\d (\S+) usage end: ", text)
-        if m and m.group(1).split("+")[0] == head:
-            found = None
-    if found is None:
-        return None, False
+        m = END_LINE.match(text)
+        if m:
+            out.pop((m.group(1).split("+")[0], m.group(4)), None)
+    return out
+
+
+def started(lines, item, implementer):
+    """The start reading an end line pairs with: the earliest start under
+    the item's head id and implementer that no end line has closed, so a
+    fork killed before its end line is inside the range, not dropped.
+    (reading, found, how many starts it spans)."""
+    starts = open_starts(lines).get((item.split("+")[0], implementer), [])
+    if not starts:
+        return None, False, 0
+    found = starts[0]
     m = re.search(READING, found)
     if not m or m.group(1) is None:
-        return None, True
+        return None, True, len(starts)
     try:
         reset = dt.datetime.fromisoformat(m.group(2))
     except ValueError:
-        return None, True
-    return (int(m.group(1)), reset), True
+        return None, True, len(starts)
+    return (int(m.group(1)), reset), True, len(starts)
 
 
 def fork_line(kind, item, word, size, implementer, reading, why, lines):
@@ -574,11 +589,12 @@ def fork_line(kind, item, word, size, implementer, reading, why, lines):
     here = describe(reading) + (f" ({why})" if why else "")
     if kind == "start":
         return f"usage start: size {size}, implementer {implementer}, {here}"
-    before, found = started(lines, item)
+    before, found, spans = started(lines, item, implementer)
     low, high = cost(before, reading)
     crossed = before is not None and reading is not None and abs(reading[1] - before[1]) >= SAME_WINDOW
     return (f"usage end: {word}, size {size}, implementer {implementer}; "
-            f"from {describe(before) if found else 'start not logged'}; to {here}; "
+            f"from {describe(before) if found else 'start not logged'}"
+            + (f" (the earliest of {spans} starts)" if spans > 1 else "") + f"; to {here}; "
             f"cost {show(low, high)}" + (" points" if low is not None else "")
             + ("; the window reset mid-item" if crossed and low is not None else ""))
 
@@ -603,9 +619,9 @@ def fork_main(argv, now=None, claude=None, path=None):
     reading, why = session_reading(now, claude)
     text = fork_line(kind, item, word, size, implementer, reading, why, read_log(path or log_path()))
     print(f"{item} {text}")
-    subprocess.run(["bash", os.path.join(HERE, "progress.sh"), item, text],
-                   cwd=HERE, stdout=subprocess.DEVNULL, check=False)
-    return 0
+    wrote = subprocess.run(["bash", os.path.join(HERE, "progress.sh"), item, text],
+                           cwd=HERE, stdout=subprocess.DEVNULL, check=False)
+    return 0 if wrote.returncode == 0 else 1
 
 
 def costs(lines):
@@ -623,7 +639,7 @@ def costs(lines):
             except ValueError:
                 readings.append(None)
         low, high = cost(*readings)
-        entry = items.setdefault(item, {"words": [], "low": 0, "high": 0})
+        entry = items.setdefault((item, implementer), {"words": [], "low": 0, "high": 0})
         entry.update(size=size, implementer=implementer)
         entry["words"].append(word)
         if low is None or entry["low"] is None:
@@ -631,11 +647,15 @@ def costs(lines):
         else:
             entry["low"] += low
             entry["high"] = None if high is None or entry["high"] is None else entry["high"] + high
+    unclosed = sorted(f"{head} ({implementer})" for head, implementer in open_starts(lines))
+    tail = (["Started, with no end line yet - running, or killed before it wrote one: "
+             + ", ".join(unclosed)] if unclosed else [])
     if not items:
-        return "No fork end lines in progress.log yet (AF-150 began writing them on 2026-10-29)."
+        return "\n".join(["No fork end lines in progress.log yet (AF-150 began writing them on 2026-10-29)."]
+                         + tail)
     out = ["Per item - points of the 5-hour window, its forks summed; a range where a reset fell "
            "mid-item, since the old window's last figure was not read:"]
-    for item, e in items.items():
+    for (item, _), e in items.items():
         out.append(f"  {item:<22} {e['size']:<3} {e['implementer']:<7} {'+'.join(e['words']):<16} "
                    f"{show(e['low'], e['high'])}")
     out.append("By size and implementer:")
@@ -653,7 +673,7 @@ def costs(lines):
                    f"{len(bounded)} across a reset"
                    + (f" ({', '.join(show(e['low'], e['high']) for e in bounded)})" if bounded else "")
                    + f"; {unread} unreadable")
-    return "\n".join(out)
+    return "\n".join(out + tail)
 
 
 def main(argv):
