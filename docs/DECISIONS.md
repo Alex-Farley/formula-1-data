@@ -912,6 +912,107 @@ later and carry them anyway. The item asked for the paths a typical fork
 does not take, and those three are the main path. If AF-129's figures make
 the case, it is a change of its own.
 
+**After**, measured on 2026-10-29 (`AF-129`, #1123) and counted as D-58
+counts: each API response once, its context the input, cache-read and
+cache-write tokens together, from the fork transcripts. The same counting
+gives D-58's *After* exactly: 911 turns, 99.7 M, and 375 turns and 34.3 M
+from `gh pr create` on. The first ten items to land after AF-125 were IX-40,
+AF-76, CD-39+CD-61, DA-25+CD-42, DA-27, CD-43, AF-130, PM-75, AF-128 and
+AF-140 (#1125 to #1158), a grouped pull request counting as one item.
+AF-128 is D-58's revert and landed ninth, so the
+window splits nine to one. The nine ran under the split and are compared
+with D-58's *After*, which ran under it too. One item compares with
+nothing, so the side after the revert is the ten from AF-140 to AF-144
+(#1158 to #1176), compared with D-58's *Before*; AF-144 started the Sonnet
+trial `[D-60]`, and the Opus items that landed after it are left out.
+AF-76's implementing forks ran before AF-125; only the fork that reopened
+#1099 and landed it is in the window, and the averages under the split
+count it as an item.
+
+- **The fixed cost.** The first turn of each of the six forks on
+  2026-10-24 before AF-125 merged carried about 34,350 tokens of context,
+  and of the forks after it about 31,150; nothing else merged between the
+  last before and the first after. That is some 3,200 tokens a turn rather
+  than the 2,300 estimated above, because the skill runs about 3.0 bytes a
+  token, not 4.2. D-58's revert took the first turn to about 30,500.
+- **What the passages took back.** Over the 28 forks of these nineteen
+  items, 1,259 turns, 3,200 tokens a turn is about 4.0 M. Each passage read,
+  carried from the turn that read it to the fork's last, adds back about
+  1.0 M; that counts a whole file where a fork read part, and AF-128's and
+  AF-130's reads of the passages they were editing. Three quarters of it is
+  `grouping.md`. Net, about 3.0 M: some 160,000 tokens of context an item,
+  about 3 % of the 5.3 M an item read, or some 16,000 input-equivalent
+  priced as cache reads.
+- **Per item, under the split.** The nine took 697 turns and 56.9 M: 77
+  turns and 6.3 M an item against 91 and 10.0 M, about 82,000 a turn against
+  109,000. Implementing forks, PM-75's two among them, peaked at
+  82,000-222,000, median about 104,000, against about 132,000; the seven that
+  landed or inherited a PR at 43,000-109,000, median about 72,000, against
+  about 74,000. From `gh pr create` on: 303 turns and 23.0 M, 43 % of the
+  turns and 40 % of the context, about 76,000 a turn against 92,000. Turns
+  over 150,000 tokens carried 7 % of that against 25 %, all of it in
+  CD-39+CD-61's implementing fork. Without AF-76's re-landing alone, the
+  eight took about 85 turns and 7.0 M an item.
+- **Per item, after the revert.** The ten took 562 turns and 43.2 M: 56
+  turns and 4.3 M an item against 63 and 6.75 M before the split, about
+  77,000 a turn against 108,000. Implementing forks peaked at
+  57,000-202,000, median about 84,000, against 86,000-246,000, median about
+  119,000; the two that inherited a PR after a limit at 39,000 and 81,000.
+  From `gh pr create` on: 243 turns and 22.2 M, 43 % of the turns and 51 % of
+  the context, about 91,000 a turn against 131,000; turns over 150,000
+  carried 31 % of it against 41 %, all of it AF-144's, which alone read
+  6.9 M after its PR.
+- **Most of that is not this change.** 3,200 tokens is about 4 % of a turn
+  at these sizes, and the per-turn figures fell by a quarter or more. These
+  items read far less before their PRs - 3.8 M an item under the split
+  (4.2 M without AF-76) against 6.5 M, 2.1 M after the revert against
+  4.35 M - and nothing here
+  separates the mix of items from the change.
+- **Session points**, read as D-58 reads them. Under the split, bracketed
+  exactly: AF-76 6 (its re-landing alone), DA-27 11, AF-128 19 (15 + 4),
+  CD-43 21 (CR-41's decline included), CD-39+CD-61 67 (47 + 20); bounded:
+  IX-40 at most 14 + at most 12, DA-25+CD-42 at most 15 + at most 14, AF-130
+  at most 39 + 24, PM-75 at most 37 + at most 28 + 27. After the revert,
+  exactly: AF-127 7, AF-82 13, PM-77 13, AF-124 15, CR-104 15, AF-126 17,
+  CR-102 24, AF-144 48, median 15 against the 13 before the split; bounded:
+  AF-140 at most 26 + at most 4, PM-73 at most 7 + at most 23. Points follow
+  an item's size and review passes, and these readings cannot separate this
+  change from either. AF-150 (#1205) would log each fork's own.
+- **Which passages were read.** A fork's Read of a passage, or a `cat` or
+  `sed` of it, before it acted on the path; the two `ci-wait.sh` exits
+  first looked at the failed check, and read `trouble.md` before recording
+  the flake or rerunning:
+
+  | File | Forks that took the path | Read it first |
+  |---|---|---|
+  | `grouping.md` | 9: `next.py --group` proposed a companion to 6 of the 9 forks that chose an item before the revert and 3 of the 10 after | 9 (AF-127 its first 60 of 74 lines; the rest is the tidy lane, and its head was an S) |
+  | `land.md` | 9: the four landing forks, and five that inherited a PR - IX-40 and DA-25+CD-42 after a limit, AF-76 reopening #1099, AF-140 and PM-73 | 9 |
+  | `no-verdict.md` | 2: IX-40 and DA-25+CD-42, whose first passes died with the session; PM-73's inherited pass had been opened but no reviewer launched, so its fork ran a first pass, not a respawn | 2 |
+  | `trouble.md` | 4: `ci-wait.sh` exiting 2 for CD-39+CD-61's landing fork and AF-140's, and main moved under AF-76's and PM-73's inherited branches | 4 |
+  | `alarm.md` | none: no alarm and no security alert among the nineteen | - |
+  | `hold-or-stop.md` | none: no fork stopped, skipped or held, and none had a tool call refused; CR-41's decline is step 2 of *Before an item* | - |
+
+  **No fork took a path without reading the passage it needed.** First
+  passes FAILed on four of the eight items reviewed in the window under the
+  split, IX-40's being the respawn after its first pass died, and on five of
+  the ten after the revert; no confirmation FAILed.
+
+**Conclusion: D-59 stays, and the next candidate is not moved.** The change
+does what it said: about 3,200 tokens off every turn of every fork, some
+three quarters of it net of the passages read back, and no missed
+instruction on the four passages these items exercised; no fork took the
+`alarm.md` or `hold-or-stop.md` path, so those two are untested. The next candidate's case rested on D-58's landing forks,
+about half of all forks, which skip *Before an item*, *Doing the item* and
+the self-check. The revert took them away. After it, only a fork inheriting
+a PR after a limit skips them: 2 of the 12 forks after the revert, 57 of
+the ten items' 562 turns. At about 3,000 tokens a turn for their 9,100 bytes,
+moving them would spare at most some 170,000 tokens over ten items, while
+every implementing fork, the other 505 turns, would read them a turn later
+and carry them anyway. `grouping.md` is the passage read most, by 9 of the
+19 forks that chose an item, and near their start; carried by every fork it
+would cost about 1.8 M over these 28 against the 0.72 M its reads cost, so
+it stays beside the skill.
+
 ### D-60 · Sonnet implements XS and S items, on trial — 2026-10-27 (`AF-144`, #1150)
 On 2026-10-24 `/usage` put the week at **Opus 98 %, Sonnet 2 %**. Every
 implementing fork ran on the session's model, Opus, and so did every first
