@@ -187,6 +187,25 @@ entered; CI green; merged; and any skip or stop with its reason. Before the
 item is known, use the target you were given as the id. It exits 1 if the
 line could not be written; say so in the stock-take and carry on.
 
+Two more lines are usage readings, which `loop_usage.py` writes through
+`progress.sh` `AF-150`. When the item is chosen:
+
+    python3 .claude/skills/backlog-loop/loop_usage.py --start <ITEM-ID> --size <S> --implementer opus
+
+and as the last step before the result, with the result's first word:
+
+    python3 .claude/skills/backlog-loop/loop_usage.py --end <ITEM-ID> <WORD> --size <S> --implementer opus
+
+`<S>` is the item's size label, at the end the largest in the group, and the
+end's id is the group's. Each reads the 5-hour window as the driver's usage
+check does, at no model turn, and the end line names the start's window
+beside its own, so an item's cost survives a reset. A fork that inherits an
+open PR writes its `--start` like any other: the end pairs with the earliest
+start no end line has closed, so a fork the limit killed before its own end
+line stays inside the cost. Whatever they read, each exits as `progress.sh`
+does, 1 only when the line could not be written — say so in the stock-take
+and carry on. A fork that returns before choosing an item writes neither.
+
 ## Doing the item
 
 - **Worktree:** `git worktree add -b claude/<slug> <scratchpad>/wt-<slug>
@@ -492,7 +511,8 @@ loses work.
 
 ## The result
 
-The last thing you write. Its first line is exactly one of:
+The last thing you write, after the `--end` usage reading (*Progress
+lines*). Its first line is exactly one of:
 
     MERGED #<N> <ID>                          (a group is one PR: VD-33+AX-13)
     SKIPPED <ID>: <reason in one clause>

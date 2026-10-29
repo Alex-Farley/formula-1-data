@@ -53,7 +53,10 @@ on the four points below.
    back, and return `REROUTE <ID>: <the path>`; the Opus fork starts the item
    again from the issue.
 4. **Write `implementer: sonnet` in the progress line for *item chosen***,
-   so `.claude/loop/progress.log` can attribute the `usage` lines around it.
+   and pass `--implementer sonnet` to both usage readings, `--start` and
+   `--end` (with `REROUTE` as the end's word where it is the result), so
+   `loop_usage.py --costs` counts this fork's cost under sonnet, apart from
+   an Opus fork that takes a rerouted item over.
 
 Everything else - the pace table, the review on the models it names, the
 four checks, the stop conditions and the result lines - is the procedure's,
