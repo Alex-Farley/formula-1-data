@@ -7,6 +7,8 @@
 # view of the fork a person has while it runs. A stage is a few words: the
 # item chosen, the worktree open, the build green, the PR opened, a reviewer
 # launched and which, its verdict, the CI wait entered, CI green, merged.
+# loop_usage.py writes through here too: the driver's `usage` lines, and a
+# fork's `usage start:` and `usage end:` readings, which `--costs` reads.
 # Never a report. A line that cannot be written is an error on stderr and
 # exit 1, never a silent success: a log that stays empty while the script
 # reports success would be the failure this script exists to prevent.

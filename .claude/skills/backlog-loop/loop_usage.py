@@ -9,6 +9,26 @@
     (manual)`, so the two cannot be read as the loop contradicting itself
     (2026-10-27, AF-148). The decision and the exit status are the same.
 
+    python3 .claude/skills/backlog-loop/loop_usage.py --start <ID> --size <S> --implementer <M>
+    python3 .claude/skills/backlog-loop/loop_usage.py --end <ID> <WORD> --size <S> --implementer <M>
+    python3 .claude/skills/backlog-loop/loop_usage.py --costs
+
+    What a fork costs (AF-150). The `usage` lines the driver writes between
+    forks measure an item only when both fall in one 5-hour window and both
+    are readable; on 2026-10-29 nine of the seventeen items merged since
+    AF-144 began had no figure. So each fork reads the session window itself
+    when it chooses its item (`--start`) and again when it returns (`--end`,
+    with its contract word), and each reading is a line in progress.log
+    under the fork's id. The end line carries the start reading beside its
+    own, so the window either side of a reset is named in one line, and the
+    points it cost: exact within one window; a range across one reset, since
+    what the old window reached before it reset was not read; a lower bound
+    across more than one. A reading that is not whole is written
+    `unreadable` with why, never a figure. Neither changes a decision, and
+    both exit 0 whatever they read: a fork never waits on its own record.
+    `--costs` reads the end lines back and prints each item's cost, its
+    forks summed, then the items by size and implementer.
+
 WHY THIS EXISTS
     Until AF-108 the loop reacted to a usage limit only after hitting one:
     supervise.py read the limit message a dead session left, slept until the
@@ -120,6 +140,7 @@ import os
 import re
 import shutil
 import sqlite3
+import statistics
 import subprocess
 import sys
 
@@ -436,9 +457,214 @@ def log_id(argv):
     return "usage" if argv == ["--loop"] else "usage (manual)"
 
 
+# What a fork reports, in its own lines (AF-150).
+SIZES = ("XS", "S", "M", "L", "?")
+IMPLEMENTERS = ("opus", "sonnet")
+WORDS = ("MERGED", "SKIPPED", "PAUSE", "DECIDE", "STOP", "LIMIT", "REROUTE")
+# Two readings name one window when their resets agree to within this; the
+# same window has been read a minute apart (01:59 and 02:00, 2026-10-28).
+SAME_WINDOW = dt.timedelta(hours=1)
+# A window is five hours, and the next one opens on the first use after the
+# last closes, so a second reset cannot fall less than ten hours after the
+# first reading's.
+TWO_RESETS = dt.timedelta(hours=10)
+READING = r"session (?:(\d{1,3})% resets ([^\s;]+)|unreadable)"
+START_LINE = re.compile(r"^\d\d:\d\d:\d\d (\S+) usage start: ")
+END_LINE = re.compile(
+    r"^\d\d:\d\d:\d\d (\S+) usage end: ([A-Z]+), size (\S+), implementer (\S+); "
+    r"from (?:" + READING + r"|start not logged); to " + READING)
+
+
+def session_reading(now=None, claude=None):
+    """(used, reset) for the 5-hour window, or (None, why). Read as check()
+    reads it, with the same parser and no model turn; never raises."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    claude = claude or os.environ.get("CLAUDE_BIN") or shutil.which("claude")
+    text, problem = read_text(claude)
+    if text is None:
+        return None, problem
+    windows = parse(text, now)
+    if "session" not in windows:
+        return None, ("no session line, as a window just rolled over shows"
+                      if "week" in windows else "/usage named no window this can read")
+    return windows["session"], None
+
+
+def describe(reading):
+    if reading is None:
+        return "session unreadable"
+    used, reset = reading
+    return f"session {used}% resets {iso(reset)}"
+
+
+def cost(start, end):
+    """(low, high) points of the 5-hour window used between two readings,
+    each (used, reset) or None. Within one window the two agree; across one
+    reset the old window's last figure was not read, so the cost is at least
+    the new window's use and at most that plus what the old had left; across
+    more than one, high is None. (None, None) when either reading is
+    missing, or the two cannot both be true."""
+    if start is None or end is None:
+        return None, None
+    (u0, r0), (u1, r1) = start, end
+    if abs(r1 - r0) < SAME_WINDOW:
+        return (u1 - u0, u1 - u0) if u1 >= u0 else (None, None)
+    if r1 < r0:
+        return None, None
+    if r1 - r0 < TWO_RESETS:
+        return u1, 100 - u0 + u1
+    return u1, None
+
+
+def show(low, high):
+    if low is None:
+        return "unreadable"
+    if high is None:
+        return f"at least {low}"
+    return str(low) if low == high else f"{low}-{high}"
+
+
+def log_path():
+    """progress.log beside the main checkout, found as progress.sh finds it,
+    from this script's own directory so a worktree's copy finds the same."""
+    try:
+        common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=HERE, stdout=subprocess.PIPE,
+                                stderr=subprocess.DEVNULL, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        common = os.path.join(ROOT, ".git")
+    return os.path.join(os.path.dirname(os.path.join(HERE, common)), ".claude", "loop", "progress.log")
+
+
+def read_log(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read().splitlines()
+    except OSError:
+        return []
+
+
+def started(lines, item):
+    """This fork's start reading, from the log: the last start line under
+    the item's head id (a group's id is its head's and its companions',
+    joined by +) with no end line for that head after it. (reading, found)."""
+    head = item.split("+")[0]
+    found = None
+    for text in lines:
+        m = START_LINE.match(text)
+        if m and m.group(1) == head:
+            found = text
+            continue
+        m = re.match(r"^\d\d:\d\d:\d\d (\S+) usage end: ", text)
+        if m and m.group(1).split("+")[0] == head:
+            found = None
+    if found is None:
+        return None, False
+    m = re.search(READING, found)
+    if not m or m.group(1) is None:
+        return None, True
+    try:
+        reset = dt.datetime.fromisoformat(m.group(2))
+    except ValueError:
+        return None, True
+    return (int(m.group(1)), reset), True
+
+
+def fork_line(kind, item, word, size, implementer, reading, why, lines):
+    """The progress.log stage for a fork's start or end reading."""
+    here = describe(reading) + (f" ({why})" if why else "")
+    if kind == "start":
+        return f"usage start: size {size}, implementer {implementer}, {here}"
+    before, found = started(lines, item)
+    low, high = cost(before, reading)
+    crossed = before is not None and reading is not None and abs(reading[1] - before[1]) >= SAME_WINDOW
+    return (f"usage end: {word}, size {size}, implementer {implementer}; "
+            f"from {describe(before) if found else 'start not logged'}; to {here}; "
+            f"cost {show(low, high)}" + (" points" if low is not None else "")
+            + ("; the window reset mid-item" if crossed and low is not None else ""))
+
+
+def fork_main(argv, now=None, claude=None, path=None):
+    kind = argv[0][2:]
+    rest = argv[1:]
+    try:
+        item = rest.pop(0)
+        word = rest.pop(0) if kind == "end" else None
+        opts = dict(zip(rest[::2], rest[1::2]))
+        size, implementer = opts["--size"], opts["--implementer"]
+    except (IndexError, KeyError):
+        raise SystemExit(f"loop_usage.py --{kind} <ID>{' <WORD>' if kind == 'end' else ''} "
+                         "--size <XS|S|M|L|?> --implementer <opus|sonnet>") from None
+    if (len(rest) != 4 or set(opts) != {"--size", "--implementer"} or size not in SIZES
+            or implementer not in IMPLEMENTERS or (word is not None and word not in WORDS)
+            or not re.fullmatch(r"[^\s;,]+", item)):
+        raise SystemExit(f"loop_usage.py --{kind}: an id without spaces, size one of {', '.join(SIZES)}, "
+                         f"implementer one of {', '.join(IMPLEMENTERS)}"
+                         + (f", word one of {', '.join(WORDS)}" if kind == "end" else ""))
+    reading, why = session_reading(now, claude)
+    text = fork_line(kind, item, word, size, implementer, reading, why, read_log(path or log_path()))
+    print(f"{item} {text}")
+    subprocess.run(["bash", os.path.join(HERE, "progress.sh"), item, text],
+                   cwd=HERE, stdout=subprocess.DEVNULL, check=False)
+    return 0
+
+
+def costs(lines):
+    """The report --costs prints, from progress.log's end lines."""
+    items = {}
+    for text in lines:
+        m = END_LINE.match(text)
+        if not m:
+            continue
+        item, word, size, implementer = m.group(1, 2, 3, 4)
+        readings = []
+        for used, reset in (m.group(5, 6), m.group(7, 8)):
+            try:
+                readings.append((int(used), dt.datetime.fromisoformat(reset)) if used is not None else None)
+            except ValueError:
+                readings.append(None)
+        low, high = cost(*readings)
+        entry = items.setdefault(item, {"words": [], "low": 0, "high": 0})
+        entry.update(size=size, implementer=implementer)
+        entry["words"].append(word)
+        if low is None or entry["low"] is None:
+            entry["low"] = entry["high"] = None
+        else:
+            entry["low"] += low
+            entry["high"] = None if high is None or entry["high"] is None else entry["high"] + high
+    if not items:
+        return "No fork end lines in progress.log yet (AF-150 began writing them on 2026-10-29)."
+    out = ["Per item - points of the 5-hour window, its forks summed; a range where a reset fell "
+           "mid-item, since the old window's last figure was not read:"]
+    for item, e in items.items():
+        out.append(f"  {item:<22} {e['size']:<3} {e['implementer']:<7} {'+'.join(e['words']):<16} "
+                   f"{show(e['low'], e['high'])}")
+    out.append("By size and implementer:")
+    groups = {}
+    for e in items.values():
+        groups.setdefault((SIZES.index(e["size"]) if e["size"] in SIZES else len(SIZES), e["size"],
+                           e["implementer"]), []).append(e)
+    for (_, size, implementer), es in sorted(groups.items()):
+        exact = sorted(e["low"] for e in es if e["low"] is not None and e["low"] == e["high"])
+        bounded = [e for e in es if e["low"] is not None and e["low"] != e["high"]]
+        unread = len(es) - len(exact) - len(bounded)
+        part = (f"{len(exact)} exact, median {statistics.median(exact):g}, mean {statistics.mean(exact):.1f}"
+                if exact else "0 exact")
+        out.append(f"  {size:<3} {implementer:<7} {len(es)} item{'s' if len(es) != 1 else ''}: {part}; "
+                   f"{len(bounded)} across a reset"
+                   + (f" ({', '.join(show(e['low'], e['high']) for e in bounded)})" if bounded else "")
+                   + f"; {unread} unreadable")
+    return "\n".join(out)
+
+
 def main(argv):
+    if argv[:1] in (["--start"], ["--end"]):
+        return fork_main(argv)
+    if argv == ["--costs"]:
+        print(costs(read_log(log_path())))
+        return 0
     if argv not in ([], ["--loop"]):
-        raise SystemExit("loop_usage.py takes only --loop; the thresholds are LOOP_USAGE_* in the environment")
+        raise SystemExit("loop_usage.py takes --loop, --start, --end or --costs; "
+                         "the thresholds are LOOP_USAGE_* in the environment")
     text, code = check()
     print(text)
     # The log a person watches, under an id that says whose run it was; a

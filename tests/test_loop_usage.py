@@ -337,5 +337,140 @@ class TheLog(unittest.TestCase):
             lu.main(["--manual"])
 
 
+def usage_json(session=25, week=15, text=None):
+    return mock.Mock(stdout=json.dumps({"result": report(session, week) if text is None else text,
+                                        "is_error": False}), returncode=0)
+
+
+class TheForkLines(unittest.TestCase):
+    """A fork's own start and end readings (AF-150): the window either side
+    of a reset named in one line, and nothing guessed."""
+    LATER = dt.datetime(2026, 10, 14, 23, 30, tzinfo=UTC)  # after the 21:59 reset
+    NEXT = "Current session: 12% used · resets Oct 15, 3:30am (Europe/London)\n"
+
+    def fork(self, argv, reply, now=NOW, lines=()):
+        """fork_main with /usage answering `reply`; (printed, progress.sh command)."""
+        with mock.patch.object(lu.subprocess, "run", side_effect=[reply, mock.Mock()]) as run, \
+                mock.patch.object(lu, "read_log", return_value=list(lines)), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(lu.fork_main(argv, now, "claude", "unused"), 0)
+        return out.getvalue().strip(), run.call_args_list[-1][0][0]
+
+    def start_line(self, session=25):
+        printed, _ = self.fork(["--start", "AF-1", "--size", "S", "--implementer", "sonnet"],
+                               usage_json(session))
+        return "12:00:00 " + printed
+
+    def test_the_start_line(self):
+        printed, cmd = self.fork(["--start", "AF-1", "--size", "S", "--implementer", "sonnet"], usage_json())
+        self.assertEqual(printed, "AF-1 usage start: size S, implementer sonnet, "
+                                  "session 25% resets 2026-10-14T21:59+00:00")
+        self.assertEqual(cmd[-2:], ["AF-1", printed.split(" ", 1)[1]])
+
+    def test_within_one_window_the_cost_is_the_difference(self):
+        printed, _ = self.fork(["--end", "AF-1", "MERGED", "--size", "S", "--implementer", "sonnet"],
+                               usage_json(41), lines=[self.start_line(25)])
+        self.assertEqual(printed, "AF-1 usage end: MERGED, size S, implementer sonnet; "
+                                  "from session 25% resets 2026-10-14T21:59+00:00; "
+                                  "to session 41% resets 2026-10-14T21:59+00:00; cost 16 points")
+
+    def test_a_reset_mid_item_names_both_windows_and_a_range(self):
+        printed, _ = self.fork(["--end", "AF-1", "MERGED", "--size", "S", "--implementer", "sonnet"],
+                               usage_json(text=self.NEXT), now=self.LATER, lines=[self.start_line(25)])
+        self.assertIn("from session 25% resets 2026-10-14T21:59+00:00; "
+                      "to session 12% resets 2026-10-15T02:30+00:00; cost 12-87 points; "
+                      "the window reset mid-item", printed)
+        # What the report makes of the line it wrote.
+        self.assertIn("AF-1", lu.costs(["12:30:00 " + printed]))
+        self.assertIn("12-87", lu.costs(["12:30:00 " + printed]))
+
+    def test_more_than_one_reset_is_a_lower_bound(self):
+        start = (25, SESSION_RESET)
+        self.assertEqual(lu.cost(start, (12, SESSION_RESET + dt.timedelta(hours=5, minutes=3))), (12, 87))
+        self.assertEqual(lu.cost(start, (12, SESSION_RESET + dt.timedelta(hours=10))), (12, None))
+        self.assertEqual(lu.show(12, None), "at least 12")
+
+    def test_the_same_window_read_a_minute_apart_is_one_window(self):
+        self.assertEqual(lu.cost((19, SESSION_RESET), (33, SESSION_RESET + dt.timedelta(minutes=1))), (14, 14))
+
+    def test_readings_that_cannot_both_be_true_are_unreadable(self):
+        self.assertEqual(lu.cost((40, SESSION_RESET), (30, SESSION_RESET)), (None, None))
+        self.assertEqual(lu.cost((40, SESSION_RESET), (30, SESSION_RESET - dt.timedelta(hours=5))), (None, None))
+
+    def test_a_window_just_rolled_over_is_written_unreadable_never_zero(self):
+        week_only = "Current week (all models): 15% used · resets Oct 19, 2:59pm (Europe/London)\n"
+        printed, _ = self.fork(["--start", "AF-1", "--size", "XS", "--implementer", "opus"],
+                               usage_json(text=week_only))
+        self.assertEqual(printed, "AF-1 usage start: size XS, implementer opus, session unreadable "
+                                  "(no session line, as a window just rolled over shows)")
+        printed, _ = self.fork(["--end", "AF-1", "STOP", "--size", "XS", "--implementer", "opus"],
+                               usage_json(30), lines=["12:00:00 " + printed])
+        self.assertIn("; from session unreadable; to session 30% resets 2026-10-14T21:59+00:00; "
+                      "cost unreadable", printed)
+        self.assertNotIn("points", printed)
+
+    def test_an_unanswered_usage_at_the_end_is_unreadable(self):
+        printed, _ = self.fork(["--end", "AF-1", "LIMIT", "--size", "S", "--implementer", "sonnet"],
+                               mock.Mock(stdout="", returncode=1), lines=[self.start_line(25)])
+        self.assertIn("to session unreadable (/usage printed no JSON (exit 1)); cost unreadable", printed)
+
+    def test_the_start_is_this_forks_own(self):
+        start = self.start_line(25)
+        earlier_end = ("12:10:00 AF-1 usage end: LIMIT, size S, implementer sonnet; from session 25% resets "
+                       "2026-10-14T21:59+00:00; to session 99% resets 2026-10-14T21:59+00:00; cost 74 points")
+        # An end after the only start: that start was an earlier fork's.
+        printed, _ = self.fork(["--end", "AF-1", "MERGED", "--size", "S", "--implementer", "sonnet"],
+                               usage_json(41), lines=[start, earlier_end])
+        self.assertIn("; from start not logged; ", printed)
+        self.assertIn("cost unreadable", printed)
+        # A group's end pairs with its head's start, and no other item's.
+        printed, _ = self.fork(["--end", "AF-1+AF-2", "MERGED", "--size", "S", "--implementer", "sonnet"],
+                               usage_json(41), lines=[start, start.replace("AF-1", "AF-11")])
+        self.assertIn("cost 16 points", printed)
+
+    def test_arguments_are_refused_whole(self):
+        for argv in (["--start", "AF-1", "--size", "XL", "--implementer", "opus"],
+                     ["--start", "AF-1", "--size", "S", "--implementer", "haiku"],
+                     ["--start", "AF-1", "--size", "S"],
+                     ["--end", "AF-1", "DONE", "--size", "S", "--implementer", "opus"],
+                     ["--end", "AF-1", "MERGED", "--size", "S", "--implementer", "opus", "--x", "y"],
+                     ["--start", "AF 1", "--size", "S", "--implementer", "opus"]):
+            with mock.patch.object(lu.subprocess, "run") as run, self.assertRaises(SystemExit):
+                lu.fork_main(argv, NOW, "claude", "unused")
+            run.assert_not_called()
+
+
+class TheCostReport(unittest.TestCase):
+    def end(self, item, word, size, impl, start, finish):
+        return (f"10:00:00 {item} usage end: {word}, size {size}, implementer {impl}; from {start}; "
+                f"to {finish}; cost whatever")
+
+    def test_forks_are_summed_per_item_and_grouped_by_size_and_implementer(self):
+        a, b = "session 10% resets 2026-10-14T21:59+00:00", "session 30% resets 2026-10-14T21:59+00:00"
+        c = "session 5% resets 2026-10-15T02:59+00:00"
+        lines = [
+            self.end("AF-1", "LIMIT", "S", "opus", a, b),          # 20
+            self.end("AF-1", "MERGED", "S", "opus", a, b),         # and 20 more: 40
+            self.end("AF-2", "MERGED", "S", "opus", a, "session 20% resets 2026-10-14T21:59+00:00"),
+            self.end("AF-3", "MERGED", "S", "opus", b, c),         # across a reset: 5-75
+            self.end("AF-4", "MERGED", "S", "opus", "start not logged", b),
+            self.end("AF-5", "SKIPPED", "XS", "sonnet", "session unreadable", b),
+            "10:00:00 usage GO - session 19% used, resets 2026-10-29T01:59+00:00",
+            "10:00:00 AF-6 usage start: size M, implementer opus, " + a,
+        ]
+        out = lu.costs(lines)
+        self.assertRegex(out, r"AF-1 +S +opus +LIMIT\+MERGED +40\n")
+        self.assertRegex(out, r"AF-3 +S +opus +MERGED +5-75\n")
+        self.assertRegex(out, r"AF-4 .* unreadable\n")
+        self.assertNotIn("AF-6", out)
+        self.assertIn("XS  sonnet  1 item: 0 exact; 0 across a reset; 1 unreadable", out)
+        self.assertIn("S   opus    4 items: 2 exact, median 25, mean 25.0; 1 across a reset (5-75); 1 unreadable",
+                      out)
+        self.assertLess(out.index("  XS  sonnet  1 item"), out.index("  S   opus    4 items"))
+
+    def test_an_empty_log_says_so(self):
+        self.assertTrue(lu.costs(["10:00:00 usage GO - fine"]).startswith("No fork end lines"))
+
+
 if __name__ == "__main__":
     unittest.main()
