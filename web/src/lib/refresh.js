@@ -42,7 +42,7 @@
  */
 
 /** The last morning the refresh fetched F1DB and the fetch completed. */
-export const LAST_CHECKED = '2026-10-30'
+export const LAST_CHECKED = '2026-10-31'
 
 // ---------------------------------------------------------------- the words
 
