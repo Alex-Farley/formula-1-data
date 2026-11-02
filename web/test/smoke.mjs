@@ -3782,7 +3782,7 @@ try {
    * table disagrees with them. 2024/21 has retirements and a car
    * disqualified with three stops and no lap count; 1994/5 a stop on the
    * lap a car went out on. Nothing on the section may talk of an undercut:
-   * the record holds the lap of each stop and no timing.
+   * the record holds each stop's lap and pit-lane time, and no lap time.
    */
   await section('/races/2024/21  (stint windows: PD-56)', async () => {
     const readStints = ([root, heading, orderHeading]) => {
@@ -3886,7 +3886,7 @@ try {
       is(got.results[0], '1', `${half}: the winner's bar is at the top`)
       is(got.rows, cars + unbarred, `${half}: the figure's table carries every bar, and the ${unbarred} driver with stops and no bar`)
       truthy(/in the table and not drawn/.test(got.text), `${half}: and the note says so`)
-      truthy(/Ticks and strip mark the lap, not cause, tyres or gain; the table gives times/.test(got.text), `${half}: the note says the bars and the wave measure nothing`)
+      truthy(/Ticks and strip mark the lap, not cause, tyres or gain; the table gives times/.test(got.text), `${half}: the note holds the bars and the wave to the lap`)
       is(got.titles.flat().length, stops, `${half}: every tick has its tooltip`)
       is(got.targets, stops, `${half}: on a target of its own`)
       truthy(/A pit-lane time is all of a stop’s time in the pit lane, any wait or repair there included/.test(got.text), `${half}: the table says what its time measures`)
