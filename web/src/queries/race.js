@@ -330,10 +330,11 @@ const CLOUDED = /cloud|overcast|thunder|\bgr[ae]y\b|\bdull\b/i
  * phrase speaks of cloud and not of sun, and the word says so too, since the
  * mark is hidden from a screen reader: "with cloud", which is what a partly
  * cloudy day and an overcast one both were. The sun says dry, not clear: many
- * a phrase that gives it, "Hot, dry", says nothing of the sky. The temperature and rain are ERA5's
- * for the circuit's whole local day: nothing here holds a start time before
- * 2023, so the figure is the day's high and never the temperature at the
- * start, and `modelled` is what makes a renderer label it and credit it.
+ * a phrase that gives it, "Hot, dry", says nothing of the sky. The
+ * temperature and rain are ERA5's for the circuit's whole local day: nothing
+ * here holds a start time before 2023, so the figure is the day's high and
+ * never the temperature at the start, and `modelled` is what makes a renderer
+ * label it and credit it.
  */
 export const raceWeather = (row) => {
   const said = row?.conditions ?? null
