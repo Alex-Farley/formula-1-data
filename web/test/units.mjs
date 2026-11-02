@@ -3784,6 +3784,21 @@ describe("a circuit's onward band says a shared record is shared (CR-50)", () =>
   })
 })
 
+describe('a round the driver did not race says why (AF-151)', async () => {
+  const { THIS_SEASON_COLUMNS, NOT_ENTERED, PRACTICE_ONLY } = await import('../src/queries/driver.js')
+  const cell = (row) => THIS_SEASON_COLUMNS.find((column) => column.key === 'position_text').text(null, row)
+
+  it('a practice sheet and no race row is practice only', () => {
+    assert.equal(cell({ entry_id: null, practised: 1 }), PRACTICE_ONLY)
+  })
+  it('neither is not entered', () => {
+    assert.equal(cell({ entry_id: null, practised: 0 }), NOT_ENTERED)
+  })
+  it('a race row wins over the practice sheet', () => {
+    assert.equal(cell({ entry_id: 7, practised: 1, position_text: '4', finish_position: 4 }), '4')
+  })
+})
+
 describe("the championship chart's axis is the career (IX-38)", async () => {
   const { finishesFigure } = await import('../src/queries/driver.js')
   const { dotPlotLayout } = await import('../src/charts/dotPlot.js')

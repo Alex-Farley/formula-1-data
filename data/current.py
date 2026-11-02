@@ -118,6 +118,11 @@ ENTRIES_2026 = [
     ("haas", "ryo-hirakawa", "VF-26", "Ferrari", 50, "substitute"),
 ]
 
+# An entry not read from formula1.com's list keeps its own source's tier, not
+# the "verified" of the rest: F1DB is `reference` (schema.sql). verify.py holds
+# a substitute's team, number and car to the race records.
+ENTRY_CONFIDENCE = {"ryo-hirakawa": "reference"}
+
 TEAM_PERSONNEL_2026 = [
     ("mercedes", "Toto Wolff", "James Allison"),
     ("ferrari", "Frédéric Vasseur", "Loïc Serra / Enrico Gualtieri"),

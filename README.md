@@ -200,7 +200,8 @@ the <!-- fig:drivers_practice_only -->53<!-- /fig --> who drove in practice and 
 started a race, with the World Champions and the current grid carrying
 full career figures, and the
 complete <!-- fig:season_entries_year -->2026<!-- /fig --> entry list
-(<!-- fig:season_entries -->24<!-- /fig --> seats).
+(<!-- fig:season_entries -->24<!-- /fig --> rows, reserves and substitutes
+among them).
 
 Their wins, poles, fastest laps and podiums are **computed from the race
 records**, so they are internally consistent by construction and cannot drift.

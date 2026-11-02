@@ -244,7 +244,8 @@ export const THIS_SEASON = `
   SELECT r.year AS season, r.round, r.name_used, r.status, r.sprint,
          e.id AS entry_id, e.grid_text, e.grid, e.position_text, e.finish_position,
          e.status AS out, e.points,
-         k.id AS constructor_id, k.name AS constructor, k.country AS constructor_country
+         k.id AS constructor_id, k.name AS constructor, k.country AS constructor_country,
+         EXISTS (SELECT 1 FROM practice p WHERE p.race_id = r.id AND p.driver_id = ?1) AS practised
     FROM races r
     LEFT JOIN race_entries e ON e.race_id = r.id AND e.driver_id = ?1
     LEFT JOIN constructors k ON k.id = e.constructor_id
@@ -379,7 +380,7 @@ export function finishesFigure(driver, standings, teams, bySeason) {
 
 /** The season-so-far chart's note: 50 words at the longest. A season is one year, so it draws liveries or national colours, never both. */
 export const thisSeasonFigureNote = (toCome, source, hollow) =>
-  `Finishing position by round, P1 at the top, a win ringed. No dot: not classified or not entered.${
+  `Finishing position by round, P1 at the top, a win ringed. No dot: no classified finish.${
     toCome ? ' The space at the right is rounds to come.' : ''
   } ${colourClause('Dots are coloured for that weekend’s team', source, hollow, 'dot', 'no round on this record has one')}`
 
@@ -428,8 +429,12 @@ export const seasonTile = (rows, standings) => {
  * A round the driver was not entered for is a fact about the round, not a
  * missing result, so it says so in words rather than drawing the em dash
  * that means nobody has established the figure; its other cells are blank.
+ * A round with a practice sheet to the driver's name and no race row says
+ * that instead: a Friday outing, or Ocon in Mexico City 2026, who was entered,
+ * ran FP2 and handed his car over.
  */
 export const NOT_ENTERED = 'not entered'
+export const PRACTICE_ONLY = 'practice only'
 const entered = (row) => !missing(row.entry_id)
 const ifEntered = (format) => (value, row) => (entered(row) ? format(value, row) : '')
 
@@ -442,7 +447,10 @@ export const THIS_SEASON_COLUMNS = [
     key: 'position_text',
     label: 'Result',
     align: 'num',
-    text: (_, row) => (entered(row) ? result(row) : NOT_ENTERED),
+    text: (_, row) => {
+      if (entered(row)) return result(row)
+      return row.practised ? PRACTICE_ONLY : NOT_ENTERED
+    },
     glossary: 'results',
   },
   { key: 'points', label: 'Points', align: 'num', text: ifEntered((value) => points(value)) },
