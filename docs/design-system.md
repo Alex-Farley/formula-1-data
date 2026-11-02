@@ -1070,7 +1070,9 @@ VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
 10. **Focus survives the handover.** On a held cold load, `smoke.mjs`
     checks that focus is on the h1 after the app takes over, on every page
     type, that the status region says so, and that the handover's layout
-    shift stays under 0.05 (*The handover*).
+    shift stays under 0.05 (*The handover*). It measures on the fallback
+    stacks, with the web fonts answered empty: a font landing after the swap
+    moves the page, and that is the font's shift, not the handover's (PM-80).
 11. **Dates are words.** No ISO day is visible text on any prerendered
     page in `dist/`, outside a `<time datetime>` attribute, `<code>`, the
     SQL console and a Commons file's title; the app writes the same
