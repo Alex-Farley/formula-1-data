@@ -112,6 +112,10 @@ ENTRIES_2026 = [
     ("cadillac", "perez", "MAC-26", "Ferrari", 11, "race"),
     ("cadillac", "bottas", "MAC-26", "Ferrari", 77, "race"),
     ("racing-bulls", "tsunoda", None, "Red Bull Ford", 22, "reserve"),
+    # Haas's reserve, in Ocon's place from the third practice session of round
+    # 19 to the flag: F1DB enters both of them for the round, and classifies
+    # him and not Ocon. Last, because an entry's id is its place in this list.
+    ("haas", "ryo-hirakawa", "VF-26", "Ferrari", 50, "substitute"),
 ]
 
 TEAM_PERSONNEL_2026 = [
@@ -795,7 +799,8 @@ TABLE_PROVENANCE = [
      "inputs and rule. verify.py recomputes a sample by a different query."),
     # Sourced, and simply never given the column.
     ("circuit_layouts", 17, 0, "Wikipedia per-circuit articles; see ATTRIBUTION.md."),
-    ("season_entries", 3, 0, "The 2026 entry list, from formula1.com."),
+    ("season_entries", 3, 0,
+     "The 2026 entry list, from formula1.com; a substitute's row from F1DB's."),
     ("article_images", 15, 1,
      "The article is well constrained - it passed the constructor, seasons "
      "and name checks before being accepted. That the PHOTOGRAPH shows the "

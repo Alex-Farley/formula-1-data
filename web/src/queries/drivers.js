@@ -56,9 +56,9 @@ export const DRIVERS = `
          -- The entry list, not an appearance in a race that has been run: the
          -- entry list IS the grid, build.py carries it for the declared season
          -- and verify.py refuses a season without one, so the filter still
-         -- names a set over a winter. The two describe the same 23 drivers
-         -- today - the one reserve entry has raced - so this changes the
-         -- anchor, not the register.
+         -- names a set over a winter. The two describe the same 24 drivers
+         -- today - the reserve and the substitute have both raced - so this
+         -- changes the anchor, not the register.
          ${CURRENT_SEASON_SQL} AS grid_season,
          EXISTS (SELECT 1 FROM season_entries se
                   WHERE se.driver_id = d.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid,

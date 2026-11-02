@@ -16,14 +16,14 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-Of the <!-- fig:sourced_rows -->174,518<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
+Of the <!-- fig:sourced_rows -->174,692<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.4%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->173,763<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->173,937<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->755<!-- /fig --> | <!-- fig:facts_only_share -->0.4%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
@@ -430,15 +430,15 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->168,566<!-- /fig --> of the <!-- fig:sourced_rows -->174,518<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,645<!-- /fig -->,
+cite Wikipedia: <!-- fig:edition_rows -->168,741<!-- /fig --> of the <!-- fig:sourced_rows -->174,692<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,821<!-- /fig -->,
 the <!-- fig:facts_only_rows -->755<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
-nothing of FOM's or the FIA's under anyone's licence, and the <!-- fig:meteo_rows -->1,166<!-- /fig --> rows of
+nothing of FOM's or the FIA's under anyone's licence, and the <!-- fig:meteo_rows -->1,165<!-- /fig --> rows of
 race-day weather modelled through Open-Meteo, CC BY 4.0 as F1DB's are (AF-136). *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
 because §4(b) reaches the database holding the substantial portion and no
 other.
 
-It leaves out the <!-- fig:wp_rows -->5,952<!-- /fig --> rows that cite Wikipedia:
+It leaves out the <!-- fig:wp_rows -->5,951<!-- /fig --> rows that cite Wikipedia:
 
 | Rows | Table | What they are |
 |---:|---|---|
@@ -449,7 +449,7 @@ It leaves out the <!-- fig:wp_rows -->5,952<!-- /fig --> rows that cite Wikipedi
 | <!-- fig:wp_cars -->29<!-- /fig --> | `cars` | design families citing their per-car article |
 | <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
 | <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
-| <!-- fig:wp_note_sources -->53<!-- /fig --> | `driver_note_sources` | the driver articles the Friday drivers' notes were checked against (LV-08); each is a citation, and the note it backs is this project's writing, measured against the article in `docs/prose_pass.tsv` |
+| <!-- fig:wp_note_sources -->52<!-- /fig --> | `driver_note_sources` | the driver articles the Friday drivers' notes were checked against (LV-08); each is a citation, and the note it backs is this project's writing, measured against the article in `docs/prose_pass.tsv` |
 | <!-- fig:wp_weather -->1,065<!-- /fig --> | `race_weather_reported` | each race article's infobox `Weather` line, in its own words, and the wet or dry read from them (AF-136) |
 
 — and six sets a count by `source` cannot see, because the value is
@@ -475,7 +475,7 @@ from it is a name and a nationality each, bare facts; the `notes` line some
 of them carry is this project's writing and belongs to the prose pass. The
 three steps above apply to the list unchanged.
 
-The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->126,300<!-- /fig --> further rows —
+The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->126,299<!-- /fig --> further rows —
 the rest of every classification in `race_entries`, and qualifying, sprints
 and pit stops — are keyed to them, and an edition without them has no
 spine. So a facts edition has two
@@ -577,10 +577,10 @@ with the ruling on the race rows.
 
 ### The note sources: citations backing this project's notes
 
-In `driver_note_sources`, <!-- fig:wp_note_sources -->53<!-- /fig --> rows cite Wikipedia. Each is the URL of the
+In `driver_note_sources`, <!-- fig:wp_note_sources -->52<!-- /fig --> rows cite Wikipedia. Each is the URL of the
 driver article a Friday driver's note was checked against (LV-08): a
 citation, which takes nothing from the article. The notes they back are this
-project's writing, and the prose pass labels all <!-- fig:wp_notes_original -->53<!-- /fig --> of them original
+project's writing, and the prose pass labels all <!-- fig:wp_notes_original -->52<!-- /fig --> of them original
 (`docs/prose_pass.tsv`). They are bare facts, and with nothing extracted
 there is no database-right question to ask of them. The only question they
 raise is not their own: a note source belongs in the artefact where the note
@@ -605,8 +605,8 @@ F1DB's grand prix of each race and its official title are
 | `race_entries.constructor_id` | F1DB's on all but <!-- fig:wp_winners_no_constructor -->11<!-- /fig -->, Indianapolis 500 winners whose car F1DB credits to a maker the constructor register does not hold. They are NULL here, and a rebuild leaves them NULL: Wikipedia supplies nothing in them | nothing |
 | `race_entries.grid`, `laps_completed` | F1DB's on all but <!-- fig:wp_winners_beyond_f1db -->3<!-- /fig --> shared drives, where this database holds a grid slot or a lap count for the winner that F1DB's row for him leaves blank | those left NULL, or another source for them |
 | `race_entries.entrant` | Wikipedia's house style, constructor and engine; F1DB holds both as ids on every row, and the snapshot names its constructors but not its engine makers. F1DB names the car of the 1957 and 1958 Indianapolis winners Epperly where the article says Salih | the engine makers' names and a rule for the string — or the column left out |
-| `race_entries.pole` | <!-- fig:pole_credits -->1,167<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->684<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,164<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
-| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,166<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->777<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,164<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->0<!-- /fig -->, names another driver in <!-- fig:fl_f1db_other -->0<!-- /fig -->, and records as shared, timed alike, <!-- fig:fl_f1db_shares -->2<!-- /fig --> this database credits to one driver, each open in `discrepancies` | a choice for the races where F1DB differs |
+| `race_entries.pole` | <!-- fig:pole_credits -->1,168<!-- /fig --> credits, <!-- fig:pole_credits_elsewhere -->685<!-- /fig --> of them on rows that do not cite Wikipedia; <!-- fig:pole_grid_one -->1,165<!-- /fig --> are F1DB's grid slot 1, and the other <!-- fig:pole_not_grid_one -->3<!-- /fig --> are F1DB's fastest qualifier — the cases *What 'pole' means here* in `schema.sql` names | that rule, written as code |
+| `race_entries.fastest_lap`, `fastest_lap_shared` | credits in <!-- fig:fl_credit_races -->1,167<!-- /fig --> races, <!-- fig:fl_credits_elsewhere -->778<!-- /fig --> of them on rows that do not cite Wikipedia; F1DB credits the same drivers in <!-- fig:fl_f1db_same -->1,165<!-- /fig -->, names one of a shared credit in <!-- fig:fl_f1db_names_one -->0<!-- /fig -->, names another driver in <!-- fig:fl_f1db_other -->0<!-- /fig -->, and records as shared, timed alike, <!-- fig:fl_f1db_shares -->2<!-- /fig --> this database credits to one driver, each open in `discrepancies` | a choice for the races where F1DB differs |
 
 **A correction, made in review.** The measurement as it was first put to the
 maintainer counted shared fastest laps of which F1DB named one driver, and a
@@ -651,7 +651,7 @@ already accepted it.
    stored on the reading that no database right reaches them.
 2. **The claims.** Carry the <!-- fig:wp_claims -->2,466<!-- /fig --> as bare facts, or leave them out with the
    seven columns they mirror. Nothing in the artefact depends on them either way.
-3. **The note sources.** Carry the <!-- fig:wp_note_sources -->53<!-- /fig --> wherever the notes they back are
+3. **The note sources.** Carry the <!-- fig:wp_note_sources -->52<!-- /fig --> wherever the notes they back are
    carried, or leave them out.
 
 ### The declared set
