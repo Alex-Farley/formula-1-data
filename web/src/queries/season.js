@@ -670,7 +670,7 @@ export const GRID_HEADING = 'On the grid'
  * is said above the table rather than under it.
  */
 export const GRID_NOTE =
-  'The entry list as the season declared it, one row per seat. The count above is taken from the race ' +
+  'The entry list as the season declared it, one row per driver. The count above is taken from the race ' +
   'entries — the drivers entered for a round — so in a season whose line-up moves the two need not agree.'
 
 export const GRID_FOOTER =

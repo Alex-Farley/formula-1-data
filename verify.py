@@ -2102,6 +2102,25 @@ def entries():
         (CURRENT,)).fetchall()
     check(f"every {CURRENT} driver in the standings has an entry", not missing,
           "; ".join(r[0] for r in missing))
+    # A substitute's row is typed in from a result, and no other check reads
+    # it: car_number is compared only with a permanent number, which a
+    # substitute need not have. So its team and number are held to the race
+    # records and the practice sheets, and its car to the team's race seats.
+    loose = con.execute("""SELECT e.driver_id FROM season_entries e
+        WHERE e.year=?1 AND e.role='substitute' AND NOT (
+          EXISTS (SELECT 1 FROM race_entries x JOIN races r ON r.id=x.race_id
+                   WHERE r.year=e.year AND x.driver_id=e.driver_id
+                     AND x.constructor_id=e.constructor_id)
+          AND EXISTS (SELECT 1 FROM practice p JOIN races r ON r.id=p.race_id
+                       WHERE r.year=e.year AND p.driver_id=e.driver_id
+                         AND p.constructor_id=e.constructor_id
+                         AND p.driver_number=e.car_number)
+          AND EXISTS (SELECT 1 FROM season_entries s
+                       WHERE s.year=e.year AND s.role='race'
+                         AND s.constructor_id=e.constructor_id AND s.car=e.car))
+        """, (CURRENT,)).fetchall()
+    check(f"every {CURRENT} substitute raced for its team, in its number and car",
+          not loose, "; ".join(r[0] for r in loose))
 
 
 @section('TIMELINE SANITY')

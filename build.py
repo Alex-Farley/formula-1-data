@@ -85,7 +85,7 @@ VERSION = "2.26"
 # pages. So the refresh workflow now bumps it whenever it commits a new
 # harvest — the only time the data actually changes — and a hand edit to
 # data/*.py should bump it too.
-BUILT = "2026-10-26"
+BUILT = "2026-11-02"
 
 
 def _haversine(a, b):
@@ -1687,7 +1687,8 @@ def _stage_16_current_season(b):
         cur.execute("""INSERT INTO season_entries (id, year, constructor_id, driver_id,
             car, power_unit, car_number, role, confidence)
             VALUES (?,?,?,?,?,?,?,?,?)""",
-            (i, N.CURRENT_SEASON, cid, did, car, pu, num, role, "verified"))
+            (i, N.CURRENT_SEASON, cid, did, car, pu, num, role,
+             N.ENTRY_CONFIDENCE.get(did, "verified")))
 
     # The official snapshot's moment, said once. after_round is the round it
     # stood after and snapshot_date the day it was published (DA-31); an

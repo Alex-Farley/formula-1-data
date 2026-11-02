@@ -993,6 +993,7 @@ F1DB_DRIVERS = [
     "nikita-mazepin",                  # 2021         22             Nikita Mazepin
     "nyck-de-vries",                   # 2022-2023    11             Nyck de Vries
     "logan-sargeant",                  # 2023-2024    37             Logan Sargeant
+    "ryo-hirakawa",                    # 2026           1             Ryō Hirakawa
 ]
 
 
@@ -1063,7 +1064,6 @@ F1DB_PRACTICE_DRIVERS = [
     "arthur-leclerc",                   # 2024-2025      2  Arthur Leclerc
     "ayumu-iwasa",                      # 2024-2026      8  Ayumu Iwasa
     "luke-browning",                    # 2024-2026      6  Luke Browning
-    "ryo-hirakawa",                     # 2024-2026      8  Ryō Hirakawa
     "alexander-dunne",                  # 2025           2  Alexander Dunne
     "antonio-fuoco",                    # 2025           1  Antonio Fuoco
     "cian-shields",                     # 2025           1  Cian Shields
@@ -1284,11 +1284,6 @@ PRACTICE_DRIVER_NOTES = {
         "A member of the Williams Driver Academy, who came up through FIA "
         "Formula 3 into Formula 2.",
         _WP + "Luke_Browning"),
-    "ryo-hirakawa": (
-        "A Toyota driver, Le Mans winner and world endurance champion in "
-        "2022; McLaren's reserve in 2024, then reserve driver at Alpine and "
-        "at Haas.",
-        _WP + "Ryo_Hirakawa"),
     "alexander-dunne": (
         "A McLaren junior, racing in Formula 2 for Rodin Motorsport in 2025.",
         _WP + "Alex_Dunne"),
