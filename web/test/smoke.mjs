@@ -1114,6 +1114,15 @@ try {
    * held a moment so the static page is read first, as on the slow line the
    * critique measured - and the rest open from IndexedDB: the same handover,
    * faster. The shift is counted from the moment the static page leaves.
+   *
+   * Without the web fonts (PM-80). They are Google's, and a route handler
+   * turns off the HTTP cache, so every page here fetched them over the
+   * network: a font landing after the swap reflows the app's page, and the
+   * shift is charged to the handover. Holding the fonts past the swap gives
+   * 0.166 to 0.200 on /constructors/ferrari, where CI failed at 0.200 three
+   * times, on a race nothing in this repository decides. The stylesheet is
+   * answered empty, so every page is measured on the fallback stacks from
+   * first paint to last, and a shift here is the swap's own.
    */
   // A race page with a timetable (CD-59): a round not yet run where there is
   // one, since it leads with the timetable, and the latest held otherwise.
@@ -1152,6 +1161,9 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 1500))
       await request.continue()
     })
+    await held.route(/fonts\.googleapis\.com/, (request) =>
+      request.fulfill({ status: 200, contentType: 'text/css', body: '' }),
+    )
     await held.addInitScript(() => {
       window.__static = false
       window.__handedAt = null
@@ -1172,6 +1184,7 @@ try {
     const lost = []
     const unsaid = []
     const moved = []
+    const fonted = []
     let handed = 0
     for (const route of ROUTES) {
       const target = await held.newPage()
@@ -1191,9 +1204,11 @@ try {
           h1: h1?.textContent ?? '',
           status: document.getElementById('page-status')?.textContent ?? null,
           shift: window.__shift,
+          faces: document.fonts.size,
         }
       })
       handed += 1
+      if (got.faces > 0) fonted.push(`${route}: ${got.faces}`)
       if (!got.focused) lost.push(`${route}: focus is on ${got.on}`)
       if (got.status !== handoverWords(got.h1)) unsaid.push(`${route}: the status region says “${got.status ?? '(no region)'}”`)
       if (got.shift >= 0.05) moved.push(`${route}: ${got.shift.toFixed(3)}`)
@@ -1201,6 +1216,10 @@ try {
     }
     await held.close()
     is(handed, ROUTES.length, 'every page type was handed over from its static page')
+    // A font host the route above no longer matches is the flake coming back,
+    // and this says so before the shift does.
+    if (fonted.length === 0) pass('with no web font on any of them, so what moves is the handover')
+    for (const message of fonted) fail(`a web font reached the handover's page — ${message}`)
     if (lost.length === 0) pass(`focus is on the h1 after the handover on all ${ROUTES.length} page types`)
     for (const message of lost) fail(message)
     if (unsaid.length === 0) pass('and the status region, mounted from the first paint, says the page has finished loading')
