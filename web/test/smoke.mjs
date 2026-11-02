@@ -54,6 +54,10 @@ import {
   PIT_ORDER_HEADING,
   PRACTICE_SESSIONS,
   RACE_SOURCES,
+  RACE_WEATHER,
+  WEATHER_CREDIT,
+  WEATHER_MARKS,
+  raceWeather,
 } from '../src/queries/race.js'
 import { GRID_FLAG_WIDTH } from '../src/charts/gridFlag.js'
 import { STINT_HEADS, STINTS_WIDTH } from '../src/charts/stints.js'
@@ -3523,6 +3527,72 @@ try {
    * citation names the source the note came from - in both halves. A race
    * with no note carries no mark.
    */
+  await section('/races/1951/3  (the weather line: AF-142)', async () => {
+    const line = (weather) => `${weather.text}${weather.modelled ? ` (modelled, ${WEATHER_CREDIT.text})` : ''}`
+    // What the static page says: the block's first paragraph, its tags gone.
+    const staticBlock = (html) => /<div class="race-weather">[\s\S]*?<\/div>/.exec(html)?.[0] ?? null
+    const staticLine = (html) => staticBlock(html)?.match(/<p>([\s\S]*?)<\/p>/)[1].replace(/<[^>]+>/g, '') ?? null
+    const unescape = (s) => s?.replaceAll('&#39;', "'")
+    const weather = raceWeather(db.prepare(RACE_WEATHER).get(1951, 3))
+    truthy(weather?.modelled && weather.mark, 'the 1951 Belgian Grand Prix has a report and a model row')
+    await go('/races/1951/3', 'Belgian Grand Prix')
+    const app = await page.evaluate(() => {
+      const block = document.querySelector('#root main header .race-weather')
+      return {
+        line: block?.querySelector('p')?.textContent,
+        mark: block?.querySelector('p > svg.weather-mark path')?.getAttribute('d'),
+        href: block?.querySelector('p > a')?.getAttribute('href'),
+        how: block?.querySelector('details')?.open,
+        afterLede: block?.previousElementSibling?.className,
+        beforeStepper: block?.nextElementSibling?.className,
+      }
+    })
+    const html = await (await fetch(`${BASE}/races/1951/3`)).text()
+    is(app.line, line(weather), 'the app says the line')
+    is(staticLine(html), line(weather), 'and the static page says the same')
+    is(app.mark, WEATHER_MARKS[weather.mark], 'the app draws the mark')
+    truthy(staticBlock(html).includes(`d="${WEATHER_MARKS[weather.mark]}"`), 'and so does the static page')
+    is(app.href, WEATHER_CREDIT.href, 'the link Open-Meteo asks for is beside its figures in the app')
+    truthy(staticBlock(html).includes(`href="${WEATHER_CREDIT.href}"`), 'and on the static page')
+    is(app.how, false, 'the method is folded, with the credit inside it')
+    truthy(staticBlock(html).includes('Copernicus'), 'the static page carries the credit too')
+    is([app.afterLede, app.beforeStepper].join(' '), 'lede stepper', 'the line is the header\'s, between the lede and the stepper')
+    truthy(/<header>[\s\S]*race-weather[\s\S]*<\/header>/.test(html.slice(html.indexOf('<article'), html.indexOf('class="section"'))), 'and in the static header too')
+    for (const halfHtml of [await page.content(), html]) {
+      truthy(unescape(halfHtml).includes('Two sources disagree about this race'), 'the model and the report disagree here, and the box says so in both halves')
+    }
+    const behind = db.prepare(RACE_SOURCES).all(1951, 3).map((s) => s.source)
+    const cited = (sql) => db.prepare(`SELECT s.source FROM source_registry s JOIN ${sql} t ON t.source_id = s.id JOIN races r ON r.id = t.race_id WHERE r.year = 1951 AND r.round = 3`).get().source
+    truthy(behind.includes(cited('race_weather_reported')), 'the citation names the report\'s source')
+    truthy(behind.includes(cited('race_weather_modelled')), 'and the model\'s')
+
+    // A race with nothing held says nothing, in either half.
+    const none = db
+      .prepare(
+        `SELECT year, round FROM races r
+          WHERE NOT EXISTS (SELECT 1 FROM race_weather_reported w WHERE w.race_id = r.id)
+            AND NOT EXISTS (SELECT 1 FROM race_weather_modelled m WHERE m.race_id = r.id) LIMIT 1`,
+      )
+      .get()
+    truthy(none, 'a race holds neither row')
+    const blank = await (await fetch(`${BASE}/races/${none.year}/${none.round}`)).text()
+    is(staticBlock(blank), null, 'the static page of a race with no weather has no line')
+
+    // A report with no model row: the word, and nothing labelled modelled.
+    const reportOnly = db
+      .prepare(
+        `SELECT r.year, r.round FROM races r JOIN race_weather_reported w ON w.race_id = r.id
+          WHERE w.conditions IS NOT NULL AND NOT EXISTS (SELECT 1 FROM race_weather_modelled m WHERE m.race_id = r.id) LIMIT 1`,
+      )
+      .get()
+    if (reportOnly) {
+      const reported = raceWeather(db.prepare(RACE_WEATHER).get(reportOnly.year, reportOnly.round))
+      const page2 = await (await fetch(`${BASE}/races/${reportOnly.year}/${reportOnly.round}`)).text()
+      is(staticLine(page2), reported.text, 'a report alone is the word and no more')
+      is(staticBlock(page2).includes('<details'), false, 'with no method to fold')
+    }
+  })
+
   await section('/races/1969/7  (why a paid place paid nothing: DA-46)', async () => {
     const noted = db
       .prepare(
@@ -3561,11 +3631,13 @@ try {
     // TEMP copy citing a source nothing else here does, and RACE_SOURCES
     // must find it there.
     const probe = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    const named = probe.prepare(RACE_SOURCES.replace('SELECT s.source,', 'SELECT s.id, s.source,')).all(1969, 7).map((s) => s.id)
+    const elsewhere = probe.prepare(`SELECT id, source FROM source_registry WHERE id NOT IN (${named.join(', ')}) ORDER BY id DESC LIMIT 1`).get()
     probe.exec(
       `CREATE TEMP TABLE claims AS SELECT * FROM main.claims;
-       UPDATE temp.claims SET source_id = (SELECT MAX(id) FROM source_registry) WHERE tbl = 'race_entries' AND field = 'note'`,
+       UPDATE temp.claims SET source_id = ${elsewhere.id} WHERE tbl = 'race_entries' AND field = 'note'`,
     )
-    const only = probe.prepare('SELECT source FROM source_registry WHERE id = (SELECT MAX(id) FROM source_registry)').get().source
+    const only = elsewhere.source
     truthy(!behind.has(only) && probe.prepare(RACE_SOURCES).all(1969, 7).some((s) => s.source === only), `RACE_SOURCES reads the note's own claim — "${only}"`)
     probe.close()
     const plainRace = await (await fetch(`${BASE}/races/1976/9`)).text()

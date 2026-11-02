@@ -248,8 +248,10 @@ gives for modified information, carried wherever Open-Meteo's is:
 *Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.*
 Open-Meteo asks for a link to it beside wherever its data is shown, so each
 weather disagreement in `discrepancies` ends its assessment with *weather
-data by Open-Meteo.com* and the address, wherever that row is shown, and a
-republisher showing these figures owes the same link. Its free API is for
+data by Open-Meteo.com* and the address, wherever that row is shown, the
+weather line on a race page links it and holds the Copernicus credit in the
+disclosure under it, and a republisher showing these figures owes the same
+link. Its free API is for
 non-commercial use, which this project is — no advertising, no subscriptions
 — and the harvest is one request per race. That term governs calling the
 API; the licence page offers the data a call returns under CC BY 4.0, to

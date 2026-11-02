@@ -247,7 +247,8 @@ string runs past.
 ### Page header (core) — built (VD-79, VD-81)
 
 - **Job:** say what this page is, and how to move along a sequence.
-- **Parts:** eyebrow, h1, lede, stepper.
+- **Parts:** eyebrow, h1, lede, stepper; on a race page, the weather line
+  between the lede and the stepper.
   - The **eyebrow** follows one rule: the page type, then the facts that
     identify the entity, for example *Driver · United Kingdom · born 7
     January 1985* or *Race · Round 12 of 24 · 6 July 2025*. A fact the
@@ -270,6 +271,24 @@ string runs past.
   - One declared difference: `/data/sql`'s static page keeps its own lede,
     because it is not the console and has no examples or schema for the
     app's lede to point at.
+  - The **weather line** (provisional, AF-142 #1148) is one note, `--size-4`
+    in the lede's ink at the measure, drawn by `RaceWeather` in `Race.jsx`
+    and `weatherBlock()` in `prerender.js` from `raceWeather()` in
+    `queries/race.js`, under the rules for it there:
+    - A **mark** and a word from the race article's report: rain for wet;
+      for dry, the sun, or a cloud where the phrase speaks of cloud and not
+      of sun. The mark is `aria-hidden`, drawn in the line's ink at 1.25 em
+      from `WEATHER_MARKS`, and never stands alone: the word says the same
+      thing (*Wet*, *Dry*, *Dry, cloudy*). A phrase read as neither has
+      neither.
+    - The **model's figures** follow after ` · `, labelled *modelled*, with
+      the link Open-Meteo asks for and a `.table-how` disclosure holding the
+      method and the Copernicus credit. They are the day's, so the line says
+      *High of 18 °C, no rain on the day* and never the temperature at the
+      start, which the database does not hold.
+    - **Nothing is guessed.** A race with neither row has no line, and either
+      half stands without the other. Where the two cannot both be true the
+      disagreement box says so, as it does for any open row.
 - **Widths:** the header column: 7 columns from 1180 beside the slot, the
   full width where the slot is empty or below 1180. The lede is at the
   measure.
@@ -784,8 +803,8 @@ citation, is already one system and is kept.
 
 ### Event pages: race
 
-Race pages follow the entity layout (DP-11): the header beside the outline
-slot; tiles; the classification at full width; Grid to flag; qualifying; pit
+Race pages follow the entity layout (DP-11): the header, with the weather
+line where one is held (§3, Page header), beside the outline slot; tiles; the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
 photographs. The page of the next round to run, while the season has no
 drivers' champion on record and its results have not landed, carries

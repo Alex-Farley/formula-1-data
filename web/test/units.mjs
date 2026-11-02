@@ -172,6 +172,7 @@ import {
   practiceBySession,
   practiceColumns,
   qualifyingColumns,
+  raceWeather,
   sessionParts,
   sprintQualifyingColumns,
   withDistance,
@@ -4027,6 +4028,55 @@ describe('a session gap as a distance on the track (AF-131)', () => {
     } finally {
       db.close()
     }
+  })
+})
+
+describe("the race header's weather line (AF-142)", () => {
+  const nb = '\u00a0'
+  const said = (conditions, reported) => ({ conditions, reported, air_max_c: null, rain_mm: null })
+  const model = { air_max_c: 18.4, rain_mm: 3.2 }
+
+  it('says nothing where neither source holds anything', () => {
+    assert.equal(raceWeather(undefined), null)
+    assert.equal(raceWeather({ conditions: null, reported: null, air_max_c: null, rain_mm: null }), null)
+    // Words the build read as neither wet nor dry, and no model row.
+    assert.equal(raceWeather(said(null, 'Temperatures reaching up to 23 °C')), null)
+  })
+
+  it('a report alone is a mark and a word, with nothing modelled to label', () => {
+    assert.deepEqual(raceWeather(said('wet', 'Rain')), { mark: 'rain', text: 'Wet', modelled: false })
+    assert.deepEqual(raceWeather(said('dry', 'Hot, dry')), { mark: 'sun', text: 'Dry', modelled: false })
+  })
+
+  it('the model alone has no mark and no word of wet or dry, whatever it holds', () => {
+    assert.deepEqual(raceWeather({ conditions: null, reported: null, ...model }), {
+      mark: null,
+      text: `High of 18${nb}°C, 3.2${nb}mm of rain on the day`,
+      modelled: true,
+    })
+    assert.equal(raceWeather({ conditions: null, reported: 'Temperatures of 68 °F', ...model }).mark, null)
+  })
+
+  it('both are joined, and no rain at all is said as none', () => {
+    assert.equal(raceWeather({ conditions: 'wet', reported: 'Wet', ...model }).text, `Wet · High of 18${nb}°C, 3.2${nb}mm of rain on the day`)
+    assert.equal(raceWeather({ conditions: 'dry', reported: 'Dry', air_max_c: 7.5, rain_mm: 0 }).text, `Dry · High of 8${nb}°C, no rain on the day`)
+  })
+
+  it('a half-held model row is not established, and rain is never read as none', () => {
+    const missing = raceWeather({ conditions: 'dry', reported: 'Dry', air_max_c: 20, rain_mm: null })
+    assert.deepEqual(missing, { mark: 'sun', text: 'Dry', modelled: false })
+  })
+
+  it('dry is cloud where the phrase says cloud and not sun, and the word says what the mark does', () => {
+    const cloud = { mark: 'cloud', text: 'Dry, cloudy', modelled: false }
+    for (const phrase of ['Partly cloudy', 'Overcast, mild, dry', 'Dry, grey and cool', 'Dry and dull']) {
+      assert.deepEqual(raceWeather(said('dry', phrase)), cloud, phrase)
+    }
+    for (const phrase of ['Sunny with clouds', 'Cloudy, sunny later', 'Fine and Dry', 'Greyhound', 'Dullness']) {
+      assert.deepEqual(raceWeather(said('dry', phrase)), { mark: 'sun', text: 'Dry', modelled: false }, phrase)
+    }
+    // A wet race stays wet however clouded the phrase is.
+    assert.equal(raceWeather(said('wet', 'Overcast with intermittent rain')).mark, 'rain')
   })
 })
 
