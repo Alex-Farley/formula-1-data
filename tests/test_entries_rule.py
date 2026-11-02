@@ -87,6 +87,15 @@ class TheSubstituteCheck(unittest.TestCase):
         self.plant("constructor_id", "ferrari" if self.team != "ferrari" else "haas")
         self.assertRegex(self.run_section(), CHECK)
 
+    def test_a_substitute_with_no_race_is_refused(self):
+        con = sqlite3.connect(self.db)
+        con.execute("""DELETE FROM race_entries WHERE driver_id = ? AND race_id IN
+                        (SELECT id FROM races WHERE year = ?)""",
+                    (self.driver, self.season))
+        con.commit()
+        con.close()
+        self.assertRegex(self.run_section(), CHECK)
+
     def test_a_wrong_car_is_refused(self):
         self.plant("car", "no such car")
         self.assertRegex(self.run_section(), CHECK)
