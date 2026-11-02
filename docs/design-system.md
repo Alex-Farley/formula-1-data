@@ -276,16 +276,17 @@ string runs past.
     and `weatherBlock()` in `prerender.js` from `raceWeather()` in
     `queries/race.js`, under the rules for it there:
     - A **mark** and a word from the race article's report: rain for wet;
-      for dry, the sun, or a cloud where the phrase speaks of cloud and not
-      of sun. The mark is `aria-hidden`, drawn in the line's ink at 1.25 em
-      from `WEATHER_MARKS`, and never stands alone: the word says the same
-      thing (*Wet*, *Dry*, *Dry, cloudy*). A phrase read as neither has
-      neither.
+      for dry, the sun, or a cloud where the phrase speaks of cloud or
+      thunder and not of sun. The sun says dry, not a clear sky. The mark is
+      `aria-hidden`, drawn in the line's ink at 1.25 em from `WEATHER_MARKS`,
+      and never stands alone: the word says the same thing (*Wet*, *Dry*,
+      *Dry, with cloud*). A phrase read as neither has neither.
     - The **model's figures** follow after ` · `, labelled *modelled*, with
       the link Open-Meteo asks for and a `.table-how` disclosure holding the
-      method and the Copernicus credit. They are the day's, so the line says
-      *High of 18 °C, no rain on the day* and never the temperature at the
-      start, which the database does not hold.
+      method and the Copernicus credit, on the line's row where it fits, which
+      keeps §4's four classification rows. They are the day's, so the line
+      says *High of 18 °C, no rain on the day* and never the temperature at
+      the start, which the database does not hold.
     - **Nothing is guessed.** A race with neither row has no line, and either
       half stands without the other. Where the two cannot both be true the
       disagreement box says so, as it does for any open row.

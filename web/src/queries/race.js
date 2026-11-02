@@ -264,7 +264,7 @@ export const NEIGHBOURS = `
  * the outline - which is the rule for them.
  */
 export const RACE_SOURCES = `
-  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+  SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
    WHERE s.id IN (
            SELECT r.source_id FROM races r WHERE r.year = ?1 AND r.round = ?2
@@ -320,7 +320,7 @@ export const COPERNICUS_CREDIT =
 export const WEATHER_METHOD =
   `ERA5's reanalysis, through Open-Meteo, of the circuit's whole local day and not the race's hours, for the grid cell the circuit sits in and not the track, so a shower can be missing from it. ${COPERNICUS_CREDIT}`
 
-const CLOUDED = /cloud|overcast|\bgr[ae]y\b|\bdull\b/i
+const CLOUDED = /cloud|overcast|thunder|\bgr[ae]y\b|\bdull\b/i
 
 /**
  * The header's weather line, or null where neither source holds anything.
@@ -328,7 +328,9 @@ const CLOUDED = /cloud|overcast|\bgr[ae]y\b|\bdull\b/i
  * Wet or dry, and so the mark, is the race article's report; a phrase the
  * build read as neither has no mark and no word. Dry is the sun unless the
  * phrase speaks of cloud and not of sun, and the word says so too, since the
- * mark is hidden from a screen reader. The temperature and rain are ERA5's
+ * mark is hidden from a screen reader: "with cloud", which is what a partly
+ * cloudy day and an overcast one both were. The sun says dry, not clear: many
+ * a phrase that gives it, "Hot, dry", says nothing of the sky. The temperature and rain are ERA5's
  * for the circuit's whole local day: nothing here holds a start time before
  * 2023, so the figure is the day's high and never the temperature at the
  * start, and `modelled` is what makes a renderer label it and credit it.
@@ -336,7 +338,7 @@ const CLOUDED = /cloud|overcast|\bgr[ae]y\b|\bdull\b/i
 export const raceWeather = (row) => {
   const said = row?.conditions ?? null
   const mark = said === null ? null : said === 'wet' ? 'rain' : CLOUDED.test(row.reported) && !/sun/i.test(row.reported) ? 'cloud' : 'sun'
-  const word = mark === null ? null : { rain: 'Wet', cloud: 'Dry, cloudy', sun: 'Dry' }[mark]
+  const word = mark === null ? null : { rain: 'Wet', cloud: 'Dry, with cloud', sun: 'Dry' }[mark]
   const modelled = row?.air_max_c != null && row?.rain_mm != null
   const figures = modelled
     ? `High of ${Math.round(row.air_max_c)}\u00a0°C, ${row.rain_mm === 0 ? 'no rain' : `${row.rain_mm}\u00a0mm of rain`} on the day`

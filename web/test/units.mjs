@@ -4068,8 +4068,8 @@ describe("the race header's weather line (AF-142)", () => {
   })
 
   it('dry is cloud where the phrase says cloud and not sun, and the word says what the mark does', () => {
-    const cloud = { mark: 'cloud', text: 'Dry, cloudy', modelled: false }
-    for (const phrase of ['Partly cloudy', 'Overcast, mild, dry', 'Dry, grey and cool', 'Dry and dull']) {
+    const cloud = { mark: 'cloud', text: 'Dry, with cloud', modelled: false }
+    for (const phrase of ['Partly cloudy', 'Overcast, mild, dry', 'Dry, grey and cool', 'Dry and dull', 'Scattered thunderstorms, but remaining dry']) {
       assert.deepEqual(raceWeather(said('dry', phrase)), cloud, phrase)
     }
     for (const phrase of ['Sunny with clouds', 'Cloudy, sunny later', 'Fine and Dry', 'Greyhound', 'Dullness']) {
