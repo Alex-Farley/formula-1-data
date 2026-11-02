@@ -1120,7 +1120,8 @@ try {
    * network: a font landing after the swap reflows the app's page, and the
    * shift is charged to the handover. Holding the fonts past the swap gives
    * 0.166 to 0.200 on /constructors/ferrari, where CI failed at 0.200 three
-   * times, on a race nothing in this repository decides. The stylesheet is
+   * times: the likeliest cause, though no failing run was seen with its fonts
+   * late, and why Ferrari alone failed is not established. The stylesheet is
    * answered empty, so every page is measured on the fallback stacks from
    * first paint to last, and a shift here is the swap's own.
    */
@@ -1216,8 +1217,8 @@ try {
     }
     await held.close()
     is(handed, ROUTES.length, 'every page type was handed over from its static page')
-    // A font host the route above no longer matches is the flake coming back,
-    // and this says so before the shift does.
+    // A font host the route above no longer matches puts the fonts back in
+    // the measurement, and this says so before a shift does.
     if (fonted.length === 0) pass('with no web font on any of them, so what moves is the handover')
     for (const message of fonted) fail(`a web font reached the handover's page — ${message}`)
     if (lost.length === 0) pass(`focus is on the h1 after the handover on all ${ROUTES.length} page types`)
