@@ -14,8 +14,9 @@
  *
  * WHAT IT DOES NOT
  *     `pit_stops` holds the lap of each stop (F1DB, from 1994) and its time
- *     in the pit lane, which is not drawn; nothing says how long the car
- *     stood, and lap times and running order are FOM's, which `laps` stays
+ *     in the pit lane, which no mark measures: a tick's tooltip and the
+ *     table print it (AF-141). Nothing says how long the car stood, and lap
+ *     times and running order are FOM's, which `laps` stays
  *     empty of for licence reasons (docs/TIMING-ARCHITECTURE.md). So the bars say
  *     when each driver stopped and nothing about what a stop gained or
  *     lost, and the pit order beside them (pitPairs) is an order of events.
@@ -35,7 +36,7 @@
  *     stays empty for the same licence reasons as `laps`), so nothing that
  *     prints it may give one.
  */
-import { classificationOrder, missing, result } from '../lib/format.js'
+import { EMPTY, classificationOrder, missing, result } from '../lib/format.js'
 import { NOT_STARTED, crossPath, driverLabels, textWidth } from './gridFlag.js'
 import { linear, ticks } from './scales.js'
 
@@ -45,6 +46,12 @@ export const STINT_HEADS = {
   // The strip's name, with its tallest column's count as its only scale.
   wave: (most) => `Stops on each lap (up to ${most})`,
 }
+
+/** A stop's pit-lane time in the words a list of them prints, an em dash where none is recorded. */
+const stopTime = (seconds) => (missing(seconds) ? EMPTY : seconds.toFixed(1))
+
+/** A tick's tooltip (AF-141). The unit stays off a time that is not there. */
+export const stopTitle = (lap, seconds) => `Lap ${lap}: pit lane ${stopTime(seconds)}${missing(seconds) ? '' : ' s'}`
 
 /** The width the static page draws at, and the app's before it has measured. */
 export const STINTS_WIDTH = 640
@@ -64,36 +71,51 @@ const GAP = 8
 const SPACE = 6
 // Half the break in a bar at a stop, so a stint reads as its own piece.
 const BREAK = 1
+// A tick's hover target, wider than the tick and as tall (AF-141).
+const STOP_TARGET = 6
+const STOP_REACH = 3
 
 const round = (value) => Math.round(value * 10) / 10
 
 /** Whether an entry has a bar: it started, and its laps are recorded. */
 export const barOf = (entry) => !missing(entry.laps_completed) && !NOT_STARTED.has(entry.position_text)
 
-/** Each driver's stop laps, in stop order, keyed by driver. */
-const stopLaps = (pits) => {
-  const laps = new Map()
+/** Each driver's stops with a lap recorded, in stop order, keyed by driver. */
+const driverStops = (pits) => {
+  const stops = new Map()
   for (const stop of [...pits].sort((a, b) => a.stop_number - b.stop_number || a.lap_number - b.lap_number)) {
     if (missing(stop.lap_number)) continue
-    const list = laps.get(stop.driver_id) ?? []
-    list.push(stop.lap_number)
-    laps.set(stop.driver_id, list)
+    const list = stops.get(stop.driver_id) ?? []
+    list.push(stop)
+    stops.set(stop.driver_id, list)
   }
-  return laps
+  return stops
 }
 
+/** The same, as each driver's laps alone. */
+const stopLaps = (pits) => new Map([...driverStops(pits)].map(([driver, stops]) => [driver, stops.map((s) => s.lap_number)]))
+
 /**
- * The drivers drawn, in the order they ended, each with their stop laps -
+ * The drivers drawn, in the order they ended, each with their stop laps and
+ * those stops' pit-lane times, which may be NULL -
  * an empty list for a driver with none recorded. That is not always a
  * driver who did not stop: F1DB's record has gaps (/races/1995/7 holds
  * stops for 5 of its 16 finishers), so nothing that prints it may say so.
  */
 export function stintRows(entries, pits) {
-  const laps = stopLaps(pits)
+  const stops = driverStops(pits)
   return entries
     .filter(barOf)
     .sort((a, b) => classificationOrder(a) - classificationOrder(b))
-    .map((entry) => ({ entry, stops: laps.get(entry.driver_id) ?? [], out: missing(entry.finish_position) }))
+    .map((entry) => {
+      const own = stops.get(entry.driver_id) ?? []
+      return {
+        entry,
+        stops: own.map((s) => s.lap_number),
+        seconds: own.map((s) => s.pit_lane_seconds),
+        out: missing(entry.finish_position),
+      }
+    })
 }
 
 /** Whether a race has a figure to draw: a stop recorded, two drivers, and a lap between them. */
@@ -136,25 +158,31 @@ export const lateStops = (rows) => rows.filter((r) => r.stops.some((lap) => lap 
  * F1DB records without one.
  */
 export const unbarredOf = (entries, pits) => {
-  const laps = stopLaps(pits)
-  return entries.filter((e) => !barOf(e) && !NOT_STARTED.has(e.position_text) && laps.has(e.driver_id))
+  const stops = driverStops(pits)
+  return entries.filter((e) => !barOf(e) && !NOT_STARTED.has(e.position_text) && stops.has(e.driver_id))
 }
 
 /**
  * The figure's numbers: every driver it draws and every one it cannot with
  * a stop recorded, in the classification's order, with how many times each
- * stopped and on which laps. `stops` counts the stops recorded, which is
+ * stopped, on which laps and for how long, the two lists in one order.
+ * `stops` counts the stops recorded, which is
  * what the column says it is - not how many times the driver stopped.
  */
 export function stintTableRows(entries, pits) {
-  const laps = stopLaps(pits)
+  const stops = driverStops(pits)
   const unbarred = new Set(unbarredOf(entries, pits))
   return entries
     .filter((e) => barOf(e) || unbarred.has(e))
     .sort((a, b) => classificationOrder(a) - classificationOrder(b))
     .map((entry) => {
-      const list = laps.get(entry.driver_id) ?? []
-      return { ...entry, stops: list.length, stop_laps: list.join(', ') }
+      const list = stops.get(entry.driver_id) ?? []
+      return {
+        ...entry,
+        stops: list.length,
+        stop_laps: list.map((s) => s.lap_number).join(', '),
+        stop_times: list.map((s) => stopTime(s.pit_lane_seconds)).join(', '),
+      }
     })
 }
 
@@ -201,6 +229,7 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
     finish: round(x(laps)),
     top: waveTop,
     bottom: plotBottom,
+    stopTarget: { width: STOP_TARGET, height: BAR + 2 * STOP_REACH },
     wave: {
       head,
       headX: round(headX),
@@ -241,6 +270,9 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
         barY: round(cy - BAR / 2),
         stints,
         stops: cuts.map((lap) => round(x(lap))),
+        // The stop's own lap, which a stop past the bar's end is not drawn at.
+        titles: r.stops.map((lap, k) => stopTitle(lap, r.seconds[k])),
+        targets: cuts.map((lap) => round(x(lap) - STOP_TARGET / 2)),
         end: round(x(done)),
         // A car the result does not classify ends on a cross, clear of its bar.
         cross: r.out ? crossPath(x(done) + 6, cy) : null,

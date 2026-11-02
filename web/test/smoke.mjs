@@ -3782,7 +3782,7 @@ try {
    * table disagrees with them. 2024/21 has retirements and a car
    * disqualified with three stops and no lap count; 1994/5 a stop on the
    * lap a car went out on. Nothing on the section may talk of an undercut:
-   * the record holds the lap of each stop and no timing.
+   * the record holds each stop's lap and pit-lane time, and no lap time.
    */
   await section('/races/2024/21  (stint windows: PD-56)', async () => {
     const readStints = ([root, heading, orderHeading]) => {
@@ -3804,6 +3804,8 @@ try {
         out: cars.filter((g) => g.classList.contains('stint-out')).length,
         crosses: svg ? svg.querySelectorAll('g.stint-out path.stint-cross').length : 0,
         stops: svg ? svg.querySelectorAll('line.stint-stop').length : 0,
+        titles: cars.map((g) => [...g.querySelectorAll('g.stint-tick > title')].map((t) => t.textContent)),
+        targets: svg ? svg.querySelectorAll('g.stint-tick > rect.stint-stop-target').length : 0,
         beyond: cars.filter((g) => {
           const ends = [...g.querySelectorAll('rect.stint')].map((r) => Number(r.getAttribute('x')) + Number(r.getAttribute('width')))
           const last = ends.length ? Math.max(...ends) : -Infinity
@@ -3884,7 +3886,10 @@ try {
       is(got.results[0], '1', `${half}: the winner's bar is at the top`)
       is(got.rows, cars + unbarred, `${half}: the figure's table carries every bar, and the ${unbarred} driver with stops and no bar`)
       truthy(/in the table and not drawn/.test(got.text), `${half}: and the note says so`)
-      truthy(/Ticks and strip mark only the lap: not a stop’s length, cause, tyres or gain/.test(got.text), `${half}: the note says the bars and the wave measure nothing`)
+      truthy(/Ticks and strip mark the lap, not cause, tyres or gain; the table gives times/.test(got.text), `${half}: the note holds the bars and the wave to the lap`)
+      is(got.titles.flat().length, stops, `${half}: every tick has its tooltip`)
+      is(got.targets, stops, `${half}: on a target of its own`)
+      truthy(/A pit-lane time is all of a stop’s time in the pit lane, any wait or repair there included/.test(got.text), `${half}: the table says what its time measures`)
       is(got.waveLaps, waveLaps, `${half}: the pit wave has a column for each of the ${waveLaps} laps with a stop recorded`)
       is(got.waveHead, STINT_HEADS.wave(waveMost), `${half}: and is named for its tallest, ${waveMost} on one lap`)
       truthy(got.waveAbove, `${half}: above the bars`)
@@ -3899,6 +3904,7 @@ try {
       is(served.orderRows.join(' / '), app.orderRows.join(' / '), 'and print the same pit order, row for row')
       is(served.tableRows.join(' / '), app.tableRows.join(' / '), 'and the same figure table, row for row')
       is(served.heads.join(' / '), app.heads.join(' / '), 'under the same headers')
+      is(served.titles.flat().join(' / '), app.titles.flat().join(' / '), 'and the same tooltips, tick for tick')
       is(served.width, STINTS_WIDTH, `the static page draws at ${STINTS_WIDTH}, the width the app starts at`)
     }
 
@@ -3923,9 +3929,26 @@ try {
       truthy((got?.label ?? '').endsWith('Of 21 recorded in all, the most on one lap: 4, on lap 30.'), `/races/2025/19, ${half}: on lap 30, said to a screen reader — “${got?.label}”`)
       truthy(
         (got?.cells ?? []).length >= 8 &&
-          got.cells.slice(0, 8).every((row) => row.at(-2) === '1' && Number(row.at(-1)) >= 22 && Number(row.at(-1)) <= 33),
+          got.cells.slice(0, 8).every((row) => row.at(-3) === '1' && Number(row.at(-2)) >= 22 && Number(row.at(-2)) <= 33),
         `/races/2025/19, ${half}: the table gives the top eight one stop each, laps 22 to 33`,
       )
+      // AF-141: Leclerc's one stop, from the record, in the table and on his tick.
+      const time = one('SELECT pit_lane_seconds FROM pit_stops WHERE race_id = ? AND driver_id = ? AND stop_number = 1', austin, 'leclerc').toFixed(1)
+      is(got?.cells?.[2]?.at(-1), time, `/races/2025/19, ${half}: third-placed Leclerc's pit-lane time is in the table`)
+      is(got?.titles?.[2]?.[0], `Lap 22: pit lane ${time} s`, `/races/2025/19, ${half}: and on his tick`)
+    }
+
+    // AF-141: a stop F1DB gives no time (one so far, Alboreto's second in
+    // round 10 of 1994), found in the record, and an em dash, never a zero.
+    const untimed = db.prepare(
+      `SELECT r.year, r.round, p.lap_number AS lap, p.driver_id FROM pit_stops p JOIN races r ON r.id = p.race_id
+        WHERE p.pit_lane_seconds IS NULL ORDER BY r.year, r.round LIMIT 1`,
+    ).get()
+    const blank = await both(`/races/${untimed.year}/${untimed.round}`)
+    for (const [half, got] of [['the app', blank.app], ['the static page', blank.served]]) {
+      truthy(got?.drawn, `/races/${untimed.year}/${untimed.round}, ${half}: drawn`)
+      truthy((got?.cells ?? []).some((row) => /, —$/.test(row.at(-1))), `/races/${untimed.year}/${untimed.round}, ${half}: a stop with no time reads as an em dash in the table`)
+      truthy((got?.titles ?? []).flat().includes(`Lap ${untimed.lap}: pit lane —`), `/races/${untimed.year}/${untimed.round}, ${half}: and on its tick`)
     }
 
     // A driver with no stop recorded is not said not to have stopped: F1DB

@@ -3261,9 +3261,14 @@ figure.figure > .figure-note:first-child {
    all of them, because a hue would read as a tyre compound and the record
    holds none. A stop is a break in the bar and an ink tick across it, past
    the bar's edges - shape, not colour - and a car not classified ends on the
-   grid-to-flag cross. */
+   grid-to-flag cross. A tick's tooltip sits on a target that draws nothing,
+   since the tick alone is too thin to hover (AF-141). */
 .figure .stint {
   fill: var(--series-ink);
+}
+
+.figure .stint-stop-target {
+  fill: transparent;
 }
 
 .figure .stint-stop {

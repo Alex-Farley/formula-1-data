@@ -514,12 +514,19 @@ PD-56's). One question asked of a race: when the field stopped.
   no second shade or hue between stints, which would read as a tyre
   compound the record does not hold. A stint is told from the next by the
   break and the tick, which is shape, not colour (1.4.1).
-- **What it may say:** the lap of each stop and no more. Nothing in the
-  figure, its note or its label gives a stop's length, tyre or cause (no
-  safety car: `race_control_messages` stays empty), or what it gained.
-- **Second cue:** the table under the figure gives every driver's stop laps,
-  from which every column follows; the drawing's accessible name gives the
-  most stops on one lap and every lap that holds them.
+- **What it may say:** the lap of each stop, and (AF-141) its pit-lane time,
+  which only a tick's tooltip and the table print: no mark's size or place
+  measures it, and the footer under the table says it is all of the stop's
+  time in the pit lane, any wait or repair there included. Nothing in the
+  figure, its note or its label gives a stop's tyre or cause (no safety car:
+  `race_control_messages` stays empty), or what it gained.
+- **A tick's tooltip** (AF-141): a native `<title>`, *Lap 34: pit lane 22.4 s*,
+  on a target that draws nothing, 6 px wide and as tall as the tick. It opens
+  on hover alone, like every native title, so nothing lives only there.
+- **Second cue:** the table under the figure gives every driver's stop laps
+  and each stop's pit-lane time, an em dash where none is recorded, from
+  which every column and tooltip follows; the drawing's accessible name gives
+  the most stops on one lap and every lap that holds them.
 - **States:** a race before the first season with a stop recorded, one with
   none, and one whose stops have not arrived each say so in one sentence in
   the section's place (§3, Figure, *States*).

@@ -79,9 +79,9 @@ import {
   sprintQualifyingColumns,
   sprintQualifyingFooter,
   stintsEmpty,
+  stintsFooter,
   stintsLabel,
   stintsNote,
-  stintsUnbarred,
 } from '../queries/race.js'
 import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, isUpcoming, mergeSources, titleSettled } from '../queries/season.js'
 import { currentProgress } from '../data/client.js'
@@ -502,7 +502,7 @@ function RaceBody({ race, data, year, round }) {
             <>
               <Figure
                 note={stintsNote(stints, lateStops(stints))}
-                table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS, footer: stintsUnbarred(unbarredOf(entries, pits)) }}
+                table={{ rows: stintTableRows(entries, pits), columns: STINT_COLUMNS, footer: stintsFooter(unbarredOf(entries, pits)) }}
               >
                 <Stints entries={entries} pits={pits} label={stintsLabel(stints, pitWave(pits, stintLaps(stints)))} />
               </Figure>

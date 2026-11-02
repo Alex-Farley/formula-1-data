@@ -755,11 +755,12 @@ export const gridFlagLabel = (rows) => {
  *
  * It replaced a table of stops - lap, driver, stop number and two duration
  * columns that were then empty on every row. The figure's table carries
- * every lap that table did, driver by driver. Since AF-140 `pit_stops`
- * holds each stop's pit-lane time as well, which neither the figure nor its
- * table shows yet, so the note says the ticks give the lap and no more. The
- * pit wave above the bars (AF-134) counts the same stops lap by lap, and
- * the note holds it to the same: the lap, and no reason for a stop.
+ * every lap that table did, driver by driver, and each stop's pit-lane
+ * time (AF-140) beside it, which a tick's tooltip prints too (AF-141), so
+ * the note says the ticks mark the lap and sends a reader to the table for
+ * the time. The pit wave above the bars (AF-134) counts the same stops lap
+ * by lap, and the note holds it to the same: the lap, and no reason for a
+ * stop.
  */
 export const PITS_HEADING = 'Pit stops'
 
@@ -772,6 +773,9 @@ export const STINT_COLUMNS = [
   // F1DB's record has gaps (/races/1995/7 holds stops for 5 of its 16
   // finishers), so the cell says what the record holds and no more.
   { key: 'stop_laps', label: 'Stopped on lap', text: (value, row) => (row.stops === 0 ? 'None recorded' : text(value)) },
+  // One time per lap beside it, in that order, an em dash for a stop with
+  // none recorded, and the cell's own em dash for a driver with no stop.
+  { key: 'stop_times', label: 'Pit-lane time (s)' },
 ]
 
 /**
@@ -779,9 +783,10 @@ export const STINT_COLUMNS = [
  * one - a gap in the record, a car out and a stop on the lap a driver went
  * out on: 49 words at the longest, under the 50 the figure grammar allows
  * (VD-80). The sentence on what the ticks and the pit wave show is the one
- * that must never be lost: the lap of each stop, and not its length, its
- * cause, a tyre or a lap time, so nothing here is read as measuring what a
- * stop gained or as saying why the field came in together (AF-134).
+ * that must never be lost: the lap of each stop, and not its cause, a tyre
+ * or a lap time, with a stop's length left to the table, so nothing here is
+ * read as measuring what a stop gained or as saying why the field came in
+ * together (AF-134, AF-141).
  */
 export const stintsNote = (rows, late) =>
   [
@@ -789,18 +794,28 @@ export const stintsNote = (rows, late) =>
     rows.some((r) => r.stops.length === 0) ? 'An unticked bar may hide a stop: F1DB’s record has gaps.' : '',
     rows.some((r) => r.out) ? 'A cross is a driver not classified.' : '',
     late.length ? `${number(late.length)} ${late.length === 1 ? 'driver' : 'drivers'} stopped on their final lap.` : '',
-    'Ticks and strip mark only the lap: not a stop’s length, cause, tyres or gain.',
+    'Ticks and strip mark the lap, not cause, tyres or gain; the table gives times.',
   ]
     .filter(Boolean)
     .join(' ')
 
-/** The drivers in the figure's table and not in its drawing, said under that table, as gridFlagUndrawn() is. */
-export const stintsUnbarred = (unbarred) =>
-  unbarred.length
-    ? `${number(unbarred.length)} ${unbarred.length === 1 ? 'driver' : 'drivers'} with stops recorded and no lap count ${
-        unbarred.length === 1 ? 'is' : 'are'
-      } in the table and not drawn.`
-    : undefined
+/**
+ * Under the figure's table: what its pit-lane time measures, which one
+ * definition covers in every season (F1DB's "total time of the pit stop",
+ * AF-140), and the drivers in the table and not in the drawing, as
+ * gridFlagUndrawn() says them.
+ */
+export const stintsFooter = (unbarred) =>
+  [
+    'A pit-lane time is all of a stop’s time in the pit lane, any wait or repair there included.',
+    unbarred.length
+      ? `${number(unbarred.length)} ${unbarred.length === 1 ? 'driver' : 'drivers'} with stops recorded and no lap count ${
+          unbarred.length === 1 ? 'is' : 'are'
+        } in the table and not drawn.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
 /**
  * The figure's name for a screen reader, which hears the table and the note

@@ -352,9 +352,9 @@ import {
   classificationFooter,
   hasEntryNote,
   stintsEmpty,
+  stintsFooter,
   stintsLabel,
   stintsNote,
-  stintsUnbarred,
   gridFlagLabel,
   gridFlagNote,
   gridFlagUndrawn,
@@ -1349,7 +1349,10 @@ const stintsSvg = (layout, label) => {
         t('stint-name', layout.nameX, car.y, car.name, mid) +
         car.stints.map((s) => `<rect class="stint" x="${s.x}" y="${car.barY}" width="${s.width}" height="${layout.bar}"/>`).join('') +
         car.stops
-          .map((x) => `<line class="stint-stop" x1="${x}" x2="${x}" y1="${car.barY - 3}" y2="${car.barY + layout.bar + 3}"/>`)
+          .map(
+            (x, i) =>
+              `<g class="stint-tick"><title>${esc(car.titles[i])}</title><rect class="stint-stop-target" x="${car.targets[i]}" y="${car.barY - 3}" width="${layout.stopTarget.width}" height="${layout.stopTarget.height}"/><line class="stint-stop" x1="${x}" x2="${x}" y1="${car.barY - 3}" y2="${car.barY + layout.bar + 3}"/></g>`,
+          )
           .join('') +
         (car.cross ? `<path class="stint-cross" d="${car.cross}"/>` : '') +
         '</g>',
@@ -1643,7 +1646,7 @@ const pitSection = (race, entryRows, pits, span) => {
   const rows = stintRows(entryRows, pits)
   if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
   const pairs = pitPairs(entryRows, pits)
-  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure, footer: stintsUnbarred(unbarredOf(entryRows, pits)) }), {
+  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure, footer: stintsFooter(unbarredOf(entryRows, pits)) }), {
     plot: stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows, pitWave(pits, stintLaps(rows)))),
   })}${
     pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs, {}, { unfolded: UNFOLDED.subject, footer: PIT_ORDER_NOTE })}` : ''
@@ -4784,11 +4787,15 @@ page({
   // not a second statement of it.
   const geoFile = join(repo, 'f1-geometry.db')
   db.exec(`ATTACH DATABASE '${geoFile.replace(/'/g, "''")}' AS geo`)
-  const coverage = all(
-    one("SELECT sql FROM sqlite_master WHERE name = 'v_geometry_coverage'")
-      .sql.replace(/^CREATE VIEW \w+ AS\s*/i, '')
-      .replace('LEFT JOIN circuit_geometry g', 'LEFT JOIN geo.circuit_geometry g'),
-  )
+  // A view whose text changed shape would leave the join on the empty local
+  // table, and the page saying 0 traced, so neither is passed over quietly.
+  const coverageView = one("SELECT sql FROM sqlite_master WHERE name = 'v_geometry_coverage'")
+  if (!coverageView) die('f1.db has no v_geometry_coverage view for the quality page to read.')
+  const GEOMETRY_JOIN = 'LEFT JOIN circuit_geometry g'
+  if (!coverageView.sql.includes(GEOMETRY_JOIN)) {
+    die(`v_geometry_coverage no longer contains "${GEOMETRY_JOIN}", so the quality page cannot point it at f1-geometry.db.`)
+  }
+  const coverage = all(coverageView.sql.replace(/^CREATE VIEW \w+ AS\s*/i, '').replace(GEOMETRY_JOIN, 'LEFT JOIN geo.circuit_geometry g'))
   db.exec('DETACH DATABASE geo')
   const images = one(IMAGES) ?? {}
   // The register as Quality.jsx's <Gaps> draws it: the same three groups from
