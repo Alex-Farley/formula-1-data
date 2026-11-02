@@ -6,7 +6,9 @@ import { useMeasure } from './useMeasure.js'
  * charts/stints.js's, which scripts/prerender.js draws from too, so the
  * markup here and stintsSvg() there are the same elements with the same
  * classes - the smoke suite compares them - and a change to one is a change
- * to both. There is no hover: the table under the figure has every lap.
+ * to both. A tick's one hover is its native <title>, the stop's lap and
+ * pit-lane time on a target wider than the tick; the table under the figure
+ * has them all, for anyone who cannot hover (AF-141).
  * The pit wave (AF-134) is the strip of columns above the bars.
  */
 export default function Stints({ entries, pits, label }) {
@@ -50,7 +52,17 @@ export default function Stints({ entries, pits, label }) {
             ))}
             {car.stops.map((x, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: two stops can share a position, at a bar's end
-              <line key={i} className="stint-stop" x1={x} x2={x} y1={car.barY - 3} y2={car.barY + bar + 3} />
+              <g key={i} className="stint-tick">
+                <title>{car.titles[i]}</title>
+                <rect
+                  className="stint-stop-target"
+                  x={car.targets[i]}
+                  y={car.barY - 3}
+                  width={layout.stopTarget.width}
+                  height={layout.stopTarget.height}
+                />
+                <line className="stint-stop" x1={x} x2={x} y1={car.barY - 3} y2={car.barY + bar + 3} />
+              </g>
             ))}
             {car.cross && <path className="stint-cross" d={car.cross} />}
           </g>

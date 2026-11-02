@@ -141,7 +141,7 @@ import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { driverName, fastestLapMark, inClassificationOrder, outcome, position, RACE_HISTORY, raceAftermath, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty, stintsLabel } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
-import { STINT_HEADS, pitPairs, pitWave, stintLaps, stintLayout, stintRows, stintTableRows, stintsShown, unbarredOf } from '../src/charts/stints.js'
+import { STINT_HEADS, pitPairs, pitWave, stintLaps, stintLayout, stintRows, stintTableRows, stintsShown, stopTitle, unbarredOf } from '../src/charts/stints.js'
 import {
   SEASONS_RACED_WIDTH,
   SPARK_HEIGHT,
@@ -3376,6 +3376,35 @@ describe('stint windows and the pit order (PD-56)', () => {
         ['d', 1, '10'],
       ],
     )
+  })
+
+  // AF-141: a time per stop, in the laps' order, NULL an em dash and never 0.
+  it('prints each stop’s pit-lane time beside its lap, and NULL as an em dash', () => {
+    const timed = [
+      { ...stop('a', 2, 35), pit_lane_seconds: 3707.606 },
+      { ...stop('a', 1, 20), pit_lane_seconds: 22.449 },
+      { ...stop('b', 1, 18), pit_lane_seconds: null },
+      { ...stop('b', 2, 40), pit_lane_seconds: 8.757 },
+      { ...stop('c', 1, 21), pit_lane_seconds: 0 },
+    ]
+    assert.deepEqual(
+      stintTableRows(entries, timed).map((r) => [r.id, r.stop_laps, r.stop_times]),
+      [
+        ['a', '20, 35', '22.4, 3707.6'],
+        ['b', '18, 40', '—, 8.8'],
+        ['c', '21', '0.0'],
+      ],
+    )
+    assert.equal(stopTitle(35, 22.449), 'Lap 35: pit lane 22.4 s')
+    assert.equal(stopTitle(18, null), 'Lap 18: pit lane —')
+    assert.equal(stopTitle(18, undefined), 'Lap 18: pit lane —')
+    const cars = stintLayout(entries, timed).cars
+    assert.deepEqual(cars.map((car) => car.titles), [
+      ['Lap 20: pit lane 22.4 s', 'Lap 35: pit lane 3707.6 s'],
+      ['Lap 18: pit lane —', 'Lap 40: pit lane 8.8 s'],
+      // Past the end of c's 20 laps, the tick at the end and the title on its own lap.
+      ['Lap 21: pit lane 0.0 s'],
+    ])
   })
 
   it('pairs classified neighbours on the grid or at the flag, in grid order, and says who stopped first', () => {
