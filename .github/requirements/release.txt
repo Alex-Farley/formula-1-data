@@ -2,4 +2,4 @@
 # publishes needs. Pinned because that job holds contents: write, and
 # bumped by Dependabot pull request (.github/dependabot.yml) so the pin
 # does not go stale (AF-77). The build itself installs nothing.
-pyarrow==25.0.1
+pyarrow==26.0.0
