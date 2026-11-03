@@ -519,6 +519,49 @@ Other ways to start it:
 - add `fast`, `balanced` or `thorough` to set the pace; `balanced` is the
   default
 
+## From the desktop app
+
+The Code tab in Claude's desktop app can run the loop as well, but not in
+every place its environment selector offers — the first control under the
+prompt box, or above it in the app's earlier layout. Which one you pick
+matters more than anything else in this section:
+
+- **Cloud — no.** It runs on Anthropic's infrastructure, not your
+  machine, and that is the cloud session *Why it has to be your own
+  machine* is about: the board the queue lives on cannot be read from
+  there.
+- **Local, on Windows — no**, for step 0's reason. A Local session runs on
+  Windows itself rather than in Ubuntu, and the loop's scripts and checks
+  need the Linux shell step 0 installs.
+- **WSL — yes, after one test item (below).** Your Ubuntu is listed under
+  **WSL** in the selector. A WSL session runs inside it, with the tools
+  steps 1 to 7 put there, so it is step 0's environment reached through a
+  different door. The folder picker browses inside Ubuntu, with Linux
+  paths: choose the clone step 2 made, `/home/<you>/formula-1-data`, never
+  a copy cloned in Windows — step 0's line-ending warning applies
+  unchanged. The first session in that folder asks you to trust it.
+
+On macOS, and in the Linux app, pick **Local** and the folder you cloned in
+step 2: that is your own machine, which is what this guide has set up.
+
+Three things are different in a WSL session:
+
+- **Whether the loop's fork runs there is not established.** Each item runs
+  in a forked context of its own `[D-16]`, which is the whole of the loop's
+  cost model, and no item run from a desktop WSL session is on record
+  here. Run one item, `/backlog-loop <ITEM-ID>` or `/backlog-loop next`,
+  and watch it before trusting a long run to it: the item's stages should
+  appear in `progress.log` while the session itself shows nothing.
+- **There may be no integrated terminal.** Anthropic is rolling it out to
+  WSL sessions separately. If the session's title bar has no **Terminal**,
+  watch the loop from an Ubuntu window opened from the Start menu instead —
+  `cd ~/formula-1-data`, then the `tail -f` above. The file pane can show
+  files in a WSL session but not edit them, which the loop does not need.
+- **Plugins are unavailable, and connectors may be**: connectors are
+  rolling out to WSL sessions separately from the terminal. That reads like
+  a limitation and is not one: the loop uses neither, and connectors left
+  on cost every turn of an item `[D-18]`.
+
 ## If something goes wrong
 
 **`SETUP OK` did not appear, and the line above it listed `f1.db` or
