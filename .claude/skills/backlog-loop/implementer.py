@@ -53,14 +53,15 @@ SMALL = ("XS", "S")
 # parquet-bundle.mjs, wrangler.jsonc), and the licence texts, which are what
 # make the published database redistributable. Then the committed artefacts,
 # and the files of the loop's controls - this guard, the precheck and its
-# floors, the verdict, the merge gate, the reviewers and the procedure they
-# enforce: a diff that could rewrite the rule could pass its own check.
+# floors, the verdict, the merge gate, the reviewers, the command that starts
+# one out of process, and the procedure they enforce: a diff that could
+# rewrite the rule could pass its own check.
 PROTECTED_FILES = ("build.py", "verify.py", "schema.sql", "export_json.py",
                    "prepare-assets.js", "prerender.js", "parquet-bundle.mjs",
                    "package.json", "package-lock.json", "wrangler.jsonc", "ATTRIBUTION.md",
                    "CODEOWNERS", "f1.db", "f1-geometry.db", "f1_compat.json",
                    "implementer.py", "precheck.sh", "verdict.sh", "merge-step.py", "ci-wait.sh",
-                   "floors.py", "merge-main.py", "review-prompt.md", "next.py")
+                   "floors.py", "merge-main.py", "review-prompt.md", "review.py", "next.py")
 # LICENSE, LICENSE-DATA, LICENSE-GEOMETRY and whatever joins them.
 LICENCE = re.compile(r"(?<![\w-])LICEN[CS]E[\w.-]*")
 PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/", ".claude/agents/",

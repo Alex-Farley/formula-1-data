@@ -11,6 +11,7 @@ import datetime as dt
 import importlib.util
 import io
 import os
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 
@@ -33,8 +34,9 @@ def refresh(number, minutes_ago):
 class Fake:
     """Stands in for gh and for every command `after` would run."""
 
-    def __init__(self, state="OPEN", merge_state="CLEAN", refreshes=(), body="", labels=None):
+    def __init__(self, state="OPEN", merge_state="CLEAN", refreshes=(), body="", labels=None, pr_labels=()):
         self.state, self.merge_state = state, merge_state
+        self.pr_labels = list(pr_labels)
         self.refreshes, self.body = list(refreshes), body
         self.labels = labels or {}
         self.ran = []
@@ -46,7 +48,8 @@ class Fake:
             return {"comments": []}
         if args[:2] == ("pr", "view"):
             return {"state": self.state, "mergeStateStatus": self.merge_state, "isDraft": False,
-                    "headRefName": "claude/x", "body": self.body}
+                    "headRefName": "claude/x", "body": self.body,
+                    "labels": [{"name": x} for x in self.pr_labels]}
         if args[:2] == ("issue", "view"):
             n = int(args[2])
             return {"state": "OPEN", "labels": [{"name": x} for x in self.labels.get(n, [])]}
@@ -154,6 +157,38 @@ class BeforeLetsTheRefreshGoFirst(unittest.TestCase):
     def test_the_age_is_the_last_push(self):
         self.assertFalse(ms.stuck(refresh(1, 59), NOW))
         self.assertTrue(ms.stuck(refresh(1, 60), NOW))
+
+
+class BeforeRefusesAnAdvisoryReview(unittest.TestCase):
+    """AF-117: a verdict from a reviewer review.py started through
+    LOOP_REVIEW_CMD is advisory until AF-115, and a person merges."""
+
+    def test_a_marked_pass_on_this_pr_refuses_before_github_is_asked(self):
+        with tempfile.TemporaryDirectory() as verdicts:
+            for name in ("7-abc1234-2.external", "7-abc1234-1.pass", "70-abc1234-1.external"):
+                open(os.path.join(verdicts, name), "w").close()
+            self.assertEqual(ms.advisory(7, verdicts), ["7-abc1234-2"])
+            self.assertEqual(ms.advisory(8, verdicts), [])
+            fake = Fake(refreshes=[refresh(975, 20)])
+            # wait=0: without the refusal this returns 5 at once, not in nine minutes.
+            self.assertEqual(patched(fake, ms.before, 7, now=NOW, sleep=lambda s: None,
+                                     wait=0, verdicts=verdicts), 6)
+            self.assertEqual(fake.ran, [], "before ran a command on an advisory review")
+            # PR 70's mark is not PR 7's, nor PR 8's.
+            self.assertEqual(patched(Fake(), ms.before, 8, now=NOW, sleep=lambda s: None,
+                                     verdicts=verdicts), 0)
+
+    def test_the_label_refuses_from_any_checkout(self):
+        # No local mark at all - another checkout, or after `git clean -X` -
+        # and the label on GitHub still refuses.
+        fake = Fake(pr_labels=["review: advisory"])
+        self.assertEqual(patched(fake, ms.before, 7, now=NOW, sleep=lambda s: None, wait=0), 6)
+        self.assertEqual(patched(Fake(pr_labels=["implementer: sonnet"]), ms.before, 7, now=NOW,
+                                 sleep=lambda s: None, wait=0), 0)
+
+    def test_no_directory_is_no_mark(self):
+        self.assertEqual(ms.advisory(7, None), [])
+        self.assertEqual(ms.advisory(7, os.path.join(ROOT, "no-such-directory")), [])
 
 
 class FindsTheWorktree(unittest.TestCase):

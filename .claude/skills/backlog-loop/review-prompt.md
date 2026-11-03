@@ -10,7 +10,13 @@ per pass: a confirmation or a respawn opens a new one.
 
 Fill in and pass to a fresh `.claude/agents/<reviewer>` with `model: "opus"`,
 or to `frontend-reviewer-quick` where the pace table in
-`.claude/skills/backlog-item/SKILL.md` allows it.
+`.claude/skills/backlog-item/SKILL.md` allows it. Where `LOOP_REVIEW_CMD` is
+set, the brief may instead be written to a file and given to `python3
+.claude/skills/backlog-loop/review.py <reviewer> <id> <brief-file> <path>`,
+which puts the agent's file in front of it and starts the reviewer as a
+separate process; its docstring names what the command is given, with an
+example value. Such a pass is advisory: it labels the PR `review: advisory`,
+and a person merges (`SKILL.md`).
 
     Independent review of PR #<N> on Alex-Farley/formula-1-data, branch
     `<branch>` at <sha>, checked out as a git worktree at <path> (node_modules
@@ -81,8 +87,9 @@ reviewed):
 
     bash .claude/skills/backlog-loop/verdict.sh read <id>
 
-prints `PASS` or `FAIL` (with `applied <items>` for a quick pass) and exits 0,
-or exits 1 when the pass recorded none. The exit and the printed word are the
+prints `PASS` or `FAIL` (with `applied <items>` for a quick pass, and
+`advisory` for one `review.py` started) and exits 0, or exits 1 when the pass
+recorded none. The exit and the printed word are the
 verdict. The reply is read for findings only: a reply that says PASS over a
 pass that recorded FAIL is a FAIL, and a reply that says anything at all over
 a pass that recorded nothing is no review `[D-40]`. Only the reviewer runs
