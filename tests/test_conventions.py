@@ -742,6 +742,15 @@ class TheVerdictIsACommand(unittest.TestCase):
             self.assertEqual(self.run_script(repo, "read", again).stdout.strip(), "PASS advisory",
                              "a removed mark was not put back")
             self.assertEqual(read(os.path.join(out, "model")), "sonnet")
+            # The label goes back on after the command too: each of the two
+            # runs labels twice, after the one refused call, and a label that
+            # cannot be put back is exit 3.
+            self.assertEqual(read(gh_log).count("--add-label"), 5, "the label was not put back after the command")
+            third = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
+            got = review("data-integrity-reviewer", third, brief, repo,
+                         LOOP_REVIEW_CMD='touch "$OUT/gh-fails"; bash "$SCRIPT" record "$LOOP_REVIEW_PASS" PASS')
+            os.remove(os.path.join(out, "gh-fails"))
+            self.assertEqual(got.returncode, 3, "a label that could not be put back went unreported")
             # A later pass is not advisory for an earlier one's mark, even
             # with that pass's own files gone.
             for ext in (".pass", ".verdict"):

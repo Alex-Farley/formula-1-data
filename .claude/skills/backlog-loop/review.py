@@ -43,9 +43,11 @@ label ADVISORY on GitHub, which every checkout and every later fork reads,
 and the pass gets a `.external` file beside it, which makes `verdict.sh read`
 print `advisory` after the verdict. `merge-step.py before` refuses a PR with
 either. The command runs as the same user and could remove both; once it has
-exited, both are put back, and a mark found gone is reported, exit 3. That
-catches a command that tampers and then exits, which is the most a local
-script can do: a control the working agent cannot reach is AF-115's.
+exited, both are put back, and a `.external` found gone or a label that could
+not be put back is reported, exit 3 (a removed label is re-added, not
+detected). That catches a command that tampers and then exits, which is the
+most a local script can do: a control the working agent cannot reach is
+AF-115's.
 
 Exits 2 on a usage error, a reviewer that is not on the merge path, or a pass
 that was never opened or already has a verdict; 4 when LOOP_REVIEW_CMD is
@@ -162,8 +164,8 @@ def main(argv):
     with open(mark, "w", encoding="utf-8") as f:
         f.write(f"{name}\n")
     if not label(pr) or gone:
-        return fail(3, f"the advisory mark on pass {pass_id} or PR #{pr} was removed or could not "
-                       f"be put back: treat this pass as no review, and a person merges")
+        return fail(3, f"the advisory mark on pass {pass_id} was removed, or the label on PR #{pr} "
+                       f"could not be put back: treat this pass as no review, and a person merges")
     print(f"review.py: the command exited {code}, which is not a verdict: "
           f"`verdict.sh read {pass_id}` is", file=sys.stderr)
     return code
