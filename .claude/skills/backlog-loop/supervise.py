@@ -61,6 +61,9 @@ ENVIRONMENT
                           giving up; default 6
     LOOP_KEEP_MCP=1       keep the account's MCP servers (off by default, D-18)
     LOOP_USAGE_*          the usage check's thresholds; loop_usage.py says which
+    LOOP_USAGE_CMD        the usage reader, in place of `claude -p /usage`: a
+                          command printing the two `Current ...: N% used ·
+                          resets ...` lines; loop_usage.py documents the format
 
 EXIT
     0  MERGED - the one item (`next` or an id) landed

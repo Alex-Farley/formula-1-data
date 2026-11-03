@@ -314,6 +314,69 @@ class TheCommand(unittest.TestCase):
         self.assertEqual(lu.decide(lu.parse(report(session=71), NOW), NOW, None, conf)[0], "SMALL")
 
 
+class TheAdapter(unittest.TestCase):
+    """LOOP_USAGE_CMD (AF-118): another agent's reader, in the format /usage
+    prints, and the default when it is not set."""
+
+    def check(self, env, run=None, which="/bin/claude"):
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(lu.subprocess, "run", **({"return_value": run} if run else {})) as ran, \
+                mock.patch.object(lu.shutil, "which", return_value=which), \
+                mock.patch.object(lu, "next_race", return_value=None):
+            return lu.check(NOW), ran
+
+    def test_the_adapters_two_lines_decide_as_usages_do(self):
+        out = mock.Mock(stdout=report(session=60), returncode=0)
+        (text, code), ran = self.check({"LOOP_USAGE_CMD": "my-reader --agent 'two words'"}, out)
+        self.assertTrue(text.startswith("SMALL --max-size S, session resets 2026-10-14T21:59+00:00"), text)
+        self.assertEqual(code, 3)
+        # Split like a shell would, run without one, and not through claude.
+        self.assertEqual(ran.call_args[0][0], ["my-reader", "--agent", "two words"])
+        self.assertNotIn("shell", ran.call_args[1])
+
+    def test_an_adapter_printing_only_what_it_knows_is_read_for_that(self):
+        week_only = mock.Mock(stdout="Current week (all models): 15% used · resets Oct 19, 2:59pm "
+                                     "(Europe/London)\n", returncode=0)
+        (text, code), _ = self.check({"LOOP_USAGE_CMD": "r"}, week_only)
+        self.assertEqual((text.split()[0], code), ("GO", 0))
+
+    def test_an_adapter_that_fails_or_prints_nothing_readable_is_unknown_and_named(self):
+        for out in (mock.Mock(stdout=report(), returncode=2), mock.Mock(stdout="", returncode=0),
+                    mock.Mock(stdout="session 25 of 100\n", returncode=0),
+                    mock.Mock(stdout="Current session: 140% used · resets 3pm (Europe/London)\n",
+                              returncode=0)):
+            (text, code), _ = self.check({"LOOP_USAGE_CMD": "r"}, out)
+            self.assertTrue(text.startswith("UNKNOWN - LOOP_USAGE_CMD "), text)
+            self.assertEqual(code, 0)
+        with mock.patch.object(lu.subprocess, "run", side_effect=FileNotFoundError("r")), \
+                mock.patch.dict(os.environ, {"LOOP_USAGE_CMD": "r"}, clear=True):
+            self.assertEqual(lu.read_text("claude"), (None, "LOOP_USAGE_CMD did not answer (FileNotFoundError)"))
+        with mock.patch.object(lu.subprocess, "run", side_effect=lu.subprocess.TimeoutExpired("r", 1)), \
+                mock.patch.dict(os.environ, {"LOOP_USAGE_CMD": "r"}, clear=True):
+            self.assertIn("TimeoutExpired", lu.read_text("claude")[1])
+        with mock.patch.dict(os.environ, {"LOOP_USAGE_CMD": "r 'unclosed"}, clear=True):
+            self.assertIn("split", lu.read_text("claude")[1])
+
+    def test_set_but_empty_is_no_reader_and_never_falls_back_to_claude(self):
+        for empty in ("", "   "):
+            (text, code), ran = self.check({"LOOP_USAGE_CMD": empty})
+            ran.assert_not_called()
+            self.assertTrue(text.startswith("UNKNOWN - LOOP_USAGE_CMD is empty"), text)
+            self.assertEqual(code, 0)
+
+    def test_the_forks_readings_use_the_adapter_too(self):
+        out = mock.Mock(stdout=report(session=33), returncode=0)
+        with mock.patch.dict(os.environ, {"LOOP_USAGE_CMD": "r"}, clear=True), \
+                mock.patch.object(lu.subprocess, "run", return_value=out):
+            self.assertEqual(lu.session_reading(NOW, None), ((33, SESSION_RESET), None))
+
+    def test_unset_is_the_default_adapter_claude_p_usage(self):
+        out = mock.Mock(stdout=json.dumps({"result": report(session=60), "is_error": False}), returncode=0)
+        (text, _), ran = self.check({}, out)
+        self.assertEqual(ran.call_args[0][0][:3], ["/bin/claude", "-p", "/usage"])
+        self.assertTrue(text.startswith("SMALL"), text)
+
+
 class TheLog(unittest.TestCase):
     def test_a_run_by_hand_is_filed_as_manual(self):
         self.assertEqual(lu.log_id([]), "usage (manual)")
