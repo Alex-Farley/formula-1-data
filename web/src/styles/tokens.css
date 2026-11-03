@@ -312,6 +312,22 @@
   --tile-pair: 560px;
 
   /*
+   * Row density (VD-95, DR-07; docs/design-system.md section 3, *Table*):
+   * the block padding and the leading of a table's body rows, in both
+   * renderers, which share this stylesheet. Below --bp-desktop a row is the
+   * reading row it was, 8 px above and below on the body's 1.6, about
+   * 38.6 px with its rule; from it the reference tables close up to 4 px on
+   * 1.15, about 24.5 px, where Basketball-Reference runs about 21. Not
+   * under 24: a link in a row is a target, and a row's pitch is what keeps
+   * the links of two rows 24 px apart centre to centre (WCAG 2.5.8's spacing
+   * exception). A cell that wraps keeps the reading leading at either
+   * density, and gives the difference back out of its padding (app.css).
+   */
+  --row-pad: var(--space-4);
+  --row-leading: 1.6;
+  --row-leading-wrap: 1.6;
+
+  /*
    * The measure: one rule, two lengths, both on the grid from --bp-desktop.
    *
    * It used to be 46ch, and `ch` scales with the type, so one token drew
@@ -344,6 +360,8 @@
     --columns: 12;
     --measure: min(100%, var(--span-5));
     --measure-small: min(100%, var(--span-4));
+    --row-pad: var(--space-2);
+    --row-leading: 1.15;
   }
 }
 

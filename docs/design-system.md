@@ -129,6 +129,7 @@ role and not a number:
 | Between a heading and its block | `--space-6` (12) |
 | Inside a tile or frame | `--space-6` / `--space-7` |
 | Between card siblings (photos, onward cards, record cards, outline cards, the outline strip) | `--space-6` (12), at every width; `conventions.mjs` holds every card grid to it (VD-86) |
+| Above and below a table's body cell (**provisional**, VD-95) | `--row-pad`: `--space-4` (8) below `--bp-desktop`, `--space-2` (4) from it; §3 *Table* |
 
 ### Type — built: the scale and the middle register (VD-84), and the label register (VD-91)
 
@@ -596,7 +597,7 @@ PD-56's). One question asked of a race: when the field stopped.
 - **Placement:** its own section, *Pit stops*, below the classification and
   qualifying; who stopped first between neighbours follows under an h3.
 
-### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848)
+### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), and the reference density (VD-95 #925)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -656,6 +657,33 @@ PD-56's). One question asked of a race: when the field stopped.
   the reader's hand, never by the handover.
 - **Widths:** the full content width. A table never sits beside a side
   column that clips it.
+- **The reference density** (provisional, VD-95 #925, DR-07). A body row
+  is two tokens, `--row-pad` above and below its cells and `--row-leading`
+  for its line. Below `--bp-desktop` they are the reading row the tables
+  always had, `--space-4` on the body's 1.6, about 38.6 px with its rule;
+  from it they close up to `--space-2` on 1.15, about 24.5 px, where the
+  reference sites the design review studied run near 21 (Basketball-Reference).
+  It is the default, not a reader's toggle, and it reaches every table,
+  since both renderers share the stylesheet. Three things hold under it:
+  - **A row's pitch is never under 24 px**, top to next top: a link in a
+    row is a target, and the links of two rows keep 24 px between their
+    centres, which is WCAG 2.5.8's spacing exception (§7). `conventions.mjs`
+    reads the pitch off the tokens; the heads, the fold and the glossary key
+    keep their own sizes.
+  - **A cell that wraps keeps the reading leading**, `--row-leading-wrap`,
+    and gives the difference back out of its padding, so a one-line prose
+    cell is its row's height and sits on its neighbours' baseline.
+  - **The result rail fills its row** at either density, and from 1180 a
+    tag or a pill in a row takes its padding above and below back out of
+    the line by a negative margin, so it draws as before, a pill keeps its
+    size as a link, and a classification row is about a pixel over its
+    table's others, as below 1180.
+
+  `smoke.mjs` (*Dense rows from 1180 px*) reads a register, a
+  classification, a driver's seasons and a season's standings at 1440 and
+  1,024 in both halves. Not yet built of DR-07: the leader marked inside
+  the table (VD-105 #1247), and column groups and sparkline columns on the
+  season-by-season tables beyond the registers' (VD-106 #1248).
 - **A table that fits its box** (provisional, IX-45 #848). A table that is
   its page's subject, and has to be read whole, fits its content box from
   `--bp-tablet` rather than scrolling behind the fade. Its columns of words
@@ -1052,7 +1080,7 @@ control (VD-82).
 | A disclosure's name says what it opens | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-81): no two disclosures, and no two stand-alone links to different places, share a name on a smoke route |
 | The tile strip carries a name | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-88): every strip on its routes is a group named "At a glance", in both halves |
 | Text 12 px or smaller is not also faint and longer than the small measure | **aim** (33–62 % of entity-page text is ≤12 px; zoom and reflow work, so this is not pressed against the design) | the measure tokens |
-| Target size of at least 24 px for controls and 6 px for chart marks | **aim** | — |
+| Target size of at least 24 px for controls and 6 px for chart marks | **aim** | a table row's pitch at either density, from the tokens in `conventions.mjs` and on four tables in both halves in `smoke.mjs` *Dense rows from 1180 px* (VD-95); the rest, — |
 | Line length of 45–75 characters | **aim** | the measure tokens |
 | Reduced motion respected | **aim** | — |
 

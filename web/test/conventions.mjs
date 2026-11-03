@@ -1928,8 +1928,15 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
   const RELATIVE = /^-?[0-9.]+em$/
   const VIEWPORT = /^[0-9.]+(vh|vw)$/
   const SPACE_LITERAL = new Set(['0', 'auto', '1px', '-1px'])
-  // The grid's gutter is a step under the name of its role (tokens.css).
+  // The grid's gutter is a step under the name of its role (tokens.css), and
+  // so is a table row's padding, which changes step at --bp-desktop (VD-95).
   const GUTTER = 'var(--gutter)'
+  const ROLES = new Set([GUTTER, 'var(--row-pad)'])
+  // Derived from steps, each with its reason; the test below checks its sum.
+  const DERIVED = {
+    'calc(var(--row-pad) - (var(--row-leading-wrap) - var(--row-leading)) * 0.5em)':
+      "a wrapping cell's padding: the row's, less the leading it keeps beyond the row's (VD-95)",
+  }
 
   it('every font-size, font and font-weight in app.css is a step, or relative', () => {
     const off = declarations(/^font(-size|-weight)?$/)
@@ -1945,14 +1952,45 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
   it('every padding, margin and gap in app.css is a step, 0, a 1px hairline or relative', () => {
     const off = []
     for (const { prop, value } of declarations(/^(padding|margin)(-[a-z-]+)?$|^(row-|column-)?gap$/)) {
+      if (Object.hasOwn(DERIVED, value)) continue
       const parts = value.match(/calc\(-1 \* var\(--space-\d+\)\)|var\(--space-\d+\)|\S+/g)
       for (const part of parts) {
-        if (/^(calc\(-1 \* )?var\(--space-\d+\)\)?$/.test(part) || part === GUTTER || SPACE_LITERAL.has(part) || RELATIVE.test(part) || VIEWPORT.test(part)) continue
+        if (/^(calc\(-1 \* )?var\(--space-\d+\)\)?$/.test(part) || ROLES.has(part) || SPACE_LITERAL.has(part) || RELATIVE.test(part) || VIEWPORT.test(part)) continue
         off.push(`${prop}: ${value}`)
         break
       }
     }
     assert.deepEqual(off, [], `off the scale:\n  ${off.join('\n  ')}\nUse a --space-* step from tokens.css.`)
+  })
+
+  it('a spacing role is a step wherever tokens.css sets it, and a row is no tighter than 24 px (VD-95)', () => {
+    // A role name passes the test above on trust, so its value is read here:
+    // every definition, in :root and in each breakpoint's block.
+    for (const role of ROLES) {
+      const name = role.slice('var(--'.length, -1)
+      const values = [...tokens.matchAll(new RegExp(`--${name}:\\s*([^;]+);`, 'g'))].map((m) => m[1].trim())
+      assert.ok(values.length > 0, `--${name} is defined nowhere in tokens.css`)
+      const off = values.filter((v) => !/^var\(--space-\d+\)$/.test(v))
+      assert.deepEqual(off, [], `--${name} is set off the scale: ${off.join(', ')}`)
+    }
+    // The compact row is a target's pitch: its rule, two paddings and a line
+    // of a table's type are at least 24 px, so links a row apart keep WCAG
+    // 2.5.8's spacing. Read off the tokens, not restated.
+    const pads = [...tokens.matchAll(/--row-pad:\s*var\(--(space-\d+)\);/g)].map((m) => px(m[1]))
+    const leads = [...tokens.matchAll(/--row-leading:\s*([0-9.]+);/g)].map((m) => Number(m[1]))
+    assert.ok(pads.length >= 2 && pads.length === leads.length, `--row-pad and --row-leading are set together, at each density (${pads.length}, ${leads.length})`)
+    const type = read(join(web, 'src', 'styles', 'app.css')).match(/(?<=^|\n)table \{[^}]*font-size:\s*var\(--(size-\d+)\)/)
+    assert.ok(type, "app.css sets the table's type on a --size step")
+    const pitches = pads.map((pad, i) => 1 + 2 * pad + leads[i] * px(type[1]))
+    const tight = pitches.filter((pitch) => pitch < 24)
+    assert.deepEqual(tight, [], `a row pitch under 24 px: ${pitches.map((p) => p.toFixed(2)).join(', ')}`)
+    // A wrapping cell gives its extra leading back out of the row's padding,
+    // which must leave some: a negative padding is dropped, and the cell
+    // would then hold its row taller than its neighbours.
+    const wrap = [...tokens.matchAll(/--row-leading-wrap:\s*([0-9.]+);/g)].map((m) => Number(m[1]))
+    assert.equal(wrap.length, 1, '--row-leading-wrap is one value, at both densities')
+    const left = pads.map((pad, i) => pad - ((wrap[0] - leads[i]) * px(type[1])) / 2)
+    assert.ok(left.every((pad) => pad >= 0), `a wrapping cell's padding is negative: ${left.map((p) => p.toFixed(2)).join(', ')}`)
   })
 
   it('every step app.css names is defined in tokens.css', () => {
