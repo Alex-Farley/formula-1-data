@@ -130,7 +130,7 @@ role and not a number:
 | Inside a tile or frame | `--space-6` / `--space-7` |
 | Between card siblings (photos, onward cards, record cards, outline cards, the outline strip) | `--space-6` (12), at every width; `conventions.mjs` holds every card grid to it (VD-86) |
 
-### Type — built: the scale and the middle register (VD-84)
+### Type — built: the scale and the middle register (VD-84), and the label register (VD-91)
 
 The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
@@ -146,16 +146,26 @@ unused.
 
 | Role | Step |
 |---|---|
-| Eyebrow, pills | `--size-1` 10 (mono, tracked) |
-| Column heads, axis text, tile labels | `--size-2` 11 |
-| Credits, source lines, footnotes | `--size-3` 12 |
-| Tables, controls, notes **attached to a box** | `--size-4` 13.5 |
+| Pills, tags, axis text | `--size-2` 11 |
+| Column heads, tile labels; credits, source lines, footnotes | `--size-3` 12 |
+| Tables, controls, notes **attached to a box**; the eyebrow above an h1 | `--size-4` 13.5 |
 | Body, a value in a row | `--size-5` 15 |
 | Lede, a name in a tile | `--size-6` 17 |
 | Section head (h2) | `--size-7` 20 |
 | A tile figure | `--size-8` 25 |
 | One hero figure per page | `--size-9`–`--size-11`, by width (VD-84) |
 | Page title | `--size-display` |
+
+**The label register (VD-91, `[D-62]`).** A label, a column head, a count,
+a pill and the eyebrow above an h1 are set in Saira 500, untracked, in the
+words as they are written: a label in sentence case, and a pill in lower
+case, as the confidence tiers are stored (*verified*, *high*). Monospace is machine text only (SQL, code, a key, a
+URL, an id shown as stored, like an engine's beside its team), and a figure in a column lines up in Saira's
+own tabular figures (`.num`), not in a second face; a tile's figure keeps
+the display face. Caps and tracking belong to the
+display face, on headings. `--size-1` (10 px) is retired, and nothing is set
+under 11 px; its number is left as a hole so that `--size-2` to `--size-11`
+keep their names. `conventions.mjs` holds all three (§8, test 16).
 
 ### Measure — built (VD-78): one rule, two lengths, both on the grid
 
@@ -249,8 +259,9 @@ string runs past.
 - **Job:** say what this page is, and how to move along a sequence.
 - **Parts:** eyebrow, h1, lede, stepper; on a race page, the weather line
   between the lede and the stepper.
-  - The **eyebrow** follows one rule: the page type, then the facts that
-    identify the entity, for example *Driver · United Kingdom · born 7
+  - The **eyebrow** is a dateline in the body face, `--size-4` at 500 in
+    `--ink-soft`, not a chip of tracked capitals (VD-91). It follows one
+    rule: the page type, then the facts that identify the entity, for example *Driver · United Kingdom · born 7
     January 1985* or *Race · Round 12 of 24 · 6 July 2025*. A fact the
     database does not hold is left out, never printed as a dash. All seven
     entity types carry one, seasons included (*Season · 23 rounds, 16
@@ -360,8 +371,9 @@ inside it is scaled, until the app redraws it at the width it occupies.
 ### Tile strip (core) — built (VD-79, VD-81, VD-88)
 
 - **Job:** the handful of figures the page is about.
-- **Parts:** label (`--size-2` mono), figure (`--size-8`, or `--size-6` for a
-  name), qualifier (`--size-3`). Every figure in a row sits on one baseline,
+- **Parts:** label (`--size-3`, the label register: Saira 500, sentence
+  case, VD-91), figure (`--size-8`, or `--size-6` for a name), qualifier
+  (`--size-3`). Every figure in a row sits on one baseline,
   the lead figures and the rest alike.
 - **Widths:** a grid, not a flex row. Every tile draws its own hairline (the
   option VD-46 #414 proposed), so a short last row ends against the page.
@@ -498,7 +510,7 @@ and word everything else.
   the app's at every width and nothing moves at the handover; each keeps its
   natural size and scales down to its box.
 - **The chips:** one per race, by decade, oldest first, each a decade label
-  in `--mono` beside a wrapping row: the livery mark (the `LiveryMark`
+  in tabular figures beside a wrapping row: the livery mark (the `LiveryMark`
   element, beside the name it belongs to), the year as a link to the race,
   the team, and the grid slot in bold. A hairline in `--rule` on the panel,
   so the colour is the mark's and never the chip's ground.
@@ -598,6 +610,9 @@ PD-56's). One question asked of a race: when the field stopped.
     DataTable logs the error the smoke suite fails on.
 - **Sort buttons show focus** (**floor**, 2.4.7), inside the header, as do
   `/data/sql`'s examples (AX-31 #863).
+- **Column heads** are the label register (§2 *Type*, VD-91): `--size-3`,
+  Saira 500, sentence case, untracked, and a figure column's cells are
+  Saira's tabular figures.
 - **Opening the fold moves focus to the first revealed row** (row 11's row
   header, `tabindex="-1"`), so a keyboard user is not left 13,000 px below
   the rows (**aim**).
@@ -1024,11 +1039,11 @@ control (VD-82).
     swaps the two halves only once the app's page is drawn. The static
     driver, constructor and season pages draw their lead charts in a box the
     app's height (VD-73).
-- **Small type on tiles and eyebrows (10–11 px mono, tracked).**
-  - What the design gains: the instrument-panel identity.
-  - What accessibility gives up: legibility at low DPI.
-  - What keeps both: these are labels, not content, and they pass contrast.
-    Raise their weight before their size (aim).
+- **Small type on tiles and eyebrows** was 10–11 px tracked monospace caps,
+  kept for the instrument-panel identity at a cost in legibility at low
+  DPI. VD-91 settled it for legibility: nothing is set under 11 px, tile
+  labels and column heads are 12 px Saira 500 in sentence case, and the
+  eyebrow is 13.5 px (§2 *Type*).
 
 **Version A needs no floor check relaxed.** If a change ever does, it names
 the check, the change and the reason as a separate decision for the
@@ -1053,6 +1068,7 @@ The system is held by tests, not by memory.
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
 Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12. Built in
 VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
+Built in VD-91: 16.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -1137,6 +1153,14 @@ VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
     strip - gaps its cards by `--space-6` at every width
     (`conventions.mjs`), and the photo strip holds 4 to a row from 1180, 2
     from 768 and 1 below, in both halves (`smoke.mjs`, *The photo strip*).
+16. **One label register.** Every rule in `app.css` that sets the
+    monospace face, by token or keyword, names machine text declared in
+    `MACHINE`, every rule that sets capitals, small caps or positive
+    tracking in any unit is a display heading declared in `DISPLAY_CAPS`,
+    each list refusing an entry that no longer applies, and no type step is under 11 px; a step taken out of
+    the scale is declared in `RETIRED` and defined and used nowhere
+    (`conventions.mjs`, VD-91). Both renderers share the stylesheet, so the
+    static page and the app agree by construction.
 
 ### How a change to the system is made
 

@@ -291,6 +291,40 @@ three slots are still the cap where several series have no sourced colour,
 and a chart in liveries takes no accent, because a red mark among team
 colours would read as Ferrari's.
 
+### D-62 · Labels are Saira, sentence case; monospace is machine text — 2026-11-03 (`VD-91`, #921)
+The eyebrow above every h1, every tile label and every column head were set
+in JetBrains Mono, in capitals tracked by 0.14 to 0.2 em, the eyebrow and
+the pills at 10 px, and every figure in a table was in the same face. The
+design review of 2026-10-08 named that register as the site's main texture
+and its strongest sign of being generated (DR-02): an in-page detector read
+the eyebrow as a hero chip on four page types and the 10 px step as
+undersized text on eight of nine pages.
+
+The rules it changes are the system's own. §2 gave the eyebrow and the pills
+`--size-1`, mono and tracked; §3 set the tile label in mono; §7 kept the
+small tracked type for the instrument-panel identity, against its cost at
+low DPI. That is §8's *Changing or reversing*; the maintainer accepted the
+review, this change with it, on 2026-10-08, and the acceptance is recorded
+on the item.
+
+Labels, column heads, counts, pills and the eyebrow are now Saira 500,
+untracked, at 11 px or more, in the words as written: a label in sentence
+case, a pill in lower case as the confidence tiers are stored, the
+eyebrow at 13.5 px in the body face. Text the capitals used to hide is now
+written in sentence case at its source, as the disagreement box's field
+labels are. A figure in a column lines up in Saira's own
+tabular figures rather than in a second face; a tile's figure keeps the
+display face. Monospace stays where the text is a machine's: SQL, code, a
+key, a URL, and an id shown as stored, like an engine's beside its team. Capitals and tracking stay where they are the
+display face's, on headings. `--size-1` is retired and left as a hole in the
+numbering, because renaming ten steps would move every rule and document
+that names them. What it costs is the instrument-panel look the mono gave
+the numbers; what it does not change is the rest of the scale, the weight
+steps, the
+vocabulary (VD-81's words stay, in a different register) or any contrast
+floor: every label keeps its ink, but for the eyebrow, which moves up from
+`--ink-faint` to `--ink-soft`.
+
 ---
 
 ## The queue

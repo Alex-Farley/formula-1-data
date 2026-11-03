@@ -148,6 +148,13 @@
   /* type */
   --disp: 'Saira Condensed', 'Arial Narrow', Arial, sans-serif;
   --sans: 'Saira', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  /* Machine text only (VD-91): SQL, code, keys, a URL, a digest or an id -
+     text a reader would copy into something else. A figure is not machine
+     text: it is set in Saira's own tabular figures (app.css, .num), and a
+     label, a column head or the dateline above an h1 in Saira 500, sentence
+     case and untracked. The tracked monospace caps that used to carry them
+     were the site's main texture and the strongest sign it was generated
+     (design review DR-02, 2026-10-08); conventions.mjs holds the line. */
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /*
@@ -160,10 +167,14 @@
    * opposite of spacing below, because a smaller size costs legibility where
    * a smaller gap costs only room:
    *
-   *   1  10px    eyebrows, pills, the sort arrow
-   *   2  11px    column heads, tags, axis text, meta labels
-   *   3  12px    notes, captions, source lines, footnotes
-   *   4  13.5px  tables, controls, UI text
+   *   1  retired (VD-91): it was 10px, for eyebrows, pills and the sort
+   *      arrow, and an in-page detector flagged it as undersized on eight
+   *      of nine pages. Those moved to 2 or above, so nothing on the site
+   *      is set under 11px; the step is not renumbered, so that 2-11 keep
+   *      the names every rule and document uses.
+   *   2  11px    tags, pills, axis text, meta labels
+   *   3  12px    column heads, tile labels; notes, captions, source lines, footnotes
+   *   4  13.5px  tables, controls, UI text, the dateline above an h1
    *   5  15px    body, and a value set in a row
    *   6  17px    ledes, a name in a stat tile, the search field
    *   7  20px    section heads
@@ -180,7 +191,6 @@
    * it sits in, because JetBrains Mono's x-height is larger than Saira's and
    * a fixed step would not follow the text it is set in.
    */
-  --size-1: 10px;
   --size-2: 11px;
   --size-3: 12px;
   --size-4: 13.5px;

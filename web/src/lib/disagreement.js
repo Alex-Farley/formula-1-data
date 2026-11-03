@@ -44,4 +44,15 @@ export const DRIVER_READINGS = `(d.status = 'open' OR (d.status = 'explained' AN
 export const EXPLAINED_FOOTER =
   'Recorded and explained rather than resolved: the published figure and the one the race records give differ, and the page shows both. Every recorded reading is listed on '
 export const explainedHeading = (what) => `Two readings of ${what}, and why they differ`
+
+/**
+ * The label of a row in the box: the field as the discrepancies table names
+ * it, in sentence case - "career_points" reads "Career points". Capitals set
+ * by the stylesheet used to hide the stored case; the label register is the
+ * words as written (VD-91), so both renderers write them from here.
+ */
+export const fieldLabel = (field) => {
+  const words = String(field ?? '').replace(/_/g, ' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
 export const OPEN_FOOTER = 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '
