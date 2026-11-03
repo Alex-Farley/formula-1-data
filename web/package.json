@@ -29,9 +29,9 @@
     "sql.js": "^1.14.2"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@vitejs/plugin-react": "^6.1.1",
-    "playwright": "^1.63.0",
+    "@axe-core/playwright": "^4.14.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright": "^1.64.1",
     "vite": "^8.3.5"
   }
 }
