@@ -354,6 +354,17 @@ class TheAdapter(unittest.TestCase):
         with mock.patch.object(lu.subprocess, "run", side_effect=lu.subprocess.TimeoutExpired("r", 1)), \
                 mock.patch.dict(os.environ, {"LOOP_USAGE_CMD": "r"}, clear=True):
             self.assertIn("TimeoutExpired", lu.read_text("claude")[1])
+
+    def test_an_adapter_printing_bytes_that_are_not_text_is_unknown_not_a_crash(self):
+        env = {"LOOP_USAGE_CMD": "printf '\\377\\376 Current session: 25%% used\\n'"}
+        with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(lu, "next_race", return_value=None):
+            text, code = lu.check(NOW)
+            self.assertEqual(lu.session_reading(NOW, None)[0], None)
+        self.assertTrue(text.startswith("UNKNOWN - LOOP_USAGE_CMD "), text)
+        self.assertEqual(code, 0)
+        with mock.patch.object(lu.subprocess, "run", side_effect=UnicodeDecodeError("utf-8", b"\xff", 0, 1, "x")), \
+                mock.patch.dict(os.environ, {"LOOP_USAGE_CMD": "r"}, clear=True):
+            self.assertIn("UnicodeDecodeError", lu.read_text("claude")[1])
         with mock.patch.dict(os.environ, {"LOOP_USAGE_CMD": "r 'unclosed"}, clear=True):
             self.assertIn("split", lu.read_text("claude")[1])
 

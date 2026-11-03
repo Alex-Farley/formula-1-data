@@ -321,9 +321,11 @@ def read_adapter(command, timeout=90):
     if not argv:
         return None, "LOOP_USAGE_CMD is empty: this agent has no usage reader"
     try:
+        # Any command at all may print bytes that are not text; a replaced one
+        # fails parse() as a garbled line does, and reads as UNKNOWN.
         run = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
-                             timeout=timeout, check=False)
-    except (OSError, subprocess.TimeoutExpired) as e:
+                             errors="replace", timeout=timeout, check=False)
+    except (OSError, ValueError, subprocess.TimeoutExpired) as e:
         return None, f"LOOP_USAGE_CMD did not answer ({type(e).__name__})"
     if run.returncode != 0:
         return None, f"LOOP_USAGE_CMD exited {run.returncode}"
