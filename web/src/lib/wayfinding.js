@@ -130,24 +130,6 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
  * page actually has.
  */
 export const ONWARD = {
-  home: ({ latest }) => ({
-    title: 'Popular ways in',
-    items: [
-      {
-        to: latest ? `/seasons/${latest.year}` : '/seasons',
-        label: `The ${latest ? latest.year : 'latest'} season`,
-        hint: 'Calendar, title race and final standings.',
-      },
-      { to: '/records', label: 'Records', hint: 'Most wins, most poles, champions, grand slams.' },
-      { to: '/data/sql', label: 'SQL console', hint: 'Ask the database your own question.' },
-      {
-        to: '/eras',
-        label: 'Eras and rules',
-        hint: 'How the rules changed, and the words they are written in.',
-      },
-    ],
-  }),
-
   seasons: () => ({
     items: [
       { to: '/races', label: 'Every race', hint: 'All 1,000-plus rounds in one filterable list.' },

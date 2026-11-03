@@ -2548,3 +2548,127 @@ describe('one vocabulary: tile labels and provenance headings come from one list
     for (const word of words) assert.ok(!(word in SYNONYMS), `${word} is both a word and a synonym`)
   })
 })
+
+describe('a paper and an ink, and rules rather than boxes (VD-93, DR-04)', () => {
+  // The ground was #f3f4f6 and the panel #ffffff - Tailwind's gray-100 and
+  // white - every ink leaned blue, away from the red, and a hairline frame
+  // went round every tile, card and door. docs/design-system.md section 2.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const app = read(join(web, 'src', 'styles', 'app.css'))
+  const dark = css.indexOf('@media (prefers-color-scheme: dark)')
+  const stamped = css.indexOf(":root[data-theme='dark']")
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/^\s*--([a-z0-9-]+):\s*(#[0-9a-f]{6})\s*;/gm)].map((m) => [m[1], m[2]]))
+  const TINTED = ['bg', 'panel', 'panel-sunk', 'panel-raised', 'stage', 'ink', 'ink-soft', 'ink-faint', 'rule', 'rule-strong']
+
+  for (const [label, block] of [
+    ['light', css.slice(0, dark)],
+    ['dark (system)', css.slice(dark, stamped)],
+    ['dark (chosen)', css.slice(stamped)],
+  ]) {
+    it(`${label}: every surface, ink and rule is tinted warm, toward the accent`, () => {
+      const t = tokens(block)
+      const off = TINTED.filter((name) => {
+        assert.ok(t[name], `${label} block has no six-digit --${name}`)
+        const [r, , b] = [1, 3, 5].map((i) => parseInt(t[name].slice(i, i + 2), 16))
+        return !(r > b)
+      }).map((name) => `--${name} ${t[name]}`)
+      assert.deepEqual(off, [], `neutral or cool, where the paper and ink are warm: ${off.join(', ')}`)
+      const pair = [t.bg, t.panel].filter((hex) => hex === '#f3f4f6' || hex === '#ffffff')
+      assert.deepEqual(pair, [], 'the gray-100 and white pair is back')
+    })
+  }
+
+  // Each of these stands under a rule on the paper. A background, a frame on
+  // any other side, a radius or a shadow on any rule that names one is the
+  // box coming back; every one but the onward band's routes, which sit under
+  // the band's own rule, draws the rule itself.
+  const RULED = ['.stats > div', '.record-card', '.board a', '.board a:hover', '.round-panel', '.convention', '.onward a', '.onward a:hover b']
+  const DRAWS_RULE = ['.stats > div', '.record-card', '.board a', '.round-panel', '.convention']
+  const BOX = /(?<=[{;\s])(background(?:-color)?|border(?:-left|-right|-bottom)?|border-radius|box-shadow)\s*:/g
+  const found = new Map(RULED.map((selector) => [selector, { box: [], top: false, seen: false }]))
+  for (const m of app.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const selector of m[1].replace(/\/\*[\s\S]*?\*\//g, '').split(',').map((part) => part.trim())) {
+      const entry = found.get(selector)
+      if (!entry) continue
+      entry.seen = true
+      for (const box of m[2].matchAll(BOX)) entry.box.push(`${selector} ${box[1]}`)
+      if (/(?<=[{;\s])border-top\s*:\s*1px solid var\(--rule(?:-strong)?\)/.test(m[2])) entry.top = true
+    }
+  }
+
+  it('a tile, a record card, a door, the onward routes and home\'s two rounds and four conventions draw no box', () => {
+    const unseen = RULED.filter((selector) => !found.get(selector).seen)
+    assert.deepEqual(unseen, [], `a ruled selector app.css no longer has, so nothing here would read it: ${unseen.join(', ')}`)
+    assert.deepEqual([...found.values()].flatMap((entry) => entry.box), [])
+  })
+
+  it('and each but the onward routes draws its own rule', () => {
+    const bare = DRAWS_RULE.filter((selector) => !found.get(selector).top)
+    assert.deepEqual(bare, [], `no border-top rule: ${bare.join(', ')}`)
+  })
+
+  it("home's rounds and conventions are not panels, in either renderer", () => {
+    const boxed = [join(web, 'src', 'pages', 'Home.jsx'), join(web, 'scripts', 'prerender.js')].flatMap((file) =>
+      [...read(file).matchAll(/class(?:Name)?="([^"]*)"/g)]
+        .filter((m) => {
+          const names = m[1].split(/\s+/)
+          return names.includes('panel') && (names.includes('round-panel') || names.includes('convention'))
+        })
+        .map((m) => `${rel(file)}: ${m[0]}`),
+    )
+    assert.deepEqual(boxed, [])
+  })
+})
+
+describe('the chart ink stays apart from the accent for a colour-blind reader (VD-93)', () => {
+  // --series-ink is --ink-soft and --series-mark the accent (VD-94). VD-93's
+  // first warm light ink, #5c524a, put the pair 5.1 apart under a protan
+  // simulation, under the floor of 6 charts/palette.js names for the
+  // validator. The validator's metric, re-implemented: Viénot's protan and
+  // deutan matrices on linear sRGB, then OKLab distance x100. It gives the
+  // 8.5 recorded for the pair before VD-93.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const dark = css.indexOf('@media (prefers-color-scheme: dark)')
+  const stamped = css.indexOf(":root[data-theme='dark']")
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/^\s*--([a-z0-9-]+):\s*(#[0-9a-f]{6})\s*;/gm)].map((m) => [m[1], m[2]]))
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const linear = (hex) => [1, 3, 5].map((i) => lin(parseInt(hex.slice(i, i + 2), 16) / 255))
+  const oklab = ([r, g, b]) => {
+    const [l, m, s] = [
+      0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+      0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+      0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b,
+    ].map(Math.cbrt)
+    return [
+      0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+    ]
+  }
+  const SIM = {
+    protan: [[0.11238, 0.88762, 0], [0.11238, 0.88762, 0], [0.00401, -0.00401, 1]],
+    deutan: [[0.29275, 0.70725, 0], [0.29275, 0.70725, 0], [-0.02234, 0.02234, 1]],
+  }
+  const seen = (hex, matrix) => matrix.map((row) => Math.min(1, Math.max(0, row.reduce((sum, k, i) => sum + k * linear(hex)[i], 0))))
+  const apart = (a, b, matrix) => 100 * Math.hypot(...oklab(seen(a, matrix)).map((v, i) => v - oklab(seen(b, matrix))[i]))
+
+  it('the metric gives the recorded 8.5 for the pair before VD-93', () => {
+    assert.equal(apart('#4f5561', '#c81028', SIM.protan).toFixed(1), '8.5')
+  })
+
+  for (const [label, block] of [
+    ['light', css.slice(0, dark)],
+    ['dark (system)', css.slice(dark, stamped)],
+    ['dark (chosen)', css.slice(stamped)],
+  ]) {
+    it(`${label}: --ink-soft and --accent are 6 or more apart under protan and deutan`, () => {
+      const t = tokens(block)
+      assert.ok(t['ink-soft'] && t.accent, `${label} block lacks --ink-soft or --accent`)
+      const low = Object.entries(SIM)
+        .map(([name, matrix]) => [name, apart(t['ink-soft'], t.accent, matrix)])
+        .filter(([, d]) => d < 6)
+        .map(([name, d]) => `${name} ${t['ink-soft']} / ${t.accent}: ${d.toFixed(1)}`)
+      assert.deepEqual(low, [])
+    })
+  }
+})

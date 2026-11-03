@@ -325,6 +325,36 @@ vocabulary (VD-81's words stay, in a different register) or any contrast
 floor: every label keeps its ink, but for the eyebrow, which moves up from
 `--ink-faint` to `--ink-soft`.
 
+### D-63 · A tinted paper and ink; a rule over a tile or card, not a box round it — 2026-11-03 (`VD-93`, #923)
+The ground was `#f3f4f6` and the panel `#ffffff`, exactly Tailwind's
+gray-100 and white, every ink and rule leaned blue (OKLCH hue 259-271) away
+from the one red, and a hairline frame went round every block: each tile,
+each of the twelve record cards, each of home's eight doors, its two rounds,
+its four conventions and its four onward routes. The design review of
+2026-10-08 named both as signs of a generated page (DR-04, Hallmark gates
+3, 7 and 9).
+
+The rules it changes are the system's own: §2 gave tiles, figures, tables
+and cards one frame, and §3 had every tile draw its hairline as a frame.
+That is §8's *Changing or reversing*; the maintainer accepted the review,
+this change with it, on 2026-10-08, and the acceptance is recorded on the
+item.
+
+The surfaces, inks and rules keep their lightness, or close to it, and turn
+warm, toward the accent, in both themes, so no contrast floor moved under
+its threshold. Light `--ink-soft`, which is also the chart ink beside the
+accent, stays the least tinted: warmer, it fell to 5.1 apart from the red
+under a protan simulation, under the validator's floor of 6, and it now
+reads 8.0, a floor `conventions.mjs` holds; `--panel-sunk` is held to the luminance it had, because the
+livery pairs were stepped to clear 3:1 on it, five colours of them by less than 0.03. A tile,
+a record card, a door and home's rounds and conventions are now each under
+a rule on the paper, and the onward band's routes are words under the
+band's own rule. Figures and tables keep their frame: a reader reads inside
+them. Home's two grids of doors are one index of nine. What it costs is the
+instrument-panel look of a strip of boxed readings; what it does not change
+is the grid, the measure, the templates, a single contrast floor or the
+gap between card siblings.
+
 ---
 
 ## The queue

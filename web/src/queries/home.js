@@ -290,8 +290,12 @@ export const BOARD_NOTE =
   'Or press Ctrl K, or Cmd K on a Mac, from anywhere to jump straight to a driver, team, circuit, car, season or race.'
 
 /**
- * The eight doors out of the home page. `count` names the figure from SHAPE
- * that belongs beside the label, where one does: /records and /data are not
+ * The nine doors out of the home page: its one index (VD-93). There were two
+ * grids of them, these eight and a band of four under the page, *Popular
+ * ways in*; that band's eras door is here now, its records door already
+ * was, its SQL console is behind /data, and its latest season is the link
+ * under the season block. `count` names the figure from SHAPE that belongs
+ * beside the label, where one does: /eras, /records and /data are not
  * registers of a countable thing.
  */
 export const BOARD = [
@@ -301,6 +305,7 @@ export const BOARD = [
   { to: '/constructors', label: 'Constructors', count: 'constructors', blurb: 'Team records, the cars they built, and who they became.' },
   { to: '/circuits', label: 'Circuits', count: 'circuits', blurb: 'Venues, the layouts as they changed, and 25 traced laps.' },
   { to: '/cars', label: 'Cars', count: 'chassis', blurb: 'The chassis register, with specifications where they exist.' },
+  { to: '/eras', label: 'Eras and rules', count: null, blurb: 'How the rules changed, and the words they are written in.' },
   { to: '/records', label: 'Records', count: null, blurb: 'Leaderboards, champions, grand slams and who won each decade.' },
   { to: '/data', label: 'Data', count: null, blurb: 'The database itself: download it, query it, and see how far to trust it.' },
 ]

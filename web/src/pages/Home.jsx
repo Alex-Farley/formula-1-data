@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { RaceDates } from '../components/Dates.jsx'
-import { Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
+import { Page, Section, Slot, Stats } from '../components/Page.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import { Result } from '../components/States.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -13,7 +13,6 @@ import { NAMES } from '../lib/site.js'
 
 import { LATEST } from '../queries/races.js'
 import { FIGHT_QUERIES, currentTitle, fightAhead } from '../queries/season.js'
-import { ONWARD } from '../lib/wayfinding.js'
 import {
   BOARD,
   BOARD_HEADING,
@@ -52,7 +51,7 @@ import {
 
 function Board({ shape }) {
   return (
-    <div className="board">
+    <div className="board index">
       {BOARD.map(({ to, label, count, blurb }) => (
         <Link key={to} to={to}>
           <b>
@@ -129,7 +128,7 @@ export default function Home() {
                 <Section title={seasonHeading(now.year)}>
                   <Stats items={seasonStrip(now, lead)} />
                   <div className="split">
-                    <div className="panel round-panel">
+                    <div className="round-panel">
                       <p className="eyebrow">{LAST_RACE}</p>
                       {latest ? (
                         <>
@@ -169,7 +168,7 @@ export default function Home() {
                         </>
                       ) : null}
                     </div>
-                    <div className="panel round-panel">
+                    <div className="round-panel">
                       <p className="eyebrow">{NEXT_RACE}</p>
                       {next ? (
                         <>
@@ -211,7 +210,7 @@ export default function Home() {
                   race run, or of the opener before a season has run one
                   (openingRace), beside the header from 1180 px. Written
                   after the season block, as a race writes its outline after
-                  its classification, so below 1180 it follows the panel that
+                  its classification, so below 1180 it follows the block that
                   names the race rather than standing between the tiles and
                   the season. scripts/prerender.js writes the same card. */}
               <Slot>
@@ -262,7 +261,7 @@ export default function Home() {
               <Section title={READING_HEADING} note={READING_NOTE}>
                 <div className="grid">
                   {reading(shape).map(({ head, body, link }) => (
-                    <div className="panel convention" key={head}>
+                    <div className="convention" key={head}>
                       <b>{head}</b>
                       <p className="muted small">
                         {body[0]}
@@ -274,7 +273,10 @@ export default function Home() {
                 </div>
               </Section>
 
-              <Onward {...ONWARD.home({ latest })} />
+              {/* No onward band: the index above is home's one way on
+                  (VD-93). The band's four routes are the index's doors, the
+                  SQL console behind one of them, and the season block's
+                  link. */}
             </>
           )
         }}
