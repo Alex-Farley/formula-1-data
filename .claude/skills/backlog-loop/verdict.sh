@@ -13,7 +13,10 @@
 # pass opened with `quick` (frontend-reviewer-quick) also needs its applied
 # items, `record <id> PASS 1,4,7`, the evidence that the rules were read.
 # `read` prints PASS or FAIL and exits 0, or says why there is none and
-# exits 1: a pass with no recorded verdict is not a PASS. Only the reviewer
+# exits 1: a pass with no recorded verdict is not a PASS. A pass that
+# review.py started as a separate process carries a .external mark, and
+# `read` prints `advisory` after its verdict: until AF-115 (#1050) such a
+# verdict does not clear a merge, and a person merges (merge-step.py). Only the reviewer
 # runs `record`; a fork that records one for it has read the reply for a
 # verdict, which is the thing this script exists to stop.
 #
@@ -40,9 +43,11 @@ case "${1:-}" in
     case "$kind" in full|quick) ;; *) usage ;; esac
     mkdir -p "$dir" || { echo "verdict.sh: could not create $dir" >&2; exit 1; }
     n=1
-    # Skip a number with either file: a .verdict left without its .pass must
-    # never be inherited by a new pass, or that pass reads PASS unreviewed.
-    while [ -e "$dir/$pr-${full:0:7}-$n.pass" ] || [ -e "$dir/$pr-${full:0:7}-$n.verdict" ]; do n=$((n + 1)); done
+    # Skip a number with any file: a .verdict left without its .pass must
+    # never be inherited by a new pass, or that pass reads PASS unreviewed,
+    # and a new pass is not advisory because an old one was.
+    while [ -e "$dir/$pr-${full:0:7}-$n.pass" ] || [ -e "$dir/$pr-${full:0:7}-$n.verdict" ] \
+          || [ -e "$dir/$pr-${full:0:7}-$n.external" ]; do n=$((n + 1)); done
     id="$pr-${full:0:7}-$n"
     printf '%s %s\n' "$full" "$kind" > "$dir/$id.pass" || { echo "verdict.sh: could not write $dir/$id.pass" >&2; exit 1; }
     printf '%s\n' "$id"
@@ -71,7 +76,8 @@ case "${1:-}" in
     [ -f "$dir/$id.pass" ] || { echo "verdict.sh: no review pass $id was opened" >&2; exit 1; }
     [ -f "$dir/$id.verdict" ] || { echo "verdict.sh: pass $id recorded no verdict" >&2; exit 1; }
     read -r verdict applied < "$dir/$id.verdict"
-    printf '%s%s\n' "$verdict" "${applied:+ applied $applied}"
+    advisory=""; [ -e "$dir/$id.external" ] && advisory=" advisory"
+    printf '%s%s%s\n' "$verdict" "${applied:+ applied $applied}" "$advisory"
     ;;
   *) usage ;;
 esac

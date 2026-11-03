@@ -386,6 +386,19 @@ recorded nothing is no review. **Only the reviewer runs `record`.** A fork
 that records a verdict on a reviewer's behalf — because the reply plainly
 said PASS — has read the reply for a verdict by another route.
 
+**A reviewer may run as a separate process** `AF-117`. Where
+`LOOP_REVIEW_CMD` is set, a pass may start its reviewer with `python3
+.claude/skills/backlog-loop/review.py <reviewer> <id> <brief-file>
+<worktree>` in place of the Agent tool: the same agent file, the same brief
+written to a file, the same pass id, and a reviewer that may be another
+vendor's model. It runs in the foreground like any pass, and its exit status
+is not a verdict; `verdict.sh read <id>` is, as above, and prints `advisory`
+after the word. **Until AF-115 (#1050) lands, an advisory verdict does not
+clear a merge**: `merge-step.py before` exits 6 on any PR such a pass has
+reviewed. With the verdict on the PR as a comment and CI green, put the
+status back, leave the PR open, and return `STOP: #<N> has an advisory
+review; a person merges it`.
+
 **When `verdict.sh read <id>` exits 1 — a pass that recorded no verdict — or
 a reviewer stops on a rate limit, an unavailable account or a session limit,
 read `.claude/skills/backlog-item/no-verdict.md` before anything else**: the
@@ -429,7 +442,8 @@ item — waiting up to nine minutes a call, exit 5 to call it again; a refresh
 not merged an hour after its last push is stuck, and is not waited on
 `AF-105`. It exits 3 when main has moved under the branch, a refresh having
 merged included: that is *Main moved under the branch*, in `trouble.md`, then
-CI again, then `before` again. **A refused `gh pr merge` is not a merge**, and the
+CI again, then `before` again. It exits 6 on an advisory review, which is the
+`STOP` above. **A refused `gh pr merge` is not a merge**, and the
 answer to one is never the post-merge steps: `after` reads the PR's state
 back from GitHub and does nothing unless it is `MERGED` `AF-99`. Never delete
 a PR's remote branch by hand — the repository deletes it on merge, and a

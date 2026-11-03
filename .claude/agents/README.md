@@ -10,7 +10,10 @@ the loop's manager, is neither, and has a section of its own.
 
 They enforce **this project's own rules** on a diff, and each carries a list of
 things not to propose because they were measured and rejected. Read-only. Used
-on a change, by the backlog loop or from a terminal.
+on a change, by the backlog loop or from a terminal. A reviewer's file is also
+the brief for one run as a separate process, on any vendor's model, through
+`.claude/skills/backlog-loop/review.py` and `LOOP_REVIEW_CMD`; the body is
+the prompt and `model`, `effort` and `maxTurns` are passed to the command.
 
 They are project-specific by design, and will not transplant.
 

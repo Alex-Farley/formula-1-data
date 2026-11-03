@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -660,6 +661,69 @@ class TheVerdictIsACommand(unittest.TestCase):
             got = self.run_script(repo, "read", fresh)
             self.assertEqual((got.returncode, got.stdout.strip()), (0, "PASS"),
                              "the main checkout did not read a verdict recorded in a worktree")
+
+    REVIEW = os.path.join(ROOT, ".claude/skills/backlog-loop/review.py")
+
+    def test_the_out_of_process_reviewers_are_the_merge_path_ones(self):
+        # AF-117. review.py starts only the agents the loop may put on a pull
+        # request; a critic it could start would be D-31 by another door.
+        out = subprocess.run([sys.executable, "-c",
+                              "import importlib.util as u, sys; s = u.spec_from_file_location('r', sys.argv[1]); "
+                              "m = u.module_from_spec(s); s.loader.exec_module(m); print(' '.join(m.REVIEWERS))",
+                              self.REVIEW], capture_output=True, text=True, check=True).stdout.split()
+        self.assertEqual(sorted(out), sorted(LOOP_REVIEWERS))
+
+    def test_a_pass_run_out_of_process_is_marked_advisory(self):
+        if not shutil.which("git"):
+            self.skipTest("git is not on PATH")
+        with tempfile.TemporaryDirectory() as repo, tempfile.TemporaryDirectory() as out:
+            git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "1"], cwd=repo, check=True)
+            brief = os.path.join(out, "brief.md")
+            with open(brief, "w", encoding="utf-8") as f:
+                f.write("Independent review of PR #7, the brief.\n")
+            pid = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
+            marker = os.path.join(repo, ".claude/loop/verdicts", pid + ".external")
+            env = {k: v for k, v in os.environ.items() if k != "LOOP_REVIEW_CMD"}
+
+            def review(*args, **extra):
+                return subprocess.run([sys.executable, self.REVIEW, *args], cwd=repo,
+                                      env=dict(env, **extra), capture_output=True, text=True, check=False)
+            self.assertEqual(review("data-integrity-reviewer", pid, brief, repo).returncode, 4,
+                             "review.py ran with no LOOP_REVIEW_CMD")
+            self.assertEqual(review("visual-design-critic", pid, brief, repo, LOOP_REVIEW_CMD="true").returncode, 2,
+                             "review.py started a critic on a pull request")
+            self.assertEqual(review("data-integrity-reviewer", "7-nosuch-1", brief, repo,
+                                    LOOP_REVIEW_CMD="true").returncode, 2,
+                             "review.py ran a pass nobody opened")
+            self.assertFalse(os.path.exists(marker), "a refused run still marked the pass")
+            # The command stands in for a reviewer: it keeps what it was given
+            # and records PASS, as the brief tells a reviewer to.
+            cmd = ('cat > "$OUT/prompt"; printf %s "$LOOP_REVIEW_MODEL" > "$OUT/model"; '
+                   'bash "$SCRIPT" record "$LOOP_REVIEW_PASS" PASS')
+            got = review("data-integrity-reviewer", pid, brief, repo,
+                         LOOP_REVIEW_CMD=cmd, OUT=out, SCRIPT=self.SCRIPT)
+            self.assertEqual(got.returncode, 0, got.stderr)
+            prompt = read(os.path.join(out, "prompt"))
+            self.assertIn("You review changes to a SQLite build pipeline", prompt,
+                          "the reviewer's own file did not reach the command")
+            self.assertIn("Independent review of PR #7, the brief.", prompt, "the brief did not reach the command")
+            self.assertNotIn("maxTurns:", prompt, "the frontmatter went into the prompt")
+            self.assertEqual(read(os.path.join(out, "model")), "opus")
+            got = self.run_script(repo, "read", pid)
+            self.assertEqual((got.returncode, got.stdout.strip()), (0, "PASS advisory"),
+                             "a verdict recorded out of process did not read as advisory")
+            self.assertEqual(review("data-integrity-reviewer", pid, brief, repo, LOOP_REVIEW_CMD="true").returncode, 2,
+                             "review.py ran a pass that already had a verdict")
+            # A later pass is not advisory for an earlier one's mark, even
+            # with that pass's own files gone.
+            for ext in (".pass", ".verdict"):
+                os.remove(os.path.join(repo, ".claude/loop/verdicts", pid + ext))
+            fresh = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
+            self.assertNotEqual(fresh, pid, "a new pass took the id of an advisory one")
+            self.assertEqual(self.run_script(repo, "record", fresh, "PASS").returncode, 0)
+            self.assertEqual(self.run_script(repo, "read", fresh).stdout.strip(), "PASS")
 
 
 class TheItemProcedureReadsItsPassagesOnDemand(unittest.TestCase):
