@@ -241,7 +241,8 @@ export const stillToRunNote = (now) => {
  * page and the app choose the same one:
  *
  *   - the last race run, with its winner, because the result is what each
- *     round adds, and every race run in the register has a drawing;
+ *     round adds, and every race run in the register has a drawing today
+ *     (nothing enforces it, so the next rule covers one that has none);
  *   - but the next round of the season being run, with its dates, while
  *     that season has run no round yet - between F1DB moving the current
  *     season on and its opener, last year's finale is not the news;
@@ -259,9 +260,9 @@ export const openingRace = (latest, next, now) => {
 }
 
 /**
- * The slot's caption, in words: "Last race run: the 2026 Mexico City Grand
- * Prix, won by Lando Norris." or "Next on the calendar: the 2027 Bahrain
- * Grand Prix, 12–14 March 2027." `dates` is the race where its dates are
+ * The slot's caption, in words: "Last race run: the <year> <race>, won by
+ * <driver>." or "Next on the calendar: the <year> <race>, <its dates>."
+ * `dates` is the race where its dates are
  * held, for each renderer to draw as it draws dates (Dates.jsx's
  * <RaceDates>, prerender's raceDatesHtml) after a comma, and null where
  * they are not, so a missing date drops the clause rather than printing a

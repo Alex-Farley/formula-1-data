@@ -3104,10 +3104,16 @@ try {
         const words = `${pick[0]}: the ${pick[1].year} ${pick[1].name_used}`
         await go('/', NAMES.home().headline)
         await plain.goto(`${BASE}/`, { waitUntil: 'load' })
+        const captions = []
         for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
-          const caption = await tab.evaluate((at) => document.querySelector(`${at} .page > .slot figcaption`)?.textContent ?? '', root)
+          // The caption's own line, before the credit under it.
+          const caption = await tab.evaluate((at) => document.querySelector(`${at} .page > .slot figcaption`)?.innerText.split('\n')[0] ?? '', root)
+          captions.push(caption)
           truthy(caption.startsWith(words), `/, ${half}: the slot's caption opens "${words}" — it reads "${caption.slice(0, 80)}"`)
         }
+        // Whole, winner and full stop included, where there are no dates to
+        // be written in two locales.
+        if (pick[0] === 'Last race run') is(captions[0], captions[1], "/: the slot's caption is the same sentence in both halves")
       }
     }
     await noJs.close()
