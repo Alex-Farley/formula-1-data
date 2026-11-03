@@ -31,7 +31,7 @@ committed database may not be published.
 
 ## What was read
 
-In this database, <!-- fig:facts_only_rows -->755<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->645<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->110<!-- /fig -->), the two sources whose
+In this database, <!-- fig:facts_only_rows -->755<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->644<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->111<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -51,7 +51,7 @@ fails — so a row nobody has read cannot be counted as read:
 |---|---:|---|---|---|
 | `drivers` | <!-- fig:fo_drivers -->118<!-- /fig --> | formula1.com | names, dates, career totals | `notes` |
 | `circuits` | <!-- fig:fo_circuits -->80<!-- /fig --> | formula1.com | length, turns, GP count | `notes`, `characteristics` |
-| `seasons` | <!-- fig:fo_seasons -->78<!-- /fig --> | formula1.com | champion, points, rounds | `notes` |
+| `seasons` | <!-- fig:fo_seasons -->78<!-- /fig --> | formula1.com, fia.com | champion, points, rounds | `notes` |
 | `standings` | <!-- fig:fo_standings -->65<!-- /fig --> | formula1.com | 2025 final, 2026 current | — |
 | `constructors` | <!-- fig:fo_constructors -->55<!-- /fig --> | formula1.com | register facts | `notes` |
 | `races` | <!-- fig:fo_races -->71<!-- /fig --> | formula1.com | 2025–27 calendar | — |
@@ -270,7 +270,7 @@ below, which was written for that decision and is kept as what it rests on
 
 - The <!-- fig:wp_race_rows -->2,253<!-- /fig --> race rows that cite a Wikipedia season article — <!-- fig:wp_races -->1,125<!-- /fig --> of
   `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries` — are **bare facts**, on the same reading
-  *What was read* gives the <!-- fig:facts_only_formula1 -->645<!-- /fig --> formula1.com rows: results, dates and
+  *What was read* gives the <!-- fig:facts_only_formula1 -->644<!-- /fig --> formula1.com rows: results, dates and
   positions are not the expression CC BY-SA protects. The ruling's count was
   wider than these two tables: it took in every other row citing Wikipedia
   outside `claims` and `driver_note_sources` — <!-- fig:wp_drivers -->64<!-- /fig --> of `drivers`, <!-- fig:wp_cars -->29<!-- /fig --> of

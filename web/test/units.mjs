@@ -118,12 +118,17 @@ import {
   seasonLede,
   standingsHeading,
   stillRunning,
+  clinchRound,
+  mostPerRound,
+  seasonAnswer,
   titleAnswer,
+  titleStrip,
   titleHeading,
   TITLE_STANDINGS,
   titleSettled,
   currentTitle,
   fightAhead,
+  fightCitation,
   fightLine,
   isUpcoming,
   outSince,
@@ -1207,6 +1212,152 @@ describe('the queries a page and the prerenderer share', () => {
     )
   })
 
+  // LV-15. Five rounds and three run, 100, 75 and 50 left after rounds 1 to
+  // 3 at 25 a driver and 43 a team. A is 80 clear after round 2 and stays so.
+  describe('a title decided before the last round', () => {
+    const remaining = {
+      races: 2, sprints: 0, run: 3, dropped_scores: 'Every result counts', available: 50,
+      win_points: 25, fastest_lap_points: 0, scale: '[25,18]', sprint_scale: null, sprint_points: 0,
+    }
+    const rounds = [1, 2, 3, 4, 5].map((round) => ({
+      round, name_used: `Round ${round} Grand Prix`, sprint: 0, status: round <= 3 ? 'completed' : 'scheduled',
+    }))
+    const table = (kind, round, totals) =>
+      Object.entries(totals).map(([id, points], i) => ({
+        table_type: kind, after_round: round, position: i + 1, points, entity: id.toUpperCase(),
+        ...(kind === 'drivers' ? { driver_id: id } : { constructor_id: id }),
+      }))
+    const standings = [
+      ...table('drivers', 1, { a: 25, b: 18 }),
+      ...table('drivers', 2, { a: 100, b: 20 }),
+      ...table('drivers', 3, { a: 110, b: 30 }),
+      ...table('constructors', 1, { x: 43, y: 30 }),
+      ...table('constructors', 2, { x: 86, y: 60 }),
+      ...table('constructors', 3, { x: 129, y: 90 }),
+    ]
+    const after = (kind) => standings.filter((r) => r.after_round === 3 && r.table_type === kind)
+    const season = { year: 2026, drivers_champion: 'a', champion: 'Ace', constructors_champion: null }
+    const args = {
+      season, rounds, standings, drivers: after('drivers'), constructors: after('constructors'), remaining, afterRound: 3, year: 2026,
+    }
+    const title = { most: mostPerRound(remaining), rounds, standings, afterRound: 3 }
+
+    it('finds the round: the first after which nobody could reach or equal them, every table since agreeing', () => {
+      assert.equal(clinchRound(title, 'drivers', 'a'), 2)
+      // 39 clear with 86 left: the team title is not decided.
+      assert.equal(clinchRound(title, 'constructors', 'x'), null)
+      assert.equal(clinchRound(title, 'drivers', null), null)
+      assert.equal(clinchRound(title, 'drivers', 'nobody'), null)
+    })
+
+    it('declines where the tables cannot say, or where a rival could still draw level', () => {
+      const gap = { ...title, standings: standings.filter((r) => r.after_round !== 3) }
+      assert.equal(clinchRound(gap, 'drivers', 'a'), null)
+      const twice = { ...title, standings: [...standings, { ...standings[5], points: 31 }] }
+      assert.equal(clinchRound(twice, 'drivers', 'a'), null)
+      // Exactly 75 clear with 75 left after round 2: the countback may have
+      // settled it there, so round 3 is not asserted.
+      const level = [
+        ...table('drivers', 1, { a: 25, b: 18 }),
+        ...table('drivers', 2, { a: 100, b: 25 }),
+        ...table('drivers', 3, { a: 110, b: 30 }),
+      ]
+      assert.equal(clinchRound({ ...title, standings: level }, 'drivers', 'a'), null)
+      // Nobody on the table, or one alone on it, is no margin to measure.
+      const alone = standings.filter((r) => r.driver_id === 'a')
+      assert.equal(clinchRound({ ...title, standings: alone }, 'drivers', 'a'), null)
+    })
+
+    it('says the champion first, and works out only the title still fought', () => {
+      const answer = seasonAnswer(args)
+      assert.equal(
+        answer.who,
+        "Ace is the 2026 World Champion, clinched at the Round 2 Grand Prix (round 2). Who can still win the constructors' title: X and Y.",
+      )
+      assert.equal(answer.drivers, null)
+      assert.equal(answer.constructors.kind, 'constructors')
+      assert.match(answer.basis, /86 points are still available to a team/)
+      assert.doesNotMatch(answer.basis, /to a driver/)
+      assert.deepEqual(reachFigures(answer, 2026, new Map()).map((f) => f.kind), ['constructors'])
+    })
+
+    it('keeps the sentence and stops at the title where the round cannot be named', () => {
+      const answer = seasonAnswer({ ...args, standings: standings.filter((r) => r.after_round !== 1 && r.after_round !== 2) })
+      assert.match(answer.who, /^Ace is the 2026 World Champion\. Who can still win/)
+    })
+
+    it('keeps the sentence where the arithmetic declines, and has no basis to print', () => {
+      const lagging = seasonAnswer({ ...args, afterRound: 2 })
+      assert.match(lagging.who, /^Ace is the 2026 World Champion, clinched at the Round 2 Grand Prix \(round 2\)\.$/)
+      assert.equal(lagging.basis, null)
+      assert.equal(lagging.drivers, null)
+      assert.deepEqual(reachFigures(lagging, 2026, new Map()), [])
+    })
+
+    it('says both where both are on the record, and fights neither', () => {
+      const both = seasonAnswer({
+        ...args,
+        season: { ...season, constructors_champion: 'x', constructors_champion_name: 'Xeno' },
+        constructors: table('constructors', 3, { x: 129, y: 30 }),
+        standings: [...standings.filter((r) => !(r.table_type === 'constructors' && r.after_round === 3)), ...table('constructors', 3, { x: 200, y: 30 })],
+      })
+      assert.equal(
+        both.who,
+        "Ace is the 2026 World Champion, clinched at the Round 2 Grand Prix (round 2). Xeno is the 2026 Constructors' Champion, clinched at the Round 3 Grand Prix (round 3).",
+      )
+      assert.equal(both.basis, null)
+      assert.equal(both.constructors, null)
+    })
+
+    it('is exactly titleAnswer() with no title on the record, and says nothing of a season over', () => {
+      const open = { ...season, drivers_champion: null, champion: null }
+      assert.deepEqual(seasonAnswer({ ...args, season: open }), titleAnswer({ ...args }))
+      assert.equal(seasonAnswer({ ...args, remaining: { ...remaining, races: 0, available: 0, run: 5 } }), null)
+    })
+
+    it("gives the champion's page the sentence and every other driver no line", () => {
+      const get = (rows) => (key) => rows[key]
+      const current = currentTitle(
+        get({
+          fightSeason: [season],
+          fightFinal: [...after('drivers'), ...after('constructors')],
+          fightStandings: standings,
+          fightRemaining: [remaining],
+          fightRounds: rounds,
+        }),
+      )
+      assert.equal(current.next, 4)
+      assert.equal(fightLine(current, 'drivers', 'a'), 'Ace is the 2026 World Champion, clinched at the Round 2 Grand Prix (round 2).')
+      assert.equal(fightLine(current, 'drivers', 'b'), null)
+      assert.equal(fightLine(current, 'constructors', 'x'), 'Leads the title fight by 39 with 86 left.')
+    })
+
+    it('cites the statement only where the crowned sentence is printed', () => {
+      const entry = (id) => ({ id, priority: id })
+      const held = { fightSources: [entry(5), entry(7)], crownedSources: [entry(2)] }
+      const get = (key) => held[key]
+      const title = { crowned: { drivers: { id: 'a', line: 'x' }, constructors: null } }
+      const ids = (rows) => rows.map((s) => s.id)
+      assert.deepEqual(ids(fightCitation(get, title, 'drivers', 'a')), [2, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, title, 'drivers', 'b')), [5, 7])
+      assert.deepEqual(ids(fightCitation(get, title, 'constructors', 'x')), [5, 7])
+      assert.deepEqual(ids(fightCitation(get, title)), [2, 5, 7], 'the whole answer, on the upcoming race')
+      assert.deepEqual(ids(fightCitation(get, { crowned: undefined })), [5, 7])
+    })
+
+    it("names the champion on the strip while the gap stays a gap", () => {
+      const strip = (held) =>
+        titleStrip({
+          season: { ...held }, year: 2026, running: true, run: 3, notRun: false,
+          lead: { entity: 'Ace', driver_id: 'a', points: 110 }, second: { entity: 'Bo', points: 30 },
+          teamLead: { entity: 'Xeno', constructor_id: 'x', points: 129 },
+        }).filter(Boolean).map((t) => t.label)
+      assert.deepEqual(strip({ rounds: 5, drivers_champion: null }).slice(1), ['Leads', 'Gap', "Constructors' leader"])
+      assert.deepEqual(strip({ rounds: 5, drivers_champion: 'a' }).slice(1), ["Drivers' champion", 'Gap', "Constructors' leader"])
+      assert.deepEqual(strip({ rounds: 5, drivers_champion: 'a', constructors_champion: 'x' }).slice(1), ["Drivers' champion", 'Gap', "Constructors' champion"])
+    })
+  })
+
   it("prints a contender's line, the round they went out at only where the tables establish it", () => {
     const remaining = {
       races: 2, sprints: 0, run: 3, dropped_scores: 'Every result counts', available: 50,
@@ -1263,9 +1414,17 @@ describe('the queries a page and the prerenderer share', () => {
       }),
     )
     assert.equal(fightLine(level, 'drivers', 'a'), 'Level on points at the top of the title fight with 50 left.')
-    // A champion on the record, or no answer, is no line and no title.
+    // A season over, or no answer, is no line and no title.
     assert.equal(
-      currentTitle(get({ fightSeason: [{ year: 2026, drivers_champion: 'a' }], fightFinal: drivers, fightStandings: standings, fightRemaining: [remaining], fightRounds: rounds })),
+      currentTitle(
+        get({
+          fightSeason: [{ year: 2026, drivers_champion: 'a', champion: 'Ace' }],
+          fightFinal: drivers,
+          fightStandings: standings,
+          fightRemaining: [{ ...remaining, races: 0, run: 5, available: 0 }],
+          fightRounds: rounds,
+        }),
+      ),
       null,
     )
     assert.equal(fightLine(null, 'drivers', 'a'), null)
@@ -1417,8 +1576,20 @@ describe('the queries a page and the prerenderer share', () => {
     // "not yet run", not an em dash: nobody is missing, nothing has happened.
     assert.equal(soFar(null, { undecided: 0, not_started: 1 }), NOT_YET_RUN)
     assert.equal(soFar('Norris', { undecided: 0, not_started: 1 }), NOT_YET_RUN)
-    assert.equal(by(SEASONS_COLUMNS).rounds.text(23, { undecided: 1, run: 13 }), '13 of 23')
-    assert.equal(by(SEASONS_COLUMNS).rounds.text(24, { undecided: 0, run: 24 }), '24')
+    assert.equal(by(SEASONS_COLUMNS).rounds.text(23, { running: 1, undecided: 1, run: 13 }), '13 of 23')
+    assert.equal(by(SEASONS_COLUMNS).rounds.text(24, { running: 0, undecided: 0, run: 24 }), '24')
+    // LV-15: a title settled with rounds to run. The champion loses the mark,
+    // the count of rounds and second place keep theirs, and the constructors'
+    // title, a column of its own, is judged on its own.
+    const settled = { running: 1, undecided: 0, team_undecided: 1, run: 19 }
+    assert.equal(by(SEASONS_COLUMNS).rounds.text(23, settled), '19 of 23')
+    assert.equal(by(SEASONS_COLUMNS).champion.text('Antonelli', settled), 'Antonelli')
+    assert.equal(by(SEASONS_COLUMNS).runner_up.text('Verstappen', settled), 'Verstappen so far')
+    assert.equal(by(SEASONS_COLUMNS).runner_up.text(null, settled), EMPTY)
+    assert.equal(by(SEASONS_COLUMNS).runner_up.text('Hunt', { running: 0, undecided: 0 }), 'Hunt')
+    assert.equal(by(SEASONS_COLUMNS).runner_up.text('Russell', { running: 1, undecided: 1 }), 'Russell')
+    assert.equal(by(SEASONS_COLUMNS).constructors_champion.text('Mercedes', settled), 'Mercedes so far')
+    assert.equal(by(SEASONS_COLUMNS).constructors_champion.text('Mercedes', { ...settled, team_undecided: 0 }), 'Mercedes')
     // Not "0 of 24": the calendar is the whole fact a season not yet run has.
     assert.equal(by(SEASONS_COLUMNS).rounds.text(24, { undecided: 0, not_started: 1, run: 0 }), '24')
   })
@@ -3515,7 +3686,7 @@ describe('the pit wave at Austin 2025 (AF-134)', () => {
 })
 
 describe('the registers\' small multiples (VD-54)', () => {
-  const done = { undecided: 0, not_started: 0 }
+  const done = { running: 0, not_started: 0 }
 
   it('reads the triples in round order, whatever order group_concat gave', () => {
     assert.deepEqual(titleRaceOf('3:20.0:9.0 1:9.0:6.0 2:15.0:12.0'), [
@@ -3546,8 +3717,8 @@ describe('the registers\' small multiples (VD-54)', () => {
     assert.equal(titleRaceText('1:9:6 2:9:12 3:18:12', done), 'Ahead of the runner-up from round 3 of 3')
     assert.equal(titleRaceText('1:9:9', done), 'Level with the runner-up after the last round')
     assert.equal(titleRaceText('1:6:9', done), 'Behind the runner-up after the last round')
-    assert.equal(titleRaceText('1:9:6', { undecided: 1, not_started: 0 }), 'Ahead of second place after every round so far')
-    assert.equal(titleRaceText('1:6:9 2:15:12', { undecided: 1, not_started: 0 }), 'Ahead of second place from round 2 of 2 run')
+    assert.equal(titleRaceText('1:9:6', { running: 1, not_started: 0 }), 'Ahead of second place after every round so far')
+    assert.equal(titleRaceText('1:6:9 2:15:12', { running: 1, not_started: 0 }), 'Ahead of second place from round 2 of 2 run')
   })
 
   it('draws from nought at the start, with the line at nought inside the box', () => {

@@ -135,9 +135,13 @@ def main():
             sys.exit(f"no season {y}")
         print(f"\n{'=' * W}\n  {y} FIA FORMULA ONE WORLD CHAMPIONSHIP\n{'=' * W}\n")
         if r and r["champion"]:
-            print(f"  Drivers' champion       {r['champion']} ({r['team']}) — {r['points']} pts")
-            print(f"  Runner-up               {r['runner_up']} — {r['runner_up_points']} pts"
-                  f"   (margin {s['margin']})")
+            # A title decided with rounds to run has no final figures (LV-15).
+            final = r["points"] is not None
+            print(f"  Drivers' champion       {r['champion']} ({r['team']})"
+                  + (f" — {r['points']} pts" if final else " — season still running"))
+            if final:
+                print(f"  Runner-up               {r['runner_up']} — {r['runner_up_points']} pts"
+                      f"   (margin {s['margin']})")
             print(f"  Constructors' champion  {r['constructors_champion'] or 'n/a'}"
                   f" — {s['constructors_points'] or 'n/a'} pts")
         print(f"  Rounds                  {s['rounds']}")

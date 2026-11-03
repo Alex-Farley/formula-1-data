@@ -2,7 +2,7 @@
 """
 Driver register.
 
-Coverage: every World Champion (35), every notable Grand Prix winner,
+Coverage: every World Champion (36), every notable Grand Prix winner,
 and the full 2026 entry list.
 
 Tuple order:
@@ -112,7 +112,7 @@ CHAMPIONS = [
      "Won the 2009 title with Brawn GP in the team's only season.", "high"),
     ("vettel", "Sebastian Vettel", "Germany", "GER", "1987-07-03", None, 2007, 2022,
      300, 299, 53, 122, 57, 38, 3098, 4, "2010,2011,2012,2013", "retired",
-     "Youngest ever World Champion at 23 (2010) and youngest four-time champion. Won every race from Belgium to Brazil in 2013, equalling Ascari's run.", "high"),
+     "Youngest World Champion to that date at 23 (2010) and youngest four-time champion. Won every race from Belgium to Brazil in 2013, equalling Ascari's run.", "high"),
     ("n-rosberg", "Nico Rosberg", "Germany", "GER", "1985-06-27", None, 2006, 2016,
      206, 206, 23, 57, 30, 20, 1594.5, 1, "2016", "retired",
      "Beat Hamilton by five points in 2016 and announced his retirement five days later. Son of 1982 champion Keke Rosberg.", "high"),
@@ -122,6 +122,9 @@ CHAMPIONS = [
     ("norris", "Lando Norris", "United Kingdom", "GBR", "1999-11-13", None, 2019, None,
      None, 155, 13, None, 15, 13, None, 1, "2025", "active",
      "A first win at Miami in 2024, then the 2025 title by two points from Verstappen with team-mate Piastri third.", "medium"),
+    ("antonelli", "Andrea Kimi Antonelli", "Italy", "ITA", "2006-08-25", None, 2025, None,
+     None, None, 6, None, None, None, None, 1, "2026", "active",
+     "Promoted to Mercedes at 18 to replace Hamilton. Clinched the 2026 title at the Mexico City Grand Prix, the youngest World Champion in the sport's history.", "medium"),
 ]
 
 # ---------------------------------------------------------------------
@@ -266,8 +269,6 @@ OTHER_DRIVERS = [
      "First win at Interlagos 2022. Won twice in 2025 and again in Australia and Austria in 2026. GPDA director.", "medium"),
     ("piastri", "Oscar Piastri", "Australia", "AUS", "2001-04-06", None, 2023, None, 9, 6, 0, "active",
      "Won races in 2025 and finished third in the championship.", "medium"),
-    ("antonelli", "Andrea Kimi Antonelli", "Italy", "ITA", "2006-08-25", None, 2025, None, 6, None, 0, "active",
-     "Promoted to Mercedes at 18 to replace Hamilton. Leads the 2026 championship.", "medium"),
     ("hulkenberg", "Nico Hulkenberg", "Germany", "GER", "1987-08-19", None, 2010, None, 0, 1, 0, "active",
      "Took pole for Williams in 2010; a first podium came at Silverstone in 2025. Won Le Mans outright in 2015.", "medium"),
     ("albon", "Alexander Albon", "Thailand", "THA", "1996-03-23", None, 2019, None, 0, 0, 0, "active",

@@ -782,7 +782,10 @@ citation, is already one system and is kept.
   (VD-90: `titleAnswer` and `seasonLede` in `queries/season.js`, which both
   renderers print; smoke's *who can still win, in the lede*). The whole
   answer, some ninety words, was too long for a lede: it ran to ten lines
-  and the web font's arrival added an eleventh, moving the page beneath it ·
+  and the web font's arrival added an eleventh, moving the page beneath it.
+  A title on the record with rounds still to run is not fought here: the lede
+  opens on who holds it and the round it was clinched at, and the answer and
+  the reach chart cover the title left (LV-15: `seasonAnswer`) ·
   lead chart · *Who can still win*, the reach chart for each title the
   answer covers (provisional, AF-132) · standings · calendar · Who entered · photographs. The
   photographs follow *Who entered* so that they sit where the photo strip
@@ -807,10 +810,10 @@ citation, is already one system and is kept.
 Race pages follow the entity layout (DP-11): the header, with the weather
 line where one is held (§3, Page header), beside the outline slot; tiles; the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
-photographs. The page of the next round to run, while the season has no
-drivers' champion on record and its results have not landed, carries
-*What's at stake* after the timetable: the season page's answer and its
-basis, from the same function (provisional, AF-132). The classification
+photographs. The page of the next round to run, until its results land,
+carries *What's at stake* after the timetable: the season page's answer and
+its basis, from the same function (provisional, AF-132), and with every title
+already on the record the sentence alone (LV-15). The classification
 never shares its
 width with a side column (VD-84; beside the outline it lost Points and FL to
 a scroll from 768 to 1,110 px), and a scheduled race leads with its

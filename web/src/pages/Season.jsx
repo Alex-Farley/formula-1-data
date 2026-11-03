@@ -67,7 +67,7 @@ import {
   teamsByDriver,
   REACH_HEADING,
   reachFigures,
-  titleAnswer,
+  seasonAnswer,
   titleRaceFigure,
   titleStrip,
   wonHereNote,
@@ -371,13 +371,15 @@ function SeasonBody({ year, season, data }) {
 
   const driversFinal = useMemo(() => final.filter((r) => r.table_type === 'drivers'), [final])
   const constructorsFinal = useMemo(() => final.filter((r) => r.table_type === 'constructors'), [final])
-  // Two different questions (IA-17). `running`: is there a champion yet? It
-  // decides whether the strip leads with a champion or a leader. `live`: is
-  // there a round still to run? It decides whether the headings below call
-  // the tables final - a title can be settled with three rounds to go, and
-  // those tables are not final until the last of them has run.
-  const running = !season.drivers_champion && driversFinal.length >= 2
+  // Two different questions (IA-17). `live`: is there a round still to run?
+  // It decides whether the headings below call the tables final - a title can
+  // be settled with three rounds to go, and those tables are not final until
+  // the last of them has run. `running`: are these tables still a leader's,
+  // because there is no champion yet or there are rounds to run? It decides
+  // whether the strip counts a gap or gives the final figures, and whether
+  // there is a title left to answer for (LV-15).
   const live = stillRunning(calendar)
+  const running = (!season.drivers_champion || live) && driversFinal.length >= 2
   const after = latestRound(standings)
   const [lead, second] = driversFinal
   const teamLead = constructorsFinal[0] ?? null
@@ -401,12 +403,14 @@ function SeasonBody({ year, season, data }) {
   const noConstructors = noConstructorsNote(year, notRun)
 
   // The September question, answered from the standings, the calendar and the
-  // season's own scoring rule (PD-28). Only where there is no champion yet:
-  // once there is one, the strip above has already said who won, and a second
-  // sentence working out who could have is noise at best and a contradiction
-  // at worst. queries/season.js decides where the arithmetic will not carry.
+  // season's own scoring rule (PD-28), for each title not yet on the record;
+  // one that is says so instead (LV-15). queries/season.js decides where the
+  // arithmetic will not carry.
   const answer = running
-    ? titleAnswer({
+    ? seasonAnswer({
+        season,
+        rounds: calendar,
+        standings,
         drivers: driversFinal,
         constructors: constructorsFinal,
         remaining: data.remaining.rows[0] ?? null,
@@ -532,7 +536,7 @@ function SeasonBody({ year, season, data }) {
         {/* The strip is queries/season.js's, which the static page draws
             too (VD-49); the next session's tile is the browser's alone. */}
         <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
-        {answer && (
+        {answer?.basis && (
           <p className="note follows">
             <Dated>{answer.basis}</Dated>
           </p>

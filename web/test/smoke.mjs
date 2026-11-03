@@ -73,6 +73,8 @@ import {
   NEXT_ROUND,
   REMAINING,
   SEASON_SOURCES,
+  CALENDAR as SEASON_CALENDAR,
+  SEASON,
   STANDINGS as SEASON_STANDINGS,
   TITLE_SOURCES,
   WON_HERE,
@@ -81,13 +83,14 @@ import {
   STAKE_HEADING,
   currentTitle,
   fightAhead,
+  fightCitation,
   fightLine,
   latestRound,
   mergeSources,
   reachTitle,
+  seasonAnswer,
   seasonSources,
   standingsHeading,
-  titleAnswer,
   titleHeading,
 } from '../src/queries/season.js'
 import { DRIVER_SOURCES, SEASON_TEAMS, STANDINGS, THIS_SEASON, roundsRun, seasonTile, teamsBySeason, thisSeasonHeading } from '../src/queries/driver.js'
@@ -145,6 +148,7 @@ import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/t
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
+import { SEASONS } from '../src/queries/seasons.js'
 import {
   CIRCUIT_SOURCES,
   PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
@@ -204,6 +208,32 @@ const inProgress = () => one("SELECT MAX(year) FROM races WHERE status = 'comple
 // Who can still win the season being run (AF-132), from the queries and the
 // function every page that prints it reads.
 const currentFight = () => currentTitle((key) => db.prepare(FIGHT_QUERIES[key][0]).all())
+// What a season's own page says of its titles, as the two renderers work it
+// out: null where the page has no answer, or the season's tables are final.
+const pageAnswer = (year) => {
+  const season = db.prepare(SEASON).get(year)
+  const rounds = db.prepare(SEASON_CALENDAR).all(year)
+  const final = db.prepare(SEASON_FINAL).all(year)
+  const drivers = final.filter((r) => r.table_type === 'drivers')
+  const live = rounds.some((r) => r.status !== 'completed')
+  if ((season.drivers_champion && !live) || drivers.length < 2) return null
+  const standings = db.prepare(SEASON_STANDINGS).all(year)
+  return seasonAnswer({
+    season,
+    rounds,
+    standings,
+    drivers,
+    constructors: final.filter((r) => r.table_type === 'constructors'),
+    remaining: db.prepare(REMAINING).get(year) ?? null,
+    afterRound: latestRound(standings),
+    year,
+  })
+}
+// The season being run where a round is still to come, whoever has won what.
+const runningSeason = () =>
+  db
+    .prepare("SELECT year FROM seasons s WHERE year = ? AND EXISTS (SELECT 1 FROM races r WHERE r.year = s.year AND r.status <> 'completed') LIMIT 1")
+    .get(inProgress())
 const count = (sql, ...args) => one(sql, ...args)
 
 /* The five entities esc() in prerender.js writes, read back. Two sections now
@@ -1843,12 +1873,10 @@ try {
     const year = inProgress()
     const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
     const notes = (one('SELECT notes FROM seasons WHERE year = ?', year) ?? '').trim()
-    const final = db.prepare(SEASON_FINAL).all(year)
-    const drivers = final.filter((r) => r.table_type === 'drivers')
-    const constructors = final.filter((r) => r.table_type === 'constructors')
+    const drivers = db.prepare(SEASON_FINAL).all(year).filter((r) => r.table_type === 'drivers')
     const remaining = db.prepare(REMAINING).get(year) ?? null
     const afterRound = latestRound(db.prepare(SEASON_STANDINGS).all(year))
-    const answer = !champion && drivers.length >= 2 ? titleAnswer({ drivers, constructors, remaining, afterRound, year }) : null
+    const answer = pageAnswer(year)
     await go(`/seasons/${year}`, String(year))
     const appLede = (await text('#root main .lede')) ?? ''
     const html = await (await fetch(`${BASE}/seasons/${year}`)).text()
@@ -1871,6 +1899,8 @@ try {
     }
     is(appLede, notes ? `${answer.who} ${notes}` : answer.who, "the app's lede opens on who can still win, then the season's note")
     is(staticLede, appLede, 'and the static page opens on the same lede')
+    // A title on the record with nothing left to fight has no basis to print.
+    if (!answer.basis) return
     // Said once, in the lede and not again under the tiles; its basis is
     // what follows them. Up to what is left to run, because the build date
     // after it is written as a reader's date.
@@ -1928,7 +1958,10 @@ try {
       return
     }
     for (const [half, body] of await both(`/seasons/${year}`, String(year))) {
-      truthy(body.includes(REACH_HEADING), `the ${half} of /seasons/${year} has the reach charts' section`)
+      truthy(
+        body.includes(REACH_HEADING) === Boolean(title.drivers || title.constructors),
+        `the ${half} of /seasons/${year} has the reach charts' section while a title is fought`,
+      )
       for (const kind of ['drivers', 'constructors']) {
         if (title[kind]) truthy(body.includes(reachTitle(kind)), `with ${reachTitle(kind).toLowerCase()} drawn`)
       }
@@ -1964,6 +1997,65 @@ try {
     // A driver from no table of this season has no line.
     for (const [half, body] of await both('/drivers/senna', 'Ayrton Senna')) {
       truthy(!/title fight/.test(body), `the ${half} of /drivers/senna says nothing of a title fight`)
+    }
+  })
+
+  /*
+   * LV-15: a title on the record with rounds still to run. The season's lede
+   * and strip, the line under the home page's next race and the champion's own
+   * page all say so, in both halves, and the title is off the fight: no
+   * "can still win" for it and no reach chart. The round is held against
+   * titleSettled()'s, which the race page reads, by the sentence that page
+   * prints. A season with no such title has nothing here to check.
+   */
+  await section('/ /seasons/2026 /drivers  (a title decided with rounds to run: LV-15)', async () => {
+    const title = currentFight()
+    const year = one(`SELECT ${CURRENT_SEASON_SQL}`)
+    const crowned = title?.crowned
+    if (!crowned) {
+      note(`\n/seasons/${year}  (no title on the record with rounds to run)`)
+      return
+    }
+    const flat = (html) =>
+      unescaped([...(html.split('<div id="prerendered">')[1] ?? '').matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join(''))
+    const lines = [crowned.drivers, crowned.constructors].filter(Boolean)
+    const halves = async (route, heading) => {
+      await go(route, heading)
+      return [
+        ['app', (await text('#root main')) ?? ''],
+        ['static page', flat(await (await fetch(`${BASE}${route}`)).text())],
+      ]
+    }
+    for (const { line } of lines) {
+      const round = Number(line.match(/\(round (\d+)\)/)?.[1])
+      truthy(round, `"${line}" names the round`)
+      for (const [half, body] of await halves(`/races/${year}/${round}`)) {
+        if (crowned.drivers?.line === line) truthy(body.includes("settled the drivers' title"), `the ${half} of round ${round} says it settled the title`)
+      }
+    }
+    for (const [half, body] of await halves(`/seasons/${year}`, String(year))) {
+      for (const { line } of lines) is(body.split(line).length - 1, 1, `the ${half} of the season says "${line}" once`)
+      if (crowned.drivers) {
+        truthy(body.includes("Drivers' champion"), `and heads its tile as the champion`)
+        truthy(!body.includes("can still win the drivers' title"), `and no longer asks who can still win it`)
+        truthy(!body.includes(reachTitle('drivers')), `and draws no reach chart for it`)
+      }
+    }
+    for (const [half, body] of await halves('/')) {
+      for (const { line } of lines) is(body.split(line).length - 1, 1, `the ${half} of the home page says it once, under the next race`)
+    }
+    for (const [kind, { id, line }] of Object.entries(crowned).filter(([, held]) => held)) {
+      for (const [half, body] of await halves(`/${kind}/${id}`)) {
+        is(body.split(line).length - 1, 1, `the ${half} of /${kind}/${id} says it once`)
+      }
+    }
+    // The table of seasons names the champion for good and what is not yet
+    // final as it stands, in the app's row.
+    if (crowned.drivers) {
+      const row = db.prepare(SEASONS).all().find((r) => r.year === year)
+      is(row.champion_id, crowned.drivers.id, 'the seasons list names the champion')
+      truthy(row.champion_points !== null && row.runner_up !== null, 'and carries the running figures, not a row of dashes')
+      is(row.undecided, 0, 'without the mark that says the title is open')
     }
   })
 
@@ -7412,10 +7504,10 @@ try {
     truthy(navBox.hidden === 0 && !navBox.scrollable, `every masthead item is on screen at 375 px (${navBox.rows} rows)`)
     await page.setViewportSize({ width: 1280, height: 900 })
 
-    // A season without a champion yet opens with its leader, in the app and in
+    // A season with rounds to run opens with its leader, in the app and in
     // the static page, and the static standings table lists each driver once.
     {
-      const open = db.prepare("SELECT year FROM seasons WHERE drivers_champion IS NULL AND year = ? LIMIT 1").get(inProgress())
+      const open = runningSeason()
       if (open) {
         const lead = db
           .prepare("SELECT entity, points FROM v_standings_final WHERE year = ? AND table_type = 'drivers' ORDER BY position LIMIT 1")
@@ -7424,7 +7516,8 @@ try {
         await go(`/seasons/${open.year}`, String(open.year))
         await page.waitForSelector('#root main .stats', { timeout: 20000 }).catch(() => null)
         const stats = await page.$eval('#root main', (m) => m.textContent)
-        truthy(stats.includes('Leads') && stats.includes(lead.entity), `the app leads with ${lead.entity}`)
+        const leads = one('SELECT drivers_champion FROM seasons WHERE year = ?', open.year) ? "Drivers' champion" : 'Leads'
+        truthy(stats.includes(leads) && stats.includes(lead.entity), `the app leads with ${lead.entity}, under “${leads}”`)
         const html = await (await fetch(`${BASE}/seasons/${open.year}`)).text()
         truthy(
           html.includes(lead.entity) && !html.includes('Runner-up'),
@@ -7484,23 +7577,16 @@ try {
       const behind = route.startsWith('/seasons/')
         ? (() => {
             const [year] = args
-            const final = db.prepare(SEASON_FINAL).all(year)
-            const drivers = final.filter((r) => r.table_type === 'drivers')
-            const constructors = final.filter((r) => r.table_type === 'constructors')
             const remaining = db.prepare(REMAINING).get(year) ?? null
-            const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)
-            const answer =
-              !champion && drivers.length >= 2
-                ? titleAnswer({ drivers, constructors, remaining, afterRound: latestRound(db.prepare(SEASON_STANDINGS).all(year)), year })
-                : null
+            const answer = pageAnswer(year)
             return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining })
           })()
         : // A team or driver in the title fight being run adds the fight's
           // sources, where its page prints the line (AF-132).
           route.startsWith('/constructors/') && fightLine(currentFight(), 'constructors', args[0])
-          ? mergeSources(db.prepare(sources).all(...args), db.prepare(FIGHT_QUERIES.fightSources[0]).all())
+          ? mergeSources(db.prepare(sources).all(...args), fightCitation((key) => db.prepare(FIGHT_QUERIES[key][0]).all(), currentFight(), 'constructors', args[0]))
           : route.startsWith('/drivers/') && fightLine(currentFight(), 'drivers', args[0])
-            ? mergeSources(db.prepare(sources).all(...args), db.prepare(FIGHT_QUERIES.fightSources[0]).all())
+            ? mergeSources(db.prepare(sources).all(...args), fightCitation((key) => db.prepare(FIGHT_QUERIES[key][0]).all(), currentFight(), 'drivers', args[0]))
             : db.prepare(sources).all(...args)
       truthy(behind.length > 0, `${route} has rows that resolve to a source`)
       truthy(
@@ -10277,7 +10363,7 @@ try {
       // Rung two: the seasons list, a season's calendar and its two standings
       // tables - headed by the shared rule, so the check asks for the heading
       // the season in progress actually gets - and the races list.
-      const open = db.prepare('SELECT year FROM seasons WHERE drivers_champion IS NULL AND year = ? LIMIT 1').get(inProgress())
+      const open = runningSeason()
       await same('/seasons', 'Seasons')
       if (open) {
         // Newest first, so the top row is the latest season the register
@@ -10306,7 +10392,9 @@ try {
         await same(`/seasons/${open.year}`, String(open.year), standingsHeading("Drivers'", true, after))
         await same(`/seasons/${open.year}`, String(open.year), standingsHeading("Constructors'", true, after))
       }
-      const done = one('SELECT MAX(year) FROM seasons WHERE drivers_champion IS NOT NULL')
+      const done = one(
+        "SELECT MAX(year) FROM seasons s WHERE drivers_champion IS NOT NULL AND NOT EXISTS (SELECT 1 FROM races r WHERE r.year = s.year AND r.status <> 'completed')",
+      )
       await same(`/seasons/${done}`, String(done), 'The calendar')
       await same(`/seasons/${done}`, String(done), standingsHeading("Drivers'", false))
       await same(`/seasons/${done}`, String(done), 'Who entered')

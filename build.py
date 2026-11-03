@@ -642,7 +642,9 @@ def _stage_05_seasons(b):
             constructors_champion, constructors_points, engine_formula, tyre_suppliers,
             notes, confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, rounds, champ, team, cpts, cwins, ru, rupts, margin, cc, ccpts,
-             formula, tyres, notes, conf, S.SEASON_NOTES_SOURCE))
+             formula, tyres, notes, conf,
+             S.SEASON_NOTES_SOURCE if cpts is not None
+             else S.TITLE_DECIDED_SOURCES.get(yr, S.SEASON_NOTES_SOURCE)))
 
 
 def _stage_06_circuits(b):
@@ -5851,6 +5853,12 @@ def derive_records(cur, leave_out=frozenset()):
     completed = q("SELECT COUNT(*) FROM races WHERE status = 'completed'")[0][0]
     decided = q("SELECT COUNT(*) FROM seasons WHERE drivers_champion IS NOT NULL")[0][0]
     race_name = lambda year, name: f"{year} {name}"                       # noqa: E731
+    # A season whose tables are final. Having a champion is not that: a title
+    # can be decided with rounds to run (LV-15), and a share of the races run
+    # so far or a margin not yet final is no record.
+    SEASON_OVER = ("s.drivers_champion IS NOT NULL AND NOT EXISTS "
+                   "(SELECT 1 FROM races o WHERE o.year = s.year "
+                   "AND o.status <> 'completed')")
 
     def tie_value(lead, single, part, figure=None, joiner=", "):
         """A record's value from its leading rows, each (figure, name, id, ...):
@@ -6110,14 +6118,14 @@ def derive_records(cur, leave_out=frozenset()):
         + "; ".join(f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}" for r in lead)
         + ". Next: " + ", ".join(f"{r[1]} {r[0]} ({r[3]})" for r in _rest(rows, lead)) + ".")
 
-    rows = q("""SELECT ROUND(100.0 * COUNT(DISTINCT e.race_id) /
+    rows = q(f"""SELECT ROUND(100.0 * COUNT(DISTINCT e.race_id) /
                              (SELECT COUNT(*) FROM races x WHERE x.year = r.year
                                  AND x.status = 'completed'), 2) pct,
                        c.name, c.id, r.year, COUNT(DISTINCT e.race_id) w
                   FROM race_entries e JOIN races r ON r.id = e.race_id
                   JOIN constructors c ON c.id = e.constructor_id
                   JOIN seasons s ON s.year = r.year
-                 WHERE e.finish_position = 1 AND s.drivers_champion IS NOT NULL
+                 WHERE e.finish_position = 1 AND {SEASON_OVER}
                  GROUP BY r.year, c.id ORDER BY pct DESC, r.year, c.name""")
     lead = _leaders(rows)
     add("highest-season-win-share-constructor", "constructors",
@@ -6190,7 +6198,7 @@ def derive_records(cur, leave_out=frozenset()):
     # itself. Joining v_standings_final to itself directly makes SQLite
     # re-evaluate the view's correlated fill subquery for every candidate
     # pair - 22 s of a 32 s build, for the same 76 rows.
-    rows = q("""WITH top2 AS MATERIALIZED (
+    rows = q(f"""WITH top2 AS MATERIALIZED (
                   SELECT year, position, entity, driver_id, points FROM v_standings_final
                    WHERE table_type = 'drivers' AND position IN (1, 2))
                 SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
@@ -6199,14 +6207,14 @@ def derive_records(cur, leave_out=frozenset()):
                   JOIN top2 b ON b.year = a.year AND b.position = 2
                   JOIN seasons s ON s.year = a.year
                  WHERE a.position = 1
-                   AND s.drivers_champion IS NOT NULL
+                   AND {SEASON_OVER}
                  ORDER BY m, a.year""")
     lead = _leaders(rows, biggest=False)
     add("closest-championship-margin", "races", "Closest drivers' championship margin",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "points",
         tie_value(lead, lambda r: f"{_num(r[0])} point{'s' if r[0] != 1 else ''}, {r[3]}",
                   lambda r: str(r[3]), figure=f"{_num(lead[0][0])} points", joiner=", in "),
-        "First minus second in the final drivers' table of every decided season "
+        "First minus second in the final drivers' table of every finished season "
         "(v_standings_final), with dropped scores as the official table applied them. "
         + "; ".join(f"{r[3]}: {r[1]} {_num(r[4])}, {r[5]} {_num(r[6])}" for r in lead)
         + ". Next: " + ", ".join(f"{r[3]} ({_num(r[0])}: {r[1]} over {r[5]})"
@@ -6343,14 +6351,14 @@ def derive_records(cur, leave_out=frozenset()):
         "constructors.wins. " + "; ".join(f"{r[1]} with {r[3]}" for r in lead)
         + ". Next: " + ", ".join(f"{r[1]} with {r[3]} {r[0]}" for r in _rest(rows, lead)) + ".")
 
-    rows = q("""SELECT ROUND(100.0 * COUNT(*) /
+    rows = q(f"""SELECT ROUND(100.0 * COUNT(*) /
                              (SELECT COUNT(*) FROM races x WHERE x.year = r.year
                                  AND x.status = 'completed'), 2) pct,
                        d.full_name, d.id, r.year, COUNT(*) w
                   FROM race_entries e JOIN races r ON r.id = e.race_id
                   JOIN drivers d ON d.id = e.driver_id
                   JOIN seasons s ON s.year = r.year
-                 WHERE e.finish_position = 1 AND s.drivers_champion IS NOT NULL
+                 WHERE e.finish_position = 1 AND {SEASON_OVER}
                  GROUP BY r.year, d.id ORDER BY pct DESC, r.year, d.full_name""")
     lead = _leaders(rows)
     add("highest-season-win-share-driver", "drivers",
