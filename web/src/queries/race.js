@@ -259,12 +259,13 @@ export const NEIGHBOURS = `
  * reading of URLs. A classification row's note (DA-46) is cited in `claims`
  * rather than by the row's own source_id - the row is F1DB's, the reason
  * under it a race article's - so the claim behind each note printed is read
- * too. Photographs and the circuit outline are not here: each carries its own
- * credit beside it - per file for a photograph, F1DB's CC BY 4.0 line under
- * the outline - which is the rule for them.
+ * too. The weather line's two rows are here as well (AF-142). Photographs
+ * and the circuit outline are not here: each carries its own credit beside
+ * it - per file for a photograph, F1DB's CC BY 4.0 line under the outline -
+ * which is the rule for them.
  */
 export const RACE_SOURCES = `
-  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+  SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
    WHERE s.id IN (
            SELECT r.source_id FROM races r WHERE r.year = ?1 AND r.round = ?2
@@ -275,12 +276,78 @@ export const RACE_SOURCES = `
      UNION SELECT x.source_id FROM sprint_results x JOIN races r ON r.id = x.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT p.source_id FROM pit_stops p JOIN races r ON r.id = p.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT t.source_id FROM sessions t JOIN races r ON r.id = t.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT w.source_id FROM race_weather_reported w JOIN races r ON r.id = w.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT m.source_id FROM race_weather_modelled m JOIN races r ON r.id = m.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT c.source_id FROM claims c
              JOIN race_entries e ON c.tbl = 'race_entries' AND c.field = 'note' AND c.row_key = e.race_id || '|' || e.driver_id
              JOIN races r ON r.id = e.race_id
             WHERE r.year = ?1 AND r.round = ?2 AND e.note IS NOT NULL AND e.note <> '')
    ORDER BY s.priority, s.id
 `
+
+/**
+ * AF-142: what the header says of the race's weather. One row for a race
+ * whatever is held, each table's columns NULL where it holds nothing, which
+ * raceWeather() reads as not established. Read by Race.jsx and by
+ * scripts/prerender.js with (year, round).
+ */
+export const RACE_WEATHER = `
+  SELECT w.conditions, w.reported, m.air_max_c, m.rain_mm
+    FROM races r
+    LEFT JOIN race_weather_reported w ON w.race_id = r.id
+    LEFT JOIN race_weather_modelled m ON m.race_id = r.id
+   WHERE r.year = ? AND r.round = ?
+`
+
+/* The marks, one 16-unit path each, drawn in the ink of the line they sit in
+   by both renderers (.weather-mark). */
+export const WEATHER_MARKS = {
+  sun: 'M8 5a3 3 0 1 0 0 6a3 3 0 0 0 0-6Z M8 1v2 M8 13v2 M1 8h2 M13 8h2 M3 3l1.5 1.5 M11.5 11.5L13 13 M13 3l-1.5 1.5 M4.5 11.5L3 13',
+  cloud: 'M4.5 12.5a3 3 0 0 1-.4-6a4 4 0 0 1 7.7-.9a3.5 3.5 0 0 1 .2 6.9Z',
+  rain: 'M4.5 9.5a3 3 0 0 1-.4-6a4 4 0 0 1 7.7-.9a3.5 3.5 0 0 1 .2 6.9Z M5.5 11.5l-1 2.5 M8.5 11.5l-1 2.5 M11.5 11.5l-1 2.5',
+}
+
+/* The link Open-Meteo asks for beside wherever its data is shown. */
+export const WEATHER_CREDIT = { text: 'Open-Meteo', href: 'https://open-meteo.com/' }
+
+export const WEATHER_HOW = 'How it is modelled'
+
+/* The Copernicus wording ATTRIBUTION.md carries beside Open-Meteo's credit,
+   word for word (web/test/conventions.mjs compares them), so a change to it
+   there, its year or what #1200 rules, fails until it is made here too. */
+export const COPERNICUS_CREDIT =
+  'Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.'
+
+export const WEATHER_METHOD =
+  `ERA5's reanalysis, through Open-Meteo, of the circuit's whole local day and not the race's hours, for the grid cell the circuit sits in and not the track, so a shower can be missing from it. ${COPERNICUS_CREDIT}`
+
+const CLOUDED = /cloud|overcast|thunder|\bgr[ae]y\b|\bdull\b/i
+
+/**
+ * The header's weather line, or null where neither source holds anything.
+ *
+ * Wet or dry, and so the mark, is the race article's report; a phrase the
+ * build read as neither has no mark and no word. Dry is the sun unless the
+ * phrase speaks of cloud and not of sun, and the word says so too, since the
+ * mark is hidden from a screen reader: "with cloud", which is what a partly
+ * cloudy day and an overcast one both were. The sun says dry, not clear: many
+ * a phrase that gives it, "Hot, dry", says nothing of the sky. The
+ * temperature and rain are ERA5's for the circuit's whole local day: nothing
+ * here holds a start time before 2023, so the figure is the day's high and
+ * never the temperature at the start, and `modelled` is what makes a renderer
+ * label it and credit it.
+ */
+export const raceWeather = (row) => {
+  const said = row?.conditions ?? null
+  const mark = said === null ? null : said === 'wet' ? 'rain' : CLOUDED.test(row.reported) && !/sun/i.test(row.reported) ? 'cloud' : 'sun'
+  const word = mark === null ? null : { rain: 'Wet', cloud: 'Dry, with cloud', sun: 'Dry' }[mark]
+  const modelled = row?.air_max_c != null && row?.rain_mm != null
+  const figures = modelled
+    ? `High of ${Math.round(row.air_max_c)}\u00a0°C, ${row.rain_mm === 0 ? 'no rain' : `${row.rain_mm}\u00a0mm of rain`} on the day`
+    : null
+  if (word === null && figures === null) return null
+  return { mark, text: [word, figures].filter(Boolean).join(' · '), modelled }
+}
 
 /* ------------------------------------------------------------------ order */
 

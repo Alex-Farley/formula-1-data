@@ -1534,6 +1534,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
     'en.wikipedia.org': ['cite', 'the source behind a prose field or a register row'],
     'www.formula1.com': ['cite', 'the official record a figure is checked against'],
     'www.openstreetmap.org': ['cite', 'the ODbL attribution the centrelines carry'],
+    'open-meteo.com': ['cite', 'the link Open-Meteo asks for beside its figures (AF-142)'],
     'schema.org': ['cite', 'the JSON-LD vocabulary, a namespace and not a fetch'],
     'www.w3.org': ['cite', 'an XML namespace, likewise'],
     'www.sitemaps.org': ['cite', 'the sitemap namespace, likewise'],
@@ -2209,6 +2210,13 @@ describe('one figure grammar: the heading names the figure, and the note goes un
     assert.ok(helper[2].indexOf('figure-body') < helper[2].indexOf('figure-note'), "the static note follows the drawing, as the app's does")
     // Every static chart figure goes through the helper.
     assert.equal((prerender.match(/<figure class="figure"/g) ?? []).length, 1, 'a static figure written out by hand rather than through figure()')
+  })
+
+  it("the race page's Copernicus credit is ATTRIBUTION.md's, word for word (AF-142)", async () => {
+    const { COPERNICUS_CREDIT, WEATHER_METHOD } = await import('../src/queries/race.js')
+    const attribution = read(join(web, '..', 'ATTRIBUTION.md'))
+    assert.ok(attribution.includes(`*${COPERNICUS_CREDIT}*`), 'the credit has drifted from ATTRIBUTION.md')
+    assert.ok(WEATHER_METHOD.endsWith(COPERNICUS_CREDIT), 'the disclosure does not carry the credit')
   })
 
   it('every note builder is 50 words at its longest', async () => {

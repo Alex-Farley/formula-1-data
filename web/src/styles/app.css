@@ -4132,6 +4132,47 @@ a.button.secondary:hover {
   color: var(--ink);
 }
 
+/* AF-142: a race's weather, under the lede. The line is a note attached to
+   the header, in the header's soft ink; its mark takes that ink, because a
+   colour here would say more than wet or dry does. The disclosure shares the
+   line's row where it fits, since each pixel of this header is one the
+   classification gives up at 1440 x 900 (design-system.md, section 4), and
+   takes a row of its own when it is opened. */
+.race-weather {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3) var(--space-6);
+  margin: var(--space-4) 0 0;
+}
+
+.race-weather > p {
+  margin: 0;
+  max-width: var(--measure);
+  font-size: var(--size-4);
+  color: var(--ink-soft);
+}
+
+.race-weather > .table-how {
+  margin-top: 0;
+}
+
+.race-weather > .table-how[open] {
+  flex-basis: 100%;
+}
+
+.weather-mark {
+  width: 1.25em; /* the mark, sized to the line it sits in */
+  height: 1.25em;
+  margin-right: var(--space-2);
+  vertical-align: -0.25em;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* Sits under a page heading, where a reader who wants the race before this
    one is already looking. Both ends are always rendered, so the "next" link
    does not slide across when the first item in a series is open. */

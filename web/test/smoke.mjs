@@ -54,6 +54,11 @@ import {
   PIT_ORDER_HEADING,
   PRACTICE_SESSIONS,
   RACE_SOURCES,
+  RACE_WEATHER,
+  WEATHER_CREDIT,
+  WEATHER_MARKS,
+  WEATHER_METHOD,
+  raceWeather,
 } from '../src/queries/race.js'
 import { GRID_FLAG_WIDTH } from '../src/charts/gridFlag.js'
 import { STINT_HEADS, STINTS_WIDTH } from '../src/charts/stints.js'
@@ -3514,6 +3519,84 @@ try {
      */
   })
 
+  await section('/races/1951/3  (the weather line: AF-142)', async () => {
+    const line = (weather) => `${weather.text}${weather.modelled ? ` (modelled, ${WEATHER_CREDIT.text})` : ''}`
+    // What the static page says: the text between the tags of the block's
+    // first paragraph, read as /data's textOf reads it.
+    const staticBlock = (html) => /<div class="race-weather">[\s\S]*?<\/div>/.exec(html)?.[0] ?? null
+    const staticLine = (html) => {
+      const paragraph = staticBlock(html)?.match(/<p>([\s\S]*?)<\/p>/)[1]
+      return paragraph === undefined ? null : [...paragraph.matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')
+    }
+    const unescape = (s) => s?.replaceAll('&#39;', "'")
+    const weather = raceWeather(db.prepare(RACE_WEATHER).get(1951, 3))
+    truthy(weather?.modelled && weather.mark, 'the 1951 Belgian Grand Prix has a report and a model row')
+    await go('/races/1951/3', 'Belgian Grand Prix')
+    const app = await page.evaluate(() => {
+      const block = document.querySelector('#root main header .race-weather')
+      return {
+        line: block?.querySelector('p')?.textContent,
+        mark: block?.querySelector('p > svg.weather-mark path')?.getAttribute('d'),
+        href: block?.querySelector('p > a')?.getAttribute('href'),
+        how: block?.querySelector('details')?.open,
+        credit: block?.querySelector('details p')?.textContent,
+        afterLede: block?.previousElementSibling?.className,
+        beforeStepper: block?.nextElementSibling?.className,
+      }
+    })
+    const html = await (await fetch(`${BASE}/races/1951/3`)).text()
+    is(app.line, line(weather), 'the app says the line')
+    is(staticLine(html), line(weather), 'and the static page says the same')
+    is(app.mark, WEATHER_MARKS[weather.mark], 'the app draws the mark')
+    truthy(staticBlock(html).includes(`d="${WEATHER_MARKS[weather.mark]}"`), 'and so does the static page')
+    is(app.href, WEATHER_CREDIT.href, 'the link Open-Meteo asks for is beside its figures in the app')
+    truthy(staticBlock(html).includes(`href="${WEATHER_CREDIT.href}"`), 'and on the static page')
+    is(app.how, false, 'the method is folded')
+    is(app.credit, WEATHER_METHOD, 'with the credit inside it in the app')
+    is(unescape(staticBlock(html)).includes(WEATHER_METHOD), true, 'and on the static page')
+    is([app.afterLede, app.beforeStepper].join(' '), 'lede stepper', 'the line is the header\'s, between the lede and the stepper')
+    truthy(/<header>[\s\S]*race-weather[\s\S]*<\/header>/.test(html.slice(html.indexOf('<article'), html.indexOf('class="section"'))), 'and in the static header too')
+    for (const halfHtml of [await page.content(), html]) {
+      truthy(unescape(halfHtml).includes('Two sources disagree about this race'), 'the model and the report disagree here, and the box says so in both halves')
+    }
+    const behind = db.prepare(RACE_SOURCES).all(1951, 3).map((s) => s.source)
+    const cited = (sql) => db.prepare(`SELECT s.source FROM source_registry s JOIN ${sql} t ON t.source_id = s.id JOIN races r ON r.id = t.race_id WHERE r.year = 1951 AND r.round = 3`).get().source
+    truthy(behind.includes(cited('race_weather_reported')), 'the citation names the report\'s source')
+    truthy(behind.includes(cited('race_weather_modelled')), 'and the model\'s')
+
+    // A race with nothing held says nothing, in either half.
+    const none = db
+      .prepare(
+        `SELECT year, round, name_used FROM races r
+          WHERE NOT EXISTS (SELECT 1 FROM race_weather_reported w WHERE w.race_id = r.id)
+            AND NOT EXISTS (SELECT 1 FROM race_weather_modelled m WHERE m.race_id = r.id) LIMIT 1`,
+      )
+      .get()
+    truthy(none, 'a race holds neither row')
+    const blank = await (await fetch(`${BASE}/races/${none.year}/${none.round}`)).text()
+    is(staticBlock(blank), null, 'the static page of a race with no weather has no line')
+    await go(`/races/${none.year}/${none.round}`, none.name_used)
+    is(await page.locator('#root main .race-weather').count(), 0, 'nor has the app')
+
+    // A model row with no report: no mark and no word, in either half. Which
+    // races hold a report and no model row changes with each harvest, so that
+    // case is the units'.
+    const modelOnly = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used FROM races r JOIN race_weather_modelled m ON m.race_id = r.id
+          WHERE NOT EXISTS (SELECT 1 FROM race_weather_reported w WHERE w.race_id = r.id) ORDER BY r.id LIMIT 1`,
+      )
+      .get()
+    truthy(modelOnly, 'a race holds a model row and no report')
+    const modelled = raceWeather(db.prepare(RACE_WEATHER).get(modelOnly.year, modelOnly.round))
+    const figuresOnly = await (await fetch(`${BASE}/races/${modelOnly.year}/${modelOnly.round}`)).text()
+    is(staticLine(figuresOnly), line(modelled), 'the static page says the figures alone')
+    is(staticBlock(figuresOnly).includes('weather-mark'), false, 'with no mark')
+    await go(`/races/${modelOnly.year}/${modelOnly.round}`, modelOnly.name_used)
+    is(await page.locator('#root main .race-weather p').first().textContent(), line(modelled), 'and so does the app')
+    is(await page.locator('#root main .weather-mark').count(), 0, 'with no mark')
+  })
+
   /*
    * DA-46. Pescarolo at P5 and Attwood at P6 drove Formula Two cars in the
    * same race and read 0, with nothing on the page saying why a paid place
@@ -3561,11 +3644,13 @@ try {
     // TEMP copy citing a source nothing else here does, and RACE_SOURCES
     // must find it there.
     const probe = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    const named = probe.prepare(RACE_SOURCES).all(1969, 7).map((s) => s.id)
+    const elsewhere = probe.prepare(`SELECT id, source FROM source_registry WHERE id NOT IN (${named.join(', ')}) ORDER BY id DESC LIMIT 1`).get()
     probe.exec(
       `CREATE TEMP TABLE claims AS SELECT * FROM main.claims;
-       UPDATE temp.claims SET source_id = (SELECT MAX(id) FROM source_registry) WHERE tbl = 'race_entries' AND field = 'note'`,
+       UPDATE temp.claims SET source_id = ${elsewhere.id} WHERE tbl = 'race_entries' AND field = 'note'`,
     )
-    const only = probe.prepare('SELECT source FROM source_registry WHERE id = (SELECT MAX(id) FROM source_registry)').get().source
+    const only = elsewhere.source
     truthy(!behind.has(only) && probe.prepare(RACE_SOURCES).all(1969, 7).some((s) => s.source === only), `RACE_SOURCES reads the note's own claim — "${only}"`)
     probe.close()
     const plainRace = await (await fetch(`${BASE}/races/1976/9`)).text()

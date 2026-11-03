@@ -343,11 +343,16 @@ import {
   sprintQualifyingColumns,
   sprintQualifyingFooter,
   RACE_SOURCES,
+  RACE_WEATHER,
   SHARED_DRIVE_NOTE,
   SPRINT as SPRINT_RESULTS,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
   STINT_COLUMNS,
+  WEATHER_CREDIT,
+  WEATHER_HOW,
+  WEATHER_MARKS,
+  WEATHER_METHOD,
   carName,
   classificationFooter,
   hasEntryNote,
@@ -364,6 +369,7 @@ import {
   qualifyingColumns,
   raceLede,
   raceStrip,
+  raceWeather,
   railOf,
   scheduledNote,
 } from '../src/queries/race.js'
@@ -2552,9 +2558,10 @@ const structure = (body, tail = '') => {
   // reason: Circuit.jsx passes it as <Page aside>. Its wrapper closes on the
   // figure's own </figure>, which a photograph holds exactly one of.
   // The eyebrow and the livery band are the header's as well (VD-79): Page
-  // draws the one above the h1 and takes the other as its aside.
+  // draws the one above the h1 and takes the other as its aside. So is a
+  // race's weather line (AF-142), which Race.jsx passes in its aside too.
   const head = body.match(
-    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
+    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<div class="race-weather">[\s\S]*?<\/div>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
   )
   if (!head) die('prerender: a page body that does not open on an h1')
   return `<article class="page"><header>${head.slice(1).map((part) => part?.trim() ?? '').join('')}</header>${sectioned(
@@ -3100,6 +3107,19 @@ const seasonsTable = (rows) =>
   // block at every h2 not already inside one, so a bare h2 there would cut
   // the grid in half.
   const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
+  // AF-142: the header's weather line, as Race.jsx's RaceWeather writes it.
+  const weatherBlock = (weather) =>
+    weather
+      ? `<div class="race-weather"><p>${
+          weather.mark
+            ? `<svg class="weather-mark" viewBox="0 0 16 16" aria-hidden="true"><path d="${esc(WEATHER_MARKS[weather.mark])}"></path></svg>`
+            : ''
+        }${esc(weather.text)}${
+          weather.modelled ? ` (modelled, ${outbound(WEATHER_CREDIT.href, WEATHER_CREDIT.text)})` : ''
+        }</p>${
+          weather.modelled ? `<details class="table-how"><summary>${esc(WEATHER_HOW)}</summary><p>${esc(WEATHER_METHOD)}</p></details>` : ''
+        }</div>`
+      : ''
   // AF-131: how a sheet's distance column is derived, as Race.jsx's
   // DistanceHow writes it; nothing where the sheet shows no distance.
   const distanceHow = (sheet, table, laps = 1) => {
@@ -3220,6 +3240,7 @@ const seasonsTable = (rows) =>
       },
       body: `
         ${opening({ eyebrow: EYEBROWS.race(r.round, neighbours.rounds, r.date_iso), title: headline, lede: standfirst })}
+        ${weatherBlock(raceWeather(one(RACE_WEATHER, r.year, r.round)))}
         ${stepperNav(raceSteps(neighbours))}
         <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}

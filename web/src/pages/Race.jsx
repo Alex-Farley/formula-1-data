@@ -47,11 +47,16 @@ import {
   RACE,
   RACE_HISTORY,
   RACE_SOURCES,
+  RACE_WEATHER,
   SHARED_DRIVE_NOTE,
   SPRINT,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
   STINT_COLUMNS,
+  WEATHER_CREDIT,
+  WEATHER_HOW,
+  WEATHER_MARKS,
+  WEATHER_METHOD,
   carName,
   classificationFooter,
   hasEntryNote,
@@ -62,6 +67,7 @@ import {
   qualifyingColumns,
   raceLede,
   raceStrip,
+  raceWeather,
   railOf,
   scheduledNote,
   withDistance,
@@ -233,6 +239,39 @@ function DistanceHow({ rows: sheet, table, laps = 1 }) {
   )
 }
 
+/* AF-142: the header's weather line; raceWeather() in queries/race.js says
+   what it reads. scripts/prerender.js writes the same block. */
+function RaceWeather({ weather }) {
+  if (!weather) return null
+  return (
+    <div className="race-weather">
+      <p>
+        {weather.mark && (
+          <svg className="weather-mark" viewBox="0 0 16 16" aria-hidden="true">
+            <path d={WEATHER_MARKS[weather.mark]} />
+          </svg>
+        )}
+        {weather.text}
+        {weather.modelled && (
+          <>
+            {' (modelled, '}
+            <a href={WEATHER_CREDIT.href} target="_blank" rel="noreferrer noopener">
+              {WEATHER_CREDIT.text}
+            </a>
+            )
+          </>
+        )}
+      </p>
+      {weather.modelled && (
+        <details className="table-how">
+          <summary>{WEATHER_HOW}</summary>
+          <p>{WEATHER_METHOD}</p>
+        </details>
+      )}
+    </div>
+  )
+}
+
 const sprintRenders = (year) => ({ rail: RAIL, driver: driverLink, constructor: constructorLink(year), status: outTag })
 
 const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
@@ -242,6 +281,7 @@ export default function Race() {
   const args = [Number(year), Number(round)]
   const state = useQueries({
     race: [RACE, args],
+    weather: [RACE_WEATHER, args],
     entries: [ENTRIES, args],
     qualifying: [QUALIFYING, args],
     practice: [PRACTICE, args],
@@ -355,7 +395,10 @@ function RaceBody({ race, data, year, round }) {
       })}
       sources={stake ? mergeSources(rows(data, 'sources'), rows(data, 'fightSources')) : rows(data, 'sources')}
       aside={
-        <Stepper {...raceSteps(neighbours)} />
+        <>
+          <RaceWeather weather={raceWeather(data.weather.rows[0])} />
+          <Stepper {...raceSteps(neighbours)} />
+        </>
       }
     >
       <Section>
