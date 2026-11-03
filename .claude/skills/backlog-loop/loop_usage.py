@@ -47,7 +47,34 @@ WHY THIS EXISTS
     supervise.py before each manager session.
 
 WHAT IT READS
-    `claude -p /usage --output-format json`, a local command that costs no
+    The agent's own usage reader, by default `claude -p /usage`, and any other
+    agent's through LOOP_USAGE_CMD (AF-118, piece 4 of AF-114). The reader is
+    chosen once, in read_text(), and everything after it - the parser, the
+    decision, the `--start` and `--end` readings - is the same for both.
+
+    LOOP_USAGE_CMD is a command line, split like a shell's and run without
+    one, so no quoting reaches a shell. It prints the same text /usage does,
+    on standard output, and exits 0. The adapter's whole contract is two
+    lines, one per window, each read whole or not at all:
+
+        Current session: 25% used · resets Oct 14, 10:59pm (Europe/London)
+        Current week (all models): 15% used · resets Oct 19, 2:59pm (Europe/London)
+
+    The percentage is points of 100 used, and the reset is a clock reading
+    with a zone that resolves, which reset_at() accepts: `resets 1:30pm
+    (Europe/London)`, with a date when it is not today. Other lines are
+    ignored, and a line missing either part, or a window an agent has no
+    figure for, is left out - the adapter prints only what it knows. A
+    non-zero exit, no output, a timeout or a command that will not start
+    is UNKNOWN. Set but empty, LOOP_USAGE_CMD says this agent has no reader:
+    UNKNOWN without running anything, which is how an agent that is not
+    Claude Code, on a machine that has `claude` on PATH, avoids being paced
+    on Claude's budget. Each agent's budget is its own, and the check reads
+    the one that will run the item. An agent with no adapter reads
+    UNKNOWN and the loop reacts to a limit when it arrives, as before
+    AF-108 `[D-55]`.
+
+    The default adapter is `claude -p /usage --output-format json`, a local command that costs no
     model turn (total_cost_usd 0, probed 2026-10-14 on Claude Code 2.1.299
     under a subscription login). Its `result` is text meant for people:
 
@@ -136,7 +163,7 @@ WHAT IT DECIDES
     written to .claude/loop/progress.log with the figures it used, so a week
     of them is what calibrates them. Each can be set in the environment:
     LOOP_USAGE_M_LEFT, LOOP_USAGE_SMALL_LEFT, LOOP_USAGE_SLACK,
-    LOOP_USAGE_RESERVE, LOOP_USAGE_ALARM_LOOK. A pause is always allowed, and nothing here touches
+    LOOP_USAGE_RESERVE, LOOP_USAGE_ALARM_LOOK; LOOP_USAGE_CMD is the reader. A pause is always allowed, and nothing here touches
     a control: no check, permission mode or review is changed by a figure.
 """
 import datetime as dt
@@ -144,6 +171,7 @@ import json
 import math
 import os
 import re
+import shlex
 import shutil
 import sqlite3
 import statistics
@@ -278,9 +306,39 @@ def parse(text, now):
     return out
 
 
-def read_text(claude, timeout=90):
-    """/usage's text, or (None, why). Never raises: an unreadable report is
-    an answer, UNKNOWN, and not a failure of the loop."""
+def source(env=None):
+    """What the report is read from, for the messages that name it."""
+    return "LOOP_USAGE_CMD" if "LOOP_USAGE_CMD" in (os.environ if env is None else env) else "/usage"
+
+
+def read_adapter(command, timeout=90):
+    """The text a LOOP_USAGE_CMD adapter printed, or (None, why). Never
+    raises, as read_text() does not."""
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        return None, "LOOP_USAGE_CMD is not a command line this can split"
+    if not argv:
+        return None, "LOOP_USAGE_CMD is empty: this agent has no usage reader"
+    try:
+        # Any command at all may print bytes that are not text; a replaced one
+        # fails parse() as a garbled line does, and reads as UNKNOWN.
+        run = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                             errors="replace", timeout=timeout, check=False)
+    except (OSError, ValueError, subprocess.TimeoutExpired) as e:
+        return None, f"LOOP_USAGE_CMD did not answer ({type(e).__name__})"
+    if run.returncode != 0:
+        return None, f"LOOP_USAGE_CMD exited {run.returncode}"
+    return run.stdout, None
+
+
+def read_text(claude, timeout=90, env=None):
+    """The usage report's text, or (None, why). Never raises: an unreadable
+    report is an answer, UNKNOWN, and not a failure of the loop. LOOP_USAGE_CMD
+    in the environment replaces the default reader, `claude -p /usage`."""
+    command = (os.environ if env is None else env).get("LOOP_USAGE_CMD")
+    if command is not None:
+        return read_adapter(command, timeout)
     if not claude:
         return None, "no Claude Code CLI on PATH"
     try:
@@ -451,8 +509,8 @@ def check(now=None, claude=None):
         return f"UNKNOWN - {problem}; carrying on, reacting to a limit when one arrives", EXIT["UNKNOWN"]
     windows = parse(text, now)
     if not windows:
-        return ("UNKNOWN - /usage named no window this can read; carrying on, reacting to a limit "
-                "when one arrives"), EXIT["UNKNOWN"]
+        return (f"UNKNOWN - {source()} named no window this can read; carrying on, reacting to a "
+                "limit when one arrives"), EXIT["UNKNOWN"]
     word, until, why, target = decide(windows, now, next_race(now), settings(), reserve_alarm)
     return line(word, until, why, target), EXIT[word]
 
@@ -492,7 +550,7 @@ def session_reading(now=None, claude=None):
     windows = parse(text, now)
     if "session" not in windows:
         return None, ("no session line, as a window just rolled over shows"
-                      if "week" in windows else "/usage named no window this can read")
+                      if "week" in windows else f"{source()} named no window this can read")
     return windows["session"], None
 
 
