@@ -652,7 +652,11 @@ one only for it to pause.
   loop waits until the pace catches up. While a race falls between two days
   ago and the weekly reset, 10 points are held back for the refresh work a
   race weekend brings, read from the `sessions` table; an unreadable f1.db
-  keeps the reserve.
+  keeps the reserve. The two-day tail is for late results, so it ends early
+  once the race's results are in f1.db — a `race_entries` row holding a
+  finish position — and the reserve is then held for the next race only if
+  that one falls before the reset; the usage line names the race it is held
+  for (AF-155).
 - **The thresholds are starting values**, taken from the sizes in the item
   (an S fork about 73,000 tokens, an M about 188,000, reviewer passes
   40,000–130,000 `[D-24]`) and not from a measured percentage per token.

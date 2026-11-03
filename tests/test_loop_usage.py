@@ -164,21 +164,100 @@ class TheRaceWeekendReserve(unittest.TestCase):
         race = dt.datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
         self.assertEqual(decide(week=95, race=race)[1], race + lu.RACE_TAIL)
 
+    def calendar(self, tmp, results=()):
+        """An f1.db holding three races and a qualifying session, with a
+        finish position stored for each race id in `results`."""
+        db = os.path.join(tmp, "f1.db")
+        con = sqlite3.connect(db)
+        con.execute("CREATE TABLE races (id INTEGER, name_used TEXT)")
+        con.execute("CREATE TABLE sessions (id INTEGER, race_id INTEGER, kind TEXT, start_utc TEXT)")
+        con.execute("CREATE TABLE race_entries (race_id INTEGER, finish_position INTEGER)")
+        con.executemany("INSERT INTO races VALUES (?, ?)",
+                        [(1, "Mexico City Grand Prix"), (2, "Sao Paulo Grand Prix"), (3, None)])
+        con.executemany("INSERT INTO sessions VALUES (?, ?, ?, ?)",
+                        [(1, 1, "race", "2026-10-11T19:00Z"), (2, 2, "qualifying", "2026-10-17T21:00Z"),
+                         (3, 2, "race", "2026-10-18T19:00Z"), (4, 3, "race", "2026-10-25T20:00Z")])
+        # An entry list with no finish position yet is not a result.
+        con.executemany("INSERT INTO race_entries VALUES (?, ?)",
+                        [(1, None), (2, None)] + [(r, 1) for r in results])
+        con.commit()
+        con.close()
+        return db
+
     def test_the_calendar_is_read_from_the_sessions_table(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = self.calendar(tmp)
+            self.assertEqual(lu.next_race(NOW, db), (self.RACE, "Sao Paulo Grand Prix"))
+            # The race of the 11th is still inside its two-day tail on the 13th.
+            self.assertEqual(lu.next_race(dt.datetime(2026, 10, 13, 12, 0, tzinfo=UTC), db),
+                             (dt.datetime(2026, 10, 11, 19, 0, tzinfo=UTC), "Mexico City Grand Prix"))
+        self.assertIs(lu.next_race(NOW, os.path.join(tmp, "missing.db")), False)
+
+    def test_a_race_in_its_tail_with_results_in_passes_the_hold_on(self):
+        # On the 13th the race of the 11th is in its tail; once its results
+        # are in, the hold moves to the race of the 18th (AF-155).
+        on_13th = dt.datetime(2026, 10, 13, 12, 0, tzinfo=UTC)
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(lu.next_race(on_13th, self.calendar(tmp, results=(1,))),
+                             (self.RACE, "Sao Paulo Grand Prix"))
+        with tempfile.TemporaryDirectory() as tmp:
+            # With the 18th resulted as well, the 25th is next, and a race
+            # with no name in the calendar is still a race.
+            self.assertEqual(lu.next_race(on_13th, self.calendar(tmp, results=(1, 2))),
+                             (dt.datetime(2026, 10, 25, 20, 0, tzinfo=UTC), None))
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(lu.next_race(on_13th, self.calendar(tmp, results=(1, 2, 3))))
+
+    def test_a_resulted_tail_race_releases_the_reserve_when_the_next_falls_after_the_reset(self):
+        # On the 14th a race of the 13th is in its tail and the next is on
+        # the 25th, after the reset of the 19th. Without results the reserve
+        # is held and 36 % is past the pace; with them in, nothing is held.
+        def run(results):
+            with tempfile.TemporaryDirectory() as tmp:
+                db = os.path.join(tmp, "f1.db")
+                con = sqlite3.connect(db)
+                con.execute("CREATE TABLE races (id INTEGER, name_used TEXT)")
+                con.execute("CREATE TABLE sessions (id INTEGER, race_id INTEGER, kind TEXT, start_utc TEXT)")
+                con.execute("CREATE TABLE race_entries (race_id INTEGER, finish_position INTEGER)")
+                con.executemany("INSERT INTO sessions VALUES (?, ?, 'race', ?)",
+                                [(1, 1, "2026-10-13T19:00Z"), (2, 2, "2026-10-25T20:00Z")])
+                con.executemany("INSERT INTO race_entries VALUES (?, ?)", results)
+                con.commit()
+                con.close()
+                start, name = lu.next_race(NOW, db)
+            return lu.decide(lu.parse(report(week=36), NOW), NOW, start, CONF, name=name)
+        held, released = run([(1, None)]), run([(1, 3)])
+        self.assertEqual(held[0], "WAIT")
+        self.assertTrue(any("held for the race weekend of 2026-10-13T19:00+00:00)" in w for w in held[2]), held[2])
+        self.assertEqual(released[0], "GO")
+        self.assertFalse(any("held for" in w for w in released[2]), released[2])
+
+    def test_the_line_names_the_race_the_reserve_is_held_for(self):
+        why = lu.decide(lu.parse(report(week=36), NOW), NOW, self.RACE, CONF, name="Sao Paulo Grand Prix")[2]
+        self.assertTrue(any("held for the race weekend of 2026-10-18T19:00+00:00, the Sao Paulo Grand Prix"
+                            in w for w in why), why)
+        why = decide(week=36, race=self.RACE)[2]
+        self.assertTrue(any(w.endswith("held for the race weekend of 2026-10-18T19:00+00:00)") for w in why), why)
+
+    def test_an_unreadable_results_table_keeps_the_reserve(self):
+        # A calendar without race_entries cannot say whether the results are
+        # in, so it is not read at all: the cautious side.
         with tempfile.TemporaryDirectory() as tmp:
             db = os.path.join(tmp, "f1.db")
             con = sqlite3.connect(db)
-            con.execute("CREATE TABLE sessions (kind TEXT, start_utc TEXT)")
-            con.executemany("INSERT INTO sessions VALUES (?, ?)",
-                            [("race", "2026-10-11T19:00Z"), ("qualifying", "2026-10-17T21:00Z"),
-                             ("race", "2026-10-18T19:00Z"), ("race", "2026-10-25T20:00Z")])
+            con.execute("CREATE TABLE races (id INTEGER, name_used TEXT)")
+            con.execute("CREATE TABLE sessions (id INTEGER, race_id INTEGER, kind TEXT, start_utc TEXT)")
+            con.execute("INSERT INTO sessions VALUES (1, 1, 'race', '2026-10-18T19:00Z')")
             con.commit()
             con.close()
-            self.assertEqual(lu.next_race(NOW, db), self.RACE)
-            # The race of the 11th is still inside its two-day tail on the 13th.
-            self.assertEqual(lu.next_race(dt.datetime(2026, 10, 13, 12, 0, tzinfo=UTC), db),
-                             dt.datetime(2026, 10, 11, 19, 0, tzinfo=UTC))
-        self.assertIs(lu.next_race(NOW, os.path.join(tmp, "missing.db")), False)
+            self.assertIs(lu.next_race(NOW, db), False)
+
+    def test_the_command_passes_the_name_through(self):
+        done = mock.Mock(stdout=json.dumps({"result": report(week=36), "is_error": False}), returncode=1)
+        with mock.patch.object(lu.subprocess, "run", return_value=done), \
+                mock.patch.object(lu, "next_race", return_value=(self.RACE, "Sao Paulo Grand Prix")):
+            text, _ = lu.check(NOW, "claude")
+        self.assertIn("of 2026-10-18T19:00+00:00, the Sao Paulo Grand Prix)", text)
 
 
 class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
