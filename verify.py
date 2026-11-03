@@ -796,7 +796,7 @@ def standings_are_the_sum_of_the_results():
     it and stops the build on any other disagreement, so a database this
     build produced cannot fail the first check here: it either agrees or the
     build never finished. Its work is against an artefact edited by hand or
-    merged rather than rebuilt - which `CLAUDE.md` forbids and `ci.yml`
+    merged rather than rebuilt - which `AGENTS.md` forbids and `ci.yml`
     compares for - and against the rule being weakened later, which the
     declaration checks below are the whole point of. The count of rows
     compared is printed rather than written down, because a figure typed into

@@ -6621,7 +6621,7 @@ if __name__ == "__main__":
     c.close()
     # Pin, then move into place: a build that raised anywhere above never
     # reaches this line and the committed files are as they were.
-    # Both or neither: CLAUDE.md's rule is that the two files ship together,
+    # Both or neither: AGENTS.md's rule is that the two files ship together,
     # and a geometry stage that produced nothing would otherwise leave a
     # fresh f1.db beside the previous build's overlay.
     for tmp in (BUILD_DB, BUILD_GEOMETRY_DB):

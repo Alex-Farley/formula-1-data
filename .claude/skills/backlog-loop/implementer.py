@@ -49,7 +49,7 @@ SMALL = ("XS", "S")
 # backtick, so `web/src/data/` is not `data/`. The item's own list - the data
 # paths, the workflows, the release, export_json.py, prepare-assets.js - with
 # the rest of what D-19 gives an Opus first pass (schema.sql, prerender.js),
-# the rest of the deploy chain CLAUDE.md names (package.json and its lock,
+# the rest of the deploy chain AGENTS.md names (package.json and its lock,
 # parquet-bundle.mjs, wrangler.jsonc), and the licence texts, which are what
 # make the published database redistributable. Then the committed artefacts,
 # and the files of the loop's controls - this guard, the precheck and its

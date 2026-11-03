@@ -9,7 +9,7 @@ nothing here is needed to query the database.
 | `ANNOUNCEMENT-DRAFT.md` | Drafts of the next release's notes and the first announcement post, for the maintainer. | Draft: nothing in it has been published. |
 | `BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. Newest first. | Current, but written by hand, so its newest entry can lag the latest release. |
 | `COMMERCIAL-READINESS.md` | Which rows this project may publish, and the licence reading that rests on. | Current; `verify.py` checks every count it marks as a figure. |
-| `DECISIONS.md` | The full reason behind each `[D-nn]` rule in `CLAUDE.md`, `CONTRIBUTING.md` and the loop's skills. | Current. Nothing is deleted; a reversed decision says so. |
+| `DECISIONS.md` | The full reason behind each `[D-nn]` rule in `AGENTS.md`, `CONTRIBUTING.md` and the loop's skills. | Current. Nothing is deleted; a reversed decision says so. |
 | `DERIVED-CONFIDENCE.md` | How `confidence` is derived rather than declared. | Partly built; its opening says which steps shipped. |
 | `GITHUB-SETUP.md` | The repository's description, website and topics on GitHub. | Current. |
 | `LANDED.md` | What landed and what was declined before the queue moved to GitHub Issues on 2026-09-13. | Closed: since then, closed issues and merged pull requests are the record. |

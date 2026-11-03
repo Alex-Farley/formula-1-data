@@ -58,7 +58,7 @@ replaces with this:
   Sonnet where the whole batch is docs or wording, `frontend-reviewer-quick`
   at `fast` where every item is under `web/` and none touches
   `scripts/prerender.js`. A batch that spans `web/` and `data/` gets both
-  areas' reviewers, launched in one message. The licence and security
+  areas' reviewers, started together. The licence and security
   triggers are read against the whole diff, the precheck names every id, and
   all four checks are green before the merge.
 - **The diff reads as a list of separate small changes**, one section per

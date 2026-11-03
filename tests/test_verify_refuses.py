@@ -35,7 +35,7 @@ def plant(con, table, **known):
     value of its declared type, so the row is legal to the schema and the
     only thing wrong with it is the thing the test says is wrong. Derived
     from PRAGMA table_info rather than a column list, for the reason
-    CLAUDE.md gives."""
+    AGENTS.md gives."""
     row = dict(known)
     for _, name, ctype, notnull, default, pk in con.execute(f'PRAGMA table_info("{table}")'):
         if name in row or not notnull or default is not None or pk:

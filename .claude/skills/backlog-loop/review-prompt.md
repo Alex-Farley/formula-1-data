@@ -21,7 +21,7 @@ and a person merges (`SKILL.md`).
     Independent review of PR #<N> on Alex-Farley/formula-1-data, branch
     `<branch>` at <sha>, checked out as a git worktree at <path> (node_modules
     installed; web/dist built from this head). Compare with
-    `git diff origin/main...HEAD`. Read CLAUDE.md and
+    `git diff origin/main...HEAD`. Read AGENTS.md and
     `.claude/agents/<reviewer>.md`, including its "Already enforced" list —
     those items are tests, the unit and convention ones passed on this head
     and the smoke ones pass in CI's `web` job before any merge; do not

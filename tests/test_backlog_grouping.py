@@ -255,7 +255,7 @@ class GroupingProposals(unittest.TestCase):
             return next_py.signals({"title": "ZZ-01: t", "body": text, "ident": "ZZ-01"})[1]
         self.assertEqual(routes("`f1.db` and `/f1.db` and `./f1 gaps`"), set())
         # A served path is decided by what its extension is, not by having
-        # one: CLAUDE.md gives /build-status.txt as an address to open.
+        # one: AGENTS.md gives /build-status.txt as an address to open.
         self.assertEqual(routes("served at `/build-status.txt`"), {"/build-status.txt"})
         # Whatever else happens, the pseudo-route /f1 must not come back -
         # not through case, and not through an extension too long to match.

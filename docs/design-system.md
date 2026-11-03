@@ -63,7 +63,7 @@ file, in the same change.
    every recurring block is a component. A page is an arrangement of
    components, never a one-off.
 3. **Every deviation is declared.** This is the project's pattern
-   (`CLAUDE.md`) applied to design. A page that departs from its template
+   (`AGENTS.md`) applied to design. A page that departs from its template
    says so in a comment that cites an issue or a `[D-nn]`, and a test lets it
    through by name.
 4. **The static page and the app are one page.** Both renderers draw the
@@ -1216,7 +1216,7 @@ finding against the system itself apart from drift.
 - **`web/test/conventions.mjs` and `smoke.mjs`** hold the rules.
 - **The comparison page** linked from #843 is the picture for the decision.
   It is not a second source.
-- **`CLAUDE.md`, `CONTRIBUTING.md`, the backlog-item skill and the agents in
+- **`AGENTS.md`, `CONTRIBUTING.md`, the backlog-item skill and the agents in
   `.claude/agents/`** point here and restate none of it.
 
 ## 10. What was decided, and what was rejected

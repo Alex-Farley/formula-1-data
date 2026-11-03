@@ -1,6 +1,6 @@
 """Conventions that used to be checked by reading, checked by grep.
 
-Every test here is a rule from CLAUDE.md or from a reviewer checklist in
+Every test here is a rule from AGENTS.md or from a reviewer checklist in
 .claude/agents/ that a pattern can decide: a constant that must stay a
 constant, an environment variable that must never reach a workflow, a
 column list that must be derived, a release that must ship two files. They
@@ -468,7 +468,7 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
         # second queue, which the rules forbid. docs/LANDED.md is the archive
         # and the scripts' docstrings may say where the queue used to be.
         self.assertFalse(os.path.exists(os.path.join(ROOT, "docs/BACKLOG.md")), "docs/BACKLOG.md is back: the queue is GitHub Issues")
-        for rel in ["CLAUDE.md", ".claude/skills/backlog-loop/precheck.sh"] + files_under(".claude/skills", (".md",)):
+        for rel in ["AGENTS.md", "CLAUDE.md", ".claude/skills/backlog-loop/precheck.sh"] + files_under(".claude/skills", (".md",)):
             self.assertNotIn("BACKLOG.md", read(rel), f"{rel} names a backlog file; the queue is GitHub Issues")
 
     def test_no_command_shadows_a_skill(self):
@@ -794,7 +794,7 @@ class TheItemProcedureReadsItsPassagesOnDemand(unittest.TestCase):
     def test_every_file_the_procedure_names_is_there(self):
         # Every backticked .md the procedure names, in SKILL.md and in each
         # passage, as a full path or a bare name. A bare name is a passage
-        # beside the skill or a file at the repository root (CLAUDE.md), so a
+        # beside the skill or a file at the repository root (AGENTS.md), so a
         # renamed passage leaves no mention of its old name dangling.
         missing = []
         for rel in files_under(self.DIR, (".md",)):
