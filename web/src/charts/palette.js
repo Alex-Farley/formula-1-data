@@ -91,10 +91,20 @@ export const seriesColour = (i) => SERIES[i % SERIES.length]
  * mark is never the only cue either: the value it carries, or the name it
  * belongs to, is printed on or beside it.
  *
- * VD-93 tinted --ink-soft to #5c524a in light and #aaa195 in dark, on the
- * tinted panels; the pair was not put through the validator again. Each
- * still clears 3:1 on its panel - ink 7.32 and accent 5.68:1 in light, ink
- * 7.10 and accent 5.42:1 in dark - which web/test/conventions.mjs measures.
+ * VD-93 tinted --ink-soft to #5e5a58 in light and #aaa195 in dark, on the
+ * tinted panels. The pair was measured again with a re-implementation of the
+ * validator's metric in web/test/conventions.mjs (Viénot simulation, OKLab
+ * ΔE x100), which gives the 8.5 and 23.4 above for the old light pair
+ * exactly and the old dark deutan as 12.8 rather than 11.8:
+ *
+ *   light   #5e5a58 / #c81028: protan 8.0 · deutan 12.5 · normal 21.1
+ *   dark    #aaa195 / #ff4757: deutan 8.9 · protan 16.5 · normal 21.3
+ *
+ * A warmer light ink, #5c524a, read 5.1 under protan, below the floor of 6:
+ * a warm grey sits nearer a red that a protan eye sees as dark olive, which
+ * is why the light ink is the least tinted of the inks. conventions.mjs holds
+ * both pairs to the floor. Each clears 3:1 on its panel - ink 6.57 and
+ * accent 5.68:1 in light, ink 7.10 and accent 5.42:1 in dark.
  */
 export const INK = 'var(--series-ink)'
 export const MARK = 'var(--series-mark)'

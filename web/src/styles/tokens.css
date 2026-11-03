@@ -51,8 +51,11 @@
  * DR-04, 2026-10-08). The ground was #f3f4f6 and the panel #ffffff - exactly
  * Tailwind's gray-100 and white - and every ink leaned blue (OKLCH hue
  * 259-271), away from the red. Now each keeps the lightness it had, or close
- * to it, and turns warm: OKLCH hue 48-82, chroma 0.007-0.02, a paper and an ink
- * that sit with the accent rather than against it. --panel-sunk is the one
+ * to it, and turns warm: OKLCH hue 48-82, chroma 0.006-0.02, a paper and an ink
+ * that sit with the accent rather than against it. Light --ink-soft is the
+ * least tinted and a step lighter, because it is also --series-ink beside
+ * the accent: warmer, it fell to 5.1 apart from the red under a protan
+ * simulation, under the validator's floor of 6 (charts/palette.js). --panel-sunk is the one
  * surface held to a luminance rather than a lightness: no darker than the
  * #eceef2 it replaced, because the livery pairs in lib/liveries.js were
  * stepped against that figure and five of their colours cleared 3:1 on it
@@ -60,7 +63,7 @@
  *
  * Both were measured, not eyeballed —
  *
- *   light   ink 17.4:1 · soft 7.3:1 · faint 5.3:1 · accent 5.7:1 on panel
+ *   light   ink 17.4:1 · soft 6.6:1 · faint 5.3:1 · accent 5.7:1 on panel
  *           faint clears 4.5:1 on panel-sunk too, the darkest of the four
  *           surfaces it sits on (4.76:1). It once was #6d7480: 4.7:1 on
  *           panel, 4.05:1 on panel-sunk - the comment recorded the surface it
@@ -90,7 +93,7 @@
 
   /* ink */
   --ink: #1b1511;
-  --ink-soft: #5c524a;
+  --ink-soft: #5e5a58;
   --ink-faint: #72675f;
   /* the foreground for an accent fill — a button, not a surface. Inverted
      against the theme rather than fixed white, because the dark accent is

@@ -342,7 +342,10 @@ item.
 
 The surfaces, inks and rules keep their lightness, or close to it, and turn
 warm, toward the accent, in both themes, so no contrast floor moved under
-its threshold; `--panel-sunk` is held to the luminance it had, because the
+its threshold. Light `--ink-soft`, which is also the chart ink beside the
+accent, stays the least tinted: warmer, it fell to 5.1 apart from the red
+under a protan simulation, under the validator's floor of 6, and it now
+reads 8.0, a floor `conventions.mjs` holds; `--panel-sunk` is held to the luminance it had, because the
 livery pairs were stepped to clear 3:1 on it, five colours of them by less than 0.03. A tile,
 a record card, a door and home's rounds and conventions are now each under
 a rule on the paper, and the onward band's routes are words under the
