@@ -13,19 +13,20 @@ import { titleRaceText } from '../charts/spark.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
- * A name as a link where it has an id, with the undecided season's "so far"
+ * A name as a link where it has an id, with the undecided title's "so far"
  * mark - or "not yet run" where the season has a calendar and no rounds
  * behind it, which is the words its `text` carries and not the em dash a
  * missing name would get. scripts/prerender.js does the same.
  */
 const named = (path) => (name, row) => {
   const id = row[`${path === 'drivers' ? 'champion' : 'constructors_champion'}_id`]
+  const open = path === 'drivers' ? 'undecided' : 'team_undecided'
   if (row.not_started) return <span className="tag">{NOT_YET_RUN}</span>
   return (
     <>
       {id ? <Link to={`/${path}/${id}`}>{name}</Link> : cell(name)}
-      {row.undecided && name ? ' ' : ''}
-      {row.undecided && name ? <span className="tag">{SO_FAR}</span> : null}
+      {row[open] && name ? ' ' : ''}
+      {row[open] && name ? <span className="tag">{SO_FAR}</span> : null}
     </>
   )
 }
@@ -78,7 +79,15 @@ const APP = {
     ),
   },
   runner_up: {
-    render: (name, row) => (row.runner_up_id ? <Link to={`/drivers/${row.runner_up_id}`}>{name}</Link> : cell(name)),
+    // A title settled with rounds to run names its champion for good, and
+    // second place only so far (LV-15).
+    render: (name, row) => (
+      <>
+        {row.runner_up_id ? <Link to={`/drivers/${row.runner_up_id}`}>{name}</Link> : cell(name)}
+        {row.running && !row.undecided && name ? ' ' : ''}
+        {row.running && !row.undecided && name ? <span className="tag">{SO_FAR}</span> : null}
+      </>
+    ),
   },
   // Marked only where it is not the team already marked in "Driving for".
   // The element is drawn either way: with no colour it is LiveryMark's

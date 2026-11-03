@@ -259,7 +259,7 @@ import {
   isUpcoming,
   mergeSources,
   reachFigures,
-  titleAnswer,
+  seasonAnswer,
   titleRaceFigure,
   titleSettled,
   titleStrip,
@@ -2737,11 +2737,11 @@ const TITLE = currentTitle((key) => all(FIGHT_QUERIES[key][0]), META.built)
 // ---------------------------------------------------------------- seasons
 
 // A name as the app renders it: a link where it has an id, and after it
-// the undecided season's "so far" tag - the row is a leader, not a champion.
-const seasonMarked = (path, idKey) => (name, row) =>
+// the undecided title's "so far" tag - the row is a leader, not a champion.
+const seasonMarked = (path, idKey, open) => (name, row) =>
   row.not_started
     ? tag(NOT_YET_RUN)
-    : `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
+    : `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row[open] && name ? ` ${tag(SO_FAR)}` : ''}`
 
 /**
  * The seasons list over whichever seasons it is given, as Seasons.jsx's
@@ -2751,10 +2751,11 @@ const seasonMarked = (path, idKey) => (name, row) =>
 const seasonsTable = (rows) =>
   fromColumns(SEASONS_COLUMNS, rows, {
     year: (year) => link(`seasons/${year}`, year),
-    champion: seasonMarked('drivers', 'champion_id'),
+    champion: seasonMarked('drivers', 'champion_id', 'undecided'),
     champion_team: (name, row) => (row.champion_team_id ? link(`constructors/${row.champion_team_id}`, name) : text(name)),
-    runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
-    constructors_champion: seasonMarked('constructors', 'constructors_champion_id'),
+    runner_up: (name, row) =>
+      `${row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)}${row.running && !row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`,
+    constructors_champion: seasonMarked('constructors', 'constructors_champion_id', 'team_undecided'),
     title_race: (value, row) => titleRaceSvg(value, titleRaceText(value, row)),
   }, { unfolded: UNFOLDED.register, footer: SEASON_LIST_FOOTER })
 
@@ -2822,11 +2823,12 @@ const seasonsTable = (rows) =>
           constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
         })}`
     })()
-    // Two different questions, as on the app's page. `running`: is there a
-    // champion yet? `live`: is there a round still to run? The first decides
-    // what the page opens with; the second whether its headings say final.
-    const running = !s.drivers_champion && driversFinal.length >= 2
+    // Two different questions, as on the app's page. `live`: is there a round
+    // still to run? `running`: are these tables still a leader's, with no
+    // champion yet or rounds to run? The first decides whether the headings
+    // say final; the second what the page opens with and what it answers.
     const live = stillRunning(calendar)
+    const running = (!s.drivers_champion || live) && driversFinal.length >= 2
     const standings = all(SEASON_STANDINGS, year)
     const after = latestRound(standings)
     const run = calendar.filter((r) => r.status === 'completed').length
@@ -2847,7 +2849,10 @@ const seasonsTable = (rows) =>
     // lede (VD-90), then under the tiles what is left to win and the round
     // and build date the answer stands at.
     const answer = running
-      ? titleAnswer({
+      ? seasonAnswer({
+          season: s,
+          rounds: calendar,
+          standings,
           drivers: driversFinal,
           constructors: constructorsFinal,
           remaining: one(REMAINING, year),
@@ -2944,7 +2949,9 @@ const seasonsTable = (rows) =>
       lastmod: LAST_RUN.season.get(String(year)),
       sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES), { answer, remaining: one(REMAINING, year) ?? null }),
       title: NAMES.season(year).title,
-      description: s.champion
+      description: s.champion && running
+        ? `${s.champion} is the ${year} Formula One World Champion, with ${run} of ${s.rounds ?? '?'} rounds run. Every race, winner, pole and fastest lap.`
+        : s.champion
         ? `${s.champion} won the ${year} Formula One World Championship for ${s.champion_team_name ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
         : running
           ? `${lead.entity} leads the ${year} Formula One World Championship by ${num(gap)} points after ${after ?? run} of ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
@@ -3245,7 +3252,7 @@ const seasonsTable = (rows) =>
         <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
-        ${isUpcoming(TITLE, r) ? ownSection(`<h2>${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p><p class="faint">${dated(TITLE.basis)}</p>`) : ''}
+        ${isUpcoming(TITLE, r) ? ownSection(`<h2>${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}`) : ''}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)

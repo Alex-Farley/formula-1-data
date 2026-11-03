@@ -98,14 +98,14 @@ export function titleRaceText(value, row) {
   const series = row.not_started ? null : titleRaceOf(value)
   if (!series) return EMPTY
   const last = series[series.length - 1]
-  const other = row.undecided ? 'second place' : 'the runner-up'
+  const other = row.running ? 'second place' : 'the runner-up'
   if (last.gap === 0) return `Level with ${other} after the last round`
   if (last.gap < 0) return `Behind ${other} after the last round`
   let from = series.length - 1
   while (from > 0 && series[from - 1].gap > 0) from -= 1
   // "of 16 run" while the season is: of 16 alone would read as its length.
-  if (from === 0) return `Ahead of ${other} after every round${row.undecided ? ' so far' : ''}`
-  return `Ahead of ${other} from round ${series[from].round} of ${last.round}${row.undecided ? ' run' : ''}`
+  if (from === 0) return `Ahead of ${other} after every round${row.running ? ' so far' : ''}`
+  return `Ahead of ${other} from round ${series[from].round} of ${last.round}${row.running ? ' run' : ''}`
 }
 
 /**

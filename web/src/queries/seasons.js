@@ -8,7 +8,7 @@
  *     And both halves rendered the season in progress as a row of em dashes
  *     — seven of them — under a footer that says this site never blurs
  *     "unknown" with "not yet" (IA-17). The definition lives here once, and
- *     the undecided season's row carries its leader, the leader's points and wins
+ *     the running season's row carries its leader, the leader's points and wins
  *     so far, the gap, and how many rounds have run, each marked "so far".
  *
  * See queries/drivers.js for what a column's `text` is.
@@ -20,13 +20,16 @@ import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
 /**
  * One row per season, newest first.
  *
- * `undecided` is a season with no drivers' champion recorded, a round still
- * scheduled AND a round already run - not the season page's `live`, which is
- * only "a round still scheduled": a title settled early keeps its champion
- * here. `not_started` is the third state, and the reason `undecided` counts
- * completed rounds at all: a calendar announced for a season nobody has
- * raced yet has no leader to stand in for the champion, and calling it
- * undecided would put back the row of em dashes this file exists to remove.
+ * `running` is a season with a round still scheduled AND a round already run
+ * - not the season page's `live`, which is only "a round still scheduled" -
+ * and `undecided` and `team_undecided` are that with the drivers' or the
+ * constructors' champion not yet recorded. A title settled early keeps its
+ * champion's name here without the mark, and the row still carries the
+ * running figures: those are not final until the last round (LV-15).
+ * `not_started` is the third state, and the reason these count completed
+ * rounds at all: a calendar announced for a season nobody has raced yet has
+ * no leader to stand in for the champion, and calling it undecided would put
+ * back the row of em dashes this file exists to remove.
  * It is "not yet run", the same words a scheduled race carries. For that
  * row the champion's columns carry the leader instead — the top of
  * v_standings_final's drivers' table, the constructor they last raced for
@@ -48,7 +51,7 @@ import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
  * The SELECT is wrapped so each of the row's two constructors can be joined
  * back to `constructors` for its country, which is what the pre-1968 national
  * colour is read from (AF-50). It has to be the wrapper and not another join
- * inside: the undecided season takes `champion_team_id` from `race_entries`
+ * inside: the running season takes `champion_team_id` from `race_entries`
  * and `constructors_champion_id` from `v_standings_final`, not from the
  * `seasons` row, so only the resolved ids can be joined on.
  */
@@ -56,8 +59,12 @@ export const SEASONS = `
   WITH progress AS (
     SELECT s.year,
            COALESCE(SUM(r.status = 'completed'), 0)                         AS run,
+           (SUM(r.status = 'scheduled') > 0
+            AND COALESCE(SUM(r.status = 'completed'), 0) > 0)               AS running,
            (s.drivers_champion IS NULL AND SUM(r.status = 'scheduled') > 0
             AND COALESCE(SUM(r.status = 'completed'), 0) > 0)               AS undecided,
+           (s.constructors_champion IS NULL AND SUM(r.status = 'scheduled') > 0
+            AND COALESCE(SUM(r.status = 'completed'), 0) > 0)               AS team_undecided,
            (COALESCE(SUM(r.status = 'completed'), 0) = 0)                   AS not_started
       FROM seasons s
       LEFT JOIN races r ON r.year = s.year
@@ -68,25 +75,25 @@ export const SEASONS = `
                               ORDER BY position IS NULL, position, points DESC) AS rank
       FROM v_standings_final),
   season_row AS (
-    SELECT s.year, s.rounds, p.run, p.undecided, p.not_started,
-           CASE WHEN p.undecided THEN d1.driver_id ELSE s.drivers_champion END AS champion_id,
-           CASE WHEN p.undecided THEN d1.entity    ELSE d.full_name        END AS champion,
-           CASE WHEN p.undecided THEN
+    SELECT s.year, s.rounds, p.run, p.running, p.undecided, p.team_undecided, p.not_started,
+           CASE WHEN p.running THEN d1.driver_id ELSE s.drivers_champion END AS champion_id,
+           CASE WHEN p.running THEN d1.entity    ELSE d.full_name        END AS champion,
+           CASE WHEN p.running THEN
                 (SELECT e.constructor_id FROM race_entries e JOIN races r ON r.id = e.race_id
                   WHERE r.year = s.year AND e.driver_id = d1.driver_id
                   ORDER BY r.round DESC LIMIT 1)
                 ELSE s.champion_team END                                AS champion_team_id,
-           CASE WHEN p.undecided THEN d1.team      ELSE t.name             END AS champion_team,
-           CASE WHEN p.undecided THEN d1.points    ELSE s.champion_points  END AS champion_points,
-           CASE WHEN p.undecided THEN
+           CASE WHEN p.running THEN d1.team      ELSE t.name             END AS champion_team,
+           CASE WHEN p.running THEN d1.points    ELSE s.champion_points  END AS champion_points,
+           CASE WHEN p.running THEN
                 (SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
                   WHERE r.year = s.year AND e.driver_id = d1.driver_id AND e.finish_position = 1)
                 ELSE s.champion_wins END                                AS champion_wins,
-           CASE WHEN p.undecided THEN d2.driver_id ELSE s.runner_up        END AS runner_up_id,
-           CASE WHEN p.undecided THEN d2.entity    ELSE ru.full_name       END AS runner_up,
-           CASE WHEN p.undecided THEN d1.points - d2.points ELSE s.margin  END AS margin,
-           CASE WHEN p.undecided THEN k1.constructor_id ELSE s.constructors_champion END AS constructors_champion_id,
-           CASE WHEN p.undecided THEN k1.entity    ELSE cc.name            END AS constructors_champion,
+           CASE WHEN p.running THEN d2.driver_id ELSE s.runner_up        END AS runner_up_id,
+           CASE WHEN p.running THEN d2.entity    ELSE ru.full_name       END AS runner_up,
+           CASE WHEN p.running THEN d1.points - d2.points ELSE s.margin  END AS margin,
+           CASE WHEN p.running THEN k1.constructor_id ELSE s.constructors_champion END AS constructors_champion_id,
+           CASE WHEN p.running THEN k1.entity    ELSE cc.name            END AS constructors_champion,
            s.engine_formula
       FROM seasons s
       JOIN progress p           ON p.year = s.year
@@ -133,33 +140,41 @@ export const SEASONS = `
 `
 
 /**
- * "Antonelli so far" on the undecided season's row; "not yet run" where the
+ * "Antonelli so far" on the undecided title's row; "not yet run" where the
  * season has not started, which is a different thing from a name nobody
- * holds; the name alone on every other.
+ * holds; the name alone on every other. `open` says whether this column's
+ * title is undecided, the drivers' unless told otherwise.
  */
-export const soFar = (name, row) =>
-  row.not_started ? NOT_YET_RUN : missing(name) ? EMPTY : row.undecided ? `${name} ${SO_FAR}` : String(name)
+export const soFar = (name, row, open = row.undecided) =>
+  row.not_started ? NOT_YET_RUN : missing(name) ? EMPTY : open ? `${name} ${SO_FAR}` : String(name)
+
+/**
+ * The runner-up, which a title settled with rounds to run does not settle
+ * (LV-15). While the title is open the mark on the leader's name covers both.
+ */
+export const runnerUp = (name, row) =>
+  missing(name) ? EMPTY : row.running && !row.undecided ? `${name} ${SO_FAR}` : String(name)
 
 export const SEASONS_COLUMNS = [
   // The year is a link in both renderers; text() would print 2,026.
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
-  { key: 'rounds', label: 'Rounds', align: 'num', text: (rounds, row) => (row.undecided ? `${row.run} of ${text(rounds)}` : text(rounds)) },
+  { key: 'rounds', label: 'Rounds', align: 'num', text: (rounds, row) => (row.running ? `${row.run} of ${text(rounds)}` : text(rounds)) },
   { key: 'champion', label: "Drivers' champion", text: soFar },
   { key: 'champion_team', label: 'Driving for' },
   { key: 'champion_points', label: 'Points', align: 'num', text: points },
   { key: 'champion_wins', label: 'Wins', align: 'num' },
-  { key: 'runner_up', label: 'Runner-up' },
+  { key: 'runner_up', label: 'Runner-up', text: runnerUp },
   { key: 'margin', label: 'Margin', align: 'num', text: points },
   // The champion's lead round by round (VD-54), drawn by charts/spark.js in
   // both renderers; the cell's words are when the lead was taken for good.
   // `align` names the cell's class outright: left to DataTable's guess, the
   // raw triples are long enough to make it a prose column 42ch wide.
   { key: 'title_race', label: 'Title race', align: 'spark', sortable: false, text: titleRaceText },
-  { key: 'constructors_champion', label: "Constructors' champion", text: soFar },
+  { key: 'constructors_champion', label: "Constructors' champion", text: (name, row) => soFar(name, row, row.team_undecided) },
 ]
 
 export const SEASON_LIST_FOOTER =
-  `Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A row marked “so far” is the season still running: its leader, not its champion. The title race is the champion’s lead over the runner-up after each round, above the line when ahead and below it when behind, each season drawn to its own scale. A row reading “${NOT_YET_RUN}” is a calendar that has been announced and not yet raced. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.`
+  `Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A name marked “so far” holds its place in a season still running: a leader, not a champion. The title race is the champion’s lead over the runner-up after each round, above the line when ahead and below it when behind, each season drawn to its own scale. A row reading “${NOT_YET_RUN}” is a calendar that has been announced and not yet raced. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.`
 
 /**
  * The page's lede, under its h1 in both renderers (VD-79): the app's words,

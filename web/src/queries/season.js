@@ -182,7 +182,7 @@ export const REMAINING = `
  * sprint system to price it makes it NULL, which declines, rather than
  * pricing it at nothing. `dropped_scores` comes back for the same reason it
  * does there. The champion comes back so the answer can be held to the
- * season record; it is NULL while the season is being run. `wins` is each
+ * season record; it is NULL until a title is recorded. `wins` is each
  * driver's race wins that season up to the round, and `races_left` the
  * races after it, which is what a tie on points is settled on.
  *
@@ -578,7 +578,7 @@ export const TITLE_SOURCES = `
 /**
  * SEASON_SOURCES, with TITLE_SOURCES joined in where the page prints what
  * the points system says: the title arithmetic, where `answer` -
- * titleAnswer()'s result, which both renderers print when it is not null -
+ * seasonAnswer()'s result, which both renderers print when it is not null -
  * says it is printed; and a rule that dropped scores, which the title
  * chart's note says (progressionNote) on a season that ran under one. Both
  * renderers pass `remaining`, REMAINING's row, whether or not the static page
@@ -941,8 +941,12 @@ export const TITLE_LIST_LIMIT = 10
  * ten lines, and the web font arriving after the page put an eleventh on and
  * moved everything beneath it. `drivers` and `constructors` are the two
  * fights themselves, for the reach chart and a contender's line.
+ *
+ * `settled` names a title already on the record, which is not fought here:
+ * once there is a champion, a sentence working out who could have won is
+ * noise at best and a contradiction at worst. seasonAnswer() below passes it.
  */
-export function titleAnswer({ drivers, constructors, remaining, afterRound, built, year }) {
+export function titleAnswer({ drivers, constructors, remaining, afterRound, built, year, settled = {} }) {
   if (!remaining || !remaining.races) return null
   // Anything but the one spelling - a rule, or a blank - declines, so a
   // reworded row fails closed rather than into a wrong elimination.
@@ -953,8 +957,10 @@ export function titleAnswer({ drivers, constructors, remaining, afterRound, buil
   // nothing by REMAINING's `available`: the drivers' title declines it, as
   // the constructors' does, rather than count it as worth no points.
   const unpriced = remaining.sprints > 0 && missing(remaining.sprint_scale)
-  const forDrivers = standingFight('drivers', drivers, unpriced ? null : remaining.available, (d) => d.driver_id)
-  const teams = Number.isInteger(year) && year >= CONSTRUCTORS_FROM && year >= EVERY_CAR_COUNTS_FROM
+  const forDrivers = settled.drivers
+    ? null
+    : standingFight('drivers', drivers, unpriced ? null : remaining.available, (d) => d.driver_id)
+  const teams = !settled.constructors && Number.isInteger(year) && year >= CONSTRUCTORS_FROM && year >= EVERY_CAR_COUNTS_FROM
   const forTeams = teams ? standingFight('constructors', constructors, teamAvailable(remaining), (d) => d.constructor_id) : null
   if (!forDrivers && !forTeams) return null
 
@@ -979,16 +985,70 @@ export function titleAnswer({ drivers, constructors, remaining, afterRound, buil
 }
 
 /**
+ * The titles on the record with rounds still to run (LV-15), each `{ id, line }`
+ * with the sentence the pages print, or null where neither is. `season` is a
+ * row carrying the two champions' ids and names, as SEASON and FIGHT_SEASON
+ * both do; `rounds` is the calendar, whose rows name each race.
+ *
+ * The champion comes from the record and the round from the arithmetic:
+ * clinchRound() names it, and where that declines the sentence stops at the
+ * title rather than guess at when it fell. Once the season is over a page
+ * says who won, so this says nothing.
+ */
+export function crownedTitles({ season, year, remaining, standings, rounds, afterRound }) {
+  if (!remaining?.races) return null
+  const counted = remaining.dropped_scores === EVERY_RESULT_COUNTS
+  const title = { most: mostPerRound(remaining), rounds, standings, afterRound }
+  const crowned = (kind, id, name, honour) => {
+    if (missing(id)) return null
+    const round = counted && !missing(afterRound) ? clinchRound(title, kind, id) : null
+    const race = (rounds ?? []).find((r) => r.round === round)?.name_used
+    const at = race ? `, clinched at the ${race} (round ${number(round)})` : ''
+    return { id, line: `${name} is the ${year} ${honour}${at}.` }
+  }
+  const drivers = crowned('drivers', season?.drivers_champion, season?.champion, 'World Champion')
+  const constructors = crowned(
+    'constructors',
+    season?.constructors_champion,
+    season?.constructors_champion_name,
+    "Constructors' Champion",
+  )
+  return drivers || constructors ? { drivers, constructors } : null
+}
+
+/**
+ * What a season being run says about its titles, for both renderers: any
+ * title on the record first, then titleAnswer() for whichever is still
+ * fought. The one exit from the arithmetic that must not take the champion
+ * with it is titleAnswer()'s null - standings behind the calendar, say, or
+ * no title left to fight - so that case keeps the sentence and has no basis.
+ */
+export function seasonAnswer({ season, rounds, standings, ...args }) {
+  const { remaining, afterRound, year } = args
+  const crowned = crownedTitles({ season, year, remaining, standings, rounds, afterRound })
+  const answer = titleAnswer({ ...args, settled: { drivers: crowned?.drivers, constructors: crowned?.constructors } })
+  if (!crowned) return answer
+  const said = [crowned.drivers?.line, crowned.constructors?.line, answer?.who].filter(Boolean).join(' ')
+  return { basis: null, drivers: null, constructors: null, afterRound, year, ...answer, who: said, crowned }
+}
+
+/**
  * The calendar's rounds, for the round a contender went out at (AF-132):
- * outSince() prices what was left after each one from them.
+ * outSince() prices what was left after each one from them, and for the
+ * race a title was clinched at (LV-15), which crownedTitles() names.
  */
 export const TITLE_ROUNDS = `
-  SELECT round, sprint, status FROM races WHERE year = ?1 ORDER BY round
+  SELECT round, name_used, sprint, status FROM races WHERE year = ?1 ORDER BY round
 `
 
 /** The season's own row, as much of it as the title fight reads. */
 const FIGHT_SEASON = `
-  SELECT year, drivers_champion FROM seasons WHERE year = ${CURRENT_SEASON_SQL}
+  SELECT s.year, s.drivers_champion, d.full_name AS champion,
+         s.constructors_champion, c.name AS constructors_champion_name
+    FROM seasons s
+    LEFT JOIN drivers d      ON d.id = s.drivers_champion
+    LEFT JOIN constructors c ON c.id = s.constructors_champion
+   WHERE s.year = ${CURRENT_SEASON_SQL}
 `
 
 const current = (sql) => sql.replaceAll('?1', CURRENT_SEASON_SQL)
@@ -998,14 +1058,16 @@ const current = (sql) => sql.replaceAll('?1', CURRENT_SEASON_SQL)
  * (AF-132), for the citation of a page that prints it and is not that
  * season's: the points system's, the calendar's, and the standings' - both
  * tables as FINAL reads them, by SEASON_SOURCES' rule, and the running rows
- * STANDINGS chooses. A page adds them with mergeSources() only where it
- * prints the answer.
+ * STANDINGS chooses - and the season's own row, which cites the statement
+ * where a title was decided with rounds to run (LV-15). A page adds them with
+ * mergeSources() only where it prints the answer.
  */
 const FIGHT_SOURCES = `
   SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
    WHERE s.id IN (
            SELECT source_id FROM table_provenance WHERE tbl = 'points_systems'
+     UNION SELECT source_id FROM seasons WHERE year = ?1
      UNION SELECT source_id FROM races WHERE year = ?1
      UNION SELECT t.source_id FROM standings t
             WHERE t.year = ?1
@@ -1041,34 +1103,60 @@ export const FIGHT_QUERIES = {
 
 /**
  * The answer for the season being run, from FIGHT_QUERIES' rows, by the
- * season page's own rule: only while no drivers' champion is on the record
- * and two drivers are on the table - once there is a champion, a sentence
- * working out who could have won is noise at best and a contradiction at
- * worst. `get(key)` returns a query's rows.
+ * season page's own rule: seasonAnswer(), with two drivers on the table. Null
+ * once the season is over. `get(key)` returns a query's rows.
  *
  * The running table and the calendar ride along for outSince().
  */
 export function currentTitle(get, built) {
   const season = get('fightSeason')[0]
-  if (!season || season.drivers_champion) return null
+  if (!season) return null
   const final = get('fightFinal')
   const drivers = final.filter((r) => r.table_type === 'drivers')
   if (drivers.length < 2) return null
   const standings = get('fightStandings')
-  const answer = titleAnswer({
+  const remaining = get('fightRemaining')[0] ?? null
+  const rounds = get('fightRounds')
+  const answer = seasonAnswer({
+    season,
+    rounds,
+    standings,
     drivers,
     constructors: final.filter((r) => r.table_type === 'constructors'),
-    remaining: get('fightRemaining')[0] ?? null,
+    remaining,
     afterRound: latestRound(standings),
     built,
     year: season.year,
   })
   if (!answer) return null
-  const remaining = get('fightRemaining')[0]
-  return { ...answer, standings, rounds: get('fightRounds'), most: mostPerRound(remaining), next: nextRoundOf(get('fightRounds')) }
+  return { ...answer, standings, rounds, most: mostPerRound(remaining), next: nextRoundOf(rounds) }
 }
 
 const nextRoundOf = (rounds) => rounds.find((r) => r.status !== 'completed')?.round ?? null
+
+/**
+ * What outSince() and clinchRound() both read, or null where the scoring
+ * cannot price it: `left(n)`, the most one contender could still win after
+ * round n, and `tables`, each round's totals by contender id - NaN for one
+ * the sources give two totals for.
+ */
+function runningTables(title, kind) {
+  const most = title?.most?.[kind]
+  if (!most || most.race === null) return null
+  const rounds = title.rounds ?? []
+  if (rounds.some((r) => r.sprint) && most.sprint === null) return null
+  const left = (n) => rounds.filter((r) => r.round > n).reduce((sum, r) => sum + most.race + (r.sprint ? most.sprint : 0), 0)
+  const idOf = kind === 'drivers' ? (r) => r.driver_id : (r) => r.constructor_id
+  const tables = new Map()
+  for (const r of title.standings ?? []) {
+    if (r.table_type !== kind || missing(r.points) || missing(r.position) || missing(idOf(r))) continue
+    if (!tables.has(r.after_round)) tables.set(r.after_round, new Map())
+    const table = tables.get(r.after_round)
+    const held = table.get(idOf(r))
+    table.set(idOf(r), held !== undefined && held !== r.points ? NaN : r.points)
+  }
+  return { left, tables }
+}
 
 /**
  * The round after which a contender could no longer reach the leader, where
@@ -1084,20 +1172,9 @@ const nextRoundOf = (rounds) => rounds.find((r) => r.status !== 'completed')?.ro
  * in where the answer has them out, declines.
  */
 export function outSince(title, kind, id) {
-  const most = title?.most?.[kind]
-  if (!most || most.race === null || missing(id)) return null
-  const rounds = title.rounds ?? []
-  if (rounds.some((r) => r.sprint) && most.sprint === null) return null
-  const left = (n) => rounds.filter((r) => r.round > n).reduce((sum, r) => sum + most.race + (r.sprint ? most.sprint : 0), 0)
-  const idOf = kind === 'drivers' ? (r) => r.driver_id : (r) => r.constructor_id
-  const tables = new Map()
-  for (const r of title.standings ?? []) {
-    if (r.table_type !== kind || missing(r.points) || missing(r.position) || missing(idOf(r))) continue
-    if (!tables.has(r.after_round)) tables.set(r.after_round, new Map())
-    const table = tables.get(r.after_round)
-    const held = table.get(idOf(r))
-    table.set(idOf(r), held !== undefined && held !== r.points ? NaN : r.points)
-  }
+  const running = runningTables(title, kind)
+  if (!running || missing(id)) return null
+  const { left, tables } = running
   // true out, false in, null where the table cannot say.
   const out = (n) => {
     const table = tables.get(n)
@@ -1117,10 +1194,44 @@ export function outSince(title, kind, id) {
 }
 
 /**
- * The one line a contender's driver or team page prints about the title
- * fight (AF-132), from currentTitle()'s answer: null where that answer is
- * null, where this title is not answered, or where the id is not on its
- * table once.
+ * The round a recorded champion became one (LV-15), or null: the first round
+ * after which nobody could reach or equal them, and every table from there
+ * to the last held and saying so. The test is outSince()'s, turned round: no
+ * rival within what was left.
+ *
+ * It is strict, as verify.py's arithmetic is. A round after which a rival
+ * could at best have drawn level may have settled it on the countback, which
+ * this does not work out (AF-137), so it declines rather than name the next
+ * round; so does a gap in the tables or a contender twice in one.
+ */
+export function clinchRound(title, kind, id) {
+  const running = runningTables(title, kind)
+  if (!running || missing(id)) return null
+  const { left, tables } = running
+  // What the champion had in hand after round n, or null where the table
+  // cannot say. Above nought is out of reach; nought is level at best.
+  const inHand = (n) => {
+    const table = tables.get(n)
+    if (!table || !table.has(id) || table.size < 2 || [...table.values()].some(Number.isNaN)) return null
+    const rest = [...table].filter(([who]) => who !== id).map(([, total]) => total)
+    return table.get(id) - Math.max(...rest) - left(n)
+  }
+  let since = null
+  for (let n = title.afterRound; n >= 1; n -= 1) {
+    const clear = inHand(n)
+    if (clear === null || clear === 0) return null
+    if (clear < 0) return since
+    since = n
+  }
+  return since
+}
+
+/**
+ * The one line a driver's or team's page prints about the title (AF-132),
+ * from currentTitle()'s answer: the sentence itself on the page of a
+ * champion crowned with rounds to run (LV-15), and otherwise where they stand
+ * in the fight - null where that answer is null, where this title is not
+ * answered, or where the id is not on its table once.
  *
  *     Still in the title fight: 102 behind with 150 left.
  *     Leads the title fight by 133 with 125 left.
@@ -1132,6 +1243,8 @@ export function outSince(title, kind, id) {
  * they are out.
  */
 export function fightLine(title, kind, id) {
+  const crowned = title?.crowned?.[kind]
+  if (crowned && crowned.id === id) return crowned.line
   const fight = title?.[kind]
   if (!fight || missing(id)) return null
   const mine = fight.rows.filter((d) => d.id === id)
@@ -1428,7 +1541,7 @@ export const titleStrip = ({ season, year, running, run, notRun, lead, second, t
     return [
       { label: 'Rounds', value: number(season.rounds), note: `${run} run` },
       {
-        label: 'Leads',
+        label: season.drivers_champion ? "Drivers' champion" : 'Leads',
         kind: 'name',
         value: lead.entity,
         href: lead.driver_id ? `drivers/${lead.driver_id}` : null,
@@ -1441,7 +1554,7 @@ export const titleStrip = ({ season, year, running, run, notRun, lead, second, t
       },
       teamLead
         ? {
-            label: "Constructors' leader",
+            label: season.constructors_champion ? "Constructors' champion" : "Constructors' leader",
             kind: 'name',
             value: teamLead.entity,
             href: teamLead.constructor_id ? `constructors/${teamLead.constructor_id}` : null,

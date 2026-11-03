@@ -782,7 +782,10 @@ citation, is already one system and is kept.
   (VD-90: `titleAnswer` and `seasonLede` in `queries/season.js`, which both
   renderers print; smoke's *who can still win, in the lede*). The whole
   answer, some ninety words, was too long for a lede: it ran to ten lines
-  and the web font's arrival added an eleventh, moving the page beneath it ·
+  and the web font's arrival added an eleventh, moving the page beneath it.
+  A title on the record with rounds still to run is not fought here: the lede
+  opens on who holds it and the round it was clinched at, and the answer and
+  the reach chart cover the title left (LV-15: `seasonAnswer`) ·
   lead chart · *Who can still win*, the reach chart for each title the
   answer covers (provisional, AF-132) · standings · calendar · Who entered · photographs. The
   photographs follow *Who entered* so that they sit where the photo strip

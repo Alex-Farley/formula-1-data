@@ -425,7 +425,7 @@ function RaceBody({ race, data, year, round }) {
         <Section title={STAKE_HEADING}>
           <p>{stake.who}</p>
           <p className="note follows">
-            <Dated>{stake.basis}</Dated>
+            {stake.basis && <Dated>{stake.basis}</Dated>}
           </p>
         </Section>
       )}

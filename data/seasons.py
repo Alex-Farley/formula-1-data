@@ -206,7 +206,11 @@ SEASONS = [
      "Verstappen's fourth straight title while McLaren took its first constructors' crown since 1998. Longest calendar to that point at 24 rounds.", "high"),
     (2025, 24, "norris", "mclaren", 423, 7, "verstappen", 421, "mclaren", 833, F_16H, T_PIR,
      "Norris beat Verstappen by two points with team-mate Piastri third on 410 — the closest top-three in the sport's history. McLaren's 833 points set a constructors' record. Last season of the 2014-25 power-unit formula.", "verified"),
-    (2026, 23, None, None, None, None, None, None, None, None, F_16H26, T_PIR,
+    # The drivers' title was decided at round 19 of 23 (LV-15). The champion
+    # and his team are facts now; his points, wins, the runner-up and the
+    # margin are not final until the last round, so they stay NULL, and the
+    # constructors' title is still being fought. verify.py holds both halves.
+    (2026, 23, "antonelli", "mercedes", None, None, None, None, None, None, F_16H26, T_PIR,
      "Season in progress. New chassis and power-unit regulations; Audi and Cadillac join as the 11th and 12th entries. Active aerodynamics replace DRS.", "verified"),
     # Calendar only. Announced 2026-09-16 after World Motor Sport Council
     # approval, so the round count is a fact; nothing else about the season
@@ -217,3 +221,9 @@ SEASONS = [
 
 # Championship-defining moments worth their own record
 SEASON_NOTES_SOURCE = "https://www.formula1.com/en/results"
+
+# A title recorded before the season's last round is not on any final results
+# page yet, so the row cites the statement that it was decided (LV-15).
+TITLE_DECIDED_SOURCES = {
+    2026: "https://www.fia.com/news/f1-antonelli-crowned-f1s-youngest-world-champion-verstappen-wins-mexico-city",
+}
