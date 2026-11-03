@@ -12,13 +12,18 @@ effort: high
 
 # One backlog item
 
-You are the forked context for one item. This file, with the passages beside
+You are the forked context for one item: the context of its own the loop
+gives each item, whichever agent runs it. This file, with the passages beside
 it that it says when to read, is the **only** normative copy of the per-item
-procedure; `CLAUDE.md` and `CONTRIBUTING.md` carry the repository's rules
-and point here for the loop's. Read `CLAUDE.md` and `CONTRIBUTING.md` under
+procedure; `AGENTS.md` and `CONTRIBUTING.md` carry the repository's rules
+and point here for the loop's. Read `AGENTS.md` and `CONTRIBUTING.md` under
 *The queue* before touching anything. The reasons behind the rules here are
 `docs/DECISIONS.md`, by `[D-nn]`; read an entry only when you mean to change
 the rule that cites it.
+
+The procedure names actions — start a reviewer from its brief, wait for it,
+record its verdict with `verdict.sh` — and not one agent's tools. How an
+agent performs them is its adapter notes: for Claude Code, `CLAUDE.md`.
 
 Six passages of the procedure sit beside this file, each for a path only
 some forks take: `grouping.md`, `land.md`, `no-verdict.md`, `alarm.md`,
@@ -42,7 +47,8 @@ race-weekend reserve on that one refresh alarm (read
 `.claude/skills/backlog-item/alarm.md` first: it changes what you inherit and
 what rides) `AF-130`. If you were not invoked by the
 `backlog-loop` driver, by the `backlog-manager` agent that runs its
-procedure unattended `[D-42]`, or by a person typing `/backlog-item`, return
+procedure unattended `[D-42]`, or by a person starting it for one item
+(typing `/backlog-item`, in Claude Code), return
 `STOP: not invoked by the loop` and do nothing.
 
 First, `bash .claude/skills/backlog-loop/start-check.sh`. It prints the open
@@ -132,6 +138,10 @@ pass** for any change under `data/`, `harvest/`, `build.py`, `verify.py`,
 | Confirming a fix that must land before merge | fresh Sonnet | fresh Sonnet | fresh Opus |
 | Items per PR | the head and every item linked to it, at any size `[D-20]`; or, for an `XS` head, a tidy batch of up to five `XS` items `[D-54]` | the same | the same |
 | Pipelining | none — the review and the CI wait are foreground, so a fork holds one item at a time | none | none |
+
+Opus and Sonnet are Claude's models, and name the two reviewer tiers here; a
+reviewer run through `review.py` on another vendor's model is given the name
+as `LOOP_REVIEW_MODEL`, and its command maps it (*Review*).
 
 Reviewer effort and turn caps are frontmatter in `.claude/agents/`. The caps
 are runaway stops, not budgets: a reviewer that hits one returns without
@@ -315,11 +325,11 @@ not ask a reviewer to confirm one of these; the brief stays on judgement.
 ## Review
 
 One fresh agent from `.claude/agents/`, pointed at the worktree path, briefed
-with `.claude/skills/backlog-loop/review-prompt.md`. **Launch it with
-`run_in_background: false` and wait for it** — the Agent tool backgrounds by
-default, and a fork that backgrounds a reviewer and ends its turn has
-returned. Two reviewers on one PR are launched in one message, both
-foreground.
+with `.claude/skills/backlog-loop/review-prompt.md`. **Start it in the
+foreground and wait for it** — a fork that leaves a reviewer running and ends
+its turn has returned. Two reviewers on
+one PR are started together, both waited on. How an agent starts one is its
+adapter notes; Claude Code's are in `CLAUDE.md`.
 
 Which one:
 
@@ -389,7 +399,7 @@ said PASS — has read the reply for a verdict by another route.
 **A reviewer may run as a separate process** `AF-117`. Where
 `LOOP_REVIEW_CMD` is set, a pass may start its reviewer with `python3
 .claude/skills/backlog-loop/review.py <reviewer> <id> <brief-file>
-<worktree>` in place of the Agent tool: the same agent file, the same brief
+<worktree>` in place of the agent's own way of starting one: the same agent file, the same brief
 written to a file, the same pass id, and a reviewer that may be another
 vendor's model; a confirmation sets `LOOP_REVIEW_MODEL` to the model the
 pace table names. It runs in the foreground like any pass, and its exit
@@ -450,10 +460,11 @@ CI again, then `before` again. It exits 6 on an advisory review, which is the
 answer to one is never the post-merge steps: `after` reads the PR's state
 back from GitHub and does nothing unless it is `MERGED` `AF-99`. Never delete
 a PR's remote branch by hand — the repository deletes it on merge, and a
-hand deletion closes the PR unmerged. **Merging deploys lapledger.org.** In auto
-mode the merge is refused as *Merge Without Review* until a verdict is a
-comment on the PR, which `[D-23]` already puts there; a refusal means the
-record is missing, and the answer is to record it, never to route around it.
+hand deletion closes the PR unmerged. **Merging deploys lapledger.org.** Where
+an agent's harness refuses a merge until a verdict is a comment on the PR —
+Claude Code's auto mode does, as `CLAUDE.md` says — `[D-23]` already puts
+it there; a refusal means the record is missing, and the answer is to record
+it, never to route around it.
 There is no CI review to ask for: `review.yml` was removed, and the review
 above is the only one `[D-44]`.
 

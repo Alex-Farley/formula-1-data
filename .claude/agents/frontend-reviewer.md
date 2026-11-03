@@ -183,7 +183,7 @@ from the data on the page where possible.
 
 ## What not to propose
 
-Measured and rejected, in `CLAUDE.md` and `web/README.md`:
+Measured and rejected, in `AGENTS.md` and `web/README.md`:
 
 - **Route-level code splitting.** The bundle is 398 KB raw / 118 KB gzipped,
   irrelevant beside the 4.4 MB gzipped database the browser downloads.

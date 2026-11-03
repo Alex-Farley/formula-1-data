@@ -61,6 +61,8 @@ class ProtectedPaths(unittest.TestCase):
             ("<code>harvest/x.txt</code>", "harvest/"),
             ("paths: tools/a.py,data/b.py", "data/"),
             ("the rule in .claude/agents/frontend-reviewer.md", ".claude/agents/"),
+            ("a rule in AGENTS.md", "AGENTS.md"),
+            ("the adapter notes in `CLAUDE.md`", "CLAUDE.md"),
         ):
             self.assertIn(want, imp.protected_in_text(text), text)
 
@@ -77,11 +79,12 @@ class ProtectedPaths(unittest.TestCase):
             ".github/workflows/ci.yml", ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json",
             "f1.db", ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md",
             "docs/DECISIONS.md", ".claude/skills/backlog-loop/file.py", ".claude/agents/licence-reviewer.md",
-            ".claude/skills/backlog-item/land.md", ""]),
+            ".claude/skills/backlog-item/land.md", "AGENTS.md", "CLAUDE.md", "README.md", ""]),
             ["data/current.py", "verify.py", "web/scripts/prerender.js", ".github/workflows/ci.yml",
              ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json", "f1.db",
              ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md",
-             ".claude/agents/licence-reviewer.md", ".claude/skills/backlog-item/land.md"])
+             ".claude/agents/licence-reviewer.md", ".claude/skills/backlog-item/land.md",
+             "AGENTS.md", "CLAUDE.md"])
 
     def test_the_script_exits_one_on_a_protected_diff_and_zero_otherwise(self):
         script = os.path.join(LOOP, "implementer.py")

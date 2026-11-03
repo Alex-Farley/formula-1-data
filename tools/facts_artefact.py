@@ -210,7 +210,7 @@ APPARATUS_OUT = {
                      "artefact rebuilds or leaves out for some of them",
 }
 
-# The four tables of FOM-owned timing, which f1.db holds empty (CLAUDE.md,
+# The four tables of FOM-owned timing, which f1.db holds empty (AGENTS.md,
 # [D-06]). They are out of the artefact by name, whatever a row in them would
 # cite, so a local build with the timing loaders cannot put one in it.
 FOM_TABLES = ("laps", "stints", "race_timing", "race_control_messages")

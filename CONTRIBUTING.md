@@ -331,6 +331,11 @@ the review policy, the stop conditions and what never slides at any pace.
 Nothing restates it — three copies of a rule is how two of them end up wrong,
 which is what this section used to be.
 
+The rules it works under are `AGENTS.md`, the rules file any agent reads.
+The procedure names actions, not one agent's tools; how an agent performs
+them is that agent's adapter notes, and Claude Code's are `CLAUDE.md`,
+which imports `AGENTS.md` and adds only what is particular to Claude Code.
+
 What a person needs to know about it:
 
 - **The queue is GitHub Issues**, as *The queue* above describes. `next.py`

@@ -109,7 +109,7 @@ and the state of that file is itself evidence.
 
 ## What not to propose
 
-Measured and rejected, in `CLAUDE.md` and `docs/`:
+Measured and rejected, in `AGENTS.md` and `docs/`:
 
 - `BUILT` as a real timestamp.
 - An HTTP range-request VFS for the data layer.

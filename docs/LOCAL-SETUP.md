@@ -579,7 +579,8 @@ its own reviewer from `.claude/agents/` instead.
 
 ## Where the rules live
 
-- `CLAUDE.md` — the conventions, and why each one exists
+- `AGENTS.md` — the conventions, and why each one exists, for any agent
+- `CLAUDE.md` — imports `AGENTS.md`, and adds Claude Code's adapter notes
 - `CONTRIBUTING.md` — *Working autonomously* and *The queue*
 - `.claude/skills/backlog-loop/` — the driver and its scripts
 - `.claude/skills/backlog-item/` — what happens to one item, start to merge

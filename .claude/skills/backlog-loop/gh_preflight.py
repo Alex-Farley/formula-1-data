@@ -36,7 +36,7 @@ WHY THIS EXITS RATHER THAN DEGRADING
     loop that cannot claim an item cannot stop two sessions taking the same
     one, which is the collision the status exists to prevent. Carrying on
     with a queue that has no ranking and no claim would weaken that control
-    to keep going, which `CLAUDE.md` rules out by name. An unscoped queue is
+    to keep going, which `AGENTS.md` rules out by name. An unscoped queue is
     also indistinguishable from a correct one in the output, which is the
     failure worth refusing: a traceback is honest, a plausible wrong answer
     is not.

@@ -166,7 +166,7 @@ SECURITY_AUTHORS = frozenset({"app/github-actions", "github-actions[bot]"})
 # enough to list a candidate on its own.
 # The extensions this project keeps as files. A "/name.ext" is a filename
 # when ext is one of these and a served path when it is not: /f1.db is the
-# database, /build-status.txt is an address CLAUDE.md tells a reader to open.
+# database, /build-status.txt is an address AGENTS.md tells a reader to open.
 SOURCE_EXT = "py|js|mjs|jsx|ts|tsx|css|json|sql|md|sh|yml|yaml|html|db"
 PATH = re.compile(rf"(?:[\w.-]+/)*[\w.-]+\.(?:{SOURCE_EXT})\b")
 # The lookbehind keeps the tail of a path out - the "/drivers" inside

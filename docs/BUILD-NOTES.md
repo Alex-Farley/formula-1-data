@@ -197,7 +197,7 @@ This release also carries the work of the merges themselves: 32 unit tests
 and 35 front-end ones, prerendered HTML for all 2,385 routes,
 machine-readable licence classes with build and verify guards, the FOM-owned
 tables held empty, and one attribution rule for Commons images. See
-`CLAUDE.md` for the conventions all of that depends on.
+`AGENTS.md` for the conventions all of that depends on.
 
 ---
 

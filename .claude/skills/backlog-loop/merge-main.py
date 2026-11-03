@@ -7,7 +7,7 @@ repository can resolve safely, and leaving every other one to a person.
 
 What it resolves:
 - f1.db, f1-geometry.db, f1_compat.json: fully generated. Main's copy is
-  taken and `make all` rebuilds them (CLAUDE.md: take either side, rebuild,
+  taken and `make all` rebuilds them (AGENTS.md: take either side, rebuild,
   commit the rebuild).
 - README.md, docs/COMMERCIAL-READINESS.md: half-generated. A conflict whose
   two sides differ only inside `<!-- fig:name -->value<!-- /fig -->` spans is

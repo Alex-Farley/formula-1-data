@@ -49,19 +49,21 @@ SMALL = ("XS", "S")
 # backtick, so `web/src/data/` is not `data/`. The item's own list - the data
 # paths, the workflows, the release, export_json.py, prepare-assets.js - with
 # the rest of what D-19 gives an Opus first pass (schema.sql, prerender.js),
-# the rest of the deploy chain CLAUDE.md names (package.json and its lock,
+# the rest of the deploy chain AGENTS.md names (package.json and its lock,
 # parquet-bundle.mjs, wrangler.jsonc), and the licence texts, which are what
 # make the published database redistributable. Then the committed artefacts,
 # and the files of the loop's controls - this guard, the precheck and its
 # floors, the verdict, the merge gate, the reviewers, the command that starts
-# one out of process, and the procedure they enforce: a diff that could
-# rewrite the rule could pass its own check.
+# one out of process, and the procedure they enforce, with the rules file and
+# Claude Code's adapter notes, which hold the rest of it (AF-119): a diff
+# that could rewrite the rule could pass its own check.
 PROTECTED_FILES = ("build.py", "verify.py", "schema.sql", "export_json.py",
                    "prepare-assets.js", "prerender.js", "parquet-bundle.mjs",
                    "package.json", "package-lock.json", "wrangler.jsonc", "ATTRIBUTION.md",
                    "CODEOWNERS", "f1.db", "f1-geometry.db", "f1_compat.json",
                    "implementer.py", "precheck.sh", "verdict.sh", "merge-step.py", "ci-wait.sh",
-                   "floors.py", "merge-main.py", "review-prompt.md", "review.py", "next.py")
+                   "floors.py", "merge-main.py", "review-prompt.md", "review.py", "next.py",
+                   "AGENTS.md", "CLAUDE.md")
 # LICENSE, LICENSE-DATA, LICENSE-GEOMETRY and whatever joins them.
 LICENCE = re.compile(r"(?<![\w-])LICEN[CS]E[\w.-]*")
 PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/", ".claude/agents/",

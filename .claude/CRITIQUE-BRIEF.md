@@ -70,7 +70,7 @@ say roughly what a recommendation costs.
 |---|---|
 | `README.md` | the database: what is in it, how it is checked, what it deliberately lacks. Also the version log. **Broadly stale — treat no number in it as current.** Some figures are wrong by more than 10×. Read it for intent and check every count against `f1.db` |
 | `web/README.md` | the front end: the loading design, the pages, the voice, the Pit Wall look, the charts, traced circuit geometry, the testing |
-| `CLAUDE.md` | the conventions, and the *measured and rejected* list |
+| `AGENTS.md` | the conventions, and the *measured and rejected* list (`CLAUDE.md` imports it and adds Claude Code's own) |
 | `docs/design-system.md` | the adopted design system, the baseline a design critique judges against; each section says whether it is built yet |
 | `docs/` | build notes by version, the commercial-readiness reading, the confidence model and its backlog, the timing architecture decision |
 | `schema.sql` | 41 tables, with comments |
@@ -101,7 +101,7 @@ is wasted work. Everything else in this project is open to challenge.
 Anything else — the whole-download architecture, the confidence ladder, the
 information architecture, the voice, the visual system, what the product is
 *for* — is fair game, including the items on the *measured and rejected* list in
-`CLAUDE.md`.
+`AGENTS.md`.
 
 ## The posture
 
@@ -115,7 +115,7 @@ So:
 - **You may reopen any closed decision.** If you think the whole-download
   architecture is wrong, say so.
 - **But engage with the recorded reason.** "Consider code splitting" is worth
-  nothing when `CLAUDE.md` gives a bundle measurement against a database size.
+  nothing when `AGENTS.md` gives a bundle measurement against a database size.
   "The bundle measurement is the wrong comparison, because *X*" is worth a lot.
   A critique that has plainly not read the reason will be discounted whole, and
   should be.
@@ -164,7 +164,7 @@ to a dead end.
 - **The interactive surfaces**: a public SQL console, and four hand-drawn SVG
   charts that each carry a table of their own numbers. The track atlas (a
   walkable, turn-rate-coloured lap) was cut in `AF-20`/`AF-21`
-  (2026-09-14) — do not re-propose it; see `CLAUDE.md`'s *measured and
+  (2026-09-14) — do not re-propose it; see `AGENTS.md`'s *measured and
   rejected* conventions for how that list works. *(interaction, visual,
   accessibility, product)*
 - **Nobody has asked a user anything, and nothing is measured.** *(product,
