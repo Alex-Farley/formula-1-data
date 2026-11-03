@@ -327,7 +327,7 @@ not ask a reviewer to confirm one of these; the brief stays on judgement.
 One fresh agent from `.claude/agents/`, pointed at the worktree path, briefed
 with `.claude/skills/backlog-loop/review-prompt.md`. **Start it in the
 foreground and wait for it** — a fork that leaves a reviewer running and ends
-its turn has returned, and the reviewer never reports back. Two reviewers on
+its turn has returned. Two reviewers on
 one PR are started together, both waited on. How an agent starts one is its
 adapter notes; Claude Code's are in `CLAUDE.md`.
 

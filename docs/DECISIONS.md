@@ -1,6 +1,6 @@
 # Decisions and the reasons for them
 
-Every rule in `CLAUDE.md`, `CONTRIBUTING.md` and the loop's skills carries a
+Every rule in `AGENTS.md`, `CONTRIBUTING.md` and the loop's skills carries a
 one-clause reason inline. This file holds the rest of the story: what went
 wrong, when, and what was measured.
 
