@@ -14,7 +14,8 @@ import { useState } from 'react'
  * `count` is how many marks the chart reads in order. What the hook holds is
  * an index into them, not the mark: a caller builds its data afresh on every
  * render, and an object held from the last one would match none. An index
- * past the end - the data shrank under it - reads as nothing held.
+ * past the end - the data shrank under it - is let go, so data that grows
+ * back does not bring the old mark back with no key pressed.
  *
  * The chart spreads `keys` on its <svg> beside `tabIndex={0}` and the
  * pointer handlers that call `setActive`, and puts what is read in a status
@@ -24,6 +25,9 @@ import { useState } from 'react'
  */
 export function useChartKeys(count) {
   const [held, setActive] = useState(null)
+  // Set during the render, which React allows for a component's own state:
+  // it renders again at once with nothing held, before anything is painted.
+  if (held !== null && held >= count) setActive(null)
   const active = held !== null && held < count ? held : null
 
   const onKeyDown = (event) => {

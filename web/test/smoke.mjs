@@ -5012,7 +5012,9 @@ try {
    * region always in the document says what is read, Escape lets go, and a
    * Tab arrival reads the first mark. What each step should read comes from
    * f1.db - Ferrari's seasons entered, 2024's rounds of the running table -
-   * not from the page.
+   * not from the page. Then every other chart that opens a box, on the home
+   * page, the quality page and /records, is a tab stop whose Home opens one
+   * box and says it in its status region.
    */
   await section('/constructors/<id> and /seasons/<year>  (column and line charts from the keyboard: AX-32)', async () => {
     await page.setViewportSize({ width: 1280, height: 900 })
@@ -5083,6 +5085,33 @@ try {
     is(race.quiet, '', 'and empties the status region')
     truthy(race.focused, 'Shift+Tab then Tab comes back to the chart')
     is(race.arrived.join(' | '), `R${rounds[0]}`, 'and a Tab arrival reads the first round')
+
+    // A bar chart opens no box (it prints every value), so it is the one plot
+    // here that is not a tab stop; every other one in a figure must be.
+    const PLOTS = '#root main figure.figure .plot-holder > svg[role="img"]:not([class])'
+    for (const [route, heading] of [['/', null], ['/data/quality', 'Data quality'], ['/records', 'Records']]) {
+      await go(route, heading)
+      await page.locator(`${PLOTS}[tabindex="0"]`).first().waitFor({ timeout: 30000 })
+      const plots = page.locator(PLOTS).filter({ hasNot: page.locator('.bar-label') })
+      const n = await plots.count()
+      const wrong = []
+      for (let i = 0; i < n; i += 1) {
+        const plot = plots.nth(i)
+        if ((await plot.getAttribute('tabindex')) !== '0') {
+          wrong.push(`chart ${i + 1} is no tab stop`)
+          continue
+        }
+        await plot.scrollIntoViewIfNeeded()
+        await plot.focus()
+        await page.keyboard.press('Home')
+        const box = await heads()
+        const said = await plot.locator('xpath=..').locator('[role="status"]').textContent()
+        if (box.length !== 1 || !said.startsWith(`${box[0]}: `)) wrong.push(`chart ${i + 1} opened ${JSON.stringify(box)} and said “${said}”`)
+        await page.keyboard.press('Escape')
+      }
+      atLeast(n, 1, `${route} draws a chart that opens a box`)
+      truthy(wrong.length === 0, `on ${route}, each is a tab stop whose Home opens one box and names it in its status region${wrong.length ? `; ${wrong.join('; ')}` : ''}`)
+    }
   })
 
   await section('/constructors', async () => {
