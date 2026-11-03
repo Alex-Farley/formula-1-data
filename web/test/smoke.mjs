@@ -1500,6 +1500,14 @@ try {
       `the overview leads with ${racesRun.toLocaleString('en-GB')} races run`,
     )
 
+    // VD-93: one index, and no second grid of doors - the onward band that
+    // stood under it - in either half.
+    is(await page.$$eval('#root main .board.index', (nodes) => nodes.length), 1, "the app's home has one index")
+    is(await page.$$eval('#root main nav.onward', (nodes) => nodes.length), 0, "the app's home has no onward band beside it")
+    const servedHome = (await (await fetch(`${BASE}/`)).text()).split('<div id="prerendered">')[1] ?? ''
+    truthy(servedHome.length > 0, 'the static home page is served')
+    is((servedHome.match(/<div class="board index">/g) ?? []).length, 1, 'the static home page has one index')
+    truthy(!servedHome.includes('<nav class="onward"'), 'the static home page has no onward band beside it')
   })
 
   // --------------------------------------------------------------- seasons

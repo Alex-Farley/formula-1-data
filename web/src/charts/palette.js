@@ -48,6 +48,14 @@
  * a claim about a measurement is only worth having if it names the surface it
  * was measured against.
  *
+ * VD-93 moved both again, to the tinted papers: #fefaf6 in light and
+ * #1a1512 in dark. The ΔE figures above are distances between the series
+ * colours themselves, so they do not move with the surface; the contrast
+ * column does, and was measured again on the new panels - light 4.25, 3.08
+ * and 3.17:1, dark 4.98, 4.66 and 5.32:1, all at or above 3:1, the figures
+ * web/test/conventions.mjs holds. The surfaces named above are the ones the
+ * validator itself was run against.
+ *
  * Three is the cap, and it is the reason charts here fold everything else into
  * a single "other" or split into small multiples rather than reaching for a
  * fourth hue: the fourth slot puts yellow beside orange, and that pair fails
@@ -67,7 +75,7 @@ export const seriesColour = (i) => SERIES[i % SERIES.length]
 /**
  * The ink pair (VD-94): --series-ink is --ink-soft and --series-mark is
  * --accent, in each theme (styles/tokens.css). The same validator, run on the
- * pair with --pairs all:
+ * pair with --pairs all, before VD-93 tinted the surfaces and the inks:
  *
  *   light (surface #ffffff)   #4f5561 / #c81028: CVD ΔE 8.5 (protan) ·
  *                             tritan 27.2 · normal-vision 23.4 · both at or
@@ -82,6 +90,11 @@ export const seriesColour = (i) => SERIES[i % SERIES.length]
  * method's emphasis pattern ("highlight one, grey the rest") asks for. The
  * mark is never the only cue either: the value it carries, or the name it
  * belongs to, is printed on or beside it.
+ *
+ * VD-93 tinted --ink-soft to #5c524a in light and #aaa195 in dark, on the
+ * tinted panels; the pair was not put through the validator again. Each
+ * still clears 3:1 on its panel - ink 7.32 and accent 5.68:1 in light, ink
+ * 7.10 and accent 5.42:1 in dark - which web/test/conventions.mjs measures.
  */
 export const INK = 'var(--series-ink)'
 export const MARK = 'var(--series-mark)'

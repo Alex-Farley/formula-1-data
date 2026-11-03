@@ -199,15 +199,32 @@ capped in rem, and below 768 everything runs the full column.
 Both themes keep their measured contrast (the figures are in the
 `tokens.css` header). Dark stays a second instrument, not an inversion.
 
-### Radii, borders, elevation — built
+**A paper and an ink — built (VD-93 #923).** The surfaces, the inks and
+the rules are tinted warm, toward the accent, in both themes: a paper, not
+Tailwind's gray-100 ground under a white panel, and an ink that no longer
+leans blue away from the red. Each keeps the lightness it had, or close to
+it, so every contrast floor in §7 holds; `--panel-sunk` is held to the
+luminance of the grey it replaced, because the livery pairs were stepped
+against it. `conventions.mjs` refuses a surface, ink or rule that is
+neutral or cool, and the gray-100 and white pair (§8, test 17).
+
+### Radii, borders, elevation — built; rules, not boxes (VD-93)
 
 | Token | Value | Use |
 |---|---|---|
 | `--radius` | 3 px | every framed box |
 | `--radius-sm` | 2 px | pills, chips, and the disagreement box (VD-78) |
-| Frame | 1 px `--rule` | one frame for tiles, figures, tables and cards (§3) |
+| Frame | 1 px `--rule` | figures and tables: a block the reader reads inside (§3) |
+| Rule | 1 px `--rule-strong` above | a tile, a record card, a door of an index or of `/data`, and home's two rounds and four conventions: siblings each under a rule on the paper, set off by the space after them, never a frame round each (VD-93). The onward band's routes sit under the band's own rule and draw none |
 | Emphasis edge | 3 px left border `--rule-strong` | note box and disagreement only |
 | Elevation | `--shadow` | overlays only: the search palette, a table's hover box. Never a page block |
+
+A frame round every block, the same on a tile, a card and a door, made each
+page a grid of identical boxes (design review DR-04, 2026-10-08). A rule
+says where one thing ends without boxing it, which is how a printed table
+of figures does it. `conventions.mjs` refuses a background, a frame on any
+other side, a radius or a shadow on the ruled components, and a ruled one
+that draws no rule (§8, test 17).
 
 ---
 
@@ -383,8 +400,10 @@ inside it is scaled, until the app redraws it at the width it occupies.
   case, VD-91), figure (`--size-8`, or `--size-6` for a name), qualifier
   (`--size-3`). Every figure in a row sits on one baseline,
   the lead figures and the rest alike.
-- **Widths:** a grid, not a flex row. Every tile draws its own hairline (the
-  option VD-46 #414 proposed), so a short last row ends against the page.
+- **Widths:** a grid, not a flex row. Every tile draws its own rule (the
+  option VD-46 #414 proposed, as a hairline frame; a rule over the tile
+  since VD-93, with no fill and no left padding, so a strip's first figure
+  stands on the page's edge), so a short last row ends against the page.
   There is **no ghost tile** and no stretched lone tile. Each renderer
   writes the strip's count as `--tiles`, and `.stats` in `app.css` picks
   the columns from it and from the strip's own width, with `--tile` and
@@ -709,6 +728,10 @@ carry it.
   BY 4.0), drawn by Jules Roy*. This replaces the schema line *F1DB layout
   silverstone-8 · …*, and the OpenStreetMap sentence appears only where a
   trace is drawn (content C10; CD-62 #1041).
+- **Rule, not box** (built, VD-93): the card has no frame. The drawing's
+  `--stage` is its ground, the words sit under it on the paper, and the
+  gap between cards sets one off from the next. AX-26 landed first, so this
+  is the reading DR-04 asked of it.
 - **A timeline card's heading** (built, AX-26): on a circuit's *Every layout
   raced here*, the `h3` is the layout's name and nothing else — or, for a
   drawing no row names, the words saying so and its years, so that no two
@@ -734,8 +757,16 @@ carry it.
 
 ### Keep going, and On this page
 
-- ***Keep going* (core) — built:** unchanged. It is the best cross-page
-  structure on the site (service).
+- ***Keep going* (core) — built:** It is the best cross-page structure on
+  the site (service). Its routes are words under the band's rule, not a row
+  of framed cards (VD-93). Home has none: its index is its way on.
+- ***Index* (provisional, VD-93 #923):** home's doors to every part of the
+  site, one list, `BOARD` in `queries/home.js`, drawn by both renderers as
+  `.board.index`: three to a row from 768 px, one on a phone, each door
+  under a rule with its name, its count where it has one, and a line. It
+  replaced two grids of doors on home - eight cards and the four of a
+  *Popular ways in* band - and `smoke.mjs` holds one index and no onward
+  band in both halves.
 - ***On this page* (optional in A) — not built:** a one-line list of the
   page's sections, under the tiles. It costs about 40 px of the first screen.
   A page may add it; none is held to it.
@@ -1076,7 +1107,7 @@ The system is held by tests, not by memory.
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
 Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12. Built in
 VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
-Built in VD-91: 16.
+Built in VD-91: 16. Built in VD-93: 17.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -1170,6 +1201,13 @@ Built in VD-91: 16.
     the scale is declared in `RETIRED` and defined and used nowhere
     (`conventions.mjs`, VD-91). Both renderers share the stylesheet, so the
     static page and the app agree by construction.
+17. **A paper, an ink and rules.** Every surface, ink and rule token is
+    warm in both themes, and the ground and panel are never gray-100 and
+    white; a tile, a record card, a door, the onward routes and home's
+    rounds and conventions declare no background, side or bottom frame,
+    radius or shadow, and all but the onward routes draw a rule above
+    themselves; home's rounds and conventions are not `.panel`s in either
+    renderer (`conventions.mjs`, VD-93).
 
 ### How a change to the system is made
 

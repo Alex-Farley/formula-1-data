@@ -2548,3 +2548,69 @@ describe('one vocabulary: tile labels and provenance headings come from one list
     for (const word of words) assert.ok(!(word in SYNONYMS), `${word} is both a word and a synonym`)
   })
 })
+
+describe('a paper and an ink, and rules rather than boxes (VD-93, DR-04)', () => {
+  // The ground was #f3f4f6 and the panel #ffffff - Tailwind's gray-100 and
+  // white - every ink leaned blue, away from the red, and a hairline frame
+  // went round every tile, card and door. docs/design-system.md section 2.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const app = read(join(web, 'src', 'styles', 'app.css'))
+  const dark = css.indexOf('@media (prefers-color-scheme: dark)')
+  const stamped = css.indexOf(":root[data-theme='dark']")
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/^\s*--([a-z0-9-]+):\s*(#[0-9a-f]{6})\s*;/gm)].map((m) => [m[1], m[2]]))
+  const TINTED = ['bg', 'panel', 'panel-sunk', 'panel-raised', 'stage', 'ink', 'ink-soft', 'ink-faint', 'rule', 'rule-strong']
+
+  for (const [label, block] of [
+    ['light', css.slice(0, dark)],
+    ['dark (system)', css.slice(dark, stamped)],
+    ['dark (chosen)', css.slice(stamped)],
+  ]) {
+    it(`${label}: every surface, ink and rule is tinted warm, toward the accent`, () => {
+      const t = tokens(block)
+      const off = TINTED.filter((name) => {
+        assert.ok(t[name], `${label} block has no six-digit --${name}`)
+        const [r, , b] = [1, 3, 5].map((i) => parseInt(t[name].slice(i, i + 2), 16))
+        return !(r > b)
+      }).map((name) => `--${name} ${t[name]}`)
+      assert.deepEqual(off, [], `neutral or cool, where the paper and ink are warm: ${off.join(', ')}`)
+      const pair = [t.bg, t.panel].filter((hex) => hex === '#f3f4f6' || hex === '#ffffff')
+      assert.deepEqual(pair, [], 'the gray-100 and white pair is back')
+    })
+  }
+
+  // Each of these stands under a rule on the paper. A background, a frame on
+  // any other side, a radius or a shadow on any rule that names one is the
+  // box coming back; every one but the onward band's routes, which sit under
+  // the band's own rule, draws the rule itself.
+  const RULED = ['.stats > div', '.record-card', '.board a', '.board a:hover', '.round-panel', '.convention', '.onward a', '.onward a:hover b']
+  const DRAWS_RULE = ['.stats > div', '.record-card', '.board a', '.round-panel', '.convention']
+  const BOX = /(?<=[{;\s])(background(?:-color)?|border(?:-left|-right|-bottom)?|border-radius|box-shadow)\s*:/g
+  const found = new Map(RULED.map((selector) => [selector, { box: [], top: false, seen: false }]))
+  for (const m of app.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    for (const selector of m[1].replace(/\/\*[\s\S]*?\*\//g, '').split(',').map((part) => part.trim())) {
+      const entry = found.get(selector)
+      if (!entry) continue
+      entry.seen = true
+      for (const box of m[2].matchAll(BOX)) entry.box.push(`${selector} ${box[1]}`)
+      if (/(?<=[{;\s])border-top\s*:\s*1px solid var\(--rule(?:-strong)?\)/.test(m[2])) entry.top = true
+    }
+  }
+
+  it('a tile, a record card, a door, the onward routes and home\'s two rounds and four conventions draw no box', () => {
+    const unseen = RULED.filter((selector) => !found.get(selector).seen)
+    assert.deepEqual(unseen, [], `a ruled selector app.css no longer has, so nothing here would read it: ${unseen.join(', ')}`)
+    assert.deepEqual([...found.values()].flatMap((entry) => entry.box), [])
+  })
+
+  it('and each but the onward routes draws its own rule', () => {
+    const bare = DRAWS_RULE.filter((selector) => !found.get(selector).top)
+    assert.deepEqual(bare, [], `no border-top rule: ${bare.join(', ')}`)
+  })
+
+  it("home's rounds and conventions are not panels, in either renderer", () => {
+    const boxed = [join(web, 'src', 'pages', 'Home.jsx'), join(web, 'scripts', 'prerender.js')].flatMap((file) =>
+      [...read(file).matchAll(/class(?:Name)?="panel (?:round-panel|convention)"/g)].map((m) => `${rel(file)}: ${m[0]}`),
+    )
+    assert.deepEqual(boxed, [])
+  })
+})

@@ -32,7 +32,8 @@
  *                 1-3 of the reference categorical palette are the fallback
  *                 for several series with no sourced colour, or none that
  *                 can be told apart. Each slot was validated by script
- *                 against these exact surfaces rather than chosen by eye,
+ *                 rather than chosen by eye, against the surfaces before
+ *                 VD-93 tinted them (charts/palette.js says what moved),
  *                 and each clears 3:1 on --panel, the surface every figure
  *                 draws on, in both themes. Never text.
  *
@@ -44,21 +45,35 @@
  *
  * Dark is not an inversion of light: it is a second instrument, stepped
  * against its own ground. Light is paper under a pit-lane strip light; dark
- * is the timing screen. Both were measured, not eyeballed —
+ * is the timing screen.
  *
- *   light   ink 18.1:1 · soft 7.5:1 · faint 5.3:1 · accent 5.9:1 on panel
+ * Both are tinted, the surfaces and the inks alike (VD-93, design review
+ * DR-04, 2026-10-08). The ground was #f3f4f6 and the panel #ffffff - exactly
+ * Tailwind's gray-100 and white - and every ink leaned blue (OKLCH hue
+ * 259-271), away from the red. Now each keeps the lightness it had, or close
+ * to it, and turns warm: OKLCH hue 48-82, chroma 0.007-0.02, a paper and an ink
+ * that sit with the accent rather than against it. --panel-sunk is the one
+ * surface held to a luminance rather than a lightness: no darker than the
+ * #eceef2 it replaced, because the livery pairs in lib/liveries.js were
+ * stepped against that figure and five of their colours cleared 3:1 on it
+ * by less than 0.03.
+ *
+ * Both were measured, not eyeballed —
+ *
+ *   light   ink 17.4:1 · soft 7.3:1 · faint 5.3:1 · accent 5.7:1 on panel
  *           faint clears 4.5:1 on panel-sunk too, the darkest of the four
- *           surfaces it sits on (4.56:1). It used to be #6d7480: 4.7:1 on
+ *           surfaces it sits on (4.76:1). It once was #6d7480: 4.7:1 on
  *           panel, 4.05:1 on panel-sunk - the comment recorded the surface it
  *           passed on, and 158 nodes failed on the other three.
- *   dark    ink 15.1:1 · soft 7.0:1 · faint 4.8:1 · accent 5.4:1 on panel
+ *   dark    ink 15.0:1 · soft 7.1:1 · faint 4.9:1 · accent 5.4:1 on panel
+ *           faint is 4.51:1 on panel-raised, the lightest surface it sits on.
  *
  * Those are the accent as text, on the panel. As a fill it carries
  * --ink-invert, not white: white on the dark accent is 3.34:1, and
  * --ink-invert makes it 5.9:1 in light and 5.8:1 in dark.
  *
- * One number decides a rule elsewhere: accent against body ink is 3.07:1 in
- * light and 2.78:1 in dark. Only the first clears the 3:1 that lets colour
+ * One number decides a rule elsewhere: accent against body ink is 3.06:1 in
+ * light and 2.77:1 in dark. Only the first clears the 3:1 that lets colour
  * mark a link on its own, so links keep an underline in both — the dark side
  * needs it and one behaviour is better than two.
  */
@@ -67,26 +82,26 @@
   color-scheme: light;
 
   /* surfaces */
-  --bg: #f3f4f6;
-  --panel: #ffffff;
-  --panel-sunk: #eceef2;
-  --panel-raised: #ffffff;
-  --stage: #f7f8fa;          /* where a circuit or chart is drawn */
+  --bg: #f6f2eb;
+  --panel: #fefaf6;
+  --panel-sunk: #f3eee7;
+  --panel-raised: #fefaf6;
+  --stage: #faf6f1;          /* where a circuit or chart is drawn */
 
   /* ink */
-  --ink: #14161b;
-  --ink-soft: #4f5561;
-  --ink-faint: #656c77;
+  --ink: #1b1511;
+  --ink-soft: #5c524a;
+  --ink-faint: #72675f;
   /* the foreground for an accent fill — a button, not a surface. Inverted
      against the theme rather than fixed white, because the dark accent is
      light enough that white on it fails 1.4.3 (AX-06). */
   --ink-invert: #ffffff;
 
   /* structure */
-  --rule: #e3e5ea;
-  --rule-strong: #c9cdd6;
-  --shadow-sm: 0 1px 2px rgb(20 22 27 / 0.06);
-  --shadow: 0 1px 2px rgb(20 22 27 / 0.05), 0 10px 30px rgb(20 22 27 / 0.07);
+  --rule: #e9e3db;
+  --rule-strong: #d2cbc1;
+  --shadow-sm: 0 1px 2px rgb(27 21 17 / 0.06);
+  --shadow: 0 1px 2px rgb(27 21 17 / 0.05), 0 10px 30px rgb(27 21 17 / 0.07);
 
   /* the one interactive colour */
   --accent: #c81028;
@@ -96,8 +111,8 @@
   /* The result rail: podium, scored, classified, retired. Four states are
      only four states if all four can be seen — the first draft put points at
      1.95:1 and classified at 1.44:1 against the panel, which left the rail
-     encoding podium-versus-not. These measure 5.9 / 4.0 / 3.1 in light and
-     5.4 / 3.5 / 3.5 in dark. */
+     encoding podium-versus-not. On --panel, podium / points / classified
+     measure 5.7 / 3.1 / 6.6 in light and 5.4 / 3.4 / 7.2 in dark (VD-93). */
   --rail-podium: #c81028;
   --rail-points: #e2687c;
   --rail-classified: #535b69;
@@ -107,8 +122,9 @@
      panel (AX-07): #15a174 is OKLCH L 0.63 C 0.13 h 164 against the old
      L 0.67 C 0.14 h 162 - lightness does the work, hue and chroma barely
      move - and lands close to the dark slot's #199e70 (L 0.62 h 163), which
-     is where the two themes' green converge. 3.29:1 on --panel, 3.10:1 on
-     --stage. charts/palette.js records the validator run, tool and metric
+     is where the two themes' green converge. 3.17:1 on --panel, 3.06:1 on
+     --stage, the tinted surfaces of VD-93 (3.29 and 3.10 on the white and
+     grey before them). charts/palette.js records the validator run, tool and metric
      named: worst CVD pair 9.3, was 9.2; normal-vision 21.7, was 24.0. */
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -120,7 +136,7 @@
      against --panel in both themes. */
   --series-ink: var(--ink-soft);
   --series-mark: var(--accent);
-  --grid: #e3e5ea;
+  --grid: #e9e3db;
 
   /* national racing colours (lib/racingColours.js names them). One hex served
      two themes and six of the eight fell under 3:1 against the panel in one of
@@ -129,15 +145,16 @@
      that is a register row's only identity mark; against the sunk and raised
      surfaces below, all eight did. Each is now stepped against its own ground:
      light is measured on --panel / --panel-sunk, dark on --panel /
-     --panel-raised, and the lowest of the sixteen figures is 3.32:1. */
-  --racing-uk: #00563f;     /* 8.74 / 7.52 */
-  --racing-it: #c8102e;     /* 5.88 / 5.06 */
-  --racing-fr: #0b5bab;     /* 6.78 / 5.83 */
-  --racing-de: #737a82;     /* 4.34 / 3.74 - was #9aa0a6 at 2.64 */
-  --racing-be: #a37900;     /* 3.97 / 3.42 - was #d4a017 at 2.38 */
-  --racing-nl: #d3600f;     /* 3.85 / 3.32 - was #e06c1f at 2.85 on sunk */
-  --racing-ch: #b02733;     /* 6.60 / 5.68 */
-  --racing-us: #1f3c88;     /* 10.19 / 8.78 */
+     --panel-raised, and the lowest of the sixteen figures is 3.34:1, on the
+     tinted surfaces of VD-93. */
+  --racing-uk: #00563f;     /* 8.41 / 7.57 */
+  --racing-it: #c8102e;     /* 5.66 / 5.10 */
+  --racing-fr: #0b5bab;     /* 6.53 / 5.87 */
+  --racing-de: #737a82;     /* 4.18 / 3.76 - was #9aa0a6 at 2.64 */
+  --racing-be: #a37900;     /* 3.82 / 3.44 - was #d4a017 at 2.38 */
+  --racing-nl: #d3600f;     /* 3.71 / 3.34 - was #e06c1f at 2.85 on sunk */
+  --racing-ch: #b02733;     /* 6.35 / 5.71 */
+  --racing-us: #1f3c88;     /* 9.81 / 8.83 */
 
   /* status */
   --good: #0a7d2b;
@@ -331,19 +348,19 @@
   :root:where(:not([data-theme='light'])) {
     color-scheme: dark;
 
-    --bg: #0c0d10;
-    --panel: #14161b;
-    --panel-sunk: #101216;
-    --panel-raised: #1b1e25;
-    --stage: #101216;
+    --bg: #100c0a;
+    --panel: #1a1512;
+    --panel-sunk: #15110e;
+    --panel-raised: #221d18;
+    --stage: #15110e;
 
-    --ink: #e8eaf0;
-    --ink-soft: #9aa1ae;
-    --ink-faint: #7d848f;
-    --ink-invert: #0c0d10;
+    --ink: #efe9e2;
+    --ink-soft: #aaa195;
+    --ink-faint: #8b8479;
+    --ink-invert: #100c0a;
 
-    --rule: #23262e;
-    --rule-strong: #333843;
+    --rule: #2b2520;
+    --rule-strong: #3e3630;
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
     --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.4);
 
@@ -358,7 +375,7 @@
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
-    --grid: #23262e;
+    --grid: #2b2520;
 
     /* the racing colours, lifted for the dark panel; the greys and yellows
        that failed in light are the ones that hold here. American blue leans
@@ -384,19 +401,19 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0c0d10;
-  --panel: #14161b;
-  --panel-sunk: #101216;
-  --panel-raised: #1b1e25;
-  --stage: #101216;
+  --bg: #100c0a;
+  --panel: #1a1512;
+  --panel-sunk: #15110e;
+  --panel-raised: #221d18;
+  --stage: #15110e;
 
-  --ink: #e8eaf0;
-  --ink-soft: #9aa1ae;
-  --ink-faint: #7d848f;
-  --ink-invert: #0c0d10;
+  --ink: #efe9e2;
+  --ink-soft: #aaa195;
+  --ink-faint: #8b8479;
+  --ink-invert: #100c0a;
 
-  --rule: #23262e;
-  --rule-strong: #333843;
+  --rule: #2b2520;
+  --rule-strong: #3e3630;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.4);
 
@@ -411,7 +428,7 @@
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
-  --grid: #23262e;
+  --grid: #2b2520;
 
   --racing-uk: #1e8a5a;
   --racing-it: #e0233f;

@@ -547,11 +547,20 @@ main {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
-/* The home page's panels: the two rounds either side of today, and the four
-   conventions under them. Both halves of the site draw these now (PD-40), and
-   the spacing is rules rather than the inline styles Home.jsx used to carry,
+/* The home page's two rounds either side of today, and the four conventions
+   under them. Both halves of the site draw these now (PD-40), and the
+   spacing is rules rather than the inline styles Home.jsx used to carry,
    for the reason the comment on .split.uneven below gives - an inline style
-   outranks a rule, and scripts/prerender.js has no way to write one. */
+   outranks a rule, and scripts/prerender.js has no way to write one.
+
+   Each stands under a rule on the paper rather than in a panel (VD-93,
+   DR-04): they were two of home's four grids of boxes. */
+.round-panel,
+.convention {
+  border-top: 1px solid var(--rule-strong);
+  padding-top: var(--space-5);
+}
+
 .round-panel > * {
   margin: var(--space-5) 0 0;
 }
@@ -620,7 +629,7 @@ main {
 /* ----------------------------------------------------------- stat blocks */
 
 /* The tile strip (docs/design-system.md section 3, VD-79, DP-02). A grid,
-   not a flex row, and every tile draws its own hairline.
+   not a flex row, and every tile draws its own rule.
 
    It was a flex row whose hairlines were the container's ground showing
    through 1 px gaps, so a short last row would have ended in a grey band;
@@ -655,20 +664,23 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--tile-track), 1fr)); /* the strip's own columns, from its count and width: see above */
   margin: 0;
-  /* The right and bottom edges the tiles' negative margins reach into. */
-  padding: 0 1px 1px 0;
+  padding: 0;
 }
 
 /* No lit edge on the tile. The mockups drew a 22x2 accent bar on each one to
    say "instrument reading, not a card", and it broke the rule tokens.css sets
    for the accent: eight red marks on a driver page where the mark carries no
    action, and on a Ferrari page indistinguishable from rosso corsa (1.002:1
-   in light; 1.76:1 in dark). The hairline grid and the mono label already say
-   what the bar said (VD-26).
+   in light; 1.76:1 in dark). The rule over each tile says what the bar said
+   (VD-26).
 
-   Each tile's border is its hairline, and the margin pulls it 1 px over its
-   right and lower neighbours, so two tiles share one line rather than
-   drawing two. A tile is two rows of the strip - label, then figure - shared
+   A rule, not a box (VD-93, DR-04). Each tile was a white panel in a
+   hairline frame, which with the frame on every other block made the page a
+   grid of identical boxes. Now a tile is its figure on the paper under a
+   rule: the rules of a row meet end to end and read as one line over it,
+   and the space after each tile, not a line, sets it off from the next. A
+   tile has no left padding, so the first figure of a strip stands on the
+   page's edge. A tile is two rows of the strip - label, then figure - shared
    with every tile in its row through subgrid, so a label that wraps to two
    lines moves every figure in the row down together rather than its own
    alone. VD-28 forbade a wrapping label for exactly that reason, which made
@@ -679,10 +691,8 @@ main {
   grid-template-rows: subgrid;
   row-gap: 0;
   min-width: 0;
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  margin: 0 -1px -1px 0;
-  padding: var(--space-6) var(--space-7) var(--space-7);
+  border-top: 1px solid var(--rule-strong);
+  padding: var(--space-5) var(--space-7) var(--space-6) 0;
 }
 
 /* A label sits on its figure, at the foot of the row's label track: Saira
@@ -1328,10 +1338,11 @@ tbody th.record-derivation {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-6) var(--space-7) var(--space-6);
+  /* Under a rule, not in a box (VD-93, DR-04): twelve identical framed
+     cards were the page. The rule over each card and the gap after it set
+     it off; the name, the figure and the holder are the card. */
+  border-top: 1px solid var(--rule-strong);
+  padding: var(--space-5) 0 0;
 }
 
 .record-card p {
@@ -1404,7 +1415,7 @@ tbody th.record-derivation {
 
 @media (width < 768px) {
   .record-card {
-    padding: var(--space-5) var(--space-5) var(--space-5);
+    padding: var(--space-4) 0 0;
   }
 
   .record-card-value {
@@ -3468,25 +3479,36 @@ figure.figure > .figure-note:first-child {
 
 /* ------------------------------------------------------------ home board */
 
+/* The doors out of a page - home's index, /data's downloads - each under a
+   rule on the paper rather than in a framed panel (VD-93, DR-04). The rule
+   turns the accent under a pointer, which is the accent's job: this is
+   something to act on. */
 .board {
   display: grid;
   gap: var(--space-7);
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
+/* Home's one index (VD-93): its nine doors three to a row, a gutter apart,
+   from 768 px - the auto-fit above would leave the ninth alone on a row at
+   1024 - and one to a row on a phone. */
+@media (width >= 768px) {
+  .board.index {
+    column-gap: var(--gutter);
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* three doors to a row, each a third of the page between gutters */
+  }
+}
+
 .board a {
   display: block;
   text-decoration: none;
   color: inherit;
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-7) var(--space-7) var(--space-7);
+  border-top: 1px solid var(--rule-strong);
+  padding: var(--space-5) 0 0;
 }
 
 .board a:hover {
-  border-color: var(--rule-strong);
-  box-shadow: var(--shadow-sm);
+  border-top-color: var(--accent);
 }
 
 .board b {
@@ -4040,7 +4062,8 @@ figure.figure > .figure-note:first-child {
 
 /* The band at the foot of a page naming where to go next. Set apart from the
    content above by a rule rather than a panel: it is signposting, and it
-   should not read as another block of data. */
+   should not read as another block of data. Its routes are words under that
+   rule, not a row of framed cards (VD-93, DR-04). */
 .onward {
   margin: var(--space-9) 0 0;
   border-top: 1px solid var(--rule);
@@ -4067,15 +4090,10 @@ figure.figure > .figure-note:first-child {
   display: block;
   text-decoration: none;
   color: inherit;
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-6) var(--space-6);
 }
 
-.onward a:hover {
-  border-color: var(--rule-strong);
-  box-shadow: var(--shadow-sm);
+.onward a:hover b {
+  text-decoration: underline;
 }
 
 .onward a b {

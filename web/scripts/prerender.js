@@ -2652,7 +2652,7 @@ const TITLE = currentTitle(fightRows, META.built)
       })
     : null
 
-  const lastPanel = `<div class="panel round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>${
+  const lastPanel = `<div class="round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>${
     latest
       ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
         <p class="muted small">${[latest.circuit ? esc(latest.circuit) : null, raceDates(latest) ? raceDatesHtml(latest) : null].filter(Boolean).join(' \u00b7 ')}</p>
@@ -2675,7 +2675,7 @@ const TITLE = currentTitle(fightRows, META.built)
   // there is a season being run, so neither is built without one.
   const nextPanel = !now
     ? ''
-    : `<div class="panel round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
+    : `<div class="round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
     upcoming
       ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
         <p class="muted small">${raceDatesHtml(upcoming)} \u00b7 round ${esc(upcoming.round)}</p>
@@ -2724,7 +2724,6 @@ const TITLE = currentTitle(fightRows, META.built)
         `A normalised, verifiable SQLite database of Formula One championship racing, ${SPAN}.`,
       license: 'https://creativecommons.org/licenses/by-sa/4.0/',
     },
-    onward: ONWARD.home({ latest }),
     body: `
       <h1>${esc(headline)}</h1>
       <p class="lede">${esc(HOME_LEDE)}</p>
@@ -2733,7 +2732,7 @@ const TITLE = currentTitle(fightRows, META.built)
       ${openingSlot}
       ${heading(BOARD_HEADING)}
       <p class="note">${esc(BOARD_NOTE)}</p>
-      <div class="board">${BOARD.map(
+      <div class="board index">${BOARD.map(
         ({ to, label, count, blurb }) =>
           `<a href="${esc(href(to.replace(/^\//, '')))}"><b>${esc(label)}${
             count ? `<span class="n">${esc(number(shape[count]))}</span>` : ''
@@ -2754,7 +2753,7 @@ const TITLE = currentTitle(fightRows, META.built)
       <div class="grid">${reading(shape)
         .map(
           ({ head, body, link: to }) =>
-            `<div class="panel convention"><b>${esc(head)}</b><p class="muted small">${esc(body[0])}${
+            `<div class="convention"><b>${esc(head)}</b><p class="muted small">${esc(body[0])}${
               to ? link(to.to.replace(/^\//, ''), to.text) : ''
             }${esc(body[1] ?? '')}</p></div>`,
         )
