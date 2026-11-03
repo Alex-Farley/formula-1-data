@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { RaceDates } from '../components/Dates.jsx'
-import { Onward, Page, Section, Stats } from '../components/Page.jsx'
+import { Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
+import { OutlineCard } from '../components/Outline.jsx'
 import { Result } from '../components/States.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
@@ -38,6 +39,8 @@ import {
   chartData,
   chartLabel,
   chartNote,
+  openingCaption,
+  openingRace,
   reading,
   stillToRunNote,
   seasonHeading,
@@ -90,6 +93,8 @@ export default function Home() {
           const after = data.nextSeason.rows[0]?.year ?? null
           const now = data.now.rows[0]
           const lead = rows(data, 'lead')
+          const opening = openingRace(latest, next, now)
+          const caption = opening ? openingCaption(opening) : null
           const ahead = fightAhead(
             currentTitle((key) => rows(data, key)),
             next,
@@ -201,6 +206,34 @@ export default function Home() {
                   </p>
                 </Section>
               ) : null}
+
+              {/* The opening slot (VD-92, DR-06): the outline of the last
+                  race run, or of the opener before a season has run one
+                  (openingRace), beside the header from 1180 px. Written
+                  after the season block, as a race writes its outline after
+                  its classification, so below 1180 it follows the panel that
+                  names the race rather than standing between the tiles and
+                  the season. scripts/prerender.js writes the same card. */}
+              <Slot>
+                {opening && (
+                  <OutlineCard
+                    path={opening.race.outline}
+                    circuit={opening.race.circuit}
+                    layoutId={opening.race.f1db_layout_id}
+                    caption={
+                      <>
+                        {caption.text}
+                        {caption.dates ? (
+                          <>
+                            , <RaceDates race={caption.dates} />
+                          </>
+                        ) : null}
+                        .
+                      </>
+                    }
+                  />
+                )}
+              </Slot>
 
               <Section title={BOARD_HEADING} note={BOARD_NOTE}>
                 <Board shape={shape} />

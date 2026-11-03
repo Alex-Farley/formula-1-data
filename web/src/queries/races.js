@@ -33,9 +33,11 @@ import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 export const LATEST = `
   SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to, c.name AS circuit,
          d.full_name AS winner, d.id AS winner_id,
-         k.name AS constructor, k.id AS constructor_id, k.country AS constructor_country
+         k.name AS constructor, k.id AS constructor_id, k.country AS constructor_country,
+         r.f1db_layout_id, o.path AS outline
     FROM races r
     LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
     LEFT JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
     LEFT JOIN drivers d ON d.id = e.driver_id
     LEFT JOIN constructors k ON k.id = e.constructor_id

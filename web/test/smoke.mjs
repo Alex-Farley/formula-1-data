@@ -105,6 +105,7 @@ import {
   IN_THIS_TAB_HEADING,
   LABELS,
   MAINTAINER,
+  NAMES,
   NOT_HELD,
   NOT_HELD_ANCHOR,
   NOT_YET_RUN,
@@ -2916,7 +2917,7 @@ try {
     // the header takes seven columns and one picture of the page's subject
     // the other five - the lead chart on a driver's, a team's and a season's
     // page, a circuit's current layout (VD-74), a race's outline (DP-11), a
-    // car's photograph. The band is as tall as the taller side, and the tile
+    // car's photograph, and on home a race's outline (VD-92). The band is as tall as the taller side, and the tile
     // strip runs the full width under both. Below 1180 the slot follows the
     // tiles in one column; a race writes it after its classification, so the
     // table never shares its width (IX-45) and a phone reads the result
@@ -3000,6 +3001,9 @@ try {
       // the rule, and there is no layouts section below.
       [`/circuits/${single.id}`, single.name, 'outline', 'tiles', true],
       ['/cars/lotus-72', name('cars', 'lotus-72', 'full_name'), 'photograph', 'tiles', true],
+      // Home (VD-92): a race's outline, written after the season block,
+      // whose h2 is "The <year> season", and the tiles' strip before both.
+      ['/', NAMES.home().headline, 'outline', 'The', true],
     ]
     const FILLS = { chart: 'svg[role="img"]', outline: '.outline-card svg.outline', photograph: 'figure.photo img' }
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
@@ -3074,6 +3078,42 @@ try {
           root,
         )
         truthy(got.caption.includes(OUTLINE_RULE) && !got.layouts, `${route}, ${half}: one drawing leads in the slot with the rule on its card, and no layouts section follows`)
+      }
+    }
+    // Home's slot (VD-92) is the race the database says it is, in both
+    // halves: the last race run, but the season's next round while it has
+    // run none; whichever has no drawing gives way to the other. Read here
+    // from the tables, not from openingRace(), and by its caption's words.
+    {
+      const drawn = (status, order) =>
+        db
+          .prepare(
+            `SELECT r.year, r.name_used, o.path IS NOT NULL AS drawn FROM races r
+               LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+              WHERE r.status = '${status}'${status === 'scheduled' ? ` AND r.year = ${CURRENT_SEASON_SQL}` : ''}
+              ORDER BY ${order} LIMIT 1`,
+          )
+          .get()
+      const last = drawn('completed', 'r.year DESC, r.round DESC')
+      const coming = drawn('scheduled', 'r.round')
+      const runNow = db.prepare(`SELECT COUNT(*) AS n FROM races WHERE status = 'completed' AND year = ${CURRENT_SEASON_SQL}`).get().n
+      const pick =
+        runNow === 0 && coming?.drawn ? ['Next on the calendar', coming] : last?.drawn ? ['Last race run', last] : coming?.drawn ? ['Next on the calendar', coming] : null
+      truthy(pick, '/: the database holds a drawn race for the slot')
+      if (pick) {
+        const words = `${pick[0]}: the ${pick[1].year} ${pick[1].name_used}`
+        await go('/', NAMES.home().headline)
+        await plain.goto(`${BASE}/`, { waitUntil: 'load' })
+        const captions = []
+        for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
+          // The caption's own line, before the credit under it.
+          const caption = await tab.evaluate((at) => document.querySelector(`${at} .page > .slot figcaption`)?.innerText.split('\n')[0] ?? '', root)
+          captions.push(caption)
+          truthy(caption.startsWith(words), `/, ${half}: the slot's caption opens "${words}" — it reads "${caption.slice(0, 80)}"`)
+        }
+        // Whole, winner and full stop included, where there are no dates to
+        // be written in two locales.
+        if (pick[0] === 'Last race run') is(captions[0], captions[1], "/: the slot's caption is the same sentence in both halves")
       }
     }
     await noJs.close()

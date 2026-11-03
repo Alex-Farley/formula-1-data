@@ -290,6 +290,8 @@ import {
   WON_FOR,
   calendarLink,
   chartNote,
+  openingCaption,
+  openingRace,
   reading,
   seasonComplete,
   seasonHeading,
@@ -1682,12 +1684,15 @@ const outlineSvg = (path, label) =>
         label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"'
       }><path d="${esc(path)}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`
     : ''
-const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
+// The caption as HTML, for one that carries markup of its own (the home
+// page's dates, as a <time>); outlineCard below escapes a plain one.
+const outlineCardHtml = (path, circuit, layoutId, captionHtml, rule = false) =>
   path
-    ? `<figure class="outline-card">${outlineSvg(path, outlineLabel(circuit, layoutId))}<figcaption>${esc(caption)}<br><span class="faint">${esc(OUTLINE_BY)}</span>${
+    ? `<figure class="outline-card">${outlineSvg(path, outlineLabel(circuit, layoutId))}<figcaption>${captionHtml}<br><span class="faint">${esc(OUTLINE_BY)}</span>${
         rule ? `<br><span class="faint">${esc(OUTLINE_RULE)}</span>` : ''
       }</figcaption></figure>`
     : ''
+const outlineCard = (path, circuit, layoutId, caption, rule = false) => outlineCardHtml(path, circuit, layoutId, esc(caption), rule)
 // The opening slot (VD-84), as components/Page.jsx's Slot writes it: a
 // picture beside the header from 1180 px, placed by app.css's grid. Nothing
 // to hold, and there is no slot, so the header keeps the width.
@@ -2681,12 +2686,29 @@ const TITLE = currentTitle(fightRows, META.built)
         }`
   }</div>`
 
+  // Its own <section>, as the tiles above it are, so that the slot written
+  // after it stands at the page's top level rather than being taken into the
+  // section its h2 would otherwise start (sectioned()).
   const seasonBlock = now
-    ? `${heading(seasonHeading(now.year))}
+    ? `<section class="section">${heading(seasonHeading(now.year))}
       ${tiles(seasonStrip(now, lead))}
       <div class="split">${lastPanel}${nextPanel}</div>
-      <p class="season-more">${link(`seasons/${now.year}`, seasonLink(now.year))}</p>`
+      <p class="season-more">${link(`seasons/${now.year}`, seasonLink(now.year))}</p></section>`
     : ''
+
+  // The opening slot (VD-92), as Home.jsx writes it: after the season block.
+  const opening = openingRace(latest, upcoming, now)
+  const caption = opening ? openingCaption(opening) : null
+  const openingSlot = slot(
+    opening
+      ? outlineCardHtml(
+          opening.race.outline,
+          opening.race.circuit,
+          opening.race.f1db_layout_id,
+          `${esc(caption.text)}${caption.dates ? `, ${raceDatesHtml(caption.dates)}` : ''}.`,
+        )
+      : '',
+  )
 
   page({
     path: '',
@@ -2706,8 +2728,9 @@ const TITLE = currentTitle(fightRows, META.built)
     body: `
       <h1>${esc(headline)}</h1>
       <p class="lede">${esc(HOME_LEDE)}</p>
-      ${tiles(homeStrip(shape))}
+      <section class="section">${tiles(homeStrip(shape))}</section>
       ${seasonBlock}
+      ${openingSlot}
       ${heading(BOARD_HEADING)}
       <p class="note">${esc(BOARD_NOTE)}</p>
       <div class="board">${BOARD.map(

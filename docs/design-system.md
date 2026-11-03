@@ -320,7 +320,7 @@ string runs past.
     page's lead answer, on every page type (**aim**; the accessibility
     critic's rule for predictability).
 
-### Opening slot (A) — built (VD-84)
+### Opening slot (A) — built (VD-84); provisional: home's (VD-92)
 
 "The picture of this thing", 5 columns beside the header from 1180, after
 the tiles below that. What fills it:
@@ -336,7 +336,15 @@ the tiles below that. What fills it:
 - car: the first photograph whose file name names the car
   (`carPhotographs` in `queries/car.js`). An unconfirmed file is never the
   picture of this thing, and the photo strip holds the rest rather than
-  drawing it twice.
+  drawing it twice;
+- home (**provisional**, VD-92 #922): a race's outline, with its result or
+  its date in words — the last race run and its winner, or the next round of
+  the season being run and its dates while that season has run none
+  (`openingRace` in `queries/home.js`, read off the database and never a
+  clock, so both renderers choose the same race). Where the one chosen has
+  no drawing the other takes the slot, and with neither the header keeps the
+  width. It is written after the season block, as a race's is after its
+  classification, so below 1180 it follows the panel that names the race.
 
 A picture is `<Slot>` in the app and `slot()` in `prerender.js`, the same
 `div.slot`. A lead chart is `<Section lead>` in the app and `leadFigure()` in
@@ -1140,11 +1148,12 @@ Built in VD-91: 16.
     sections that name them: *the result leads*, *the chart leads, the
     photographs follow*, and Monza's and a circuit with no timeline's.
 14. **One opening.** On a driver, a constructor, two seasons, a race, two
-    circuits and a car, the slot is beside the header from 1180 px, level
+    circuits, a car and home, the slot is beside the header from 1180 px, level
     with the heading and to the page's right edge, the tiles run the full
     width under both, and below 1180 the slot follows in one column, after
-    the tiles or a race's classification, in the app and, where it draws
-    one, the static page. A column chart in the slot keeps every hover
+    the tiles, a race's classification or home's season block, in the app
+    and, where it draws one, the static page; home's caption names the race
+    the database says it should, in both. A column chart in the slot keeps every hover
     target 6 px wide at 1180, a team over `SLOT_MARKS` has no slot, and a
     page with nothing for it keeps its header and tiles the page's width
     (`smoke.mjs`, *The opening slot*).
