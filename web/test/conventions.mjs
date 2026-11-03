@@ -1961,6 +1961,64 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     assert.deepEqual(missing, [], `named in app.css, defined nowhere: ${missing.join(', ')}`)
   })
 
+  // A step taken out of a scale keeps its hole rather than renumbering the
+  // rest, so that every rule and document naming --size-2 to --size-11 still
+  // names the same size. Each is declared with the item that retired it.
+  const RETIRED = {
+    'size-1': 'VD-91 (DR-02): 10px, for eyebrows, pills and the sort arrow, flagged undersized on 8 of 9 pages',
+  }
+
+  it('a retired step is defined nowhere and used nowhere, and no type is set under 11px (VD-91)', () => {
+    const used = new Set([...app.matchAll(/var\(--((?:size|weight|space)-[a-z0-9]+)\)/g)].map((m) => m[1]))
+    for (const name of Object.keys(RETIRED)) {
+      assert.ok(!defined.has(name), `--${name} is declared retired and still defined in tokens.css`)
+      assert.ok(!used.has(name), `--${name} is declared retired and still used in app.css`)
+    }
+    const small = [...defined.keys()].filter((name) => /^size-\d+$/.test(name) && px(name) < 11)
+    assert.deepEqual(small, [], `type steps under 11px: ${small.join(', ')}`)
+  })
+
+  // VD-91 (DR-02). Monospace is machine text: SQL, code, a key, a URL - what
+  // a reader copies into something else. Caps and tracking are the display
+  // face's, on a heading set in Saira Condensed. A label, a column head, a
+  // count and the dateline above an h1 are Saira 500, sentence case and
+  // untracked: the tracked monospace caps that carried them were the site's
+  // strongest sign of being generated, and a register creeps back one rule
+  // at a time. A new selector in either list says why it belongs there.
+  const MACHINE = {
+    code: 'code', kbd: 'a key', pre: 'code', 'textarea.sql': 'the SQL console', '.mono': 'declared machine text',
+    '.search-trigger kbd': 'the search shortcut, a key', '.cite .url': 'a URL',
+    '.schema-list .cols': "a table's column names, as SQL writes them", '.schema-list .ddl pre': 'DDL',
+  }
+  const DISPLAY_CAPS = {
+    '.wordmark b': 'the wordmark', '.page h1': 'the page title', '.section > h2': 'a section head',
+    '.session-sheets > summary': 'set as the section heads around it', '.carcard-body h3': "a car's name, a heading",
+    '.lapcard b': "a circuit's name on its card, a heading",
+  }
+  it('monospace is set only on machine text, and caps and tracking only on display headings (VD-91)', () => {
+    const rules = [...app.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selectors: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), body: m[2] }))
+    const mono = []
+    const caps = []
+    const monoSeen = new Set()
+    for (const { selectors, body } of rules) {
+      if (/font-family:\s*var\(--mono\)/.test(body)) {
+        for (const selector of selectors) {
+          monoSeen.add(selector)
+          if (!(selector in MACHINE)) mono.push(selector)
+        }
+      }
+      // Tracking counts when it is positive: a display face closed up by a
+      // fraction is optical, not a register.
+      if (/text-transform:\s*uppercase|letter-spacing:\s*0?\.\d*[1-9]\d*em/.test(body)) {
+        for (const selector of selectors) if (!(selector in DISPLAY_CAPS)) caps.push(selector)
+      }
+    }
+    assert.deepEqual(mono, [], `monospace on what is not machine text:\n  ${mono.join('\n  ')}\nSet it in Saira (a figure takes .num's tabular-nums), or declare it in MACHINE with why.`)
+    assert.deepEqual(caps, [], `tracked or uppercase outside a display heading:\n  ${caps.join('\n  ')}\nA label is Saira 500, sentence case, untracked; a heading is declared in DISPLAY_CAPS.`)
+    const stale = Object.keys(MACHINE).filter((s) => !monoSeen.has(s))
+    assert.deepEqual(stale, [], 'declared machine text, and no longer set in monospace: take it out of MACHINE')
+  })
+
   it('each scale ascends, and neighbouring type sizes are at least 9% apart', () => {
     // A scale whose neighbours cannot be told apart is the defect again under
     // another name: 12.5px and 13px were two steps in all but effect.
@@ -1972,7 +2030,9 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
         .filter((name) => new RegExp(`^${family}-\\d+$`).test(name))
         .sort((a, b) => Number(a.split('-')[1]) - Number(b.split('-')[1]))
       assert.ok(steps.length >= 8, `${steps.length} --${family}-* steps`)
-      steps.forEach((name, i) => assert.equal(Number(name.split('-')[1]), i + 1, `--${family}-* is numbered 1..n without a hole`))
+      const numbers = steps.map((name) => Number(name.split('-')[1]))
+      const expected = Array.from({ length: Math.max(...numbers) }, (_, i) => i + 1).filter((n) => !(`${family}-${n}` in RETIRED))
+      assert.deepEqual(numbers, expected, `--${family}-* is numbered 1..n without a hole, but for a step declared in RETIRED`)
       for (let i = 1; i < steps.length; i++) {
         const ratio = px(steps[i]) / px(steps[i - 1])
         assert.ok(ratio >= floor, `--${steps[i]} is ${ratio.toFixed(3)}x --${steps[i - 1]}, under ${floor}`)
