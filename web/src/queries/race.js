@@ -259,9 +259,10 @@ export const NEIGHBOURS = `
  * reading of URLs. A classification row's note (DA-46) is cited in `claims`
  * rather than by the row's own source_id - the row is F1DB's, the reason
  * under it a race article's - so the claim behind each note printed is read
- * too. The weather line's two rows are here as well (AF-142). Photographs and the circuit outline are not here: each carries its own
- * credit beside it - per file for a photograph, F1DB's CC BY 4.0 line under
- * the outline - which is the rule for them.
+ * too. The weather line's two rows are here as well (AF-142). Photographs
+ * and the circuit outline are not here: each carries its own credit beside
+ * it - per file for a photograph, F1DB's CC BY 4.0 line under the outline -
+ * which is the rule for them.
  */
 export const RACE_SOURCES = `
   SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required

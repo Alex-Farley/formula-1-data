@@ -3519,20 +3519,15 @@ try {
      */
   })
 
-  /*
-   * DA-46. Pescarolo at P5 and Attwood at P6 drove Formula Two cars in the
-   * same race and read 0, with nothing on the page saying why a paid place
-   * paid nothing. race_entries.note holds the reason, cited in claims to the
-   * race's article: each row carries the mark, spoken as where to look, the
-   * footer under the table names the drivers and gives the reason, and the
-   * citation names the source the note came from - in both halves. A race
-   * with no note carries no mark.
-   */
   await section('/races/1951/3  (the weather line: AF-142)', async () => {
     const line = (weather) => `${weather.text}${weather.modelled ? ` (modelled, ${WEATHER_CREDIT.text})` : ''}`
-    // What the static page says: the block's first paragraph, its tags gone.
+    // What the static page says: the text between the tags of the block's
+    // first paragraph, read as /data's textOf reads it.
     const staticBlock = (html) => /<div class="race-weather">[\s\S]*?<\/div>/.exec(html)?.[0] ?? null
-    const staticLine = (html) => staticBlock(html)?.match(/<p>([\s\S]*?)<\/p>/)[1].replace(/<[^>]+>/g, '') ?? null
+    const staticLine = (html) => {
+      const paragraph = staticBlock(html)?.match(/<p>([\s\S]*?)<\/p>/)[1]
+      return paragraph === undefined ? null : [...paragraph.matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')
+    }
     const unescape = (s) => s?.replaceAll('&#39;', "'")
     const weather = raceWeather(db.prepare(RACE_WEATHER).get(1951, 3))
     truthy(weather?.modelled && weather.mark, 'the 1951 Belgian Grand Prix has a report and a model row')
@@ -3602,6 +3597,15 @@ try {
     is(await page.locator('#root main .weather-mark').count(), 0, 'with no mark')
   })
 
+  /*
+   * DA-46. Pescarolo at P5 and Attwood at P6 drove Formula Two cars in the
+   * same race and read 0, with nothing on the page saying why a paid place
+   * paid nothing. race_entries.note holds the reason, cited in claims to the
+   * race's article: each row carries the mark, spoken as where to look, the
+   * footer under the table names the drivers and gives the reason, and the
+   * citation names the source the note came from - in both halves. A race
+   * with no note carries no mark.
+   */
   await section('/races/1969/7  (why a paid place paid nothing: DA-46)', async () => {
     const noted = db
       .prepare(
