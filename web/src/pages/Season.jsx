@@ -536,7 +536,7 @@ function SeasonBody({ year, season, data }) {
         {/* The strip is queries/season.js's, which the static page draws
             too (VD-49); the next session's tile is the browser's alone. */}
         <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
-        {answer && (
+        {answer?.basis && (
           <p className="note follows">
             <Dated>{answer.basis}</Dated>
           </p>

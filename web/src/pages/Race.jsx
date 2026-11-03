@@ -89,7 +89,7 @@ import {
   stintsLabel,
   stintsNote,
 } from '../queries/race.js'
-import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, isUpcoming, mergeSources, titleSettled } from '../queries/season.js'
+import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, fightCitation, isUpcoming, mergeSources, titleSettled } from '../queries/season.js'
 import { currentProgress } from '../data/client.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
@@ -393,7 +393,7 @@ function RaceBody({ race, data, year, round }) {
         history: rows(data, 'history'),
         title: titleSettled(rows(data, 'title'), round),
       })}
-      sources={stake ? mergeSources(rows(data, 'sources'), rows(data, 'fightSources')) : rows(data, 'sources')}
+      sources={stake ? mergeSources(rows(data, 'sources'), fightCitation((key) => rows(data, key), stake)) : rows(data, 'sources')}
       aside={
         <>
           <RaceWeather weather={raceWeather(data.weather.rows[0])} />
@@ -424,9 +424,11 @@ function RaceBody({ race, data, year, round }) {
       {stake && (
         <Section title={STAKE_HEADING}>
           <p>{stake.who}</p>
-          <p className="note follows">
-            {stake.basis && <Dated>{stake.basis}</Dated>}
-          </p>
+          {stake.basis && (
+            <p className="note follows">
+              <Dated>{stake.basis}</Dated>
+            </p>
+          )}
         </Section>
       )}
 

@@ -643,7 +643,8 @@ def _stage_05_seasons(b):
             notes, confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, rounds, champ, team, cpts, cwins, ru, rupts, margin, cc, ccpts,
              formula, tyres, notes, conf,
-             S.TITLE_DECIDED_SOURCES.get(yr, S.SEASON_NOTES_SOURCE)))
+             S.SEASON_NOTES_SOURCE if cpts is not None
+             else S.TITLE_DECIDED_SOURCES.get(yr, S.SEASON_NOTES_SOURCE)))
 
 
 def _stage_06_circuits(b):

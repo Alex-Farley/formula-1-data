@@ -254,6 +254,7 @@ import {
   teamsByDriver,
   STAKE_HEADING,
   currentTitle,
+  fightCitation,
   fightAhead,
   fightLine,
   isUpcoming,
@@ -2610,7 +2611,8 @@ const page = ({
 // Who can still win the season being run (AF-132), worked out once from the
 // queries the app's home, race, driver and constructor pages read, and
 // printed on each of them as the app prints it.
-const TITLE = currentTitle((key) => all(FIGHT_QUERIES[key][0]), META.built)
+const fightRows = (key) => all(FIGHT_QUERIES[key][0])
+const TITLE = currentTitle(fightRows, META.built)
 
 // ------------------------------------------------------------------- home
 //
@@ -2972,7 +2974,7 @@ const seasonsTable = (rows) =>
         ${stepperNav(seasonSteps(neighbours))}
         ${opened(
           `${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}${
-            answer ? `<p class="faint">${dated(answer.basis)}</p>` : ''
+            answer?.basis ? `<p class="faint">${dated(answer.basis)}</p>` : ''
           }`,
           raceChart,
         )}
@@ -3203,7 +3205,7 @@ const seasonsTable = (rows) =>
       description: summarise(description),
       trail: TRAIL.race(r.year, r.round, r.name_used),
       onward: ONWARD.race({ race: r, year: r.year, winners: raceWinners, neighbours }),
-      sources: isUpcoming(TITLE, r) ? mergeSources(all(RACE_SOURCES, r.year, r.round), all(FIGHT_QUERIES.fightSources[0])) : all(RACE_SOURCES, r.year, r.round),
+      sources: isUpcoming(TITLE, r) ? mergeSources(all(RACE_SOURCES, r.year, r.round), fightCitation(fightRows, TITLE)) : all(RACE_SOURCES, r.year, r.round),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'SportsEvent',
@@ -3525,7 +3527,7 @@ const seasonsTable = (rows) =>
       description: withNotes.length < lead.length ? lead : withNotes,
       trail: TRAIL.driver(d.id, d.full_name),
       onward: ONWARD.driver({ results, bySeason }),
-      sources: driverFight ? mergeSources(all(DRIVER_SOURCES, d.id), all(FIGHT_QUERIES.fightSources[0])) : all(DRIVER_SOURCES, d.id),
+      sources: driverFight ? mergeSources(all(DRIVER_SOURCES, d.id), fightCitation(fightRows, TITLE, 'drivers', d.id)) : all(DRIVER_SOURCES, d.id),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'Person',
@@ -3723,7 +3725,7 @@ page({
     page({
       path: `constructors/${c.id}`,
       lastmod: LAST_RUN.constructor.get(c.id),
-      sources: teamFight ? mergeSources(all(CONSTRUCTOR_SOURCES, c.id), all(FIGHT_QUERIES.fightSources[0])) : all(CONSTRUCTOR_SOURCES, c.id),
+      sources: teamFight ? mergeSources(all(CONSTRUCTOR_SOURCES, c.id), fightCitation(fightRows, TITLE, 'constructors', c.id)) : all(CONSTRUCTOR_SOURCES, c.id),
       title: NAMES.constructor(c.name).title,
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${yearRun(c.first_entry, c.last_entry, 'present')}. ${

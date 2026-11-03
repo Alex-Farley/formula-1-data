@@ -128,6 +128,7 @@ import {
   titleSettled,
   currentTitle,
   fightAhead,
+  fightCitation,
   fightLine,
   isUpcoming,
   outSince,
@@ -1329,6 +1330,19 @@ describe('the queries a page and the prerenderer share', () => {
       assert.equal(fightLine(current, 'drivers', 'a'), 'Ace is the 2026 World Champion, clinched at the Round 2 Grand Prix (round 2).')
       assert.equal(fightLine(current, 'drivers', 'b'), null)
       assert.equal(fightLine(current, 'constructors', 'x'), 'Leads the title fight by 39 with 86 left.')
+    })
+
+    it('cites the statement only where the crowned sentence is printed', () => {
+      const entry = (id) => ({ id, priority: id })
+      const held = { fightSources: [entry(5), entry(7)], crownedSources: [entry(2)] }
+      const get = (key) => held[key]
+      const title = { crowned: { drivers: { id: 'a', line: 'x' }, constructors: null } }
+      const ids = (rows) => rows.map((s) => s.id)
+      assert.deepEqual(ids(fightCitation(get, title, 'drivers', 'a')), [2, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, title, 'drivers', 'b')), [5, 7])
+      assert.deepEqual(ids(fightCitation(get, title, 'constructors', 'x')), [5, 7])
+      assert.deepEqual(ids(fightCitation(get, title)), [2, 5, 7], 'the whole answer, on the upcoming race')
+      assert.deepEqual(ids(fightCitation(get, { crowned: undefined })), [5, 7])
     })
 
     it("names the champion on the strip while the gap stays a gap", () => {

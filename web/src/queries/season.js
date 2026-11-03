@@ -1058,16 +1058,14 @@ const current = (sql) => sql.replaceAll('?1', CURRENT_SEASON_SQL)
  * (AF-132), for the citation of a page that prints it and is not that
  * season's: the points system's, the calendar's, and the standings' - both
  * tables as FINAL reads them, by SEASON_SOURCES' rule, and the running rows
- * STANDINGS chooses - and the season's own row, which cites the statement
- * where a title was decided with rounds to run (LV-15). A page adds them with
- * mergeSources() only where it prints the answer.
+ * STANDINGS chooses. A page adds them with mergeSources() only where it
+ * prints the answer.
  */
 const FIGHT_SOURCES = `
   SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
    WHERE s.id IN (
            SELECT source_id FROM table_provenance WHERE tbl = 'points_systems'
-     UNION SELECT source_id FROM seasons WHERE year = ?1
      UNION SELECT source_id FROM races WHERE year = ?1
      UNION SELECT t.source_id FROM standings t
             WHERE t.year = ?1
@@ -1086,6 +1084,17 @@ const FIGHT_SOURCES = `
 `
 
 /**
+ * The registry entry the season's own row cites, which is the statement that
+ * a title was decided where one was with rounds to run (LV-15): only a page
+ * printing that sentence adds it, through fightCitation().
+ */
+const CROWNED_SOURCES = `
+  SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id = (SELECT source_id FROM seasons WHERE year = ?1)
+`
+
+/**
  * The queries the title fight of the season being run is answered from, on
  * a page that is not that season's (AF-132): the home page, the upcoming
  * race and a contender's pages. The season's own page reads the same tables
@@ -1099,6 +1108,18 @@ export const FIGHT_QUERIES = {
   fightRemaining: [current(REMAINING)],
   fightRounds: [current(TITLE_ROUNDS)],
   fightSources: [current(FIGHT_SOURCES)],
+  crownedSources: [current(CROWNED_SOURCES)],
+}
+
+/**
+ * The registry entries behind what a page prints from currentTitle(): the
+ * fight's, and the season row's only where the crowned sentence is printed.
+ * `kind` and `id` ask that of one contender's page; without them it is asked
+ * of the whole answer, which the upcoming race prints. `get(key)` as there.
+ */
+export function fightCitation(get, title, kind, id) {
+  const crowned = kind ? title?.crowned?.[kind]?.id === id : Boolean(title?.crowned)
+  return crowned ? mergeSources(get('fightSources'), get('crownedSources')) : get('fightSources')
 }
 
 /**

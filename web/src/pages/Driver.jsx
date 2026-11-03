@@ -10,7 +10,7 @@ import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.j
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { FIGHT_QUERIES, currentTitle, fightLine, mergeSources } from '../queries/season.js'
+import { FIGHT_QUERIES, currentTitle, fightCitation, fightLine, mergeSources } from '../queries/season.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
 import { EYEBROWS, ENTRIES_NOTE, LABELS, NAMES } from '../lib/site.js'
 import { FOLD_NOUN } from '../lib/table.js'
@@ -328,7 +328,8 @@ function DriverBody({ driver, data }) {
   const practice = rows(data, 'practice')
   // Where this driver stands in the title fight of the season being run
   // (AF-132): queries/season.js's line, which the static page prints too.
-  const fight = practiceOnly ? null : fightLine(currentTitle((key) => rows(data, key)), 'drivers', driver.id)
+  const title = currentTitle((key) => rows(data, key))
+  const fight = practiceOnly ? null : fightLine(title, 'drivers', driver.id)
 
   return (
     <Page
@@ -336,7 +337,11 @@ function DriverBody({ driver, data }) {
       title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors, practice)}
-      sources={fight ? mergeSources(rows(data, 'sources'), rows(data, 'fightSources')) : rows(data, 'sources')}
+      sources={
+        fight
+          ? mergeSources(rows(data, 'sources'), fightCitation((key) => rows(data, key), title, 'drivers', driver.id))
+          : rows(data, 'sources')
+      }
       aside={
         <LiveryScheme colour={teamColour} note={driverBandNote(lastTeam, teamColour)} />
       }

@@ -174,7 +174,7 @@ export const SEASONS_COLUMNS = [
 ]
 
 export const SEASON_LIST_FOOTER =
-  `Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A name marked “so far” holds its place in a season still running: a leader, not a champion. The title race is the champion’s lead over the runner-up after each round, above the line when ahead and below it when behind, each season drawn to its own scale. A row reading “${NOT_YET_RUN}” is a calendar that has been announced and not yet raced. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.`
+  `Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. In a season still running the figures are as they stand after the rounds shown, and a name marked “so far” holds its place only for now: a leader, not a champion, or second, not the runner-up. The title race is the champion’s lead over the runner-up after each round, above the line when ahead and below it when behind, each season drawn to its own scale. A row reading “${NOT_YET_RUN}” is a calendar that has been announced and not yet raced. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.`
 
 /**
  * The page's lede, under its h1 in both renderers (VD-79): the app's words,

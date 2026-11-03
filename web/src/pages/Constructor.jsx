@@ -7,7 +7,7 @@ import Figure from '../charts/Figure.jsx'
 import Photographs from '../components/Photographs.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { FIGHT_QUERIES, currentTitle, fightLine, mergeSources } from '../queries/season.js'
+import { FIGHT_QUERIES, currentTitle, fightCitation, fightLine, mergeSources } from '../queries/season.js'
 import { span } from '../lib/format.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import LiveryScheme from '../components/LiveryScheme.jsx'
@@ -148,7 +148,8 @@ function ConstructorBody({ constructor, data }) {
 
   // Where this team stands in the constructors' title fight of the season
   // being run (AF-132): queries/season.js's line, printed by both halves.
-  const fight = fightLine(currentTitle((key) => rows(data, key)), 'constructors', constructor.id)
+  const title = currentTitle((key) => rows(data, key))
+  const fight = fightLine(title, 'constructors', constructor.id)
 
   return (
     <Page
@@ -156,7 +157,11 @@ function ConstructorBody({ constructor, data }) {
       title={NAMES.constructor(constructor.name).headline}
       trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
-      sources={fight ? mergeSources(rows(data, 'sources'), rows(data, 'fightSources')) : rows(data, 'sources')}
+      sources={
+        fight
+          ? mergeSources(rows(data, 'sources'), fightCitation((key) => rows(data, key), title, 'constructors', constructor.id))
+          : rows(data, 'sources')
+      }
       aside={
         <LiveryScheme colour={identity} note={constructorBandNote(constructor, lastSeason, livery, identity)} />
       }

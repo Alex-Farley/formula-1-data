@@ -83,6 +83,7 @@ import {
   STAKE_HEADING,
   currentTitle,
   fightAhead,
+  fightCitation,
   fightLine,
   latestRound,
   mergeSources,
@@ -7583,9 +7584,9 @@ try {
         : // A team or driver in the title fight being run adds the fight's
           // sources, where its page prints the line (AF-132).
           route.startsWith('/constructors/') && fightLine(currentFight(), 'constructors', args[0])
-          ? mergeSources(db.prepare(sources).all(...args), db.prepare(FIGHT_QUERIES.fightSources[0]).all())
+          ? mergeSources(db.prepare(sources).all(...args), fightCitation((key) => db.prepare(FIGHT_QUERIES[key][0]).all(), currentFight(), 'constructors', args[0]))
           : route.startsWith('/drivers/') && fightLine(currentFight(), 'drivers', args[0])
-            ? mergeSources(db.prepare(sources).all(...args), db.prepare(FIGHT_QUERIES.fightSources[0]).all())
+            ? mergeSources(db.prepare(sources).all(...args), fightCitation((key) => db.prepare(FIGHT_QUERIES[key][0]).all(), currentFight(), 'drivers', args[0]))
             : db.prepare(sources).all(...args)
       truthy(behind.length > 0, `${route} has rows that resolve to a source`)
       truthy(

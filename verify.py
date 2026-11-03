@@ -291,6 +291,9 @@ def titles_decided_before_the_last_round():
             # will not price says nothing either way: answer is None.
             if answer is None:
                 continue
+            # Strict by design: a champion a rival could only draw level with
+            # and lose the countback to is refused here, at the commit naming
+            # them, until AF-137 works the countback out.
             if held is not None and answer[kind] != held:
                 wrong.append(f"{year} {kind}: {held} recorded, "
                              f"the arithmetic has {answer[kind] or 'nobody'}")
@@ -306,6 +309,24 @@ def titles_decided_before_the_last_round():
     # somebody had sourced the sentence saying so.
     warn("every title the arithmetic has decided is on the record", not missing,
          "; ".join(missing))
+
+    # The other end of the same row. A name alone must not pass for a finished
+    # season: a warning while the last round is fresh, for the reason above,
+    # and a failure once the register has moved on to another season.
+    current = season_in_progress()
+    unfilled = []
+    for row in con.execute("""SELECT * FROM seasons s
+            WHERE EXISTS (SELECT 1 FROM races r WHERE r.year = s.year)
+              AND NOT EXISTS (SELECT 1 FROM races r WHERE r.year = s.year
+                               AND r.status <> 'completed')"""):
+        held = (*fields["drivers"], *(fields["constructors"] if row["year"] >= 1958 else ()))
+        unfilled += [(row["year"], name) for name in held if row[name] is None]
+    check("a season past has its champions and final figures",
+          not [gap for gap in unfilled if gap[0] < current],
+          "; ".join(f"{y} {n}" for y, n in unfilled if y < current))
+    warn("a season fully run has its champions and final figures", not unfilled,
+         "; ".join(f"{y} {n}" for y, n in unfilled)
+         + (" - fill the row in data/seasons.py" if unfilled else ""))
 
 
 @section('CROSS-TABULATION: title counts vs season records')

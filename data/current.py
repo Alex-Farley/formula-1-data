@@ -699,6 +699,8 @@ SOURCE_REGISTRY = [
 # first, then these in order. See source_patterns in schema.sql for why this
 # is a table rather than one column.
 SOURCE_PATTERNS = [
+    (2,  r"^https://www\.fia\.com/news/f1-antonelli-crowned",
+     "the FIA's report of the 2026 title, which that season's entry stands for"),
     (1,  r"^https://www\.fia\.com/", "any FIA page"),
     (1,  r"^https://argent\.fia\.com/",
      "the FIA's older document server, which still serves the Sporting "

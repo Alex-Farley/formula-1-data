@@ -223,7 +223,9 @@ SEASONS = [
 SEASON_NOTES_SOURCE = "https://www.formula1.com/en/results"
 
 # A title recorded before the season's last round is not on any final results
-# page yet, so the row cites the statement that it was decided (LV-15).
+# page yet, so the row cites the statement that it was decided (LV-15). Once
+# the row holds the champion's points it is the results it cites again, and
+# build.py reads this only while they are NULL.
 TITLE_DECIDED_SOURCES = {
     2026: "https://www.fia.com/news/f1-antonelli-crowned-f1s-youngest-world-champion-verstappen-wins-mexico-city",
 }

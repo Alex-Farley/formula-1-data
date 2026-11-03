@@ -114,12 +114,13 @@ class TheGate(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
-    def run_section(self, change="SELECT 1", *args):
+    def run_section(self, change="SELECT 1", *args, run_to=19):
         shutil.copyfile(SOURCE_DB, self.db)
         con = sqlite3.connect(self.db)
-        con.execute("UPDATE races SET status = 'scheduled' WHERE year = 2023 AND round > 19")
+        con.execute("UPDATE races SET status = 'scheduled' WHERE year = 2023 AND round > ?",
+                    (run_to,))
         con.execute("""DELETE FROM standings WHERE year = 2023
-                        AND (basis = 'final' OR after_round > 19)""")
+                        AND (basis = 'final' OR after_round > ?)""", (run_to,))
         con.execute("""UPDATE seasons SET champion_points = NULL, champion_wins = NULL,
                          runner_up = NULL, runner_up_points = NULL, margin = NULL,
                          constructors_points = NULL WHERE year = 2023""")
@@ -141,6 +142,13 @@ class TheGate(unittest.TestCase):
         self.assertIn("[FAIL] a champion recorded before the last round", out)
         self.assertIn("perez recorded, the arithmetic has verstappen", out)
 
+    def test_a_champion_nobody_has_decided_is_refused(self):
+        # Round 5 of 22: the arithmetic has nobody, so naming even the man
+        # who went on to win it is a claim the rows do not yet carry.
+        out = self.run_section(run_to=5)
+        self.assertIn("[FAIL] a champion recorded before the last round", out)
+        self.assertIn("verstappen recorded, the arithmetic has nobody", out)
+
     def test_a_final_figure_before_the_last_round_is_refused(self):
         out = self.run_section("UPDATE seasons SET champion_points = 575 WHERE year = 2023")
         self.assertIn("[FAIL] a season's final figures wait", out)
@@ -151,6 +159,51 @@ class TheGate(unittest.TestCase):
         self.assertIn("[WARN] every title the arithmetic has decided", out)
         self.assertIn("2023 drivers: verstappen - record it in data/seasons.py", out)
         self.assertNotIn("[FAIL]", out)
+
+
+class TheFinishedSeason(unittest.TestCase):
+    """The row's far end: every round run and only a name on it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix="lapledger-season-")
+        cls.db = os.path.join(cls.tmp, "f1.db")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def run_section(self, year):
+        shutil.copyfile(SOURCE_DB, self.db)
+        con = sqlite3.connect(self.db)
+        con.execute("UPDATE races SET status = 'completed' WHERE year = ?", (year,))
+        con.execute("UPDATE seasons SET champion_points = NULL, runner_up = NULL WHERE year = ?",
+                    (year,))
+        con.commit()
+        con.close()
+        proc = subprocess.run(
+            [sys.executable, VERIFY, "--db", self.db, "--only", "decided before"],
+            cwd=ROOT, capture_output=True, text=True, timeout=120, check=False)
+        return proc.stdout + proc.stderr
+
+    def current(self):
+        con = sqlite3.connect(SOURCE_DB)
+        try:
+            return int(con.execute(
+                "SELECT value FROM meta WHERE key = 'current_season'").fetchone()[0])
+        finally:
+            con.close()
+
+    def test_a_past_season_with_a_name_alone_fails(self):
+        out = self.run_section(self.current() - 1)
+        self.assertIn("[FAIL] a season past has its champions and final figures", out)
+
+    def test_the_current_season_just_finished_warns_and_does_not_fail(self):
+        year = self.current()
+        out = self.run_section(year)
+        self.assertIn("[WARN] a season fully run has its champions and final figures", out)
+        self.assertIn(f"{year} champion_points", out)
+        self.assertNotIn("[FAIL] a season past", out)
 
 
 if __name__ == "__main__":

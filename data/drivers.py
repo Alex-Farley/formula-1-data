@@ -112,7 +112,7 @@ CHAMPIONS = [
      "Won the 2009 title with Brawn GP in the team's only season.", "high"),
     ("vettel", "Sebastian Vettel", "Germany", "GER", "1987-07-03", None, 2007, 2022,
      300, 299, 53, 122, 57, 38, 3098, 4, "2010,2011,2012,2013", "retired",
-     "Youngest ever World Champion at 23 (2010) and youngest four-time champion. Won every race from Belgium to Brazil in 2013, equalling Ascari's run.", "high"),
+     "Youngest World Champion to that date at 23 (2010) and youngest four-time champion. Won every race from Belgium to Brazil in 2013, equalling Ascari's run.", "high"),
     ("n-rosberg", "Nico Rosberg", "Germany", "GER", "1985-06-27", None, 2006, 2016,
      206, 206, 23, 57, 30, 20, 1594.5, 1, "2016", "retired",
      "Beat Hamilton by five points in 2016 and announced his retirement five days later. Son of 1982 champion Keke Rosberg.", "high"),
