@@ -4,14 +4,17 @@ The lap-closure arithmetic, tested directly.
 
 WHY THIS FILE EXISTS
     _lap_topology decides whether a traced circuit forms one closed lap, and
-    verify.py reports its answer for 25 circuits. That report is the only thing
-    standing between the front end's traced-centreline drawing and a trace
-    with a hole in it — and the report is a count, so a change that quietly
-    made everything "close" would read as an improvement. These tests give
-    the function inputs whose right answer is known by construction.
+    verify.py reports its answer for 25 circuits. The site no longer draws
+    the trace (AF-23), but the circuit page still prints that verdict beside
+    the length measured along the ways — "closes into one lap", or the count
+    of loose ends — and the report is a count, so a change that quietly made
+    everything "close" would read as an improvement. These tests give the
+    function inputs whose right answer is known by construction.
 
     _haversine is checked against a figure that does not come from the same
-    arithmetic: a degree of latitude on the sphere it names.
+    arithmetic: a degree of latitude on the sphere it names. Its browser
+    twin, web/src/lib/lap.js, was deleted under CR-32, so this file is the
+    only pin on the metre (web/README.md says so too).
 
     python3 -m unittest discover -s tests
 """

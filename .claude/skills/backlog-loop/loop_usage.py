@@ -145,8 +145,10 @@ WHAT IT DECIDES
     catches up. While a race falls between two days ago and the weekly
     reset, RESERVE points come off the allowance first, for the refresh work
     a race weekend brings - the sessions table in f1.db says when the next
-    race is; when f1.db cannot be read the reserve is kept, the cautious
-    side. The stricter window wins, and of two waits the later.
+    race is, and a race whose results are already in f1.db no longer counts,
+    so its two-day tail ends with its refresh (AF-155); when f1.db cannot be
+    read the reserve is kept, the cautious side. The stricter window wins,
+    and of two waits the later.
 
     The reserve is spent on a refresh alarm and on nothing else (AF-130).
     While it is held and the week says wait, but less than 100 % of the week
@@ -209,7 +211,8 @@ WINDOWS = {
 }
 WEEK = dt.timedelta(days=7)
 # How long after a race its refresh work is still expected: results late,
-# a refresh alarm, the fix for one.
+# a refresh alarm, the fix for one. The tail ends early once the race's
+# results are in f1.db - its refresh has landed (AF-155).
 RACE_TAIL = dt.timedelta(days=2)
 # ALARM_LOOK is in minutes, and never under ALARM_LOOK_FLOOR; the others
 # are points of 100.
@@ -357,15 +360,22 @@ def read_text(claude, timeout=90, env=None):
 
 
 def next_race(now, db=None):
-    """The start of the first race from RACE_TAIL ago onwards, as an aware
-    datetime; None when there is none; False when f1.db cannot be read."""
+    """(start, name) for the first race from RACE_TAIL ago onwards whose
+    results are not yet in f1.db: start an aware datetime, name the race's
+    name as its season used it, or None where the calendar names none. A
+    race counts as resulted once any of its race_entries holds a finish
+    position, and is then passed over for the next (AF-155). None when there
+    is no such race; False when f1.db cannot be read."""
     db = db or os.path.join(ROOT, "f1.db")
     since = (now - RACE_TAIL).astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     try:
         con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
         try:
-            row = con.execute("SELECT min(start_utc) FROM sessions WHERE kind = 'race' AND start_utc >= ?",
-                              (since,)).fetchone()
+            row = con.execute(
+                "SELECT s.start_utc, r.name_used FROM sessions s LEFT JOIN races r ON r.id = s.race_id"
+                " WHERE s.kind = 'race' AND s.start_utc >= ? AND NOT EXISTS"
+                " (SELECT 1 FROM race_entries e WHERE e.race_id = s.race_id AND e.finish_position IS NOT NULL)"
+                " ORDER BY s.start_utc, s.id LIMIT 1", (since,)).fetchone()
         finally:
             con.close()
     except sqlite3.Error:
@@ -373,9 +383,10 @@ def next_race(now, db=None):
     if not row or not row[0]:
         return None
     try:
-        return dt.datetime.strptime(row[0], "%Y-%m-%dT%H:%MZ").replace(tzinfo=dt.timezone.utc)
+        start = dt.datetime.strptime(row[0], "%Y-%m-%dT%H:%MZ").replace(tzinfo=dt.timezone.utc)
     except ValueError:
         return False
+    return start, row[1] or None
 
 
 def reserve_alarm(timeout=120):
@@ -417,9 +428,10 @@ def iso(when):
     return when.astimezone(dt.timezone.utc).isoformat(timespec="minutes")
 
 
-def decide(windows, now, race=None, conf=None, alarm=None):
+def decide(windows, now, race=None, conf=None, alarm=None, name=None):
     """(word, until, reasons, target). `windows` is parse()'s answer; `race`
-    is next_race()'s; `alarm` is reserve_alarm or a stand-in, called only
+    is next_race()'s start, or its None or False, and `name` its name, for
+    the line alone; `alarm` is reserve_alarm or a stand-in, called only
     when the reserve could be spent, and None to look for no alarm at all.
     `until` is set for WAIT (when to look again), for SMALL (the session's
     reset, the pause if nothing small is open) and for ALARM (when ordinary
@@ -452,7 +464,8 @@ def decide(windows, now, race=None, conf=None, alarm=None):
         allowed = elapsed * budget + conf["SLACK"]
         note = (f"week {used}% used, {elapsed:.0%} elapsed, pace allows {min(allowed, budget):.0f}%"
                 + (f" ({reserve:g} held for the race weekend"
-                   + (" - f1.db not readable" if race is False else f" of {iso(race)}") + ")"
+                   + (" - f1.db not readable" if race is False
+                      else f" of {iso(race)}" + (f", the {name}" if name else "")) + ")"
                    if held else ""))
         why.append(note)
         if used >= min(allowed, budget):
@@ -511,7 +524,9 @@ def check(now=None, claude=None):
     if not windows:
         return (f"UNKNOWN - {source()} named no window this can read; carrying on, reacting to a "
                 "limit when one arrives"), EXIT["UNKNOWN"]
-    word, until, why, target = decide(windows, now, next_race(now), settings(), reserve_alarm)
+    race = next_race(now)
+    start, name = race if isinstance(race, tuple) else (race, None)
+    word, until, why, target = decide(windows, now, start, settings(), reserve_alarm, name)
     return line(word, until, why, target), EXIT[word]
 
 
