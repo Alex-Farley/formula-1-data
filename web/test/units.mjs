@@ -182,7 +182,16 @@ import {
   sprintQualifyingColumns,
   withDistance,
 } from '../src/queries/race.js'
-import { chartData, chartNote, seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
+import {
+  chartData,
+  chartNote,
+  openingCaption,
+  openingRace,
+  seasonComplete,
+  seasonHeading,
+  seasonStrip,
+  stillToRunNote,
+} from '../src/queries/home.js'
 import {
   LIVERIES,
   LIVERY_ERA,
@@ -3190,6 +3199,45 @@ describe("the home page's season block (PD-48)", () => {
   it('hands the reader on by name when the season is over', () => {
     assert.equal(seasonComplete(2026), 'Every round of the 2026 season has been run.')
     assert.equal(seasonHeading(2026), 'The 2026 season')
+  })
+})
+
+describe("the home page's opening slot (VD-92)", () => {
+  // f1.db has a season part-run, so `/` only ever shows the last race run;
+  // the opener before a season starts, and a round with no drawing, are
+  // reachable here.
+  const latest = { year: 2026, round: 19, name_used: 'Mexico City Grand Prix', winner: 'Lando Norris', outline: 'M0 0', date_iso: '2026-10-25' }
+  const next = { year: 2026, round: 20, name_used: 'Sao Paulo Grand Prix', outline: 'M1 1', date_iso: '2026-11-08', date_from: '2026-11-06', date_to: '2026-11-08' }
+  const running = { year: 2026, run: 19 }
+
+  it('draws the last race run while the season is under way', () => {
+    assert.equal(openingRace(latest, next, running).race, latest)
+    assert.deepEqual(openingCaption(openingRace(latest, next, running)), {
+      text: 'Last race run: the 2026 Mexico City Grand Prix, won by Lando Norris',
+      dates: null,
+    })
+  })
+
+  it('draws the opener, with its dates, before the season has run a round', () => {
+    const opener = { ...next, year: 2027, round: 1, name_used: 'Bahrain Grand Prix' }
+    const got = openingRace(latest, opener, { year: 2027, run: 0 })
+    assert.equal(got.race, opener)
+    assert.deepEqual(openingCaption(got), { text: 'Next on the calendar: the 2027 Bahrain Grand Prix', dates: opener })
+  })
+
+  it('gives way to the other race where the one chosen has no drawing, and has no slot with neither', () => {
+    assert.equal(openingRace(latest, { ...next, outline: null }, { year: 2027, run: 0 }).race, latest)
+    assert.equal(openingRace({ ...latest, outline: null }, next, running).race, next)
+    assert.equal(openingRace(null, undefined, null), null)
+    assert.equal(openingRace({ ...latest, outline: null }, { ...next, outline: null }, running), null)
+  })
+
+  it('drops the date clause where no date is held, and names an unrecorded winner as the panel does', () => {
+    assert.equal(openingCaption({ race: { ...next, date_iso: null, date_from: null, date_to: null }, run: false }).dates, null)
+    assert.equal(
+      openingCaption({ race: { ...latest, winner: null }, run: true }).text,
+      'Last race run: the 2026 Mexico City Grand Prix, won by an unrecorded driver',
+    )
   })
 })
 

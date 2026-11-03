@@ -23,7 +23,7 @@
  *     is split around it, as UNCHECKED_NOTE and ABOUT_REPOSITORY already are
  *     in lib/site.js, so the words are still decided once.
  */
-import { number } from '../lib/format.js'
+import { number, raceDates } from '../lib/format.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 
 /** The counts the opening strip and the board are built from. */
@@ -72,9 +72,13 @@ export const PER_SEASON = `
  */
 export const NEXT = `
   WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
-  SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to
-    FROM races r, now n
-   WHERE r.status = 'scheduled' AND r.year = n.year
+  SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to,
+         c.name AS circuit, r.f1db_layout_id, o.path AS outline
+    FROM races r
+    JOIN now n ON r.year = n.year
+    LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+   WHERE r.status = 'scheduled'
    ORDER BY r.round LIMIT 1
 `
 
@@ -226,6 +230,51 @@ export const stillToRunNote = (now) => {
     one ? 'is' : 'are'
   } still to run, so ${one ? 'it carries' : 'they carry'} no result.`
 }
+
+/**
+ * The opening slot (VD-92, DR-06): the outline of one race, with its result
+ * or its date, beside the header from 1180 px where the right half of the
+ * band used to be empty. Outlines are F1DB's (CC BY 4.0), the same drawings
+ * the race and circuit pages lead with, so the ODbL split is untouched.
+ *
+ * Which race is read off the database, never off a clock, so the static
+ * page and the app choose the same one:
+ *
+ *   - the last race run, with its winner, because the result is what each
+ *     round adds, and every race run in the register has a drawing;
+ *   - but the next round of the season being run, with its dates, while
+ *     that season has run no round yet - between F1DB moving the current
+ *     season on and its opener, last year's finale is not the news;
+ *   - and where the one chosen has no drawing (a round F1DB has not yet
+ *     given a layout has none), the other; neither, and there is no slot,
+ *     and the header keeps the width.
+ *
+ * `now.run` is a COUNT, so 0 and not NULL in a season with nothing run.
+ */
+export const openingRace = (latest, next, now) => {
+  const last = latest?.outline ? { race: latest, run: true } : null
+  const coming = next?.outline ? { race: next, run: false } : null
+  if (now && now.run === 0 && coming) return coming
+  return last ?? coming
+}
+
+/**
+ * The slot's caption, in words: "Last race run: the 2026 Mexico City Grand
+ * Prix, won by Lando Norris." or "Next on the calendar: the 2027 Bahrain
+ * Grand Prix, 12–14 March 2027." `dates` is the race where its dates are
+ * held, for each renderer to draw as it draws dates (Dates.jsx's
+ * <RaceDates>, prerender's raceDatesHtml) after a comma, and null where
+ * they are not, so a missing date drops the clause rather than printing a
+ * dash into a sentence. A winner nobody recorded reads as the panel below
+ * reads it.
+ */
+export const openingCaption = ({ race, run }) => {
+  const named = `the ${race.year} ${race.name_used}`
+  return run
+    ? { text: `${LAST_RACE}: ${named}${OPENING_WON}${race.winner ?? UNRECORDED_WINNER}`, dates: null }
+    : { text: `${NEXT_RACE}: ${named}`, dates: raceDates(race) ? race : null }
+}
+const OPENING_WON = ', won by '
 
 /** "Won by Lando Norris for McLaren." — split around the two links in it. */
 export const WON_BY = 'Won by '
