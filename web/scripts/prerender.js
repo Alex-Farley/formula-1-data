@@ -151,7 +151,7 @@ import {
   NOT_FOUND_LEDE,
   titled,
 } from '../src/lib/site.js'
-import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading } from '../src/lib/disagreement.js'
+import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading, fieldLabel } from '../src/lib/disagreement.js'
 import {
   CHANGES_DESCRIPTION,
   CHANGES_LEDE,
@@ -856,6 +856,9 @@ const link = (path, label) => `<a href="${esc(href(path))}">${esc(label)}</a>`
 // read the same. A table's footer is the app's footer, printed in the same
 // band inside its box (`footer` on table() below).
 const tag = (word) => `<span class="tag">${esc(word)}</span>`
+// An id shown as the database stores it - an engine's - is machine text, set
+// in monospace as Season.jsx sets it (VD-91).
+const idTag = (id) => `<span class="tag tag-id">${esc(id)}</span>`
 
 /*
  * Dates, as components/Dates.jsx draws them but in the house format (CD-57;
@@ -1867,7 +1870,7 @@ const readings = (rows, what) => {
     }</h2>
     <dl>${rows
       .map(
-        (d) => `<div><dt>${esc(String(d.field ?? '').replace(/_/g, ' '))}</dt><dd>
+        (d) => `<div><dt>${esc(fieldLabel(d.field))}</dt><dd>
           <p class="disagreement-pair num"><span>${esc(d.stored_value)}</span><span class="disagreement-vs">against</span><span>${esc(d.derived_value)}</span></p>
           <p class="disagreement-why">${dated(d.assessment)}</p>
         </dd></div>`,
@@ -2942,7 +2945,7 @@ const seasonsTable = (rows) =>
     constructorsFinal.length
       ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
           entity: (name, row) =>
-            `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
+            `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${idTag(row.engine_id)}` : ''}`,
         }, { unfolded: UNFOLDED.subject, footer: constructorsFooter(constructorsFinal.some((r) => r.engine_id)) })
       : noteBox(noConstructors.head, noConstructors.body)
   }`

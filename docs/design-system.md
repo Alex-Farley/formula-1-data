@@ -157,9 +157,10 @@ unused.
 | Page title | `--size-display` |
 
 **The label register (VD-91, `[D-62]`).** A label, a column head, a count,
-a pill and the eyebrow above an h1 are set in Saira 500, in the words as
-they are written: sentence case, untracked. Monospace is machine text only
-(SQL, code, a key, a URL), and a figure in a column lines up in Saira's
+a pill and the eyebrow above an h1 are set in Saira 500, untracked, in the
+words as they are written: a label in sentence case, and a pill in lower
+case, as the confidence tiers are stored (*verified*, *high*). Monospace is machine text only (SQL, code, a key, a
+URL, an id shown as stored, like an engine's beside its team), and a figure in a column lines up in Saira's
 own tabular figures (`.num`), not in a second face; a tile's figure keeps
 the display face. Caps and tracking belong to the
 display face, on headings. `--size-1` (10 px) is retired, and nothing is set
@@ -1152,10 +1153,11 @@ Built in VD-91: 16.
     strip - gaps its cards by `--space-6` at every width
     (`conventions.mjs`), and the photo strip holds 4 to a row from 1180, 2
     from 768 and 1 below, in both halves (`smoke.mjs`, *The photo strip*).
-16. **One label register.** Every rule in `app.css` that sets `--mono`
-    names machine text declared in `MACHINE`, every rule that sets
-    capitals or positive tracking is a display heading declared in
-    `DISPLAY_CAPS`, and no type step is under 11 px; a step taken out of
+16. **One label register.** Every rule in `app.css` that sets the
+    monospace face, by token or keyword, names machine text declared in
+    `MACHINE`, every rule that sets capitals, small caps or positive
+    tracking in any unit is a display heading declared in `DISPLAY_CAPS`,
+    each list refusing an entry that no longer applies, and no type step is under 11 px; a step taken out of
     the scale is declared in `RETIRED` and defined and used nowhere
     (`conventions.mjs`, VD-91). Both renderers share the stylesheet, so the
     static page and the app agree by construction.

@@ -144,7 +144,7 @@ function Gallery({ cars }) {
             {canShow(car) ? (
               <Shot car={car} />
             ) : (
-              <span className="carcard-nophoto">no photograph matched</span>
+              <span className="carcard-nophoto">No photograph matched</span>
             )}
           </Link>
           <div className="carcard-body">

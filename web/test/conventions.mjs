@@ -1989,6 +1989,7 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     code: 'code', kbd: 'a key', pre: 'code', 'textarea.sql': 'the SQL console', '.mono': 'declared machine text',
     '.search-trigger kbd': 'the search shortcut, a key', '.cite .url': 'a URL',
     '.schema-list .cols': "a table's column names, as SQL writes them", '.schema-list .ddl pre': 'DDL',
+    '.tag-id': 'an engine id beside its team, as the database stores it',
   }
   const DISPLAY_CAPS = {
     '.wordmark b': 'the wordmark', '.page h1': 'the page title', '.section > h2': 'a section head',
@@ -2000,23 +2001,34 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     const mono = []
     const caps = []
     const monoSeen = new Set()
+    const capsSeen = new Set()
+    // Any value of font or font-family that names the machine face, by token
+    // or by keyword.
+    const MONO = /(?:^|[;\s])font(?:-family)?\s*:[^;]*(?:var\(--mono\)|\bmonospace\b)/
+    // Tracking counts when it is positive, in any unit: a display face closed
+    // up by a fraction is optical, not a register.
+    const tracked = (body) => [...body.matchAll(/letter-spacing\s*:\s*([^;]+)/g)].some((m) => Number.parseFloat(m[1]) > 0)
+    const CAPS = /text-transform\s*:\s*uppercase|small-caps|font-variant-caps\s*:\s*(?!normal)/
     for (const { selectors, body } of rules) {
-      if (/font-family:\s*var\(--mono\)/.test(body)) {
+      if (MONO.test(body)) {
         for (const selector of selectors) {
           monoSeen.add(selector)
           if (!(selector in MACHINE)) mono.push(selector)
         }
       }
-      // Tracking counts when it is positive: a display face closed up by a
-      // fraction is optical, not a register.
-      if (/text-transform:\s*uppercase|letter-spacing:\s*0?\.\d*[1-9]\d*em/.test(body)) {
-        for (const selector of selectors) if (!(selector in DISPLAY_CAPS)) caps.push(selector)
+      if (CAPS.test(body) || tracked(body)) {
+        for (const selector of selectors) {
+          capsSeen.add(selector)
+          if (!(selector in DISPLAY_CAPS)) caps.push(selector)
+        }
       }
     }
     assert.deepEqual(mono, [], `monospace on what is not machine text:\n  ${mono.join('\n  ')}\nSet it in Saira (a figure takes .num's tabular-nums), or declare it in MACHINE with why.`)
     assert.deepEqual(caps, [], `tracked or uppercase outside a display heading:\n  ${caps.join('\n  ')}\nA label is Saira 500, sentence case, untracked; a heading is declared in DISPLAY_CAPS.`)
     const stale = Object.keys(MACHINE).filter((s) => !monoSeen.has(s))
     assert.deepEqual(stale, [], 'declared machine text, and no longer set in monospace: take it out of MACHINE')
+    const staleCaps = Object.keys(DISPLAY_CAPS).filter((s) => !capsSeen.has(s))
+    assert.deepEqual(staleCaps, [], 'declared a display heading in capitals, and no longer set in them: take it out of DISPLAY_CAPS')
   })
 
   it('each scale ascends, and neighbouring type sizes are at least 9% apart', () => {

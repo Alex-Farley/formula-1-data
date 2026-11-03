@@ -21,7 +21,7 @@
  */
 import { Link } from 'react-router-dom'
 import { Dated } from './Dates.jsx'
-import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading } from '../lib/disagreement.js'
+import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading, fieldLabel } from '../lib/disagreement.js'
 import { REPORT_URL, SETTLE_ASK, SETTLE_LINK } from '../lib/site.js'
 
 /*
@@ -63,7 +63,6 @@ export const DRIVER_DISAGREEMENTS = `
 
 
 /** `fastest_laps` is a column name. The reader is owed the words. */
-const label = (field) => String(field ?? '').replace(/_/g, ' ')
 
 /** Open disagreements about one constructor's figures. Args: [constructor id]. */
 export const CONSTRUCTOR_DISAGREEMENTS = `
@@ -103,7 +102,7 @@ function Readings({ rows, what }) {
       <dl>
         {rows.map((row) => (
           <div key={row.id}>
-            <dt>{label(row.field)}</dt>
+            <dt>{fieldLabel(row.field)}</dt>
             <dd>
               <p className="disagreement-pair num">
                 <span>{row.stored_value}</span>

@@ -158,7 +158,7 @@ const constructorsRenders = (year) => ({
           <LiveryMark colour={colour} year={year} />
           {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
           {row.engine_id ? ' ' : ''}
-          {row.engine_id ? <span className="tag">{row.engine_id}</span> : null}
+          {row.engine_id ? <span className="tag tag-id">{row.engine_id}</span> : null}
         </>
       )
     },

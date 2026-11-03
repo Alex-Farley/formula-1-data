@@ -1875,6 +1875,12 @@ tbody th.strong {
   white-space: nowrap;
 }
 
+/* An id as the database stores it - an engine beside its team on a season's
+   standings - is machine text, so it keeps the machine face (VD-91). */
+.tag-id {
+  font-family: var(--mono);
+}
+
 .tag-dnf {
   color: var(--warn);
   background: var(--warn-wash);

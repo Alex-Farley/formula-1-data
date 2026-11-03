@@ -307,12 +307,15 @@ low DPI. That is §8's *Changing or reversing*; the maintainer accepted the
 review, this change with it, on 2026-10-08, and the acceptance is recorded
 on the item.
 
-Labels, column heads, counts, pills and the eyebrow are now Saira 500 in the
-words as written: sentence case, untracked, at 11 px or more, the eyebrow at
-13.5 px in the body face. A figure in a column lines up in Saira's own
+Labels, column heads, counts, pills and the eyebrow are now Saira 500,
+untracked, at 11 px or more, in the words as written: a label in sentence
+case, a pill in lower case as the confidence tiers are stored, the
+eyebrow at 13.5 px in the body face. Text the capitals used to hide is now
+written in sentence case at its source, as the disagreement box's field
+labels are. A figure in a column lines up in Saira's own
 tabular figures rather than in a second face; a tile's figure keeps the
 display face. Monospace stays where the text is a machine's: SQL, code, a
-key, a URL. Capitals and tracking stay where they are the
+key, a URL, and an id shown as stored, like an engine's beside its team. Capitals and tracking stay where they are the
 display face's, on headings. `--size-1` is retired and left as a hole in the
 numbering, because renaming ten steps would move every rule and document
 that names them. What it costs is the instrument-panel look the mono gave
