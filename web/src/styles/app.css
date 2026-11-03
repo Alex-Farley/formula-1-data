@@ -1927,15 +1927,22 @@ tbody th.strong {
   border-color: transparent;
 }
 
-/* A tag in a row at the reference density (VD-95) gives up its padding
-   above and below. With it the pill was 16.6 px on a 15.5 px line and held
-   a row it sat in at 26.6 px, which in a classification is most of them;
-   without it the row is 25.6, a pixel over its table's others, as a row with
-   a tag already is below 1180. */
+/* A tag or a pill in a row at the reference density (VD-95) takes its
+   padding above and below back out of the line, by a negative margin of the
+   same, so it draws as it did and a pill, which is a link, keeps its size as
+   a target. A tag was 16.6 px on a 15.5 px line and held a row it sat in at
+   26.6 px, which in a classification is most of them; now the row is 25.6,
+   a pixel over its table's others, as a row with a tag already is below
+   1180. */
 @media (width >= 1180px) {
   td .tag,
   tbody th .tag {
-    padding-block: 0;
+    margin-block: -1px;
+  }
+
+  td .pill,
+  tbody th .pill {
+    margin-block: calc(-1 * var(--space-1));
   }
 }
 

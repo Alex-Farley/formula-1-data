@@ -673,9 +673,11 @@ PD-56's). One question asked of a race: when the field stopped.
   - **A cell that wraps keeps the reading leading**, `--row-leading-wrap`,
     and gives the difference back out of its padding, so a one-line prose
     cell is its row's height and sits on its neighbours' baseline.
-  - **The result rail fills its row** at either density, and a tag in a row
-    gives up its padding above and below from 1180, so a classification
-    row is about a pixel over its table's others, as below 1180.
+  - **The result rail fills its row** at either density, and from 1180 a
+    tag or a pill in a row takes its padding above and below back out of
+    the line by a negative margin, so it draws as before, a pill keeps its
+    size as a link, and a classification row is about a pixel over its
+    table's others, as below 1180.
 
   `smoke.mjs` (*Dense rows from 1180 px*) reads a register, a
   classification, a driver's seasons and a season's standings at 1440 and

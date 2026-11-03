@@ -5725,7 +5725,8 @@ try {
       return {
         pitches: pitches.length,
         median: sorted[sorted.length >> 1] ?? null,
-        // A target's pitch, the least of them.
+        // A target's pitch, the least of them, and how many were read.
+        targets: pitches.filter((p) => p.target).length,
         target: Math.min(...pitches.filter((p) => p.target).map((p) => p.pitch)),
         prose: prose.length,
         offset: Math.max(0, ...prose.map(([words, figure]) => Math.abs(line(words).bottom - line(figure).bottom))),
@@ -5767,7 +5768,16 @@ try {
           } else {
             atLeast(Math.round(got.median * 10) / 10, 36, `${where}: rows keep the reading row below 1180`)
           }
-          truthy(got.target >= 24, `${where}: a row holding a link is 24 px from the next, or more (${got.target.toFixed(2)})`)
+          truthy(
+            got.targets > 0 && got.target >= 24,
+            `${where}: a row holding a link is 24 px from the next, or more (${got.target.toFixed(2)}, ${got.targets} rows)`,
+          )
+          // Each table is chosen for what it holds, so what it holds is
+          // required, at each width and in each half: a classification that
+          // lost its rail, or seasons that lost their one-line prose, would
+          // otherwise pass on nothing.
+          if (name === 'Classification') atLeast(got.rails, 1, `${where}: rows with a result rail`)
+          if (name === 'Season by season') atLeast(got.prose, 1, `${where}: one-line prose cells beside a figure`)
           if (got.rails) truthy(got.short <= 1.5, `${where}: the result rail fills its row (${got.short.toFixed(1)} px short)`)
           if (got.prose) truthy(got.offset <= 0.5, `${where}: a one-line prose cell sits on its row's line (${got.offset.toFixed(1)} px off, ${got.prose} rows)`)
         }
@@ -5780,14 +5790,6 @@ try {
         }
       }
     }
-    // The tests above read rails and prose where there are some: say so, or
-    // a table that lost its rail or its prose column would pass on nothing.
-    await plain.goto(`${BASE}/races/1976/9`, { waitUntil: 'load' })
-    const race = await plain.evaluate(readRows, ['#prerendered main', 'Classification'])
-    truthy(race?.rails > 0, `the classification read has its rail (${race?.rails ?? 0} rows)`)
-    await plain.goto(`${BASE}/drivers/hamilton`, { waitUntil: 'load' })
-    const seasons = await plain.evaluate(readRows, ['#prerendered main', 'Season by season'])
-    truthy(seasons?.prose > 0, `the seasons read have a one-line prose cell beside a figure (${seasons?.prose ?? 0})`)
     await noJs.close()
     await page.setViewportSize({ width: 1280, height: 900 })
   })
