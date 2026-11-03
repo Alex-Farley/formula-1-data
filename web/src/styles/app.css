@@ -5,8 +5,10 @@
  *
  * The database is dense and mostly numeric, so the design keeps out of the
  * way: hairline rules instead of boxes, tabular figures in every numeric
- * column, one accent colour that always means "interactive", and enough line
- * height that a thousand-row table is still scannable.
+ * column, and one accent colour that always means "interactive". A table's
+ * rows are reading rows on a phone and a tablet, and close up to a reference
+ * work's density from 1180 px, where a thousand-row table is scanned rather
+ * than read (VD-95, tokens.css).
  */
 
 *,
@@ -1151,9 +1153,12 @@ tbody th {
   text-align: inherit;
 }
 
+/* The row's density is the two --row-* tokens (VD-95): a reading row below
+   --bp-desktop and a reference table's from it. */
 tbody td,
 tbody th {
-  padding: var(--space-4) var(--space-6);
+  padding: var(--row-pad) var(--space-6);
+  line-height: var(--row-leading);
   border-top: 1px solid var(--rule);
   vertical-align: top;
 }
@@ -1205,6 +1210,22 @@ tbody th.prose {
   max-width: 60ch; /* a prose cell's widest, inside its table */
   white-space: normal;
   color: var(--ink-soft);
+}
+
+/*
+ * A cell that wraps keeps the reading leading at either density (VD-95), and
+ * gives the extra leading back out of its padding: half the difference above
+ * and below, so a cell of one line is its row's height and its baseline is
+ * its neighbours'. Below --bp-desktop the two leadings are one and the
+ * padding is the row's. Without it a one-line prose cell held its row at
+ * 30.6 px from 1180, and its words sat 3 px below the figures beside them.
+ */
+td.prose,
+tbody th.prose,
+td.record-name,
+tbody th.record-name {
+  line-height: var(--row-leading-wrap);
+  padding-block: calc(var(--row-pad) - (var(--row-leading-wrap) - var(--row-leading)) * 0.5em);
 }
 
 td:not(.prose),
@@ -1476,11 +1497,19 @@ td.rail {
   width: 4px; /* the result rail: a mark, not a column */
 }
 
+/* The mark fills its cell, which its row's other cells size, so it is the
+   row's height at either density (VD-95). It was a block of 34 px under a
+   height of 100% that the cell did not resolve, so it stopped short of its
+   row, by about 5 px on a classification at 1,024, and at the reference density
+   it would have held every classification row at 35 px. */
+td.rail {
+  position: relative;
+}
+
 td.rail i {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 4px; /* the result rail: a mark, not a column */
-  height: 100%;
-  min-height: 34px;
   background: var(--rail-none, transparent);
 }
 
@@ -1896,6 +1925,18 @@ tbody th.strong {
   color: var(--warn);
   background: var(--warn-wash);
   border-color: transparent;
+}
+
+/* A tag in a row at the reference density (VD-95) gives up its padding
+   above and below. With it the pill was 16.6 px on a 15.5 px line and held
+   a row it sat in at 26.6 px, which in a classification is most of them;
+   without it the row is 25.6, a pixel over its table's others, as a row with
+   a tag already is below 1180. */
+@media (width >= 1180px) {
+  td .tag,
+  tbody th .tag {
+    padding-block: 0;
+  }
 }
 
 /* ------------------------------------------------------------ prose bits */

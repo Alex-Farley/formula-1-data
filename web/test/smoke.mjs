@@ -5687,6 +5687,111 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 
+  // VD-95 (DR-07). From 1180 px a reference table's rows close up from about
+  // 38.6 px to about 24.5, on the two --row-* tokens; below it they keep the
+  // reading row. Both renderers share the stylesheet, so both are read. The
+  // floor is a row's pitch, top to next top: a link in a row is a target, and
+  // links a row apart keep 24 px between centres (WCAG 2.5.8's spacing). A
+  // prose cell keeps its leading and gives it back out of its padding, so a
+  // one-line one neither holds its row taller nor sits below the figures;
+  // and the result rail fills its row at either density.
+  await section('Dense rows from 1180 px  (the reference density in both halves, the 24 px pitch kept: VD-95)', async () => {
+    const readRows = ([root, name]) => {
+      const main = document.querySelector(root)
+      // A register is its page's one table, under no heading of its own.
+      const h2 = name && [...main.querySelectorAll('section > h2')].find((h) => h.textContent.trim().startsWith(name))
+      const table = name ? h2?.parentElement.querySelector('.table-wrap table') : main.querySelector('.table-wrap table')
+      if (!table) return null
+      const rows = [...table.querySelectorAll('tbody tr')].filter((r) => r.getClientRects().length)
+      const tops = rows.map((r) => r.getBoundingClientRect().top)
+      const pitches = tops.slice(1).map((top, i) => ({ pitch: top - tops[i], target: !!rows[i].querySelector('a, button') }))
+      const sorted = pitches.map((p) => p.pitch).sort((a, b) => a - b)
+      // The first line of a cell's text: its bottom edge, where the baseline
+      // sits for one face at one size.
+      const line = (cell) => {
+        const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (!node.textContent.trim()) continue
+          const range = document.createRange()
+          range.selectNodeContents(node)
+          return range.getClientRects()[0]
+        }
+        return null
+      }
+      const prose = rows
+        .map((r) => [r.querySelector('td.prose'), r.querySelector('td.num')])
+        .filter(([words, figure]) => words && figure && line(words) && line(figure) && line(words).height * 1.5 > words.clientHeight - 2 * parseFloat(getComputedStyle(words).paddingTop))
+      const rails = rows.map((r) => [r, r.querySelector('td.rail')]).filter(([, cell]) => cell)
+      return {
+        pitches: pitches.length,
+        median: sorted[sorted.length >> 1] ?? null,
+        // A target's pitch, the least of them.
+        target: Math.min(...pitches.filter((p) => p.target).map((p) => p.pitch)),
+        prose: prose.length,
+        offset: Math.max(0, ...prose.map(([words, figure]) => Math.abs(line(words).bottom - line(figure).bottom))),
+        rails: rails.length,
+        short: Math.max(0, ...rails.map(([r, cell]) => cell.getBoundingClientRect().height - cell.querySelector('i').getBoundingClientRect().height)),
+      }
+    }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    // A register, a classification with its rail, a driver's seasons with
+    // their one-line prose column of teams, and a season's standings.
+    const tables = [
+      ['/drivers', 'Drivers', null],
+      ['/races/1976/9', 'British', 'Classification'],
+      ['/drivers/hamilton', 'Lewis Hamilton', 'Season by season'],
+      ['/seasons/2024', '2024', "Final drivers' standings"],
+    ]
+    for (const width of [1440, 1024]) {
+      await page.setViewportSize({ width, height: 900 })
+      await plain.setViewportSize({ width, height: 900 })
+      for (const [route, heading, name] of tables) {
+        await go(route, heading)
+        await page
+          .waitForFunction((n) => !n || [...document.querySelectorAll('#root main section > h2')].some((h) => h.textContent.trim().startsWith(n)), name, { timeout: 10000 })
+          .catch(() => null)
+        await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        const halves = [
+          ['app', await page.evaluate(readRows, ['#root main', name])],
+          ['static', await plain.evaluate(readRows, ['#prerendered main', name])],
+        ]
+        for (const [half, got] of halves) {
+          const where = `${route} at ${width} (${half}), ${name ?? 'the register'}`
+          if (!got || got.pitches < 5) {
+            fail(`${where}: no table of rows to read`)
+            continue
+          }
+          if (width >= 1180) {
+            truthy(got.median >= 24 && got.median <= 26, `${where}: rows at the reference density (${got.median.toFixed(1)} px a row)`)
+          } else {
+            atLeast(Math.round(got.median * 10) / 10, 36, `${where}: rows keep the reading row below 1180`)
+          }
+          truthy(got.target >= 24, `${where}: a row holding a link is 24 px from the next, or more (${got.target.toFixed(2)})`)
+          if (got.rails) truthy(got.short <= 1.5, `${where}: the result rail fills its row (${got.short.toFixed(1)} px short)`)
+          if (got.prose) truthy(got.offset <= 0.5, `${where}: a one-line prose cell sits on its row's line (${got.offset.toFixed(1)} px off, ${got.prose} rows)`)
+        }
+        const [[, app], [, flat]] = halves
+        if (app && flat) {
+          truthy(
+            Math.abs(app.median - flat.median) <= 0.5,
+            `${route} at ${width}: ${name ?? 'the register'} draws one density in both halves (${app.median.toFixed(1)}, ${flat.median.toFixed(1)})`,
+          )
+        }
+      }
+    }
+    // The tests above read rails and prose where there are some: say so, or
+    // a table that lost its rail or its prose column would pass on nothing.
+    await plain.goto(`${BASE}/races/1976/9`, { waitUntil: 'load' })
+    const race = await plain.evaluate(readRows, ['#prerendered main', 'Classification'])
+    truthy(race?.rails > 0, `the classification read has its rail (${race?.rails ?? 0} rows)`)
+    await plain.goto(`${BASE}/drivers/hamilton`, { waitUntil: 'load' })
+    const seasons = await plain.evaluate(readRows, ['#prerendered main', 'Season by season'])
+    truthy(seasons?.prose > 0, `the seasons read have a one-line prose cell beside a figure (${seasons?.prose ?? 0})`)
+    await noJs.close()
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
   // -------------------------------------------------------------- circuits
 
   await section('/circuits', async () => {
