@@ -161,7 +161,7 @@ import {
   startsFigures,
   winnerStarts,
 } from '../src/queries/circuit.js'
-import { CONSTRUCTOR_SOURCES } from '../src/queries/constructor.js'
+import { BY_SEASON as CONSTRUCTOR_BY_SEASON, CONSTRUCTOR_SOURCES } from '../src/queries/constructor.js'
 import { GRAND_PRIX_SOURCES } from '../src/queries/grandprix.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -4929,6 +4929,8 @@ try {
    * box has no room above it - at a phone's width and a desktop's, and the
    * box must lie inside the window and inside every ancestor that clips.
    * The dot plot's own boxes are held to the same rule in the section above.
+   * A line chart is told from the other plots by its lines, now that it is a
+   * tab stop like the dot plot (AX-32).
    */
   await section('chart hover boxes  (whole at every edge: IX-44)', async () => {
     const clipped = () =>
@@ -4965,7 +4967,7 @@ try {
               const b = await columns[i].boundingBox()
               points.push([b.x + b.width / 2, b.y + b.height - 4])
             }
-          } else if (await holder.$('svg[role="img"]:not([tabindex]):not([class])')) {
+          } else if (await holder.$('svg[role="img"]:not([class]) path[fill="none"][stroke-linejoin="round"]')) {
             // A line chart reads the round nearest the pointer, so its two
             // ends are a pointer near either side of the plot.
             const b = await (await holder.$('svg[role="img"]')).boundingBox()
@@ -5001,6 +5003,115 @@ try {
     await page.keyboard.press('Escape')
     is(await page.$$eval('#root main .tooltip', (n) => n.length), 0, 'and Escape closes it with the pointer still there')
     await page.mouse.move(0, 0)
+  })
+
+  /*
+   * AX-32. The column and line charts open their box from the keyboard, as
+   * the dot plot does (CR-74, in the championship dots' section): each chart
+   * is one tab stop, the arrows step along, Home and End jump, a status
+   * region always in the document says what is read, Escape lets go, and a
+   * Tab arrival reads the first mark. What each step should read comes from
+   * f1.db - Ferrari's seasons entered, 2024's rounds of the running table -
+   * not from the page. Then every other chart that opens a box, on the home
+   * page, the quality page and /records, is a tab stop whose Home opens one
+   * box and says it in its status region.
+   */
+  await section('/constructors/<id> and /seasons/<year>  (column and line charts from the keyboard: AX-32)', async () => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.mouse.move(0, 0)
+    const heads = () => page.$$eval('#root main .tooltip > b', (n) => n.map((b) => b.textContent))
+    const walk = async (plot) => {
+      const status = plot.locator('xpath=..').locator('[role="status"]')
+      await plot.scrollIntoViewIfNeeded()
+      await plot.focus()
+      await page.keyboard.press('End')
+      const last = await heads()
+      await page.keyboard.press('Home')
+      const first = await heads()
+      await page.keyboard.press('ArrowRight')
+      const second = await heads()
+      const said = await status.textContent()
+      await page.keyboard.press('Escape')
+      const gone = await heads()
+      const quiet = await status.textContent()
+      // Out and back by the keyboard: a Tab arrival is :focus-visible, and
+      // reads the first mark without an arrow pressed.
+      await page.keyboard.press('Shift+Tab')
+      await page.keyboard.press('Tab')
+      const arrived = await heads()
+      const focused = await plot.evaluate((node) => node === document.activeElement)
+      await page.keyboard.press('Escape')
+      return { first, second, last, said, gone, quiet, arrived, focused }
+    }
+
+    await go('/constructors/ferrari', 'Ferrari')
+    const columns = page
+      .locator('#root main section', { has: page.locator('h2', { hasText: 'Wins by season' }) })
+      .locator('figure.figure .plot-holder svg[role="img"]')
+      .first()
+    await columns.locator('path').first().waitFor({ timeout: 30000 })
+    is(await columns.getAttribute('tabindex'), '0', "Ferrari's wins chart is a tab stop")
+    const seasons = db.prepare(CONSTRUCTOR_BY_SEASON).all('ferrari')
+    const team = await walk(columns)
+    is(team.last.join(' | '), String(seasons.at(-1).year), 'End on the focused column chart reads its last season')
+    is(team.first.join(' | '), String(seasons[0].year), 'Home reads its first')
+    is(team.second.join(' | '), String(seasons[1].year), 'and the right arrow its second')
+    is(team.said, `${seasons[1].year}: ${seasons[1].wins.toLocaleString('en-GB')}`, 'and the status region says that season and its wins')
+    is(team.gone.length, 0, 'Escape lets go of the box')
+    is(team.quiet, '', 'and empties the status region')
+    truthy(team.focused, 'Shift+Tab then Tab comes back to the chart')
+    is(team.arrived.join(' | '), String(seasons[0].year), 'and a Tab arrival reads the first season')
+
+    await go('/seasons/2024', '2024')
+    const lines = page.locator('#root main figure.figure:has(.legend) .plot-holder svg[role="img"]').first()
+    await lines.locator('path').first().waitFor({ timeout: 30000 })
+    is(await lines.getAttribute('tabindex'), '0', "2024's title race chart is a tab stop")
+    const rounds = [
+      ...new Set(
+        db
+          .prepare(SEASON_STANDINGS)
+          .all(2024)
+          .filter((r) => r.table_type === 'drivers')
+          .map((r) => r.after_round),
+      ),
+    ].sort((a, b) => a - b)
+    const race = await walk(lines)
+    is(race.last.join(' | '), `R${rounds.at(-1)}`, 'End on the focused line chart reads its last round')
+    is(race.first.join(' | '), `R${rounds[0]}`, 'Home reads its first')
+    is(race.second.join(' | '), `R${rounds[1]}`, 'and the right arrow its second')
+    truthy(race.said.startsWith(`R${rounds[1]}: `), `and the status region says that round, “${race.said}”`)
+    is(race.said.split(', ').length, 3, 'with a figure for each of the three lines')
+    is(race.gone.length, 0, 'Escape lets go of the box')
+    is(race.quiet, '', 'and empties the status region')
+    truthy(race.focused, 'Shift+Tab then Tab comes back to the chart')
+    is(race.arrived.join(' | '), `R${rounds[0]}`, 'and a Tab arrival reads the first round')
+
+    // A bar chart opens no box (it prints every value), so it is the one plot
+    // here that is not a tab stop; every other one in a figure must be.
+    const PLOTS = '#root main figure.figure .plot-holder > svg[role="img"]:not([class])'
+    for (const [route, heading] of [['/', null], ['/data/quality', 'Data quality'], ['/records', 'Records']]) {
+      await go(route, heading)
+      await page.locator(`${PLOTS}[tabindex="0"]`).first().waitFor({ timeout: 30000 })
+      const plots = page.locator(PLOTS).filter({ hasNot: page.locator('.bar-label') })
+      const n = await plots.count()
+      const wrong = []
+      for (let i = 0; i < n; i += 1) {
+        const plot = plots.nth(i)
+        if ((await plot.getAttribute('tabindex')) !== '0') {
+          wrong.push(`chart ${i + 1} is no tab stop`)
+          continue
+        }
+        await plot.scrollIntoViewIfNeeded()
+        await plot.focus()
+        await page.keyboard.press('Home')
+        const box = await heads()
+        const said = await plot.locator('xpath=..').locator('[role="status"]').textContent()
+        if (box.length !== 1 || !said.startsWith(`${box[0]}: `)) wrong.push(`chart ${i + 1} opened ${JSON.stringify(box)} and said “${said}”`)
+        await page.keyboard.press('Escape')
+      }
+      atLeast(n, 1, `${route} draws a chart that opens a box`)
+      truthy(wrong.length === 0, `on ${route}, each is a tab stop whose Home opens one box and names it in its status region${wrong.length ? `; ${wrong.join('; ')}` : ''}`)
+    }
   })
 
   await section('/constructors', async () => {

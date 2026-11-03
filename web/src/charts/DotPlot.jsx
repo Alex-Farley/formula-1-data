@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { dotPlotLayout } from './dotPlot.js'
 import { ownColour } from './own.js'
 import { INK } from './palette.js'
 import Tooltip from './Tooltip.jsx'
+import { useChartKeys } from './useChartKeys.js'
 import { useMeasure } from './useMeasure.js'
 
 /**
@@ -52,7 +52,8 @@ import { useMeasure } from './useMeasure.js'
  * arrow keys step along, Home and End jump, and Escape lets go. What is read
  * goes to a status region that is always in the document, which is what lets
  * a screen reader announce each step; the visible box is the same words,
- * hidden from it, so they are not read twice.
+ * hidden from it, so they are not read twice. ColumnChart and LineChart do
+ * the same, through the one hook (charts/useChartKeys.js, AX-32).
  */
 const HIT = 14
 // How far the box stands off the point, clear of the grown dot and its ring.
@@ -71,17 +72,17 @@ export default function DotPlot({
   colour = null,
 }) {
   const [ref, width] = useMeasure()
-  // An index into `plotted`, not the point: the caller builds `data` afresh
-  // on every render, and an object held from the last one would match none.
-  const [active, setActive] = useState(null)
   const own = ownColour(colour)
   // The geometry is charts/dotPlot.js's, which the static page draws from
   // too (VD-73), so the two halves place every dot and tick alike.
   const layout = dotPlotLayout({ data, width, height, yMax, invert, format, formatX, xDomain })
+  // An index into the plotted points (charts/useChartKeys.js says why), and
+  // called before the early return, as a hook must be.
+  const { active, setActive, keys } = useChartKeys(layout ? layout.points.length : 0)
   if (!layout) return null
   const { x, y } = layout
   const plotted = layout.points.map((p) => p.d)
-  const hover = active !== null && active < plotted.length ? plotted[active] : null
+  const hover = active !== null ? plotted[active] : null
 
   // The chart's own colour, or a point's where it carries one. A hollow
   // point carries neither: it is drawn in ink by `.mark-hollow`, and takes no
@@ -104,25 +105,6 @@ export default function DotPlot({
     const next = best ? best.i : null
     if (next !== active) setActive(next)
   }
-  const onKeyDown = (event) => {
-    const last = plotted.length - 1
-    // No point read yet: the arrows start from the first.
-    const at = active === null ? 0 : active
-    const step = { ArrowRight: at + 1, ArrowDown: at + 1, ArrowLeft: at - 1, ArrowUp: at - 1, Home: 0, End: last }
-    if (event.key === 'Escape') {
-      setActive(null)
-      return
-    }
-    if (!(event.key in step)) return
-    event.preventDefault()
-    setActive(Math.max(0, Math.min(last, step[event.key])))
-  }
-  // A click focuses the plot too; only a keyboard arrival picks a point for
-  // the reader, or every click would open the box on the first season.
-  const onFocus = (event) => {
-    if (active === null && event.currentTarget.matches(':focus-visible')) setActive(0)
-  }
-
   const said = hover ? `${hover.label ?? formatX(hover.x)}: ${hover.note ?? format(hover.y)}` : ''
 
   return (
@@ -138,9 +120,7 @@ export default function DotPlot({
         // A finger lifting is a pointerleave; the box it opened stays until
         // the next tap, or until focus leaves the plot.
         onPointerLeave={(event) => event.pointerType !== 'touch' && setActive(null)}
-        onKeyDown={onKeyDown}
-        onFocus={onFocus}
-        onBlur={() => setActive(null)}
+        {...keys}
       >
         {/* P1 is always ticked: charts/dotPlot.js says why. */}
         {layout.yTicks.map((tick) => (

@@ -445,8 +445,12 @@ inside it is scaled, until the app redraws it at the width it occupies.
     strength and at least 2 px wide, so the series colour's 3:1 is what
     reaches the screen (**floor** for 1.4.11; DP-33, held by
     `conventions.mjs`).
-  - The hover box also opens on focus (**aim**; IX-44 #844 is the
-    containment half).
+  - The hover box also opens on focus (**aim**, held by test): each chart
+    that opens one - the dot plot, the column chart, the line chart - is one
+    tab stop whose arrow keys step from mark to mark, with Home and End and
+    Escape, and says what it reads in a status region
+    (`charts/useChartKeys.js`; CR-74, AX-32 #881). IX-44 #844 is the
+    containment half.
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
 
@@ -989,7 +993,7 @@ control (VD-82).
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |
 | No meaning by colour alone | **floor** (1.4.1) | review, `frontend-reviewer` item 7 |
 | Reflow at 400 and 320 px with no sideways page scroll | **floor** | smoke at 400 |
-| Hover box opens on focus | **aim** | — |
+| Hover box opens on focus | **aim** | `smoke.mjs`: the championship dots on `/drivers/hamilton` (CR-74), and the column and line charts on `/constructors/ferrari` and `/seasons/2024` (AX-32), each focused, stepped with the arrows and read in its box and its status region |
 | Revealing content moves focus to the first revealed item | **aim** | `smoke.mjs` *An exhaustive list opens on its first ten* (VD-82): opening a fold puts focus on row 11's row header, on screen |
 | A disclosure's name says what it opens | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-81): no two disclosures, and no two stand-alone links to different places, share a name on a smoke route |
 | The tile strip carries a name | **aim** | `smoke.mjs` *Both renderers draw one page* (VD-88): every strip on its routes is a group named "At a glance", in both halves |

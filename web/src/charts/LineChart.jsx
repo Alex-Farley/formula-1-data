@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { lineLayout } from './lineChart.js'
 import { seriesDash, slotColour } from './palette.js'
 import { LineKey } from './Figure.jsx'
 import Tooltip from './Tooltip.jsx'
+import { useChartKeys } from './useChartKeys.js'
 import { useMeasure } from './useMeasure.js'
 
 /**
@@ -25,6 +25,12 @@ import { useMeasure } from './useMeasure.js'
  * its colour (AX-16). A dropped end label leaves the legend as the key to
  * that line, and a key in hue alone is not one 1.4.1 allows; the caller's
  * Figure takes `marks="line"` so the legend draws the same strokes.
+ *
+ * The chart is one tab stop, as DotPlot is (charts/useChartKeys.js, AX-32):
+ * on keyboard focus it reads the first x any series has a point at - a
+ * round, a season - the arrow keys step along, Home and End jump, and Escape lets
+ * go. What is read goes to a status region that is always in the document;
+ * the box is the same words, hidden from it.
  */
 const seriesStyle = (s) => (s.colour ? { '--livery-light': s.colour.light, '--livery-dark': s.colour.dark } : undefined)
 export default function LineChart({
@@ -36,25 +42,40 @@ export default function LineChart({
   label,
 }) {
   const [ref, width] = useMeasure()
-  const [hover, setHover] = useState(null)
   const seriesPaint = (s, i) => (s.colour ? 'var(--livery)' : slotColour(i, series.length))
 
   // The geometry, the crosshair's columns and which line ends carry a label
   // are charts/lineChart.js's, which the static page draws from too (VD-73).
   const layout = lineLayout({ series, width, height, format, formatX, zero })
+  // An index into the crosshair's columns, which run in x order.
+  const { active, setActive, keys } = useChartKeys(layout ? layout.columns.length : 0)
 
   if (!layout) return null
   const { x, y, columns } = layout
+  const hover = active !== null ? columns[active] : null
+  // What each series reads at the held x; a series with no point there is
+  // left out, in the box and in what is announced alike.
+  const read =
+    hover === null
+      ? []
+      : series.flatMap((s, i) => {
+          const point = s.points.find((p) => p.x === hover)
+          return point ? [{ s, i, point }] : []
+        })
+  const said =
+    hover === null
+      ? ''
+      : `${formatX(hover)}: ${read.map(({ s, point }) => (series.length > 1 ? `${s.name} ${format(point.y)}` : format(point.y))).join(', ')}`
 
   const onMove = (event) => {
     const box = event.currentTarget.getBoundingClientRect()
     const at = ((event.clientX - box.left) / box.width) * width
     let best = null
-    for (const value of columns) {
+    columns.forEach((value, i) => {
       const distance = Math.abs(x(value) - at)
-      if (!best || distance < best.distance) best = { value, distance }
-    }
-    setHover(best && best.distance < 60 ? best.value : null)
+      if (!best || distance < best.distance) best = { i, distance }
+    })
+    setActive(best && best.distance < 60 ? best.i : null)
   }
 
   return (
@@ -62,9 +83,12 @@ export default function LineChart({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         onMouseMove={onMove}
-        onMouseLeave={() => setHover(null)}
+        onMouseLeave={() => setActive(null)}
         role="img"
         aria-label={label}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: one tab stop that reaches every round by the arrow keys, a keyboard's way to what hover shows (AX-32)
+        tabIndex={0}
+        {...keys}
       >
         {layout.yTicks.map((tick) => (
           <g key={tick.value}>
@@ -129,20 +153,19 @@ export default function LineChart({
           marks it reads, and held inside the plot (charts/Tooltip.jsx):
           risen above the plot's top, it ran out of the figure, which clips
           it, at every width (IX-44). */}
+      <p className="sr-only" role="status">
+        {said}
+      </p>
       {hover !== null && (
-        <Tooltip x={x(hover)} y={layout.top} place="beside" onDismiss={() => setHover(null)} role="status">
+        <Tooltip x={x(hover)} y={layout.top} place="beside" onDismiss={() => setActive(null)} aria-hidden="true">
           <b>{formatX(hover)}</b>
-          {series.map((s, i) => {
-            const point = s.points.find((p) => p.x === hover)
-            if (!point) return null
-            return (
-              <span className="row" key={s.name}>
-                <LineKey index={i} count={series.length} colour={s.colour} />
-                {series.length > 1 && `${s.name} `}
-                <b style={{ display: 'inline', color: 'var(--ink)' }}>{format(point.y)}</b>
-              </span>
-            )
-          })}
+          {read.map(({ s, i, point }) => (
+            <span className="row" key={s.name}>
+              <LineKey index={i} count={series.length} colour={s.colour} />
+              {series.length > 1 && `${s.name} `}
+              <b style={{ display: 'inline', color: 'var(--ink)' }}>{format(point.y)}</b>
+            </span>
+          ))}
         </Tooltip>
       )}
     </div>
