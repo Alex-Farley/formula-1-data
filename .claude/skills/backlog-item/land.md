@@ -20,4 +20,6 @@ verdict comment yet was left before its first review: run the precheck, at
 the end of *Before asking for review*, and then *Review*'s first pass. Every rule there
 applies as written: the fix is to this diff, the confirmation is a fresh
 agent on the model the pace table names, and nothing merges without a
-recorded `PASS`.
+recorded `PASS`. A PR labelled `review: advisory` was reviewed through
+`LOOP_REVIEW_CMD`, and `merge-step.py before` exits 6 on it: that is
+*Review*'s `STOP`, and a person merges it `AF-117`.

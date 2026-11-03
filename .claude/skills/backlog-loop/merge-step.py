@@ -18,7 +18,8 @@ would put the merge where that check cannot see it.
        `ci-wait.sh`, then `before` again.
     5  a refresh PR is still open after this call's wait: run `before` again.
     6  a reviewer started through LOOP_REVIEW_CMD (review.py) reviewed this
-       PR: its verdict is advisory until AF-115 (#1050), and a person merges.
+       PR - its label, or a pass marked in this checkout, says so: the
+       verdict is advisory until AF-115 (#1050), and a person merges.
     1  anything else GitHub reports - BLOCKED, DRAFT, UNKNOWN after retries,
        or this PR not open - with GitHub's word for it.
     4  gh cannot do this job at all.
@@ -45,12 +46,13 @@ WHY `after` EXISTS (AF-99)
 
 WHY `before` REFUSES AN ADVISORY REVIEW (AF-117)
     review.py starts a reviewer as a separate process, through whatever
-    command LOOP_REVIEW_CMD holds, and marks the pass `.external`. Nothing
-    checks what that command runs until server-side review enforcement
-    lands (AF-115), so a verdict recorded that way is advisory: any such
-    pass on the PR, at any head, and `before` exits 6 without asking GitHub
-    anything. The mark lives in .claude/loop/verdicts beside the main
-    checkout, where verdict.sh keeps the passes.
+    command LOOP_REVIEW_CMD holds. Nothing checks what that command runs
+    until server-side review enforcement lands (AF-115), so a verdict
+    recorded that way is advisory. review.py labels the PR (review.ADVISORY),
+    which a fork in any checkout reads from GitHub, and marks the pass
+    `.external` in .claude/loop/verdicts beside the main checkout, where
+    verdict.sh keeps the passes. Either one, at any head, and `before` exits
+    6 before it waits on anything.
 
 WHY `before` WAITS FOR A REFRESH (AF-105)
     On 2026-10-14 UR-14 (#973) merged while the refresh's PR (#975) was open
@@ -179,10 +181,13 @@ def advisory(n, verdicts):
 
 
 def before(n, now=None, sleep=time.sleep, verdicts=None):
+    label = _sibling("review").ADVISORY
+    names = [lb.get("name") for lb in (gh("pr", "view", str(n), "--json", "labels") or {}).get("labels") or []]
     marked = advisory(n, verdicts if verdicts is not None else verdicts_dir())
-    if marked:
-        print(f"PR #{n} was reviewed through LOOP_REVIEW_CMD (pass {', '.join(marked)}): "
-              f"that verdict is advisory until AF-115 (#1050), so a person merges it.")
+    if label in names or marked:
+        why = ", ".join(([f"label {label!r}"] if label in names else []) + [f"pass {p}" for p in marked])
+        print(f"PR #{n} was reviewed through LOOP_REVIEW_CMD ({why}): that verdict is "
+              f"advisory until AF-115 (#1050), so a person merges it.")
         return 6
     deadline = time.monotonic() + WAIT
     waited = False

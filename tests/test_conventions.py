@@ -683,27 +683,41 @@ class TheVerdictIsACommand(unittest.TestCase):
             brief = os.path.join(out, "brief.md")
             with open(brief, "w", encoding="utf-8") as f:
                 f.write("Independent review of PR #7, the brief.\n")
+            # gh stands in for GitHub: it logs each call, and fails while
+            # $OUT/gh-fails exists.
+            bin_dir = os.path.join(out, "bin")
+            os.mkdir(bin_dir)
+            with open(os.path.join(bin_dir, "gh"), "w", encoding="utf-8") as f:
+                f.write('#!/bin/sh\necho "$*" >> "$OUT/gh.log"\n[ ! -e "$OUT/gh-fails" ]\n')
+            os.chmod(os.path.join(bin_dir, "gh"), 0o755)
+            ran, gh_log = os.path.join(out, "ran"), os.path.join(out, "gh.log")
             pid = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
             marker = os.path.join(repo, ".claude/loop/verdicts", pid + ".external")
-            env = {k: v for k, v in os.environ.items() if k != "LOOP_REVIEW_CMD"}
+            env = {k: v for k, v in os.environ.items() if k not in ("LOOP_REVIEW_CMD", "LOOP_REVIEW_MODEL")}
+            env.update(OUT=out, SCRIPT=self.SCRIPT, PATH=bin_dir + os.pathsep + env.get("PATH", ""))
+            touch = 'touch "$OUT/ran"'
 
             def review(*args, **extra):
                 return subprocess.run([sys.executable, self.REVIEW, *args], cwd=repo,
                                       env=dict(env, **extra), capture_output=True, text=True, check=False)
             self.assertEqual(review("data-integrity-reviewer", pid, brief, repo).returncode, 4,
                              "review.py ran with no LOOP_REVIEW_CMD")
-            self.assertEqual(review("visual-design-critic", pid, brief, repo, LOOP_REVIEW_CMD="true").returncode, 2,
+            self.assertEqual(review("visual-design-critic", pid, brief, repo, LOOP_REVIEW_CMD=touch).returncode, 2,
                              "review.py started a critic on a pull request")
-            self.assertEqual(review("data-integrity-reviewer", "7-nosuch-1", brief, repo,
-                                    LOOP_REVIEW_CMD="true").returncode, 2,
+            self.assertEqual(review("data-integrity-reviewer", "7-0000000-1", brief, repo,
+                                    LOOP_REVIEW_CMD=touch).returncode, 2,
                              "review.py ran a pass nobody opened")
+            open(os.path.join(out, "gh-fails"), "w").close()
+            self.assertEqual(review("data-integrity-reviewer", pid, brief, repo, LOOP_REVIEW_CMD=touch).returncode, 4,
+                             "review.py ran a pass whose PR it could not label")
+            os.remove(os.path.join(out, "gh-fails"))
+            self.assertFalse(os.path.exists(ran), "a refused run still ran the command")
             self.assertFalse(os.path.exists(marker), "a refused run still marked the pass")
             # The command stands in for a reviewer: it keeps what it was given
             # and records PASS, as the brief tells a reviewer to.
             cmd = ('cat > "$OUT/prompt"; printf %s "$LOOP_REVIEW_MODEL" > "$OUT/model"; '
                    'bash "$SCRIPT" record "$LOOP_REVIEW_PASS" PASS')
-            got = review("data-integrity-reviewer", pid, brief, repo,
-                         LOOP_REVIEW_CMD=cmd, OUT=out, SCRIPT=self.SCRIPT)
+            got = review("data-integrity-reviewer", pid, brief, repo, LOOP_REVIEW_CMD=cmd)
             self.assertEqual(got.returncode, 0, got.stderr)
             prompt = read(os.path.join(out, "prompt"))
             self.assertIn("You review changes to a SQLite build pipeline", prompt,
@@ -711,11 +725,23 @@ class TheVerdictIsACommand(unittest.TestCase):
             self.assertIn("Independent review of PR #7, the brief.", prompt, "the brief did not reach the command")
             self.assertNotIn("maxTurns:", prompt, "the frontmatter went into the prompt")
             self.assertEqual(read(os.path.join(out, "model")), "opus")
+            self.assertIn("pr edit 7 --add-label review: advisory", read(gh_log), "the PR was not labelled")
             got = self.run_script(repo, "read", pid)
             self.assertEqual((got.returncode, got.stdout.strip()), (0, "PASS advisory"),
                              "a verdict recorded out of process did not read as advisory")
-            self.assertEqual(review("data-integrity-reviewer", pid, brief, repo, LOOP_REVIEW_CMD="true").returncode, 2,
+            self.assertEqual(review("data-integrity-reviewer", pid, brief, repo, LOOP_REVIEW_CMD=touch).returncode, 2,
                              "review.py ran a pass that already had a verdict")
+            self.assertFalse(os.path.exists(ran), "a refused run still ran the command")
+            # A command that removes its own mark is caught once it exits, and
+            # the mark is back; a caller's model wins over the frontmatter.
+            again = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
+            cmd = ('rm "$(git rev-parse --git-common-dir)/../.claude/loop/verdicts/$LOOP_REVIEW_PASS.external"; '
+                   'printf %s "$LOOP_REVIEW_MODEL" > "$OUT/model"; bash "$SCRIPT" record "$LOOP_REVIEW_PASS" PASS')
+            got = review("data-integrity-reviewer", again, brief, repo, LOOP_REVIEW_CMD=cmd, LOOP_REVIEW_MODEL="sonnet")
+            self.assertEqual(got.returncode, 3, "a command that removed its mark went unreported")
+            self.assertEqual(self.run_script(repo, "read", again).stdout.strip(), "PASS advisory",
+                             "a removed mark was not put back")
+            self.assertEqual(read(os.path.join(out, "model")), "sonnet")
             # A later pass is not advisory for an earlier one's mark, even
             # with that pass's own files gone.
             for ext in (".pass", ".verdict"):

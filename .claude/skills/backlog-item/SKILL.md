@@ -391,12 +391,15 @@ said PASS — has read the reply for a verdict by another route.
 .claude/skills/backlog-loop/review.py <reviewer> <id> <brief-file>
 <worktree>` in place of the Agent tool: the same agent file, the same brief
 written to a file, the same pass id, and a reviewer that may be another
-vendor's model. It runs in the foreground like any pass, and its exit status
-is not a verdict; `verdict.sh read <id>` is, as above, and prints `advisory`
-after the word. **Until AF-115 (#1050) lands, an advisory verdict does not
-clear a merge**: `merge-step.py before` exits 6 on any PR such a pass has
-reviewed. With the verdict on the PR as a comment and CI green, put the
-status back, leave the PR open, and return `STOP: #<N> has an advisory
+vendor's model; a confirmation sets `LOOP_REVIEW_MODEL` to the model the
+pace table names. It runs in the foreground like any pass, and its exit
+status is not a verdict; `verdict.sh read <id>` is, as above, and prints
+`advisory` after the word. **Until AF-115 (#1050) lands, an advisory
+verdict does not clear a merge**: `review.py` labels the PR `review:
+advisory`, and `merge-step.py before` exits 6 on a PR with that label or a
+pass marked here. Exit 3 is a command that removed a mark: no review. With
+the verdict on the PR as a comment that names it advisory and CI green, put
+the status back, leave the PR open, and return `STOP: #<N> has an advisory
 review; a person merges it`.
 
 **When `verdict.sh read <id>` exits 1 — a pass that recorded no verdict — or

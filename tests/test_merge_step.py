@@ -34,8 +34,9 @@ def refresh(number, minutes_ago):
 class Fake:
     """Stands in for gh and for every command `after` would run."""
 
-    def __init__(self, state="OPEN", merge_state="CLEAN", refreshes=(), body="", labels=None):
+    def __init__(self, state="OPEN", merge_state="CLEAN", refreshes=(), body="", labels=None, pr_labels=()):
         self.state, self.merge_state = state, merge_state
+        self.pr_labels = list(pr_labels)
         self.refreshes, self.body = list(refreshes), body
         self.labels = labels or {}
         self.ran = []
@@ -47,7 +48,8 @@ class Fake:
             return {"comments": []}
         if args[:2] == ("pr", "view"):
             return {"state": self.state, "mergeStateStatus": self.merge_state, "isDraft": False,
-                    "headRefName": "claude/x", "body": self.body}
+                    "headRefName": "claude/x", "body": self.body,
+                    "labels": [{"name": x} for x in self.pr_labels]}
         if args[:2] == ("issue", "view"):
             n = int(args[2])
             return {"state": "OPEN", "labels": [{"name": x} for x in self.labels.get(n, [])]}
@@ -175,6 +177,14 @@ class BeforeRefusesAnAdvisoryReview(unittest.TestCase):
             # PR 70's mark is not PR 7's, nor PR 8's.
             self.assertEqual(patched(Fake(), ms.before, 8, now=NOW, sleep=lambda s: None,
                                      verdicts=verdicts), 0)
+
+    def test_the_label_refuses_from_any_checkout(self):
+        # No local mark at all - another checkout, or after `git clean -X` -
+        # and the label on GitHub still refuses.
+        fake = Fake(pr_labels=["review: advisory"])
+        self.assertEqual(patched(fake, ms.before, 7, now=NOW, sleep=lambda s: None, wait=0), 6)
+        self.assertEqual(patched(Fake(pr_labels=["implementer: sonnet"]), ms.before, 7, now=NOW,
+                                 sleep=lambda s: None, wait=0), 0)
 
     def test_no_directory_is_no_mark(self):
         self.assertEqual(ms.advisory(7, None), [])

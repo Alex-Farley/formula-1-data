@@ -15,7 +15,8 @@ set, the brief may instead be written to a file and given to `python3
 .claude/skills/backlog-loop/review.py <reviewer> <id> <brief-file> <path>`,
 which puts the agent's file in front of it and starts the reviewer as a
 separate process; its docstring names what the command is given, with an
-example value. Such a pass is advisory, and a person merges (`SKILL.md`).
+example value. Such a pass is advisory: it labels the PR `review: advisory`,
+and a person merges (`SKILL.md`).
 
     Independent review of PR #<N> on Alex-Farley/formula-1-data, branch
     `<branch>` at <sha>, checked out as a git worktree at <path> (node_modules
