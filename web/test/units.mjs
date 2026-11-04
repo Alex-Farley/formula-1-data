@@ -255,6 +255,19 @@ import { INK, slotColour } from '../src/charts/palette.js'
 import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 import { unestablished } from '../src/lib/tiles.js'
 import { LAP_NEXT, LAP_RUN, LAP_TO_COME, flatten, lapLabel, lapLayout } from '../src/lib/lap.js'
+import {
+  FORECAST_ENDPOINT,
+  FRESH_MS,
+  OUTLOOK_DAYS,
+  dayName,
+  forecastRequest,
+  loadForecast,
+  outlookDays,
+  readForecast,
+  sessionForecasts,
+  sky,
+  updatedAt,
+} from '../src/lib/forecast.js'
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -4716,5 +4729,171 @@ describe('where winners start at a circuit (AF-133)', async () => {
     assert.match(startsNote([null]), /every dot is hollow/)
     assert.doesNotMatch(startsNote([{ kind: 'livery' }]), /hollow/)
     assert.match(startsNote([{ kind: 'livery' }, null]), /A hollow dot has no colour on record\./)
+  })
+})
+
+describe('the race weekend forecast (AF-143)', () => {
+  // A weekend as the database holds one: Interlagos, its circuit three hours
+  // behind UTC, and the point race_weather_modelled holds for it.
+  const point = { latitude: -23.701111, longitude: -46.697222, timezone: 'America/Sao_Paulo' }
+  const next = { date_from: '2026-11-06', date_to: '2026-11-08', date_iso: '2026-11-08' }
+  const sessions = [
+    { kind: 'fp1', start_utc: '2026-11-06T15:30Z' },
+    { kind: 'qualifying', start_utc: '2026-11-07T18:00Z' },
+    // 02:10 UTC on the 9th is 23:10 on the 8th at the circuit.
+    { kind: 'race', start_utc: '2026-11-09T02:10Z' },
+  ]
+  const at = (iso) => Date.parse(iso)
+  const params = (request) => Object.fromEntries(new URL(request.url).searchParams)
+
+  it('reads a WMO code as a mark and the word that says the same, and an unknown code as neither', () => {
+    assert.deepEqual(sky(0), { mark: 'sun', word: 'Clear' })
+    assert.deepEqual(sky(3), { mark: 'cloud', word: 'Cloudy' })
+    assert.deepEqual(sky(48), { mark: 'cloud', word: 'Fog' })
+    assert.deepEqual(sky(53), { mark: 'rain', word: 'Drizzle' })
+    assert.deepEqual(sky(81), { mark: 'rain', word: 'Rain' })
+    assert.deepEqual(sky(75), { mark: 'rain', word: 'Snow' })
+    assert.deepEqual(sky(95), { mark: 'rain', word: 'Thunderstorms' })
+    for (const code of [4, 100, null, undefined, 2.5, '0']) assert.equal(sky(code), null, `code ${code}`)
+  })
+
+  it('asks, in the weekend, for the hours of the circuit days its sessions start on, at the point held', () => {
+    const request = forecastRequest({ cycle: 'weekend', next, sessions, point }, at('2026-11-06T16:00Z'))
+    assert.equal(request.kind, 'sessions')
+    assert.ok(request.url.startsWith(`${FORECAST_ENDPOINT}?`))
+    assert.deepEqual(params(request), {
+      latitude: '-23.701111',
+      longitude: '-46.697222',
+      timezone: 'America/Sao_Paulo',
+      start_date: '2026-11-06',
+      // The race's circuit day, not its UTC one.
+      end_date: '2026-11-08',
+      hourly: 'weather_code,temperature_2m,precipitation_probability',
+    })
+    // The same address all weekend, so a page left open asks once.
+    assert.equal(forecastRequest({ cycle: 'weekend', next, sessions, point }, at('2026-11-07T19:00Z')).url, request.url)
+  })
+
+  it('asks for nothing once every session has started, nor with no point, nor in the off state', () => {
+    assert.equal(forecastRequest({ cycle: 'weekend', next, sessions, point }, at('2026-11-09T02:10Z')), null)
+    assert.equal(forecastRequest({ cycle: 'weekend', next, sessions, point: null }, at('2026-11-06T16:00Z')), null)
+    assert.equal(forecastRequest({ cycle: 'weekend', next, sessions, point: { ...point, latitude: null } }, at('2026-11-06T16:00Z')), null)
+    assert.equal(forecastRequest({ cycle: 'weekend', next, sessions, point: { ...point, timezone: '' } }, at('2026-11-06T16:00Z')), null)
+    assert.equal(forecastRequest({ cycle: 'weekend', next, sessions: [], point }, at('2026-11-06T16:00Z')), null)
+    assert.equal(forecastRequest({ cycle: 'off', next, sessions, point }, at('2026-11-02T00:00Z')), null)
+    assert.equal(forecastRequest({ cycle: 'preview', next: null, sessions, point }, at('2026-11-02T00:00Z')), null)
+  })
+
+  it(`asks, before the weekend, for its days, from ${OUTLOOK_DAYS} days before its first and not sooner`, () => {
+    const first = at('2026-11-06T00:00Z')
+    const request = forecastRequest({ cycle: 'preview', next, sessions, point }, first - OUTLOOK_DAYS * 86400000)
+    assert.equal(request.kind, 'days')
+    assert.deepEqual(request.days, ['2026-11-06', '2026-11-07', '2026-11-08'])
+    assert.equal(params(request).daily, 'weather_code,temperature_2m_max,precipitation_probability_max')
+    assert.equal(params(request).hourly, undefined)
+    assert.equal(forecastRequest({ cycle: 'results', next, sessions, point }, first - 86400000).kind, 'days')
+    assert.equal(forecastRequest({ cycle: 'preview', next, sessions, point }, first - OUTLOOK_DAYS * 86400000 - 1), null)
+    // A race with only its day held is a weekend of one day.
+    assert.deepEqual(forecastRequest({ cycle: 'preview', next: { date_iso: '2026-11-08' }, sessions, point }, first).days, ['2026-11-08'])
+    assert.equal(forecastRequest({ cycle: 'preview', next: { date_iso: null }, sessions, point }, first), null)
+  })
+
+  const hourly = {
+    hourly: {
+      time: ['2026-11-06T12:00', '2026-11-06T13:00', '2026-11-07T15:00', '2026-11-08T23:00'],
+      weather_code: [0, 3, null, 61],
+      temperature_2m: [21.4, 22.5, null, -0.2],
+      precipitation_probability: [5, 40, null, null],
+    },
+  }
+
+  it('reads an answer it can, and refuses one it cannot', () => {
+    const request = { kind: 'sessions' }
+    const rows = readForecast(hourly, request)
+    assert.equal(rows.size, 4)
+    assert.deepEqual(rows.get('2026-11-07T15:00'), { code: null, temp: null, rain: null })
+    assert.equal(readForecast(null, request), null)
+    assert.equal(readForecast({ error: true, reason: 'out of range' }, request), null)
+    assert.equal(readForecast(hourly, { kind: 'days' }), null, 'an hourly answer is not a daily one')
+    assert.equal(readForecast({ hourly: { ...hourly.hourly, temperature_2m: [1, 2] } }, request), null, 'columns of different lengths')
+    assert.equal(readForecast({ hourly: { time: [], weather_code: [], temperature_2m: [], precipitation_probability: [] } }, request), null)
+  })
+
+  it('gives each session still to start the hour nearest its start, and nothing it was not given', () => {
+    const rows = readForecast(hourly, { kind: 'sessions' })
+    // fp1 is 12:30 at the circuit, so 13:00; qualifying 15:00, which holds
+    // no figure; the race 23:10, so 23:00 on the 8th, with no chance of rain.
+    assert.deepEqual(sessionForecasts(rows, sessions, point.timezone, at('2026-11-06T15:00Z')), [
+      { mark: 'cloud', text: 'Cloudy · 23 °C · 40% rain' },
+      null,
+      { mark: 'rain', text: 'Rain · 0 °C' },
+    ])
+    // And none for a session that has started.
+    assert.deepEqual(sessionForecasts(rows, sessions, point.timezone, at('2026-11-06T15:30Z'))[0], null)
+    assert.deepEqual(sessionForecasts(null, sessions, point.timezone, at('2026-11-06T15:00Z')), [null, null, null])
+  })
+
+  it('gives a line for each day of the weekend it holds a figure for, and none for one it does not', () => {
+    const request = { kind: 'days' }
+    const rows = readForecast(
+      {
+        daily: {
+          time: ['2026-11-06', '2026-11-07', '2026-11-08'],
+          weather_code: [1, null, 4],
+          temperature_2m_max: [24.4, null, 19.5],
+          precipitation_probability_max: [10, null, 80],
+        },
+      },
+      request,
+    )
+    assert.deepEqual(outlookDays(rows, ['2026-11-06', '2026-11-07', '2026-11-08']), [
+      { day: '2026-11-06', mark: 'sun', text: 'Clear · High of 24 °C · up to 10% rain' },
+      // A code outside the table: no mark and no word, and the figures kept.
+      { day: '2026-11-08', mark: null, text: 'High of 20 °C · up to 80% rain' },
+    ])
+    assert.deepEqual(outlookDays(null, ['2026-11-06']), [])
+  })
+
+  it('names the day, and when the answer came, in the reader’s form', () => {
+    assert.equal(dayName('2026-11-06', 'en-GB'), 'Friday')
+    assert.equal(dayName('2026-11-06', 'de-DE'), 'Freitag')
+    assert.equal(dayName('6 Nov', 'en-GB'), null)
+    assert.equal(updatedAt(Date.UTC(2026, 10, 4, 14, 5), 'UTC', 'en-GB'), '14:05')
+    assert.equal(updatedAt(Date.UTC(2026, 10, 4, 14, 5), null, 'en-GB'), '14:05')
+    assert.equal(updatedAt(Date.UTC(2026, 10, 4, 14, 5), 'America/Sao_Paulo', 'en-GB'), '11:05')
+    assert.equal(updatedAt(Date.UTC(2026, 10, 4, 0, 5), 'UTC', 'en-GB'), '00:05')
+    // ICU writes the space before PM as a narrow no-break space, or as a plain one in older versions.
+    assert.match(updatedAt(Date.UTC(2026, 10, 4, 14, 5), 'UTC', 'en-US'), /^2:05\sPM$/)
+    assert.equal(updatedAt(null, 'UTC', 'en-GB'), null)
+    // An answer from an earlier day, on the reader's clock, names its day.
+    const came = Date.UTC(2026, 10, 6, 14, 5)
+    assert.equal(updatedAt(came, 'UTC', 'en-GB', came + 11 * 3600000), '6 Nov 2026, 14:05')
+    assert.equal(updatedAt(came, 'UTC', 'en-GB', came + 3600000), '14:05')
+    // 14:05 UTC on the 6th is 03:05 on the 7th in Auckland, and eleven hours on it is still the 7th there.
+    assert.equal(updatedAt(came, 'Pacific/Auckland', 'en-GB', came + 11 * 3600000), '03:05')
+  })
+
+  it('fetches once an address for the visit, with no credentials and no referrer, and fails on a refusal', async () => {
+    const calls = []
+    const fetcher = async (url, options) => {
+      calls.push([url, options])
+      return url.endsWith('ok') ? { ok: true, json: async () => ({ fine: 1 }) } : { ok: false, status: 429 }
+    }
+    const first = await loadForecast('https://example.test/ok', fetcher)
+    const again = await loadForecast('https://example.test/ok', fetcher)
+    assert.deepEqual(first.json, { fine: 1 })
+    assert.equal(again, first)
+    assert.equal(calls.length, 1)
+    assert.deepEqual(calls[0][1], { credentials: 'omit', referrerPolicy: 'no-referrer' })
+    await assert.rejects(loadForecast('https://example.test/refused', fetcher), /429/)
+    await assert.rejects(loadForecast('https://example.test/refused', fetcher), /429/)
+    assert.equal(calls.length, 2, 'a failure is not asked for again in the same visit')
+    // And an answer is asked for again once it is FRESH_MS old, not before.
+    const t = 1_000_000_000_000
+    await loadForecast('https://example.test/later-ok', fetcher, t)
+    await loadForecast('https://example.test/later-ok', fetcher, t + FRESH_MS - 1)
+    assert.equal(calls.length, 3)
+    await loadForecast('https://example.test/later-ok', fetcher, t + FRESH_MS)
+    assert.equal(calls.length, 4, 'an answer FRESH_MS old is asked for again')
   })
 })

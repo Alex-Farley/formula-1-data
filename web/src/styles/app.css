@@ -666,8 +666,9 @@ main {
 
 .weekend-sessions > li {
   display: flex;
+  flex-wrap: wrap; /* the forecast, where the app draws one, takes a line of its own */
   justify-content: space-between;
-  gap: var(--space-6);
+  column-gap: var(--space-6);
   padding: var(--space-2) 0;
   border-top: 1px solid var(--rule);
 }
@@ -795,8 +796,39 @@ main {
   border-color: var(--ink);
 }
 
-.weekend-sessions > li[data-state='next'] {
+.weekend-sessions > li[data-state='next'] > :not(.weekend-forecast) {
   font-weight: var(--weight-semibold);
+}
+
+/* The forecast (AF-143; docs/design-system.md section 3, *Season cycle*),
+   drawn by the app alone: under a session still to start, a line of its
+   own in the list's row, so the name and the start keep their places; and
+   before the weekend, a line a day, ruled as the weekend list is. Each in
+   the note's size and ink, the weather line's mark (.weather-mark) before
+   the word that says the same, and the credit under it. */
+.weekend-forecast {
+  flex-basis: 100%;
+  font-size: var(--size-4);
+  color: var(--ink-soft);
+}
+
+.forecast-days {
+  list-style: none;
+  padding: 0;
+}
+
+.forecast-days > li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: var(--space-6);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--rule);
+  font-size: var(--size-4);
+}
+
+.forecast-days > li > span:last-child {
+  color: var(--ink-soft);
 }
 
 .grid.wide {

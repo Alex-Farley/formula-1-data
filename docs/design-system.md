@@ -824,7 +824,7 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
-### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250)
+### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149)
 
 Home's season block follows the calendar while the season being run has a
 round to come, in three states worked out from the database and a clock —
@@ -839,7 +839,7 @@ the reader's in the app, the build's day in the prerender (`homeCycle` in
 
 With no round to come, the block is as it was. Its parts are the system's
 own — the round panels, `FigurePart`, `Figure`, AF-132's reach chart and
-AF-133's grid — and two are new:
+AF-133's grid — and these are new:
 
 - **The podium.** Three steps, listed first to third in the markup, the
   order a screen reader reads them, and stood second, first, third by
@@ -877,6 +877,27 @@ AF-133's grid — and two are new:
   and state as the lap draws it (the state in words for a screen reader),
   its name, and its start at the line's end, so a start written wider in
   the reader's form moves only itself.
+- **The forecast** (AF-143 #1149). Open-Meteo's, asked for by the app from
+  the reader's browser at the point `race_weather_modelled` holds for the
+  circuit, and never stored (`lib/forecast.js` says what is asked and
+  when). In the weekend state, a line under each session still to start,
+  in the list's row so its name and start keep their places: the weather
+  line's mark (`.weather-mark`, from `WEATHER_MARKS`) and the word that
+  says the same, then the hour's figures, *Cloudy · 18 °C · 40% rain*.
+  From seven days before the weekend's first day, in *Next on the
+  calendar*, a line a day, ruled as the weekend list is: the day's name,
+  and *Clear · High of 24 °C · up to 10% rain*. Both in `--size-4` and
+  the soft ink, and under them, beside the figures, the credit Open-Meteo
+  asks for: *Forecast · Open-Meteo (CC BY 4.0) · updated 14:05*, each
+  name linked, the time on the reader's clock, with its day where the
+  answer came on an earlier one. An answer is asked for again after three
+  hours, so a page left open does not keep an old one. **The app's alone, by the
+  item's ruling**: the static page has none, so the lines arrive after
+  the handover, when the answer does, and are the one part of the block
+  that moves within a state. **It fails closed**: a refused or failed
+  fetch, an answer it cannot read, or a session or day with no figure
+  draws nothing for it — no placeholder, no zero, no credit without
+  figures.
 
 The static page prints the state at the build's day, and the app the state
 at the reader's, so a page opened on a later day changes state at the
@@ -887,6 +908,11 @@ reads the app at the build's day where it compares the two halves of `/`,
 checks each half draws the state and the lap its clock gives, and draws
 the app inside the next round's weekend on two fixed clocks at 400 px,
 holding its stops, track, list, ring, words and credit to `lapLayout`.
+For the forecast, `units.mjs` holds what is asked for and what is shown
+on fixed clocks and answers, and `smoke.mjs` answers the app's one
+request inside the weekend at 320 px and before it at 400, holding each
+figure to its own session or day and the credit beside them, refuses it
+once to see nothing drawn, and finds no forecast on the static page.
 
 ### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-100 #1023)
 

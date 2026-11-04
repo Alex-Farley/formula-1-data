@@ -1530,6 +1530,9 @@ describe('what the pages send, and to whom (PD-0)', () => {
     // thumb.wikimedia.org, which verify.py pins - so they are fetched too and
     // never appear in this source. One entry, one decision.
     'commons.wikimedia.org': ['load', 'the photographs, via thumbUrl() in src/lib/commons.js'],
+    // AF-143: the race weekend's forecast on the home page, asked for by the
+    // app and never stored. open-meteo.com itself, below, is only linked.
+    'api.open-meteo.com': ['load', 'the forecast, via loadForecast() in src/lib/forecast.js'],
     // cite
     'en.wikipedia.org': ['cite', 'the source behind a prose field or a register row'],
     'www.formula1.com': ['cite', 'the official record a figure is checked against'],
@@ -1579,7 +1582,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
     )
   })
 
-  it('and the hosts the browser actually fetches from are these four and no others', () => {
+  it('and the hosts the browser actually fetches from are these six and no others', () => {
     // Spelled out rather than derived, so that reclassifying a host from cite
     // to load is a visible edit in two places and not a quiet one in a table.
     assert.deepEqual(
@@ -1587,7 +1590,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
         .filter(([, [use]]) => use === 'load')
         .map(([host]) => host)
         .sort(),
-      ['cloudflareinsights.com', 'commons.wikimedia.org', 'fonts.googleapis.com', 'fonts.gstatic.com', 'static.cloudflareinsights.com'],
+      ['api.open-meteo.com', 'cloudflareinsights.com', 'commons.wikimedia.org', 'fonts.googleapis.com', 'fonts.gstatic.com', 'static.cloudflareinsights.com'],
     )
   })
 
@@ -1610,6 +1613,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
       'static.cloudflareinsights.com': 'script-src',
       'cloudflareinsights.com': 'connect-src',
       'commons.wikimedia.org': 'img-src',
+      'api.open-meteo.com': 'connect-src',
     }
     const loads = Object.entries(HOSTS).filter(([, [use]]) => use === 'load').map(([host]) => host)
     assert.deepEqual(Object.keys(governs).sort(), loads.sort(), 'a load host has no directive named for it here')
@@ -1638,6 +1642,20 @@ describe('what the pages send, and to whom (PD-0)', () => {
     } finally {
       db.close()
     }
+  })
+
+  it('the forecast is the app’s alone: the prerenderer neither fetches nor writes one (AF-143)', () => {
+    assert.doesNotMatch(prerender, /lib\/forecast\.js|FORECAST_POINT|api\.open-meteo\.com/, 'scripts/prerender.js reaches for the forecast, which the static page must not carry')
+    // And the policy names that host under connect-src alone: it answers
+    // JSON, so nothing else needs it. Each directive is read as its
+    // sources, whole, and a source is the host's when it is that origin or
+    // a wildcard or scheme that would also admit it.
+    const admits = (source) => ['https://api.open-meteo.com', 'https://*.open-meteo.com', 'https:', '*'].includes(source)
+    const naming = POLICY.split('; ')
+      .map((d) => d.split(' '))
+      .filter(([, ...sources]) => sources.some(admits))
+      .map(([name]) => name)
+    assert.deepEqual(naming, ['connect-src'])
   })
 
   it("and the beacon's tag loads from the origin script-src names", () => {
@@ -1706,6 +1724,8 @@ describe('what the pages send, and to whom (PD-0)', () => {
       'the account says a route change fetches nothing, and a photograph is fetched from Wikimedia',
     )
     assert.match(IN_THIS_TAB, /Wikimedia Commons/, 'the account does not name the photographs as something that leaves')
+    assert.match(IN_THIS_TAB, /Four things leave/, 'the account counts what leaves wrongly: the beacon, the photographs, the fonts and the forecast')
+    assert.match(IN_THIS_TAB, /a request to Open-Meteo for the forecast/, 'the account does not name the forecast, which the home page asks Open-Meteo for (AF-143)')
   })
 
   it("and the footer's one line keeps to the moment, and its link says that something leaves (IA-31)", () => {
