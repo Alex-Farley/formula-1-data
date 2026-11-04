@@ -38,7 +38,17 @@
  * palette CC BY-SA 4.0 (LIVERY_ARTICLE, LIVERY_LICENCE).
  *
  * The hex is this palette's rendering of that named colour, not a
- * measurement. Each colour of a scheme carries its own `base`, and the
+ * measurement, and no entry is marked otherwise (AF-11, searched 2026-11-04):
+ * #286 allowed an entry to say a team publishes a brand value, and none was
+ * found on a page this project can cite. The McLaren papaya page and the Aston
+ * Martin Racing Green feature, the two candidates it named, describe the
+ * colour in words and give no hex, RGB, Pantone or paint code; a search for
+ * any other team's brand or press page stating one found only third-party
+ * colour sites, which disagree with each other (Haas red is #E6002B, #E10600
+ * and #DA291C on three of them) and are not an authority here. So no
+ * `published` flag exists to set. A team that later puts a value on a page it
+ * owns is the case to reopen this for. Each colour of a scheme carries its
+ * own `base`, and the
  * PRIMARY's base is what a mark draws - papaya is #ff8000 on every surface
  * and in both themes (AF-16). It used to be a value moved in lightness
  * until it cleared 3:1 on the surfaces it sits on, which is what turned
