@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import { FigurePart, Page, Section, Slot, Stats } from '../components/Page.jsx'
-import { OutlineCard } from '../components/Outline.jsx'
+import { OutlineCard, WeekendLap } from '../components/Outline.jsx'
 import { Result } from '../components/States.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
@@ -20,7 +20,8 @@ import { NAMES } from '../lib/site.js'
 import { LATEST } from '../queries/races.js'
 import { STARTS_COLUMNS, startsLabel, startsNote, startsTable, winnerStarts } from '../queries/circuit.js'
 import { FIGHT_QUERIES, currentTitle, fightAhead, reachFigures, teamsByDriver } from '../queries/season.js'
-import { readerZone } from '../queries/sessions.js'
+import { readerZone, until } from '../queries/sessions.js'
+import { LAP_WORDS, lapLayout } from '../lib/lap.js'
 import {
   CYCLE,
   FIGHT_TEAMS,
@@ -112,19 +113,29 @@ function Podium({ steps }) {
   )
 }
 
-/** The weekend's sessions, a plain list until part (b)'s lap: the name and its start on the reader's clock. */
-function WeekendSessions({ sessions }) {
-  const zone = readerZone()
+/**
+ * The weekend's sessions as words, the text the lap stands for (AF-156):
+ * each one's mark and state as the lap draws it, its name, and its start on
+ * the reader's clock.
+ */
+function WeekendSessions({ sessions, lap, zone }) {
   return (
     <>
       <p className="muted small">{sessionsClock(zone)}</p>
       <ol className="weekend-sessions">
-        {sessions.map((s) => (
-          <li key={s.kind}>
-            <span>{s.name}</span>
-            <TimeText iso={s.start_utc} zone={zone ?? 'UTC'} />
-          </li>
-        ))}
+        {sessions.map((s, k) => {
+          const state = lap?.stops[k]?.state
+          return (
+            <li key={s.kind} data-state={state}>
+              <span>
+                {state && <i className="lap-mark" aria-hidden="true" />}
+                {s.name}
+                {state && <span className="sr-only">, {LAP_WORDS[state]}</span>}
+              </span>
+              <TimeText iso={s.start_utc} zone={zone ?? 'UTC'} />
+            </li>
+          )
+        })}
       </ol>
     </>
   )
@@ -186,6 +197,9 @@ export default function Home() {
           const ahead = fightAhead(fight, next)
           const sessions = rows(data, 'sessions')
           const cycle = homeCycle({ now, latest, next, sessions }, clock)
+          // The weekend as a lap (AF-156), at the reader's clock.
+          const lap = cycle.state === CYCLE.weekend ? lapLayout(next.outline, sessions, clock) : null
+          const zone = readerZone()
           const steps = cycle.state === CYCLE.results ? podium(rows(data, 'podium')) : null
           // The title fight after this race: the first title still fought.
           const reach =
@@ -300,7 +314,8 @@ export default function Home() {
                               <Dated>{resultsPending(next)}</Dated>
                             </p>
                           )}
-                          {sessions.length > 0 && <WeekendSessions sessions={sessions} />}
+                          <WeekendLap race={next} lap={lap} zone={zone} until={lap?.next ? until(lap.next.start_utc, clock) : null} />
+                          {sessions.length > 0 && <WeekendSessions sessions={sessions} lap={lap} zone={zone} />}
                           {ahead && <p>{ahead}</p>}
                           <p>
                             <Link to={`/seasons/${next.year}`}>{calendarLink(next.year)}</Link>

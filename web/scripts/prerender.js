@@ -549,6 +549,7 @@ import {
   timelineStripName,
   timelineYears,
 } from '../src/lib/outline.js'
+import { ALL_STARTED, LAP_NOTE, LAP_WORDS, NEXT_WORD, STRIP_NOTE, STRIP_PATH, lapLabel, lapLayout } from '../src/lib/lap.js'
 import {
   CONSEQUENCES,
   CONSEQUENCES_NOTE,
@@ -1690,12 +1691,45 @@ const pitSection = (race, entryRows, pits, span) => {
 // beats a presentation attribute, so nothing about the styled page changes.
 // The app's own Outline needs none: React mounts after the stylesheet.
 const OUTLINE_PX = 200
-const outlineSvg = (path, label) =>
+// `inner` is markup drawn over the outline, as Outline's children are in
+// the app: home's weekend lap (AF-156).
+const outlineSvg = (path, label, inner = '') =>
   path
     ? `<svg class="outline" width="${OUTLINE_PX}" height="${OUTLINE_PX}" viewBox="${OUTLINE_VIEWBOX}"${
         label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"'
-      }><path d="${esc(path)}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`
+      }><path d="${esc(path)}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>${inner}</svg>`
     : ''
+
+// components/Outline.jsx's WeekendLap (AF-156): lib/lap.js's layout at the
+// build's day, the next session's start in UTC, and its countdown's line
+// written empty for the app to fill in place.
+const weekendLapHtml = (race, lap) => {
+  if (!lap) return ''
+  const marks = `${
+    lap.run
+      ? `<path class="lap-run" d="${esc(lap.run)}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`
+      : ''
+  }${lap.stops
+    .map(
+      (stop) =>
+        `<g>${
+          stop.state === 'next'
+            ? `<circle class="lap-pulse" cx="${stop.x}" cy="${stop.y}" r="${stop.r}" vector-effect="non-scaling-stroke"/>`
+            : ''
+        }<circle class="lap-stop" data-state="${esc(stop.state)}" cx="${stop.x}" cy="${stop.y}" r="${stop.r}" vector-effect="non-scaling-stroke"/></g>`,
+    )
+    .join('')}`
+  const label = lapLabel(race.circuit, race.f1db_layout_id, lap)
+  const drawing = lap.strip
+    ? `<svg class="outline" width="${OUTLINE_PX}" height="${Math.round(OUTLINE_PX * 48 / 500)}" viewBox="${esc(lap.viewBox)}" role="img" aria-label="${esc(label)}"><path d="${STRIP_PATH}" fill="none" stroke="currentColor" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${marks}</svg>`
+    : outlineSvg(race.outline, label, marks)
+  const next = lap.next
+    ? `<span class="lap-next-word">${esc(NEXT_WORD)}</span><b>${esc(lap.next.name)}</b>${timeHtml(lap.next.start_utc, 'UTC')}<span class="lap-until">\u00a0</span>`
+    : `<b>${esc(ALL_STARTED)}</b>`
+  return `<figure class="${lap.strip ? 'lap lap-strip' : 'lap'}"><div class="lap-stage">${drawing}<p class="lap-next">${next}</p></div><figcaption>${esc(
+    lap.strip ? STRIP_NOTE : LAP_NOTE,
+  )}${lap.strip ? '' : `<br><span class="faint">${esc(OUTLINE_BY)}</span>`}</figcaption></figure>`
+}
 // The caption as HTML, for one that carries markup of its own (the home
 // page's dates, as a <time>); outlineCard below escapes a plain one.
 const outlineCardHtml = (path, circuit, layoutId, captionHtml, rule = false) =>
@@ -2669,6 +2703,7 @@ const TITLE = currentTitle(fightRows, META.built)
   // again at the reader's, and says what is true then.
   const cycleSessions = all(HOME_NEXT_SESSIONS)
   const cycle = homeCycle({ now, latest, next: upcoming, sessions: cycleSessions }, STATIC_NOW)
+  const lap = cycle.state === CYCLE.weekend ? lapLayout(upcoming.outline, cycleSessions, STATIC_NOW) : null
   const steps = cycle.state === CYCLE.results ? podium(all(PODIUM)) : null
   const reach =
     cycle.state === CYCLE.results && TITLE
@@ -2728,9 +2763,16 @@ const TITLE = currentTitle(fightRows, META.built)
         <p class="muted small">${raceDatesHtml(upcoming)} \u00b7 round ${esc(upcoming.round)}</p>${
           cycle.run ? `\n        <p>${dated(resultsPending(upcoming))}</p>` : ''
         }${
+          lap ? `\n        ${weekendLapHtml(upcoming, lap)}` : ''
+        }${
           cycleSessions.length
             ? `\n        <p class="muted small">${esc(sessionsClock(null))}</p><ol class="weekend-sessions">${cycleSessions
-                .map((s) => `<li><span>${esc(s.name)}</span>${timeHtml(s.start_utc, 'UTC')}</li>`)
+                .map((s, k) => {
+                  const state = lap?.stops[k]?.state
+                  return `<li${state ? ` data-state="${esc(state)}"` : ''}><span>${state ? '<i class="lap-mark" aria-hidden="true"></i>' : ''}${esc(s.name)}${
+                    state ? `<span class="sr-only">, ${esc(LAP_WORDS[state])}</span>` : ''
+                  }</span>${timeHtml(s.start_utc, 'UTC')}</li>`
+                })
                 .join('')}</ol>`
             : ''
         }${fightAhead(TITLE, upcoming) ? `\n        <p>${esc(fightAhead(TITLE, upcoming))}</p>` : ''}

@@ -655,9 +655,10 @@ main {
   height: var(--space-8);
 }
 
-/* The weekend's sessions, a plain list until part (b) draws the lap: the
-   name, and its start at the line's end, so a start written wider in the
-   reader's form than in the static page's moves nothing but itself. */
+/* The weekend's sessions, the words the lap stands for: each one's mark as
+   the lap draws it, its name, and its start at the line's end, so a start
+   written wider in the reader's form than in the static page's moves
+   nothing but itself. */
 .weekend-sessions {
   list-style: none;
   padding: 0;
@@ -669,6 +670,147 @@ main {
   gap: var(--space-6);
   padding: var(--space-2) 0;
   border-top: 1px solid var(--rule);
+}
+
+/* The weekend as a lap (AF-156; docs/design-system.md section 3, *Season
+   cycle*). The outline as the season strip draws a round to come - faint
+   and dashed - with the track drawn in, in ink, to the last session
+   started; a stop per session, run in ink, to come hollow, the next larger
+   with a ring that pulses, and stands still under prefers-reduced-motion.
+   Ink, not accent, as on the strip: the accent is for links and focus. The
+   next session's words sit in the middle of the drawing, over a halo of
+   the stage, so the track under them does not cut the letters. */
+.lap {
+  max-width: 320px; /* a drawing capped in its panel, as the season page's is on a phone */
+  margin: var(--space-5) 0 var(--space-4);
+}
+
+.lap-stage {
+  position: relative;
+}
+
+/* Its words under it, as an outline card's are. */
+.lap figcaption {
+  padding: var(--space-4) var(--space-1) 0;
+  font-size: var(--size-3);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.lap .outline {
+  color: var(--ink-faint);
+}
+
+.lap .outline > path:not(.lap-run) {
+  stroke-dasharray: 4 3;
+}
+
+.lap .outline .lap-run {
+  stroke: var(--ink);
+  stroke-width: 4;
+}
+
+.lap-stop {
+  fill: var(--stage);
+  stroke: var(--ink-faint);
+  stroke-width: 2;
+}
+
+.lap-stop[data-state='run'],
+.lap-stop[data-state='next'] {
+  fill: var(--ink);
+  stroke: var(--ink);
+}
+
+.lap-pulse {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lap-pulse 1.8s ease-out infinite;
+}
+
+@keyframes lap-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lap-pulse {
+    animation: none;
+    transform: scale(1.5);
+  }
+}
+
+.lap-next {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  text-align: center;
+  font-size: var(--size-3);
+  line-height: 1.3;
+  color: var(--ink);
+  text-shadow:
+    0 0 3px var(--stage),
+    0 0 3px var(--stage),
+    0 0 6px var(--stage);
+  pointer-events: none;
+}
+
+.lap-next b {
+  font-size: var(--size-4);
+  font-weight: var(--weight-semibold);
+}
+
+.lap-next-word,
+.lap-until {
+  color: var(--ink-soft);
+}
+
+/* A round with no drawing: the stops on a strip, the words under it in the
+   flow, every line written in both halves so none appears at the handover. */
+.lap-strip .outline {
+  aspect-ratio: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.lap-strip .lap-next {
+  position: static;
+  margin-top: var(--space-3);
+  text-shadow: none;
+}
+
+/* The list's mark for each session, the lap's stop in small. */
+.lap-mark {
+  display: inline-block;
+  width: 0.6em; /* a stop drawn at the text's size */
+  height: 0.6em;
+  margin-right: var(--space-3);
+  border: 2px solid var(--ink-faint);
+  border-radius: 50%;
+  vertical-align: 0.05em;
+}
+
+.weekend-sessions > li[data-state='run'] .lap-mark,
+.weekend-sessions > li[data-state='next'] .lap-mark {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.weekend-sessions > li[data-state='next'] {
+  font-weight: var(--weight-semibold);
 }
 
 .grid.wide {

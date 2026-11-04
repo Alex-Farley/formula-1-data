@@ -824,7 +824,7 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
-### Season cycle (A) — provisional (AF-135 #1141)
+### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250)
 
 Home's season block follows the calendar while the season being run has a
 round to come, in three states worked out from the database and a clock —
@@ -834,7 +834,7 @@ the reader's in the app, the build's day in the prerender (`homeCycle` in
 | State | When | The two panels, and what follows them |
 |---|---|---|
 | Preview | from the end of the results state to the next round's first session | *Last race run* and *Next on the calendar*, as before; the next circuit's *Where winners start* figure |
-| Weekend | from that first session (its first day, where it has no timetable) until the result is in the database | *Last race run* and *This weekend*: the round's sessions as a plain list, its start times in UTC on the static page and in the reader's time in the app; once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the history figure |
+| Weekend | from that first session (its first day, where it has no timetable) until the result is in the database | *Last race run* and *This weekend*: once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the **weekend lap**, and under it the round's sessions as a list, its start times in UTC on the static page and in the reader's time in the app; the history figure |
 | Results | from the result landing to the end of the third day after the race | the **podium** in place of the winner's sentence, and *Next on the calendar*; the reach chart of the first title still fought (AF-132's); the history figure |
 
 With no round to come, the block is as it was. Its parts are the system's
@@ -850,16 +850,39 @@ AF-133's grid — and two are new:
   tokens. A place held by two entries or by none is not drawn: the panel
   keeps its sentence. Race gaps are not shown: the database holds no
   race times (AF-157 #1252).
-- **The weekend list.** Each session's name, and its start at the line's
-  end, so a start written wider in the reader's form moves only itself. It
-  stands in for part (b)'s lap (AF-156 #1250).
+- **The weekend lap** (AF-156 #1250). The round's outline, `Outline`
+  itself with the marks as its children, so a drawing with stops on it is
+  still the one outline component (VD-92's), drawn faint and dashed as the
+  season strip draws a round to come. A stop per session, the k-th of n at
+  k/n of the way round from where F1DB's path begins, so the race closes
+  the lap; the track drawn in, in ink, to the last session started; a
+  started stop filled, one to come hollow, the next larger with a ring
+  that pulses and stands still under `prefers-reduced-motion`. Ink, not
+  accent, as on the strip. Inside the drawing, over a halo of `--stage`:
+  *Next*, the session's name, its start (UTC on the static page, the
+  reader's clock in the app) and how long until it, a line the static page
+  writes empty, so the app fills each line in place. The caption says the
+  spacing is order, not time, and that the drawing has no start line or
+  direction, then credits the outline as an outline card does. A round
+  with no drawing, or one `lib/lap.js` cannot read, gets the same stops on
+  a plain strip, its words under it in the flow. `lapLayout` in
+  `lib/lap.js` lays it out for both renderers from a clock it is given,
+  so the static page draws the build's day and the app the reader's, and
+  only the marks' state differs. Capped at 320 px in its panel.
+- **The weekend list.** The text the lap stands for: each session's mark
+  and state as the lap draws it (the state in words for a screen reader),
+  its name, and its start at the line's end, so a start written wider in
+  the reader's form moves only itself.
 
 The static page prints the state at the build's day, and the app the state
 at the reader's, so a page opened on a later day changes state at the
 handover; within one state nothing moves. `units.mjs` holds each state and
-both its edges on fixed clocks; `smoke.mjs` reads the app at the build's day
-where it compares the two halves of `/`, and checks each half draws the
-state its clock gives.
+both its edges on fixed clocks, and the lap a normal and a sprint
+weekend, the strip, and every outline the database holds; `smoke.mjs`
+reads the app at the build's day where it compares the two halves of `/`,
+checks each half draws the state and the lap its clock gives, and draws
+the app inside the next round's weekend on two fixed clocks at 400 px,
+holding its stops, track, list, ring, words and credit to `lapLayout`.
 
 ### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-100 #1023)
 
