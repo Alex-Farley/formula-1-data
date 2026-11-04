@@ -7110,7 +7110,11 @@ def derive_records(cur, leave_out=frozenset()):
         "races a driver won from the season's first before the first they did not win, "
         "whether or not they entered it. A run stops at the season's end, and a shared "
         "drive's win counts for both drivers. "
-        + held_by(lead, lambda r: f"{r[1]}, {from_round_one(r)}")
+        # One driver level with themself in two seasons has a value of years
+        # only, which held_by leaves to the value; the races go here instead.
+        + (held_by(lead, lambda r: f"{r[1]}, {from_round_one(r)}")
+           or ("Runs: " + "; ".join(from_round_one(r) for r in lead) + ". "
+               if len(lead) > 1 else ""))
         + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} ({from_round_one(r)})")
         + ".")
 
