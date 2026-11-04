@@ -41,6 +41,11 @@
  *     fonts.gstatic
  *   *.wikimedia.org      Commons photographs: Special:FilePath on commons,
  *                        the stored thumb_url addresses on upload and thumb
+ *   api.open-meteo.com   the race weekend's forecast on the home page
+ *                        (AF-143, src/lib/forecast.js), fetched by the app
+ *                        and never stored. That one host under connect-src
+ *                        and nowhere else: it answers JSON, and nothing it
+ *                        sends is run, drawn as markup or loaded as a file.
  *   data: images         the inline favicon in index.html
  *   'unsafe-inline'      style attributes, which prerender.js writes for a
  *     styles             livery colour or a plot's height. A style cannot
@@ -68,7 +73,7 @@ export const POLICY = [
   ['style-src', "'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
   ['font-src', "'self'", 'https://fonts.gstatic.com'],
   ['img-src', "'self'", 'data:', 'https://*.wikimedia.org'],
-  ['connect-src', "'self'", 'https://cloudflareinsights.com'],
+  ['connect-src', "'self'", 'https://cloudflareinsights.com', 'https://api.open-meteo.com'],
   ['worker-src', "'self'"],
   ['object-src', "'none'"],
   ['base-uri', "'self'"],

@@ -125,7 +125,8 @@ import {
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
 import { CAR_SOURCES, ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
-import { CYCLE, NEXT as HOME_NEXT, NEXT_SESSIONS as HOME_SESSIONS, PODIUM, SEASON_NOW, THIS_WEEKEND, homeCycle, podium } from '../src/queries/home.js'
+import { CYCLE, FORECAST_POINT, NEXT as HOME_NEXT, NEXT_SESSIONS as HOME_SESSIONS, PODIUM, SEASON_NOW, THIS_WEEKEND, homeCycle, podium } from '../src/queries/home.js'
+import { FORECAST_CREDIT, FORECAST_ORIGIN, FORECAST_LICENCE, forecastRequest, outlookDays, readForecast, sessionForecasts } from '../src/lib/forecast.js'
 import { LATEST as LATEST_RUN } from '../src/queries/races.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
 import { TILE_STRIP_NAME } from '../src/lib/tiles.js'
@@ -448,6 +449,11 @@ try {
         const text = message.text()
         if (/Content Security Policy/i.test(text) && !axeOwn(text)) refusals.push(`${message.page()?.url() ?? 'a worker'}: ${text}`)
       })
+      // AF-143: no tab in this run reaches Open-Meteo. A fetch the app makes
+      // to it is refused here, which is the refused fetch the home page must
+      // fail closed on; the home section answers it from forecastAnswer()
+      // where it reads a forecast, by a route registered after this one.
+      await opened.route(`${FORECAST_ORIGIN}/**`, (route) => route.abort())
       await opened.addInitScript(() =>
         document.addEventListener('securitypolicyviolation', (event) =>
           console.error(`Content Security Policy refused ${event.blockedURI || 'inline'} under ${event.effectiveDirective}`),
@@ -1640,6 +1646,114 @@ try {
         }
       } else {
         pass('/: the next round has fewer than three sessions, so the lap is held by units.mjs alone')
+      }
+    }
+
+    // AF-143: the forecast, the app's alone. The static page carries none,
+    // and the app shows one only where Open-Meteo answers: here, from
+    // forecastAnswer(), on fixed clocks inside the next round's weekend and
+    // two days before it, and nothing at all where the fetch is refused.
+    {
+      const FORECAST_MARKUP = /class="(?:weekend-forecast|forecast-days|forecast-credit)"/
+      truthy(!FORECAST_MARKUP.test(servedHome), 'the static home page carries no forecast')
+      const next = db.prepare(HOME_NEXT).get()
+      const sessions = db.prepare(HOME_SESSIONS).all()
+      const point = db.prepare(FORECAST_POINT).get() ?? null
+      // Made-up figures for whatever days are asked for, varied hour by hour
+      // and day by day, so a figure put against the wrong session or day
+      // reads differently from the right one.
+      const forecastAnswer = (url) => {
+        const q = new URL(url).searchParams
+        const days = []
+        for (let t = Date.parse(`${q.get('start_date')}T00:00Z`); t <= Date.parse(`${q.get('end_date')}T00:00Z`); t += 86400000) {
+          days.push(new Date(t).toISOString().slice(0, 10))
+        }
+        if (q.get('hourly')) {
+          const time = days.flatMap((d) => Array.from({ length: 24 }, (_, h) => `${d}T${String(h).padStart(2, '0')}:00`))
+          return {
+            hourly: {
+              time,
+              weather_code: time.map((_, i) => [0, 3, 61, 45][i % 4]),
+              temperature_2m: time.map((_, i) => 10 + (i % 17)),
+              precipitation_probability: time.map((_, i) => (i * 7) % 100),
+            },
+          }
+        }
+        return {
+          daily: {
+            time: days,
+            weather_code: days.map((_, i) => [1, 3, 80][i % 3]),
+            temperature_2m_max: days.map((_, i) => 20 + i),
+            precipitation_probability_max: days.map((_, i) => 10 * (i + 1)),
+          },
+        }
+      }
+      const readForecastOn = () => ({
+        sessions: [...document.querySelectorAll('#root main ol.weekend-sessions > li')].map((li) => li.querySelector('.weekend-forecast')?.textContent ?? null),
+        days: [...document.querySelectorAll('#root main ul.forecast-days > li')].map((li) => li.lastElementChild?.textContent ?? null),
+        credit: [...document.querySelectorAll('#root main .forecast-credit')].map((p) => ({
+          text: p.textContent,
+          links: [...p.querySelectorAll('a')].map((a) => a.getAttribute('href')),
+        })),
+        // Each line inside its panel at this width.
+        spills: [...document.querySelectorAll('#root main .weekend-forecast, #root main ul.forecast-days > li, #root main .forecast-credit')].filter(
+          (node) => node.getBoundingClientRect().right > (node.closest('.round-panel')?.getBoundingClientRect().right ?? Infinity) + 0.5,
+        ).length,
+      })
+      const plans = next && point && sessions.length >= 2
+        ? [
+            ['a minute after the first session starts', Date.parse(sessions[0].start_utc) + 60000, 320, 'answer'],
+            ['two days before the weekend', Date.parse(`${next.date_from ?? next.date_iso}T00:00Z`) - 2 * 86400000, 400, 'answer'],
+            ['a minute after the first session starts, with the fetch refused', Date.parse(sessions[0].start_utc) + 60000, 1280, 'refuse'],
+          ]
+        : []
+      if (plans.length === 0) pass('/: the next round has no point to ask a forecast for, or under two sessions, so the forecast is held by units.mjs alone')
+      for (const [when, clock, width, answer] of plans) {
+        const request = forecastRequest({ cycle: homeCycleAt(clock).state, next, sessions, point }, clock)
+        if (!request) {
+          pass(`/, ${when}: nothing is asked for at this clock`)
+          continue
+        }
+        const fixed = await browser.newContext({ viewport: { width, height: 900 }, locale: 'en-GB' })
+        await fixed.clock.setFixedTime(clock)
+        const asked = []
+        let routed
+        const reached = new Promise((resolve) => {
+          routed = resolve
+        })
+        await fixed.route(`${FORECAST_ORIGIN}/**`, async (route) => {
+          asked.push(route.request().url())
+          if (answer === 'refuse') await route.abort()
+          else await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(forecastAnswer(route.request().url())) })
+          routed()
+        })
+        const tab = await fixed.newPage()
+        await tab.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+        await tab.waitForSelector('#root main .board.index', { timeout: 60000 })
+        await Promise.race([reached, new Promise((resolve) => setTimeout(resolve, 15000))])
+        if (answer === 'answer') await tab.waitForSelector('#root main .forecast-credit', { timeout: 15000 }).catch(() => null)
+        else await tab.waitForTimeout(500)
+        const got = await tab.evaluate(readForecastOn)
+        await fixed.close()
+        is(asked.join(' '), request.url, `/, ${when}: the app asks Open-Meteo once, for what forecastRequest() names`)
+        if (answer === 'refuse') {
+          is(JSON.stringify(got), JSON.stringify({ sessions: sessions.map(() => null), days: [], credit: [], spills: 0 }), `/, ${when}: a refused fetch shows nothing, not even the credit`)
+          continue
+        }
+        const rows = readForecast(forecastAnswer(request.url), request)
+        const expected =
+          request.kind === 'sessions'
+            ? { sessions: sessionForecasts(rows, sessions, request.zone, clock).map((f) => f?.text ?? null), days: [] }
+            : { sessions: [], days: outlookDays(rows, request.days).map((line) => line.text) }
+        truthy([...expected.sessions, ...expected.days].some(Boolean), `/, ${when}: the made-up answer gives something to show`)
+        is(JSON.stringify({ sessions: got.sessions, days: got.days }), JSON.stringify(expected), `/, ${when}: each figure stands against its own session or day`)
+        is(got.credit.length, 1, `/, ${when}: the credit stands once, beside the figures`)
+        truthy(
+          got.credit[0]?.text.startsWith('Forecast · Open-Meteo (CC BY 4.0) · updated ') &&
+            got.credit[0].links.join(' ') === `${FORECAST_CREDIT.href} ${FORECAST_LICENCE.href}`,
+          `/, ${when}: and names Open-Meteo and the licence, each linked, and when it came — ${got.credit[0]?.text}`,
+        )
+        is(got.spills, 0, `/, ${when}: every line stays inside its panel at ${width} px`)
       }
     }
   })

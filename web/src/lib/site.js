@@ -291,12 +291,21 @@ export const ENTRIES_NOTE =
  *
  *     PD-50 (#581) is the mechanism that would let the shorter claim back:
  *     strip the reader's own parameters before the beacon executes.
+ *
+ * AMENDED 2026-11-04, because home now shows a race weekend's forecast
+ *     (AF-143), which the reader's browser asks Open-Meteo for: a fourth
+ *     host that learns the reader's address, sent only from the home page,
+ *     and only from a week before a weekend's first day until its last
+ *     session starts (lib/forecast.js says when). It is sent the circuit's
+ *     point, never the reader's, and no referrer.
  */
 export const IN_THIS_TAB =
   'Every page here is a query against one SQLite file, running in this tab: nothing you search ' +
-  'for, sort or type is sent as you do it. Three things leave: the address you arrive on, counted ' +
+  'for, sort or type is sent as you do it. Four things leave: the address you arrive on, counted ' +
   'once and without cookies by Cloudflare; the photographs, from Wikimedia Commons as you reach ' +
-  'them; and the fonts, from Google. Moving between pages counts nothing further — but a search, ' +
+  'them; the fonts, from Google; and, when the home page is open in the week before a race ' +
+  'weekend or during it, a request to Open-Meteo for the forecast at the circuit. Moving between ' +
+  'pages counts nothing further — but a search, ' +
   'a filter or a SQL statement is kept in the address, so arriving at one of those, by reload or ' +
   'by a link, hands it over with the page. Once it has loaded, this tab keeps working without a ' +
   'network.'

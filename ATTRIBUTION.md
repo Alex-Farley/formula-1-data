@@ -262,6 +262,14 @@ whole local day, and not a measurement at the track; say so wherever they are
 shown. Whether a race was wet or dry is not taken from them: that is the race
 article's report, in `race_weather_reported`, under *Wikipedia* above.
 
+The race weekend forecast on the site's home page (AF-143) is not in the
+database and is not published with it. The reader's browser asks
+Open-Meteo's forecast API for it while the page is open, at the point
+`race_weather_modelled` holds for the circuit, and the page shows it with
+*Forecast · Open-Meteo (CC BY 4.0)* beside the figures, both names linked;
+nothing of it is stored. The free API's non-commercial term governs those
+calls as it does the harvest's.
+
 ### OpenStreetMap — ODbL 1.0, and why it ships in a file of its own
 
 `circuit_geometry` holds circuit centrelines traced from OpenStreetMap, which

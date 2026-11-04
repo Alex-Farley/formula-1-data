@@ -452,6 +452,23 @@ export function homeCycle({ now, latest, next, sessions = [] }, clock) {
   return { state: CYCLE.preview, run: false }
 }
 
+/**
+ * Where the next round's forecast is asked for (AF-143, lib/forecast.js):
+ * the point race_weather_modelled holds for its circuit - F1DB's
+ * coordinates, and the zone its day is read in - from the latest race
+ * there with a modelled day. No row at a circuit none of whose races has
+ * one, and then no forecast.
+ */
+export const FORECAST_POINT = `
+  SELECT w.latitude, w.longitude, w.timezone
+    FROM race_weather_modelled w
+    JOIN races r ON r.id = w.race_id
+   WHERE r.circuit_id = (SELECT n.circuit_id FROM races n
+                          WHERE n.year = ${CURRENT_SEASON_SQL} AND n.status = 'scheduled'
+                          ORDER BY n.round LIMIT 1)
+   ORDER BY r.year DESC, r.round DESC LIMIT 1
+`
+
 export const THIS_WEEKEND = 'This weekend'
 
 /**
