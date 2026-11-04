@@ -23,9 +23,9 @@ import { FIGHT_QUERIES, currentTitle, fightAhead, reachFigures, teamsByDriver } 
 import { readerZone, until } from '../queries/sessions.js'
 import { LAP_WORDS, lapLayout } from '../lib/lap.js'
 import {
-  FORECAST_CREDIT,
   FORECAST_LICENCE,
   FORECAST_WORD,
+  FRESH_MS,
   dayName,
   forecastRequest,
   loadForecast,
@@ -34,7 +34,7 @@ import {
   sessionForecasts,
   updatedAt,
 } from '../lib/forecast.js'
-import { WEATHER_MARKS } from '../queries/race.js'
+import { WEATHER_CREDIT, WEATHER_MARKS } from '../queries/race.js'
 import {
   CYCLE,
   FIGHT_TEAMS,
@@ -131,25 +131,30 @@ function Podium({ steps }) {
  * Open-Meteo's answer for a forecastRequest() (AF-143), once it has come:
  * `{ json, at }`, or null while it is coming, where it failed, and where
  * nothing is asked for. Fetched in the browser after the page has drawn,
- * never by the prerenderer, so the static page has no forecast.
+ * never by the prerenderer, so the static page has no forecast. Asked for
+ * again each FRESH_MS of `clock`, so a page left open does not keep an old
+ * answer; a failed fetch then clears the old one rather than leave it up.
  */
-function useForecast(request) {
+function useForecast(request, clock) {
   const url = request?.url ?? null
+  const period = Math.floor(clock / FRESH_MS)
   const [answer, setAnswer] = useState(null)
   useEffect(() => {
     if (!url) return undefined
     let live = true
-    loadForecast(url).then(
+    loadForecast(url, undefined, period * FRESH_MS).then(
       (got) => {
         if (live) setAnswer({ url, ...got })
       },
       // Fails closed: a refused or failed fetch shows nothing.
-      () => {},
+      () => {
+        if (live) setAnswer(null)
+      },
     )
     return () => {
       live = false
     }
-  }, [url])
+  }, [url, period])
   return answer && answer.url === url ? answer : null
 }
 
@@ -168,13 +173,13 @@ function ForecastFigure({ figure, className }) {
 }
 
 /** The credit Open-Meteo asks for, beside its figures, with when they came. */
-function ForecastCredit({ at, zone }) {
-  const updated = updatedAt(at, zone)
+function ForecastCredit({ at, zone, clock }) {
+  const updated = updatedAt(at, zone, undefined, clock)
   return (
     <p className="forecast-credit muted small">
       {FORECAST_WORD} ·{' '}
-      <a href={FORECAST_CREDIT.href} target="_blank" rel="noreferrer noopener">
-        {FORECAST_CREDIT.text}
+      <a href={WEATHER_CREDIT.href} target="_blank" rel="noreferrer noopener">
+        {WEATHER_CREDIT.text}
       </a>{' '}
       (
       <a href={FORECAST_LICENCE.href} target="_blank" rel="noreferrer noopener">
@@ -190,8 +195,8 @@ function ForecastCredit({ at, zone }) {
  * the days Open-Meteo gave a figure for, and nothing at all where it gave
  * none or the fetch failed.
  */
-function Outlook({ request, zone }) {
-  const answer = useForecast(request)
+function Outlook({ request, zone, clock }) {
+  const answer = useForecast(request, clock)
   const lines = answer ? outlookDays(readForecast(answer.json, request), request.days) : []
   if (lines.length === 0) return null
   return (
@@ -204,7 +209,7 @@ function Outlook({ request, zone }) {
           </li>
         ))}
       </ul>
-      <ForecastCredit at={answer.at} zone={zone} />
+      <ForecastCredit at={answer.at} zone={zone} clock={clock} />
     </>
   )
 }
@@ -216,7 +221,7 @@ function Outlook({ request, zone }) {
  * to start (AF-143), under it.
  */
 function WeekendSessions({ sessions, lap, zone, request, clock }) {
-  const answer = useForecast(request)
+  const answer = useForecast(request, clock)
   const forecasts = answer ? sessionForecasts(readForecast(answer.json, request), sessions, request.zone, clock) : []
   return (
     <>
@@ -238,7 +243,7 @@ function WeekendSessions({ sessions, lap, zone, request, clock }) {
           )
         })}
       </ol>
-      {forecasts.some(Boolean) && <ForecastCredit at={answer.at} zone={zone} />}
+      {forecasts.some(Boolean) && <ForecastCredit at={answer.at} zone={zone} clock={clock} />}
     </>
   )
 }
@@ -440,7 +445,7 @@ export default function Home() {
                             <RaceDates race={next} /> · round {next.round}
                           </p>
                           <p className="muted">{stillToRunNote(now)}</p>
-                          {forecast && <Outlook request={forecast} zone={zone} />}
+                          {forecast && <Outlook request={forecast} zone={zone} clock={clock} />}
                           {ahead && <p>{ahead}</p>}
                           <p>
                             <Link to={`/seasons/${next.year}`}>{calendarLink(next.year)}</Link>

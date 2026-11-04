@@ -30,7 +30,14 @@
  *     and no stale value: a figure is printed only where Open-Meteo gave it,
  *     and a line with none is not drawn.
  *
- * CREDITED BESIDE THE DATA, as Open-Meteo's terms ask (FORECAST_CREDIT).
+ * CREDITED BESIDE THE DATA, as Open-Meteo's terms ask: queries/race.js's
+ * WEATHER_CREDIT, the one link to Open-Meteo the race page's weather line
+ * gives too, and FORECAST_LICENCE.
+ *
+ * KEPT FRESH (the first review on #1261). An answer is kept for FRESH_MS and
+ * then asked for again, so a tab left open through a weekend does not show
+ * Friday's forecast on Sunday; and the credit names the day it came where
+ * that is not the reader's today.
  */
 import { readerLocale, zonedIso } from './format.js'
 
@@ -44,9 +51,11 @@ export const OUTLOOK_DAYS = 7
 const DAY_MS = 24 * 60 * 60 * 1000
 const HALF_HOUR_MS = 30 * 60 * 1000
 
-/** The words before the credit's link, and the link Open-Meteo asks for. */
+/** How long an answer is kept before it is asked for again: three hours. */
+export const FRESH_MS = 3 * 60 * 60 * 1000
+
+/** The word before the credit's link, and the licence it names. */
 export const FORECAST_WORD = 'Forecast'
-export const FORECAST_CREDIT = { text: 'Open-Meteo', href: 'https://open-meteo.com/' }
 export const FORECAST_LICENCE = { text: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' }
 
 /**
@@ -216,11 +225,17 @@ export function dayName(day, locale = readerLocale()) {
   }
 }
 
-/** "14:05": when the answer came, on the reader's clock (UTC where the browser names no zone). */
-export function updatedAt(at, zone, locale = readerLocale()) {
+/**
+ * "14:05": when the answer came, on the reader's clock (UTC where the
+ * browser names no zone), in the locale's own short time - "00:05" in
+ * en-GB, "12:05 AM" in en-US. Where it came on an earlier day than `now`
+ * on that clock, the day is given too: "3 Nov 2026, 14:05".
+ */
+export function updatedAt(at, zone, locale = readerLocale(), now = at) {
   if (!finite(at)) return null
-  // The locale's own short time: "00:05" in en-GB, "12:05 AM" in en-US.
-  const options = { timeStyle: 'short', timeZone: zone ?? 'UTC' }
+  const timeZone = zone ?? 'UTC'
+  const day = (ms) => zonedIso(new Date(ms).toISOString(), timeZone)?.slice(0, 10)
+  const options = finite(now) && day(now) !== day(at) ? { dateStyle: 'medium', timeStyle: 'short', timeZone } : { timeStyle: 'short', timeZone }
   try {
     return new Intl.DateTimeFormat(locale, options).format(at)
   } catch {
@@ -229,25 +244,29 @@ export function updatedAt(at, zone, locale = readerLocale()) {
 }
 
 /*
- * One request per address for the visit: the promise is kept, so a page left
- * open, or opened again, asks once. A failure is kept too, so a refused host
- * is not asked again on every visit to the page.
+ * One request per address in each FRESH_MS of the visit: the promise is
+ * kept, so the page opened again, or re-rendered, asks once. A failure is
+ * kept too, so a refused host is not asked again on every return to the
+ * page.
  */
 const answers = new Map()
 
 /**
  * Open-Meteo's answer for `url` and when it came, `{ json, at }`; rejects on
- * any failure. The request carries no credentials and no referrer.
+ * any failure. The request carries no credentials and no referrer. `now` is
+ * when it is wanted: an answer asked for FRESH_MS or more before it is
+ * asked for again.
  */
-export function loadForecast(url, fetcher = globalThis.fetch) {
-  if (!answers.has(url)) {
-    answers.set(
-      url,
-      fetcher(url, { credentials: 'omit', referrerPolicy: 'no-referrer' }).then(async (response) => {
+export function loadForecast(url, fetcher = globalThis.fetch, now = Date.now()) {
+  const kept = answers.get(url)
+  if (!kept || now - kept.asked >= FRESH_MS) {
+    answers.set(url, {
+      asked: now,
+      answer: fetcher(url, { credentials: 'omit', referrerPolicy: 'no-referrer' }).then(async (response) => {
         if (!response.ok) throw new Error(`forecast: ${response.status}`)
         return { json: await response.json(), at: Date.now() }
       }),
-    )
+    })
   }
-  return answers.get(url)
+  return answers.get(url).answer
 }

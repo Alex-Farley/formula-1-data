@@ -126,7 +126,7 @@ import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons
 import { CAR_SOURCES, ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
 import { CYCLE, FORECAST_POINT, NEXT as HOME_NEXT, NEXT_SESSIONS as HOME_SESSIONS, PODIUM, SEASON_NOW, THIS_WEEKEND, homeCycle, podium } from '../src/queries/home.js'
-import { FORECAST_CREDIT, FORECAST_ORIGIN, FORECAST_LICENCE, forecastRequest, outlookDays, readForecast, sessionForecasts } from '../src/lib/forecast.js'
+import { FORECAST_ORIGIN, FORECAST_LICENCE, forecastRequest, outlookDays, readForecast, sessionForecasts } from '../src/lib/forecast.js'
 import { LATEST as LATEST_RUN } from '../src/queries/races.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
 import { TILE_STRIP_NAME } from '../src/lib/tiles.js'
@@ -1750,7 +1750,7 @@ try {
         is(got.credit.length, 1, `/, ${when}: the credit stands once, beside the figures`)
         truthy(
           got.credit[0]?.text.startsWith('Forecast · Open-Meteo (CC BY 4.0) · updated ') &&
-            got.credit[0].links.join(' ') === `${FORECAST_CREDIT.href} ${FORECAST_LICENCE.href}`,
+            got.credit[0].links.join(' ') === `${WEATHER_CREDIT.href} ${FORECAST_LICENCE.href}`,
           `/, ${when}: and names Open-Meteo and the licence, each linked, and when it came — ${got.credit[0]?.text}`,
         )
         is(got.spills, 0, `/, ${when}: every line stays inside its panel at ${width} px`)

@@ -889,7 +889,9 @@ AF-133's grid — and these are new:
   and *Clear · High of 24 °C · up to 10% rain*. Both in `--size-4` and
   the soft ink, and under them, beside the figures, the credit Open-Meteo
   asks for: *Forecast · Open-Meteo (CC BY 4.0) · updated 14:05*, each
-  name linked, the time on the reader's clock. **The app's alone, by the
+  name linked, the time on the reader's clock, with its day where the
+  answer came on an earlier one. An answer is asked for again after three
+  hours, so a page left open does not keep an old one. **The app's alone, by the
   item's ruling**: the static page has none, so the lines arrive after
   the handover, when the answer does, and are the one part of the block
   that moves within a state. **It fails closed**: a refused or failed

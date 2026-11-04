@@ -257,6 +257,7 @@ import { unestablished } from '../src/lib/tiles.js'
 import { LAP_NEXT, LAP_RUN, LAP_TO_COME, flatten, lapLabel, lapLayout } from '../src/lib/lap.js'
 import {
   FORECAST_ENDPOINT,
+  FRESH_MS,
   OUTLOOK_DAYS,
   dayName,
   forecastRequest,
@@ -4864,6 +4865,12 @@ describe('the race weekend forecast (AF-143)', () => {
     // ICU writes the space before PM as a narrow no-break space, or as a plain one in older versions.
     assert.match(updatedAt(Date.UTC(2026, 10, 4, 14, 5), 'UTC', 'en-US'), /^2:05\sPM$/)
     assert.equal(updatedAt(null, 'UTC', 'en-GB'), null)
+    // An answer from an earlier day, on the reader's clock, names its day.
+    const came = Date.UTC(2026, 10, 6, 14, 5)
+    assert.equal(updatedAt(came, 'UTC', 'en-GB', came + 11 * 3600000), '6 Nov 2026, 14:05')
+    assert.equal(updatedAt(came, 'UTC', 'en-GB', came + 3600000), '14:05')
+    // 14:05 UTC on the 6th is 03:05 on the 7th in Auckland, and eleven hours on it is still the 7th there.
+    assert.equal(updatedAt(came, 'Pacific/Auckland', 'en-GB', came + 11 * 3600000), '03:05')
   })
 
   it('fetches once an address for the visit, with no credentials and no referrer, and fails on a refusal', async () => {
@@ -4881,5 +4888,12 @@ describe('the race weekend forecast (AF-143)', () => {
     await assert.rejects(loadForecast('https://example.test/refused', fetcher), /429/)
     await assert.rejects(loadForecast('https://example.test/refused', fetcher), /429/)
     assert.equal(calls.length, 2, 'a failure is not asked for again in the same visit')
+    // And an answer is asked for again once it is FRESH_MS old, not before.
+    const t = 1_000_000_000_000
+    await loadForecast('https://example.test/later-ok', fetcher, t)
+    await loadForecast('https://example.test/later-ok', fetcher, t + FRESH_MS - 1)
+    assert.equal(calls.length, 3)
+    await loadForecast('https://example.test/later-ok', fetcher, t + FRESH_MS)
+    assert.equal(calls.length, 4, 'an answer FRESH_MS old is asked for again')
   })
 })
