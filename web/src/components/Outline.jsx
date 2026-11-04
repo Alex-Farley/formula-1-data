@@ -133,11 +133,13 @@ export function WinnerMark({ round, year }) {
  * outline - the track in to the last session started, a stop per session,
  * the next one's ring pulsing (still under prefers-reduced-motion, app.css)
  * - with the next session's name, its start on the reader's clock and how
- * long until it inside the drawing. A round with no drawing gets the same
- * stops on a strip, the words under it. scripts/prerender.js draws the same
- * marks from the same layout at the build's day; the words' lines are
- * always written, the countdown's empty there, so the app changes them in
- * place. The list of sessions beside it is the text the drawing stands for.
+ * long until it on the drawing's ground, under the outline rather than over
+ * it, where the stops and the track would cut the letters on most circuits.
+ * A round with no drawing gets the same stops on a strip, the same words
+ * under it. scripts/prerender.js draws the same marks from the same layout
+ * at the build's day; the words' three lines are always written, the
+ * countdown's empty there and both empty once every session has started, so
+ * the app changes them in place and the block keeps its height. The list of sessions beside it is the text the drawing stands for.
  */
 export function WeekendLap({ race, lap, zone, until }) {
   if (!lap) return null
@@ -157,13 +159,21 @@ export function WeekendLap({ race, lap, zone, until }) {
     <p className="lap-next">
       {lap.next ? (
         <>
-          <span className="lap-next-word">{NEXT_WORD}</span>
-          <b>{lap.next.name}</b>
-          <TimeText iso={lap.next.start_utc} zone={zone ?? 'UTC'} />
+          <span>
+            {NEXT_WORD}
+            <b>{lap.next.name}</b>
+          </span>
+          <span>
+            <TimeText iso={lap.next.start_utc} zone={zone ?? 'UTC'} />
+          </span>
           <span className="lap-until">{until ?? '\u00a0'}</span>
         </>
       ) : (
-        <b>{ALL_STARTED}</b>
+        <>
+          <span>{ALL_STARTED}</span>
+          <span>{'\u00a0'}</span>
+          <span className="lap-until">{'\u00a0'}</span>
+        </>
       )}
     </p>
   )

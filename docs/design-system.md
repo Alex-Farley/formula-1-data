@@ -858,10 +858,14 @@ AF-133's grid — and two are new:
   the lap; the track drawn in, in ink, to the last session started; a
   started stop filled, one to come hollow, the next larger with a ring
   that pulses and stands still under `prefers-reduced-motion`. Ink, not
-  accent, as on the strip. Inside the drawing, over a halo of `--stage`:
-  *Next*, the session's name, its start (UTC on the static page, the
-  reader's clock in the app) and how long until it, a line the static page
-  writes empty, so the app fills each line in place. The caption says the
+  accent, as on the strip. Under the outline, on the drawing's ground and
+  not over the track: *Next:* and the session's name, its start (UTC on the
+  static page, the reader's clock in the app) and how long until it, a line
+  the static page writes empty, so the app fills each of the three lines in
+  place and the block keeps its height. AF-156 asked for the words inside
+  the outline; laid over the drawing, a stop or the track crossed them on
+  most of 2026's circuits (the first review on #1258), so they stand under
+  it. The caption says the
   spacing is order, not time, and that the drawing has no start line or
   direction, then credits the outline as an outline card does. A round
   with no drawing, or one `lib/lap.js` cannot read, gets the same stops on

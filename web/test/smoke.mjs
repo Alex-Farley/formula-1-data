@@ -1581,12 +1581,12 @@ try {
       const sessions = db.prepare(HOME_SESSIONS).all()
       if (next && sessions.length >= 3) {
         const second = Date.parse(sessions[1].start_utc)
-        for (const [when, clock, motion] of [
-          ['an hour after the second session starts', second + 3600000, 'reduce'],
-          ['once every session has started', Date.parse(sessions.at(-1).start_utc) + 60000, 'no-preference'],
+        for (const [when, clock, motion, width] of [
+          ['an hour after the second session starts', second + 3600000, 'reduce', 320],
+          ['once every session has started', Date.parse(sessions.at(-1).start_utc) + 60000, 'no-preference', 400],
         ]) {
           const lap = lapLayout(next.outline ?? null, sessions, clock)
-          const fixed = await browser.newContext({ viewport: { width: 400, height: 900 }, locale: 'en-GB', reducedMotion: motion })
+          const fixed = await browser.newContext({ viewport: { width, height: 900 }, locale: 'en-US', reducedMotion: motion })
           await fixed.clock.setFixedTime(clock)
           const tab = await fixed.newPage()
           await tab.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
@@ -1604,7 +1604,25 @@ try {
               until: figure?.querySelector('.lap-until')?.textContent ?? null,
               credit: figure?.querySelector('figcaption')?.textContent ?? '',
               marks: [...document.querySelectorAll('#root main ol.weekend-sessions > li')].map((li) => li.getAttribute('data-state')),
-              inside: figure && panel ? figure.getBoundingClientRect().right <= panel.getBoundingClientRect().right + 0.5 : false,
+              // The words stand under the drawing, clear of every stop and
+              // ring, and inside the figure, each line unclipped.
+              clear: (() => {
+                const words = figure?.querySelector('.lap-next')
+                const svg = figure?.querySelector('svg')
+                if (!words || !svg || !panel) return 'no words or no drawing'
+                const w = words.getBoundingClientRect()
+                const hits = [...figure.querySelectorAll('circle')].filter((c) => {
+                  const r = c.getBoundingClientRect()
+                  return r.right > w.left && r.left < w.right && r.bottom > w.top && r.top < w.bottom
+                })
+                const f = figure.getBoundingClientRect()
+                const clipped = [...words.children].filter((line) => line.scrollWidth > line.clientWidth + 0.5 || line.getBoundingClientRect().right > f.right + 0.5)
+                if (svg.getBoundingClientRect().bottom > w.top + 0.5) return 'the words overlap the drawing'
+                if (hits.length) return `${hits.length} stop(s) under the words`
+                if (clipped.length) return `${clipped.length} line(s) clipped`
+                if (f.right > panel.getBoundingClientRect().right + 0.5) return 'the figure leaves its panel'
+                return ''
+              })(),
             }
           })
           await fixed.close()
@@ -1614,11 +1632,11 @@ try {
           is(got.pulses, lap.next ? 1 : 0, `/, ${when}: one ring for the next session, and none once every one has started`)
           if (lap.next) {
             is(got.animation, motion === 'reduce' ? 'none' : 'lap-pulse', `/, ${when}: the ring stands still under prefers-reduced-motion`)
-            is(got.next, lap.next.name, `/, ${when}: the next session is named inside the drawing`)
+            is(got.next, lap.next.name, `/, ${when}: the next session is named under the drawing`)
             is(got.until, until(lap.next.start_utc, clock), `/, ${when}: with how long until it`)
           }
           truthy(lap.strip || got.credit.includes('drawn by Jules Roy'), `/, ${when}: the outline is credited`)
-          truthy(got.inside, `/, ${when}: the lap stays inside its panel at 400 px`)
+          is(got.clear, '', `/, ${when}: the words stand under the drawing at ${width} px, clear of the stops, unclipped, inside the panel`)
         }
       } else {
         pass('/: the next round has fewer than three sessions, so the lap is held by units.mjs alone')

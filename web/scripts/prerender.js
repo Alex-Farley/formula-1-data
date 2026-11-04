@@ -1702,7 +1702,9 @@ const outlineSvg = (path, label, inner = '') =>
 
 // components/Outline.jsx's WeekendLap (AF-156): lib/lap.js's layout at the
 // build's day, the next session's start in UTC, and its countdown's line
-// written empty for the app to fill in place.
+// written empty for the app to fill in place. The strip's width and height
+// are its viewBox's 500:48 halved, so its box is the app's before and after
+// app.css arrives.
 const weekendLapHtml = (race, lap) => {
   if (!lap) return ''
   const marks = `${
@@ -1721,11 +1723,11 @@ const weekendLapHtml = (race, lap) => {
     .join('')}`
   const label = lapLabel(race.circuit, race.f1db_layout_id, lap)
   const drawing = lap.strip
-    ? `<svg class="outline" width="${OUTLINE_PX}" height="${Math.round(OUTLINE_PX * 48 / 500)}" viewBox="${esc(lap.viewBox)}" role="img" aria-label="${esc(label)}"><path d="${STRIP_PATH}" fill="none" stroke="currentColor" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${marks}</svg>`
+    ? `<svg class="outline" width="250" height="24" viewBox="${esc(lap.viewBox)}" role="img" aria-label="${esc(label)}"><path d="${STRIP_PATH}" fill="none" stroke="currentColor" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${marks}</svg>`
     : outlineSvg(race.outline, label, marks)
   const next = lap.next
-    ? `<span class="lap-next-word">${esc(NEXT_WORD)}</span><b>${esc(lap.next.name)}</b>${timeHtml(lap.next.start_utc, 'UTC')}<span class="lap-until">\u00a0</span>`
-    : `<b>${esc(ALL_STARTED)}</b>`
+    ? `<span>${esc(NEXT_WORD)}<b>${esc(lap.next.name)}</b></span><span>${timeHtml(lap.next.start_utc, 'UTC')}</span><span class="lap-until">\u00a0</span>`
+    : `<span>${esc(ALL_STARTED)}</span><span>\u00a0</span><span class="lap-until">\u00a0</span>`
   return `<figure class="${lap.strip ? 'lap lap-strip' : 'lap'}"><div class="lap-stage">${drawing}<p class="lap-next">${next}</p></div><figcaption>${esc(
     lap.strip ? STRIP_NOTE : LAP_NOTE,
   )}${lap.strip ? '' : `<br><span class="faint">${esc(OUTLINE_BY)}</span>`}</figcaption></figure>`

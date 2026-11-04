@@ -42,10 +42,10 @@ export const LAP_NOTE =
 /** Under the strip, for a round with no drawing. */
 export const STRIP_NOTE = 'The weekend’s sessions in the order they are run, drawn in as each one starts. No outline of this round’s layout is held.'
 
-/** The line inside the lap over the next session's name. */
-export const NEXT_WORD = 'Next'
+/** Before the next session's name, in the words under the lap. */
+export const NEXT_WORD = 'Next: '
 
-/** Inside the lap once every session has started. */
+/** The words under the lap once every session has started. */
 export const ALL_STARTED = 'Every session has started'
 
 const NUMBER = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/y
