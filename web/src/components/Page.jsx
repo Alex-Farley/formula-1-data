@@ -413,7 +413,10 @@ export function Fields({ items }) {
  * carries it as a title for the reader who hovers.
  */
 export function Confidence({ value, plain = false }) {
-  if (!value) return null
+  // A tier nobody recorded is not established, which the static half prints as
+  // an em dash (`text`, in scripts/prerender.js and the quality page's columns)
+  // - so the app prints one too, rather than an empty cell (CR-25).
+  if (missing(value)) return <span className="empty">{EMPTY}</span>
   // `plain` is for the quality page itself, where a link to the page the
   // reader is on would be a no-op dressed as a way forward.
   if (plain) return <span className={`pill pill-${String(value).toLowerCase()}`}>{value}</span>

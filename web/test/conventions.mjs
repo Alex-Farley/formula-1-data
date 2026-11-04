@@ -2730,3 +2730,21 @@ describe('the chart ink stays apart from the accent for a colour-blind reader (V
     })
   }
 })
+
+describe('a confidence tier nobody recorded prints an em dash, as the static half does (CR-25)', () => {
+  // Page.jsx is JSX, which node cannot import, so the component is read as
+  // text: the function from its signature to the first closing brace in
+  // column 0.
+  const source = readFileSync(join(web, 'src', 'components', 'Page.jsx'), 'utf8')
+  const start = source.indexOf('export function Confidence(')
+  const body = source.slice(start, source.indexOf('\n}\n', start))
+
+  it('finds the component', () => {
+    assert.ok(start >= 0 && body.length > 100, 'Confidence is not where this test reads it')
+  })
+
+  it('draws EMPTY for a missing value rather than nothing', () => {
+    assert.match(body, /if \(missing\(value\)\) return <span className="empty">\{EMPTY\}<\/span>/)
+    assert.doesNotMatch(body, /return null/)
+  })
+})
