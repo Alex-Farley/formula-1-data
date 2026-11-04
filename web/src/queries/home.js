@@ -23,8 +23,13 @@
  *     is split around it, as UNCHECKED_NOTE and ABOUT_REPOSITORY already are
  *     in lib/site.js, so the words are still decided once.
  */
-import { number, raceDates } from '../lib/format.js'
+import { number, ordinal, raceDates } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
+import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
+import { STARTS } from './circuit.js'
+import { DRIVER_TEAMS } from './season.js'
+import { raceStage } from './sessions.js'
 
 /** The counts the opening strip and the board are built from. */
 export const SHAPE = `
@@ -73,7 +78,7 @@ export const PER_SEASON = `
 export const NEXT = `
   WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
   SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to,
-         c.name AS circuit, r.f1db_layout_id, o.path AS outline
+         r.circuit_id, c.name AS circuit, r.f1db_layout_id, o.path AS outline
     FROM races r
     JOIN now n ON r.year = n.year
     LEFT JOIN circuits c ON c.id = r.circuit_id
@@ -386,3 +391,136 @@ export const reading = (shape) => [
     link: { to: '/data/quality', text: `${number(shape.gaps)} open gaps` },
   },
 ]
+
+/* ------------------------------------------------------------ the season cycle
+ *
+ * AF-135, part (a): during a season the block under the season's tiles
+ * follows the calendar, in three states, worked out from the data and a
+ * clock - the reader's in the app, the build's own day in the prerender
+ * (scripts/prerender.js's STATIC_NOW), so each half says what is true at
+ * its clock and the app corrects the static page the moment it opens.
+ *
+ *   preview   the last race run and the next round, as the block always
+ *             said, with the next circuit's history under them
+ *   weekend   from the next round's first session to its result landing:
+ *             its sessions with their times; once the race itself is over
+ *             and the database does not hold it yet, a line saying so
+ *   results   from a result landing until RESULTS_DAYS after its race:
+ *             the podium, the title fight's reach chart, and the next round
+ *   off       no round of the season being run is still to come: the block
+ *             as it was, the last race and the season complete
+ */
+
+/** Days after a race's day (`date_iso`, UTC) its podium leads the block. */
+export const RESULTS_DAYS = 3
+const DAY_MS = 24 * 60 * 60 * 1000
+
+export const CYCLE = { off: 'off', preview: 'preview', weekend: 'weekend', results: 'results' }
+
+/** The sessions of NEXT's round: the next round of the season being run. */
+export const NEXT_SESSIONS = `
+  SELECT s.kind, s.name, s.start_utc, s.zone
+    FROM sessions s
+   WHERE s.race_id = (SELECT r.id FROM races r
+                       WHERE r.year = ${CURRENT_SEASON_SQL} AND r.status = 'scheduled'
+                       ORDER BY r.round LIMIT 1)
+   ORDER BY s.start_utc
+`
+
+/**
+ * Where the block stands at `clock` (milliseconds). `now`, `latest` and
+ * `next` are SEASON_NOW's, LATEST's and NEXT's rows, `sessions`
+ * NEXT_SESSIONS'. `run` is whether the next round's race is over without
+ * its result in the database (sessions.js raceStage(), the race page's own
+ * rule), which only the weekend state can be.
+ *
+ * The weekend opens at the round's first session, or, where it has no
+ * timetable, at the start of its first day (`date_from`, read as UTC) or
+ * wherever raceStage() says its race has started, whichever is first. A podium
+ * leads only for a result of the season being run, so last year's finale
+ * is never this year's news.
+ */
+export function homeCycle({ now, latest, next, sessions = [] }, clock) {
+  if (!now || !next) return { state: CYCLE.off, run: false }
+  const stage = raceStage(next, sessions, clock)
+  const starts = sessions.map((s) => Date.parse(s.start_utc ?? '')).filter(Number.isFinite)
+  const from = Date.parse(`${next.date_from ?? ''}T00:00Z`)
+  const opened = starts.length > 0 ? clock >= Math.min(...starts) : Number.isFinite(from) && clock >= from
+  if (opened || stage !== 'awaited') return { state: CYCLE.weekend, run: stage === 'run' }
+  const raced = latest && latest.year === now.year ? Date.parse(`${latest.date_iso ?? ''}T00:00Z`) : Number.NaN
+  if (Number.isFinite(raced) && clock < raced + (RESULTS_DAYS + 1) * DAY_MS) return { state: CYCLE.results, run: false }
+  return { state: CYCLE.preview, run: false }
+}
+
+export const THIS_WEEKEND = 'This weekend'
+
+/**
+ * The line over the weekend's sessions: the clock they are written on. The
+ * static page writes UTC; the app the reader's zone, and UTC where the
+ * browser names no other (sessions.js readerZone()).
+ */
+export const sessionsClock = (zone) => (zone ? `Start times, your time (${zone.replace(/_/g, ' ')}).` : 'Start times, UTC.')
+
+/**
+ * The top three of the last race run, for the podium. A place held by two
+ * entries - a shared drive, a dead heat - or by none is not a podium this
+ * graphic can draw, so podium() declines it and the block keeps its
+ * sentence.
+ */
+export const PODIUM = `
+  WITH last AS (SELECT id, year FROM races WHERE status = 'completed' ORDER BY year DESC, round DESC LIMIT 1)
+  SELECT e.finish_position AS position, e.driver_id, d.full_name AS driver,
+         e.constructor_id, k.name AS constructor, k.country AS constructor_country, l.year
+    FROM race_entries e
+    JOIN last l ON l.id = e.race_id
+    LEFT JOIN drivers d ON d.id = e.driver_id
+    LEFT JOIN constructors k ON k.id = e.constructor_id
+   WHERE e.finish_position BETWEEN 1 AND 3
+   ORDER BY e.finish_position, e.id
+`
+
+export const PODIUM_LABEL = 'The podium'
+
+/**
+ * The three steps, first to third - the order they are read in; app.css
+ * stands the winner in the middle - or null. Each names its place, driver
+ * and team, and wears the team's colour for the race's season where one is
+ * on record (colourForEntry()); the words carry it either way.
+ */
+export function podium(rows) {
+  const steps = [1, 2, 3].map((place) => (rows ?? []).filter((r) => r.position === place))
+  if (steps.some((held) => held.length !== 1)) return null
+  return steps.map(([r]) => ({
+    place: r.position,
+    ordinal: ordinal(r.position),
+    driver: r.driver ?? r.driver_id,
+    driver_id: r.driver_id,
+    constructor: r.constructor,
+    constructor_id: r.constructor_id,
+    colour: colourForEntry({ constructorId: r.constructor_id, country: r.constructor_country, year: r.year, team: r.constructor }),
+  }))
+}
+
+/** The heading over the reach chart in the results state: which title it is. */
+export const reachHeading = (title) => `Who can still win ${title.replace(/^The /, 'the ')}`
+
+/** DRIVER_TEAMS for the season being run: the colour each contender's bar wears. */
+export const FIGHT_TEAMS = replaceOnce(DRIVER_TEAMS, 'r.year = ?', `r.year = ${CURRENT_SEASON_SQL}`)
+
+/**
+ * Every winning start at the next round's circuit (circuit.js STARTS, the
+ * circuit page's own), for its history under the block.
+ */
+export const NEXT_STARTS = replaceOnce(
+  STARTS,
+  'r.circuit_id = ?',
+  `r.circuit_id = (SELECT n.circuit_id FROM races n WHERE n.year = ${CURRENT_SEASON_SQL} AND n.status = 'scheduled' ORDER BY n.round LIMIT 1)`,
+)
+
+export const startsHeadingAt = (circuit) => `Where winners start at ${circuit}`
+
+function replaceOnce(sql, from, to) {
+  const parts = sql.split(from)
+  if (parts.length !== 2) throw new Error(`home.js: expected one "${from}" in the query, found ${parts.length - 1}`)
+  return parts.join(to)
+}

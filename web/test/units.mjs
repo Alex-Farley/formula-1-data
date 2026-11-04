@@ -183,11 +183,17 @@ import {
   withDistance,
 } from '../src/queries/race.js'
 import {
+  CYCLE,
+  RESULTS_DAYS,
   chartData,
   chartNote,
+  homeCycle,
   openingCaption,
   openingRace,
+  podium,
+  reachHeading,
   seasonComplete,
+  sessionsClock,
   seasonHeading,
   seasonStrip,
   stillToRunNote,
@@ -3199,6 +3205,79 @@ describe("the home page's season block (PD-48)", () => {
   it('hands the reader on by name when the season is over', () => {
     assert.equal(seasonComplete(2026), 'Every round of the 2026 season has been run.')
     assert.equal(seasonHeading(2026), 'The 2026 season')
+  })
+})
+
+describe("the home page's season cycle (AF-135), on fixed clocks", () => {
+  const now = { year: 2026, rounds: 23, run: 19 }
+  const latest = { year: 2026, round: 19, name_used: 'Mexico City Grand Prix', date_iso: '2026-11-01' }
+  const next = { year: 2026, round: 20, name_used: 'Sao Paulo Grand Prix', date_iso: '2026-11-08' }
+  const sessions = [
+    { kind: 'fp1', name: 'Practice 1', start_utc: '2026-11-06T15:30Z', zone: 'America/Sao_Paulo' },
+    { kind: 'qualifying', name: 'Qualifying', start_utc: '2026-11-07T18:00Z', zone: 'America/Sao_Paulo' },
+    { kind: 'race', name: 'Race', start_utc: '2026-11-08T17:00Z', zone: 'America/Sao_Paulo' },
+  ]
+  const at = (iso) => Date.parse(iso)
+  const state = (clock, over = {}) => homeCycle({ now, latest, next, sessions, ...over }, at(clock))
+
+  it('leads with the podium from the result until the end of the third day after the race', () => {
+    assert.equal(RESULTS_DAYS, 3)
+    assert.deepEqual(state('2026-11-02T08:00Z'), { state: CYCLE.results, run: false })
+    // Both edges: the last instant of the third day, and the first of the fourth.
+    assert.equal(state('2026-11-04T23:59Z').state, CYCLE.results)
+    assert.equal(state('2026-11-05T00:00Z').state, CYCLE.preview)
+  })
+
+  it('previews the next round until its first session, and opens the weekend on it', () => {
+    assert.equal(state('2026-11-06T15:29Z').state, CYCLE.preview)
+    assert.deepEqual(state('2026-11-06T15:30Z'), { state: CYCLE.weekend, run: false })
+    assert.deepEqual(state('2026-11-08T19:59Z'), { state: CYCLE.weekend, run: false })
+  })
+
+  it('says the race has been run once its three hours are over, and never shows it as still to come', () => {
+    assert.deepEqual(state('2026-11-08T20:00Z'), { state: CYCLE.weekend, run: true })
+    assert.deepEqual(state('2026-11-12T00:00Z'), { state: CYCLE.weekend, run: true })
+  })
+
+  it('opens the weekend on a back-to-back round before the last podium has had its three days', () => {
+    const close = [{ ...sessions[0], start_utc: '2026-11-03T15:30Z' }]
+    assert.equal(state('2026-11-03T15:30Z', { sessions: close }).state, CYCLE.weekend)
+  })
+
+  it('opens a weekend with no timetable on its first day, and falls back on the race page rule for the race', () => {
+    assert.equal(state('2026-11-06T15:30Z', { sessions: [] }).state, CYCLE.preview)
+    const dated = { ...next, date_from: '2026-11-06' }
+    assert.equal(state('2026-11-05T23:59Z', { sessions: [], next: dated }).state, CYCLE.preview)
+    assert.deepEqual(state('2026-11-06T00:00Z', { sessions: [], next: dated }), { state: CYCLE.weekend, run: false })
+    // date_iso's day and a full day after it, as raceStage() waits.
+    assert.equal(state('2026-11-10T00:00Z', { sessions: [] }).state, CYCLE.weekend)
+    assert.equal(state('2026-11-10T00:00Z', { sessions: [] }).run, true)
+  })
+
+  it('gives no podium for last season, and is off with no round to come or no season', () => {
+    assert.equal(state('2026-11-02T08:00Z', { latest: { ...latest, year: 2025 } }).state, CYCLE.preview)
+    assert.equal(state('2026-11-02T08:00Z', { latest: null }).state, CYCLE.preview)
+    assert.equal(state('2026-11-02T08:00Z', { next: null }).state, CYCLE.off)
+    assert.equal(state('2026-11-02T08:00Z', { now: null }).state, CYCLE.off)
+  })
+
+  it('stands three single places as steps, and declines a shared place or a missing one', () => {
+    const row = (position, driver_id, constructor_id) => ({ position, driver_id, driver: driver_id, constructor_id, constructor: constructor_id, constructor_country: null, year: 2026 })
+    const three = [row(1, 'norris', 'mclaren'), row(2, 'leclerc', 'ferrari'), row(3, 'piastri', 'mclaren')]
+    const steps = podium(three)
+    assert.deepEqual(
+      steps.map((s) => [s.ordinal, s.driver, s.constructor]),
+      [['1st', 'norris', 'mclaren'], ['2nd', 'leclerc', 'ferrari'], ['3rd', 'piastri', 'mclaren']],
+    )
+    assert.equal(podium([three[0], three[1]]), null)
+    assert.equal(podium([three[0], { ...three[0], driver_id: 'x' }, three[1], three[2]]), null)
+    assert.equal(podium([]), null)
+  })
+
+  it('names the clock the sessions are written on, and the title its chart is of', () => {
+    assert.equal(sessionsClock(null), 'Start times, UTC.')
+    assert.equal(sessionsClock('America/Sao_Paulo'), 'Start times, your time (America/Sao Paulo).')
+    assert.equal(reachHeading("The drivers' title"), "Who can still win the drivers' title")
   })
 })
 
