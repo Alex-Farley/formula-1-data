@@ -4649,7 +4649,7 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
 })
 
 describe("the home page's reading section (CD-14)", () => {
-  const shape = { discrepancies: 12, gaps: 5 }
+  const shape = { discrepancies: 12 }
 
   it('counts as many conventions as its note says, and names the three most often read as bugs', () => {
     const panels = reading(shape)

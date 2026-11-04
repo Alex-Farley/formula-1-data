@@ -47,7 +47,6 @@ export const SHAPE = `
     (SELECT COUNT(*) FROM seasons)        AS seasons,
     (SELECT COUNT(*) FROM article_images WHERE route = 'article') AS images,
     (SELECT COUNT(*) FROM discrepancies)  AS discrepancies,
-    (SELECT COUNT(*) FROM v_open_gaps)    AS gaps,
     (SELECT COUNT(*) FROM circuit_geometry) AS geometry,
     (SELECT MIN(year) FROM races)         AS from_year,
     (SELECT MAX(year) FROM races)         AS to_year
