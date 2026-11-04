@@ -64,11 +64,13 @@ function pythonWithPip() {
 /**
  * Get pyarrow importable by `py`, whatever this image is willing to allow.
  *
- * Cloudflare's build image has two pythons and NEITHER can do this alone:
- * the asdf 3.13 first on PATH has pip but no sqlite3, and /usr/bin/python3
- * 3.12 has sqlite3 but no pip ("No module named pip", which is what the
- * deployed status file finally reported). The database needs sqlite3 and
- * pyarrow needs installing, so the two have to be combined.
+ * Cloudflare's build image has had two pythons and NEITHER could do this
+ * alone: the asdf 3.13 first on PATH had pip but no sqlite3, and
+ * /usr/bin/python3 3.12 had sqlite3 but no pip ("No module named pip",
+ * which is what the deployed status file finally reported). The database
+ * needs sqlite3 and pyarrow needs installing, so the two had to be combined.
+ * By 2026-11 the asdf python on PATH was 3.14 and had both; the fallbacks
+ * stay for an image that goes back.
  *
  * In order: ask py's own pip; failing that bootstrap one with ensurepip;
  * failing that borrow another python's pip and install FOR py's version into
@@ -188,6 +190,39 @@ function heartbeat() {
   return out
 }
 
+// Whether Cloudflare's own `pip install -r requirements.txt` ran before the
+// build command (PM-24). web/README.md asks for SKIP_DEPENDENCY_INSTALL=1 to
+// skip it, and nobody had seen whether the image honours that: build logs are
+// off, so the deploy says so here. requirements.txt holds fastf1 alone, so
+// fastf1 being importable is the trace that install leaves. Every python the
+// image offers is asked, because which one's pip it uses is not established;
+// find_spec looks without importing.
+function dependencyInstall() {
+  const out = []
+  const flag = process.env.SKIP_DEPENDENCY_INSTALL
+  out.push(`SKIP_DEPENDENCY_INSTALL  ${flag === undefined ? 'unset' : flag === '1' ? '1' : 'set, but not to 1'}`)
+  const seen = new Set()
+  for (const c of CANDIDATES) {
+    let exe, found
+    try {
+      ;[exe, found] = execFileSync(c,
+        ['-c', 'import importlib.util,sys;print(sys.executable);print(importlib.util.find_spec("fastf1") is not None)'],
+        { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString().trim().split('\n')
+    } catch { continue }   // not on this image
+    if (seen.has(exe)) continue
+    seen.add(exe)
+    out.push(`fastf1   ${found === 'True' ? 'present in' : 'absent from'} ${exe}`)
+  }
+  if (!seen.size) out.push('fastf1   no python found to ask')
+  else {
+    out.push(out.some((l) => l.startsWith('fastf1   present'))
+      ? 'result   requirements.txt was installed, or the image already carried fastf1'
+      : 'result   requirements.txt was not installed into any of them')
+  }
+  return out
+}
+
 function sqliteModule() {
   // node:sqlite, the module prepare-assets.js and the prerenderer already
   // use; fetched synchronously so the heartbeat can run inside a plain
@@ -196,5 +231,5 @@ function sqliteModule() {
 }
 
 writeFileSync(join(publicDir, 'build-status.txt'),
-              `lapledger build\nwhen     ${new Date().toISOString()}\n${heartbeat().join('\n')}\n\nparquet bundle\n${lines.join('\n')}\n`)
+              `lapledger build\nwhen     ${new Date().toISOString()}\n${heartbeat().join('\n')}\n\ndependency install\n${dependencyInstall().join('\n')}\n\nparquet bundle\n${lines.join('\n')}\n`)
 if (!ok) process.exitCode = 0   // never fail the build

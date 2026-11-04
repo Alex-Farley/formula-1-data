@@ -588,7 +588,11 @@ deleted. Three deploys were spent discovering that this dashboard field named
 the script while the build log announced `cd web && npm ci && npm run build`
 — and a build step whose execution cannot be established is worth less than
 no build step at all. Its other work had already moved into the npm chain,
-which demonstrably runs.
+which demonstrably runs. Why the field was ignored was never established, and
+cannot be now: build logs are off and the field has since been corrected. A
+deploy that stopped running the npm chain again would show on the heartbeat
+below, as a `/build-status.txt` that is missing or names a commit older than
+`main`.
 
 **If you restore anything like it, put the step in `web/package.json` instead.**
 That chain runs whatever the dashboard field says, because it is what puts
@@ -605,8 +609,8 @@ front end and its install script downloads about 150 MB of browsers that only
 the test suite uses. Without it the build still succeeds, but every deploy
 pays for a download nothing uses.
 
-**No step may simply run `python3`.** Cloudflare's image carries two
-interpreters and neither is sufficient alone:
+**No step may simply run `python3`.** Cloudflare's image has carried two
+interpreters, neither sufficient alone:
 
 | Interpreter | `sqlite3` | `pip` |
 | --- | --- | --- |
@@ -620,8 +624,10 @@ asks each candidate whether it can import `sqlite3` and takes the first that
 can, then installs `pyarrow` for it — falling back, when that interpreter has
 no `pip` of its own and Debian has stripped `ensurepip`, to borrowing the
 other interpreter's `pip` with `--python-version` and `--only-binary=:all:`
-so the wheel matches the target ABI. On the current image that last path is
-the one that runs.
+so the wheel matches the target ABI. On that image the last path was the one
+that ran. On 2026-11-04 `/build-status.txt` named an asdf 3.14.8 first on PATH
+that imports `sqlite3`, and pyarrow *installed with its own pip*; the fallbacks
+stay for an image that goes back.
 
 Its outcome is written to `public/build-status.txt` and served at
 [`/build-status.txt`](https://lapledger.org/build-status.txt), on success as
@@ -634,8 +640,12 @@ command, because a requirements.txt at the repository root looks like a
 Python project to it. Nothing in that file is needed to build the database or
 the site — it is there for `tools/fastf1_load.py` alone — so it costs about
 ninety seconds of fastf1, numpy, scipy and matplotlib per deploy. Setting
-`SKIP_DEPENDENCY_INSTALL` = `1` in the build environment skips it; the one
-step that needs a third-party package installs it itself.
+`SKIP_DEPENDENCY_INSTALL` = `1` in the build environment is meant to skip it;
+the one step that needs a third-party package installs it itself. No build log
+has shown whether the image honours it, so the deploy reports it: the
+*dependency install* block of `/build-status.txt` gives the variable's value
+and, for each python on the image, whether it can import `fastf1` — the one
+package that file installs, and so the trace the install leaves.
 
 Two things resolve because Cloudflare clones the whole repository regardless:
 `prepare-assets.js` reads `../f1.db`, and `.node-version` pins Node 22. That
