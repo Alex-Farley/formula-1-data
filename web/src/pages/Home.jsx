@@ -1,19 +1,39 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RaceDates } from '../components/Dates.jsx'
-import { Page, Section, Slot, Stats } from '../components/Page.jsx'
+import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
+import { FigurePart, Page, Section, Slot, Stats } from '../components/Page.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import { Result } from '../components/States.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
+import GridStarts from '../charts/GridStarts.jsx'
+import ReachChart from '../charts/ReachChart.jsx'
+import { drawnColours } from '../charts/gridStarts.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { number, raceDates } from '../lib/format.js'
+import { EMPTY, number, raceDates } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
+import { ownColour } from '../charts/own.js'
+import { resultsPending } from '../lib/refresh.js'
 import { NAMES } from '../lib/site.js'
 
 import { LATEST } from '../queries/races.js'
-import { FIGHT_QUERIES, currentTitle, fightAhead } from '../queries/season.js'
+import { STARTS_COLUMNS, startsLabel, startsNote, startsTable, winnerStarts } from '../queries/circuit.js'
+import { FIGHT_QUERIES, currentTitle, fightAhead, reachFigures, teamsByDriver } from '../queries/season.js'
+import { readerZone } from '../queries/sessions.js'
 import {
+  CYCLE,
+  FIGHT_TEAMS,
+  NEXT_SESSIONS,
+  NEXT_STARTS,
+  PODIUM,
+  PODIUM_LABEL,
+  THIS_WEEKEND,
+  homeCycle,
+  podium,
+  reachHeading,
+  sessionsClock,
+  startsHeadingAt,
   BOARD,
   BOARD_HEADING,
   BOARD_NOTE,
@@ -49,6 +69,67 @@ import {
   strip,
 } from '../queries/home.js'
 
+/**
+ * The reader's clock, read again each minute, so the block moves on to the
+ * weekend or the preview while the page is open rather than at a reload.
+ */
+function useClock(every = 60000) {
+  const [clock, setClock] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), every)
+    return () => clearInterval(id)
+  }, [every])
+  return clock
+}
+
+/**
+ * The last race's top three as steps (AF-135): read first to third, and
+ * stood second, first, third by app.css. Each step names its place, driver
+ * and team, so the team's colour is never the only cue; a team with no
+ * colour on record stands as an outline.
+ */
+function Podium({ steps }) {
+  return (
+    <ol className="podium" aria-label={PODIUM_LABEL}>
+      {steps.map((step) => {
+        const own = ownColour(step.colour)
+        return (
+          <li key={step.place} className={`podium-step podium-${step.place}`}>
+            <span className="podium-place">{step.ordinal}</span>
+            <span className="podium-driver">
+              {step.driver_id ? <Link to={`/drivers/${step.driver_id}`}>{step.driver}</Link> : step.driver}
+            </span>
+            <span className="podium-team muted small">{step.constructor ?? EMPTY}</span>
+            <span
+              className={own.className ? `podium-block ${own.className}` : 'podium-block podium-block-none'}
+              style={own.style}
+              aria-hidden="true"
+            />
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+/** The weekend's sessions, a plain list until part (b)'s lap: the name and its start on the reader's clock. */
+function WeekendSessions({ sessions }) {
+  const zone = readerZone()
+  return (
+    <>
+      <p className="muted small">{sessionsClock(zone)}</p>
+      <ol className="weekend-sessions">
+        {sessions.map((s) => (
+          <li key={s.kind}>
+            <span>{s.name}</span>
+            <TimeText iso={s.start_utc} zone={zone ?? 'UTC'} />
+          </li>
+        ))}
+      </ol>
+    </>
+  )
+}
+
 function Board({ shape }) {
   return (
     <div className="board index">
@@ -76,7 +157,14 @@ export default function Home() {
     lead: [SEASON_LEAD],
     // Who can still win (AF-132), the season page's answer, under the next race.
     ...FIGHT_QUERIES,
+    // The season cycle (AF-135): the next round's timetable, the last
+    // race's podium, the contenders' colours and the next circuit's winners.
+    sessions: [NEXT_SESSIONS],
+    podium: [PODIUM],
+    fightTeams: [FIGHT_TEAMS],
+    nextStarts: [NEXT_STARTS],
   })
+  const clock = useClock()
 
   const { headline, title } = NAMES.home()
 
@@ -94,10 +182,20 @@ export default function Home() {
           const lead = rows(data, 'lead')
           const opening = openingRace(latest, next, now)
           const caption = opening ? openingCaption(opening) : null
-          const ahead = fightAhead(
-            currentTitle((key) => rows(data, key)),
-            next,
-          )
+          const fight = currentTitle((key) => rows(data, key))
+          const ahead = fightAhead(fight, next)
+          const sessions = rows(data, 'sessions')
+          const cycle = homeCycle({ now, latest, next, sessions }, clock)
+          const steps = cycle.state === CYCLE.results ? podium(rows(data, 'podium')) : null
+          // The title fight after this race: the first title still fought.
+          const reach =
+            cycle.state === CYCLE.results && fight
+              ? (reachFigures(fight, fight.year, teamsByDriver(rows(data, 'fightTeams')))[0] ?? null)
+              : null
+          // The next circuit's winners and where they started (AF-133).
+          const starts = cycle.state === CYCLE.off ? [] : winnerStarts(rows(data, 'nextStarts'))
+          const startsRows = startsTable(starts)
+          const history = Boolean(next?.circuit) && startsRows.some((row) => row.key.startsWith('slot-'))
           // The winning car's colour (AF-47 clause 1: the constructor is a
           // first-class attribute of the race), in the race's own season, as
           // /races draws it beside the same name. One mark for the sentence,
@@ -130,7 +228,24 @@ export default function Home() {
                   <div className="split">
                     <div className="round-panel">
                       <p className="eyebrow">{LAST_RACE}</p>
-                      {latest ? (
+                      {latest && steps ? (
+                        <>
+                          <h3>
+                            <Link to={`/races/${latest.year}/${latest.round}`}>
+                              {latest.year} {latest.name_used}
+                            </Link>
+                          </h3>
+                          <p className="muted small">
+                            {latest.circuit}
+                            {latest.circuit && raceDates(latest) ? ' · ' : null}
+                            {raceDates(latest) ? <RaceDates race={latest} /> : null}
+                          </p>
+                          <Podium steps={steps} />
+                          <p>
+                            <Link to={`/races/${latest.year}/${latest.round}`}>{CLASSIFICATION_LINK}</Link>
+                          </p>
+                        </>
+                      ) : latest ? (
                         <>
                           <h3>
                             <Link to={`/races/${latest.year}/${latest.round}`}>
@@ -169,8 +284,29 @@ export default function Home() {
                       ) : null}
                     </div>
                     <div className="round-panel">
-                      <p className="eyebrow">{NEXT_RACE}</p>
-                      {next ? (
+                      <p className="eyebrow">{cycle.state === CYCLE.weekend ? THIS_WEEKEND : NEXT_RACE}</p>
+                      {next && cycle.state === CYCLE.weekend ? (
+                        <>
+                          <h3>
+                            <Link to={`/races/${next.year}/${next.round}`}>
+                              {next.year} {next.name_used}
+                            </Link>
+                          </h3>
+                          <p className="muted small">
+                            <RaceDates race={next} /> · round {next.round}
+                          </p>
+                          {cycle.run && (
+                            <p>
+                              <Dated>{resultsPending(next)}</Dated>
+                            </p>
+                          )}
+                          {sessions.length > 0 && <WeekendSessions sessions={sessions} />}
+                          {ahead && <p>{ahead}</p>}
+                          <p>
+                            <Link to={`/seasons/${next.year}`}>{calendarLink(next.year)}</Link>
+                          </p>
+                        </>
+                      ) : next ? (
                         <>
                           <h3>
                             <Link to={`/races/${next.year}/${next.round}`}>
@@ -200,6 +336,20 @@ export default function Home() {
                       )}
                     </div>
                   </div>
+                  {reach && (
+                    <FigurePart title={reachHeading(reach.title)}>
+                      <Figure note={reach.note} table={{ rows: reach.rows, columns: reach.columns }}>
+                        <ReachChart data={reach.data} lead={reach.lead} label={reach.label} />
+                      </Figure>
+                    </FigurePart>
+                  )}
+                  {history && (
+                    <FigurePart title={startsHeadingAt(next.circuit)}>
+                      <Figure note={startsNote(drawnColours(starts))} table={{ rows: startsRows, columns: STARTS_COLUMNS }}>
+                        <GridStarts races={starts} label={startsLabel(startsRows)} />
+                      </Figure>
+                    </FigurePart>
+                  )}
                   <p className="season-more">
                     <Link to={`/seasons/${now.year}`}>{seasonLink(now.year)}</Link>
                   </p>

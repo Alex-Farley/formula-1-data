@@ -824,6 +824,43 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
+### Season cycle (A) — provisional (AF-135 #1141)
+
+Home's season block follows the calendar while the season being run has a
+round to come, in three states worked out from the database and a clock —
+the reader's in the app, the build's day in the prerender (`homeCycle` in
+`queries/home.js`, which both renderers call):
+
+| State | When | The two panels, and what follows them |
+|---|---|---|
+| Preview | from the end of the results state to the next round's first session | *Last race run* and *Next on the calendar*, as before; the next circuit's *Where winners start* figure |
+| Weekend | from that first session until the result is in the database | *Last race run* and *This weekend*: the round's sessions as a plain list, its start times in UTC on the static page and on the reader's clock in the app; once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the history figure |
+| Results | from the result landing to the end of the third day after the race | the **podium** in place of the winner's sentence, and *Next on the calendar*; the reach chart of the first title still fought (AF-132's); the history figure |
+
+With no round to come, the block is as it was. Its parts are the system's
+own — the round panels, `FigurePart`, `Figure`, AF-132's reach chart and
+AF-133's grid — and two are new:
+
+- **The podium.** Three steps, listed first to third in the markup, the
+  order a screen reader reads them, and stood second, first, third by
+  `app.css` as a podium stands. Each step is its place, the driver (a link)
+  and the team in words, over a block in the team's colour pair
+  (`.livery-series`, held to 3:1 like any series) or an outline in ink where
+  none is on record, so colour is never the only cue. Heights are spacing
+  tokens. A place held by two entries or by none is not drawn: the panel
+  keeps its sentence. Race gaps are not shown: the database holds no
+  race times (AF-157 #1252).
+- **The weekend list.** Each session's name, and its start at the line's
+  end, so a start written wider in the reader's form moves only itself. It
+  stands in for part (b)'s lap (AF-156 #1250).
+
+The static page prints the state at the build's day, and the app the state
+at the reader's, so a page opened on a later day changes state at the
+handover; within one state nothing moves. `units.mjs` holds each state and
+both its edges on fixed clocks; `smoke.mjs` reads the app at the build's day
+where it compares the two halves of `/`, and checks each half draws the
+state its clock gives.
+
 ### States (core) — built: *Not established* and *Late*; Loading, Empty and Error pending (VD-100 #1023)
 
 | State | Rule |

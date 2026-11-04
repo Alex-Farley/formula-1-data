@@ -173,7 +173,7 @@ import {
   feedEntries,
   feedRights,
 } from '../src/lib/changes.js'
-import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRaces, raceDay } from '../src/lib/refresh.js'
+import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED, lateDays, lateNotice, lateRaces, raceDay, resultsPending } from '../src/lib/refresh.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE, UNRESULTED } from '../src/queries/changes.js'
 import {
   ID_HEADING,
@@ -273,6 +273,18 @@ import {
   BOARD_NOTE,
   CHART_HEADING,
   CLASSIFICATION_LINK,
+  CYCLE,
+  FIGHT_TEAMS,
+  NEXT_SESSIONS as HOME_NEXT_SESSIONS,
+  NEXT_STARTS as HOME_NEXT_STARTS,
+  PODIUM,
+  PODIUM_LABEL,
+  THIS_WEEKEND,
+  homeCycle,
+  podium,
+  reachHeading,
+  sessionsClock,
+  startsHeadingAt,
   LAST_RACE,
   LEDE as HOME_LEDE,
   NEXT as HOME_NEXT,
@@ -2652,8 +2664,43 @@ const TITLE = currentTitle(fightRows, META.built)
       })
     : null
 
+  // The season cycle (AF-135), at the static half's clock: the build's own
+  // day, as every other page here reads it. The app works the state out
+  // again at the reader's, and says what is true then.
+  const cycleSessions = all(HOME_NEXT_SESSIONS)
+  const cycle = homeCycle({ now, latest, next: upcoming, sessions: cycleSessions }, STATIC_NOW)
+  const steps = cycle.state === CYCLE.results ? podium(all(PODIUM)) : null
+  const reach =
+    cycle.state === CYCLE.results && TITLE
+      ? (reachFigures(TITLE, TITLE.year, teamsByDriver(all(FIGHT_TEAMS)))[0] ?? null)
+      : null
+  const nextStarts = cycle.state === CYCLE.off ? [] : winnerStarts(all(HOME_NEXT_STARTS))
+  const nextStartsRows = startsTable(nextStarts)
+  const history = Boolean(upcoming?.circuit) && nextStartsRows.some((row) => row.key.startsWith('slot-'))
+
+  // Home.jsx's Podium: first to third in the markup, stood by app.css.
+  const podiumHtml = (list) =>
+    `<ol class="podium" aria-label="${esc(PODIUM_LABEL)}">${list
+      .map(
+        (step) =>
+          `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span><span class="podium-driver">${
+            step.driver_id ? link(`drivers/${step.driver_id}`, step.driver) : esc(step.driver)
+          }</span><span class="podium-team muted small">${text(step.constructor)}</span><span class="${
+            step.colour ? `podium-block livery-series" style="${pairStyle(step.colour)}` : 'podium-block podium-block-none'
+          }" aria-hidden="true"></span></li>`,
+      )
+      .join('')}</ol>`
+
+  const racePlace = (race) =>
+    `<p class="muted small">${[race.circuit ? esc(race.circuit) : null, raceDates(race) ? raceDatesHtml(race) : null].filter(Boolean).join(' \u00b7 ')}</p>`
+
   const lastPanel = `<div class="round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>${
-    latest
+    latest && steps
+      ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
+        ${racePlace(latest)}
+        ${podiumHtml(steps)}
+        <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p>`
+      : latest
       ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
         <p class="muted small">${[latest.circuit ? esc(latest.circuit) : null, raceDates(latest) ? raceDatesHtml(latest) : null].filter(Boolean).join(' \u00b7 ')}</p>
         <p>${esc(WON_BY)}${
@@ -2675,8 +2722,20 @@ const TITLE = currentTitle(fightRows, META.built)
   // there is a season being run, so neither is built without one.
   const nextPanel = !now
     ? ''
-    : `<div class="round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
-    upcoming
+    : `<div class="round-panel"><p class="eyebrow">${esc(cycle.state === CYCLE.weekend ? THIS_WEEKEND : NEXT_RACE)}</p>${
+    upcoming && cycle.state === CYCLE.weekend
+      ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
+        <p class="muted small">${raceDatesHtml(upcoming)} \u00b7 round ${esc(upcoming.round)}</p>${
+          cycle.run ? `\n        <p>${dated(resultsPending(upcoming))}</p>` : ''
+        }${
+          cycleSessions.length
+            ? `\n        <p class="muted small">${esc(sessionsClock(null))}</p><ol class="weekend-sessions">${cycleSessions
+                .map((s) => `<li><span>${esc(s.name)}</span>${timeHtml(s.start_utc, 'UTC')}</li>`)
+                .join('')}</ol>`
+            : ''
+        }${fightAhead(TITLE, upcoming) ? `\n        <p>${esc(fightAhead(TITLE, upcoming))}</p>` : ''}
+        <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
+      : upcoming
       ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
         <p class="muted small">${raceDatesHtml(upcoming)} \u00b7 round ${esc(upcoming.round)}</p>
         <p class="muted">${esc(stillToRunNote(now))}</p>${fightAhead(TITLE, upcoming) ? `\n        <p>${esc(fightAhead(TITLE, upcoming))}</p>` : ''}
@@ -2692,7 +2751,25 @@ const TITLE = currentTitle(fightRows, META.built)
   const seasonBlock = now
     ? `<section class="section">${heading(seasonHeading(now.year))}
       ${tiles(seasonStrip(now, lead))}
-      <div class="split">${lastPanel}${nextPanel}</div>
+      <div class="split">${lastPanel}${nextPanel}</div>${
+        reach
+          ? `<div class="figure-part"><h3>${esc(reachHeading(reach.title))}</h3>${figure(
+              reachHeading(reach.title),
+              reach.note,
+              fromColumns(reach.columns, reach.rows, {}, { unfolded: UNFOLDED.figure }),
+              { plot: reachSvg(reach, COLUMN_WIDTH) },
+            )}</div>`
+          : ''
+      }${
+        history
+          ? `<div class="figure-part"><h3>${esc(startsHeadingAt(upcoming.circuit))}</h3>${figure(
+              startsHeadingAt(upcoming.circuit),
+              startsNote(drawnColours(nextStarts)),
+              fromColumns(STARTS_COLUMNS, nextStartsRows, {}, { unfolded: UNFOLDED.figure }),
+              { plot: gridStartsSvg(nextStarts, startsLabel(nextStartsRows)) },
+            )}</div>`
+          : ''
+      }
       <p class="season-more">${link(`seasons/${now.year}`, seasonLink(now.year))}</p></section>`
     : ''
 

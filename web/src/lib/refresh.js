@@ -143,6 +143,16 @@ export const raceDay = (r) => r.date_to ?? r.date_iso
 export const lateLine = (r) =>
   `The ${r.year} ${r.name_used} was run on ${raceDay(r)}, and its result is not here yet.`
 
+/**
+ * The home page's line for a race that is over and not yet here (AF-135):
+ * said plainly, with the last check, so a run race never reads as still to
+ * come and no result is claimed that the database does not hold. The day
+ * is ISO, for each renderer to write as it writes dates.
+ */
+export const resultsPending = (race) =>
+  `The ${race.year} ${race.name_used} has been run. Results usually arrive here within a day of the race; ` +
+  `the last check for them finished on ${LAST_CHECKED}.`
+
 /** /changes' notice, as both renderers draw it, or null when nothing is late. */
 export const lateNotice = (late) =>
   late.length === 0

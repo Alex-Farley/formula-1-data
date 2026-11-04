@@ -587,6 +587,90 @@ main {
   margin: var(--space-6) 0 0;
 }
 
+/* The season cycle (AF-135; docs/design-system.md section 3, *Season
+   cycle*). The podium: three steps read first to third, as the markup
+   lists them, and stood second, first, third, as a podium stands. Each
+   step is its place, its driver and team in words, and a block in the
+   team's colour pair (.livery-series), or an outline in ink where the team
+   has none on record - the words carry it either way. */
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)); /* three steps of the podium, inside one panel: tracks of a drawing, not page columns */
+  align-items: end;
+  gap: var(--space-4);
+  list-style: none;
+  padding: 0;
+}
+
+.podium-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.podium-1 {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.podium-2 {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.podium-3 {
+  grid-row: 1;
+  grid-column: 3;
+}
+
+.podium-place {
+  font-size: var(--size-6);
+}
+
+.podium-block {
+  display: block;
+  margin-top: var(--space-3);
+  background: var(--livery);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.podium-block-none {
+  background: none;
+  border: 1px solid var(--ink);
+  border-bottom: 0;
+}
+
+.podium-1 .podium-block {
+  height: var(--space-10);
+}
+
+.podium-2 .podium-block {
+  height: var(--space-9);
+}
+
+.podium-3 .podium-block {
+  height: var(--space-8);
+}
+
+/* The weekend's sessions, a plain list until part (b) draws the lap: the
+   name, and its start at the line's end, so a start written wider in the
+   reader's form than in the static page's moves nothing but itself. */
+.weekend-sessions {
+  list-style: none;
+  padding: 0;
+}
+
+.weekend-sessions > li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--rule);
+}
+
 .grid.wide {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }

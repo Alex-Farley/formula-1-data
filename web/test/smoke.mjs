@@ -125,6 +125,8 @@ import {
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
 import { CAR_SOURCES, ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
+import { CYCLE, NEXT as HOME_NEXT, NEXT_SESSIONS as HOME_SESSIONS, PODIUM, SEASON_NOW, THIS_WEEKEND, homeCycle, podium } from '../src/queries/home.js'
+import { LATEST as LATEST_RUN } from '../src/queries/races.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
 import { TILE_STRIP_NAME } from '../src/lib/tiles.js'
 import { UNRESULTED } from '../src/queries/changes.js'
@@ -236,6 +238,25 @@ const runningSeason = () =>
     .prepare("SELECT year FROM seasons s WHERE year = ? AND EXISTS (SELECT 1 FROM races r WHERE r.year = s.year AND r.status <> 'completed') LIMIT 1")
     .get(inProgress())
 const count = (sql, ...args) => one(sql, ...args)
+
+/* The static half's clock, scripts/prerender.js's STATIC_NOW: the start of
+   the database's build day. Home's season block follows the calendar
+   (AF-135), so where the two halves of `/` are compared, the app is read at
+   this clock too - otherwise the comparison would depend on the day it ran,
+   and a page opened days after its build would differ in the state the
+   calendar has moved it to, which is the app being right. Which state each
+   half draws at its own clock is checked in '/  (overview)'. */
+const STATIC_NOW = Date.parse(`${one("SELECT value FROM meta WHERE key = 'built'")}T00:00Z`)
+const homeCycleAt = (clock) =>
+  homeCycle(
+    {
+      now: db.prepare(SEASON_NOW).get() ?? null,
+      latest: db.prepare(LATEST_RUN).get() ?? null,
+      next: db.prepare(HOME_NEXT).get() ?? null,
+      sessions: db.prepare(HOME_SESSIONS).all(),
+    },
+    clock,
+  )
 
 /* The five entities esc() in prerender.js writes, read back. Two sections now
    compare served HTML with what the database holds, and both have to undo the
@@ -1194,6 +1215,10 @@ try {
     // en-US, so the handover is measured where the dates change width: the
     // static page's "9 Mar 1997" becomes the app's "Mar 9, 1997" (CD-57).
     const held = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'en-US' })
+    // The app at the static half's clock: what the handover moves is
+    // measured within one state of home's season block (AF-135), not across
+    // the days since the build.
+    await held.clock.setFixedTime(STATIC_NOW)
     await held.route(/f1\.db\.gz/, async (request) => {
       await new Promise((resolve) => setTimeout(resolve, 1500))
       await request.continue()
@@ -1508,6 +1533,36 @@ try {
     truthy(servedHome.length > 0, 'the static home page is served')
     is((servedHome.match(/<div class="board index">/g) ?? []).length, 1, 'the static home page has one index')
     truthy(!servedHome.includes('<nav class="onward"'), 'the static home page has no onward band beside it')
+
+    // AF-135: each half draws the season cycle's state at its own clock -
+    // the static page at the build's day, the app at the reader's - read
+    // here from the database by the same function, and on the page by what
+    // only that state draws: the podium, and the weekend's panel.
+    {
+      const steps = podium(db.prepare(PODIUM).all())
+      const readCycle = (root) => ({
+        podium: document.querySelectorAll(`${root} ol.podium > li`).length,
+        weekend: [...document.querySelectorAll(`${root} .round-panel > .eyebrow`)].some((n) => n.textContent === 'This weekend'),
+        sessions: document.querySelectorAll(`${root} .round-panel ol.weekend-sessions > li`).length,
+      })
+      const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+      const still = await quiet.newPage()
+      await still.goto(`${BASE}/`, { waitUntil: 'load' })
+      const appClock = await page.evaluate(() => Date.now())
+      for (const [half, tab, root, clock] of [
+        ['the app', page, '#root main', appClock],
+        ['the static page', still, '#prerendered main', STATIC_NOW],
+      ]) {
+        const { state } = homeCycleAt(clock)
+        const got = await tab.evaluate(readCycle, root)
+        is(got.podium, state === CYCLE.results && steps ? 3 : 0, `/, ${half}: the podium stands only in the results state, and the state is ${state}`)
+        is(got.weekend, state === CYCLE.weekend, `/, ${half}: the panel reads "${THIS_WEEKEND}" only in the weekend state`)
+        if (state === CYCLE.weekend) {
+          is(got.sessions, db.prepare(HOME_SESSIONS).all().length, `/, ${half}: and lists every session of the weekend`)
+        }
+      }
+      await quiet.close()
+    }
   })
 
   // --------------------------------------------------------------- seasons
@@ -10122,6 +10177,12 @@ try {
     }
     const wrong = []
     const drawn = []
+    // Home's season block follows the calendar (AF-135): its app is read at
+    // the static half's clock, in a context of its own, so the two halves
+    // are compared in one state whatever day this runs.
+    const atBuild = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'en-GB' })
+    await atBuild.clock.setFixedTime(STATIC_NOW)
+    const homeTab = await atBuild.newPage()
     for (const route of ROUTES) {
       const html = await (await fetch(`${BASE}${route}`)).text()
       const served = {
@@ -10130,8 +10191,13 @@ try {
           (html.split('<div id="prerendered">')[1]?.match(/<h1[^>]*>([\s\S]*?)<\/h1>/) ?? ['', ''])[1],
         ),
       }
-      await go(route)
-      const app = await page.evaluate(() => ({
+      const tab = route === '/' ? homeTab : page
+      if (route === '/') {
+        await homeTab.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+        // The index is drawn once every query has answered.
+        await homeTab.waitForSelector('#root main .board.index', { timeout: 60000 })
+      } else await go(route)
+      const app = await tab.evaluate(() => ({
         title: document.title,
         h1: document.querySelector('#root main h1')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
       }))
@@ -10141,9 +10207,10 @@ try {
       else if (app.title !== served.title)
         wrong.push(`${route}: title \u2014 app \u201c${app.title}\u201d, static \u201c${served.title}\u201d`)
 
-      const [fromStatic, fromApp] = await page.evaluate(readBoth, html)
+      const [fromStatic, fromApp] = await tab.evaluate(readBoth, html)
       drawn.push({ route, fromStatic, fromApp })
     }
+    await atBuild.close()
     if (wrong.length === 0) {
       pass(`all ${ROUTES.length} routes carry one h1 and one document title across both renderers`)
     } else {
