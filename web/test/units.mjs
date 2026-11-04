@@ -575,6 +575,8 @@ describe('the car page entry columns (CR-26)', () => {
       { position_text: null, finish_position: null },
     ]
     for (const row of rows) assert.equal(entryResult(row.position_text, row), result(row))
+    assert.equal(entryResult('DNF', { position_text: 'DNF', finish_position: null }), 'DNF')
+    assert.equal(entryResult('D', { position_text: 'D', finish_position: 12 }), 'D')
     assert.equal(entryResult('', { position_text: '', finish_position: 3 }), '3')
     assert.equal(entryResult(null, { position_text: null, finish_position: null }), EMPTY)
   })
