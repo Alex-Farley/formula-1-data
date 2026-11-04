@@ -435,7 +435,8 @@ export const NEXT_SESSIONS = `
  * rule), which only the weekend state can be.
  *
  * The weekend opens at the round's first session, or, where it has no
- * timetable, wherever raceStage() says its race has started. A podium
+ * timetable, at the start of its first day (`date_from`, read as UTC) or
+ * wherever raceStage() says its race has started, whichever is first. A podium
  * leads only for a result of the season being run, so last year's finale
  * is never this year's news.
  */
@@ -443,7 +444,8 @@ export function homeCycle({ now, latest, next, sessions = [] }, clock) {
   if (!now || !next) return { state: CYCLE.off, run: false }
   const stage = raceStage(next, sessions, clock)
   const starts = sessions.map((s) => Date.parse(s.start_utc ?? '')).filter(Number.isFinite)
-  const opened = starts.length > 0 && clock >= Math.min(...starts)
+  const from = Date.parse(`${next.date_from ?? ''}T00:00Z`)
+  const opened = starts.length > 0 ? clock >= Math.min(...starts) : Number.isFinite(from) && clock >= from
   if (opened || stage !== 'awaited') return { state: CYCLE.weekend, run: stage === 'run' }
   const raced = latest && latest.year === now.year ? Date.parse(`${latest.date_iso ?? ''}T00:00Z`) : Number.NaN
   if (Number.isFinite(raced) && clock < raced + (RESULTS_DAYS + 1) * DAY_MS) return { state: CYCLE.results, run: false }
@@ -457,7 +459,7 @@ export const THIS_WEEKEND = 'This weekend'
  * static page writes UTC; the app the reader's zone, and UTC where the
  * browser names no other (sessions.js readerZone()).
  */
-export const sessionsClock = (zone) => (zone ? `Start times on your clock (${zone.replace(/_/g, ' ')}).` : 'Start times in UTC.')
+export const sessionsClock = (zone) => (zone ? `Start times, your time (${zone.replace(/_/g, ' ')}).` : 'Start times, UTC.')
 
 /**
  * The top three of the last race run, for the podium. A place held by two

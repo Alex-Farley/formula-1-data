@@ -95,10 +95,10 @@ function Podium({ steps }) {
         const own = ownColour(step.colour)
         return (
           <li key={step.place} className={`podium-step podium-${step.place}`}>
-            <span className="podium-place">{step.ordinal}</span>
+            <span className="podium-place">{step.ordinal}</span>{' '}
             <span className="podium-driver">
               {step.driver_id ? <Link to={`/drivers/${step.driver_id}`}>{step.driver}</Link> : step.driver}
-            </span>
+            </span>{' '}
             <span className="podium-team muted small">{step.constructor ?? EMPTY}</span>
             <span
               className={own.className ? `podium-block ${own.className}` : 'podium-block podium-block-none'}

@@ -3244,8 +3244,11 @@ describe("the home page's season cycle (AF-135), on fixed clocks", () => {
     assert.equal(state('2026-11-03T15:30Z', { sessions: close }).state, CYCLE.weekend)
   })
 
-  it('falls back on the race page rule where the round has no timetable', () => {
+  it('opens a weekend with no timetable on its first day, and falls back on the race page rule for the race', () => {
     assert.equal(state('2026-11-06T15:30Z', { sessions: [] }).state, CYCLE.preview)
+    const dated = { ...next, date_from: '2026-11-06' }
+    assert.equal(state('2026-11-05T23:59Z', { sessions: [], next: dated }).state, CYCLE.preview)
+    assert.deepEqual(state('2026-11-06T00:00Z', { sessions: [], next: dated }), { state: CYCLE.weekend, run: false })
     // date_iso's day and a full day after it, as raceStage() waits.
     assert.equal(state('2026-11-10T00:00Z', { sessions: [] }).state, CYCLE.weekend)
     assert.equal(state('2026-11-10T00:00Z', { sessions: [] }).run, true)
@@ -3272,8 +3275,8 @@ describe("the home page's season cycle (AF-135), on fixed clocks", () => {
   })
 
   it('names the clock the sessions are written on, and the title its chart is of', () => {
-    assert.equal(sessionsClock(null), 'Start times in UTC.')
-    assert.equal(sessionsClock('America/Sao_Paulo'), 'Start times on your clock (America/Sao Paulo).')
+    assert.equal(sessionsClock(null), 'Start times, UTC.')
+    assert.equal(sessionsClock('America/Sao_Paulo'), 'Start times, your time (America/Sao Paulo).')
     assert.equal(reachHeading("The drivers' title"), "Who can still win the drivers' title")
   })
 })

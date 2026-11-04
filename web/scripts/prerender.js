@@ -2683,9 +2683,9 @@ const TITLE = currentTitle(fightRows, META.built)
     `<ol class="podium" aria-label="${esc(PODIUM_LABEL)}">${list
       .map(
         (step) =>
-          `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span><span class="podium-driver">${
+          `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span> <span class="podium-driver">${
             step.driver_id ? link(`drivers/${step.driver_id}`, step.driver) : esc(step.driver)
-          }</span><span class="podium-team muted small">${text(step.constructor)}</span><span class="${
+          }</span> <span class="podium-team muted small">${text(step.constructor)}</span><span class="${
             step.colour ? `podium-block livery-series" style="${pairStyle(step.colour)}` : 'podium-block podium-block-none'
           }" aria-hidden="true"></span></li>`,
       )

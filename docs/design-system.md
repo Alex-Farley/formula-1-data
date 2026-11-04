@@ -834,7 +834,7 @@ the reader's in the app, the build's day in the prerender (`homeCycle` in
 | State | When | The two panels, and what follows them |
 |---|---|---|
 | Preview | from the end of the results state to the next round's first session | *Last race run* and *Next on the calendar*, as before; the next circuit's *Where winners start* figure |
-| Weekend | from that first session until the result is in the database | *Last race run* and *This weekend*: the round's sessions as a plain list, its start times in UTC on the static page and on the reader's clock in the app; once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the history figure |
+| Weekend | from that first session (its first day, where it has no timetable) until the result is in the database | *Last race run* and *This weekend*: the round's sessions as a plain list, its start times in UTC on the static page and in the reader's time in the app; once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the history figure |
 | Results | from the result landing to the end of the third day after the race | the **podium** in place of the winner's sentence, and *Next on the calendar*; the reach chart of the first title still fought (AF-132's); the history figure |
 
 With no round to come, the block is as it was. Its parts are the system's

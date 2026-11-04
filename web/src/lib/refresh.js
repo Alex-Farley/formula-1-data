@@ -146,12 +146,16 @@ export const lateLine = (r) =>
 /**
  * The home page's line for a race that is over and not yet here (AF-135):
  * said plainly, with the last check, so a run race never reads as still to
- * come and no result is claimed that the database does not hold. The day
- * is ISO, for each renderer to write as it writes dates.
+ * come and no result is claimed that the database does not hold. "A day or
+ * two" is refresh.yml's own account of F1DB. The check date is the last
+ * morning the refresh finished, which may be before the race when the
+ * refresh is failing, so the sentence names it as a check of F1DB and not
+ * of this race's results. The day is ISO, for each renderer to write as it
+ * writes dates.
  */
 export const resultsPending = (race) =>
-  `The ${race.year} ${race.name_used} has been run. Results usually arrive here within a day of the race; ` +
-  `the last check for them finished on ${LAST_CHECKED}.`
+  `The ${race.year} ${race.name_used} has been run. Its results usually arrive here within a day or two; ` +
+  `this site last finished a check of F1DB on ${LAST_CHECKED}.`
 
 /** /changes' notice, as both renderers draw it, or null when nothing is late. */
 export const lateNotice = (late) =>
