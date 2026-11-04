@@ -5667,6 +5667,13 @@ def coverage_note(cur):
 
 # An entry counts as a start unless the source's result says it never did.
 STARTED = ("COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')")
+# The floor under every career share record (WK-09): a driver or constructor
+# with fewer starts - or entries, for a pole rate - is not ranked, because
+# below it a handful of races decides the figure. It is the floor Wikipedia's
+# List of Formula One driver records puts under its career percentage tables,
+# so a figure here can be checked against the list's.
+RATE_FLOOR = 15
+
 STARTED_RULE = ("An entry counts as a start unless its result is DNQ, DNPQ, DNS, DNP "
                 "or EX - did not qualify, pre-qualify, start or practise, or excluded "
                 "before the start - so a pit-lane start counts and so does a "
@@ -5763,6 +5770,8 @@ RECORD_FAMILIES = {
         "most-consecutive-wins-at-one-grand-prix", "most-seasons-with-a-win",
         "most-consecutive-seasons-with-a-win", "most-constructor-seasons-with-a-win",
         "most-consecutive-constructor-seasons-with-a-win",
+        "highest-pole-conversion", "highest-constructor-win-rate",
+        "highest-pole-conversion-constructor",
     ),
     "Pole positions": (
         "most-poles", "closest-pole-margin", "most-poles-in-a-season", "most-consecutive-poles",
@@ -5771,6 +5780,8 @@ RECORD_FAMILIES = {
         "most-consecutive-poles-at-one-grand-prix", "most-seasons-with-a-pole",
         "most-consecutive-seasons-with-a-pole", "most-constructor-seasons-with-a-pole",
         "most-consecutive-constructor-seasons-with-a-pole",
+        "highest-pole-rate", "highest-season-pole-share-driver",
+        "highest-constructor-pole-rate", "highest-season-pole-share-constructor",
     ),
     "Podiums": (
         "most-podiums", "most-podiums-in-a-season", "most-consecutive-podiums",
@@ -5778,6 +5789,7 @@ RECORD_FAMILIES = {
         "most-consecutive-constructor-podiums", "most-seasons-with-a-podium",
         "most-consecutive-seasons-with-a-podium", "most-constructor-seasons-with-a-podium",
         "most-consecutive-constructor-seasons-with-a-podium",
+        "highest-podium-rate", "highest-season-podium-share-driver",
     ),
     "Fastest laps": (
         "most-fastest-laps", "most-fastest-laps-in-a-season", "most-consecutive-fastest-laps",
@@ -5785,6 +5797,8 @@ RECORD_FAMILIES = {
         "most-consecutive-seasons-with-a-fastest-lap",
         "most-constructor-seasons-with-a-fastest-lap",
         "most-consecutive-constructor-seasons-with-a-fastest-lap",
+        "highest-fastest-lap-rate", "highest-season-fastest-lap-share-driver",
+        "highest-season-fastest-lap-share-constructor",
     ),
     "Entries and starts": ("most-race-entries", "most-consecutive-starts"),
     "Age": (
@@ -5939,18 +5953,19 @@ def derive_records(cur, leave_out=frozenset()):
         "is held only where formula1.com published it and is not derived here. "
         f"Next: {_also(rows, lead, 1)}.")
 
-    FLOOR = 30
-    rows = q("""SELECT ROUND(100.0 * d.wins / COUNT(*), 2) pct, d.full_name, d.id,
-                       d.wins, COUNT(*) n
-                  FROM race_entries e JOIN drivers d ON d.id = e.driver_id
-                 GROUP BY d.id HAVING n >= ? ORDER BY pct DESC, d.full_name""", FLOOR)
+    rows = q(f"""SELECT ROUND(100.0 * d.wins / SUM({STARTED}), 2) pct, d.full_name, d.id,
+                        d.wins, SUM({STARTED}) n
+                   FROM race_entries e JOIN drivers d ON d.id = e.driver_id
+                  GROUP BY d.id HAVING n >= ? ORDER BY pct DESC, d.full_name""", RATE_FLOOR)
     lead = _leaders(rows)
     add("highest-win-rate", "drivers", "Highest win rate", [(r[1], r[2]) for r in lead],
         "drivers", lead[0][0], "per cent",
-        f"{lead[0][0]:.2f}% ({_num(lead[0][3])} wins from {_num(lead[0][4])} entries)",
-        f"drivers.wins over the driver's race_entries rows, for drivers with at least "
-        f"{FLOOR} entries. The floor is a choice, stated so it can be argued with: below "
-        f"it a handful of races decides the figure. Next: {_also(rows, lead, 1)}.")
+        f"{lead[0][0]:.2f}% ({_num(lead[0][3])} wins from {_num(lead[0][4])} starts)",
+        f"drivers.wins over the driver's starts, for drivers with at least {RATE_FLOOR} "
+        f"starts. {STARTED_RULE} The floor is a choice, stated so it can be argued with: "
+        f"below it a handful of races decides the figure, and {RATE_FLOOR} starts is the "
+        f"floor Wikipedia's List of Formula One driver records uses, so the two can be "
+        f"compared. Next: {_also(rows, lead, 1)}.")
 
     races_in = dict(q("SELECT year, COUNT(*) FROM races WHERE status = 'completed' GROUP BY year"))
     rows = q("""SELECT COUNT(*) n, d.full_name, d.id, r.year
@@ -6881,6 +6896,178 @@ def derive_records(cur, leave_out=frozenset()):
                 + ". Next: " + next_tier(
                     runs, lead, lambda r: f"{r[1]} {r[0]} ({season_span(r, ', ongoing')})")
                 + ".")
+
+    # WK-09: the share tables of Wikipedia's two lists of records - the
+    # career rates, the season shares and pole-to-win conversion. Appended
+    # after every older record so none is renumbered. A share is rounded to
+    # two places, as the season win shares above are, and ranked on that.
+    def pct_next(rows, lead, fmt, limit=3):
+        """The rows after the leaders for the detail's 'Next:', running on
+        through a tie at the cut so a shared figure is never shown as one
+        holder's."""
+        rest = [r for r in rows if r not in lead]
+        cut = rest[:limit]
+        if cut:
+            cut += [r for r in rest[limit:] if r[0] == cut[-1][0]]
+        return ", ".join(fmt(r) for r in cut) or "none"
+
+    def held_by(lead, fmt):
+        """Every leading row, named in the detail when the value cannot."""
+        return "" if len(lead) == 1 else "Shared: " + "; ".join(fmt(r) for r in lead) + ". "
+
+    def career_rate(key, cat, record, rows, noun, over, rule):
+        # rows: (pct, name, id, count, base), best first.
+        lead = _leaders(rows)
+        add(key, cat, record, [(r[1], r[2]) for r in lead], cat, lead[0][0], "per cent",
+            (f"{lead[0][0]:.2f}% ({_num(lead[0][3])} {noun} from {_num(lead[0][4])} {over})"
+             if len(lead) == 1 else f"{lead[0][0]:.2f}% each"),
+            f"{rule} {held_by(lead, lambda r: f'{r[1]} ({r[3]} of {r[4]})')}Next: "
+            + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]:.2f}% ({r[3]} of {r[4]})") + ".")
+
+    started_rule = (f"Drivers with fewer than {RATE_FLOOR} starts are not ranked: it is the "
+                    f"floor Wikipedia's List of Formula One driver records uses, and below it "
+                    f"a handful of races decides the figure. {STARTED_RULE}")
+    for key, record, col, noun, rule in (
+        ("highest-podium-rate", "Highest podium rate", "podiums", "podiums",
+         "drivers.podiums - distinct races classified first, second or third, so a driver "
+         "on the podium twice in one race in a shared car counts it once - over the "
+         "driver's starts."),
+        ("highest-fastest-lap-rate", "Highest fastest-lap rate", "fastest_laps",
+         "fastest laps", "drivers.fastest_laps - a shared fastest lap counting for each "
+         "driver - over the driver's starts."),
+    ):
+        rows = q(f"""SELECT ROUND(100.0 * d.{col} / SUM({STARTED}), 2) pct, d.full_name, d.id,
+                            d.{col}, SUM({STARTED}) n
+                       FROM race_entries e JOIN drivers d ON d.id = e.driver_id
+                      WHERE d.{col} IS NOT NULL
+                      GROUP BY d.id HAVING n >= ? ORDER BY pct DESC, d.full_name""",
+                 RATE_FLOOR)
+        career_rate(key, "drivers", record, rows, noun, "starts", f"{rule} {started_rule}")
+
+    rows = q("""SELECT ROUND(100.0 * d.poles / COUNT(*), 2) pct, d.full_name, d.id,
+                       d.poles, COUNT(*) n
+                  FROM race_entries e JOIN drivers d ON d.id = e.driver_id
+                 WHERE d.poles IS NOT NULL
+                 GROUP BY d.id HAVING n >= ? ORDER BY pct DESC, d.full_name""", RATE_FLOOR)
+    career_rate("highest-pole-rate", "drivers", "Highest pole position rate", rows, "poles",
+                "entries",
+                "drivers.poles over the driver's race_entries rows, for drivers with at least "
+                f"{RATE_FLOOR} of them: entries, not starts, because pole is taken before the "
+                "start and is kept by a driver who then does not start. Wikipedia's List of "
+                "Formula One driver records also counts entries for this table, with the same "
+                "floor. The race records hold no row for an Indianapolis 500 "
+                "non-qualifier, so a driver's entries here can be fewer than a source that "
+                "counts one; where a stored entries figure differs, the difference is a "
+                "stored-total row in discrepancies.")
+
+    rows = q("""SELECT ROUND(100.0 * SUM(CASE WHEN e.finish_position = 1 THEN 1 ELSE 0 END)
+                             / COUNT(*), 2) pct, d.full_name, d.id,
+                       SUM(CASE WHEN e.finish_position = 1 THEN 1 ELSE 0 END) w, COUNT(*) n
+                  FROM race_entries e JOIN drivers d ON d.id = e.driver_id
+                 WHERE e.pole = 1
+                 GROUP BY d.id HAVING n >= 5 ORDER BY pct DESC, d.full_name""")
+    career_rate("highest-pole-conversion", "drivers", "Highest share of poles converted to wins",
+                rows, "wins", "poles",
+                "The driver's pole = 1 entries, as drivers.poles counts them, that the same "
+                "entry won (finish_position = 1), for drivers with at least 5 poles - the "
+                "floor Wikipedia's List of Formula One driver records uses, below which one "
+                "or two races decide the figure. A driver still racing can change it.")
+
+    started_c = f"CASE WHEN {STARTED} THEN e.race_id END"
+    rows = q(f"""SELECT ROUND(100.0 * COUNT(DISTINCT CASE WHEN e.finish_position = 1
+                                                     THEN e.race_id END)
+                              / COUNT(DISTINCT {started_c}), 2) pct, c.name, c.id,
+                        COUNT(DISTINCT CASE WHEN e.finish_position = 1 THEN e.race_id END) w,
+                        COUNT(DISTINCT {started_c}) n
+                   FROM race_entries e JOIN constructors c ON c.id = e.constructor_id
+                  GROUP BY c.id HAVING n >= ? ORDER BY pct DESC, c.name""", RATE_FLOOR)
+    career_rate("highest-constructor-win-rate", "constructors",
+                "Highest win rate by a constructor", rows, "wins", "starts",
+                "Distinct races the constructor won over the distinct races in which at "
+                f"least one of its cars started, for constructors with at least {RATE_FLOOR} "
+                "starts - the drivers' floor; Wikipedia's List of Formula One constructor "
+                "records sets none for this table. The name raced under, lineage not merged.")
+
+    rows = q("""SELECT ROUND(100.0 * COUNT(DISTINCT CASE WHEN e.pole = 1 THEN e.race_id END)
+                             / COUNT(DISTINCT e.race_id), 2) pct, c.name, c.id,
+                       COUNT(DISTINCT CASE WHEN e.pole = 1 THEN e.race_id END) p,
+                       COUNT(DISTINCT e.race_id) n
+                  FROM race_entries e JOIN constructors c ON c.id = e.constructor_id
+                 GROUP BY c.id HAVING n >= ? ORDER BY pct DESC, c.name""", RATE_FLOOR)
+    career_rate("highest-constructor-pole-rate", "constructors",
+                "Highest pole position rate by a constructor", rows, "poles", "entries",
+                "Distinct races in which one of the constructor's cars took pole over the "
+                "distinct races it entered, for constructors with at least "
+                f"{RATE_FLOOR} entries - the drivers' floor. Wikipedia's List of Formula One "
+                "constructor records sets none for this table, so its leader can be a "
+                "constructor that entered a handful of races. The name raced under, lineage "
+                "not merged.")
+
+    rows = q("""WITH p AS (SELECT DISTINCT race_id, constructor_id FROM race_entries
+                            WHERE pole = 1 AND constructor_id IS NOT NULL),
+                     w AS (SELECT DISTINCT race_id, constructor_id FROM race_entries
+                            WHERE finish_position = 1)
+                SELECT ROUND(100.0 * COUNT(w.race_id) / COUNT(*), 2) pct, c.name, c.id,
+                       COUNT(w.race_id) won, COUNT(*) n
+                  FROM p LEFT JOIN w ON w.race_id = p.race_id
+                                    AND w.constructor_id = p.constructor_id
+                  JOIN constructors c ON c.id = p.constructor_id
+                 GROUP BY c.id HAVING n >= 10 ORDER BY pct DESC, c.name""")
+    career_rate("highest-pole-conversion-constructor", "constructors",
+                "Highest share of poles converted to wins by a constructor", rows, "wins",
+                "poles",
+                "Distinct races in which one of the constructor's cars took pole and one of "
+                "them won, whichever car it was, over the races in which it took pole, for "
+                "constructors with at least 10 poles - the floor Wikipedia's List of Formula "
+                "One constructor records uses. The name raced under, lineage not merged.")
+
+    for key, cat, record, who, table, name, where, count, rule in (
+        ("highest-season-pole-share-driver", "drivers",
+         "Highest share of a season's pole positions taken by a driver",
+         "d.id", "drivers d", "d.full_name", "e.pole = 1", "COUNT(*)",
+         "The driver's pole = 1 entries, as drivers.poles counts them"),
+        ("highest-season-podium-share-driver", "drivers",
+         "Highest share of a season's races finished on the podium by a driver",
+         "d.id", "drivers d", "d.full_name", "e.finish_position <= 3",
+         "COUNT(DISTINCT e.race_id)",
+         "Distinct races in which the driver was classified first, second or third, as "
+         "drivers.podiums counts them"),
+        ("highest-season-fastest-lap-share-driver", "drivers",
+         "Highest share of a season's fastest laps set by a driver",
+         "d.id", "drivers d", "d.full_name", "e.fastest_lap = 1", "COUNT(*)",
+         "The driver's fastest_lap = 1 entries, a shared fastest lap counting for each "
+         "driver"),
+        ("highest-season-pole-share-constructor", "constructors",
+         "Highest share of a season's pole positions taken by a constructor",
+         "c.id", "constructors c", "c.name", "e.pole = 1", "COUNT(DISTINCT e.race_id)",
+         "Distinct races in which one of the constructor's cars took pole"),
+        ("highest-season-fastest-lap-share-constructor", "constructors",
+         "Highest share of a season's fastest laps set by a constructor",
+         "c.id", "constructors c", "c.name", "e.fastest_lap = 1", "COUNT(DISTINCT e.race_id)",
+         "Distinct races in which one of the constructor's cars set the fastest lap, a "
+         "shared fastest lap counting for each constructor"),
+    ):
+        key_col = "e.driver_id" if cat == "drivers" else "e.constructor_id"
+        rows = q(f"""SELECT ROUND(100.0 * {count} /
+                                 (SELECT COUNT(*) FROM races x WHERE x.year = r.year
+                                     AND x.status = 'completed'), 2) pct,
+                            {name}, {who}, r.year, {count} n
+                       FROM race_entries e JOIN races r ON r.id = e.race_id
+                       JOIN {table} ON {who} = {key_col}
+                       JOIN seasons s ON s.year = r.year
+                      WHERE {where} AND {SEASON_OVER}
+                      GROUP BY r.year, {who} ORDER BY pct DESC, r.year, {name}""")
+        lead = _leaders(rows)
+        add(key, cat, record, [(r[1], r[2]) for r in lead], cat, lead[0][0], "per cent",
+            tie_value(lead, lambda r: f"{r[0]:.2f}% ({r[4]} of {races_in[r[3]]}, {r[3]})",
+                      lambda r: str(r[3]), figure=f"{lead[0][0]:.2f}%", joiner=", in "),
+            f"{rule}, over the completed races of the season, the Indianapolis 500 of "
+            f"1950-60 counted as a race; seasons still in progress are excluded. "
+            + held_by(lead, lambda r: f"{r[1]} ({r[4]} of {races_in[r[3]]}, {r[3]})")
+            + "Next: "
+            + pct_next(rows, lead,
+                       lambda r: f"{r[1]} {r[0]:.2f}% ({r[4]} of {races_in[r[3]]}, {r[3]})")
+            + ".")
 
     return out
 
