@@ -5667,8 +5667,9 @@ def coverage_note(cur):
 
 # An entry counts as a start unless the source's result says it never did.
 STARTED = ("COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')")
-# The floor under every career share record (WK-09): a driver or constructor
-# with fewer starts - or entries, for a pole rate - is not ranked, because
+# The floor under the career win, pole, podium and fastest-lap rates (WK-09;
+# the pole conversions take the list's own 5 and 10 poles): a driver or
+# constructor with fewer starts - or entries, for a pole rate - is not ranked, because
 # below it a handful of races decides the figure. It is the floor Wikipedia's
 # List of Formula One driver records puts under its career percentage tables,
 # so a figure here can be checked against the list's.
@@ -6912,8 +6913,9 @@ def derive_records(cur, leave_out=frozenset()):
         return ", ".join(fmt(r) for r in cut) or "none"
 
     def held_by(lead, fmt):
-        """Every leading row, named in the detail when the value cannot."""
-        return "" if len(lead) == 1 else "Shared: " + "; ".join(fmt(r) for r in lead) + ". "
+        """Every leading row, named in the detail when the value says 'each';
+        one holder leading in two seasons is named by the value already."""
+        return "" if len({r[2] for r in lead}) == 1 else "Shared: " + "; ".join(fmt(r) for r in lead) + ". "
 
     def career_rate(key, cat, record, rows, noun, over, rule):
         # rows: (pct, name, id, count, base), best first.
@@ -6955,9 +6957,9 @@ def derive_records(cur, leave_out=frozenset()):
                 f"{RATE_FLOOR} of them: entries, not starts, because pole is taken before the "
                 "start and is kept by a driver who then does not start. Wikipedia's List of "
                 "Formula One driver records also counts entries for this table, with the same "
-                "floor. The race records hold no row for an Indianapolis 500 "
-                "non-qualifier, so a driver's entries here can be fewer than a source that "
-                "counts one; where a stored entries figure differs, the difference is a "
+                "floor. The race records do not hold every entry a source counts - an "
+                "Indianapolis 500 non-qualifier has no row, nor has every entry that did not "
+                "start - so a driver's entries here can be fewer; where a stored entries figure differs, the difference is a "
                 "stored-total row in discrepancies.")
 
     rows = q("""SELECT ROUND(100.0 * SUM(CASE WHEN e.finish_position = 1 THEN 1 ELSE 0 END)
