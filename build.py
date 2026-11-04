@@ -5755,11 +5755,13 @@ RECORD_FAMILIES = {
         "highest-season-win-share-driver", "most-entries-without-a-win",
         "most-wins-at-one-grand-prix", "most-wins-from-pole", "most-pole-win-fastest-lap",
         "most-one-two-finishes", "most-consecutive-constructor-wins",
+        "most-consecutive-wins-at-one-grand-prix",
     ),
     "Pole positions": (
         "most-poles", "closest-pole-margin", "most-poles-in-a-season", "most-consecutive-poles",
         "most-constructor-poles", "most-constructor-poles-in-a-season",
-        "most-consecutive-constructor-poles",
+        "most-consecutive-constructor-poles", "most-poles-at-one-grand-prix",
+        "most-consecutive-poles-at-one-grand-prix",
     ),
     "Podiums": (
         "most-podiums", "most-podiums-in-a-season", "most-consecutive-podiums",
@@ -5768,6 +5770,7 @@ RECORD_FAMILIES = {
     ),
     "Fastest laps": (
         "most-fastest-laps", "most-fastest-laps-in-a-season", "most-consecutive-fastest-laps",
+        "most-fastest-laps-at-one-grand-prix",
     ),
     "Entries and starts": ("most-race-entries", "most-consecutive-starts"),
     "Age": (
@@ -6307,9 +6310,10 @@ def derive_records(cur, leave_out=frozenset()):
     # ================================================ from the records list
     # WK-06 read Wikipedia's lists of driver and constructor records against
     # this table; every record below is a headline one it holds that the race
-    # records can derive. Which of the lists' many variants - percentages, the
-    # same Grand Prix, from the first race of a season - belong here too is
-    # WK-08 (#643). Wikipedia is the checklist, never the source: each figure is
+    # records can derive. The lists' many variants - percentages, the same
+    # Grand Prix, from the first race of a season - were ruled in on WK-08
+    # (#643) and land in pieces, each appended at the end of this function.
+    # Wikipedia is the checklist, never the source: each figure is
     # computed here, and agreed with the list's when the survey was taken.
     # Appended after the first twenty-nine rather than filed into their
     # categories, so that no existing records.id moves (DA-26, #539); the
@@ -6395,17 +6399,23 @@ def derive_records(cur, leave_out=frozenset()):
         "drivers.wins for every driver whose drivers.titles is 0. A driver still racing "
         f"may yet win one. Next: {_also(rows, lead, 1)}.")
 
-    rows = q("""SELECT d.full_name, d.id, g.name, r.year
+    def at_one_gp(where):
+        """(n, driver, id, Grand Prix, [years]) for every driver and Grand Prix
+        (races.gp_id) with an entry meeting `where`, most first: the event,
+        wherever it was held, so a Grand Prix that moved circuit is one and two
+        held in one season stay two."""
+        at_gp = {}
+        for name, did, gp, year, _ in q(f"""SELECT DISTINCT d.full_name, d.id, g.name, r.year, r.id
                   FROM race_entries e JOIN races r ON r.id = e.race_id
                   JOIN drivers d ON d.id = e.driver_id
                   JOIN grands_prix g ON g.id = r.gp_id
-                 WHERE e.finish_position = 1
-                 ORDER BY d.full_name, g.name, r.year""")
-    at_gp = {}
-    for name, did, gp, year in rows:
-        at_gp.setdefault((name, did, gp), []).append(year)
-    rows = sorted(((len(y), k[0], k[1], k[2], y) for k, y in at_gp.items()),
-                  key=lambda r: (-r[0], r[1], r[3]))
+                 WHERE {where}
+                 ORDER BY d.full_name, g.name, r.year"""):
+            at_gp.setdefault((name, did, gp), []).append(year)
+        return sorted(((len(y), k[0], k[1], k[2], y) for k, y in at_gp.items()),
+                      key=lambda r: (-r[0], r[1], r[3]))
+
+    rows = at_one_gp("e.finish_position = 1")
     lead = _leaders(rows)
     add("most-wins-at-one-grand-prix", "drivers", "Most wins at one Grand Prix",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "wins",
@@ -6605,6 +6615,83 @@ def derive_records(cur, leave_out=frozenset()):
         add(key, "constructors", record, [(team_names[h[0]], h[0]) for h in holders],
             "constructors", best, unit, run_value(best, holders),
             run_detail(rule, holders, team_names))
+
+    # The same Grand Prix (WK-10): poles and fastest laps at one, and runs of
+    # wins and poles at one. Appended here so that no existing records.id moves.
+    def gp_runs(where):
+        """(n, driver, id, Grand Prix, [years]) for every run of consecutive
+        editions of one Grand Prix (races.gp_id) in which the driver has an
+        entry meeting `where`, longest first. The editions are the Grand Prix's
+        completed races in date order, so a year it was not held does not break
+        a run; a run ends at the first edition the driver does not meet,
+        entered or not."""
+        hit = {}
+        for rid, did in q(f"""SELECT e.race_id, e.driver_id FROM race_entries e
+                              WHERE {where} AND e.driver_id IS NOT NULL"""):
+            hit.setdefault(rid, set()).add(did)
+        gp_names = dict(q("SELECT id, name FROM grands_prix"))
+        editions = {}
+        for rid, gp, year in q("""SELECT id, gp_id, year FROM races
+                                  WHERE status = 'completed' ORDER BY date_iso, year, round"""):
+            editions.setdefault(gp, []).append((rid, year))
+        runs = []
+        for gp, eds in editions.items():
+            going = {}
+            for rid, year in eds + [(None, None)]:
+                now = hit.get(rid, set())
+                for k in [k for k in going if k not in now]:
+                    runs.append((len(going[k]), names[k], k, gp_names[gp], going.pop(k)))
+                for k in now:
+                    going.setdefault(k, []).append(year)
+        return sorted(runs, key=lambda r: (-r[0], r[1], r[3], r[4][0]))
+
+    def next_tier(rows, lead, fmt, most=4):
+        """The rows at the figure after the leaders' - every one of them, or
+        past `most` their number, since cutting inside a tie would pick by name."""
+        rest = [r for r in rows if r[0] != lead[0][0]]
+        tier = [r for r in rest if r[0] == rest[0][0]] if rest else []
+        if not tier:
+            return "none"
+        if len(tier) > most:
+            return f"{len(tier)} more at {_num(tier[0][0])}"
+        return ", ".join(fmt(r) for r in tier)
+
+    for key, record, where, unit, rule in (
+        ("most-poles-at-one-grand-prix", "Most pole positions at one Grand Prix", "e.pole = 1",
+         "poles", "pole = 1 entries per driver per Grand Prix (races.gp_id), as drivers.poles "
+         "counts them: the event, wherever it was held, not the circuit"),
+        ("most-fastest-laps-at-one-grand-prix", "Most fastest laps at one Grand Prix",
+         "e.fastest_lap = 1", "fastest laps",
+         "fastest_lap = 1 entries per driver per Grand Prix (races.gp_id), a shared fastest "
+         "lap counting for each driver: the event, wherever it was held, not the circuit"),
+    ):
+        rows = at_one_gp(where)
+        lead = _leaders(rows)
+        add(key, "drivers", record, [(r[1], r[2]) for r in lead], "drivers", lead[0][0], unit,
+            tie_value(lead, lambda r: f"{_num(r[0])}, {r[3]}", lambda r: str(r[3])),
+            f"{rule}. "
+            + "; ".join(f"{r[1]}, {r[3]}: {', '.join(map(str, r[4]))}" for r in lead)
+            + ". Next: " + next_tier(rows, lead, lambda r: f"{r[1]} {r[0]} ({r[3]})") + ".")
+
+    span = lambda r: f"{r[3]} {r[4][0]}-{r[4][-1]}"                     # noqa: E731
+    for key, record, where, unit, rule in (
+        ("most-consecutive-wins-at-one-grand-prix", "Most consecutive wins at one Grand Prix",
+         "e.finish_position = 1", "wins", "finish_position = 1 entries, a shared drive "
+         "counting for both drivers"),
+        ("most-consecutive-poles-at-one-grand-prix",
+         "Most consecutive pole positions at one Grand Prix", "e.pole = 1", "poles",
+         "pole = 1 entries, as drivers.poles counts them"),
+    ):
+        rows = gp_runs(where)
+        lead = _leaders(rows)
+        add(key, "drivers", record, [(r[1], r[2]) for r in lead], "drivers", lead[0][0], unit,
+            tie_value(lead, lambda r: f"{_num(r[0])}, {span(r)}", span),
+            f"{rule}, in consecutive editions of one Grand Prix (races.gp_id), the event "
+            "wherever it was held. The editions are its completed races in date order, so a "
+            "year it was not held does not break a run; a run ends at the first edition the "
+            "driver does not take, entered or not. "
+            + "; ".join(f"{r[1]}, {r[3]}: {', '.join(map(str, r[4]))}" for r in lead)
+            + ". Next: " + next_tier(rows, lead, lambda r: f"{r[1]} {r[0]} ({span(r)})") + ".")
 
     return out
 
