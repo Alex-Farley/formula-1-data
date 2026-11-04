@@ -254,6 +254,7 @@ import { flagCarClass, gridFlagLayout, textWidth } from '../src/charts/gridFlag.
 import { INK, slotColour } from '../src/charts/palette.js'
 import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 import { unestablished } from '../src/lib/tiles.js'
+import { LAP_NEXT, LAP_RUN, LAP_TO_COME, flatten, lapLabel, lapLayout } from '../src/lib/lap.js'
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -3278,6 +3279,123 @@ describe("the home page's season cycle (AF-135), on fixed clocks", () => {
     assert.equal(sessionsClock(null), 'Start times, UTC.')
     assert.equal(sessionsClock('America/Sao_Paulo'), 'Start times, your time (America/Sao Paulo).')
     assert.equal(reachHeading("The drivers' title"), "Who can still win the drivers' title")
+  })
+})
+
+describe("the home page's weekend as a lap (AF-156), on fixed clocks", () => {
+  const at = (iso) => Date.parse(iso)
+  const session = (kind, name, start_utc) => ({ kind, name, start_utc, zone: 'America/Sao_Paulo' })
+  const normal = [
+    session('fp1', 'Practice 1', '2026-11-06T14:30Z'),
+    session('fp2', 'Practice 2', '2026-11-06T18:00Z'),
+    session('fp3', 'Practice 3', '2026-11-07T14:30Z'),
+    session('qualifying', 'Qualifying', '2026-11-07T18:00Z'),
+    session('race', 'Race', '2026-11-08T17:00Z'),
+  ]
+  const sprint = [
+    session('fp1', 'Practice 1', '2026-04-10T03:30Z'),
+    session('sprint_qualifying', 'Sprint qualifying', '2026-04-10T07:30Z'),
+    session('sprint', 'Sprint', '2026-04-11T03:00Z'),
+    session('qualifying', 'Qualifying', '2026-04-11T07:00Z'),
+    session('race', 'Race', '2026-04-12T07:00Z'),
+  ]
+  // A square drawn clockwise from its top-left corner, 400 units round.
+  const square = 'M0 0H100V100H0Z'
+  const states = (lap) => lap.stops.map((s) => s.state)
+
+  it('reads every command F1DB writes, flags run together included', () => {
+    const round = (runs) => runs.reduce((sum, run) => sum + run.slice(1).reduce((a, p, k) => a + Math.hypot(p[0] - run[k][0], p[1] - run[k][1]), 0), 0)
+    assert.equal(round(flatten(square)), 400)
+    assert.equal(round(flatten('m0 0 100 0 0 100-100 0z')), 400, 'a relative moveto, its pairs read as linetos')
+    // A circle of radius 50 as two arcs, the second with its flags and the
+    // first coordinate run together as minified paths write them.
+    const circle = round(flatten('M0 50a50 50 0 1 1 100 0a50 50 0 11-100 0'))
+    assert.ok(Math.abs(circle - 100 * Math.PI) < 1, `two half-circles are ${circle.toFixed(2)} round, not ${(100 * Math.PI).toFixed(2)}`)
+    const curve = round(flatten('M0 0c0 50 100 50 100 0s100-50 100 0q50 50 100 0t100 0'))
+    assert.ok(curve > 400 && curve < 520, `the curves are read as curves: ${curve.toFixed(1)}`)
+    assert.throws(() => flatten('M0 0 X5 5'))
+  })
+
+  it('reads every outline the database holds, so no round falls to the strip for want of a reader', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const paths = db.prepare('SELECT f1db_layout_id, path FROM circuit_outlines').all()
+      assert.ok(paths.length > 0)
+      for (const { f1db_layout_id: id, path } of paths) {
+        const lap = lapLayout(path, normal, at('2026-11-01T00:00Z'))
+        assert.equal(lap.strip, false, `${id} is read`)
+        for (const stop of lap.stops) assert.ok(stop.x >= 0 && stop.x <= 500 && stop.y >= 0 && stop.y <= 500, `${id}: a stop inside the box`)
+      }
+    } finally {
+      db.close()
+    }
+  })
+
+  it('spaces the stops evenly in order, the race closing the lap where the drawing began', () => {
+    const lap = lapLayout(square, normal.slice(0, 4), at('2026-11-01T00:00Z'))
+    assert.deepEqual(
+      lap.stops.map((s) => [s.x, s.y]),
+      [[100, 0], [100, 100], [0, 100], [0, 0]],
+    )
+    assert.equal(lap.run, null, 'nothing is drawn in before the first session')
+    assert.equal(lap.next.kind, 'fp1')
+  })
+
+  it('draws in a normal weekend as each session starts', () => {
+    const before = lapLayout(square, normal, at('2026-11-06T14:29Z'))
+    assert.deepEqual(states(before), [LAP_NEXT, LAP_TO_COME, LAP_TO_COME, LAP_TO_COME, LAP_TO_COME])
+    assert.equal(before.ran, 0)
+    // Both edges of a start: the minute before and the minute of it.
+    const first = lapLayout(square, normal, at('2026-11-06T14:30Z'))
+    assert.deepEqual(states(first), [LAP_RUN, LAP_NEXT, LAP_TO_COME, LAP_TO_COME, LAP_TO_COME])
+    assert.equal(first.run, 'M0 0L80 0', 'the track is drawn in to the first stop, a fifth of the way round')
+    assert.equal(first.next.name, 'Practice 2')
+    const saturday = lapLayout(square, normal, at('2026-11-07T20:00Z'))
+    assert.deepEqual(states(saturday), [LAP_RUN, LAP_RUN, LAP_RUN, LAP_RUN, LAP_NEXT])
+    assert.equal(saturday.run, 'M0 0L100 0L100 100L0 100L0 80', 'four fifths of the way round, along the drawing')
+    const raced = lapLayout(square, normal, at('2026-11-08T17:00Z'))
+    assert.deepEqual(states(raced), [LAP_RUN, LAP_RUN, LAP_RUN, LAP_RUN, LAP_RUN])
+    assert.equal(raced.next, null, 'with every session started there is no next')
+    assert.equal(raced.run, 'M0 0L100 0L100 100L0 100L0 0', 'and the lap is closed')
+  })
+
+  it("takes a sprint weekend's own sessions, in the order they are run", () => {
+    const lap = lapLayout(square, sprint, at('2026-04-10T12:00Z'))
+    assert.deepEqual(
+      lap.stops.map((s) => [s.key, s.state]),
+      [
+        ['fp1', LAP_RUN],
+        ['sprint_qualifying', LAP_RUN],
+        ['sprint', LAP_NEXT],
+        ['qualifying', LAP_TO_COME],
+        ['race', LAP_TO_COME],
+      ],
+    )
+    assert.equal(lap.next.name, 'Sprint')
+    assert.ok(lap.stops.find((s) => s.state === LAP_NEXT).r > lap.stops.find((s) => s.state === LAP_RUN).r, 'the next stop is drawn larger')
+  })
+
+  it('lays a round with no drawing, or one it cannot read, on a strip, and draws nothing with no timetable', () => {
+    for (const path of [null, 'not a path']) {
+      const lap = lapLayout(path, normal, at('2026-11-06T14:30Z'))
+      assert.equal(lap.strip, true)
+      assert.equal(lap.viewBox, '0 0 500 48')
+      assert.deepEqual(
+        lap.stops.map((s) => s.x),
+        [114.4, 204.8, 295.2, 385.6, 476],
+      )
+      assert.equal(lap.run, 'M24 24L114.4 24')
+    }
+    assert.equal(lapLayout(square, [], at('2026-11-06T14:30Z')), null)
+    assert.equal(lapLayout(square, null, at('2026-11-06T14:30Z')), null)
+  })
+
+  it('names where the weekend stands, in words', () => {
+    const label = (iso, path = square) => lapLabel('Interlagos', 'interlagos-2', lapLayout(path, normal, at(iso)))
+    assert.equal(label('2026-11-01T00:00Z'), 'Outline of Interlagos, F1DB layout interlagos-2, with the weekend’s 5 sessions marked round it in order: none has started')
+    assert.equal(label('2026-11-07T15:00Z'), 'Outline of Interlagos, F1DB layout interlagos-2, with the weekend’s 5 sessions marked round it in order: 3 of them started, Qualifying next')
+    assert.equal(label('2026-11-09T00:00Z'), 'Outline of Interlagos, F1DB layout interlagos-2, with the weekend’s 5 sessions marked round it in order: every one has started')
+    assert.equal(label('2026-11-07T15:00Z', null), 'A strip of the weekend’s 5 sessions, in order: 3 of them started, Qualifying next')
   })
 })
 

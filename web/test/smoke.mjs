@@ -147,6 +147,8 @@ import {
   recordFamilies,
 } from '../src/queries/records.js'
 import { LAYOUT_RACED, NO_DRAWING, NO_LAYOUT_RECORDED, NO_TIMELINE_ROW, OUTLINE_RULE, RACE_LAYOUT_NOTE } from '../src/lib/outline.js'
+import { lapLayout } from '../src/lib/lap.js'
+import { until } from '../src/queries/sessions.js'
 import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -1544,6 +1546,7 @@ try {
         podium: document.querySelectorAll(`${root} ol.podium > li`).length,
         weekend: [...document.querySelectorAll(`${root} .round-panel > .eyebrow`)].some((n) => n.textContent === 'This weekend'),
         sessions: document.querySelectorAll(`${root} .round-panel ol.weekend-sessions > li`).length,
+        stops: [...document.querySelectorAll(`${root} .round-panel figure.lap circle.lap-stop`)].map((c) => c.getAttribute('data-state')),
       })
       const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
       const still = await quiet.newPage()
@@ -1560,8 +1563,84 @@ try {
         if (state === CYCLE.weekend) {
           is(got.sessions, db.prepare(HOME_SESSIONS).all().length, `/, ${half}: and lists every session of the weekend`)
         }
+        // AF-156: the lap is drawn in the weekend state alone, a stop for
+        // each session, in the state lib/lap.js gives it at this clock.
+        const lap = state === CYCLE.weekend ? lapLayout(db.prepare(HOME_NEXT).get()?.outline ?? null, db.prepare(HOME_SESSIONS).all(), clock) : null
+        is(got.stops.join(' '), lap ? lap.stops.map((s) => s.state).join(' ') : '', `/, ${half}: the weekend's lap has a stop per session, in its state at the half's clock, and none outside the weekend`)
       }
       await quiet.close()
+    }
+
+    // AF-156: the weekend as a lap, in the app on fixed clocks inside the
+    // next round's weekend - an hour after its second session starts, and
+    // once every one has - since the build's day is rarely in one. The
+    // static page draws the same layout at the build's day, held above
+    // when that day is a weekend, and by units.mjs on fixed clocks.
+    {
+      const next = db.prepare(HOME_NEXT).get()
+      const sessions = db.prepare(HOME_SESSIONS).all()
+      if (next && sessions.length >= 3) {
+        const second = Date.parse(sessions[1].start_utc)
+        for (const [when, clock, motion, width] of [
+          ['an hour after the second session starts', second + 3600000, 'reduce', 320],
+          ['once every session has started', Date.parse(sessions.at(-1).start_utc) + 60000, 'no-preference', 400],
+        ]) {
+          const lap = lapLayout(next.outline ?? null, sessions, clock)
+          const fixed = await browser.newContext({ viewport: { width, height: 900 }, locale: 'en-US', reducedMotion: motion })
+          await fixed.clock.setFixedTime(clock)
+          const tab = await fixed.newPage()
+          await tab.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+          await tab.waitForSelector('#root main .board.index', { timeout: 60000 })
+          const got = await tab.evaluate(() => {
+            const figure = document.querySelector('#root main figure.lap')
+            const panel = figure?.closest('.round-panel')
+            const pulse = figure?.querySelector('.lap-pulse')
+            return {
+              stops: [...(figure?.querySelectorAll('circle.lap-stop') ?? [])].map((c) => `${c.getAttribute('data-state')}@${c.getAttribute('cx')},${c.getAttribute('cy')}`),
+              run: figure?.querySelector('path.lap-run')?.getAttribute('d') ?? null,
+              pulses: figure?.querySelectorAll('.lap-pulse').length ?? 0,
+              animation: pulse ? getComputedStyle(pulse).animationName : null,
+              next: figure?.querySelector('.lap-next b')?.textContent ?? null,
+              until: figure?.querySelector('.lap-until')?.textContent ?? null,
+              credit: figure?.querySelector('figcaption')?.textContent ?? '',
+              marks: [...document.querySelectorAll('#root main ol.weekend-sessions > li')].map((li) => li.getAttribute('data-state')),
+              // The words stand under the drawing, clear of every stop and
+              // ring, and inside the figure, each line unclipped.
+              clear: (() => {
+                const words = figure?.querySelector('.lap-next')
+                const svg = figure?.querySelector('svg')
+                if (!words || !svg || !panel) return 'no words or no drawing'
+                const w = words.getBoundingClientRect()
+                const hits = [...figure.querySelectorAll('circle')].filter((c) => {
+                  const r = c.getBoundingClientRect()
+                  return r.right > w.left && r.left < w.right && r.bottom > w.top && r.top < w.bottom
+                })
+                const f = figure.getBoundingClientRect()
+                const clipped = [...words.children].filter((line) => line.scrollWidth > line.clientWidth + 0.5 || line.getBoundingClientRect().right > f.right + 0.5)
+                if (svg.getBoundingClientRect().bottom > w.top + 0.5) return 'the words overlap the drawing'
+                if (hits.length) return `${hits.length} stop(s) under the words`
+                if (clipped.length) return `${clipped.length} line(s) clipped`
+                if (f.right > panel.getBoundingClientRect().right + 0.5) return 'the figure leaves its panel'
+                return ''
+              })(),
+            }
+          })
+          await fixed.close()
+          is(got.stops.join(' '), lap.stops.map((s) => `${s.state}@${s.x},${s.y}`).join(' '), `/, ${when}: the lap's stops stand where and as lib/lap.js lays them`)
+          truthy(got.run === lap.run, `/, ${when}: the track is drawn in to the last session started, as lib/lap.js draws it`)
+          is(got.marks.join(' '), lap.stops.map((s) => s.state).join(' '), `/, ${when}: the list beside it marks each session as the lap does`)
+          is(got.pulses, lap.next ? 1 : 0, `/, ${when}: one ring for the next session, and none once every one has started`)
+          if (lap.next) {
+            is(got.animation, motion === 'reduce' ? 'none' : 'lap-pulse', `/, ${when}: the ring stands still under prefers-reduced-motion`)
+            is(got.next, lap.next.name, `/, ${when}: the next session is named under the drawing`)
+            is(got.until, until(lap.next.start_utc, clock), `/, ${when}: with how long until it`)
+          }
+          truthy(lap.strip || got.credit.includes('drawn by Jules Roy'), `/, ${when}: the outline is credited`)
+          is(got.clear, '', `/, ${when}: the words stand under the drawing at ${width} px, clear of the stops, unclipped, inside the panel`)
+        }
+      } else {
+        pass('/: the next round has fewer than three sessions, so the lap is held by units.mjs alone')
+      }
     }
   })
 
