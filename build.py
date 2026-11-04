@@ -5717,10 +5717,15 @@ def _rest(rows, leaders, limit=3):
     return [r for r in rows if r not in leaders][:limit]
 
 
-def _also(rows, leaders, name_index, limit=3):
-    """'Next: X on 91, Y on 71' - the rows after the leaders, for the detail."""
+def _also(rows, leaders, name_index, limit=3, ties=False):
+    """'Next: X on 91, Y on 71' - the rows after the leaders, for the detail.
+    With `ties`, the cut runs on through every row level with the last one
+    kept, so a figure shared at the limit is not shown as one driver's."""
     seen = {r[name_index] for r in leaders}
-    rest = [r for r in rows if r[name_index] not in seen][:limit]
+    after = [r for r in rows if r[name_index] not in seen]
+    rest = after[:limit]
+    if ties and rest:
+        rest += [r for r in after[limit:] if r[0] == rest[-1][0]]
     return ", ".join(f"{r[name_index]} on {_num(r[0])}" for r in rest)
 
 
@@ -5789,7 +5794,8 @@ RECORD_FAMILIES = {
     ),
     "Points": ("most-constructor-points-in-a-season", "most-driver-points-in-a-season"),
     "Races and circuits": ("longest-circuit", "fewest-classified-finishers", "fewest-starters"),
-    "Sprints": ("most-sprint-wins",),
+    "Sprints": ("most-sprint-wins", "most-sprint-podiums", "most-sprint-points",
+                "most-sprint-poles"),
 }
 
 # The records /records leads with: the career totals a reader comes for, the
@@ -6556,6 +6562,79 @@ def derive_records(cur, leave_out=frozenset()):
         f"sprint_results rows with finish_position = 1, over the {held} sprints held since "
         f"{first}. A sprint is not a Grand Prix, so none of these is in drivers.wins. "
         f"Next: {_also(rows, lead, 1)}.")
+
+    # WK-16: the sprint's podiums, points and poles, beside its wins. A sprint
+    # pole is sprint grid position 1, as the ruling on WK-08 (#643) has it -
+    # the car at the front of the sprint grid, not the fastest in sprint
+    # qualifying - so the detail says so, and says whether the two have ever
+    # differed in what the database holds.
+    rows = q("""SELECT COUNT(*) n, d.full_name, d.id
+                  FROM sprint_results s JOIN drivers d ON d.id = s.driver_id
+                 WHERE s.finish_position <= 3
+                 GROUP BY d.id ORDER BY n DESC, d.full_name""")
+    lead = _leaders(rows)
+    add("most-sprint-podiums", "drivers", "Most sprint podium finishes",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "podiums",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        f"sprint_results rows with finish_position 1, 2 or 3, over the {held} sprints held "
+        f"since {first}. A sprint is not a Grand Prix, so none of these is in "
+        f"drivers.podiums. Next: {_also(rows, lead, 1, ties=True)}.")
+
+    scales = q("""SELECT scoring, from_year, to_year FROM points_systems
+                   WHERE session = 'sprint' ORDER BY from_year""")
+    rows = q("""SELECT TOTAL(s.points) n, d.full_name, d.id
+                  FROM sprint_results s JOIN drivers d ON d.id = s.driver_id
+                 GROUP BY d.id HAVING n > 0 ORDER BY n DESC, d.full_name""")
+    lead = _leaders(rows)
+    add("most-sprint-points", "drivers", "Most points scored in sprints",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "points",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        f"sprint_results.points summed per driver, over the {held} sprints held since "
+        f"{first}, scored "
+        + ", then ".join(f"{s} ({a if b == a else f'{a}-{b}' if b else f'from {a}'})"
+                         for s, a, b in scales)
+        + ". Sprint points count towards the championship; race_entries.points does not "
+        f"hold them. Next: {_also(rows, lead, 1, ties=True)}.")
+
+    rows = q("""SELECT COUNT(*) n, d.full_name, d.id
+                  FROM sprint_results s JOIN drivers d ON d.id = s.driver_id
+                 WHERE s.grid = 1
+                 GROUP BY d.id ORDER BY n DESC, d.full_name""")
+    lead = _leaders(rows)
+    sq_held, sq_first, sq_apart = q("""SELECT COUNT(DISTINCT q.race_id), MIN(r.year),
+            COUNT(DISTINCT CASE WHEN g.driver_id IS NULL OR g.driver_id <> q.driver_id
+                                THEN q.race_id END)
+          FROM sprint_qualifying q JOIN races r ON r.id = q.race_id
+          LEFT JOIN sprint_results g ON g.race_id = q.race_id AND g.grid = 1
+         WHERE q.position = 1""")[0]
+    # One driver can hold both poles on a weekend - and where one session set
+    # both grids, as Friday qualifying did in 2022, one result is both - so
+    # the detail says how often, and in which seasons at every sprint, from
+    # the data rather than by year.
+    by_year = q("""SELECT r.year, COUNT(DISTINCT CASE WHEN e.id IS NOT NULL THEN s.race_id END),
+                          COUNT(DISTINCT s.race_id)
+          FROM sprint_results s JOIN races r ON r.id = s.race_id
+          LEFT JOIN race_entries e ON e.race_id = s.race_id
+                                  AND e.driver_id = s.driver_id AND e.pole = 1
+         WHERE s.grid = 1 GROUP BY r.year""")
+    both = sum(n for _, n, _ in by_year)
+    every = ", ".join(str(y) for y, n, k in sorted(by_year) if n == k)
+    add("most-sprint-poles", "drivers", "Most sprint pole positions",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "poles",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        f"sprint_results rows with grid = 1, over the {held} sprints held since {first}: a "
+        "sprint pole is the front of the sprint grid, as the ruling on WK-08 (#643) defines "
+        "it, not first place in sprint qualifying, from which a grid penalty can move a "
+        "driver back. "
+        + (f"Of the {sq_held} sprints since {sq_first} whose sprint qualifying is held, the "
+           "driver it classified first started from sprint pole in "
+           + ("every one" if not sq_apart else f"all but {sq_apart}")
+           + ". " if sq_held else "")
+        + "A sprint pole is not a Grand Prix pole, which is what drivers.poles counts"
+        + (f", but one driver can hold both on a weekend: at {both} of these sprints the "
+           "driver on sprint pole was also credited with the Grand Prix pole"
+           + (f", at every sprint in {every}" if every else "") + ". " if both else ". ")
+        + f"Next: {_also(rows, lead, 1, ties=True)}.")
 
     # ------------------------------------------------------- constructors
     # From race_entries, not constructors.poles: that column is filled at

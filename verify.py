@@ -1782,9 +1782,10 @@ def records_are_derived():
     rows = {r["key"]: r for r in con.execute("SELECT * FROM records")}
     # 29 shipped at v2.23; WK-06 added the 31 more that Wikipedia's lists of
     # driver and constructor records hold and the race records can derive, and
-    # WK-10 the four same-Grand-Prix tables, and WK-13 the sixteen seasons
-    # tables. A derivation that silently drops one fails here.
-    FLOOR = 80
+    # WK-10 the four same-Grand-Prix tables, WK-13 the sixteen seasons
+    # tables, and WK-16 the sprint's podiums, points and poles. A derivation
+    # that silently drops one fails here.
+    FLOOR = 83
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2052,6 +2053,39 @@ def records_are_derived():
         check(f"records.{key} agrees with {'a window query over ' if runs else ''}{what}",
               r is not None and r["value_num"] == top and got == want,
               f"{top}: {', '.join(want)}")
+
+    # 26/27. WK-16's sprint podiums through position_text, where the build
+    # reads finish_position, and sprint points through the points_systems
+    # scale applied to each finishing position, where the build sums the
+    # stored points. Every holder of the top figure, since a record may be
+    # shared.
+    def sprint_top(per_driver, key, what):
+        top = max(per_driver.values(), default=None)
+        ids = sorted(d for d, n in per_driver.items() if n == top)
+        want = sorted(w[0] for w in con.execute(
+            f"SELECT full_name FROM drivers WHERE id IN ({','.join('?' * len(ids))})", ids))
+        r = rows.get(key)
+        got = sorted(r["holder"].split(", ")) if r else []
+        check(f"records.{key} agrees with {what}",
+              r is not None and top is not None and r["value_num"] == top and got == want,
+              f"{top}: {', '.join(want)}")
+    pod = Counter(d for (d,) in con.execute(
+        "SELECT driver_id FROM sprint_results WHERE position_text IN ('1', '2', '3')"))
+    sprint_top(pod, "most-sprint-podiums", "sprint_results.position_text")
+    systems = [(r["from_year"], r["to_year"], json.loads(r["scale"])) for r in con.execute(
+        "SELECT from_year, to_year, scale FROM points_systems WHERE session = 'sprint'")]
+    pts, unscaled = Counter(), set()
+    for did, year, pos in con.execute("""SELECT s.driver_id, r.year, s.finish_position
+            FROM sprint_results s JOIN races r ON r.id = s.race_id
+           WHERE s.finish_position IS NOT NULL"""):
+        scale = [sc for a, b, sc in systems if a <= year <= (b or year)]
+        if len(scale) != 1:
+            unscaled.add(year)
+        elif pos <= len(scale[0]):
+            pts[did] += scale[0][pos - 1]
+    check("every season with a sprint classification has exactly one sprint points scale",
+          not unscaled, ", ".join(map(str, sorted(unscaled))))
+    sprint_top(pts, "most-sprint-points", "the sprint points scale applied to each finish")
 
     dist = con.execute("""SELECT category, COUNT(*) n FROM records
         GROUP BY category ORDER BY category""").fetchall()
