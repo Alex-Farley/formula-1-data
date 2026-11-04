@@ -31,6 +31,7 @@ import re
 import sqlite3
 import sys
 from collections import Counter
+from fractions import Fraction
 from urllib.parse import urlparse
 
 
@@ -1783,9 +1784,9 @@ def records_are_derived():
     # 29 shipped at v2.23; WK-06 added the 31 more that Wikipedia's lists of
     # driver and constructor records hold and the race records can derive, and
     # WK-10 the four same-Grand-Prix tables, WK-13 the sixteen seasons
-    # tables, and WK-16 the sprint's podiums, points and poles. A derivation
-    # that silently drops one fails here.
-    FLOOR = 83
+    # tables, WK-16 the sprint's podiums, points and poles, and WK-09 the
+    # twelve share tables. A derivation that silently drops one fails here.
+    FLOOR = 95
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -1897,19 +1898,81 @@ def records_are_derived():
         ORDER BY length_km DESC LIMIT 1""").fetchone()
     same("longest-circuit", c["length_km"], c["id"], "circuits.length_km")
 
-    # 10. The win-rate floor the detail states is the one that was applied.
-    r = rows.get("highest-win-rate")
-    if r:
-        m_ = re.search(r"at least (\d+) entries", r["detail"])
+    # 10. The career and conversion rates (WK-09) apply the floor their detail
+    # states, recomputed with the wins from race_results' winner and
+    # co-winner columns and the poles from its pole_id - the build reads
+    # drivers.wins and race_entries.pole - and starts as the entries whose
+    # result is not one of the five non-starts. Every holder of the top
+    # share, since a record may be shared. The shares are compared as exact
+    # fractions, and the stored two-place figure to within half a hundredth,
+    # since Python's round() and SQLite's ROUND() part on a half.
+    def top_share(rated, table, name):
+        # The best share in {holder id: Fraction} and every holder's name;
+        # (None, []) for an empty set, which the caller's check then fails.
+        top = max(rated.values(), default=None)
+        ids = sorted(k for k, v in rated.items() if v == top)
+        return top, sorted(w[0] for w in con.execute(
+            f"SELECT {name} FROM {table} WHERE id IN ({','.join('?' * len(ids))})", ids))
+
+    def rate_top(key, per, unit, table="drivers", name="full_name"):
+        # per: {holder id: (count, base)}; the floor is read off the detail.
+        r = rows.get(key)
+        m_ = re.search(rf"at least (\d+) {unit}", r["detail"]) if r else None
         floor = int(m_.group(1)) if m_ else None
-        best = con.execute("""SELECT d.id, ROUND(100.0 * d.wins / COUNT(*), 2) pct
-            FROM race_entries e JOIN drivers d ON d.id = e.driver_id
-            GROUP BY d.id HAVING COUNT(*) >= ? ORDER BY pct DESC LIMIT 1""",
-            (floor or 0,)).fetchone()
-        check("records.highest-win-rate applies the floor its detail states",
-              floor is not None and best["id"] == r["holder_id"]
-              and abs(best["pct"] - r["value_num"]) < 1e-9,
-              f"floor {floor}, {best['id']} at {best['pct']}")
+        rated = {k: Fraction(100 * n, b) for k, (n, b) in per.items()
+                 if floor is not None and b >= floor}
+        top, want = top_share(rated, table, name)
+        got = sorted(r["holder"].split(", ")) if r else []
+        check(f"records.{key} applies the floor its detail states",
+              r is not None and top is not None and abs(r["value_num"] - top) <= 0.005
+              and got == want, f"floor {floor}, {float(top or 0):.4f}: {', '.join(want)}")
+    starts = Counter(d for (d,) in con.execute("""SELECT driver_id FROM race_entries
+        WHERE position_text IS NULL
+           OR position_text NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')"""))
+    wins = Counter(d for (d,) in con.execute("""SELECT winner_id FROM race_results
+        WHERE winner_id IS NOT NULL
+        UNION ALL SELECT co_winner_id FROM race_results WHERE co_winner_id IS NOT NULL"""))
+    rate_top("highest-win-rate", {d: (wins[d], n) for d, n in starts.items()}, "starts")
+    conv = {}
+    for d, won in con.execute("""SELECT pole_id, pole_id IN (winner_id, co_winner_id)
+            FROM race_results WHERE pole_id IS NOT NULL"""):
+        n, b = conv.get(d, (0, 0))
+        conv[d] = (n + (won or 0), b + 1)
+    rate_top("highest-pole-conversion", conv, "poles")
+    # A constructor's wins from race_results.constructor_id, which names the
+    # winning car's; its starts as distinct races with one of its cars started.
+    c_wins = Counter(c for (c,) in con.execute(
+        "SELECT constructor_id FROM race_results WHERE constructor_id IS NOT NULL"))
+    c_starts = dict(con.execute("""SELECT constructor_id, COUNT(DISTINCT race_id)
+        FROM race_entries WHERE constructor_id IS NOT NULL
+          AND (position_text IS NULL
+               OR position_text NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX'))
+        GROUP BY constructor_id""").fetchall())
+    rate_top("highest-constructor-win-rate", {c: (c_wins[c], n) for c, n in c_starts.items()},
+             "starts", "constructors", "name")
+
+    # 10b. A season's share of the poles (WK-09), through race_results.pole_id
+    # by year - the build counts race_entries rows with pole = 1 - over the
+    # completed races of every season that is over. Every holder of the top
+    # share.
+    sp = con.execute("""SELECT rr.pole_id d, rr.year, COUNT(*) n,
+            (SELECT COUNT(*) FROM races x WHERE x.year = rr.year
+                AND x.status = 'completed') t
+          FROM race_results rr JOIN seasons s ON s.year = rr.year
+         WHERE rr.pole_id IS NOT NULL AND s.drivers_champion IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM races o WHERE o.year = rr.year
+                            AND o.status <> 'completed')
+         GROUP BY rr.year, rr.pole_id""").fetchall()
+    best = {}
+    for x in sp:
+        share = Fraction(100 * x["n"], x["t"])
+        best[x["d"]] = max(best.get(x["d"], share), share)
+    top, want = top_share(best, "drivers", "full_name")
+    r = rows.get("highest-season-pole-share-driver")
+    got = sorted(r["holder"].split(", ")) if r else []
+    check("records.highest-season-pole-share-driver agrees with race_results.pole_id by season",
+          r is not None and top is not None and abs(r["value_num"] - top) <= 0.005
+          and got == want, f"{float(top or 0):.4f}: {', '.join(want)}")
 
     # 11. Wins from pole, through race_results' pole and winner columns.
     wp = con.execute("""SELECT d, COUNT(*) n FROM (
