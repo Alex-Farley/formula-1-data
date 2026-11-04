@@ -644,8 +644,9 @@ ninety seconds of fastf1, numpy, scipy and matplotlib per deploy. Setting
 the one step that needs a third-party package installs it itself. No build log
 has shown whether the image honours it, so the deploy reports it: the
 *dependency install* block of `/build-status.txt` gives the variable's value
-and, for each python on the image, whether it can import `fastf1` — the one
-package that file installs, and so the trace the install leaves.
+and, for each python the step's candidate list finds, whether it can import
+`fastf1` — the one package that file installs, and so the trace the install
+leaves.
 
 Two things resolve because Cloudflare clones the whole repository regardless:
 `prepare-assets.js` reads `../f1.db`, and `.node-version` pins Node 22. That

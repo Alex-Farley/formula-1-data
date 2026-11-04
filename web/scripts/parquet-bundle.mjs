@@ -194,9 +194,10 @@ function heartbeat() {
 // build command (PM-24). web/README.md asks for SKIP_DEPENDENCY_INSTALL=1 to
 // skip it, and nobody had seen whether the image honours that: build logs are
 // off, so the deploy says so here. requirements.txt holds fastf1 alone, so
-// fastf1 being importable is the trace that install leaves. Every python the
-// image offers is asked, because which one's pip it uses is not established;
-// find_spec looks without importing.
+// fastf1 being importable is the trace that install leaves. Each python in
+// CANDIDATES is asked, because which one's pip it uses is not established,
+// and named by its resolved path so one interpreter reached by two names is
+// listed once; find_spec looks without importing.
 function dependencyInstall() {
   const out = []
   const flag = process.env.SKIP_DEPENDENCY_INSTALL
@@ -206,11 +207,11 @@ function dependencyInstall() {
     let exe, found
     try {
       ;[exe, found] = execFileSync(c,
-        ['-c', 'import importlib.util,sys;print(sys.executable);print(importlib.util.find_spec("fastf1") is not None)'],
+        ['-c', 'import importlib.util,os,sys;print(os.path.realpath(sys.executable));print(importlib.util.find_spec("fastf1") is not None)'],
         { stdio: ['ignore', 'pipe', 'ignore'] })
         .toString().trim().split('\n')
     } catch { continue }   // not on this image
-    if (seen.has(exe)) continue
+    if (!exe || seen.has(exe)) continue
     seen.add(exe)
     out.push(`fastf1   ${found === 'True' ? 'present in' : 'absent from'} ${exe}`)
   }
