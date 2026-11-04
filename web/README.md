@@ -419,6 +419,14 @@ one that matters — it is why fan sites are forbidden as authority. Nothing her
 can check a livery hex. A livery is also per-season and often mid-season, so
 one colour per constructor is a claim the sport does not support.
 
+The one softening of that, `AF-11`, found nothing to apply: a team's own brand
+value would have been marked as published rather than rendered, but the pages
+of the two teams that were the likely candidates (McLaren's papaya, Aston
+Martin Racing Green) describe the colour in words and give no value, and a
+search for any other team's brand or press page stating one found only
+third-party colour sites that disagree with each other (searched 2026-11-04).
+Every livery hex is therefore a rendering, as the paragraph above says.
+
 So the interface uses the **international racing colours** instead: the
 AIACR/FIA convention under which a car was painted for the country it was
 entered by, in force until sponsor liveries displaced it around 1968. It is the
