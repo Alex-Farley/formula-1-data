@@ -372,10 +372,20 @@ function Body({ data }) {
         </FigurePart>
       </Section>
 
-      {/* Every record not in the headline cards, once, under its family. */}
+      {/* Every record not in the headline cards, once, under its family. A
+          family over FOLD_OVER folds like any table (VD-82): Wins passed it
+          at WK-11, and the ruling on WK-08 asked for a page that grows more
+          focused, not longer. The ten it opens on are the first ten in
+          records.id order, the order every family is listed in. */}
       {families.map((f) => (
         <Section key={f.anchor} id={f.anchor} title={f.family} count={`${f.rows.length}`}>
-          <DataTable rows={f.rows} rowKey={(row) => row.id} sortable={false} columns={columns} />
+          <DataTable
+            rows={f.rows}
+            rowKey={(row) => row.id}
+            sortable={false}
+            columns={columns}
+            fold={FOLD_NOUN.records}
+          />
         </Section>
       ))}
 

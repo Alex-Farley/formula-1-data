@@ -4566,15 +4566,21 @@ page({
   const decades = all(DECADES)
   const decade = latestDecade(decades)
   const grandSlams = all(GRAND_SLAMS)
+  // A family over FOLD_OVER folds, as the app's does (WK-11).
   const recordTable = (rows) =>
-    fromColumns(recordColumns(records), rows, {
-      record: (value, row) => link(recordPath(row), value),
-      confidence: (value) => (value ? link('data/quality', value) : text(value)),
-      holder: (value, row) => {
-        const path = holderPath(row)
-        return path ? link(path, value) : text(value)
+    fromColumns(
+      recordColumns(records),
+      rows,
+      {
+        record: (value, row) => link(recordPath(row), value),
+        confidence: (value) => (value ? link('data/quality', value) : text(value)),
+        holder: (value, row) => {
+          const path = holderPath(row)
+          return path ? link(path, value) : text(value)
+        },
       },
-    })
+      { fold: FOLD_NOUN.records },
+    )
   page({
     path: 'records',
     title: NAMES.records().title,
