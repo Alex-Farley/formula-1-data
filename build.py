@@ -6405,7 +6405,7 @@ def derive_records(cur, leave_out=frozenset()):
         wherever it was held, so a Grand Prix that moved circuit is one and two
         held in one season stay two."""
         at_gp = {}
-        for name, did, gp, year in q(f"""SELECT DISTINCT d.full_name, d.id, g.name, r.year
+        for name, did, gp, year, _ in q(f"""SELECT DISTINCT d.full_name, d.id, g.name, r.year, r.id
                   FROM race_entries e JOIN races r ON r.id = e.race_id
                   JOIN drivers d ON d.id = e.driver_id
                   JOIN grands_prix g ON g.id = r.gp_id

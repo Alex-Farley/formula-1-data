@@ -1964,9 +1964,18 @@ def records_are_derived():
 
     # 17. Poles at one Grand Prix, through race_results.pole_id by gp_id - the
     # build counts race_entries rows with pole = 1.
-    pg = con.execute("""SELECT pole_id, gp_id, COUNT(*) n FROM race_results
-        WHERE pole_id IS NOT NULL GROUP BY pole_id, gp_id ORDER BY n DESC LIMIT 1""").fetchone()
-    same("most-poles-at-one-grand-prix", pg["n"], pg["pole_id"], "race_results by Grand Prix")
+    # Every holder of the most, since the record may be shared.
+    pg = con.execute("""SELECT pole_id, COUNT(*) n FROM race_results
+        WHERE pole_id IS NOT NULL GROUP BY pole_id, gp_id""").fetchall()
+    top = max(r["n"] for r in pg)
+    ids = sorted({r["pole_id"] for r in pg if r["n"] == top})
+    want = sorted(w[0] for w in con.execute(
+        f"SELECT full_name FROM drivers WHERE id IN ({','.join('?' * len(ids))})", ids))
+    r = rows.get("most-poles-at-one-grand-prix")
+    got = sorted(r["holder"].split(", ")) if r else []
+    check("records.most-poles-at-one-grand-prix agrees with race_results by Grand Prix",
+          r is not None and r["value_num"] == top and got == want,
+          f"{top}: {', '.join(want)}")
 
     # 18/19. Runs at one Grand Prix, as gaps and islands over each Grand Prix's
     # completed editions - the build walks them in Python. A year the Grand
