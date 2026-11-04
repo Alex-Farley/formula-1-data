@@ -2074,13 +2074,17 @@ def records_are_derived():
     sprint_top(pod, "most-sprint-podiums", "sprint_results.position_text")
     systems = [(r["from_year"], r["to_year"], json.loads(r["scale"])) for r in con.execute(
         "SELECT from_year, to_year, scale FROM points_systems WHERE session = 'sprint'")]
-    pts = Counter()
+    pts, unscaled = Counter(), set()
     for did, year, pos in con.execute("""SELECT s.driver_id, r.year, s.finish_position
             FROM sprint_results s JOIN races r ON r.id = s.race_id
            WHERE s.finish_position IS NOT NULL"""):
         scale = [sc for a, b, sc in systems if a <= year <= (b or year)]
-        if len(scale) == 1 and pos <= len(scale[0]):
+        if len(scale) != 1:
+            unscaled.add(year)
+        elif pos <= len(scale[0]):
             pts[did] += scale[0][pos - 1]
+    check("every season with a sprint classification has exactly one sprint points scale",
+          not unscaled, ", ".join(map(str, sorted(unscaled))))
     sprint_top(pts, "most-sprint-points", "the sprint points scale applied to each finish")
 
     dist = con.execute("""SELECT category, COUNT(*) n FROM records

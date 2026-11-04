@@ -6602,11 +6602,21 @@ def derive_records(cur, leave_out=frozenset()):
                  GROUP BY d.id ORDER BY n DESC, d.full_name""")
     lead = _leaders(rows)
     sq_held, sq_first, sq_apart = q("""SELECT COUNT(DISTINCT q.race_id), MIN(r.year),
-            COUNT(DISTINCT CASE WHEN g.driver_id IS NOT NULL AND g.driver_id <> q.driver_id
+            COUNT(DISTINCT CASE WHEN g.driver_id IS NULL OR g.driver_id <> q.driver_id
                                 THEN q.race_id END)
           FROM sprint_qualifying q JOIN races r ON r.id = q.race_id
           LEFT JOIN sprint_results g ON g.race_id = q.race_id AND g.grid = 1
          WHERE q.position = 1""")[0]
+    # One driver can hold both poles on a weekend - and where one session set
+    # both grids, as Friday qualifying did in 2022, one result is both - so
+    # the detail says how often, and in which seasons at every sprint, from
+    # the data rather than by year.
+    both, every = q("""SELECT SUM(n), GROUP_CONCAT(CASE WHEN n = held THEN year END, ', ')
+          FROM (SELECT r.year, COUNT(e.id) n, COUNT(DISTINCT s.race_id) held
+                  FROM sprint_results s JOIN races r ON r.id = s.race_id
+                  LEFT JOIN race_entries e ON e.race_id = s.race_id
+                                          AND e.driver_id = s.driver_id AND e.pole = 1
+                 WHERE s.grid = 1 GROUP BY r.year ORDER BY r.year)""")[0]
     add("most-sprint-poles", "drivers", "Most sprint pole positions",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "poles",
         _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
@@ -6618,8 +6628,11 @@ def derive_records(cur, leave_out=frozenset()):
            "driver it classified first started from sprint pole in "
            + ("every one" if not sq_apart else f"all but {sq_apart}")
            + ". " if sq_held else "")
-        + "A sprint pole is not a Grand Prix pole, so none of these is in drivers.poles. "
-        f"Next: {_also(rows, lead, 1, ties=True)}.")
+        + "A sprint pole is not a Grand Prix pole, which is what drivers.poles counts"
+        + (f", but one driver can hold both on a weekend: at {both} of these sprints the "
+           "driver on sprint pole was also credited with the Grand Prix pole"
+           + (f", at every sprint in {every}" if every else "") + ". " if both else ". ")
+        + f"Next: {_also(rows, lead, 1, ties=True)}.")
 
     # ------------------------------------------------------- constructors
     # From race_entries, not constructors.poles: that column is filled at
