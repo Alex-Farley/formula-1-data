@@ -137,6 +137,9 @@ import {
 } from '../src/queries/season.js'
 import { reachLayout, reachText } from '../src/charts/reachChart.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
+import { entryColumns, entryOut, entryResult } from '../src/queries/car.js'
+import { disagrees, safeToQuote } from '../src/queries/quality.js'
+import { eraCell } from '../src/queries/eras.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
 import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
@@ -547,6 +550,94 @@ describe('result, as a classification prints it', () => {
 
   it('is an em dash where there is neither', () => {
     assert.equal(result({ position_text: null, finish_position: null }), EMPTY)
+  })
+})
+
+describe('result, with a blank text (CR-26)', () => {
+  it('falls back to the number where the text is an empty string, as it does for null', () => {
+    assert.equal(result({ position_text: '', finish_position: 3 }), '3')
+  })
+
+  it('is an em dash where the text is empty and there is no number', () => {
+    assert.equal(result({ position_text: '', finish_position: null }), EMPTY)
+  })
+})
+
+describe('the car page entry columns (CR-26)', () => {
+  it('entryResult is result(): the source spelling, the number, or the em dash', () => {
+    const rows = [
+      { position_text: 'DNF', finish_position: null },
+      { position_text: '7', finish_position: 7 },
+      { position_text: 'D', finish_position: 12 },
+      { position_text: null, finish_position: 3 },
+      { position_text: '', finish_position: 3 },
+      { position_text: '', finish_position: null },
+      { position_text: null, finish_position: null },
+    ]
+    for (const row of rows) assert.equal(entryResult(row.position_text, row), result(row))
+    assert.equal(entryResult('DNF', { position_text: 'DNF', finish_position: null }), 'DNF')
+    assert.equal(entryResult('D', { position_text: 'D', finish_position: 12 }), 'D')
+    assert.equal(entryResult('', { position_text: '', finish_position: 3 }), '3')
+    assert.equal(entryResult(null, { position_text: null, finish_position: null }), EMPTY)
+  })
+
+  it('entryOut says Finished only for a classified finisher with no status', () => {
+    assert.equal(entryOut(null, { finish_position: 4 }), 'Finished')
+    assert.equal(entryOut('', { finish_position: 4 }), 'Finished')
+    assert.equal(entryOut('Engine', { finish_position: null }), 'Engine')
+    assert.equal(entryOut('+1 Lap', { finish_position: 9 }), '+1 Lap')
+  })
+
+  it('entryOut is an em dash for no status and no finish: not established, not "Finished"', () => {
+    assert.equal(entryOut(null, { finish_position: null }), EMPTY)
+  })
+
+  it('the Result and Out columns are the two helpers', () => {
+    const columns = entryColumns(false)
+    assert.equal(columns.find((c) => c.key === 'position_text').text, entryResult)
+    assert.equal(columns.find((c) => c.key === 'status').text, entryOut)
+  })
+})
+
+describe('eraCell (CR-26)', () => {
+  it('writes the name and then its years', () => {
+    assert.equal(eraCell('Turbo era', { from_year: 1977, to_year: 1988 }), 'Turbo era 1977–1988')
+    assert.equal(eraCell('Hybrid era', { from_year: 2014, to_year: null }), 'Hybrid era 2014–')
+  })
+
+  it('shows a missing name as the em dash and does not drop the years', () => {
+    assert.equal(eraCell(null, { from_year: 1950, to_year: 1950 }), `${EMPTY} 1950`)
+  })
+})
+
+describe('the data-quality helpers (CR-26)', () => {
+  it('safeToQuote says yes only for a truthy flag', () => {
+    assert.equal(safeToQuote(1), 'yes')
+    assert.equal(safeToQuote(0), 'not without checking')
+    assert.equal(safeToQuote(null), 'not without checking')
+  })
+
+  const agreeing = {
+    derived_wins: 3, wins_external: 3, derived_poles: 2, poles_external: 2, derived_fl: 1, fastest_laps_external: 1,
+  }
+
+  it('disagrees is false when every published figure matches', () => {
+    assert.equal(disagrees(agreeing), false)
+  })
+
+  it('disagrees is true when any one published figure differs', () => {
+    assert.equal(disagrees({ ...agreeing, wins_external: 4 }), true)
+    assert.equal(disagrees({ ...agreeing, poles_external: 1 }), true)
+    assert.equal(disagrees({ ...agreeing, fastest_laps_external: 0 }), true)
+  })
+
+  it('disagrees does not count a figure nobody published, even a derived zero against it', () => {
+    const none = { ...agreeing, wins_external: null, poles_external: null, fastest_laps_external: null }
+    assert.equal(disagrees({ ...none, derived_wins: 0 }), false)
+  })
+
+  it('disagrees counts a published zero as a figure to compare', () => {
+    assert.equal(disagrees({ ...agreeing, wins_external: 0 }), true)
   })
 })
 

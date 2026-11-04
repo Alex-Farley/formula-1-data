@@ -12,7 +12,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { finished, missing, number, span, text } from '../lib/format.js'
+import { finished, missing, number, result, span, text } from '../lib/format.js'
 import { LABELS } from '../lib/site.js'
 import { canShow } from '../lib/commons.js'
 
@@ -313,8 +313,13 @@ export const AMBIGUOUS_COLUMNS = [
 export const AMBIGUOUS_FOOTER =
   'In these seasons the team ran more than one design and no source says which car raced which round, so the results are left unattributed rather than guessed.'
 
-/** The classified position — the source's own spelling first — or, for a retirement, whatever it says. */
-export const entryResult = (value, row) => (missing(row.finish_position) ? text(value) : text(value ?? row.finish_position))
+/**
+ * The classified position — the source's own spelling first — or, for a
+ * retirement, whatever it says. `result()` in lib/format.js is the one rule
+ * for that; this only gives it a column's `(value, row)` signature, and the
+ * value is the row's own `position_text`.
+ */
+export const entryResult = (_, row) => result(row)
 
 /** "Finished" for a classified finisher with no status; the status; the em dash for neither. */
 export const entryOut = (value, row) => (finished(value, row.finish_position) ? 'Finished' : text(value))
