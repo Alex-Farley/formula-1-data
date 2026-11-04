@@ -6708,6 +6708,12 @@ def derive_records(cur, leave_out=frozenset()):
     run_years = [y for (y,) in q("""SELECT DISTINCT year FROM races
                                     WHERE status = 'completed' ORDER BY year""")]
     last = run_years[-1]
+    # While the latest season is still being run, a run that ended the season
+    # before can yet go on, so the detail says so rather than read as final.
+    unfinished = q("""SELECT COUNT(*) FROM races
+                      WHERE year = ? AND status <> 'completed'""", last)[0][0] > 0
+    still_open = (f" {last} is still being run, so a run that ended in {last - 1} may "
+                  "yet go on." if unfinished else "")
 
     def year_spans(years):
         """'2007-2021, 2024' - years in order, as runs of consecutive ones."""
@@ -6790,7 +6796,8 @@ def derive_records(cur, leave_out=frozenset()):
                 tie_value(lead, lambda r: f"{_num(r[0])}, {season_span(r)}", season_span),
                 f"{rule}, in consecutive championship seasons. A season without one ends "
                 f"a run whether or not the {holder} entered it, and a run that reaches "
-                f"{last}, the latest season with a completed race, is marked ongoing. "
+                f"{last}, the latest season with a completed race, is marked ongoing."
+                f"{still_open} "
                 + "; ".join(f"{r[1]}: {season_span(r)}" for r in lead)
                 + ". Next: " + next_tier(
                     runs, lead, lambda r: f"{r[1]} {r[0]} ({season_span(r, ', ongoing')})")
