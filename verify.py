@@ -1782,9 +1782,9 @@ def records_are_derived():
     rows = {r["key"]: r for r in con.execute("SELECT * FROM records")}
     # 29 shipped at v2.23; WK-06 added the 31 more that Wikipedia's lists of
     # driver and constructor records hold and the race records can derive, and
-    # WK-10 the four same-Grand-Prix tables. A derivation that silently drops
-    # one fails here.
-    FLOOR = 64
+    # WK-10 the four same-Grand-Prix tables, and WK-13 the sixteen seasons
+    # tables. A derivation that silently drops one fails here.
+    FLOOR = 80
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2008,6 +2008,48 @@ def records_are_derived():
         r = rows.get(key)
         got = sorted(r["holder"].split(", ")) if r else []
         check(f"records.{key} agrees with a window query over {what}",
+              r is not None and r["value_num"] == top and got == want,
+              f"{top}: {', '.join(want)}")
+
+    # 20-25. Seasons with a win or a pole, and runs of them, from race_results
+    # (the winner, co-winner and polesitter columns, and the winning
+    # constructor) - the build reads race_entries. A run is gaps and islands on
+    # the year, which holds because every year from 1950 is a championship
+    # season; the build walks the seasons in Python. Every holder of the top
+    # figure, since a record may be shared.
+    def season_holders(hits, runs, table, name):
+        # hits: (year, holder id d) for every race the holder took.
+        per = (f"""SELECT d, year - ROW_NUMBER() OVER (PARTITION BY d ORDER BY year) grp
+                     FROM (SELECT DISTINCT year, d FROM ({hits}) WHERE d IS NOT NULL)"""
+               if runs else f"SELECT DISTINCT d, year grp FROM ({hits}) WHERE d IS NOT NULL")
+        got = con.execute(f"""SELECT d, COUNT(*) n FROM ({per})
+                              GROUP BY d{', grp' if runs else ''}""").fetchall()
+        top = max(r["n"] for r in got)
+        ids = sorted({r["d"] for r in got if r["n"] == top})
+        return top, sorted(w[0] for w in con.execute(
+            f"SELECT {name} FROM {table} WHERE id IN ({','.join('?' * len(ids))})", ids))
+    won = ("SELECT year, winner_id d FROM race_results "
+           "UNION ALL SELECT year, co_winner_id FROM race_results")
+    for key, hits, runs, table, name, what in (
+        ("most-seasons-with-a-win", won, False, "drivers", "full_name",
+         "race_results' winner and co-winner"),
+        ("most-consecutive-seasons-with-a-win", won, True, "drivers", "full_name",
+         "race_results' winner and co-winner"),
+        ("most-seasons-with-a-pole", "SELECT year, pole_id d FROM race_results", False,
+         "drivers", "full_name", "race_results.pole_id"),
+        ("most-consecutive-seasons-with-a-pole", "SELECT year, pole_id d FROM race_results",
+         True, "drivers", "full_name", "race_results.pole_id"),
+        ("most-constructor-seasons-with-a-win",
+         "SELECT year, constructor_id d FROM race_results", False, "constructors", "name",
+         "race_results.constructor_id"),
+        ("most-consecutive-constructor-seasons-with-a-win",
+         "SELECT year, constructor_id d FROM race_results", True, "constructors", "name",
+         "race_results.constructor_id"),
+    ):
+        top, want = season_holders(hits, runs, table, name)
+        r = rows.get(key)
+        got = sorted(r["holder"].split(", ")) if r else []
+        check(f"records.{key} agrees with {'a window query over ' if runs else ''}{what}",
               r is not None and r["value_num"] == top and got == want,
               f"{top}: {', '.join(want)}")
 
