@@ -47,7 +47,6 @@ export const SHAPE = `
     (SELECT COUNT(*) FROM seasons)        AS seasons,
     (SELECT COUNT(*) FROM article_images WHERE route = 'article') AS images,
     (SELECT COUNT(*) FROM discrepancies)  AS discrepancies,
-    (SELECT COUNT(*) FROM v_open_gaps)    AS gaps,
     (SELECT COUNT(*) FROM circuit_geometry) AS geometry,
     (SELECT MIN(year) FROM races)         AS from_year,
     (SELECT MAX(year) FROM races)         AS to_year
@@ -359,12 +358,17 @@ export const chartLabel = (shape) =>
   `Number of championship races in each season from ${shape.from_year} to ${shape.to_year}`
 
 export const READING_HEADING = 'Reading the numbers here'
-export const READING_NOTE = 'Four things worth knowing before you quote anything off this site.'
+export const READING_NOTE =
+  "Four conventions that make this site's tables read differently from anyone else's. " +
+  'The rest are explained where you meet them.'
 
 /**
  * The four conventions, each as a head and a body, with the body split around
- * its link where it has one. Two of them count rows, so they are a function
- * of the shape rather than a constant.
+ * its link where it has one. One of them counts rows, so they are a function
+ * of the shape rather than a constant. The fourth is a door, not a rule
+ * (CD-14): the things most often read as bugs, each explained in place on the
+ * page that shows it - the shared drive on the race, the pre-1991 margin under
+ * the seasons table, the stored figure beside the counted one on the driver.
  */
 export const reading = (shape) => [
   {
@@ -374,8 +378,11 @@ export const reading = (shape) => [
     ],
   },
   {
-    head: 'Disagreements are shown, not settled.',
-    body: ['Where two sources conflict you see both. There are ', '.'],
+    head: 'Disagreements and gaps are shown, not settled.',
+    body: [
+      'Where two sources conflict you see both: there are ',
+      ', and what is missing is published too, with what would close it.',
+    ],
     link: { to: '/data/quality', text: `${number(shape.discrepancies)} on record` },
   },
   {
@@ -386,9 +393,12 @@ export const reading = (shape) => [
     ],
   },
   {
-    head: 'The gaps are published too.',
-    body: ['', ' — what is missing, why, and what would close it.'],
-    link: { to: '/data/quality', text: `${number(shape.gaps)} open gaps` },
+    head: 'Some of it looks wrong on purpose.',
+    body: [
+      'A finishing position that appears twice is a shared drive. A championship margin before 1991 ' +
+        'is net of dropped scores. Where a stored figure and a counted one disagree, you get both. ' +
+        'Each is explained on the page that shows it.',
+    ],
   },
 ]
 

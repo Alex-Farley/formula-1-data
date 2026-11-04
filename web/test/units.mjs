@@ -187,6 +187,7 @@ import {
 } from '../src/queries/race.js'
 import {
   CYCLE,
+  READING_NOTE,
   RESULTS_DAYS,
   chartData,
   chartNote,
@@ -195,6 +196,7 @@ import {
   openingRace,
   podium,
   reachHeading,
+  reading,
   seasonComplete,
   sessionsClock,
   seasonHeading,
@@ -4643,6 +4645,26 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
     assert.deepEqual(layout.cars.map(flagCarClass), ['flag-car flag-won', 'flag-car', 'flag-car flag-out'])
     const shared = gridFlagLayout([entry(1, 1, 1, 50), entry(2, 1, 1, 50), entry(3, 2, 2, 50)])
     assert.deepEqual(shared.cars.map((car) => car.won), [true, true, false])
+  })
+})
+
+describe("the home page's reading section (CD-14)", () => {
+  const shape = { discrepancies: 12 }
+
+  it('counts as many conventions as its note says, and names the three most often read as bugs', () => {
+    const panels = reading(shape)
+    assert.match(READING_NOTE, /^Four conventions /)
+    assert.equal(panels.length, 4)
+    const text = panels.map((p) => p.body.join('')).join(' ')
+    assert.match(text, /appears twice is a shared drive/)
+    assert.match(text, /before 1991 is net of dropped scores/)
+    assert.match(text, /stored figure and a counted one disagree, you get both/)
+  })
+
+  it('keeps the discrepancy count as a link to the audit page, and still says the gaps are published', () => {
+    const disagreements = reading(shape).find((p) => p.head.startsWith('Disagreements'))
+    assert.deepEqual(disagreements.link, { to: '/data/quality', text: '12 on record' })
+    assert.match(disagreements.body.join(''), /what is missing is published too/)
   })
 })
 
