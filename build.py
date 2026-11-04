@@ -5755,22 +5755,31 @@ RECORD_FAMILIES = {
         "highest-season-win-share-driver", "most-entries-without-a-win",
         "most-wins-at-one-grand-prix", "most-wins-from-pole", "most-pole-win-fastest-lap",
         "most-one-two-finishes", "most-consecutive-constructor-wins",
-        "most-consecutive-wins-at-one-grand-prix",
+        "most-consecutive-wins-at-one-grand-prix", "most-seasons-with-a-win",
+        "most-consecutive-seasons-with-a-win", "most-constructor-seasons-with-a-win",
+        "most-consecutive-constructor-seasons-with-a-win",
     ),
     "Pole positions": (
         "most-poles", "closest-pole-margin", "most-poles-in-a-season", "most-consecutive-poles",
         "most-constructor-poles", "most-constructor-poles-in-a-season",
         "most-consecutive-constructor-poles", "most-poles-at-one-grand-prix",
-        "most-consecutive-poles-at-one-grand-prix",
+        "most-consecutive-poles-at-one-grand-prix", "most-seasons-with-a-pole",
+        "most-consecutive-seasons-with-a-pole", "most-constructor-seasons-with-a-pole",
+        "most-consecutive-constructor-seasons-with-a-pole",
     ),
     "Podiums": (
         "most-podiums", "most-podiums-in-a-season", "most-consecutive-podiums",
         "most-podiums-without-a-win", "most-constructor-podiums",
-        "most-consecutive-constructor-podiums",
+        "most-consecutive-constructor-podiums", "most-seasons-with-a-podium",
+        "most-consecutive-seasons-with-a-podium", "most-constructor-seasons-with-a-podium",
+        "most-consecutive-constructor-seasons-with-a-podium",
     ),
     "Fastest laps": (
         "most-fastest-laps", "most-fastest-laps-in-a-season", "most-consecutive-fastest-laps",
-        "most-fastest-laps-at-one-grand-prix",
+        "most-fastest-laps-at-one-grand-prix", "most-seasons-with-a-fastest-lap",
+        "most-consecutive-seasons-with-a-fastest-lap",
+        "most-constructor-seasons-with-a-fastest-lap",
+        "most-consecutive-constructor-seasons-with-a-fastest-lap",
     ),
     "Entries and starts": ("most-race-entries", "most-consecutive-starts"),
     "Age": (
@@ -6692,6 +6701,107 @@ def derive_records(cur, leave_out=frozenset()):
             "driver does not take, entered or not. "
             + "; ".join(f"{r[1]}, {r[3]}: {', '.join(map(str, r[4]))}" for r in lead)
             + ". Next: " + next_tier(rows, lead, lambda r: f"{r[1]} {r[0]} ({span(r)})") + ".")
+
+    # Seasons (WK-13): the most seasons, and the most consecutive seasons, with
+    # a win, a pole, a fastest lap and a podium, for drivers and constructors.
+    # Appended here so that no existing records.id moves.
+    run_years = [y for (y,) in q("""SELECT DISTINCT year FROM races
+                                    WHERE status = 'completed' ORDER BY year""")]
+    last = run_years[-1]
+    # While the latest season is still being run, a run that ended the season
+    # before can yet go on, so the detail says so rather than read as final.
+    unfinished = q("""SELECT COUNT(*) FROM races
+                      WHERE year = ? AND status <> 'completed'""", last)[0][0] > 0
+    still_open = (f" {last} is still being run, so a run that ended in {last - 1} may "
+                  "yet go on." if unfinished else "")
+
+    def year_spans(years):
+        """'2007-2021, 2024' - years in order, as runs of consecutive ones."""
+        parts = []
+        for y in years:
+            if parts and parts[-1][1] == y - 1:
+                parts[-1][1] = y
+            else:
+                parts.append([y, y])
+        return ", ".join(str(a) if a == b else f"{a}-{b}" for a, b in parts)
+
+    def by_season(where, who, names_of):
+        """(totals, runs) for every holder with an entry meeting `where`:
+        totals are (seasons, name, id, [years]), most first; runs are
+        (length, name, id, [years]) for every run of consecutive championship
+        seasons with one, longest first. A season with none breaks a run,
+        entered or not."""
+        hit = {}
+        for k, year in q(f"""SELECT DISTINCT {who}, r.year FROM race_entries e
+                               JOIN races r ON r.id = e.race_id
+                              WHERE {where} AND {who} IS NOT NULL
+                                AND r.status = 'completed'
+                              ORDER BY r.year"""):
+            hit.setdefault(k, []).append(year)
+        totals = sorted(((len(y), names_of[k], k, y) for k, y in hit.items()),
+                        key=lambda r: (-r[0], r[1]))
+        runs = []
+        for k, years in hit.items():
+            have, run = set(years), []
+            for y in run_years + [None]:
+                if y in have:
+                    run.append(y)
+                elif run:
+                    runs.append((len(run), names_of[k], k, run))
+                    run = []
+        return totals, sorted(runs, key=lambda r: (-r[0], r[1], r[3][0]))
+
+    def season_span(r, ongoing=" (ongoing)"):
+        return f"{r[3][0]}-{r[3][-1]}" + (ongoing if r[3][-1] == last else "")
+
+    for what, unit, d_where, d_rule, c_where, c_rule in (
+        ("a win", "seasons", "e.finish_position = 1",
+         "finish_position = 1 entries, a shared drive counting for both drivers and the "
+         "Indianapolis 500 of 1950-60 included",
+         "e.finish_position = 1", "A finish_position = 1 entry under the constructor id"),
+        ("a pole", "seasons", "e.pole = 1",
+         "pole = 1 entries, as drivers.poles counts them, the Indianapolis 500 of 1950-60 "
+         "included",
+         "e.pole = 1", "A pole = 1 entry under the constructor id"),
+        ("a fastest lap", "seasons", "e.fastest_lap = 1",
+         "fastest_lap = 1 entries, a shared fastest lap counting for each driver and the "
+         "Indianapolis 500 of 1950-60 included",
+         "e.fastest_lap = 1", "A fastest_lap = 1 entry under the constructor id"),
+        ("a podium", "seasons", "e.finish_position <= 3",
+         "Entries classified first, second or third, as drivers.podiums counts them, the "
+         "Indianapolis 500 of 1950-60 included",
+         "e.finish_position <= 3",
+         "An entry classified in the first three under the constructor id"),
+    ):
+        slug = what.replace(" ", "-")
+        for cat, who, names_of, by, prefix, rule, where in (
+            ("drivers", "e.driver_id", names, "", "", d_rule, d_where),
+            ("constructors", "e.constructor_id", team_names, " by a constructor",
+             "constructor-", c_rule + " (the name raced under, lineage not merged; an "
+             "entry under no constructor id counts for none)", c_where),
+        ):
+            holder = "driver" if cat == "drivers" else "constructor"
+            totals, runs = by_season(where, who, names_of)
+            lead = _leaders(totals)
+            add(f"most-{prefix}seasons-with-{slug}", cat, f"Most seasons with {what}{by}",
+                [(r[1], r[2]) for r in lead], cat, lead[0][0], unit,
+                _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+                f"{rule}, counted once for each championship season with one. "
+                + "; ".join(f"{r[1]}: {year_spans(r[3])}" for r in lead)
+                + ". Next: " + next_tier(totals, lead, lambda r: f"{r[1]} {r[0]}") + ".")
+            lead = _leaders(runs)
+            add(f"most-consecutive-{prefix}seasons-with-{slug}", cat,
+                f"Most consecutive seasons with {what}{by}",
+                [(r[1], r[2]) for r in lead], cat, lead[0][0], unit,
+                tie_value(lead, lambda r: f"{_num(r[0])}, {season_span(r)}", season_span),
+                f"{rule}, in consecutive championship seasons. A season without one ends "
+                f"a run whether or not the {holder} entered it, and a run that reaches "
+                f"{last}, the latest season with a completed race, is marked ongoing."
+                f"{still_open} "
+                + "; ".join(f"{r[1]}: {season_span(r)}" for r in lead)
+                + ". Next: " + next_tier(
+                    runs, lead, lambda r: f"{r[1]} {r[0]} ({season_span(r, ', ongoing')})")
+                + ".")
 
     return out
 
