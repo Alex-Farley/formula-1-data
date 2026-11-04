@@ -1781,9 +1781,10 @@ def records_are_derived():
     # prove SQLite is deterministic.
     rows = {r["key"]: r for r in con.execute("SELECT * FROM records")}
     # 29 shipped at v2.23; WK-06 added the 31 more that Wikipedia's lists of
-    # driver and constructor records hold and the race records can derive. A
-    # derivation that silently drops one fails here.
-    FLOOR = 60
+    # driver and constructor records hold and the race records can derive, and
+    # WK-10 the four same-Grand-Prix tables. A derivation that silently drops
+    # one fails here.
+    FLOOR = 64
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -1960,6 +1961,46 @@ def records_are_derived():
     cp = con.execute("""SELECT id, poles FROM constructors
         ORDER BY poles DESC LIMIT 1""").fetchone()
     same("most-constructor-poles", cp["poles"], cp["id"], "constructors.poles")
+
+    # 17. Poles at one Grand Prix, through race_results.pole_id by gp_id - the
+    # build counts race_entries rows with pole = 1.
+    pg = con.execute("""SELECT pole_id, gp_id, COUNT(*) n FROM race_results
+        WHERE pole_id IS NOT NULL GROUP BY pole_id, gp_id ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-poles-at-one-grand-prix", pg["n"], pg["pole_id"], "race_results by Grand Prix")
+
+    # 18/19. Runs at one Grand Prix, as gaps and islands over each Grand Prix's
+    # completed editions - the build walks them in Python. A year the Grand
+    # Prix was not held has no row, so it does not break a run. Every holder
+    # of the longest, since the record may be shared.
+    def gp_run_holders(hits):
+        # hits: (race id, driver id d) for every race a driver took.
+        runs = con.execute(f"""WITH o AS (
+                SELECT id, gp_id g, ROW_NUMBER() OVER (
+                           PARTITION BY gp_id ORDER BY date_iso, year, round) i
+                  FROM races WHERE status = 'completed'),
+              h AS (SELECT o.g, o.i, x.d FROM o JOIN ({hits}) x ON x.id = o.id
+                     WHERE x.d IS NOT NULL),
+              k AS (SELECT d, g, i - ROW_NUMBER() OVER (PARTITION BY d, g ORDER BY i) grp
+                      FROM h)
+            SELECT d, COUNT(*) n FROM k GROUP BY d, g, grp""").fetchall()
+        top = max(r["n"] for r in runs)
+        ids = sorted({r["d"] for r in runs if r["n"] == top})
+        return top, sorted(w[0] for w in con.execute(
+            f"SELECT full_name FROM drivers WHERE id IN ({','.join('?' * len(ids))})", ids))
+    for key, hits, what in (
+        ("most-consecutive-poles-at-one-grand-prix", "SELECT id, pole_id d FROM race_results",
+         "race_results.pole_id"),
+        ("most-consecutive-wins-at-one-grand-prix",
+         "SELECT id, winner_id d FROM race_results "
+         "UNION ALL SELECT id, co_winner_id FROM race_results",
+         "race_results' winner and co-winner"),
+    ):
+        top, want = gp_run_holders(hits)
+        r = rows.get(key)
+        got = sorted(r["holder"].split(", ")) if r else []
+        check(f"records.{key} agrees with a window query over {what}",
+              r is not None and r["value_num"] == top and got == want,
+              f"{top}: {', '.join(want)}")
 
     dist = con.execute("""SELECT category, COUNT(*) n FROM records
         GROUP BY category ORDER BY category""").fetchall()
