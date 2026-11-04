@@ -6611,12 +6611,14 @@ def derive_records(cur, leave_out=frozenset()):
     # both grids, as Friday qualifying did in 2022, one result is both - so
     # the detail says how often, and in which seasons at every sprint, from
     # the data rather than by year.
-    both, every = q("""SELECT SUM(n), GROUP_CONCAT(CASE WHEN n = held THEN year END, ', ')
-          FROM (SELECT r.year, COUNT(e.id) n, COUNT(DISTINCT s.race_id) held
-                  FROM sprint_results s JOIN races r ON r.id = s.race_id
-                  LEFT JOIN race_entries e ON e.race_id = s.race_id
-                                          AND e.driver_id = s.driver_id AND e.pole = 1
-                 WHERE s.grid = 1 GROUP BY r.year ORDER BY r.year)""")[0]
+    by_year = q("""SELECT r.year, COUNT(DISTINCT CASE WHEN e.id IS NOT NULL THEN s.race_id END),
+                          COUNT(DISTINCT s.race_id)
+          FROM sprint_results s JOIN races r ON r.id = s.race_id
+          LEFT JOIN race_entries e ON e.race_id = s.race_id
+                                  AND e.driver_id = s.driver_id AND e.pole = 1
+         WHERE s.grid = 1 GROUP BY r.year""")
+    both = sum(n for _, n, _ in by_year)
+    every = ", ".join(str(y) for y, n, k in sorted(by_year) if n == k)
     add("most-sprint-poles", "drivers", "Most sprint pole positions",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "poles",
         _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
