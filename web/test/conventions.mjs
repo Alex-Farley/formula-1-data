@@ -1647,8 +1647,14 @@ describe('what the pages send, and to whom (PD-0)', () => {
   it('the forecast is the app’s alone: the prerenderer neither fetches nor writes one (AF-143)', () => {
     assert.doesNotMatch(prerender, /lib\/forecast\.js|FORECAST_POINT|api\.open-meteo\.com/, 'scripts/prerender.js reaches for the forecast, which the static page must not carry')
     // And the policy names that host under connect-src alone: it answers
-    // JSON, so nothing else needs it.
-    const naming = POLICY.split('; ').filter((d) => d.includes('api.open-meteo.com')).map((d) => d.split(' ')[0])
+    // JSON, so nothing else needs it. Each directive is read as its
+    // sources, whole, and a source is the host's when it is that origin or
+    // a wildcard or scheme that would also admit it.
+    const admits = (source) => ['https://api.open-meteo.com', 'https://*.open-meteo.com', 'https:', '*'].includes(source)
+    const naming = POLICY.split('; ')
+      .map((d) => d.split(' '))
+      .filter(([, ...sources]) => sources.some(admits))
+      .map(([name]) => name)
     assert.deepEqual(naming, ['connect-src'])
   })
 
