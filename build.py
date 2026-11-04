@@ -5772,7 +5772,8 @@ RECORD_FAMILIES = {
         "most-consecutive-seasons-with-a-win", "most-constructor-seasons-with-a-win",
         "most-consecutive-constructor-seasons-with-a-win",
         "highest-pole-conversion", "highest-constructor-win-rate",
-        "highest-pole-conversion-constructor",
+        "highest-pole-conversion-constructor", "most-consecutive-wins-from-season-start",
+        "most-wins-in-first-season", "won-on-debut-driver",
     ),
     "Pole positions": (
         "most-poles", "closest-pole-margin", "most-poles-in-a-season", "most-consecutive-poles",
@@ -7070,6 +7071,106 @@ def derive_records(cur, leave_out=frozenset()):
             + pct_next(rows, lead,
                        lambda r: f"{r[1]} {r[0]:.2f}% ({r[4]} of {races_in[r[3]]}, {r[3]})")
             + ".")
+
+    # WK-11: from the first race of a season, and the first season - the run
+    # of wins from round 1, the most wins in a driver's first season, and the
+    # driver form of won-on-debut-constructor. Appended after every older
+    # record so none is renumbered.
+    won = {}
+    for rid, d in q("SELECT race_id, driver_id FROM race_entries WHERE finish_position = 1"):
+        won.setdefault(rid, set()).add(d)
+    by_season = {}
+    for rid, year, name in run_order:
+        by_season.setdefault(year, []).append((rid, name))
+    unrun = {y for (y,) in q("SELECT DISTINCT year FROM races WHERE status <> 'completed'")}
+    rows = []
+    for year, races in by_season.items():
+        for d in won.get(races[0][0], ()):
+            n = 0
+            while n < len(races) and d in won.get(races[n][0], ()):
+                n += 1
+            # A run still unbroken at the last race run of a season with
+            # rounds to come is not over, and the detail says so.
+            rows.append((n, names[d], d, year, races[0][1], races[n - 1][1],
+                         n == len(races) and year in unrun))
+    rows.sort(key=lambda r: (-r[0], r[3], r[1]))
+    lead = _leaders(rows)
+
+    def from_round_one(r):
+        return (f"{race_name(r[3], r[4])} to {race_name(r[3], r[5])}"
+                + (", ongoing" if r[6] else ""))
+
+    add("most-consecutive-wins-from-season-start", "drivers",
+        "Most consecutive wins from the first race of a season",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "wins",
+        tie_value(lead, lambda r: f"{_num(r[0])}, {from_round_one(r)}",
+                  lambda r: str(r[3]), joiner=", in "),
+        "The completed championship races of each season in date order "
+        "(races.date_iso, then round), the Indianapolis 500 of 1950-60 included: the "
+        "races a driver won from the season's first before the first they did not win, "
+        "whether or not they entered it. A run stops at the season's end, and a shared "
+        "drive's win counts for both drivers. "
+        + held_by(lead, lambda r: f"{r[1]}, {from_round_one(r)}")
+        + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} ({from_round_one(r)})")
+        + ".")
+
+    def first_season_wins(where):
+        return q(f"""WITH f AS (SELECT e.driver_id d, MIN(r.year) y
+                                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                                 WHERE {where} GROUP BY e.driver_id)
+                     SELECT COUNT(*) n, dr.full_name, dr.id, f.y
+                       FROM f JOIN race_entries e ON e.driver_id = f.d
+                       JOIN races r ON r.id = e.race_id AND r.year = f.y
+                       JOIN drivers dr ON dr.id = f.d
+                      WHERE e.finish_position = 1
+                      GROUP BY f.d ORDER BY n DESC, f.y, dr.full_name""")
+
+    rows = first_season_wins("1")
+    lead = _leaders(rows)
+    lead_started = _leaders(first_season_wins(STARTED))
+    same_lead = sorted(r[:4] for r in lead) == sorted(r[:4] for r in lead_started)
+    add("most-wins-in-first-season", "drivers", "Most wins in a driver's first season",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "wins",
+        season_value(lead),
+        "race_entries rows with finish_position = 1 in the first season in which the "
+        "driver has a championship race entry. An entry that did not qualify or start "
+        "opens that season as much as a start does, as most-race-entries counts it; "
+        + ("counted from a first start instead, the leaders are the same. "
+           if same_lead else
+           "counted from a first start instead, the leaders would be "
+           + "; ".join(f"{r[1]}, {r[3]}: {r[0]}" for r in lead_started) + ". ")
+        + "A shared drive's win counts for both drivers, and a first season still being "
+          "run counts the races run so far. "
+        + held_by(lead, lambda r: f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}")
+        + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} ({r[3]})", limit=2)
+        + ".")
+
+    def won_on_debut(where):
+        return q(f"""WITH f AS (SELECT e.driver_id d, MIN(r.date_iso) dt
+                                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                                 WHERE {where} GROUP BY e.driver_id)
+                     SELECT dr.full_name, dr.id, r.year, r.name_used
+                       FROM f JOIN race_entries e ON e.driver_id = f.d
+                                                 AND e.finish_position = 1
+                       JOIN races r ON r.id = e.race_id AND r.date_iso = f.dt
+                       JOIN drivers dr ON dr.id = f.d
+                      GROUP BY f.d ORDER BY r.date_iso, dr.full_name""")
+
+    rows = won_on_debut("1")
+    started_rows = won_on_debut(STARTED)
+    add("won-on-debut-driver", "drivers", "Won on championship debut",
+        [(r[0], r[1]) for r in rows], "drivers", len(rows), "drivers",
+        _plural(len(rows), "driver"),
+        "A driver whose earliest race_entries row, by races.date_iso, is in a race they "
+        "won, as won-on-debut-constructor counts a constructor; a shared drive's win "
+        "counts. " + "; ".join(f"{r[0]}: {race_name(r[2], r[3])}" for r in rows)
+        + f". The {race_name(*q('SELECT year, name_used FROM races WHERE date_iso = ?', first_race)[0])} "
+          "was the championship's first race, at which every driver in it debuted. An "
+          "entry that did not qualify or start is a debut too; "
+        + ("counted from a first start instead, the list is the same."
+           if sorted(rows) == sorted(started_rows) else
+           "counted from a first start instead, the list would be "
+           + "; ".join(f"{r[0]}: {race_name(r[2], r[3])}" for r in started_rows) + "."))
 
     return out
 

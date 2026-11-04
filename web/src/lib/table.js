@@ -237,6 +237,7 @@ export const FOLD_NOUN = {
   grandSlams: 'grand slams',
   practice: 'sessions',
   races: 'races',
+  records: 'records',
   seasons: 'seasons',
   teamMates: 'team-mate seasons',
   winners: 'drivers',

@@ -1784,9 +1784,11 @@ def records_are_derived():
     # 29 shipped at v2.23; WK-06 added the 31 more that Wikipedia's lists of
     # driver and constructor records hold and the race records can derive, and
     # WK-10 the four same-Grand-Prix tables, WK-13 the sixteen seasons
-    # tables, WK-16 the sprint's podiums, points and poles, and WK-09 the
-    # twelve share tables. A derivation that silently drops one fails here.
-    FLOOR = 95
+    # tables, WK-16 the sprint's podiums, points and poles, WK-09 the
+    # twelve share tables, and WK-11 the three from the first race of a
+    # season and the first season. A derivation that silently drops one
+    # fails here.
+    FLOOR = 98
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2149,6 +2151,55 @@ def records_are_derived():
     check("every season with a sprint classification has exactly one sprint points scale",
           not unscaled, ", ".join(map(str, sorted(unscaled))))
     sprint_top(pts, "most-sprint-points", "the sprint points scale applied to each finish")
+
+    # WK-11. The build counts race_entries rows with finish_position = 1 and
+    # walks the runs in Python; these read the winners from the race_results
+    # view instead, and find the runs and the debuts with window queries.
+    # Every holder is compared, since each record may be shared.
+    def same_holders(key, value, ids, what):
+        r = rows.get(key)
+        want = sorted({n for (n,) in con.execute(
+            f"SELECT full_name FROM drivers WHERE id IN ({','.join('?' * len(ids))})",
+            sorted(ids))})
+        got = sorted(r["holder"].split(", ")) if r else []
+        check(f"records.{key} agrees with {what}",
+              r is not None and r["value_num"] == value and got == want,
+              f"recomputed {value}: {', '.join(want)}; stored "
+              + (f"{r['value_num']:g}: {r['holder']}" if r else "nothing"))
+
+    WINNERS = """SELECT rr.id, winner_id d FROM race_results rr WHERE winner_id IS NOT NULL
+                 UNION ALL
+                 SELECT rr.id, co_winner_id FROM race_results rr WHERE co_winner_id IS NOT NULL"""
+    runs = con.execute(f"""WITH o AS (
+            SELECT r.id, r.year, ROW_NUMBER() OVER (PARTITION BY r.year
+                                                    ORDER BY r.date_iso, r.round) i
+              FROM races r WHERE r.status = 'completed'),
+          g AS (SELECT o.year, w.d, o.i - ROW_NUMBER() OVER (PARTITION BY o.year, w.d
+                                                              ORDER BY o.i) grp
+                  FROM o JOIN ({WINNERS}) w ON w.id = o.id)
+        SELECT d, COUNT(*) n FROM g WHERE grp = 0 GROUP BY year, d""").fetchall()
+    top = max(r["n"] for r in runs)
+    same_holders("most-consecutive-wins-from-season-start", top,
+                 {r["d"] for r in runs if r["n"] == top},
+                 "a window query over race_results by season")
+
+    firsts = con.execute(f"""WITH f AS (
+            SELECT e.driver_id d, MIN(r.year) y FROM race_entries e
+              JOIN races r ON r.id = e.race_id GROUP BY e.driver_id)
+        SELECT w.d, COUNT(*) n FROM ({WINNERS}) w JOIN races r ON r.id = w.id
+          JOIN f ON f.d = w.d AND f.y = r.year GROUP BY w.d""").fetchall()
+    top = max(r["n"] for r in firsts)
+    same_holders("most-wins-in-first-season", top, {r["d"] for r in firsts if r["n"] == top},
+                 "race_results winners in each driver's first year of entries")
+
+    debut = {r["d"] for r in con.execute(f"""WITH e AS (
+            SELECT e.driver_id d, e.race_id,
+                   RANK() OVER (PARTITION BY e.driver_id ORDER BY r.date_iso) k
+              FROM race_entries e JOIN races r ON r.id = e.race_id)
+        SELECT DISTINCT e.d FROM e JOIN ({WINNERS}) w ON w.id = e.race_id AND w.d = e.d
+         WHERE e.k = 1""")}
+    same_holders("won-on-debut-driver", len(debut), debut,
+                 "a ranking of each driver's entries against race_results winners")
 
     dist = con.execute("""SELECT category, COUNT(*) n FROM records
         GROUP BY category ORDER BY category""").fetchall()
