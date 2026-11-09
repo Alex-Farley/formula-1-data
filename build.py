@@ -5387,9 +5387,10 @@ def _stage_36_what_f1db_publishes_about_a_driver_and(b):
                 cur, "f1db-number", "drivers", our_id, "permanent_number",
                 _full_name(cur, "drivers", our_id), str(given), str(raced),
                 f"F1DB's driver register gives {given} as the permanent "
-                f"number; F1DB's own entries give {raced}, the number in the "
-                f"entry list. Neither is established over the other, so no "
-                f"permanent number is stored until they agree.",
+                f"number; F1DB's own entries give {raced}, the number it "
+                f"enters the driver under for every session they drove. "
+                f"Neither is established over the other, so no permanent "
+                f"number is stored until they agree.",
                 "open")
             number = None
         country = None

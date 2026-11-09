@@ -2421,6 +2421,14 @@ def entries():
         """, (CURRENT,)).fetchall()
     check(f"every {CURRENT} substitute raced for its team, in its number and car",
           not loose, "; ".join(r[0] for r in loose))
+    # And keeps its source's tier: a substitute is typed from F1DB, not read
+    # off formula1.com's list, so it is `reference` (ENTRY_CONFIDENCE in
+    # data/current.py), never the list's `verified`.
+    overtier = [r[0] for r in con.execute("""SELECT driver_id FROM season_entries
+        WHERE year=? AND role='substitute' AND confidence != 'reference'""",
+        (CURRENT,))]
+    check(f"every {CURRENT} substitute carries its source's tier, reference",
+          not overtier, ", ".join(overtier))
 
 
 @section('TIMELINE SANITY')
