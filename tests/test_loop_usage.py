@@ -314,6 +314,73 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
         self.assertEqual((word, target, asked), ("WAIT", None, []))
         self.assertTrue(any(w.startswith("session window not readable") for w in why), why)
 
+    def test_an_idle_window_that_rolled_over_is_fresh_and_starts_an_alarm(self):
+        # AF-158: the week line and no other "Current" line is a window with
+        # nothing used in it, not a window unread.
+        week_only = ("Current week (all models): 36% used · resets Oct 19, 2:59pm "
+                     "(Europe/London)\n")
+        windows = lu.parse(week_only, NOW)
+        self.assertTrue(lu.fresh_session(week_only, windows))
+        windows["session"] = (0, None)
+        asked = []
+        word, _, why, target = lu.decide(windows, NOW, self.RACE, CONF_LOOK,
+                                         lambda: asked.append(True) or ("AF-150", None))
+        self.assertEqual((word, target, asked), ("ALARM", "AF-150", [True]))
+        self.assertIn("session: none yet (fresh window)", why)
+
+    def test_only_a_report_known_to_leave_the_session_out_is_fresh(self):
+        week = "Current week (all models): 36% used · resets Oct 19, 2:59pm (Europe/London)\n"
+        for text in (
+                # a session line that is there and cannot be read whole
+                "Current session: 25% used\n" + week,
+                # a window reworded, or one this does not know
+                "Current 5-hour window: 25% used · resets 11pm (Europe/London)\n" + week,
+                # the same, in a case or a decoration the parser does not know
+                "current session: 95% used · resets 3pm (Europe/London)\n" + week,
+                "5-hour session: 95% used · resets 3pm (Europe/London)\n" + week,
+                "• Current session: 95% used · resets 3pm (Europe/London)\n" + week,
+                # nothing the week could be read from
+                "Current session: 25% used\n",
+                "",
+                # a whole report is not a fresh one
+                report()):
+            self.assertFalse(lu.fresh_session(text, lu.parse(text, NOW)), text)
+
+    def check(self, text, env, alarm):
+        # `claude -p /usage --output-format json` prints the report as `result`.
+        stdout = text if "LOOP_USAGE_CMD" in env else json.dumps({"result": text})
+        done = mock.Mock(stdout=stdout, returncode=0)
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(lu.subprocess, "run", return_value=done), \
+                mock.patch.object(lu, "next_race", return_value=(self.RACE, "Sao Paulo Grand Prix")), \
+                mock.patch.object(lu, "reserve_alarm", **alarm):
+            return lu.check(NOW, "claude")
+
+    def test_check_starts_an_alarm_idle_and_says_the_window_is_fresh(self):
+        week = ("Current week (all models): 36% used · resets Oct 19, 2:59pm "
+                "(Europe/London)\n")
+        found = {"return_value": ("AF-150", None)}
+        looked = {"side_effect": AssertionError("looked for an alarm")}
+        text, code = self.check(week, {}, found)
+        self.assertTrue(text.startswith("ALARM AF-150 until "), text)
+        self.assertIn("session: none yet (fresh window)", text)
+        self.assertEqual(code, 4)
+        # A garbled session line beside it stays unread: no alarm is looked for.
+        text, code = self.check("Current session: 25% used\n" + week, {}, looked)
+        self.assertTrue(text.startswith("WAIT until "), text)
+        self.assertIn("session window not readable", text)
+        # An adapter that leaves the session out has no figure for it.
+        text, code = self.check(week, {"LOOP_USAGE_CMD": "r"}, looked)
+        self.assertTrue(text.startswith("WAIT until "), text)
+        self.assertIn("session window not readable", text)
+
+    def test_a_fresh_window_survives_a_threshold_over_100(self):
+        windows = {"session": (0, None), "week": (15, WEEK_RESET)}
+        for key in ("M_LEFT", "SMALL_LEFT"):
+            word, until, why, _ = lu.decide(windows, NOW, None, dict(CONF, **{key: 101.0}))
+            self.assertEqual((word, until), ("GO", None))
+            self.assertTrue(lu.line(word, until, why).startswith("GO - session: none yet"))
+
     def test_the_look_is_never_under_its_floor(self):
         for value in ("0", "-5", "3"):
             self.assertEqual(lu.settings({"LOOP_USAGE_ALARM_LOOK": value})["ALARM_LOOK"],
