@@ -4469,6 +4469,11 @@ def _stage_35_link_race_entries_to_the_curated(b):
         # Filed against the champion's titles: verify.py names a claim's row
         # by a key that is not renumbered, and takes an INTEGER primary key,
         # a season's year included, for a surrogate it will not name one by.
+        # The reading is of a title the records credit to more than one
+        # constructor; one that has come to be credited to a single one no
+        # longer differs from the list, and its row is filed resolved.
+        if len(teams) < 2:
+            status, note = "resolved", "the records now credit one constructor"
         _file_discrepancy(cur, "records-list", "drivers", did, "titles",
                           _full_name(cur, "drivers", did),
                           f"{year} credited to " + " and ".join(teams), listed, why, status,
@@ -7441,7 +7446,8 @@ def derive_records(cur, leave_out=frozenset()):
     # to every constructor under whose id the champion scored points in
     # race_entries that season, so a champion who scored for two counts for
     # both; a title-season entry of the champion's whose points are not held
-    # stops the build, since it could be the one that scored. Where
+    # stops the build, since it could be the one that scored, as does a
+    # scoring entry with no constructor id. Where
     # Wikipedia's lists gave another figure on the day, data/harvest.py
     # RECORDS_LIST_READINGS files it in `discrepancies`.
     title_teams, split = {}, []
@@ -7449,12 +7455,16 @@ def derive_records(cur, leave_out=frozenset()):
                            WHERE drivers_champion IS NOT NULL ORDER BY year"""):
         scored = q("""SELECT e.constructor_id, SUM(e.points), SUM(e.points IS NULL)
                         FROM race_entries e JOIN races r ON r.id = e.race_id
-                       WHERE r.year = ? AND e.driver_id = ? AND e.constructor_id IS NOT NULL
+                       WHERE r.year = ? AND e.driver_id = ?
                        GROUP BY e.constructor_id ORDER BY e.constructor_id""", year, did)
         credited = [r for r in scored if r[1] is not None and r[1] > 0]
-        if any(r[2] for r in scored) or not credited:
+        # An entry with no constructor id that scored, or might have, has no
+        # constructor to credit, and is refused like an entry with no points.
+        if (any(r[2] for r in scored) or not credited
+                or any(r[0] is None for r in credited)):
             raise SystemExit(f"records: {names[did]}'s {year} title cannot be credited to a "
-                             "constructor - an entry's points are not held, or none scored")
+                             "constructor - an entry's points or constructor are not held, "
+                             "or none scored")
         title_teams[year] = (did, [r[0] for r in credited])
         if len(credited) > 1:
             split.append(f"{year}, {names[did]}: " + ", ".join(
