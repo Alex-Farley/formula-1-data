@@ -333,8 +333,8 @@ the share-alike above. First, its account of its own sources and state:
 |---|---|---:|
 | `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->69,278<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->6,295<!-- /fig --> |
-| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->15,485<!-- /fig --> |
-| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,793<!-- /fig --> |
+| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->15,712<!-- /fig --> |
+| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,802<!-- /fig --> |
 | `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,060<!-- /fig --> |
 
 Second, the prose of ten of the twelve reference tables `source_registry`

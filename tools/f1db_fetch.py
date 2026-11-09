@@ -628,7 +628,8 @@ def outline_path(svg, where):
     has to draw in that box too. Every one of the 160 today is
     <svg width="500" height="500"> with no viewBox around one <path>, but the
     fetch used to assume it: the translate on the <path> was applied and a
-    transform anywhere else - on the <svg>, on a wrapping <g>, in a style -
+    transform anywhere else - on the <svg>, on a wrapping <g>, in a style,
+    or as CSS's translate, rotate or scale property -
     was never looked for, and a moved or scaled drawing that stayed within
     svg_path_in_box's 5-unit margin would have been stored as it was (#277).
     So the canvas is asserted, and a transform is allowed on the <path>'s
@@ -661,9 +662,14 @@ def outline_path(svg, where):
     path_d = " ".join(d.group(1).split())
     transform = re.search(r'\stransform="([^"]*)"', elements[0])
     # The <path>'s own transform attribute is the one place a transform is
-    # applied; any other mention of one - an attribute on the <svg> or a
-    # <g>, a CSS transform in a style - would move the drawing unseen.
-    if len(re.findall(r'transform', svg, re.I)) != (1 if transform else 0):
+    # applied; any other - an attribute on the <svg> or a <g>, a CSS
+    # transform in a style, or CSS's own translate, rotate and scale
+    # properties - would move the drawing unseen. The path data and that
+    # attribute are taken out before the asset is searched for one.
+    rest = svg.replace(d.group(0), " ", 1)
+    if transform:
+        rest = rest.replace(transform.group(0), " ", 1)
+    if re.search(r'transform|translate|rotate|scale|matrix|skew', rest, re.I):
         sys.exit(f"{where} carries a transform outside the <path>'s own "
                  f"transform attribute; look at the asset before it is stored")
     if transform:

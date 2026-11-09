@@ -130,7 +130,11 @@ class Asset(unittest.TestCase):
                     self.asset('<path style="transform: scale(1.01)" d="M10 20L490 480z"/>'),
                     self.asset('<path d="M10 20L490 480z" transform="translate(1 1)" '
                                'style="transform: none"/>'),
-                    self.asset('<path d="M10 20L490 480z" transform="scale(1.01)"/>')):
+                    self.asset('<path d="M10 20L490 480z" transform="scale(1.01)"/>'),
+                    # CSS moves a drawing without the word "transform", too.
+                    self.asset(inner=f'<g style="translate: 30px 30px">{self.PATH}</g>'),
+                    self.asset('<path style="rotate: 1deg" d="M10 20L490 480z"/>'),
+                    self.asset(canvas='<svg width="500" height="500" style="scale: 1.01">')):
             with self.subTest(svg=svg), self.assertRaises(SystemExit):
                 self.path(svg)
 
