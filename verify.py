@@ -4679,11 +4679,11 @@ def circuits_and_venues():
     # F1DB's figure for the layout the race names must agree with it. 483
     # races today, the worst 0.087 km apart (Interlagos 7.960 v 7.873), so
     # 0.15 km lets two measurements of one circuit through and stops a
-    # layout of another length. It constrains no more than that: the 689
-    # races reported at the current layout are not reached, and two F1DB
-    # layouts of one circuit at the same length (montreal-1 and -2) swap
-    # unseen. The id itself is F1DB's own circuitLayoutId, refreshed with
-    # the calendar.
+    # layout of another length. It constrains no more than that: a race
+    # reported at the current layout is not reached, and two F1DB layouts of
+    # one circuit at the same length (montreal-1 and -2) swap unseen. The id
+    # itself is F1DB's own circuitLayoutId, refreshed with the calendar, and
+    # what this leaves unchecked is known_gaps #21, which counts the races.
     bad = con.execute("""SELECT r.year, r.round, r.f1db_layout_id, v.length_km, o.length_km
         FROM races r JOIN v_race_venues v ON v.race_id = r.id
         JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id

@@ -7,7 +7,9 @@ WHY THIS FILE EXISTS
     One F1DB asset positioned its path with a translate() on the element,
     and stored as written it drew an empty, credited figure on two pages
     (PR #273's review). data/harvest.py now applies a translate at the
-    fetch and verify.py checks every outline's extent lies inside the box.
+    fetch and verify.py checks every outline's extent lies inside the box,
+    and the fetch refuses an asset whose canvas is not that box or that
+    moves its drawing any other way (#277).
     Both rest on one small parser, and a parser that misread "a1 1 0 011 1"
     as one number, or moved a relative segment, would pass every row today
     and fail on the next asset. These give it inputs whose right answer is
@@ -85,6 +87,62 @@ class Extent(unittest.TestCase):
         # Within the margin is inside; past it is not.
         self.assertTrue(H.svg_path_in_box("M-2 0L500 504"))
         self.assertFalse(H.svg_path_in_box("M-6 0L500 500"))
+
+
+class Asset(unittest.TestCase):
+    """tools/f1db_fetch.py outline_path: the shape of one F1DB asset (#277).
+
+    Each refusal is a change to an asset that svg_path_in_box's margin could
+    let through: the drawing moved or scaled by something other than the
+    <path>'s own translate, or a canvas that is not the 500-unit box.
+    """
+    PATH = '<path style="fill: none; stroke: #000" d="M10 20L490 480z"/>'
+    CANVAS = '<svg width="500" height="500" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">'
+
+    def asset(self, path=None, canvas=None, inner=None):
+        body = inner if inner is not None else (path or self.PATH)
+        return f"{canvas or self.CANVAS}\n    {body}\n</svg>"
+
+    def path(self, svg):
+        import os
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
+        import f1db_fetch
+        return f1db_fetch.outline_path(svg, "test.svg")
+
+    def test_todays_shape_is_read(self):
+        self.assertEqual(self.path(self.asset()), "M10 20L490 480z")
+
+    def test_a_translate_on_the_path_is_applied(self):
+        svg = self.asset('<path d="M1010 1020L1490 1480z" transform="translate(-1000 -1000)"/>')
+        self.assertEqual(self.path(svg), "M10 20 L490 480 z")
+
+    def test_the_canvas_must_be_the_box(self):
+        for canvas in ('<svg width="1000" height="1000">', '<svg width="500" height="400">',
+                       '<svg width="500px" height="500">', '<svg height="500">',
+                       '<svg width="500" height="500" viewBox="0 0 1000 1000">'):
+            with self.subTest(canvas=canvas), self.assertRaises(SystemExit):
+                self.path(self.asset(canvas=canvas))
+
+    def test_a_transform_anywhere_but_the_paths_own_attribute_is_refused(self):
+        for svg in (self.asset(canvas='<svg width="500" height="500" transform="scale(1.01)">'),
+                    self.asset(inner=f'<g transform="translate(3 3)">{self.PATH}</g>'),
+                    self.asset('<path style="transform: scale(1.01)" d="M10 20L490 480z"/>'),
+                    self.asset('<path d="M10 20L490 480z" transform="translate(1 1)" '
+                               'style="transform: none"/>'),
+                    self.asset('<path d="M10 20L490 480z" transform="scale(1.01)"/>'),
+                    # CSS moves a drawing without the word "transform", too.
+                    self.asset(inner=f'<g style="translate: 30px 30px">{self.PATH}</g>'),
+                    self.asset('<path style="rotate: 1deg" d="M10 20L490 480z"/>'),
+                    self.asset(canvas='<svg width="500" height="500" style="scale: 1.01">')):
+            with self.subTest(svg=svg), self.assertRaises(SystemExit):
+                self.path(svg)
+
+    def test_one_canvas_and_one_path(self):
+        with self.assertRaises(SystemExit):
+            self.path(self.asset(inner=f'<svg width="500" height="500">{self.PATH}</svg>'))
+        with self.assertRaises(SystemExit):
+            self.path(self.asset(inner=self.PATH + self.PATH))
 
 
 if __name__ == "__main__":

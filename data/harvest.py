@@ -982,6 +982,36 @@ KNOWN_GAPS = [
      "account of its layouts read as one. Until then this is the position, "
      "not an omission: CIRCUIT_ARTICLE_GAPS declares it and verify.py "
      "fails on any circuit neither mapped nor declared."),
+
+    (21, "f1db-layout-unchecked", "races.f1db_layout_id",
+     "which of a circuit's F1DB layouts a race ran",
+     "open",
+     "The outline drawn for a race is the layout F1DB says it ran. Where this "
+     "database knows the length raced that year, F1DB's length for the layout "
+     "must agree within 150 metres, which stops a layout of another length. "
+     "Where it holds only the current figures, or where two layouts of one "
+     "circuit are that close in length, F1DB's choice is taken as given, not "
+     "checked.",
+     "AF-06 (#277). races.f1db_layout_id is F1DB's own circuitLayoutId, "
+     "refreshed with the calendar, so it is trusted rather than established. "
+     "verify.py holds the circuit the layout belongs to, and where "
+     "v_race_venues reads 'as raced' it holds F1DB's length for the layout "
+     "to the register's within 0.15 km. Nothing else constrains it: an "
+     "outline no race names is skipped by build.py, not refused. A race at "
+     "a circuit with no layout timeline here ('current layout') is not "
+     "reached by the length check, so Montreal's six layouts, or "
+     "zandvoort-2 and -3 at one length, could swap unseen. Where it does "
+     "reach, two F1DB layouts of one circuit both within 0.15 km of the "
+     "length raced swap unseen too, as among most of Monza's, Catalunya's and Hockenheim's, "
+     "spa-francorchamps-2 to -4, melbourne-1 and -2, and marina-bay-2 and "
+     "-3, which F1DB gives one length. races_affected counts the completed races the "
+     "length check would not stop from naming another layout of the same "
+     "circuit; a race at a circuit F1DB draws once is held by the circuit "
+     "alone.",
+     "Extending the layout timelines (known_gaps #7) brings a circuit's "
+     "races under the length check; a figure that tells layouts of nearly "
+     "one length apart - the turns, or the years each layout was raced, read from a "
+     "source other than F1DB - would close the rest."),
 ]
 
 # known_gaps.races_affected, measured rather than typed (DA-16, #210).
@@ -1022,6 +1052,18 @@ GAP_RACES = {
         WHERE EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id
             AND NOT EXISTS (SELECT 1 FROM race_entries e
                 WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id))""",
+    # a race whose F1DB layout could be swapped for another of its circuit's
+    # and pass: not reached by the length check, or within its 0.15 km of
+    # another layout - verify.py's predicate, read the other way round
+    "f1db-layout-unchecked": f"""SELECT COUNT(*) FROM ({_RUN}) q
+        JOIN races r ON r.id = q.id
+        JOIN v_race_venues v ON v.race_id = r.id
+        JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+        WHERE EXISTS (SELECT 1 FROM circuit_outlines x
+            WHERE x.circuit_id = r.circuit_id AND x.f1db_layout_id <> o.f1db_layout_id
+              AND (v.figures <> 'as raced' OR v.length_km IS NULL
+                   OR o.length_km IS NULL OR x.length_km IS NULL
+                   OR ABS(x.length_km - v.length_km) <= 0.15))""",
     # a weekend whose timetable rests on formula1.com's page alone
     "session-timetable": """SELECT COUNT(*) FROM races r
         WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = r.id)
@@ -1796,7 +1838,8 @@ RACE_LAYOUTS_FILE = os.path.join(HERE, "..", "harvest", "race_layouts.txt")
 # else is refused at the fetch, at the build and in verify.py.
 SVG_PATH_DATA = r"[MmZzLlHhVvCcSsQqTtAa0-9eE.,\- ]+"
 
-# Every F1DB asset draws in the same box: <svg width="500" height="500">.
+# Every F1DB asset draws in the same box: <svg width="500" height="500">,
+# with no viewBox; tools/f1db_fetch.py refuses an asset that does not.
 OUTLINE_BOX = 500.0
 
 _SVG_NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
