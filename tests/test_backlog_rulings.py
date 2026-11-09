@@ -12,10 +12,16 @@ WHY THIS FILE EXISTS
     three times per move and tripped GitHub's secondary limiter three times
     (AF-81, D-27). So a run is one read and one write per move that changes
     anything, spaced, and the plan is tested here without GitHub.
+
+    And one kind of item is placed when it is filed. Mercedes' 2026
+    constructors' title was found decided and filed under Someday, where it
+    sat until the maintainer noticed (AF-161). A live-data item now heads Now,
+    under the open alarms, unless its filer names another status.
 """
 import contextlib
 import importlib.util
 import io
+import json
 import os
 import unittest
 from types import SimpleNamespace
@@ -282,6 +288,94 @@ class MakingOneWait(unittest.TestCase):
         with self.assertRaises(SystemExit) as caught:
             self.run_it([740], 740, {})
         self.assertIn("itself", str(caught.exception.code))
+
+
+class FilingLiveData(unittest.TestCase):
+    """Where `file.py new` puts an item, without GitHub (AF-161)."""
+
+    BOARD = [(1, "Now", "I1", 0), (2, "Now", "I2", 0), (3, "Now", "I3", 0),
+             (30, "Next", "I30", 0), (500, "Now", "I500", 0)]
+
+    def file(self, prefix, status=None, alarms=(1,), rank_ok=True, board=None):
+        self.statuses, self.ranks = [], []
+        listed = [{"number": n, "labels": [{"name": "refresh-failing" if n in alarms else "size: S"}]}
+                  for n, *_ in self.BOARD]
+
+        def gh(*args, as_json=False):
+            return "https://github.com/Alex-Farley/formula-1-data/issues/500"
+
+        def gh_try(*args, out=False):
+            if args[:2] == ("issue", "list"):
+                return True, "", json.dumps(listed)
+            self.ranks.append(args)
+            return rank_ok, "" if rank_ok else "was submitted too quickly"
+
+        ran = SimpleNamespace(stdout=f"{prefix}-99\n")
+        a = SimpleNamespace(prefix=prefix, title="t", size="XS", status=status, body="b",
+                            body_file=None, where=None, decision=False)
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(file_py, "gh", gh), \
+                mock.patch.object(file_py, "gh_try", gh_try), \
+                mock.patch.object(file_py.subprocess, "run", lambda *_a, **_k: ran), \
+                mock.patch.object(file_py, "set_status", lambda n, st: self.statuses.append((n, st))), \
+                mock.patch.object(file_py.next_py, "board_items",
+                                  lambda ids=False: ("P", self.BOARD if board is None else board)), \
+                mock.patch.object(file_py.loop_cache, "drop", lambda *_: None), \
+                mock.patch.object(file_py.time, "sleep", lambda *_: None), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            file_py.new(a)
+        return out.getvalue(), err.getvalue()
+
+    def anchor(self):
+        """The `after=` of the one rank write, or None for the very top."""
+        (call,) = self.ranks
+        self.assertIn("item=I500", call)
+        after = [x for x in call if x.startswith("after=")]
+        return after[0].split("=", 1)[1] if after else None
+
+    def test_an_lv_item_with_no_status_heads_now_under_the_alarm(self):
+        said, _ = self.file("LV")
+        self.assertEqual(self.statuses, [(500, "Now")])
+        self.assertEqual(self.anchor(), "I1")
+        self.assertIn("#500 first in Now, under alarm #1", said)
+
+    def test_with_no_alarm_open_it_goes_to_the_very_top(self):
+        self.file("LV", alarms=())
+        self.assertIsNone(self.anchor())
+
+    def test_it_goes_under_every_alarm_at_the_top_and_not_under_one_dragged_lower(self):
+        self.file("LV", alarms=(1, 2))
+        self.assertEqual(self.anchor(), "I2")
+        self.file("LV", alarms=(1, 3))
+        self.assertEqual(self.anchor(), "I1")
+
+    def test_an_lv_item_given_now_is_placed_and_given_another_status_is_not(self):
+        self.file("LV", status="Now")
+        self.assertEqual(self.anchor(), "I1")
+        for status in ("Next", "Someday"):
+            self.file("LV", status=status)
+            self.assertEqual((self.statuses, self.ranks), ([(500, status)], []), status)
+
+    def test_any_other_prefix_still_files_at_the_foot_of_its_status(self):
+        self.file("CR")
+        self.assertEqual((self.statuses, self.ranks), ([(500, "Someday")], []))
+        self.file("CR", status="Now")
+        self.assertEqual((self.statuses, self.ranks), ([(500, "Now")], []))
+
+    def test_a_refused_placement_leaves_it_filed_and_names_the_call_that_finishes_it(self):
+        said, err = self.file("LV", rank_ok=False)
+        self.assertIn("#500 LV-99", said)
+        self.assertNotIn("first in Now", said)
+        self.assertIn("file.py rank 500 --after 1", err)
+        said, err = self.file("LV", board=self.BOARD[:-1])
+        self.assertEqual(self.ranks, [])
+        self.assertIn("file.py rank 500 --after <the last open alarm", err)
+
+    def test_the_anchor_skips_the_item_itself_and_other_statuses(self):
+        rows = [(30, "Next"), (500, "Now"), (1, "Now"), (2, "Now")]
+        self.assertEqual(file_py.under_alarms(rows, 500, {1}), 1)
+        self.assertIsNone(file_py.under_alarms(rows, 500, set()))
+        self.assertIsNone(file_py.under_alarms([(500, "Now")], 500, {500}))
 
 
 if __name__ == "__main__":

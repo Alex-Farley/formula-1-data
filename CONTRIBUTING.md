@@ -271,7 +271,10 @@ fix it>" --where "<the paths it would touch>"` numbers the item, labels it
 and puts it on the board (under *Someday*, unless `--status` says otherwise;
 `--decision` for a question). **Filing is not ranking** `[D-36]`: an item
 arrives where nobody has judged it, and a person promotes it to *Next* or
-*Now*. Filing by hand works too — the title, the two labels and the board
+*Now*. The one exception is an `LV` item: with no `--status`, or with
+`--status Now`, it is filed first in *Now*, directly under any open alarm,
+because a decided title or a new result is what readers expect the same day
+`AF-161`. Filing by hand works too — the title, the two labels and the board
 status are all there is — and the critique's full reasoning stays in
 `docs/critiques/`; the issue is the queue, not the argument.
 

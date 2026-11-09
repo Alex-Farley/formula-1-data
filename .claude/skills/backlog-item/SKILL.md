@@ -263,7 +263,10 @@ and carry on. A fork that returns before choosing an item writes neither.
   `.claude/skills/backlog-item/alarm.md` before the worktree opens.
   Anything discovered is filed as its own issue — `file.py new <prefix>
   "<title>" --size <XS|S|M|L|?> --body "..."` — never left in a note, a PR
-  comment or a TODO.
+  comment or a TODO. It lands at the foot of its status, *Someday* unless
+  `--status` names another, except a live-data finding, prefix `LV` — a
+  decided title, a new result — which with no `--status`, or with
+  `--status Now`, lands first in *Now*, under any open alarm `AF-161`.
 
 ## Before asking for review
 
