@@ -1374,8 +1374,8 @@ RECORDS_LIST_READINGS = [
      "Wikipedia's List of Formula One driver records numbered the 2009 Bahrain Grand Prix, Trulli's first fastest "
      "lap, his 203rd race, in a column headed Entry; race_entries holds 205 entries "
      "and 202 starts for him before it, so the list's figure is the count of starts. "
-     "Its next three - Jenson Button's 155th, Nick Heidfeld's 134th and Mark "
-     "Webber's 131st race - are each one past the starts race_entries holds before "
+     "Its next three - Jenson Button's 155th, Esteban Ocon's 152nd and Nick "
+     "Heidfeld's 134th race - are each one past the starts race_entries holds before "
      "the first fastest lap as well. The record counts entries, as "
      "most-entries-before-first-win does. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1384674133",
@@ -1394,20 +1394,26 @@ RECORDS_LIST_READINGS = [
      "starting in each. The list's figures for Shadow (69), Toro Rosso (49), Stewart "
      "(47) and Racing Point (37) are likewise each one above race_entries' count, "
      "which is what counting the race won would give, but its Red Bull Racing "
-     "figure, 74, is the count before the win. "
+     "figure, 74, is the count before the win, and its Williams figure, 50, is far "
+     "above the 24 race_entries holds under the williams id before the 1979 British "
+     "Grand Prix. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1384670102",
      "open", "sources differ"),
     ("most-races-without-a-pole-constructor", "constructors", "sauber",
      "Minardi, 340 races started: Sauber is not in the list's table",
      "Wikipedia's List of Formula One constructor records led its table of races "
-     "started without a pole with Minardi, 340, and did not include Sauber, which "
-     "race_entries holds 547 races entered under, a car starting in 544, with no "
-     "pole under that name. Two of the list's other tables name Sauber and BMW "
-     "Sauber as one team, and BMW Sauber's pole at the 2008 Bahrain Grand Prix would "
-     "end such a run, but the list gives no reason in this one. The record counts "
-     "under the constructor name raced under, as most-races-without-a-win-constructor "
-     "does. Minardi's own figure differs as well: race_entries holds 346 races "
-     "entered, a car starting in 339, against the list's 340 started. "
+     "started without a pole with Minardi, 340, and did not include Sauber. The "
+     "table's note says its source separates Sauber, BMW Sauber and Kick Sauber "
+     "statistics and that the team took its only pole as BMW Sauber; it does not say "
+     "why Sauber is then left out. race_entries holds 547 races entered under the "
+     "sauber constructor id, a car starting in 544, with no pole among them. The id "
+     "covers the team's Sauber years and the Alfa Romeo and Kick Sauber names "
+     "(constructors.notes), and race_entries files 1993-2005 and 2010-2025 under it; "
+     "BMW Sauber, 2006-2009, is an id of its own, and its pole at the 2008 Bahrain "
+     "Grand Prix is under that. The record counts by constructor id, as "
+     "most-races-without-a-win-constructor does. Minardi's own figure differs as "
+     "well: race_entries holds 346 races entered, a car starting in 339, against the "
+     "list's 340 started. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1384670102",
      "open", "sources differ"),
     ("most-races-without-a-podium-constructor", "constructors", "minardi",

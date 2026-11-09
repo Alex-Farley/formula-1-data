@@ -6253,9 +6253,10 @@ def derive_records(cur, leave_out=frozenset()):
         (f"{_num(lead[0][0])}, {lead[0][3]}-{lead[0][4]}" if len(lead) == 1
          else f"{_num(lead[0][0])} each"),
         "Distinct races with a race_entries row under the constructor id and no "
-        "finish_position = 1 under it. Counted under the constructor name raced under, as "
-        "constructors.wins is: a name change starts a new count, and a win under an "
-        "earlier or later name of the same team does not end this one. Next: "
+        "finish_position = 1 under it. Counted by constructor id, as constructors.wins is, "
+        "lineage not merged: an id is mostly one name but can span several - "
+        "constructors.notes says where - and a win under another id of the same team does "
+        "not end this one. Next: "
         + ", ".join(f"{r[1]} {r[0]} ({r[3]}-{r[4]})" for r in _rest(rows, lead)) + ".")
 
     rows = q("""WITH debut AS (
@@ -7376,9 +7377,10 @@ def derive_records(cur, leave_out=frozenset()):
         (f"{_num(lead[0][0])}, before the {race_name(lead[0][4], lead[0][5])}"
          if len(lead) == 1 else f"{_num(lead[0][0])} each"),
         "For every constructor id with a win: the distinct races with a race_entries row "
-        "under it dated before its first finish_position = 1. Counted under the constructor "
-        "name raced under, as constructors.wins is: a name change starts a new count, and a "
-        "win under an earlier name of the same team does not end this one. "
+        "under it dated before its first finish_position = 1. Counted by constructor id, as "
+        "constructors.wins is, lineage not merged: an id is mostly one name but can span "
+        "several - constructors.notes says where - and a win under an earlier id of the "
+        "same team does not end this one. "
         + "; ".join(f"{r[1]}: {_num(r[0])} races, {_num(r[3])} of them with a car that "
                     f"started, before the {race_name(r[4], r[5])}" for r in lead) + ". "
         + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])} "
@@ -7400,9 +7402,9 @@ def derive_records(cur, leave_out=frozenset()):
              else f"{_num(lead[0][0])} each"),
             f"Distinct races with a race_entries row under the constructor id and no entry "
             f"under it with {rule}, as most-races-without-a-win-constructor counts them. "
-            "Counted under the constructor name raced under: a name change starts a new "
-            f"count, and a {what} under an earlier or later name of the same team does not "
-            "end this one. "
+            "Lineage is not merged: an id is mostly one name but can span several - "
+            f"constructors.notes says where - and a {what} under another id of the same team "
+            "does not end this one. "
             + "; ".join(f"{r[1]}: {_num(r[0])} races, {_num(r[3])} of them with a car that "
                         f"started, {r[4]}-{r[5]}" for r in lead) + ". "
             + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])} "

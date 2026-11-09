@@ -2240,7 +2240,10 @@ def records_are_derived():
             JOIN race_entries e ON e.driver_id = d.id
             WHERE d.{col} = 0 GROUP BY d.id""").fetchall()
         same_set(key, *top(found), "drivers", "full_name", f"drivers.{col} = 0")
+    # The view's season sum skips a NULL entry, so a driver with one is
+    # left out here, as the build leaves them unplaced.
     found = con.execute("""SELECT driver_id, SUM(entries) FROM v_driver_season_points
+        WHERE driver_id NOT IN (SELECT driver_id FROM race_entries WHERE points IS NULL)
         GROUP BY driver_id
         HAVING COUNT(race_points) = COUNT(*) AND SUM(race_points) = 0""").fetchall()
     same_set("most-entries-without-points", *top(found), "drivers", "full_name",
@@ -3274,7 +3277,7 @@ def the_driver_register():
         WHERE status = 'explained' AND status_note = ?""", (build.EACH_SIDE_RIGHT,)))
     _n_exp = len(harvest_module().EXPLAINED_SPANS)
     check("the explained span rows are the last discrepancies written before the records-list "
-          "readings, so adding one moves no other id",
+          "readings, so adding one moves no id but theirs",
           len(_exp_ids) == _n_exp and _exp_ids == list(range(_top - _n_exp + 1, _top + 1)),
           f"ids {_exp_ids} of {_n_exp} declared, max {_top}")
     check("each explained span row carries the register's and the records' figure for its end",
