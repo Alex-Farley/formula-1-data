@@ -2159,9 +2159,13 @@ try {
     // A title on the record with nothing left to fight has no basis to print.
     if (!answer.basis) return
     // Said once, in the lede and not again under the tiles; its basis is
-    // what follows them. Up to what is left to run, because the build date
-    // after it is written as a reader's date.
-    const basis = answer.basis.slice(0, answer.basis.indexOf(' still to run'))
+    // what follows them. Up to and including "still to run", because the
+    // build date after it is written as a reader's date - and not short of
+    // it, because the count alone is a substring of the header's: "3 rounds"
+    // is the tail of "23 rounds".
+    const run = ' still to run'
+    const cut = answer.basis.indexOf(run)
+    const basis = cut < 0 ? answer.basis : answer.basis.slice(0, cut + run.length)
     const staticBody = unescaped((html.split('<div id="prerendered">')[1] ?? '').replace(/<[^>]+>/g, ''))
     const appMain = (await text('#root main')) ?? ''
     for (const [half, body] of [['static page', staticBody], ['app', appMain]]) {

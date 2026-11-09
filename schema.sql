@@ -2032,6 +2032,7 @@ CREATE TABLE discrepancies (
                         'car-season',          -- CAR_SEASONS against the entry lists
                         'car-chassis',         -- a car's figure against its one chassis's
                         'session-sheet',       -- F1DB's race result against its own session sheets
+                        'f1db-number',         -- F1DB's permanent number against its own entries
                         'race-classification', -- F1DB's race result against another source's
                         'race-weather',        -- a race article's wet or dry against the model's day
                         'jolpica-result')),    -- tools/ergast_load.py, local only

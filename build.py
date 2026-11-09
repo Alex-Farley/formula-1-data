@@ -85,7 +85,7 @@ VERSION = "2.26"
 # pages. So the refresh workflow now bumps it whenever it commits a new
 # harvest — the only time the data actually changes — and a hand edit to
 # data/*.py should bump it too.
-BUILT = "2026-11-02"
+BUILT = "2026-11-09"
 
 
 def _haversine(a, b):
@@ -5368,6 +5368,31 @@ def _stage_36_what_f1db_publishes_about_a_driver_and(b):
                 f"in harvest/f1db_drivers.txt. Rerun tools/f1db_fetch.py.")
         (_id, _name, _first, _last, _born, _died, abbr, _nat,
          place, born_country_id, number) = meta
+        if f1db_id in D.F1DB_NUMBER_UNSETTLED:
+            # F1DB's register against its own entries, declared in
+            # data/drivers.py: stored NULL and filed open, and refused once
+            # either reading moves, so the declaration cannot outlive the
+            # disagreement it records.
+            given, raced = D.F1DB_NUMBER_UNSETTLED[f1db_id]
+            entered = {r[0] for r in cur.execute("""SELECT car_number
+                FROM season_entries WHERE driver_id = ?""", (our_id,))}
+            if number != str(given) or raced not in entered:
+                raise SystemExit(
+                    f"F1DB_NUMBER_UNSETTLED declares {f1db_id} as {given} in "
+                    f"F1DB's register and {raced} in its entries; the harvest "
+                    f"now gives {number or 'none'} and season_entries "
+                    f"{sorted(n for n in entered if n is not None) or 'none'}. "
+                    f"Update or remove the declaration in data/drivers.py.")
+            _file_discrepancy(
+                cur, "f1db-number", "drivers", our_id, "permanent_number",
+                _full_name(cur, "drivers", our_id), str(given), str(raced),
+                f"F1DB's driver register gives {given} as the permanent "
+                f"number; F1DB's own entries give {raced}, the number it "
+                f"enters the driver under for every session they drove. "
+                f"Neither is established over the other, so no permanent "
+                f"number is stored until they agree.",
+                "open")
+            number = None
         country = None
         if born_country_id:
             country = f1db_ctry.get(born_country_id)

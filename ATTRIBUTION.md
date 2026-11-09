@@ -30,12 +30,12 @@ the current position from the rows themselves.
 | Race venues <!-- fig:wp_venues_first -->1950<!-- /fig -->–<!-- fig:wp_venues_last -->2026<!-- /fig --> | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | <!-- fig:wp_venue_races -->1,161<!-- /fig --> races |
 | Car specifications and design histories | <!-- credit:cars -->Wikipedia per-car articles<!-- /credit --> | <!-- fig:cars -->29<!-- /fig --> curated cars |
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
-| **Full race classification 1950–2026** | <!-- credit:race_entries -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:race_entries -->27,614<!-- /fig --> entries, <!-- fig:races_classified -->1,168<!-- /fig --> races |
-| **Qualifying 1950–2026** | <!-- credit:qualifying -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:qualifying -->27,127<!-- /fig --> rows |
-| **Championship standings, every round** | <!-- credit:standings -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:standings -->34,735<!-- /fig --> rows |
-| Pit stops | <!-- credit:pit_stops -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:pit_stops -->22,689<!-- /fig --> |
+| **Full race classification 1950–2026** | <!-- credit:race_entries -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:race_entries -->27,636<!-- /fig --> entries, <!-- fig:races_classified -->1,169<!-- /fig --> races |
+| **Qualifying 1950–2026** | <!-- credit:qualifying -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:qualifying -->27,149<!-- /fig --> rows |
+| **Championship standings, every round** | <!-- credit:standings -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:standings -->34,771<!-- /fig --> rows |
+| Pit stops | <!-- credit:pit_stops -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:pit_stops -->22,746<!-- /fig --> |
 | Chassis, engine and season-entrant register | <!-- credit:chassis,engines,season_entrants -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:chassis -->1,153<!-- /fig --> chassis, <!-- fig:engines -->424<!-- /fig --> engines, <!-- fig:season_entrants -->1,925<!-- /fig --> entrant rows |
-| Circuit outlines, and the layout each race ran | <!-- credit:circuit_outlines -->[F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit --> | <!-- fig:circuit_outlines -->160<!-- /fig --> layouts, <!-- fig:outline_races -->1,168<!-- /fig --> races |
+| Circuit outlines, and the layout each race ran | <!-- credit:circuit_outlines -->[F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y)<!-- /credit --> | <!-- fig:circuit_outlines -->160<!-- /fig --> layouts, <!-- fig:outline_races -->1,169<!-- /fig --> races |
 | Circuit register and layout timelines | <!-- credit:circuit_layouts -->Wikipedia per-circuit articles<!-- /credit --> | <!-- fig:circuits -->80<!-- /fig --> circuits, <!-- fig:wp_layouts -->51<!-- /fig --> layouts |
 | Car photographs (references and credits, not images) | <!-- credit:article_images -->[Wikimedia Commons](https://commons.wikimedia.org/)<!-- /credit --> | <!-- fig:images -->623<!-- /fig --> articles |
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
@@ -111,7 +111,7 @@ v2.15 it is the single most important fact about this repository's data.
 
 **The absence of a non-commercial clause is why the full classification
 ships.** `race_entries`, `qualifying`, `standings` and F1DB's `pit_stops`
-— <!-- fig:classification_rows -->112,165<!-- /fig --> rows between them — are
+— <!-- fig:classification_rows -->112,302<!-- /fig --> rows between them — are
 built from `harvest/race_results.txt`, `harvest/qualifying.txt`,
 `harvest/standings.txt` and `harvest/f1db_pit_stops.txt`, all generated from
 F1DB. The same facts are available from Jolpica-F1 under CC BY-NC-SA and
@@ -283,7 +283,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->180,893<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->181,097<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -331,7 +331,7 @@ the share-alike above. First, its account of its own sources and state:
 
 | Column | What it holds | Chars |
 |---|---|---:|
-| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->63,645<!-- /fig --> |
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->64,023<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,933<!-- /fig --> |
 | `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->14,680<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,544<!-- /fig --> |
@@ -533,7 +533,7 @@ non-commercial use, and this project neither redistributes it nor ships it.
 committed database and are filled only when *you* run the loader.
 
 `pit_stops` and `team_radio` are **not** empty, and the difference matters.
-Both hold rows from elsewhere — <!-- fig:pit_stops -->22,689<!-- /fig --> pit stops from F1DB under CC BY 4.0,
+Both hold rows from elsewhere — <!-- fig:pit_stops -->22,746<!-- /fig --> pit stops from F1DB under CC BY 4.0,
 and six radio exchanges quoted from Wikipedia race articles — so the rule for
 them is by SOURCE, not by emptiness: a `pit_stops` row from anything but
 `f1db`, or a `team_radio` row sourced `fastf1`, is FOM's and may not be

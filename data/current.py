@@ -116,12 +116,16 @@ ENTRIES_2026 = [
     # 19 to the flag: F1DB enters both of them for the round, and classifies
     # him and not Ocon. Last, because an entry's id is its place in this list.
     ("haas", "ryo-hirakawa", "VF-26", "Ferrari", 50, "substitute"),
+    # In Haas's second seat at round 20: F1DB enters him for that round
+    # and Ocon for rounds 1-19, and classifies him. Whether the seat is his
+    # past round 20, F1DB does not yet say. Last, for the reason above.
+    ("haas", "rafael-camara", "VF-26", "Ferrari", 51, "substitute"),
 ]
 
 # An entry not read from formula1.com's list keeps its own source's tier, not
 # the "verified" of the rest: F1DB is `reference` (schema.sql). verify.py holds
 # a substitute's team, number and car to the race records.
-ENTRY_CONFIDENCE = {"ryo-hirakawa": "reference"}
+ENTRY_CONFIDENCE = {"ryo-hirakawa": "reference", "rafael-camara": "reference"}
 
 TEAM_PERSONNEL_2026 = [
     ("mercedes", "Toto Wolff", "James Allison"),

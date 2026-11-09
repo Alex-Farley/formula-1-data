@@ -1,7 +1,7 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
   "version": "2.26",
-  "verification_date": "2026-11-02",
+  "verification_date": "2026-11-09",
   "verification_policy": {
     "confidence_ladder": [
       {
@@ -66,7 +66,7 @@
       "base": "Brackley, United Kingdom",
       "first_entry": 1954,
       "position": 1,
-      "points": 630.0,
+      "points": 652.0,
       "drivers": [
         "George Russell",
         "Andrea Kimi Antonelli"
@@ -78,7 +78,7 @@
       "base": "Maranello, Italy",
       "first_entry": 1950,
       "position": 2,
-      "points": 504.0,
+      "points": 510.0,
       "drivers": [
         "Charles Leclerc",
         "Sir Lewis Hamilton"
@@ -90,7 +90,7 @@
       "base": "Milton Keynes, United Kingdom",
       "first_entry": 2005,
       "position": 3,
-      "points": 382.0,
+      "points": 415.0,
       "drivers": [
         "Max Verstappen",
         "Isack Hadjar"
@@ -102,7 +102,7 @@
       "base": "Woking, United Kingdom",
       "first_entry": 1966,
       "position": 4,
-      "points": 365.0,
+      "points": 398.0,
       "drivers": [
         "Lando Norris",
         "Oscar Piastri"
@@ -114,7 +114,7 @@
       "base": "Faenza, Italy",
       "first_entry": 1985,
       "position": 5,
-      "points": 108.0,
+      "points": 114.0,
       "drivers": [
         "Liam Lawson",
         "Arvid Lindblad"
@@ -150,7 +150,7 @@
       "base": "Hinwil, Switzerland",
       "first_entry": 2026,
       "position": 8,
-      "points": 27.0,
+      "points": 28.0,
       "drivers": [
         "Nico Hulkenberg",
         "Gabriel Bortoleto"
@@ -342,6 +342,13 @@
         "number": 50,
         "team_context": "Haas F1 Team",
         "status": "substitute"
+      },
+      {
+        "name": "Rafael Câmara",
+        "nationality_code": "BRA",
+        "number": 51,
+        "team_context": "Haas F1 Team",
+        "status": "substitute"
       }
     ]
   },
@@ -350,55 +357,55 @@
       "position": 1,
       "driver": "Andrea Kimi Antonelli",
       "team": "Mercedes",
-      "points": 380.0
+      "points": 390.0
     },
     {
       "position": 2,
       "driver": "Max Verstappen",
       "team": "Red Bull Racing",
-      "points": 261.0
+      "points": 279.0
     },
     {
       "position": 3,
-      "driver": "Sir Lewis Hamilton",
-      "team": "Ferrari",
-      "points": 259.0
+      "driver": "George Russell",
+      "team": "Mercedes",
+      "points": 262.0
     },
     {
       "position": 4,
-      "driver": "George Russell",
-      "team": "Mercedes",
-      "points": 250.0
+      "driver": "Sir Lewis Hamilton",
+      "team": "Ferrari",
+      "points": 261.0
     },
     {
       "position": 5,
       "driver": "Charles Leclerc",
       "team": "Ferrari",
-      "points": 245.0
+      "points": 249.0
     },
     {
       "position": 6,
       "driver": "Lando Norris",
       "team": "McLaren",
-      "points": 221.0
+      "points": 246.0
     },
     {
       "position": 7,
       "driver": "Oscar Piastri",
       "team": "McLaren",
-      "points": 144.0
+      "points": 152.0
     },
     {
       "position": 8,
       "driver": "Isack Hadjar",
       "team": "Red Bull Racing",
-      "points": 107.0
+      "points": 122.0
     },
     {
       "position": 9,
       "driver": "Liam Lawson",
       "team": "Racing Bulls",
-      "points": 83.0
+      "points": 89.0
     },
     {
       "position": 10,
@@ -434,7 +441,7 @@
       "position": 15,
       "driver": "Nico Hulkenberg",
       "team": "Audi",
-      "points": 13.0
+      "points": 14.0
     },
     {
       "position": 16,
@@ -488,6 +495,12 @@
       "position": 24,
       "driver": "Sergio Perez",
       "team": "Cadillac",
+      "points": 0.0
+    },
+    {
+      "position": 25,
+      "driver": "Rafael Câmara",
+      "team": null,
       "points": 0.0
     }
   ],
@@ -690,7 +703,7 @@
       "circuit_name": "Autodromo Jose Carlos Pace (Interlagos)",
       "circuit_id": "interlagos",
       "sprint": 0,
-      "status": "scheduled"
+      "status": "completed"
     },
     {
       "round": 21,
@@ -874,11 +887,11 @@
       "priority": 10,
       "source": "F1DB",
       "url": "https://github.com/f1db/f1db",
-      "use": "Since v2.15 the primary source for RESULTS as well as registers: the full classification for all 1,168 races (27,614 entries, 1950-2026), qualifying (27,127), championship standings after every round (34,735) and pit stops (22,689) - plus the chassis, engine, constructor and per-season entrant register it already supplied, and since 2026-09-13 the outline of every one of its 160 circuit layouts (SVG assets drawn by Jules Roy) with the layout each race ran. Loaded by tools/f1db_fetch.py into diffable text, then built offline.",
+      "use": "Since v2.15 the primary source for RESULTS as well as registers: the full classification for all 1,169 races (27,636 entries, 1950-2026), qualifying (27,149), championship standings after every round (34,771) and pit stops (22,746) - plus the chassis, engine, constructor and per-season entrant register it already supplied, and since 2026-09-13 the outline of every one of its 160 circuit layouts (SVG assets drawn by Jules Roy) with the layout each race ran. Loaded by tools/f1db_fetch.py into diffable text, then built offline.",
       "authority": "reference",
       "licence": "CC BY 4.0 - attribution only, no share-alike, and NO NON-COMMERCIAL CLAUSE. That last absence is not a footnote: it is the reason the full classification ships in the committed database when the same facts from Jolpica-F1 could only ever be loaded onto a local copy. The most permissive licence of any bulk source used here, and now the most consequential.",
       "cadence": "Re-released after every race, versioned, with a public commit history and a changelog. Better maintained than anything else at this scale.",
-      "checkability": "Heavily, in four independent places, all of them held here before F1DB was read. (1) The winner of 1,161 of the 1,168 races was established here before F1DB was read - from the Wikipedia race-winner harvest, and from formula1.com for the seasons after it; a race whose winner disagreed is refused WHOLE, and none was. A round run since formula1.com was last read has F1DB's winner and nothing to compare it with. The comparison is on sets, because a shared drive puts two drivers on position 1 and both are winners. (2) The champion, the runner-up and both their point totals for 76 seasons were already in `seasons`; the final standings must reproduce all four and do. (3) Qualifying position 1 is checked against the pole-sitter already stored - 13 races differ, every one a grid penalty or a sprint weekend, each recorded rather than resolved. (4) Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions already proved against published win totals. It carries NO technical specifications at all, so nothing it says can be mistaken for one.",
+      "checkability": "Heavily, in four independent places, all of them held here before F1DB was read. (1) The winner of 1,161 of the 1,169 races was established here before F1DB was read - from the Wikipedia race-winner harvest, and from formula1.com for the seasons after it; a race whose winner disagreed is refused WHOLE, and none was. A round run since formula1.com was last read has F1DB's winner and nothing to compare it with. The comparison is on sets, because a shared drive puts two drivers on position 1 and both are winners. (2) The champion, the runner-up and both their point totals for 76 seasons were already in `seasons`; the final standings must reproduce all four and do. (3) Qualifying position 1 is checked against the pole-sitter already stored - 13 races differ, every one a grid penalty or a sprint weekend, each recorded rather than resolved. (4) Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions already proved against published win totals. It carries NO technical specifications at all, so nothing it says can be mistaken for one.",
       "redistributable": "yes",
       "share_alike": 0,
       "attribution_required": 1,

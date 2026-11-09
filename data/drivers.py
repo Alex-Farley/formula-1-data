@@ -995,7 +995,24 @@ F1DB_DRIVERS = [
     "nyck-de-vries",                   # 2022-2023    11             Nyck de Vries
     "logan-sargeant",                  # 2023-2024    37             Logan Sargeant
     "ryo-hirakawa",                    # 2026           1             Ryō Hirakawa
+    "rafael-camara",                   # 2026           1             Rafael Câmara
 ]
+
+
+# A permanent number F1DB gives in its driver register and contradicts in its
+# own entries. build.py refuses a permanent number the entry list does not
+# bear out (stage 36), and here the two readings are one source's, so
+# neither is established over the other: the number is stored NULL - not
+# established - and the disagreement is filed open in `discrepancies`.
+# F1DB id -> (the register's number, the number the entries give). The
+# build refuses an entry F1DB no longer bears out, so it goes when F1DB
+# settles the question one way or the other.
+F1DB_NUMBER_UNSETTLED = {
+    # v2026.20.0: 50 in the driver register; 51 in every session of 2026
+    # round 20 - three practices, qualifying and the race - and so in his
+    # 2026 entry.
+    "rafael-camara": (50, 51),
+}
 
 
 # ---------------------------------------------------------------------
