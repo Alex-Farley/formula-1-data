@@ -335,6 +335,10 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
                 "Current session: 25% used\n" + week,
                 # a window reworded, or one this does not know
                 "Current 5-hour window: 25% used · resets 11pm (Europe/London)\n" + week,
+                # the same, in a case or a decoration the parser does not know
+                "current session: 95% used · resets 3pm (Europe/London)\n" + week,
+                "5-hour session: 95% used · resets 3pm (Europe/London)\n" + week,
+                "• Current session: 95% used · resets 3pm (Europe/London)\n" + week,
                 # nothing the week could be read from
                 "Current session: 25% used\n",
                 "",
@@ -342,28 +346,40 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
                 report()):
             self.assertFalse(lu.fresh_session(text, lu.parse(text, NOW)), text)
 
-    def test_check_starts_an_alarm_idle_and_says_the_window_is_fresh(self):
-        week_only = ("Current week (all models): 36% used · resets Oct 19, 2:59pm "
-                     "(Europe/London)\n")
-        env = {"LOOP_USAGE_CMD": "r"}
-        done = mock.Mock(stdout=week_only, returncode=0)
+    def check(self, text, env, alarm):
+        # `claude -p /usage --output-format json` prints the report as `result`.
+        stdout = text if "LOOP_USAGE_CMD" in env else json.dumps({"result": text})
+        done = mock.Mock(stdout=stdout, returncode=0)
         with mock.patch.dict(os.environ, env, clear=True), \
                 mock.patch.object(lu.subprocess, "run", return_value=done), \
                 mock.patch.object(lu, "next_race", return_value=(self.RACE, "Sao Paulo Grand Prix")), \
-                mock.patch.object(lu, "reserve_alarm", return_value=("AF-150", None)):
-            text, code = lu.check(NOW, "claude")
+                mock.patch.object(lu, "reserve_alarm", **alarm):
+            return lu.check(NOW, "claude")
+
+    def test_check_starts_an_alarm_idle_and_says_the_window_is_fresh(self):
+        week = ("Current week (all models): 36% used · resets Oct 19, 2:59pm "
+                "(Europe/London)\n")
+        found = {"return_value": ("AF-150", None)}
+        looked = {"side_effect": AssertionError("looked for an alarm")}
+        text, code = self.check(week, {}, found)
         self.assertTrue(text.startswith("ALARM AF-150 until "), text)
         self.assertIn("session: none yet (fresh window)", text)
         self.assertEqual(code, 4)
         # A garbled session line beside it stays unread: no alarm is looked for.
-        done = mock.Mock(stdout="Current session: 25% used\n" + week_only, returncode=0)
-        with mock.patch.dict(os.environ, env, clear=True), \
-                mock.patch.object(lu.subprocess, "run", return_value=done), \
-                mock.patch.object(lu, "next_race", return_value=(self.RACE, "Sao Paulo Grand Prix")), \
-                mock.patch.object(lu, "reserve_alarm", side_effect=AssertionError("looked")):
-            text, code = lu.check(NOW, "claude")
+        text, code = self.check("Current session: 25% used\n" + week, {}, looked)
         self.assertTrue(text.startswith("WAIT until "), text)
         self.assertIn("session window not readable", text)
+        # An adapter that leaves the session out has no figure for it.
+        text, code = self.check(week, {"LOOP_USAGE_CMD": "r"}, looked)
+        self.assertTrue(text.startswith("WAIT until "), text)
+        self.assertIn("session window not readable", text)
+
+    def test_a_fresh_window_survives_a_threshold_over_100(self):
+        windows = {"session": (0, None), "week": (15, WEEK_RESET)}
+        for key in ("M_LEFT", "SMALL_LEFT"):
+            word, until, why, _ = lu.decide(windows, NOW, None, dict(CONF, **{key: 101.0}))
+            self.assertEqual((word, until), ("GO", None))
+            self.assertTrue(lu.line(word, until, why).startswith("GO - session: none yet"))
 
     def test_the_look_is_never_under_its_floor(self):
         for value in ("0", "-5", "3"):

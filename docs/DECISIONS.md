@@ -777,11 +777,14 @@ one only for it to pause.
   reserve is for. The `claude` binary builds the report from the limits it is
   given and skips a window with no utilisation, so the report has no wording
   for "no session": the line is simply absent. `fresh_session()` therefore
-  recognises the case by what surrounds the absence: the weekly line is
-  read and every line beginning `Current` is a weekly one. That reads as 0 %
-  used and the line says "session: none yet (fresh window)". A session line
-  present and unreadable, or a window of another name, stays unread, as does
-  anything else the parser does not know. The `--start` and `--end` readings
+  recognises the case by what surrounds the absence, in Claude Code's own
+  report only: the weekly line is read and no other line beginning `Current`
+  or reporting a percentage `used` is anything but a weekly one. That reads
+  as 0 % used and the line says "session: none yet (fresh window)". A
+  `LOOP_USAGE_CMD` adapter is never read so, since for one a window left
+  out is a figure it does not have. A session line present and unreadable,
+  a window of another name or case, or any other percentage used (a spend
+  limit's too, which keeps such an account unread) stays unread. The `--start` and `--end` readings
   still write such a window as unreadable and never zero, since a cost is a
   difference of two readings and a guessed zero would be a wrong one.
 

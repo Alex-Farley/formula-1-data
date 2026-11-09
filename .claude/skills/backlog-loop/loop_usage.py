@@ -141,13 +141,16 @@ WHAT IT DECIDES
 
     That session is read as a fresh window, 0 % used, when the report is
     known to leave the line out and not merely to have lost it (AF-158):
-    the weekly line is read, and every line beginning `Current` is a weekly
+    Claude Code's own `/usage` report, the weekly line read, and no other
+    line that begins `Current` or reports a percentage `used` but a weekly
     one. Claude Code drops a window it has no utilisation for, and an idle
     window that rolled over has none, so nothing is said of it at all. The
     line then reads "session: none yet (fresh window)", and a refresh alarm
-    may start on it. A `Current session` line that is there and cannot be
-    read whole, or any other `Current ...` line (a reworded window), is not
-    this: the session stays unread, as below.
+    may start on it. A LOOP_USAGE_CMD adapter is never read this way: for
+    one a window left out is a figure it has not got. A session line that is
+    there and cannot be read whole, a reworded window, or any other line
+    reporting a percentage used (a spend limit's too: that fails towards
+    unread) is not this: the session stays unread, as below.
 
     The weekly window is spread evenly over the seven days to its reset: the
     loop may have used the elapsed fraction of the week's allowance, plus
@@ -323,14 +326,17 @@ def parse(text, now):
 def fresh_session(text, windows):
     """True when the report leaves the session out because no window is
     running (AF-158): the weekly line is read, no session was, and every line
-    beginning `Current` is a weekly one. Claude Code omits a window with no
-    utilisation, so a window that rolled over and has not been used since
-    shows nothing. A session line that is there and unreadable, or a window
-    this does not know by name, is not this: it fails towards unread."""
+    beginning `Current` or reporting a percentage used is a weekly one. Claude
+    Code omits a window with no utilisation, so a window that rolled over and
+    has not been used since shows nothing. A session line that is there and
+    unreadable, or a window this does not know by name or case, is not this:
+    it fails towards unread. Only for Claude Code's own report: an adapter
+    that leaves a window out has no figure for it (check() asks)."""
     if "week" not in windows or "session" in windows:
         return False
-    heads = [l.strip() for l in (text or "").splitlines() if l.strip().startswith("Current")]
-    return all(h.startswith("Current week") for h in heads)
+    lines = [l.strip() for l in (text or "").splitlines()]
+    return all(l.startswith("Current week") for l in lines
+               if l.startswith("Current") or re.search(r"%\s+used", l, re.I))
 
 
 def source(env=None):
@@ -468,10 +474,13 @@ def decide(windows, now, race=None, conf=None, alarm=None, name=None):
     if "session" in windows:
         used, reset = windows["session"]
         left = 100 - used
-        # A reset of None is a fresh window (fresh_session): nothing used.
+        # A reset of None is a fresh window (fresh_session): nothing used, and
+        # no threshold can say otherwise, whatever it is set to.
         why.append(f"session {used}% used, resets {iso(reset)}" if reset
                    else "session: none yet (fresh window)")
-        if left < conf["SMALL_LEFT"]:
+        if reset is None:
+            pass
+        elif left < conf["SMALL_LEFT"]:
             word, until = "WAIT", reset
             why.append(f"under {conf['SMALL_LEFT']:g} points left: too little for any item")
         elif left < conf["M_LEFT"]:
@@ -550,7 +559,7 @@ def check(now=None, claude=None):
     if not windows:
         return (f"UNKNOWN - {source()} named no window this can read; carrying on, reacting to a "
                 "limit when one arrives"), EXIT["UNKNOWN"]
-    if fresh_session(text, windows):
+    if source() == "/usage" and fresh_session(text, windows):
         windows["session"] = (0, None)
     race = next_race(now)
     start, name = race if isinstance(race, tuple) else (race, None)
