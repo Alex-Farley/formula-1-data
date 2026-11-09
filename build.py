@@ -4425,14 +4425,34 @@ def _stage_35_link_race_entries_to_the_curated(b):
 
     # The two register spans the race records read differently, with the
     # reason beside the fact (CD-25). Not open: nothing is waiting to be
-    # settled, both readings stand. This is the last discrepancies write in
-    # STAGES - verify.py holds that - so a row added here appends and moves
-    # no existing id (the PM-30 lesson).
+    # settled, both readings stand.
     for did, field, stored, derived, why in HV.EXPLAINED_SPANS:
         _file_discrepancy(cur, "career-span", "drivers", did, field,
                           _full_name(cur, "drivers", did), str(stored),
                           str(derived), why, "explained",
                           EACH_SIDE_RIGHT)
+    # WK-12: a record against the figure Wikipedia's list gave on the day.
+    # The record's side is read from `records` as it now stands. These are
+    # the last discrepancies write in STAGES, so a row added here appends and
+    # moves no existing id (the PM-30 lesson).
+    # Filed under the holder both named, so the row is shown on that page.
+    for key, table, hid, listed, why, status, note in HV.RECORDS_LIST_READINGS:
+        rec = cur.execute("SELECT record, holder, value FROM records WHERE key = ?",
+                          (key,)).fetchone()
+        if rec is None:
+            raise SystemExit(f"RECORDS_LIST_READINGS: {key} is not a derived record")
+        # A constructor's page asks for its name, as its records holder is.
+        name = (_full_name(cur, table, hid) if table == "drivers" else
+                (cur.execute("SELECT name FROM constructors WHERE id = ?", (hid,)).fetchone()
+                 or [None])[0])
+        if name is None:
+            raise SystemExit(f"RECORDS_LIST_READINGS: {table} has no row {hid!r}")
+        stored = f"{rec[0]}: {rec[2]}"
+        if name not in rec[1].split(", "):
+            stored += f", held by {rec[1]}"
+            status, note = "resolved", "the record has passed to another holder"
+        _file_discrepancy(cur, "records-list", "records", key, "value", name,
+                          stored, listed, why, status, note)
     print(f"  car linkage: {len(CR.CAR_SEASONS) - len(uncorroborated)} of "
           f"{len(CR.CAR_SEASONS)} CAR_SEASONS claims corroborated by the "
           f"entry lists")
@@ -5799,6 +5819,7 @@ RECORD_FAMILIES = {
         "highest-pole-conversion", "highest-constructor-win-rate",
         "highest-pole-conversion-constructor", "most-consecutive-wins-from-season-start",
         "most-wins-in-first-season", "won-on-debut-driver",
+        "most-races-before-first-win-constructor",
     ),
     "Pole positions": (
         "most-poles", "closest-pole-margin", "most-poles-in-a-season", "most-consecutive-poles",
@@ -5809,6 +5830,8 @@ RECORD_FAMILIES = {
         "most-consecutive-constructor-seasons-with-a-pole",
         "highest-pole-rate", "highest-season-pole-share-driver",
         "highest-constructor-pole-rate", "highest-season-pole-share-constructor",
+        "most-entries-before-first-pole", "most-entries-without-a-pole",
+        "most-races-without-a-pole-constructor",
     ),
     "Podiums": (
         "most-podiums", "most-podiums-in-a-season", "most-consecutive-podiums",
@@ -5817,6 +5840,8 @@ RECORD_FAMILIES = {
         "most-consecutive-seasons-with-a-podium", "most-constructor-seasons-with-a-podium",
         "most-consecutive-constructor-seasons-with-a-podium",
         "highest-podium-rate", "highest-season-podium-share-driver",
+        "most-entries-before-first-podium", "most-entries-without-a-podium",
+        "most-races-without-a-podium-constructor",
     ),
     "Fastest laps": (
         "most-fastest-laps", "most-fastest-laps-in-a-season", "most-consecutive-fastest-laps",
@@ -5826,6 +5851,7 @@ RECORD_FAMILIES = {
         "most-consecutive-constructor-seasons-with-a-fastest-lap",
         "highest-fastest-lap-rate", "highest-season-fastest-lap-share-driver",
         "highest-season-fastest-lap-share-constructor",
+        "most-entries-before-first-fastest-lap", "most-entries-without-a-fastest-lap",
     ),
     "Entries and starts": ("most-race-entries", "most-consecutive-starts"),
     "Age": (
@@ -5833,7 +5859,8 @@ RECORD_FAMILIES = {
         "youngest-polesitter", "oldest-polesitter", "youngest-podium", "oldest-podium",
         "youngest-fastest-lap", "oldest-fastest-lap",
     ),
-    "Points": ("most-constructor-points-in-a-season", "most-driver-points-in-a-season"),
+    "Points": ("most-constructor-points-in-a-season", "most-driver-points-in-a-season",
+               "most-entries-before-first-points", "most-entries-without-points"),
     "Races and circuits": ("longest-circuit", "fewest-classified-finishers", "fewest-starters"),
     "Sprints": ("most-sprint-wins", "most-sprint-podiums", "most-sprint-points",
                 "most-sprint-poles"),
@@ -6226,9 +6253,10 @@ def derive_records(cur, leave_out=frozenset()):
         (f"{_num(lead[0][0])}, {lead[0][3]}-{lead[0][4]}" if len(lead) == 1
          else f"{_num(lead[0][0])} each"),
         "Distinct races with a race_entries row under the constructor id and no "
-        "finish_position = 1 under it. Counted under the constructor name raced under, as "
-        "constructors.wins is: a name change starts a new count, and a win under an "
-        "earlier or later name of the same team does not end this one. Next: "
+        "finish_position = 1 under it. Counted by constructor id, as constructors.wins is, "
+        "lineage not merged: an id is mostly one name but can span several - "
+        "constructors.notes says where - and a win under another id of the same team does "
+        "not end this one. Next: "
         + ", ".join(f"{r[1]} {r[0]} ({r[3]}-{r[4]})" for r in _rest(rows, lead)) + ".")
 
     rows = q("""WITH debut AS (
@@ -6371,7 +6399,8 @@ def derive_records(cur, leave_out=frozenset()):
     # Grand Prix, from the first race of a season - were ruled in on WK-08
     # (#643) and land in pieces, each appended at the end of this function.
     # Wikipedia is the checklist, never the source: each figure is
-    # computed here, and agreed with the list's when the survey was taken.
+    # computed here, and agreed with the list's when the survey was taken
+    # or, from WK-12 on, is filed in `discrepancies` beside the list's.
     # Appended after the first twenty-nine rather than filed into their
     # categories, so that no existing records.id moves (DA-26, #539); the
     # page orders by category, then id. What the list holds that the database
@@ -7200,6 +7229,186 @@ def derive_records(cur, leave_out=frozenset()):
            if sorted(rows) == sorted(started_rows) else
            "counted from a first start instead, the list would be "
            + "; ".join(f"{r[0]}: {race_name(r[2], r[3])}" for r in started_rows) + "."))
+
+    # WK-12: the 'before first' and 'without' tables. For drivers, the most
+    # entries before a first pole, fastest lap, podium or points finish, and
+    # the most without each, counted as most-entries-before-first-win and
+    # most-entries-without-a-win count; for constructors, the most Grands
+    # Prix entered before a first win and without a pole or a podium,
+    # counted as most-races-without-a-win-constructor counts. Appended after
+    # every older record so none is renumbered. Walked in Python over one
+    # read of the entries, so an entry whose outcome is not held - a NULL
+    # points figure - leaves its holder unplaced rather than read as nothing
+    # scored. Where Wikipedia's lists gave another figure on the day,
+    # data/harvest.py RECORDS_LIST_READINGS files it in `discrepancies`.
+    ENTRY = ("driver", "team", "race", "year", "gp", "date", "started", "pole", "fl", "pos",
+             "points")
+    walk = [dict(zip(ENTRY, r), i=i) for i, r in enumerate(q(f"""
+        SELECT e.driver_id, e.constructor_id, e.race_id, r.year, r.name_used, r.date_iso,
+               {STARTED}, e.pole, e.fastest_lap, e.finish_position, e.points
+          FROM race_entries e JOIN races r ON r.id = e.race_id
+         ORDER BY r.date_iso, r.round, e.id"""))]
+    TESTS = {
+        "win": (lambda x: x["pos"] == 1, None),
+        "pole": (lambda x: x["pole"] == 1, None),
+        "fastest lap": (lambda x: x["fl"] == 1, None),
+        "podium": (lambda x: x["pos"] is not None and x["pos"] <= 3, None),
+        "points": (lambda x: x["points"] is not None and x["points"] > 0,
+                   lambda x: x["points"] is None),
+    }
+
+    def before_first(who, what):
+        """(n, name, id, started, year, Grand Prix, unplaced) for every holder
+        of `who` with a `what`, most first: n is the entries - for a
+        constructor, the distinct races entered - dated before the first race
+        in which it had one, `started` the same with a car that started.
+        `unplaced` counts the holders whose first could be earlier than it
+        reads, an entry before it having no outcome held."""
+        hit, unknown = TESTS[what]
+        first = {}
+        for x in walk:
+            if x[who] is not None and hit(x) and x[who] not in first:
+                first[x[who]] = x
+        seen, unplaced = {}, set()
+        for x in walk:
+            f = first.get(x[who])
+            if f is None or x["date"] >= f["date"]:
+                continue
+            if unknown and unknown(x):
+                unplaced.add(x[who])
+            n, s = seen.setdefault(x[who], (set(), set()))
+            n.add(x["race"] if who == "team" else x["i"])
+            if x["started"]:
+                s.add(x["race"] if who == "team" else x["i"])
+        label = names if who == "driver" else team_names
+        rows = sorted(((len(seen.get(k, ((), ()))[0]), label[k], k,
+                        len(seen.get(k, ((), ()))[1]), f["year"], f["gp"])
+                       for k, f in first.items() if k not in unplaced),
+                      key=lambda r: (-r[0], r[1]))
+        return rows, len(unplaced)
+
+    def without(who, what):
+        """(n, name, id, started, first year, last year) for every holder of
+        `who` with no `what` in any entry, most first, counted as
+        before_first() counts; a holder with an entry whose outcome is not
+        held is unplaced, and counted in the second value."""
+        hit, unknown = TESTS[what]
+        seen, struck, unplaced = {}, set(), set()
+        for x in walk:
+            k = x[who]
+            if k is None:
+                continue
+            if hit(x):
+                struck.add(k)
+            if unknown and unknown(x):
+                unplaced.add(k)
+            n, s, years = seen.setdefault(k, (set(), set(), set()))
+            n.add(x["race"] if who == "team" else x["i"])
+            if x["started"]:
+                s.add(x["race"] if who == "team" else x["i"])
+            years.add(x["year"])
+        label = names if who == "driver" else team_names
+        rows = sorted(((len(v[0]), label[k], k, len(v[1]), min(v[2]), max(v[2]))
+                       for k, v in seen.items() if k not in struck | unplaced),
+                      key=lambda r: (-r[0], r[1]))
+        return rows, len(unplaced - struck)
+
+    def unplaced_note(n, who):
+        return (f"{_plural(n, who)} with an entry whose points are not held (NULL) "
+                f"{'is' if n == 1 else 'are'} not placed, since that entry may have scored. "
+                if n else "")
+
+    for key, record, what, noun, rule in (
+        ("most-entries-before-first-pole", "Most race entries before a first pole position",
+         "pole", "pole position", "pole = 1, the driver the season record credits with "
+                                  "pole, as drivers.poles counts it"),
+        ("most-entries-before-first-fastest-lap", "Most race entries before a first fastest lap",
+         "fastest lap", "fastest lap",
+         "fastest_lap = 1; a fastest lap shared with another driver counts"),
+        ("most-entries-before-first-podium", "Most race entries before a first podium finish",
+         "podium", "podium finish", "finish_position 1, 2 or 3"),
+        ("most-entries-before-first-points", "Most race entries before a first points finish",
+         "points", "points finish",
+         "race_entries.points above 0, which takes in a 1950s point for fastest lap alone and "
+         "a share of a shared drive's points; an entry paid nothing reads 0 (DA-36)"),
+    ):
+        rows, unplaced = before_first("driver", what)
+        lead = _leaders(rows)
+        add(key, "drivers", record, [(r[1], r[2]) for r in lead], "drivers", lead[0][0],
+            "entries",
+            (f"{_num(lead[0][0])}, before the {race_name(lead[0][4], lead[0][5])}"
+             if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+            f"For every driver with a {noun}: the race_entries rows dated before the "
+            f"driver's first entry with {rule}. Failures to qualify or start are entries, "
+            "as most-entries-before-first-win counts them. "
+            + "; ".join(f"{r[1]}: {_num(r[0])} entries, {_num(r[3])} of them starts, before "
+                        f"the {race_name(r[4], r[5])}" for r in lead) + ". "
+            + unplaced_note(unplaced, "driver")
+            + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])} "
+                                                         f"({race_name(r[4], r[5])})") + ".")
+
+    for key, record, what, rule in (
+        ("most-entries-without-a-pole", "Most race entries without a pole position", "pole",
+         "pole = 1, the credit drivers.poles counts"),
+        ("most-entries-without-a-fastest-lap", "Most race entries without a fastest lap",
+         "fastest lap", "fastest_lap = 1, a shared fastest lap included"),
+        ("most-entries-without-a-podium", "Most race entries without a podium finish",
+         "podium", "finish_position 1, 2 or 3"),
+        ("most-entries-without-points", "Most race entries without a points finish", "points",
+         "race_entries.points above 0; an entry paid nothing reads 0 (DA-36)"),
+    ):
+        rows, unplaced = without("driver", what)
+        lead = _leaders(rows)
+        add(key, "drivers", record, [(r[1], r[2]) for r in lead], "drivers", lead[0][0],
+            "entries", _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+            "A driver's race_entries rows, failures to qualify or start included, as "
+            f"most-entries-without-a-win counts them, for every driver none of whose entries "
+            f"has {rule}. A driver still racing can end it. "
+            + "; ".join(f"{r[1]}: {_num(r[0])} entries, {_num(r[3])} starts, {r[4]}-{r[5]}"
+                        for r in lead) + ". "
+            + unplaced_note(unplaced, "driver")
+            + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])}") + ".")
+
+    rows, _ = before_first("team", "win")
+    lead = _leaders(rows)
+    add("most-races-before-first-win-constructor", "constructors",
+        "Most Grands Prix entered before a first win by a constructor",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "races",
+        (f"{_num(lead[0][0])}, before the {race_name(lead[0][4], lead[0][5])}"
+         if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        "For every constructor id with a win: the distinct races with a race_entries row "
+        "under it dated before its first finish_position = 1. Counted by constructor id, as "
+        "constructors.wins is, lineage not merged: an id is mostly one name but can span "
+        "several - constructors.notes says where - and a win under an earlier id of the "
+        "same team does not end this one. "
+        + "; ".join(f"{r[1]}: {_num(r[0])} races, {_num(r[3])} of them with a car that "
+                    f"started, before the {race_name(r[4], r[5])}" for r in lead) + ". "
+        + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])} "
+                                                     f"({race_name(r[4], r[5])})") + ".")
+
+    for key, record, what, rule in (
+        ("most-races-without-a-pole-constructor",
+         "Most Grands Prix entered without a pole position by a constructor", "pole",
+         "pole = 1"),
+        ("most-races-without-a-podium-constructor",
+         "Most Grands Prix entered without a podium finish by a constructor", "podium",
+         "finish_position 1, 2 or 3"),
+    ):
+        rows, _ = without("team", what)
+        lead = _leaders(rows)
+        add(key, "constructors", record, [(r[1], r[2]) for r in lead], "constructors",
+            lead[0][0], "races",
+            (f"{_num(lead[0][0])}, {lead[0][4]}-{lead[0][5]}" if len(lead) == 1
+             else f"{_num(lead[0][0])} each"),
+            f"Distinct races with a race_entries row under the constructor id and no entry "
+            f"under it with {rule}, as most-races-without-a-win-constructor counts them. "
+            "Lineage is not merged: an id is mostly one name but can span several - "
+            f"constructors.notes says where - and a {what} under another id of the same team "
+            "does not end this one. "
+            + "; ".join(f"{r[1]}: {_num(r[0])} races, {_num(r[3])} of them with a car that "
+                        f"started, {r[4]}-{r[5]}" for r in lead) + ". "
+            + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])} "
+                                                         f"({r[4]}-{r[5]})") + ".")
 
     return out
 

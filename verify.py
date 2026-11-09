@@ -1785,10 +1785,10 @@ def records_are_derived():
     # driver and constructor records hold and the race records can derive, and
     # WK-10 the four same-Grand-Prix tables, WK-13 the sixteen seasons
     # tables, WK-16 the sprint's podiums, points and poles, WK-09 the
-    # twelve share tables, and WK-11 the three from the first race of a
-    # season and the first season. A derivation that silently drops one
-    # fails here.
-    FLOOR = 98
+    # twelve share tables, WK-11 the three from the first race of a
+    # season and the first season, and WK-12 the eleven 'before first' and
+    # 'without' tables. A derivation that silently drops one fails here.
+    FLOOR = 109
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2200,6 +2200,92 @@ def records_are_derived():
          WHERE e.k = 1""")}
     same_holders("won-on-debut-driver", len(debut), debut,
                  "a ranking of each driver's entries against race_results winners")
+
+    # WK-12. The build walks the entries in Python; these number each
+    # driver's entries with a window, read 'without' off the career columns
+    # and the season points view, and take a constructor's wins from the
+    # race_results view. Every holder is compared.
+    def same_set(key, value, ids, table, name_col, what):
+        r = rows.get(key)
+        want = sorted({n for (n,) in con.execute(
+            f"SELECT {name_col} FROM {table} WHERE id IN ({','.join('?' * len(ids))})",
+            sorted(ids))})
+        got = sorted(r["holder"].split(", ")) if r else []
+        check(f"records.{key} agrees with {what}",
+              r is not None and bool(ids) and r["value_num"] == value and got == want,
+              f"recomputed {value}: {', '.join(want)}; stored "
+              + (f"{r['value_num']:g}: {r['holder']}" if r else "nothing"))
+
+    def top(found):
+        best = max((n for _, n in found), default=None)
+        return best, {k for k, n in found if n == best}
+
+    for key, hit in (("most-entries-before-first-pole", "e.pole = 1"),
+                     ("most-entries-before-first-fastest-lap", "e.fastest_lap = 1"),
+                     ("most-entries-before-first-podium", "e.position_text IN ('1', '2', '3')"),
+                     ("most-entries-before-first-points", "e.points > 0")):
+        # RANK() - 1 is the count of the driver's entries in earlier races.
+        found = con.execute(f"""WITH n AS (
+                SELECT e.driver_id d, e.pole, e.fastest_lap, e.position_text, e.points,
+                       RANK() OVER (PARTITION BY e.driver_id ORDER BY r.date_iso) - 1 k
+                  FROM race_entries e JOIN races r ON r.id = e.race_id)
+            SELECT d, MIN(k) FROM n e WHERE {hit} GROUP BY d""").fetchall()
+        same_set(key, *top(found), "drivers", "full_name",
+                 "a ranking of each driver's entries by date")
+
+    for key, col in (("most-entries-without-a-pole", "poles"),
+                     ("most-entries-without-a-fastest-lap", "fastest_laps"),
+                     ("most-entries-without-a-podium", "podiums")):
+        found = con.execute(f"""SELECT d.id, COUNT(*) FROM drivers d
+            JOIN race_entries e ON e.driver_id = d.id
+            WHERE d.{col} = 0 GROUP BY d.id""").fetchall()
+        same_set(key, *top(found), "drivers", "full_name", f"drivers.{col} = 0")
+    # The view's season sum skips a NULL entry, so a driver with one is
+    # left out here, as the build leaves them unplaced.
+    found = con.execute("""SELECT driver_id, SUM(entries) FROM v_driver_season_points
+        WHERE driver_id NOT IN (SELECT driver_id FROM race_entries WHERE points IS NULL)
+        GROUP BY driver_id
+        HAVING COUNT(race_points) = COUNT(*) AND SUM(race_points) = 0""").fetchall()
+    same_set("most-entries-without-points", *top(found), "drivers", "full_name",
+             "v_driver_season_points, every season's race points 0")
+
+    found = con.execute("""WITH w AS (
+            SELECT rr.constructor_id c, MIN(r.date_iso) dt FROM race_results rr
+              JOIN races r ON r.id = rr.id WHERE rr.constructor_id IS NOT NULL GROUP BY 1)
+        SELECT w.c, COUNT(DISTINCT e.race_id) FROM w
+          LEFT JOIN race_entries e ON e.constructor_id = w.c
+           AND e.race_id IN (SELECT id FROM races WHERE date_iso < w.dt)
+         GROUP BY w.c""").fetchall()
+    same_set("most-races-before-first-win-constructor", *top(found), "constructors", "name",
+             "the race_results view's winning constructors")
+    for key, hit in (("most-races-without-a-pole-constructor", "pole = 1"),
+                     ("most-races-without-a-podium-constructor",
+                      "position_text IN ('1', '2', '3')")):
+        found = con.execute(f"""SELECT constructor_id, COUNT(DISTINCT race_id) FROM race_entries
+            WHERE constructor_id IS NOT NULL GROUP BY constructor_id
+            HAVING SUM({hit}) = 0""").fetchall()
+        same_set(key, *top(found), "constructors", "name", f"no entry with {hit}")
+
+    # A reading of Wikipedia's lists is filed against the record as it now
+    # stands: every declared reading is a row, and its stored side is the
+    # record's holder and value, so a record that moves takes its row along.
+    declared = {k for k, *_ in harvest_module().RECORDS_LIST_READINGS}
+    filed = {r["row_key"]: r for r in con.execute(
+        "SELECT * FROM discrepancies WHERE kind = 'records-list'")}
+
+    def as_stands(k, subject):
+        held = subject in rows[k]["holder"].split(", ")
+        return (f"{rows[k]['record']}: {rows[k]['value']}"
+                + ("" if held else f", held by {rows[k]['holder']}"),
+                held)
+    stale = sorted(k for k, r in filed.items()
+                   if k not in rows
+                   or (r["stored_value"], r["status"] != "resolved")
+                   != as_stands(k, r["subject"]))
+    check("every records-list reading is filed against the record as it stands",
+          set(filed) == declared and not stale,
+          f"declared {len(declared)}, filed {len(filed)}"
+          + (f"; not as the record stands: {', '.join(stale)}" if stale else ""))
 
     dist = con.execute("""SELECT category, COUNT(*) n FROM records
         GROUP BY category ORDER BY category""").fetchall()
@@ -3183,11 +3269,15 @@ def the_driver_register():
                         (SELECT {_agg[field]}(r.year) FROM race_entries e JOIN races r ON r.id = e.race_id
                           WHERE e.driver_id = d.id) = ?) FROM drivers d WHERE d.id = ?""",
                      (int(sv), int(dv), d)).fetchone()[0]]
-    _top = con.execute("SELECT MAX(id) FROM discrepancies").fetchone()[0]
+    # WK-12's readings of Wikipedia's records lists are written after them,
+    # last of all, so the spans end where those begin.
+    _n_list = len(harvest_module().RECORDS_LIST_READINGS)
+    _top = con.execute("SELECT MAX(id) FROM discrepancies").fetchone()[0] - _n_list
     _exp_ids = sorted(r[0] for r in con.execute("""SELECT id FROM discrepancies
         WHERE status = 'explained' AND status_note = ?""", (build.EACH_SIDE_RIGHT,)))
     _n_exp = len(harvest_module().EXPLAINED_SPANS)
-    check("the explained span rows are the last discrepancies written, so adding one moves no id",
+    check("the explained span rows are the last discrepancies written before the records-list "
+          "readings, so adding one moves no id but theirs",
           len(_exp_ids) == _n_exp and _exp_ids == list(range(_top - _n_exp + 1, _top + 1)),
           f"ids {_exp_ids} of {_n_exp} declared, max {_top}")
     check("each explained span row carries the register's and the records' figure for its end",
