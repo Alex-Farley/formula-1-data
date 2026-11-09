@@ -78,7 +78,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
 from data.harvest import (  # noqa: E402  (the one rule for what an outline may hold)
-    SVG_PATH_DATA, f1db_harvest_release, svg_path_in_box, svg_path_translate)
+    OUTLINE_BOX, SVG_PATH_DATA, f1db_harvest_release, svg_path_in_box,
+    svg_path_translate)
 HARVEST = os.path.join(ROOT, "harvest")
 CACHE = os.path.join(ROOT, ".f1dbcache")
 REPO = "https://github.com/f1db/f1db.git"
@@ -597,6 +598,7 @@ def circuit_outline_rows(root, data, yaml):
     written it rendered as an empty figure (PR #273's review). A translate is
     applied here; any other transform stops the fetch. Then every outline
     must lie inside the 500-unit box, which is what the translate was for.
+    outline_path() holds the rules for one asset.
     """
     circuits = os.path.join(data, "circuits")
     assets = os.path.join(root, "src", "assets", "circuits", "black")
@@ -612,34 +614,73 @@ def circuit_outline_rows(root, data, yaml):
                 sys.exit(f"F1DB layout {layout['id']} ({circuit['id']}) has no SVG at "
                          f"{svg_path}; the assets have moved or the layout is new")
             with open(svg_path, encoding="utf-8") as f:
-                svg = f.read()
-            elements = re.findall(r'<path\b[^>]*>', svg)
-            if len(elements) != 1:
-                sys.exit(f"{svg_path} has {len(elements)} <path> elements, not one; the "
-                         f"shape of F1DB's circuit assets has changed")
-            d = re.search(r'\sd="([^"]+)"', elements[0])
-            if not d:
-                sys.exit(f"{svg_path}: the <path> has no d attribute")
-            path_d = " ".join(d.group(1).split())
-            transform = re.search(r'\stransform="([^"]*)"', elements[0])
-            if transform:
-                t = re.fullmatch(r"\s*translate\(\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*\)\s*",
-                                 transform.group(1))
-                if not t:
-                    sys.exit(f"{svg_path}: the <path> carries transform="
-                             f"\"{transform.group(1)}\", which is not a translate; "
-                             f"look at the asset before it is stored")
-                path_d = svg_path_translate(path_d, float(t.group(1)), float(t.group(2)))
-            if not re.fullmatch(SVG_PATH_DATA, path_d):
-                sys.exit(f"{svg_path}: the path data holds a character outside SVG "
-                         f"path syntax and will not be stored")
-            if not svg_path_in_box(path_d):
-                sys.exit(f"{svg_path}: the path lies outside the 500-unit box and would "
-                         f"draw an empty figure; look at the asset before it is stored")
+                path_d = outline_path(f.read(), svg_path)
             rows.append("|".join(_clean(v) for v in (
                 layout["id"], circuit["id"], layout.get("length"), layout.get("turns"),
                 path_d)))
     return rows
+
+
+def outline_path(svg, where):
+    """The path data of one F1DB circuit asset, placed in its box, or a stop.
+
+    The stored path is drawn into a 500-unit box on every page, so the asset
+    has to draw in that box too. Every one of the 160 today is
+    <svg width="500" height="500"> with no viewBox around one <path>, but the
+    fetch used to assume it: the translate on the <path> was applied and a
+    transform anywhere else - on the <svg>, on a wrapping <g>, in a style -
+    was never looked for, and a moved or scaled drawing that stayed within
+    svg_path_in_box's 5-unit margin would have been stored as it was (#277).
+    So the canvas is asserted, and a transform is allowed on the <path>'s
+    own attribute and nowhere else. `where` names the asset in a stop.
+    """
+    canvases = re.findall(r'<svg\b[^>]*>', svg)
+    if len(canvases) != 1:
+        sys.exit(f"{where} has {len(canvases)} <svg> elements, not one; the shape "
+                 f"of F1DB's circuit assets has changed")
+    for side in ("width", "height"):
+        m = re.search(rf'\s{side}="([^"]*)"', canvases[0])
+        try:
+            ok = m is not None and float(m.group(1)) == OUTLINE_BOX
+        except ValueError:
+            ok = False
+        if not ok:
+            sys.exit(f"{where}: the <svg> {side} is "
+                     f"{m.group(1) if m else 'not given'!r}, not {OUTLINE_BOX:g}; "
+                     f"the stored path would be drawn in the wrong box")
+    if re.search(r'viewbox', svg, re.I):
+        sys.exit(f"{where} carries a viewBox, which rescales the drawing; look at "
+                 f"the asset before it is stored")
+    elements = re.findall(r'<path\b[^>]*>', svg)
+    if len(elements) != 1:
+        sys.exit(f"{where} has {len(elements)} <path> elements, not one; the "
+                 f"shape of F1DB's circuit assets has changed")
+    d = re.search(r'\sd="([^"]+)"', elements[0])
+    if not d:
+        sys.exit(f"{where}: the <path> has no d attribute")
+    path_d = " ".join(d.group(1).split())
+    transform = re.search(r'\stransform="([^"]*)"', elements[0])
+    # The <path>'s own transform attribute is the one place a transform is
+    # applied; any other mention of one - an attribute on the <svg> or a
+    # <g>, a CSS transform in a style - would move the drawing unseen.
+    if len(re.findall(r'transform', svg, re.I)) != (1 if transform else 0):
+        sys.exit(f"{where} carries a transform outside the <path>'s own "
+                 f"transform attribute; look at the asset before it is stored")
+    if transform:
+        t = re.fullmatch(r"\s*translate\(\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*\)\s*",
+                         transform.group(1))
+        if not t:
+            sys.exit(f"{where}: the <path> carries transform="
+                     f"\"{transform.group(1)}\", which is not a translate; "
+                     f"look at the asset before it is stored")
+        path_d = svg_path_translate(path_d, float(t.group(1)), float(t.group(2)))
+    if not re.fullmatch(SVG_PATH_DATA, path_d):
+        sys.exit(f"{where}: the path data holds a character outside SVG "
+                 f"path syntax and will not be stored")
+    if not svg_path_in_box(path_d):
+        sys.exit(f"{where}: the path lies outside the 500-unit box and would "
+                 f"draw an empty figure; look at the asset before it is stored")
+    return path_d
 
 
 def race_layout_rows(data, yaml):
