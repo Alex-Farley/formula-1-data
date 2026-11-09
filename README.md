@@ -845,8 +845,9 @@ only when its title is the chassis's name exactly, Commons files it as a
 Formula One car, and no other chassis claims it. The same licence and
 attribution checks apply; the Commons check is restated rather than dropped,
 because Commons says `local` about its own files — the harvest checks
-instead that Commons answered, for a page in the File namespace. The site
-does not show these photographs.
+instead that Commons answered, for a page in the File namespace. A car page
+shows one only where the file's own name names the chassis too, and marks it
+`catalogued`; the rest are not shown.
 
 **A third route, for circuits.**
 The <!-- fig:circuits_with_article -->79<!-- /fig --> circuits the List of Formula
@@ -1289,8 +1290,9 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   no second source to disagree with it. This is the only part of the database
   with no cross-check available at all. A
   further <!-- fig:images_catalogued -->122<!-- /fig --> chassis with no article have
-  one only from a Commons category, held a rung lower at `catalogued` and not
-  shown. `./f1 images` lists
+  one only from a Commons category, held a rung lower at `catalogued`, and
+  shown, marked so, only where the file's own name names the chassis.
+  `./f1 images` lists
   the <!-- fig:images_unnamed -->343<!-- /fig --> whose file name does not even
   name the car. The <!-- fig:races_with_images -->514<!-- /fig --> races with
   photographs of their own have them because a Commons editor filed them

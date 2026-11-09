@@ -159,7 +159,7 @@ export const strip = (shape) => [
   { label: 'Qualifying rows', value: number(shape.qualifying) },
   { label: 'Standings rows', value: number(shape.standings), note: 'after every round' },
   { label: 'Pit stops', value: number(shape.pit_stops), note: 'from 1994' },
-  { label: 'Photographs', value: number(shape.images), note: 'referenced, not stored' },
+  { label: 'Photographs', value: number(shape.images), note: 'of cars; referenced, not stored' },
 ]
 
 export const seasonHeading = (year) => `The ${year} season`
