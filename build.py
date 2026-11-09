@@ -4432,9 +4432,10 @@ def _stage_35_link_race_entries_to_the_curated(b):
                           str(derived), why, "explained",
                           EACH_SIDE_RIGHT)
     # WK-12: a record against the figure Wikipedia's list gave on the day.
-    # The record's side is read from `records` as it now stands. These are
-    # the last discrepancies write in STAGES, so a row added here appends and
-    # moves no existing id (the PM-30 lesson).
+    # The record's side is read from `records` as it now stands. These, and
+    # WK-14's title credits after them, are the last discrepancies writes in
+    # STAGES, so a row added here appends and moves no existing id (the PM-30
+    # lesson).
     # Filed under the holder both named, so the row is shown on that page.
     for key, table, hid, listed, why, status, note in HV.RECORDS_LIST_READINGS:
         rec = cur.execute("SELECT record, holder, value FROM records WHERE key = ?",
@@ -4453,6 +4454,30 @@ def _stage_35_link_race_entries_to_the_curated(b):
             status, note = "resolved", "the record has passed to another holder"
         _file_discrepancy(cur, "records-list", "records", key, "value", name,
                           stored, listed, why, status, note)
+    # WK-14: a drivers' title the list credits to another constructor than
+    # the records do. The records' side is the race records' credit, read as
+    # derive_records reads it: every constructor the champion scored for.
+    for year, did, listed, why, status, note in HV.RECORDS_LIST_CREDITS:
+        champ = cur.execute("SELECT drivers_champion FROM seasons WHERE year = ?",
+                            (year,)).fetchone()
+        if champ is None or champ[0] != did:
+            raise SystemExit(f"RECORDS_LIST_CREDITS: {did} is not the {year} champion")
+        teams = [n for (n,) in cur.execute("""SELECT c.name FROM race_entries e
+              JOIN races r ON r.id = e.race_id JOIN constructors c ON c.id = e.constructor_id
+             WHERE r.year = ? AND e.driver_id = ? GROUP BY c.id HAVING SUM(e.points) > 0
+             ORDER BY c.name""", (year, did))]
+        # Filed against the champion's titles: verify.py names a claim's row
+        # by a key that is not renumbered, and takes an INTEGER primary key,
+        # a season's year included, for a surrogate it will not name one by.
+        # The reading is of a title the records credit to more than one
+        # constructor; one that has come to be credited to a single one no
+        # longer differs from the list, and its row is filed resolved.
+        if len(teams) < 2:
+            status, note = "resolved", "the records now credit one constructor"
+        _file_discrepancy(cur, "records-list", "drivers", did, "titles",
+                          _full_name(cur, "drivers", did),
+                          f"{year} credited to " + " and ".join(teams), listed, why, status,
+                          note)
     print(f"  car linkage: {len(CR.CAR_SEASONS) - len(uncorroborated)} of "
           f"{len(CR.CAR_SEASONS)} CAR_SEASONS claims corroborated by the "
           f"entry lists")
@@ -5803,6 +5828,9 @@ RECORD_FAMILIES = {
         "most-drivers-titles", "posthumous-champion", "most-constructors-titles",
         "most-consecutive-constructors-titles", "closest-championship-margin",
         "most-wins-without-a-title", "most-consecutive-drivers-titles",
+        "most-drivers-titles-with-one-constructor", "most-drivers-titles-by-constructor",
+        "fewest-seasons-before-first-title", "most-seasons-before-first-title",
+        "largest-gap-between-drivers-titles", "largest-gap-between-constructors-titles",
     ),
     "Wins": (
         "most-wins", "highest-win-rate", "most-wins-in-a-season", "most-consecutive-wins",
@@ -7409,6 +7437,144 @@ def derive_records(cur, leave_out=frozenset()):
                         f"started, {r[4]}-{r[5]}" for r in lead) + ". "
             + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])} "
                                                          f"({r[4]}-{r[5]})") + ".")
+
+    # WK-14: the shape of a championship career - the most drivers' titles
+    # with one constructor and the drivers' titles counted by constructor,
+    # the fewest and most seasons before a first title, and the largest gap
+    # between two titles, a driver's and a constructor's. Appended after
+    # every older record so none is renumbered. A drivers' title is credited
+    # to every constructor under whose id the champion scored points in
+    # race_entries that season, so a champion who scored for two counts for
+    # both; a title-season entry of the champion's whose points are not held
+    # stops the build, since it could be the one that scored, as does a
+    # scoring entry with no constructor id. Where
+    # Wikipedia's lists gave another figure on the day, data/harvest.py
+    # RECORDS_LIST_READINGS files it in `discrepancies`.
+    title_teams, split = {}, []
+    for year, did in q("""SELECT year, drivers_champion FROM seasons
+                           WHERE drivers_champion IS NOT NULL ORDER BY year"""):
+        scored = q("""SELECT e.constructor_id, SUM(e.points), SUM(e.points IS NULL)
+                        FROM race_entries e JOIN races r ON r.id = e.race_id
+                       WHERE r.year = ? AND e.driver_id = ?
+                       GROUP BY e.constructor_id ORDER BY e.constructor_id""", year, did)
+        credited = [r for r in scored if r[1] is not None and r[1] > 0]
+        # An entry with no constructor id that scored, or might have, has no
+        # constructor to credit, and is refused like an entry with no points.
+        if (any(r[2] for r in scored) or not credited
+                or any(r[0] is None for r in credited)):
+            raise SystemExit(f"records: {names[did]}'s {year} title cannot be credited to a "
+                             "constructor - an entry's points or constructor are not held, "
+                             "or none scored")
+        title_teams[year] = (did, [r[0] for r in credited])
+        if len(credited) > 1:
+            split.append(f"{year}, {names[did]}: " + ", ".join(
+                f"{team_names[r[0]]} {_num(r[1])} points" for r in credited))
+    credit = ("A title is credited to every constructor under whose id the champion scored "
+              "points in race_entries in the title season, counted by constructor id, lineage "
+              "not merged"
+              + (", so a champion who scored for two counts for both: " + "; ".join(split)
+                 if split else "; a champion who scored for two would count for both") + ". ")
+    by_pair, by_team = {}, {}
+    for year, (did, teams) in title_teams.items():
+        for k in teams:
+            by_pair.setdefault((did, k), []).append(year)
+            by_team.setdefault(k, []).append(year)
+
+    rows = sorted(((len(ys), names[d], d, team_names[k], ys) for (d, k), ys in by_pair.items()),
+                  key=lambda r: (-r[0], r[1], r[4]))
+    lead = _leaders(rows)
+    add("most-drivers-titles-with-one-constructor", "drivers",
+        "Most drivers' championships with one constructor", [(r[1], r[2]) for r in lead],
+        "drivers", lead[0][0], "titles",
+        tie_value(lead, lambda r: f"{_num(r[0])}, with {r[3]}", lambda r: r[3],
+                  joiner=", with "),
+        "seasons.drivers_champion counted per driver and constructor. " + credit
+        + "; ".join(f"{r[1]} with {r[3]}: {', '.join(map(str, r[4]))}" for r in lead) + ". "
+        + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} with {r[3]}") + ".")
+
+    rows = sorted(((len(ys), team_names[k], k, ys) for k, ys in by_team.items()),
+                  key=lambda r: (-r[0], r[1]))
+    lead = _leaders(rows)
+    add("most-drivers-titles-by-constructor", "constructors",
+        "Most drivers' championships won with a constructor", [(r[1], r[2]) for r in lead],
+        "constructors", lead[0][0], "titles",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        f"seasons.drivers_champion over the {decided} decided championships, each title "
+        "counted for the champion's constructor. " + credit
+        + "; ".join(f"{r[1]}: {', '.join(map(str, r[3]))}" for r in lead) + ". "
+        + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]}") + ".")
+
+    entered = {}
+    for did, year in q("""SELECT DISTINCT e.driver_id, r.year FROM race_entries e
+                           JOIN races r ON r.id = e.race_id WHERE e.driver_id IS NOT NULL"""):
+        entered.setdefault(did, set()).add(year)
+    first_title = {}
+    for year, (did, _) in title_teams.items():
+        first_title.setdefault(did, year)
+    # (seasons, name, id, first season, first title)
+    rows = [(len({y for y in entered[d] if y <= t}), names[d], d, min(entered[d]), t)
+            for d, t in first_title.items()]
+    seasons_rule = ("For every drivers' champion: the seasons in which race_entries holds an "
+                    "entry for the driver, from the first to the season of the first title, "
+                    "that one included. A season not entered is not counted, and one entered "
+                    "for a single race is. ")
+    from_lo = sorted((r for r in rows if r[3] == lo), key=lambda r: r[4])
+    rows_f = sorted((r for r in rows if r[3] > lo), key=lambda r: (r[0], r[4]))
+    lead = _leaders(rows_f, biggest=False)
+    add("fewest-seasons-before-first-title", "drivers",
+        "Fewest seasons before a first drivers' championship", [(r[1], r[2]) for r in lead],
+        "drivers", lead[0][0], "seasons",
+        (f"{_num(lead[0][0])}, {lead[0][3]}-{lead[0][4]}" if len(lead) == 1
+         else f"{_num(lead[0][0])} each"),
+        seasons_rule
+        + (f"Left out: the drivers whose first season was {lo}, the championship's first, "
+           "in which every driver was in a first championship season - "
+           + ", ".join(f"{r[1]} ({r[0]}, champion {r[4]})" for r in from_lo) + ". "
+           if from_lo else "")
+        + "; ".join(f"{r[1]}: {r[3]}-{r[4]}" for r in lead) + ". "
+        + "Next: " + pct_next(rows_f, lead, lambda r: f"{r[1]} {r[0]} ({r[3]}-{r[4]})") + ".")
+
+    rows = sorted(rows, key=lambda r: (-r[0], r[4]))
+    lead = _leaders(rows)
+    add("most-seasons-before-first-title", "drivers",
+        "Most seasons before a first drivers' championship", [(r[1], r[2]) for r in lead],
+        "drivers", lead[0][0], "seasons",
+        (f"{_num(lead[0][0])}, {lead[0][3]}-{lead[0][4]}" if len(lead) == 1
+         else f"{_num(lead[0][0])} each"),
+        seasons_rule
+        + "; ".join(f"{r[1]}: {r[3]}-{r[4]}" for r in lead) + ". "
+        + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} ({r[3]}-{r[4]})") + ".")
+
+    for key, col, record, label, rule in (
+        ("largest-gap-between-drivers-titles", "drivers_champion",
+         "Largest gap between two drivers' championships", names,
+         "seasons.drivers_champion, for every driver with two titles or more"),
+        ("largest-gap-between-constructors-titles", "constructors_champion",
+         "Largest gap between two constructors' championships", team_names,
+         "seasons.constructors_champion, for every constructor with two titles or more, "
+         "counted by constructor id as most-constructors-titles counts it, lineage not "
+         "merged"),
+    ):
+        held = {}
+        for year, k in q(f"SELECT year, {col} FROM seasons WHERE {col} IS NOT NULL "
+                         "ORDER BY year"):
+            held.setdefault(k, []).append(year)
+        decided_years = sorted(y for ys in held.values() for y in ys)
+        # (seasons between, name, id, one title, the next)
+        rows = sorted(((sum(1 for y in decided_years if a < y < b), label[k], k, a, b)
+                       for k, ys in held.items() for a, b in zip(ys, ys[1:])),
+                      key=lambda r: (-r[0], r[3], r[1]))
+        lead = _leaders(rows)
+        table = "drivers" if col == "drivers_champion" else "constructors"
+        add(key, table, record, [(r[1], r[2]) for r in lead], table,
+            lead[0][0], "seasons",
+            tie_value(lead, lambda r: f"{_num(r[0])}, {r[3]} to {r[4]}",
+                      lambda r: f"{r[3]} to {r[4]}"),
+            f"{rule}: the decided championships between one title and the next, neither "
+            "counted, so titles in successive seasons are a gap of 0. "
+            + "; ".join(f"{r[1]}: champion in {r[3]} and next in {r[4]}" for r in lead) + ". "
+            + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} ({r[3]} to {r[4]})")
+            + ".")
 
     return out
 

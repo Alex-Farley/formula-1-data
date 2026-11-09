@@ -1786,9 +1786,10 @@ def records_are_derived():
     # WK-10 the four same-Grand-Prix tables, WK-13 the sixteen seasons
     # tables, WK-16 the sprint's podiums, points and poles, WK-09 the
     # twelve share tables, WK-11 the three from the first race of a
-    # season and the first season, and WK-12 the eleven 'before first' and
-    # 'without' tables. A derivation that silently drops one fails here.
-    FLOOR = 109
+    # season and the first season, WK-12 the eleven 'before first' and
+    # 'without' tables, and WK-14 the six of a championship career's shape.
+    # A derivation that silently drops one fails here.
+    FLOOR = 115
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2266,12 +2267,68 @@ def records_are_derived():
             HAVING SUM({hit}) = 0""").fetchall()
         same_set(key, *top(found), "constructors", "name", f"no entry with {hit}")
 
+    # WK-14. The build walks the champions in Python; these credit each title
+    # in one SQL grouping, number the titles with a window, and count the
+    # seasons from the race records' years. Every holder is compared.
+    credited = con.execute("""SELECT s.year, s.drivers_champion d, e.constructor_id c,
+            s.champion_team
+          FROM seasons s JOIN races r ON r.year = s.year
+          JOIN race_entries e ON e.race_id = r.id AND e.driver_id = s.drivers_champion
+         WHERE e.constructor_id IS NOT NULL
+         GROUP BY s.year, e.constructor_id HAVING SUM(e.points) > 0""").fetchall()
+    # seasons.champion_team is typed in data/seasons.py, not derived: it has
+    # to be one of the constructors the race records credit.
+    typed = {r[0]: r[3] for r in credited}
+    wrong = sorted(y for y, t in typed.items()
+                   if t not in {r["c"] for r in credited if r[0] == y})
+    titled = con.execute("SELECT COUNT(*) FROM seasons WHERE drivers_champion IS NOT NULL"
+                         ).fetchone()[0]
+    check("every drivers' title is credited to a constructor, its seasons.champion_team "
+          "among them", len(typed) == titled and not wrong,
+          f"{len(typed)} of {titled} titles credited"
+          + (f"; champion_team not credited in {', '.join(map(str, wrong))}" if wrong else ""))
+    pairs = {}
+    for r in credited:
+        pairs[(r["d"], r["c"])] = pairs.get((r["d"], r["c"]), 0) + 1
+    best = max(pairs.values(), default=None)
+    same_set("most-drivers-titles-with-one-constructor", best,
+             {d for (d, _), n in pairs.items() if n == best}, "drivers", "full_name",
+             "a grouping of the champions' scoring entries by constructor")
+    teams = {}
+    for r in credited:
+        teams[r["c"]] = teams.get(r["c"], 0) + 1
+    same_set("most-drivers-titles-by-constructor", *top(list(teams.items())),
+             "constructors", "name", "a grouping of the champions' scoring entries")
+
+    before = con.execute("""WITH t AS (SELECT drivers_champion d, MIN(year) y FROM seasons
+                               WHERE drivers_champion IS NOT NULL GROUP BY 1)
+        SELECT t.d, COUNT(DISTINCT r.year), MIN(r.year) FROM t
+          JOIN race_entries e ON e.driver_id = t.d
+          JOIN races r ON r.id = e.race_id AND r.year <= t.y GROUP BY t.d""").fetchall()
+    first_year = con.execute("SELECT MIN(year) FROM seasons").fetchone()[0]
+    fewest = min(n for _, n, f in before if f > first_year)
+    same_set("fewest-seasons-before-first-title", fewest,
+             {d for d, n, f in before if f > first_year and n == fewest}, "drivers",
+             "full_name", f"a count of the race records' seasons, from after {first_year}")
+    same_set("most-seasons-before-first-title", *top([(d, n) for d, n, _ in before]),
+             "drivers", "full_name", "a count of the race records' seasons")
+
+    for key, col, table in (("largest-gap-between-drivers-titles", "drivers_champion",
+                             "drivers"),
+                            ("largest-gap-between-constructors-titles",
+                             "constructors_champion", "constructors")):
+        found = con.execute(f"""SELECT k, g FROM (
+                SELECT {col} k, year - LAG(year) OVER (PARTITION BY {col} ORDER BY year) - 1 g
+                  FROM seasons WHERE {col} IS NOT NULL) WHERE g IS NOT NULL""").fetchall()
+        same_set(key, *top(found), table, "full_name" if table == "drivers" else "name",
+                 f"the years between one seasons.{col} title and the next")
+
     # A reading of Wikipedia's lists is filed against the record as it now
     # stands: every declared reading is a row, and its stored side is the
     # record's holder and value, so a record that moves takes its row along.
     declared = {k for k, *_ in harvest_module().RECORDS_LIST_READINGS}
     filed = {r["row_key"]: r for r in con.execute(
-        "SELECT * FROM discrepancies WHERE kind = 'records-list'")}
+        "SELECT * FROM discrepancies WHERE kind = 'records-list' AND tbl = 'records'")}
 
     def as_stands(k, subject):
         held = subject in rows[k]["holder"].split(", ")
@@ -2286,6 +2343,15 @@ def records_are_derived():
           set(filed) == declared and not stale,
           f"declared {len(declared)}, filed {len(filed)}"
           + (f"; not as the record stands: {', '.join(stale)}" if stale else ""))
+    # WK-14's readings of a title's credit, against the grouping above.
+    names_of = {r[0]: r[1] for r in con.execute("SELECT id, name FROM constructors")}
+    want = {d: f"{y} credited to " + " and ".join(sorted(names_of[r["c"]] for r in credited
+                                                         if r[0] == y))
+            for y, d, *_ in harvest_module().RECORDS_LIST_CREDITS}
+    got = {r[0]: r[1] for r in con.execute("""SELECT row_key, stored_value FROM discrepancies
+        WHERE kind = 'records-list' AND tbl = 'drivers'""")}
+    check("every records-list title credit is filed with the race records' credit",
+          bool(want) and got == want, f"declared {want}, filed {got}")
 
     dist = con.execute("""SELECT category, COUNT(*) n FROM records
         GROUP BY category ORDER BY category""").fetchall()
@@ -3271,7 +3337,8 @@ def the_driver_register():
                      (int(sv), int(dv), d)).fetchone()[0]]
     # WK-12's readings of Wikipedia's records lists are written after them,
     # last of all, so the spans end where those begin.
-    _n_list = len(harvest_module().RECORDS_LIST_READINGS)
+    _n_list = (len(harvest_module().RECORDS_LIST_READINGS)
+               + len(harvest_module().RECORDS_LIST_CREDITS))
     _top = con.execute("SELECT MAX(id) FROM discrepancies").fetchone()[0] - _n_list
     _exp_ids = sorted(r[0] for r in con.execute("""SELECT id FROM discrepancies
         WHERE status = 'explained' AND status_note = ?""", (build.EACH_SIDE_RIGHT,)))

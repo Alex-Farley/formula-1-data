@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->181,114<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->181,122<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -252,7 +252,7 @@ in <!-- fig:qualifying_formats -->19<!-- /fig --> periods of qualifying rules,
 and <!-- fig:eras -->10<!-- /fig --> defined eras of the sport.
 
 **Also** — <!-- fig:personnel -->32<!-- /fig --> non-driving figures
-(designers, principals, officials), <!-- fig:records -->109<!-- /fig -->
+(designers, principals, officials), <!-- fig:records -->115<!-- /fig -->
 records, <!-- fig:glossary -->55<!-- /fig --> glossary terms
 and <!-- fig:governance -->18<!-- /fig --> governance milestones.
 
@@ -1251,9 +1251,9 @@ and `known_gaps` says so.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->162<!-- /fig -->
+holds <!-- fig:discrepancies -->164<!-- /fig -->
 rows: <!-- fig:discrepancies_open -->79<!-- /fig -->
-open, <!-- fig:discrepancies_explained -->26<!-- /fig --> explained — an external
+open, <!-- fig:discrepancies_explained -->28<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
 the best-results rule dropped, an entry or a car a source counts that the race
 records hold no row for, an exclusion that explains a driver missing from a
