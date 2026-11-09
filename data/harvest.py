@@ -1335,6 +1335,91 @@ EXPLAINED_SPANS = [
      "Source: https://github.com/f1db/f1db, seasons/2014/entrants.yml"),
 ]
 
+# Where a record WK-12 added gives another figure than Wikipedia's List of
+# Formula One driver records (revision 1384674133) or List of Formula One
+# constructor records (revision 1384670102) gave when they were read on
+# 2026-11-09, with the 2026 Sao Paulo Grand Prix the last race in both. The
+# lists are the checklist, never the source: the record is computed from the
+# race records, and a figure the list gives otherwise is filed here rather
+# than picked between (WK-08's ruling, #643). Where they agreed - the most
+# entries before a first podium and before a first points finish, and the
+# most without either - there is no row. The build files each in
+# `discrepancies` under the holder the list and the record both named, so an
+# open one is shown on that driver's or constructor's page, with the
+# record's figure as it now stands beside the list's: the reading is in the
+# past tense and the record is not. A record that has since passed to
+# another holder files its row resolved.
+#   record key, holder table, holder id, the list's figure on 2026-11-09,
+#   why they differ, status, note
+RECORDS_LIST_READINGS = [
+    ("most-entries-before-first-pole", "drivers", "perez",
+     "218: the list numbers his first pole his 219th entry",
+     "Wikipedia's List of Formula One driver records numbered the 2022 Saudi Arabian Grand Prix, Perez's first "
+     "pole, his 219th entry; race_entries holds 216 entries for him before it. The "
+     "same list numbered his first win, the 2020 Sakhir Grand Prix, his 194th entry "
+     "and 190th start, where race_entries holds 191 entries and 189 starts before "
+     "it: the starts agree, and the list counts two entries before that race that "
+     "race_entries does not hold. The list does not name them. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384674133",
+     "open", "sources differ"),
+    ("most-entries-without-a-pole", "drivers", "ocon",
+     "199 entries, 198 of them starts",
+     "Wikipedia's List of Formula One driver records gave Ocon 199 entries and 198 starts without a pole; "
+     "race_entries held 198 of each. The starts agree, and the list counts one "
+     "entry race_entries does not hold. The list does not name it. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384674133",
+     "open", "sources differ"),
+    ("most-entries-before-first-fastest-lap", "drivers", "trulli",
+     "202: the list numbers his first fastest lap his 203rd race",
+     "Wikipedia's List of Formula One driver records numbered the 2009 Bahrain Grand Prix, Trulli's first fastest "
+     "lap, his 203rd race, in a column headed Entry; race_entries holds 205 entries "
+     "and 202 starts for him before it, so the list's figure is the count of starts. "
+     "Its next three - Jenson Button's 155th, Nick Heidfeld's 134th and Mark "
+     "Webber's 131st race - are each one past the starts race_entries holds before "
+     "the first fastest lap as well. The record counts entries, as "
+     "most-entries-before-first-win does. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384674133",
+     "explained", "the list counts starts"),
+    ("most-entries-without-a-fastest-lap", "drivers", "stroll",
+     "213 entries, 209 of them starts",
+     "Wikipedia's List of Formula One driver records gave Stroll 213 entries and 209 starts without a fastest lap; "
+     "race_entries held 212 entries and 209 starts. The starts agree, and the list "
+     "counts one entry race_entries does not hold. The list does not name it. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384674133",
+     "open", "sources differ"),
+    ("most-races-before-first-win-constructor", "constructors", "jordan",
+     "127 races started",
+     "Wikipedia's List of Formula One constructor records gave Jordan 127 races started before its first win, the "
+     "1998 Belgian Grand Prix; race_entries holds 126 races entered before it, a car "
+     "starting in each. The list's figures for Shadow (69), Toro Rosso (49), Stewart "
+     "(47) and Racing Point (37) are likewise each one above race_entries' count, "
+     "which is what counting the race won would give, but its Red Bull Racing "
+     "figure, 74, is the count before the win. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384670102",
+     "open", "sources differ"),
+    ("most-races-without-a-pole-constructor", "constructors", "sauber",
+     "Minardi, 340 races started: Sauber is not in the list's table",
+     "Wikipedia's List of Formula One constructor records led its table of races "
+     "started without a pole with Minardi, 340, and did not include Sauber, which "
+     "race_entries holds 547 races entered under, a car starting in 544, with no "
+     "pole under that name. Two of the list's other tables name Sauber and BMW "
+     "Sauber as one team, and BMW Sauber's pole at the 2008 Bahrain Grand Prix would "
+     "end such a run, but the list gives no reason in this one. The record counts "
+     "under the constructor name raced under, as most-races-without-a-win-constructor "
+     "does. Minardi's own figure differs as well: race_entries holds 346 races "
+     "entered, a car starting in 339, against the list's 340 started. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384670102",
+     "open", "sources differ"),
+    ("most-races-without-a-podium-constructor", "constructors", "minardi",
+     "340 races started",
+     "Wikipedia's List of Formula One constructor records gave Minardi 340 races started without a podium; the "
+     "record counts races entered, 346, as most-races-without-a-win-constructor "
+     "does, and race_entries holds a Minardi car starting in 339 of them, one "
+     "fewer than the list's 340. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384670102",
+     "open", "sources differ"),
+]
+
 # Corrections made to hand-entered career figures after checking them against an
 # external reference. Kept as a record of what changed and why.
 #

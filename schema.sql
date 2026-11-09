@@ -2035,6 +2035,7 @@ CREATE TABLE discrepancies (
                         'f1db-number',         -- F1DB's permanent number against its own entries
                         'race-classification', -- F1DB's race result against another source's
                         'race-weather',        -- a race article's wet or dry against the model's day
+                        'records-list',        -- a derived record against Wikipedia's lists
                         'jolpica-result')),    -- tools/ergast_load.py, local only
     subject         TEXT NOT NULL,
     tbl             TEXT NOT NULL,
