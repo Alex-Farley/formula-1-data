@@ -44,6 +44,13 @@ a discovered item joins the queue where nobody has judged it yet rather than
 above everything a person has already ranked below it `[D-36]`. `--decision`
 adds the label that keeps the loop off it.
 
+A live-data item, prefix `LV`, is the one exception: a decided title or a
+new result is what fans expect the same day, so its default is *Now*, and an
+`LV` item filed at *Now* goes to the top of it, directly under the open
+alarms that head the board there `AF-161`. Any other `--status` is obeyed at
+the foot, like every other item's. A placement GitHub refuses leaves the
+item filed, at the foot of *Now*, and says the `rank` call that finishes it.
+
 `status` given several issues sets them all in one request rather than one
 each, so a group pays one board write on the way in and one on the way out
 where it paid one per issue each way `PM-45`. The request is an aliased field
@@ -151,6 +158,9 @@ SOURCE = {
     "LV": "live data", "WK": "Wikipedia survey", "SC": "security",
 }
 STATUSES = ("Now", "Next", "Someday", "In progress", "Done")
+# Filed at the top of *Now*, under the alarms, unless told otherwise: live
+# data is what fans expect the same day `AF-161`.
+FIRST_IN_NOW = frozenset({"LV"})
 HERE = os.path.dirname(os.path.abspath(__file__))
 # The board's ids change only when a person edits the project; an item's id is
 # stable while it is on the board. Both are re-read the moment they disagree
@@ -475,9 +485,66 @@ def new(a):
         args += ["--label", lb]
     url = gh(*args).splitlines()[-1]
     number = int(url.rsplit("/", 1)[1])
-    set_status(number, a.status)
+    status = a.status or ("Now" if a.prefix in FIRST_IN_NOW else "Someday")
+    set_status(number, status)
     print(f"#{number} {ident}")
+    if a.prefix in FIRST_IN_NOW and status == "Now":
+        first_in_now(number)
     return number
+
+
+def under_alarms(rows, number, alarms):
+    """The issue `number` goes directly after to head *Now* under its open
+    alarms, or None for the very top. `rows` is board order, [(number,
+    status)]; `alarms` the open alarms' numbers. Only the run of alarms at the
+    top of *Now* counts: next.py heads *Now* with every alarm there wherever
+    it sits, so going under one dragged lower would put the item under
+    everything above that alarm too."""
+    anchor = None
+    for n, status in rows:
+        if status != "Now" or n == number:
+            continue
+        if n not in alarms:
+            break
+        anchor = n
+    return anchor
+
+
+def first_in_now(number):
+    """Move a just-filed issue to the top of *Now*, under the open alarms
+    `AF-161`. The issue is filed whatever happens here, so a refusal is a
+    warning naming the call that finishes the move, and never retried
+    `[D-27]`."""
+    def foot(why, where="--top"):
+        print(f"{why}\n#{number} is filed at the foot of Now; "
+              f"place it with: file.py rank {number} {where}", file=sys.stderr)
+
+    try:
+        proj_id, items = next_py.board_items(ids=True)
+    except SystemExit as stop:  # next.py ends a failed read; the filing stands
+        return foot(stop.code if isinstance(stop.code, str) else "the board read failed")
+    ok, err, out = gh_try("issue", "list", "--repo", REPO, "--state", "open", "--limit", "1000",
+                          "--json", "number,labels", out=True)
+    if not ok:
+        return foot(err or "gh issue list failed")
+    alarms = {i["number"] for i in json.loads(out)
+              if next_py.ALARMS & {lb["name"] for lb in i["labels"]}}
+    ids = {n: i for n, _, i, *_ in items}
+    if number not in ids:
+        return foot("the board does not hold it yet")
+    after = under_alarms([(n, s) for n, s, *_ in items], number, alarms)
+    # The status write was moments ago; space this one from it as `rank`
+    # spaces its own `AF-81`.
+    time.sleep(RANK_SPACING)
+    args = ["api", "graphql", "-f", f"query={RANK}", "-f", f"project={proj_id}", "-f", f"item={ids[number]}"]
+    if after is not None:
+        args += ["-f", f"after={ids[after]}"]
+    ok, err = gh_try(*args)
+    if not ok:
+        return foot(err or "gh api graphql failed",
+                    f"--after {after}" if after is not None else "--top")
+    loop_cache.drop("queue")
+    print(f"#{number} first in Now" + (f", under alarm #{after}" if after is not None else ""))
 
 
 def mark(a, label, comment_prefix):
@@ -800,7 +867,7 @@ def main():
     n.add_argument("prefix")
     n.add_argument("title")
     n.add_argument("--size", required=True)
-    n.add_argument("--status", default="Someday")
+    n.add_argument("--status", help="Someday by default; Now, at the top under any alarm, for LV")
     n.add_argument("--body")
     n.add_argument("--body-file")
     n.add_argument("--where", help="comma-separated file paths the work would touch")

@@ -19,7 +19,7 @@ CONSTRUCTORS = [
      "maranello", 1,
      "The only constructor to have contested every season since 1950. Fifteen drivers' titles and sixteen constructors' titles, the last in 2008. Won its first championship Grand Prix at Silverstone in 1951 with Gonzalez.", "medium"),
     ("mercedes", "Mercedes", "Mercedes-AMG PETRONAS Formula One Team", "Germany", "Brackley, United Kingdom", 1954, None,
-     None, 8, 10, "2014,2015,2016,2017,2018,2019,2020,2021", "brackley", 1,
+     None, 9, 10, "2014,2015,2016,2017,2018,2019,2020,2021,2026", "brackley", 1,
      "Two spells: a works team in 1954-55 that won two titles with Fangio and withdrew after Le Mans, and the modern operation that took over Brawn GP in 2010 and won eight consecutive constructors' championships from 2014. Registered first entry 1954; the current entity traces its entry chain through BAR and Honda.", "medium"),
     ("mclaren", "McLaren", "McLaren Mastercard F1 Team", "United Kingdom", "Woking, United Kingdom", 1966, None,
      206, 10, 14, "1974,1984,1985,1988,1989,1990,1991,1998,2024,2025", "woking", 1,
