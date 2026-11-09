@@ -515,7 +515,8 @@ def first_in_now(number):
     `AF-161`. The issue is filed whatever happens here, so a refusal is a
     warning naming the call that finishes the move, and never retried
     `[D-27]`."""
-    def foot(why, where="--top"):
+    # Where the alarms are not known, the hint cannot name the one to follow.
+    def foot(why, where="--after <the last open alarm at the top of Now>, or --top with none open"):
         print(f"{why}\n#{number} is filed at the foot of Now; "
               f"place it with: file.py rank {number} {where}", file=sys.stderr)
 

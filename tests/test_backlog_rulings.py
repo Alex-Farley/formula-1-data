@@ -369,7 +369,7 @@ class FilingLiveData(unittest.TestCase):
         self.assertIn("file.py rank 500 --after 1", err)
         said, err = self.file("LV", board=self.BOARD[:-1])
         self.assertEqual(self.ranks, [])
-        self.assertIn("file.py rank 500 --top", err)
+        self.assertIn("file.py rank 500 --after <the last open alarm", err)
 
     def test_the_anchor_skips_the_item_itself_and_other_statuses(self):
         rows = [(30, "Next"), (500, "Now"), (1, "Now"), (2, "Now")]
