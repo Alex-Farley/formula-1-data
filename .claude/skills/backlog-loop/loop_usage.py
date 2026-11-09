@@ -139,6 +139,16 @@ WHAT IT DECIDES
     that has just rolled over has no line yet, and all of it is left. The
     line says so.
 
+    That session is read as a fresh window, 0 % used, when the report is
+    known to leave the line out and not merely to have lost it (AF-158):
+    the weekly line is read, and every line beginning `Current` is a weekly
+    one. Claude Code drops a window it has no utilisation for, and an idle
+    window that rolled over has none, so nothing is said of it at all. The
+    line then reads "session: none yet (fresh window)", and a refresh alarm
+    may start on it. A `Current session` line that is there and cannot be
+    read whole, or any other `Current ...` line (a reworded window), is not
+    this: the session stays unread, as below.
+
     The weekly window is spread evenly over the seven days to its reset: the
     loop may have used the elapsed fraction of the week's allowance, plus
     SLACK points, and no more. Ahead of that pace it waits until the pace
@@ -159,7 +169,8 @@ WHAT IT DECIDES
     at the least), so an alarm opened on race night is picked up at the next
     look and not at the weekly reset. A lookup that fails finds none, and
     with the 5-hour window unread none is looked for: no alarm starts
-    without SMALL_LEFT points of it known to be left.
+    without SMALL_LEFT points of it known to be left. A fresh window, as
+    above, is known: all of it is left.
 
     The thresholds are starting values, not measurements: every decision is
     written to .claude/loop/progress.log with the figures it used, so a week
@@ -309,6 +320,19 @@ def parse(text, now):
     return out
 
 
+def fresh_session(text, windows):
+    """True when the report leaves the session out because no window is
+    running (AF-158): the weekly line is read, no session was, and every line
+    beginning `Current` is a weekly one. Claude Code omits a window with no
+    utilisation, so a window that rolled over and has not been used since
+    shows nothing. A session line that is there and unreadable, or a window
+    this does not know by name, is not this: it fails towards unread."""
+    if "week" not in windows or "session" in windows:
+        return False
+    heads = [l.strip() for l in (text or "").splitlines() if l.strip().startswith("Current")]
+    return all(h.startswith("Current week") for h in heads)
+
+
 def source(env=None):
     """What the report is read from, for the messages that name it."""
     return "LOOP_USAGE_CMD" if "LOOP_USAGE_CMD" in (os.environ if env is None else env) else "/usage"
@@ -444,7 +468,9 @@ def decide(windows, now, race=None, conf=None, alarm=None, name=None):
     if "session" in windows:
         used, reset = windows["session"]
         left = 100 - used
-        why.append(f"session {used}% used, resets {iso(reset)}")
+        # A reset of None is a fresh window (fresh_session): nothing used.
+        why.append(f"session {used}% used, resets {iso(reset)}" if reset
+                   else "session: none yet (fresh window)")
         if left < conf["SMALL_LEFT"]:
             word, until = "WAIT", reset
             why.append(f"under {conf['SMALL_LEFT']:g} points left: too little for any item")
@@ -524,6 +550,8 @@ def check(now=None, claude=None):
     if not windows:
         return (f"UNKNOWN - {source()} named no window this can read; carrying on, reacting to a "
                 "limit when one arrives"), EXIT["UNKNOWN"]
+    if fresh_session(text, windows):
+        windows["session"] = (0, None)
     race = next_race(now)
     start, name = race if isinstance(race, tuple) else (race, None)
     word, until, why, target = decide(windows, now, start, settings(), reserve_alarm, name)

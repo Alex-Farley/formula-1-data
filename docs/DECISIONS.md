@@ -768,6 +768,22 @@ one only for it to pause.
   `usage (manual)`, since a check run by hand wrote lines the loop's own
   could not be told from, which on 2026-10-26 at 15:47 read as the loop
   contradicting itself. The decision is the same either way.
+- **An idle, rolled-over window is read as fresh, so an alarm can start on it
+  (2026-11-09, `AF-158`, #1272).** The first rule above left the window
+  unread, and `[D-55]`'s alarm look needs SMALL_LEFT points known to be left.
+  Idle, nothing opens a window to read, so on 2026-11-05 eleven hourly looks
+  from 03:20 to 13:30 UTC each found it unread with the week at 92 %, and a
+  refresh alarm would have waited for the weekly reset, the case the race
+  reserve is for. The `claude` binary builds the report from the limits it is
+  given and skips a window with no utilisation, so the report has no wording
+  for "no session": the line is simply absent. `fresh_session()` therefore
+  recognises the case by what surrounds the absence: the weekly line is
+  read and every line beginning `Current` is a weekly one. That reads as 0 %
+  used and the line says "session: none yet (fresh window)". A session line
+  present and unreadable, or a window of another name, stays unread, as does
+  anything else the parser does not know. The `--start` and `--end` readings
+  still write such a window as unreadable and never zero, since a cost is a
+  difference of two readings and a guessed zero would be a wrong one.
 
 ### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065), reverted 2026-10-26 (`AF-128`, #1122)
 The maintainer's usage report of 2026-10-18 put 43 % of usage at more than
