@@ -2183,7 +2183,9 @@ const photograph = (image, width, caption = null, alt = caption, checks = true) 
         <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title, fileLinkName(image))} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
-        }${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
+        }${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
+          image.route === 'category' ? ` · ${confidencePill(image.confidence)}` : ''
+        }</figcaption>
       </figure>`
 }
 
@@ -5030,7 +5032,7 @@ page({
       <h2>Photographs</h2>
       ${stats(PHOTOGRAPH_STATS.map(({ key, label }) => ({ label, value: esc(formatted(images[key])) })))}
       <p class="source-note">${esc(PHOTOGRAPHS_UNNAMED_NOTE)}</p>
-      <p class="source-note">${esc(photographsCatalogued(formatted(images.catalogued)))}</p>
+      <p class="source-note">${esc(photographsCatalogued(formatted(images.catalogued), formatted(images.held)))}</p>
       <h2>Where a result cannot be attributed to a car</h2>
       <p class="note">${esc(UNATTRIBUTED_NOTE)}</p>
       ${fromColumns(UNATTRIBUTED_COLUMNS, all(UNATTRIBUTED), { year: (year) => link(`seasons/${year}`, year) }, { unfolded: UNFOLDED.reference })}

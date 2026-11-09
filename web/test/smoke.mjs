@@ -9906,6 +9906,7 @@ try {
     atLeast(withPhotos.length, 1, 'car pages that join to a photograph')
     const uncredited = []
     let figures = 0
+    let catalogued = 0
     for (const id of withPhotos) {
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const captions = [...html.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((m) => m[1])
@@ -9924,10 +9925,16 @@ try {
         if (!caption.includes(attribution(row))) uncredited.push(`/cars/${id}: ${row.file_name} names no photographer`)
         else if (!caption.includes(row.licence.trim())) uncredited.push(`/cars/${id}: ${row.file_name} names no licence`)
         else if (!caption.includes(fileTitle(row.file_name))) uncredited.push(`/cars/${id}: ${row.file_name} names no file`)
+        // AF-56: a photograph a Commons category supplied carries the
+        // catalogued pill, and one an article chose does not.
+        else if ((row.route === 'category') !== captions[at].includes('pill-catalogued'))
+          uncredited.push(`/cars/${id}: ${row.file_name} (${row.route} route) ${row.route === 'category' ? 'lacks' : 'carries'} the catalogued pill`)
+        if (row.route === 'category') catalogued += 1
       })
     }
     if (uncredited.length === 0) {
       pass(`all ${figures} static photograph(s) on ${withPhotos.length} pages carry their file, photographer and licence`)
+      atLeast(catalogued, 1, 'catalogued photograph(s) on a car page, each marked')
     } else {
       for (const message of uncredited.slice(0, 5)) fail(message)
       if (uncredited.length > 5) fail(`…and ${uncredited.length - 5} more`)

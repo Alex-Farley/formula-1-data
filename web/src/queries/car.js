@@ -213,15 +213,38 @@ export const carPageName = (variants, car) =>
   car?.full_name ||
   car?.designation
 
-// The article route only. A photograph from a Commons category (AF-42,
-// route 'category', confidence 'catalogued') is not shown until a person
-// decides whether that rung is shown at all.
+/**
+ * Which `article_images` rows a car page shows, as one SQL condition: the
+ * article route's, and a photograph from a Commons category (AF-42, route
+ * 'category', confidence 'catalogued') only where the file's own name names
+ * the chassis too (`name_matches = 1`) - the maintainer's ruling on AF-56.
+ * A category says what a file is filed under, not what is in the frame; the
+ * first harvest took an engine, a fuel tank, a logo and a crash photograph
+ * from correctly named ones. The rest stay harvested, counted and unshown.
+ * The home, sources and quality pages count the photographs through this,
+ * so their figures are the set the car pages draw.
+ */
+export const ON_A_CAR_PAGE = "(route = 'article' OR (route = 'category' AND name_matches = 1))"
+
+/**
+ * The page's photographs: the article's, and a catalogued one for each
+ * chassis the page covers - the set VARIANTS resolves - under the rule
+ * above. The build keeps the two routes apart per chassis (a chassis with
+ * an article has no category row), so the stronger route comes first, then
+ * the file that names the car, then the file name, so that a tie breaks the
+ * same way in both renderers.
+ */
 export const IMAGES = `
   SELECT * FROM article_images
-   WHERE route = 'article'
-     AND (article = (SELECT article FROM chassis WHERE id = ?)
-       OR article = (SELECT article FROM chassis WHERE car_id = ? LIMIT 1))
-   ORDER BY name_matches DESC
+   WHERE (route = 'article'
+          AND (article = (SELECT article FROM chassis WHERE id = ?1)
+            OR article = (SELECT article FROM chassis WHERE car_id = ?2 LIMIT 1)))
+      OR (route = 'category' AND name_matches = 1
+          AND chassis_id IN (
+                SELECT id FROM chassis
+                 WHERE id = ?1
+                    OR (car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1))))
+   ORDER BY route = 'article' DESC, name_matches DESC, file_name
 `
 
 /** Entries for every chassis the page covers — the same set VARIANTS resolves; newest first. */

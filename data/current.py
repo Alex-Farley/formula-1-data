@@ -1195,7 +1195,7 @@ PROVENANCE = [
     ("unverified", 5, "Placeholder, disputed, or known to be incomplete. Never state as fact.", 0),
     # AF-42. Below unverified because it is not even a claim this database
     # makes: it is where someone else filed something.
-    ("catalogued", 6, "Not checked by anyone, here or at a source: a photograph that Wikimedia Commons editors filed under a category named for the chassis. A category also holds replicas, scale models, show cars and museum mock-ups, and nothing here can tell them from the car that raced. Never present it as the car without a person looking first.", 0),
+    ("catalogued", 6, "Not checked by anyone, here or at a source: a photograph that Wikimedia Commons editors filed under a category named for the chassis. A category also holds replicas, scale models, show cars and museum mock-ups, and nothing here can tell them from the car that raced. A car page shows one only where the file's own name names the chassis too, and marks it catalogued there; never state that it is the car that raced.", 0),
 ]
 
 # DA-05. The registry sources a tier's definition names, by id, each with the

@@ -15,6 +15,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { percent, text } from '../lib/format.js'
+import { ON_A_CAR_PAGE } from './car.js'
 
 export const PROVENANCE = 'SELECT * FROM provenance ORDER BY rank'
 export const GAPS = 'SELECT * FROM known_gaps ORDER BY id'
@@ -84,17 +85,18 @@ export const PHOTOGRAPH_STATS = [
 export const PHOTOGRAPHS_UNNAMED_NOTE =
   'A photograph whose file name does not name the car is not necessarily the wrong photograph \u2014 most are filed under the driver. But nothing in the database can tell which are not, and one article leads with a picture of police officers, so all of them are held at unverified until someone looks.'
 
-export const photographsCatalogued = (n) =>
-  `A further ${n}, for chassis with no article of their own, were filed by Commons editors under a category named for the car. A category also holds replicas and show cars, so those sit a rung lower, at catalogued, and none of them is shown on a car page.`
+export const photographsCatalogued = (shown, held) =>
+  `Of the photographs counted here, ${shown} are for chassis with no article of their own: Commons editors filed them under a category named for the car, and the file's own name names it too. A category also holds replicas and show cars, so those sit a rung lower, at catalogued, and the car's page marks them so. The category route's other ${held} files do not name the car, and none of them is shown.`
 export const GEOMETRY_COVERAGE = 'SELECT * FROM v_geometry_coverage'
 export const IMAGES = `
   SELECT COUNT(*) AS total,
          SUM(name_matches = 1) AS named,
          SUM(name_matches = 0) AS unnamed,
          COUNT(DISTINCT licence) AS licences,
-         (SELECT COUNT(*) FROM article_images WHERE route = 'category') AS catalogued
+         SUM(route = 'category') AS catalogued,
+         (SELECT COUNT(*) FROM article_images WHERE route = 'category' AND name_matches = 0) AS held
     FROM article_images
-   WHERE route = 'article'
+   WHERE ${ON_A_CAR_PAGE}
 `
 export const CONFIDENCE_MIX = `
   SELECT confidence, COUNT(*) AS n FROM (

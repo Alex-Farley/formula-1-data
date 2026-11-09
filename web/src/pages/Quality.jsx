@@ -266,7 +266,7 @@ function Body({ data }) {
                 items={PHOTOGRAPH_STATS.map(({ key, label }) => ({ label, value: number(images[key]) }))}
               />
               <p className="source-note">{PHOTOGRAPHS_UNNAMED_NOTE}</p>
-              <p className="source-note">{photographsCatalogued(number(images.catalogued))}</p>
+              <p className="source-note">{photographsCatalogued(number(images.catalogued), number(images.held))}</p>
             </Section>
           </div>
         </div>
