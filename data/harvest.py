@@ -1343,7 +1343,15 @@ EXPLAINED_SPANS = [
 # race records, and a figure the list gives otherwise is filed here rather
 # than picked between (WK-08's ruling, #643). Where they agreed - the most
 # entries before a first podium and before a first points finish, and the
-# most without either - there is no row. The build files each in
+# most without either - there is no row.
+#
+# WK-14's six were read the same day, against the driver list at the same
+# revision and the constructor list at revision 1384688527. Five agree on
+# figure and holder: the most drivers' titles with one constructor, the
+# drivers' titles by constructor, the fewest and most seasons before a first
+# title, and the largest gap between two drivers' titles. Where a title is
+# credited otherwise, RECORDS_LIST_CREDITS below has the row. The build
+# files each in
 # `discrepancies` under the holder the list and the record both named, so an
 # open one is shown on that driver's or constructor's page, with the
 # record's figure as it now stands beside the list's: the reading is in the
@@ -1424,6 +1432,46 @@ RECORDS_LIST_READINGS = [
      "fewer than the list's 340. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1384670102",
      "open", "sources differ"),
+    ("largest-gap-between-constructors-titles", "constructors", "mclaren",
+     "26 seasons, 1998 to 2024",
+     "Wikipedia's List of Formula One constructor records gave McLaren 26 seasons "
+     "between its constructors' titles of 1998 and 2024, which is the difference of "
+     "the two years; the record counts the 25 championships between them, neither "
+     "title counted. Every other row of the list's table is likewise one above the "
+     "championships between: Ferrari 16 for 1983 to 1999, and 11 for 1964 to 1975, "
+     "McLaren 10 for 1974 to 1984, and 7 for 1991 to 1998, Red Bull Racing 9 for 2013 "
+     "to 2022, and Lotus (1973 to 1978), Williams (1981 to 1986, 1987 to 1992) and "
+     "Mercedes (2021 to 2026) 5 each, where the record counts four. The driver list's "
+     "table of the gap "
+     "between drivers' titles counts the championships between, as the record does, "
+     "and agrees with it. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384688527",
+     "explained", "the list counts the difference of the years"),
+]
+
+# WK-14: a drivers' title Wikipedia's driver list, read as above, credits to
+# another constructor than the records do. The records credit a title to
+# every constructor under whose id the champion scored points that season
+# (derive_records); a row here is filed against the champion's
+# drivers.titles, after RECORDS_LIST_READINGS, with the records' credit for
+# the season as it now stands beside the list's.
+#   season, champion's driver id, the list's credit, why, status, note
+RECORDS_LIST_CREDITS = [
+    (1954, "fangio",
+     "Mercedes alone: the list gives Fangio two titles with Mercedes and does not "
+     "list him with Maserati",
+     "Wikipedia's List of Formula One driver records, in its table of multiple "
+     "drivers' titles with a single constructor, gave Fangio two with Mercedes, 1954 "
+     "and 1955, and did not list him with Maserati, so it credited his 1954 title to "
+     "Mercedes alone. Fangio scored for Maserati in the Argentine and Belgian Grands "
+     "Prix of 1954, the first two he entered, and for Mercedes in all six he entered "
+     "after, and the records credit the title to both, which "
+     "gives him two with Maserati as well, 1954 and 1957. Wikipedia's List of "
+     "Formula One constructor records counts the 1954 title for each of the two in its "
+     "table of drivers' titles by constructor, as the records do. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384674133 and "
+     "https://en.wikipedia.org/w/index.php?oldid=1384688527",
+     "explained", "the driver list credits one constructor"),
 ]
 
 # Corrections made to hand-entered career figures after checking them against an
