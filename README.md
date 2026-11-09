@@ -25,11 +25,11 @@ make all          # rebuild, verify, export — no dependencies
 ./f1 chassis lotus
 ```
 
-Built <!-- fig:built -->2026-11-02<!-- /fig -->; `meta.verification_date`
-is <!-- fig:verified_on -->2026-11-02<!-- /fig -->. The last race with a
-classification is the <!-- fig:last_race -->2026 Mexico City Grand Prix<!-- /fig -->.
+Built <!-- fig:built -->2026-11-09<!-- /fig -->; `meta.verification_date`
+is <!-- fig:verified_on -->2026-11-09<!-- /fig -->. The last race with a
+classification is the <!-- fig:last_race -->2026 Sao Paulo Grand Prix<!-- /fig -->.
 The chassis, engine, entrant and results registers are
-F1DB <!-- fig:f1db_version -->v2026.19.0<!-- /fig -->.
+F1DB <!-- fig:f1db_version -->v2026.20.0<!-- /fig -->.
 
 Every figure in this file that describes the current database is generated
 from it — `tools/readme_figures.py` computes each one from `f1.db` (and
@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->180,893<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->181,097<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -164,18 +164,18 @@ nobody has established goes in `known_gaps`.
 **Championship history** — all <!-- fig:seasons -->78<!-- /fig -->
 seasons <!-- fig:season_span -->1950–2027<!-- /fig -->: champion, points, wins,
 runner-up, margin, constructors' champion, engine formula, tyre suppliers and a
-paragraph of context on each, plus **<!-- fig:standings -->34,735<!-- /fig -->
+paragraph of context on each, plus **<!-- fig:standings -->34,771<!-- /fig -->
 championship standings rows** — the table after every round of every season
 and the end-of-season classification for each.
 
 **Every race** — <!-- fig:races -->1,196<!-- /fig --> championship Grands
-Prix on the calendar, <!-- fig:races_run -->1,168<!-- /fig --> of them run,
+Prix on the calendar, <!-- fig:races_run -->1,169<!-- /fig --> of them run,
 from the <!-- fig:first_race -->1950 British Grand Prix<!-- /fig --> to
-the <!-- fig:last_race -->2026 Mexico City Grand Prix<!-- /fig -->, each with its
+the <!-- fig:last_race -->2026 Sao Paulo Grand Prix<!-- /fig -->, each with its
 circuit, date, pole position, fastest lap, winner, constructor and entrant, and
-the **full classification of every run race** — <!-- fig:race_entries -->27,614<!-- /fig -->
+the **full classification of every run race** — <!-- fig:race_entries -->27,636<!-- /fig -->
 race entries with position, grid, laps, retirement cause and points,
-and <!-- fig:qualifying -->27,127<!-- /fig --> qualifying rows beside them.
+and <!-- fig:qualifying -->27,149<!-- /fig --> qualifying rows beside them.
 The <!-- fig:races_without_fastest_lap -->1<!-- /fig --> run race without a fastest
 lap is the 2021 Belgian Grand Prix, where none was set: two laps behind the
 safety car, half points, no racing lap completed. Shared drives carry both
@@ -188,19 +188,19 @@ all <!-- fig:sprint_races -->30<!-- /fig --> sprints since 2021
 the <!-- fig:sprint_qualifying -->488<!-- /fig --> rows of the sessions that set their
 grids; the classification of every practice, warm-up and pre-qualifying
 session F1DB holds, 1977 on
-— <!-- fig:practice -->49,881<!-- /fig --> rows
-over <!-- fig:practice_weekends -->791<!-- /fig --> weekends, each driver's best lap
+— <!-- fig:practice -->49,944<!-- /fig --> rows
+over <!-- fig:practice_weekends -->792<!-- /fig --> weekends, each driver's best lap
 and laps run, which is a classification and not lap timing;
-and <!-- fig:pit_stops -->22,689<!-- /fig --> pit stops — the lap, the order and the
+and <!-- fig:pit_stops -->22,746<!-- /fig --> pit stops — the lap, the order and the
 time in the pit lane of each.
 
-**Drivers** — <!-- fig:drivers -->915<!-- /fig --> rows: every driver in the
+**Drivers** — <!-- fig:drivers -->916<!-- /fig --> rows: every driver in the
 full classification, and
 the <!-- fig:drivers_practice_only -->53<!-- /fig --> who drove in practice and never
 started a race, with the World Champions and the current grid carrying
 full career figures, and the
 complete <!-- fig:season_entries_year -->2026<!-- /fig --> entry list
-(<!-- fig:season_entries -->24<!-- /fig --> rows, reserves and substitutes
+(<!-- fig:season_entries -->25<!-- /fig --> rows, reserves and substitutes
 among them).
 
 Their wins, poles, fastest laps and podiums are **computed from the race
@@ -743,8 +743,8 @@ F1DB's per-season entry lists record which chassis a constructor ran in a
 season — the constraint the abandoned chassis harvest was missing, because the
 race winner tells you which race a row describes and nothing whatever about
 what he drove. The winning chassis is now known for
-**<!-- fig:races_with_winning_chassis -->881<!-- /fig -->
-of <!-- fig:races_run -->1,168<!-- /fig --> races**.
+**<!-- fig:races_with_winning_chassis -->882<!-- /fig -->
+of <!-- fig:races_run -->1,169<!-- /fig --> races**.
 
 The limit is hard and it decides the shape of the whole result:
 
@@ -781,7 +781,7 @@ constructor-seasons; the remaining work is in `known_gaps`.
 Poles were once a lower bound by construction, because the pole harvest
 recorded who took pole but not what they drove. The entry lists now supply the
 constructor for almost all of them: <!-- fig:poles_without_constructor -->11<!-- /fig -->
-of <!-- fig:poles -->1,168<!-- /fig --> pole entries still carry none.
+of <!-- fig:poles -->1,169<!-- /fig --> pole entries still carry none.
 
 ---
 
@@ -999,7 +999,7 @@ constraint is the licences available here, not the law. So the split is:
 | `laps` | per-lap timing, sectors, tyres, track status | **empty, and `verify.py` fails if it is not** |
 | `stints` | tyre stints | empty, same |
 | `race_control_messages` | flags, safety cars, penalties, deleted laps | empty, same |
-| `pit_stops` | lap, order and pit-lane time of every stop | <!-- fig:pit_stops -->22,689<!-- /fig --> rows from F1DB (CC BY 4.0); only that source is permitted |
+| `pit_stops` | lap, order and pit-lane time of every stop | <!-- fig:pit_stops -->22,746<!-- /fig --> rows from F1DB (CC BY 4.0); only that source is permitted |
 | `team_radio` | clip index and optional transcripts | <!-- fig:notable_radio -->6<!-- /fig --> curated exchanges, quoted from a written source |
 
 `docs/TIMING-ARCHITECTURE.md` is the decision in full. The empty tables are
@@ -1041,12 +1041,12 @@ remembered, and several famous ones are missing for exactly that reason.
 
 ## The finishing order
 
-`race_entries` holds **<!-- fig:race_entries -->27,614<!-- /fig --> rows —
-every entry of every one of the <!-- fig:races_classified -->1,168<!-- /fig -->
+`race_entries` holds **<!-- fig:race_entries -->27,636<!-- /fig --> rows —
+every entry of every one of the <!-- fig:races_classified -->1,169<!-- /fig -->
 run races**, <!-- fig:season_span -->1950–2027<!-- /fig -->, in the committed
 database. Position, grid, laps, retirement cause and points. Alongside it sit
-**<!-- fig:qualifying -->27,127<!-- /fig --> qualifying rows** and
-**<!-- fig:standings -->34,735<!-- /fig --> championship standings rows**: the
+**<!-- fig:qualifying -->27,149<!-- /fig --> qualifying rows** and
+**<!-- fig:standings -->34,771<!-- /fig --> championship standings rows**: the
 table after every round of every season, and the end-of-season classification
 for each, which `v_standings_final` returns one row per entity.
 
@@ -1106,10 +1106,10 @@ is wrong, so neither is overwritten.
 Three things the old two-column model could not say, each found by a check
 failing:
 
-- **A result is not always a number.** <!-- fig:dnf -->8,738<!-- /fig -->
+- **A result is not always a number.** <!-- fig:dnf -->8,739<!-- /fig -->
   retirements, <!-- fig:dnq -->1,041<!-- /fig --> failures to
   qualify, <!-- fig:dnpq -->337<!-- /fig --> failures to
-  *pre*-qualify, <!-- fig:dns -->378<!-- /fig -->
+  *pre*-qualify, <!-- fig:dns -->379<!-- /fig -->
   non-starts, <!-- fig:dsq -->160<!-- /fig --> disqualifications. `position_text` keeps
   the source's own vocabulary; `finish_position` stays a clean integer, NULL
   where there is none. Collapsing them loses the late 1980s entirely.
@@ -1251,9 +1251,9 @@ and `known_gaps` says so.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->153<!-- /fig -->
-rows: <!-- fig:discrepancies_open -->72<!-- /fig -->
-open, <!-- fig:discrepancies_explained -->24<!-- /fig --> explained — an external
+holds <!-- fig:discrepancies -->155<!-- /fig -->
+rows: <!-- fig:discrepancies_open -->73<!-- /fig -->
+open, <!-- fig:discrepancies_explained -->25<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
 the best-results rule dropped, an entry or a car a source counts that the race
 records hold no row for, an exclusion that explains a driver missing from a
@@ -1320,7 +1320,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
 - **Most cars, as designs.** `cars` holds <!-- fig:cars -->29<!-- /fig -->
   landmark chassis, not the several hundred that have started a Grand Prix,
   and <!-- fig:entries_with_car -->1,635<!-- /fig -->
-  of <!-- fig:race_entries -->27,614<!-- /fig --> race entries reach one. The
+  of <!-- fig:race_entries -->27,636<!-- /fig --> race entries reach one. The
   `chassis` register covers the rest at the level of the entry list, and the
   schema says which entries are unlinked rather than guessing.
 - **Lap-by-lap anything before 2018.** Not a gap that can be filled — it was

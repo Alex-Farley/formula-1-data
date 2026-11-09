@@ -3031,6 +3031,26 @@ def the_driver_register():
           "reigning champion's 1",
           not _num_vs_entry, "; ".join(_num_vs_entry[:4]))
 
+    # Where F1DB's register and its own entries disagree on the number, the
+    # declaration in data/drivers.py withholds it and files the two readings
+    # (build.py stage 36). Each declared driver holds no number and one open
+    # row; each such row is declared.
+    from data import drivers as _DR
+    _unsettled = {_dmap.get(f, f): v
+                  for f, v in _DR.F1DB_NUMBER_UNSETTLED.items()}
+    _num_rows = {r[0]: (r[1], r[2], r[3]) for r in con.execute("""SELECT
+        row_key, stored_value, derived_value, status FROM discrepancies
+        WHERE kind = 'f1db-number'""")}
+    _num_held = {r[0]: r[1] for r in con.execute(
+        "SELECT id, permanent_number FROM drivers")}
+    _num_unfiled = [f"{d}: {_num_rows.get(d)}, number {_num_held.get(d, 'no row')}"
+                    for d, (g, n) in _unsettled.items()
+                    if _num_rows.get(d) != (str(g), str(n), "open")
+                    or _num_held.get(d, "no row") is not None]
+    _num_unfiled += [f"{d}: undeclared" for d in _num_rows if d not in _unsettled]
+    check("every number F1DB contradicts itself on is withheld and filed open",
+          not _num_unfiled, "; ".join(_num_unfiled[:4]))
+
     _keyed, _coded, _numbered, _placed = con.execute("""SELECT COUNT(f1db_id),
         COUNT(abbreviation), COUNT(permanent_number), COUNT(place_of_birth)
         FROM drivers""").fetchone()
