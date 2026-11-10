@@ -41,7 +41,10 @@ ever reports back to you. Never end a turn to wait for something.
 Arguments: a pace (`fast`, `balanced`, `thorough`; default `balanced`) and a
 target (`next` or an item id; default `next`), optionally `--skip A,B` for
 ids this run has already skipped, and optionally `--max-size S`, which the
-driver adds when its usage check leaves room only for a small item `[D-55]`,
+driver adds when its usage check leaves room only for a small item `[D-55]`
+(`XS`, or `M` beside `--large-first`, where the week's headroom is what
+binds), `--large-first`, which it adds when the check gives an M or L item
+the first claim on the window `AF-162`,
 and `--alarm`, which the driver adds when its usage check spends the
 race-weekend reserve on that one refresh alarm (read
 `.claude/skills/backlog-item/alarm.md` first: it changes what you inherit and
@@ -91,7 +94,13 @@ under `--alarm`, where only the alarm's own is landed, as `alarm.md` says.
    `--group` above all — which then passes over anything larger, and an
    unsized `?`, as head, companion or tidy item alike. When `next.py` exits
    1 under it, nothing in the queue is small enough: return
-   `PAUSE: no open item at or under size S`, with nothing claimed. An open
+   `PAUSE: no open item at or under size S`, with nothing claimed. When it
+   prints `From Someday:` under the item, the gap is being filled from the
+   foot of the queue; the *item chosen* progress line says so. Given
+   `--large-first`, pass it the same way: the head is then the
+   highest-ranked M or L in *Now*, then *Next*, ahead of the XS and S items
+   above it, alarms and LV items keeping their place, and with neither
+   status holding one, the queue's own next item `AF-162`. An open
    PR or worktree inherited from an earlier fork is finished whatever its
    size; the cap governs what is started, not what is already half-done.
 

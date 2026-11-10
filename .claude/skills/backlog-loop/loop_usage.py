@@ -35,6 +35,14 @@
     then the items by size and implementer, and names any start no end line
     has closed.
 
+    Since AF-162 each reading names the weekly window too, as `week N%
+    resets <ISO time>` or `week unreadable`, and the end line its cost in
+    points of the week, paired and bounded as the session's is. Those
+    weekly costs are what the check below gates a size on, and `--costs`
+    prints them beside the session's, the figure the check takes for each
+    size, and how many items of each size landed in each week - the mix,
+    which answers whether the big items are getting done.
+
 WHY THIS EXISTS
     Until AF-108 the loop reacted to a usage limit only after hitting one:
     supervise.py read the limit message a dead session left, slept until the
@@ -91,11 +99,22 @@ WHAT IT READS
 WHAT IT DECIDES
     The first word of the first line, and the exit status:
 
-    GO       (exit 0) start any item.
-    SMALL    (exit 3) start only an XS or S item: the driver passes
-             `--max-size S` to the fork, which passes it to next.py. The
-             line names the session's reset, which the driver pauses until
-             if nothing in the queue is that small.
+    GO       (exit 0) start an item: `GO <flags> - <why>`. The driver
+             passes the flags the line names to the fork and to
+             `next.py --implementer`, and the fork to every next.py call
+             that chooses. `--large-first` gives the highest-ranked M or L
+             in *Now*, then *Next*, the first claim (AF-162); `--max-size M`
+             keeps an L out when the windows cover an M and not an L, and
+             that line names `until <ISO time>`, when an L may start, which
+             the driver pauses until if nothing in the queue is that small.
+             A GO with no flags is the week unread, and any size starts in
+             queue order, as before AF-162.
+    SMALL    (exit 3) start only an XS or S item: `SMALL --max-size S until
+             <ISO time> - <why>`, or `--max-size XS`. The driver passes the
+             flag to the fork, which passes it to next.py. The time is when
+             an M item may start again - the session's reset, or the week's
+             pace covering an M, whichever is later - which the driver
+             pauses until if nothing in the queue is that small.
     WAIT     (exit 5) start nothing: `WAIT until <ISO time> - <why>`. The
              interactive driver schedules its wake-up for then; the manager
              returns `PAUSE: until <ISO time> - <why>` and supervise.py
@@ -110,7 +129,8 @@ WHAT IT DECIDES
              to a limit when one arrives, and say so.
 
     The 5-hour window, by what is left of it (points of 100):
-      at least M_LEFT      GO - any size; 70 (AF-148)
+      at least M_LEFT      GO - any size the week covers, an L only with
+                           its own share left as well (below); 70 (AF-148)
       at least SMALL_LEFT  SMALL - an S item costs about 73,000 fork tokens
                            and an M about 188,000 (AF-88, UR-14), each with
                            reviewer passes of 40,000-130,000 [D-24]
@@ -126,11 +146,12 @@ WHAT IT DECIDES
     LOOP_USAGE_M_LEFT moves it, and docs/DECISIONS.md D-55 has the table.
     Nothing here knows an item's size before the fork picks it, so the gate
     is on the whole band: below M_LEFT only an XS or S item starts. An L
-    item may want a higher bar of its own, but no L item has run since the
-    `usage` lines began (the last two, AF-47 and AF-42, are earlier), so
-    there are no figures to set an L_LEFT from, and none is set. A fork
-    finishing an open pull request it inherited is not capped by size, as
-    before: the cap governs what is started.
+    item needs its recorded cost of the session, once EXACT landed L items
+    on Opus have one read within a window, and never less than M_LEFT; no L
+    item has run since the `usage` lines began (the last two, AF-47 and
+    AF-42, are earlier), so until then it needs M_LEFT, as an M does
+    (AF-162). A fork finishing an open pull request it inherited is not
+    capped by size, as before: the cap governs what is started.
 
     A session window that is not readable is GO, as before. Of the 24 such
     readings in progress.log, the nine since 2026-10-24 were all taken one
@@ -163,6 +184,30 @@ WHAT IT DECIDES
     read the reserve is kept, the cautious side. The stricter window wins,
     and of two waits the later.
 
+    The weekly headroom is what is left under that pace and under the
+    allowance, whichever is less, and a size starts only when the headroom
+    covers what an item of that size costs the week (AF-162). On 2026-11-09
+    the week stood at 99 % with the pace allowing 100, the check said SMALL,
+    and an XS item started at 11:19 and was killed by the weekly limit at
+    11:27: a headroom above nothing was read as room for an item. The cost
+    of a size is the median of the weekly costs the fork lines recorded
+    for items of that size that landed on Opus, once there are EXACT (5)
+    read within one week; until then it is a floor, XS_WEEK, S_WEEK, M_WEEK
+    and L_WEEK: 2, 3, 5 and 10. The first three are the medians, rounded
+    up, of what the week moved between the `usage` lines either side of
+    each item that landed on Opus from 2026-10-29 to 2026-11-10 - 3 XS, 12
+    S and 12 M items, interactive use of the same week included - and L,
+    with no figures, is set at twice M's. The largest size the headroom covers is the cap:
+    an L, GO; an M, `GO --max-size M`; an S or XS, SMALL with that cap,
+    until the pace covers an M; none, WAIT until the pace covers an XS.
+
+    The first claim: a GO with the week read carries `--large-first`, so
+    the M and L items that only a window this full can carry are not left
+    behind the S items above them in the queue, which can run in the end of
+    any window. Alarms and LV items keep their place: next.py does not pass
+    over them for an M. A GO with the session unread carries it too, as a
+    window that has just rolled over is (D-55) all left.
+
     The reserve is spent on a refresh alarm and on nothing else (AF-130).
     While it is held and the week says wait, but less than 100 % of the week
     is used and the 5-hour window allows an item, `next.py --alarm` is asked
@@ -179,7 +224,9 @@ WHAT IT DECIDES
     written to .claude/loop/progress.log with the figures it used, so a week
     of them is what calibrates them. Each can be set in the environment:
     LOOP_USAGE_M_LEFT, LOOP_USAGE_SMALL_LEFT, LOOP_USAGE_SLACK,
-    LOOP_USAGE_RESERVE, LOOP_USAGE_ALARM_LOOK; LOOP_USAGE_CMD is the reader. A pause is always allowed, and nothing here touches
+    LOOP_USAGE_RESERVE, LOOP_USAGE_ALARM_LOOK, and the floors
+    LOOP_USAGE_XS_WEEK, LOOP_USAGE_S_WEEK, LOOP_USAGE_M_WEEK and
+    LOOP_USAGE_L_WEEK; LOOP_USAGE_CMD is the reader. A pause is always allowed, and nothing here touches
     a control: no check, permission mode or review is changed by a figure.
 """
 import datetime as dt
@@ -230,7 +277,16 @@ WEEK = dt.timedelta(days=7)
 RACE_TAIL = dt.timedelta(days=2)
 # ALARM_LOOK is in minutes, and never under ALARM_LOOK_FLOOR; the others
 # are points of 100.
-DEFAULTS = {"M_LEFT": 70, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60}
+DEFAULTS = {"M_LEFT": 70, "SMALL_LEFT": 7, "SLACK": 10, "RESERVE": 10, "ALARM_LOOK": 60,
+            # Points of the week an item of each size is taken to cost until
+            # EXACT of its kind have been read (AF-162); see the docstring.
+            "XS_WEEK": 2, "S_WEEK": 3, "M_WEEK": 5, "L_WEEK": 10}
+# The sizes the check gates, smallest first, as next.py's --max-size names
+# them; `?` is none of them.
+GATE = ("XS", "S", "M", "L")
+# How many landed items of a size, each read within one window, before their
+# median replaces the floor.
+EXACT = 5
 ALARM_LOOK_FLOOR = 15
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
 # What `next.py --alarm` prints: an id, and an open pull request's number.
@@ -458,18 +514,55 @@ def iso(when):
     return when.astimezone(dt.timezone.utc).isoformat(timespec="minutes")
 
 
-def decide(windows, now, race=None, conf=None, alarm=None, name=None):
-    """(word, until, reasons, target). `windows` is parse()'s answer; `race`
+def needs(lines, conf=None):
+    """What an item of each size is taken to cost: {"week": {size: (points,
+    how)}, "l_left": (points, how)}. `lines` is progress.log; `how` names
+    where the figure came from, for the line. A size's weekly cost is the
+    median over its items that landed on Opus with a weekly cost read within
+    one week, once there are EXACT of them, and its floor until then. An L's
+    share of the session is its median the same way, never under M_LEFT,
+    and M_LEFT until there are EXACT (AF-162). A group - ids joined by + -
+    is not a reading: it is several items' cost under one size."""
+    conf = conf or settings({})
+    landed = [e for (item, _), e in item_costs(lines).items()
+              if "+" not in item and e["implementer"] == "opus" and "MERGED" in e["words"]]
+
+    def exact(e, key):
+        low, high = e[key]
+        return low if low is not None and low == high else None
+
+    week = {}
+    for size in GATE:
+        read = [x for x in (exact(e, "week") for e in landed if e["size"] == size) if x is not None]
+        floor = float(conf.get(f"{size}_WEEK", DEFAULTS[f"{size}_WEEK"]))
+        week[size] = ((float(statistics.median(read)), f"median of {len(read)}") if len(read) >= EXACT
+                      else (floor, f"floor, {len(read)} of {EXACT} read"))
+    read = [x for x in (exact(e, "session") for e in landed if e["size"] == "L") if x is not None]
+    m_left = float(conf["M_LEFT"])
+    l_left = ((max(m_left, float(statistics.median(read))), f"L median of {len(read)}, M_LEFT at least")
+              if len(read) >= EXACT else (m_left, f"M_LEFT, {len(read)} of {EXACT} L items read"))
+    return {"week": week, "l_left": l_left}
+
+
+def decide(windows, now, race=None, conf=None, alarm=None, name=None, need=None):
+    """(word, until, reasons, args). `windows` is parse()'s answer; `race`
     is next_race()'s start, or its None or False, and `name` its name, for
     the line alone; `alarm` is reserve_alarm or a stand-in, called only
-    when the reserve could be spent, and None to look for no alarm at all.
-    `until` is set for WAIT (when to look again), for SMALL (the session's
-    reset, the pause if nothing small is open) and for ALARM (when ordinary
-    work may start again). `target` is the alarm, for ALARM alone."""
+    when the reserve could be spent, and None to look for no alarm at all;
+    `need` is needs()'s answer, and the floors when it is None.
+    `until` is set for WAIT (when to look again), for SMALL and a GO capped
+    at M (when the next size up may start, the pause if nothing within the
+    cap is open) and for ALARM (when ordinary work may start again). `args`
+    is what the line hands the fork: the alarm for ALARM, the next.py flags
+    for GO and SMALL, else None."""
     conf = conf or settings({})
+    need = need or needs([], conf)
     if not windows:
         return "UNKNOWN", None, ["usage not readable"], None
+    cost = {size: need["week"][size][0] for size in GATE}
     word, until, why = "GO", None, []
+    # The largest size each window allows; when the week allows `points`.
+    s_cap, w_cap, catch, large_first = "L", "L", None, False
 
     if "session" in windows:
         used, reset = windows["session"]
@@ -478,14 +571,18 @@ def decide(windows, now, race=None, conf=None, alarm=None, name=None):
         # no threshold can say otherwise, whatever it is set to.
         why.append(f"session {used}% used, resets {iso(reset)}" if reset
                    else "session: none yet (fresh window)")
+        l_left, l_how = need["l_left"]
         if reset is None:
             pass
         elif left < conf["SMALL_LEFT"]:
-            word, until = "WAIT", reset
+            word, until, s_cap = "WAIT", reset, None
             why.append(f"under {conf['SMALL_LEFT']:g} points left: too little for any item")
         elif left < conf["M_LEFT"]:
-            word, until = "SMALL", reset
+            s_cap = "S"
             why.append(f"under {conf['M_LEFT']:g} points left: an XS or S item only")
+        elif left < l_left:
+            s_cap = "M"
+            why.append(f"under {l_left:g} points left: no L item ({l_how})")
     else:
         why.append("session window not readable (a window just rolled over shows none)")
 
@@ -497,55 +594,92 @@ def decide(windows, now, race=None, conf=None, alarm=None, name=None):
         reserve = conf["RESERVE"] if held else 0.0
         budget = 100.0 - reserve
         allowed = elapsed * budget + conf["SLACK"]
-        note = (f"week {used}% used, {elapsed:.0%} elapsed, pace allows {min(allowed, budget):.0f}%"
+        limit = min(allowed, budget)
+        note = (f"week {used}% used, {elapsed:.0%} elapsed, pace allows {limit:.0f}%"
                 + (f" ({reserve:g} held for the race weekend"
                    + (" - f1.db not readable" if race is False
                       else f" of {iso(race)}" + (f", the {name}" if name else "")) + ")"
                    if held else ""))
         why.append(note)
-        if used >= min(allowed, budget):
-            # When the pace reaches what has been used; never past the reset,
+
+        def catch(points):
+            # When the pace leaves `points` of headroom; never past the reset,
             # and when the reserve is what binds, no later than its release.
-            if used >= budget:
-                catch = reset
+            if used >= budget or used + points > budget:
+                when = reset
             else:
-                catch = start + WEEK * max(0.0, (used - conf["SLACK"]) / budget)
-            catch = min(max(catch, now), reset)
+                when = start + WEEK * max(0.0, (used + points - conf["SLACK"]) / budget)
+            when = min(max(when, now), reset)
             if held and race not in (None, False):
-                catch = min(catch, max(race + RACE_TAIL, now))
-            if catch > now:
-                why.append("ahead of the weekly pace")
-                # The reserve may go on a refresh alarm and on nothing else,
-                # and never past the whole week, with the 5-hour window too
-                # low for an item, or with that window unread (AF-130).
-                spendable = held and used < 100 and alarm is not None
-                if spendable and word != "WAIT" and "session" in windows:
-                    target, note = alarm()
-                    if target:
-                        why.append(f"the reserve goes on the refresh alarm {target} alone")
-                        return "ALARM", catch, why, target
-                    why.append(note)
-                if spendable:
-                    look = now + dt.timedelta(minutes=conf["ALARM_LOOK"])
-                    if look < catch:
-                        catch = look
-                        why.append(f"looking again for a refresh alarm in {conf['ALARM_LOOK']:g} minutes")
-                until = max(until, catch) if word == "WAIT" else catch
-                word = "WAIT"
+                when = min(when, max(race + RACE_TAIL, now))
+            return when
+
+        # A size fits when the headroom under the pace and the allowance
+        # covers what an item of it costs the week (AF-162).
+        fitting = [size for size in GATE if used < limit and used + cost[size] <= limit]
+        large_first = True
+        if not fitting:
+            w_cap = None
+            back = catch(cost["XS"])
+            why.append("ahead of the weekly pace" if used >= limit else
+                       f"weekly headroom {limit - used:.1f}: under an XS item's "
+                       f"{cost['XS']:g} ({need['week']['XS'][1]})")
+            # The reserve may go on a refresh alarm and on nothing else,
+            # and never past the whole week, with the 5-hour window too
+            # low for an item, or with that window unread (AF-130).
+            spendable = held and used < 100 and alarm is not None
+            if spendable and word != "WAIT" and "session" in windows:
+                target, found = alarm()
+                if target:
+                    why.append(f"the reserve goes on the refresh alarm {target} alone")
+                    return "ALARM", back, why, target
+                why.append(found)
+            if spendable:
+                look = now + dt.timedelta(minutes=conf["ALARM_LOOK"])
+                if look < back:
+                    back = look
+                    why.append(f"looking again for a refresh alarm in {conf['ALARM_LOOK']:g} minutes")
+            until = max(until, back) if word == "WAIT" else back
+            word = "WAIT"
+        else:
+            w_cap = fitting[-1]
+            if w_cap != "L":
+                bigger = GATE[GATE.index(w_cap) + 1]
+                why.append(f"weekly headroom {limit - used:.1f}: under an {bigger} item's "
+                           f"{cost[bigger]:g} ({need['week'][bigger][1]})")
     else:
         why.append("weekly window not readable")
 
-    return word, until, why, None
+    if word == "WAIT":
+        return word, until, why, None
+    cap = min(s_cap, w_cap, key=GATE.index)
+    if cap != "L":
+        # When the next size up may start: the later of the session's reset
+        # and the week's pace covering it, from each window that holds it back.
+        # A window below the cap was read: a session cap under L has a reset,
+        # and a week cap under L defined catch().
+        up = "M" if GATE.index(cap) < GATE.index("M") else "L"
+        times = []
+        if GATE.index(s_cap) < GATE.index(up):
+            times.append(windows["session"][1])
+        if GATE.index(w_cap) < GATE.index(up):
+            times.append(catch(cost[up]))
+        until = max(times)
+    if GATE.index(cap) < GATE.index("M"):
+        return "SMALL", until, why, f"--max-size {cap}"
+    flags = (["--max-size M"] if cap == "M" else []) + (["--large-first"] if large_first else [])
+    return "GO", until, why, " ".join(flags) or None
 
 
-def line(word, until, why, target=None):
+def line(word, until, why, args=None):
     if word == "ALARM":
-        return f"ALARM {target} until {iso(until)} - " + "; ".join(why)
+        return f"ALARM {args} until {iso(until)} - " + "; ".join(why)
     if word == "WAIT":
         return f"WAIT until {iso(until)} - " + "; ".join(why)
     if word == "SMALL":
-        return f"SMALL --max-size S, session resets {iso(until)} - " + "; ".join(why)
-    return f"{word} - " + "; ".join(why)
+        return f"SMALL {args or '--max-size S'} until {iso(until)} - " + "; ".join(why)
+    return (f"{word}{' ' + args if args else ''}" + (f" until {iso(until)}" if until else "")
+            + " - " + "; ".join(why))
 
 
 def check(now=None, claude=None):
@@ -563,8 +697,10 @@ def check(now=None, claude=None):
         windows["session"] = (0, None)
     race = next_race(now)
     start, name = race if isinstance(race, tuple) else (race, None)
-    word, until, why, target = decide(windows, now, start, settings(), reserve_alarm, name)
-    return line(word, until, why, target), EXIT[word]
+    conf = settings()
+    word, until, why, args = decide(windows, now, start, conf, reserve_alarm, name,
+                                    needs(read_log(log_path()), conf))
+    return line(word, until, why, args), EXIT[word]
 
 
 def log_id(argv):
@@ -582,28 +718,42 @@ WORDS = ("MERGED", "SKIPPED", "PAUSE", "DECIDE", "STOP", "LIMIT", "REROUTE")
 SAME_WINDOW = dt.timedelta(hours=1)
 # A window is five hours, and the next one opens on the first use after the
 # last closes, so a second reset cannot fall less than ten hours after the
-# first reading's.
+# first reading's. A week's second reset, by the same reasoning, cannot fall
+# less than two weeks after.
 TWO_RESETS = dt.timedelta(hours=10)
+TWO_WEEKLY_RESETS = 2 * WEEK
 READING = r"session (?:(\d{1,3})% resets ([^\s;]+)|unreadable)"
 START_LINE = re.compile(r"^\d\d:\d\d:\d\d (\S+) usage start: size \S+, implementer ([^\s,]+), ")
 END_LINE = re.compile(
     r"^\d\d:\d\d:\d\d (\S+) usage end: ([A-Z]+), size (\S+), implementer ([^\s;]+); "
     r"from (?:" + READING + r"|start not logged)[^;]*; to " + READING)
+# The weekly window in the same lines, since AF-162: at the end of a start
+# line, and after the session's cost in an end line. A line written before
+# has neither, and its week is not logged.
+START_WEEK = re.compile(r"; week (?:(\d{1,3})% resets ([^\s;,]+)|unreadable)$")
+END_WEEK = re.compile(r"; week from (?:(\d{1,3})% resets ([^\s;,]+)|unreadable|start not logged) "
+                      r"to (?:(\d{1,3})% resets ([^\s;,]+)|unreadable)")
 
 
-def session_reading(now=None, claude=None):
-    """(used, reset) for the 5-hour window, or (None, why). Read as check()
-    reads it, with the same parser and no model turn; never raises."""
+def fork_readings(now=None, claude=None):
+    """((used, reset) for the 5-hour window, or None, and why), and (used,
+    reset) for the week or None. Read as check() reads them, with the same
+    parser and no model turn; never raises."""
     now = now or dt.datetime.now(dt.timezone.utc)
     claude = claude or os.environ.get("CLAUDE_BIN") or shutil.which("claude")
     text, problem = read_text(claude)
     if text is None:
-        return None, problem
+        return (None, problem), None
     windows = parse(text, now)
     if "session" not in windows:
-        return None, ("no session line, as a window just rolled over shows"
-                      if "week" in windows else f"{source()} named no window this can read")
-    return windows["session"], None
+        return (None, ("no session line, as a window just rolled over shows"
+                       if "week" in windows else f"{source()} named no window this can read")), windows.get("week")
+    return (windows["session"], None), windows.get("week")
+
+
+def session_reading(now=None, claude=None):
+    """(used, reset) for the 5-hour window, or (None, why)."""
+    return fork_readings(now, claude)[0]
 
 
 def describe(reading):
@@ -613,13 +763,21 @@ def describe(reading):
     return f"session {used}% resets {iso(reset)}"
 
 
-def cost(start, end):
-    """(low, high) points of the 5-hour window used between two readings,
-    each (used, reset) or None. Within one window the two agree; across one
-    reset the old window's last figure was not read, so the cost is at least
-    the new window's use and at most that plus what the old had left; across
-    more than one, high is None. (None, None) when either reading is
-    missing, or the two cannot both be true."""
+def describe_week(reading):
+    if reading is None:
+        return "unreadable"
+    used, reset = reading
+    return f"{used}% resets {iso(reset)}"
+
+
+def cost(start, end, two=TWO_RESETS):
+    """(low, high) points of a window used between two readings, each
+    (used, reset) or None. Within one window the two agree; across one reset
+    the old window's last figure was not read, so the cost is at least the
+    new window's use and at most that plus what the old had left; across
+    more than one - two resets fall at least `two` apart - high is None.
+    (None, None) when either reading is missing, or the two cannot both be
+    true."""
     if start is None or end is None:
         return None, None
     (u0, r0), (u1, r1) = start, end
@@ -627,7 +785,7 @@ def cost(start, end):
         return (u1 - u0, u1 - u0) if u1 >= u0 else (None, None)
     if r1 < r0:
         return None, None
-    if r1 - r0 < TWO_RESETS:
+    if r1 - r0 < two:
         return u1, 100 - u0 + u1
     return u1, None
 
@@ -641,14 +799,21 @@ def show(low, high):
 
 
 def log_path():
-    """progress.log beside the main checkout, found as progress.sh finds it,
-    from this script's own directory so a worktree's copy finds the same."""
-    try:
-        common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=HERE, stdout=subprocess.PIPE,
-                                stderr=subprocess.DEVNULL, text=True, check=True).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        common = os.path.join(ROOT, ".git")
-    return os.path.join(os.path.dirname(os.path.join(HERE, common)), ".claude", "loop", "progress.log")
+    """progress.log beside the main checkout, where progress.sh writes it,
+    from this script's own directory so a worktree's copy finds the same.
+    Read out of .git rather than by running git, so check() runs nothing
+    but its reader: a worktree's .git is a file naming its git directory,
+    whose `commondir` names the main checkout's."""
+    root, git = ROOT, os.path.join(ROOT, ".git")
+    if os.path.isfile(git):
+        try:
+            with open(git, encoding="utf-8") as f:
+                gitdir = os.path.join(ROOT, f.read().split("gitdir:", 1)[1].strip())
+            with open(os.path.join(gitdir, "commondir"), encoding="utf-8") as f:
+                root = os.path.dirname(os.path.normpath(os.path.join(gitdir, f.read().strip())))
+        except (OSError, IndexError):
+            pass
+    return os.path.join(root, ".claude", "loop", "progress.log")
 
 
 def read_log(path):
@@ -675,38 +840,49 @@ def open_starts(lines):
     return out
 
 
+def reading_of(used, reset):
+    """(used, reset) from a line's two groups, or None."""
+    if used is None:
+        return None
+    try:
+        return int(used), dt.datetime.fromisoformat(reset)
+    except ValueError:
+        return None
+
+
 def started(lines, item, implementer):
     """The start reading an end line pairs with: the earliest start under
     the item's head id and implementer that no end line has closed, so a
     fork killed before its end line is inside the range, not dropped.
-    (reading, found, how many starts it spans)."""
+    (reading, found, how many starts it spans, (week reading, whether the
+    start logged the week at all))."""
     starts = open_starts(lines).get((item.split("+")[0], implementer), [])
     if not starts:
-        return None, False, 0
+        return None, False, 0, (None, False)
     found = starts[0]
+    w = START_WEEK.search(found)
+    week = (reading_of(*w.group(1, 2)) if w else None, bool(w))
     m = re.search(READING, found)
-    if not m or m.group(1) is None:
-        return None, True, len(starts)
-    try:
-        reset = dt.datetime.fromisoformat(m.group(2))
-    except ValueError:
-        return None, True, len(starts)
-    return (int(m.group(1)), reset), True, len(starts)
+    reading = reading_of(*m.group(1, 2)) if m else None
+    return reading, True, len(starts), week
 
 
-def fork_line(kind, item, word, size, implementer, reading, why, lines):
+def fork_line(kind, item, word, size, implementer, reading, why, lines, week=None):
     """The progress.log stage for a fork's start or end reading."""
     here = describe(reading) + (f" ({why})" if why else "")
     if kind == "start":
-        return f"usage start: size {size}, implementer {implementer}, {here}"
-    before, found, spans = started(lines, item, implementer)
+        return f"usage start: size {size}, implementer {implementer}, {here}; week {describe_week(week)}"
+    before, found, spans, (week_before, week_logged) = started(lines, item, implementer)
     low, high = cost(before, reading)
     crossed = before is not None and reading is not None and abs(reading[1] - before[1]) >= SAME_WINDOW
+    w_low, w_high = cost(week_before, week, TWO_WEEKLY_RESETS)
     return (f"usage end: {word}, size {size}, implementer {implementer}; "
             f"from {describe(before) if found else 'start not logged'}"
             + (f" (the earliest of {spans} starts)" if spans > 1 else "") + f"; to {here}; "
             f"cost {show(low, high)}" + (" points" if low is not None else "")
-            + ("; the window reset mid-item" if crossed and low is not None else ""))
+            + ("; the window reset mid-item" if crossed and low is not None else "")
+            + f"; week from {describe_week(week_before) if week_logged else 'start not logged'} "
+            f"to {describe_week(week)}, cost {show(w_low, w_high)}" + (" points" if w_low is not None else ""))
 
 
 def fork_main(argv, now=None, claude=None, path=None):
@@ -726,37 +902,76 @@ def fork_main(argv, now=None, claude=None, path=None):
         raise SystemExit(f"loop_usage.py --{kind}: an id without spaces, size one of {', '.join(SIZES)}, "
                          f"implementer one of {', '.join(IMPLEMENTERS)}"
                          + (f", word one of {', '.join(WORDS)}" if kind == "end" else ""))
-    reading, why = session_reading(now, claude)
-    text = fork_line(kind, item, word, size, implementer, reading, why, read_log(path or log_path()))
+    (reading, why), week = fork_readings(now, claude)
+    text = fork_line(kind, item, word, size, implementer, reading, why, read_log(path or log_path()), week)
     print(f"{item} {text}")
     wrote = subprocess.run(["bash", os.path.join(HERE, "progress.sh"), item, text],
                            cwd=HERE, stdout=subprocess.DEVNULL, check=False)
     return 0 if wrote.returncode == 0 else 1
 
 
-def costs(lines):
-    """The report --costs prints, from progress.log's end lines."""
+def summed(total, more):
+    """Two (low, high) costs added: unreadable if either is, unbounded if either is."""
+    if total[0] is None or more[0] is None:
+        return None, None
+    return total[0] + more[0], (None if total[1] is None or more[1] is None else total[1] + more[1])
+
+
+def item_costs(lines):
+    """{(item, implementer): entry} from progress.log's end lines, an item's
+    forks summed. An entry holds its size and words, `session` and `week`
+    as (low, high), `weekly` - whether any of its end lines logged the week -
+    and `week_reset`, the reset of the last end reading's week, or None."""
     items = {}
     for text in lines:
         m = END_LINE.match(text)
         if not m:
             continue
         item, word, size, implementer = m.group(1, 2, 3, 4)
-        readings = []
-        for used, reset in (m.group(5, 6), m.group(7, 8)):
-            try:
-                readings.append((int(used), dt.datetime.fromisoformat(reset)) if used is not None else None)
-            except ValueError:
-                readings.append(None)
-        low, high = cost(*readings)
-        entry = items.setdefault((item, implementer), {"words": [], "low": 0, "high": 0})
+        session = cost(reading_of(*m.group(5, 6)), reading_of(*m.group(7, 8)))
+        w = END_WEEK.search(text)
+        end_week = reading_of(*w.group(3, 4)) if w else None
+        week = cost(reading_of(*w.group(1, 2)), end_week, TWO_WEEKLY_RESETS) if w else (None, None)
+        entry = items.setdefault((item, implementer), {"words": [], "session": (0, 0), "week": (0, 0),
+                                                       "weekly": False, "week_reset": None})
         entry.update(size=size, implementer=implementer)
         entry["words"].append(word)
-        if low is None or entry["low"] is None:
-            entry["low"] = entry["high"] = None
-        else:
-            entry["low"] += low
-            entry["high"] = None if high is None or entry["high"] is None else entry["high"] + high
+        entry["session"] = summed(entry["session"], session)
+        entry["week"] = summed(entry["week"], week)
+        if w:
+            entry["weekly"] = True
+            entry["week_reset"] = end_week[1] if end_week else entry["week_reset"]
+    return items
+
+
+def mix(items):
+    """Lines counting the items that landed, by size, in each weekly window
+    their last end line read, and in none where it read none (AF-162). An
+    item is counted once, at the size its end line names; a group is one."""
+    weeks = []
+    for e in items.values():
+        if "MERGED" not in e["words"]:
+            continue
+        key = e["week_reset"]
+        if key is not None:
+            key = next((k for k, _ in weeks if k is not None and abs(k - key) < SAME_WINDOW), key)
+        row = next((c for k, c in weeks if k == key), None)
+        if row is None:
+            row = {}
+            weeks.append((key, row))
+        row[e["size"]] = row.get(e["size"], 0) + 1
+    if not weeks:
+        return []
+    out = ["Landed, by the week each ended in - items, a group once, at the size its end line names:"]
+    for key, row in sorted(weeks, key=lambda kr: (kr[0] is not None, kr[0] or dt.datetime.min)):
+        label = f"week to {iso(key)}" if key is not None else "week not logged"
+        out.append(f"  {label:<32} " + "  ".join(f"{size} {row.get(size, 0)}" for size in SIZES))
+    return out
+
+
+def costs(lines, conf=None):
+    """The report --costs prints, from progress.log's end lines."""
+    items = item_costs(lines)
     unclosed = sorted(f"{head} ({implementer})" for head, implementer in open_starts(lines))
     tail = (["Started, with no end line yet - running, or killed before it wrote one: "
              + ", ".join(unclosed)] if unclosed else [])
@@ -764,33 +979,43 @@ def costs(lines):
         return "\n".join(["No fork end lines in progress.log yet (AF-150 began writing them on 2026-10-29)."]
                          + tail)
     out = ["Per item - points of the 5-hour window, its forks summed; a range where a reset fell "
-           "mid-item, since the old window's last figure was not read:"]
+           "mid-item, since the old window's last figure was not read; and points of the week where "
+           "its end lines logged it (AF-162):"]
     for (item, _), e in items.items():
         out.append(f"  {item:<22} {e['size']:<3} {e['implementer']:<7} {'+'.join(e['words']):<16} "
-                   f"{show(e['low'], e['high'])}")
+                   f"{show(*e['session'])}" + (f"  week {show(*e['week'])}" if e["weekly"] else ""))
     out.append("By size and implementer:")
     groups = {}
     for e in items.values():
         groups.setdefault((SIZES.index(e["size"]) if e["size"] in SIZES else len(SIZES), e["size"],
                            e["implementer"]), []).append(e)
     for (_, size, implementer), es in sorted(groups.items()):
-        exact = sorted(e["low"] for e in es if e["low"] is not None and e["low"] == e["high"])
-        bounded = [e for e in es if e["low"] is not None and e["low"] != e["high"]]
+        exact = sorted(e["session"][0] for e in es if e["session"][0] is not None
+                       and e["session"][0] == e["session"][1])
+        bounded = [e for e in es if e["session"][0] is not None and e["session"][0] != e["session"][1]]
         unread = len(es) - len(exact) - len(bounded)
         part = (f"{len(exact)} exact, median {statistics.median(exact):g}, mean {statistics.mean(exact):.1f}"
                 if exact else "0 exact")
+        weekly = sorted(e["week"][0] for e in es if e["weekly"] and e["week"][0] is not None
+                        and e["week"][0] == e["week"][1])
         out.append(f"  {size:<3} {implementer:<7} {len(es)} item{'s' if len(es) != 1 else ''}: {part}; "
                    f"{len(bounded)} across a reset"
-                   + (f" ({', '.join(show(e['low'], e['high']) for e in bounded)})" if bounded else "")
-                   + f"; {unread} unreadable")
-    return "\n".join(out + tail)
+                   + (f" ({', '.join(show(*e['session']) for e in bounded)})" if bounded else "")
+                   + f"; {unread} unreadable"
+                   + (f"; week {len(weekly)} exact" + (f", median {statistics.median(weekly):g}" if weekly else "")
+                      if any(e["weekly"] for e in es) else ""))
+    need = needs(lines, conf)
+    out.append("What the usage check takes an item to cost the week, landed on Opus: "
+               + ", ".join(f"{size} {need['week'][size][0]:g} ({need['week'][size][1]})" for size in GATE)
+               + f"; and an L, {need['l_left'][0]:g} points of the session ({need['l_left'][1]})")
+    return "\n".join(out + mix(items) + tail)
 
 
 def main(argv):
     if argv[:1] in (["--start"], ["--end"]):
         return fork_main(argv)
     if argv == ["--costs"]:
-        print(costs(read_log(log_path())))
+        print(costs(read_log(log_path()), settings()))
         return 0
     if argv not in ([], ["--loop"]):
         raise SystemExit("loop_usage.py takes --loop, --start, --end or --costs; "

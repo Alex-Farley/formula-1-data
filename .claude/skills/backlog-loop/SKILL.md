@@ -55,11 +55,19 @@ Two words, either order, both optional.
    It costs no model turn and a few seconds, and its first word decides
    `[D-55]`. `--loop` files the line under `usage` in the log; a run
    without it is filed as `usage (manual)`:
-   - `GO` or `UNKNOWN`: invoke the fork as below. `UNKNOWN` means usage
-     could not be read, and the loop reacts to a limit when one arrives, as
-     it did before the check existed.
-   - `SMALL`: invoke the fork with `--max-size S` added to its args, so it
-     takes only an XS or S item. Keep the session reset the line names.
+   - `GO` or `UNKNOWN`: invoke the fork as below, with the flags a `GO`
+     line names after its first word added to its args: `--large-first`,
+     which gives the highest-ranked M or L in *Now*, then *Next*, the first
+     claim on a window this full, and `--max-size M` beside it when the
+     week covers an M and not an L; keep the time that line names after
+     `until`. A `GO` with no flags is the week unread, and the queue's own
+     order. `UNKNOWN` means usage could not be read, and the loop reacts to
+     a limit when one arrives, as it did before the check existed `AF-162`.
+   - `SMALL`: invoke the fork with the `--max-size` the line names, `S` or
+     `XS`, added to its args, so it takes only an item that small: the
+     session is too far through for an M, or the week's headroom covers
+     only an item that small `AF-162`. Keep the time the line names after
+     `until`.
    - `WAIT until <time> - <why>`: start no fork. Interactively, schedule a
      wake-up for one minute after `<time>` that reinvokes this skill with
      the same arguments, as for a limit below, then stop. Run as the
@@ -83,10 +91,11 @@ Two words, either order, both optional.
    Otherwise, **choose the implementer** when the target is `next` or
    `until-paused` and the pace is `balanced` or `thorough`: run
    `python3 .claude/skills/backlog-loop/next.py --implementer`, with the
-   `--skip` and `--max-size S` the fork would be given. It costs no model
+   `--skip`, `--max-size` and `--large-first` the fork would be given. It costs no model
    turn and one board read. When its output starts `sonnet <ID>`, invoke the
-   Skill tool: skill `backlog-item-sonnet`, args `<pace> <ID> --max-size S`,
-   with `--skip <ids>` when this run has skipped any. Anything else - `opus`,
+   Skill tool: skill `backlog-item-sonnet`, args `<pace> <ID> --max-size S`
+   (`XS` when the check said so), with `--skip <ids>` when this run has
+   skipped any. Anything else - `opus`,
    an error, any exit other than 0 - and at `fast` or for an item id a person
    named, invoke the ordinary fork below. This is the Sonnet trial, AF-144
    `[D-60]`: Sonnet implements an XS or S item that names no protected
@@ -95,8 +104,8 @@ Two words, either order, both optional.
 
    The ordinary fork: invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
-   this run has skipped any, and `--max-size S` when the check said
-   `SMALL`. Do not do any of the fork's work
+   this run has skipped any, and the flags the check's line named. Do not
+   do any of the fork's work
    here, and do not read the board or the issue list to "check" first -
    `next.py` inside the fork does that for a few hundred tokens.
 3. Read the **first line** of the result and act on it:
@@ -136,9 +145,9 @@ Two words, either order, both optional.
      the ordinary fork at once with `<pace> <ID>` and the same `--skip` and
      `--max-size` the check gave, once - its line is the one acted on. Not a
      skip and not a hold, so it counts as neither.
-   - `PAUSE: <why>`: the fork was given `--max-size S` and nothing in the
+   - `PAUSE: <why>`: the fork was given a `--max-size` and nothing in the
      queue was that small. Nothing is claimed or half-done. Treat it as
-     `WAIT until <the session reset the SMALL line named>` in step 2.
+     `WAIT until <the time the SMALL or GO line named>` in step 2.
    - `LIMIT: resets <time>`, **or the Skill tool returning an error that
      names a usage or session limit** (`You've hit your session limit ·
      resets 1:30pm (Europe/London)` was the wording on 2026-09-13; a fork

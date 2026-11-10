@@ -11,6 +11,7 @@ Print the next item of the queue, or one named item, and nothing else.
     python3 .claude/skills/backlog-loop/next.py --next-id PD  # the next unused number for a prefix
     python3 .claude/skills/backlog-loop/next.py --skip AF-03,VD-26   # the next item after those
     python3 .claude/skills/backlog-loop/next.py --group --max-size S # the next item no larger than S
+    python3 .claude/skills/backlog-loop/next.py --group --large-first # an M or L in Now or Next first
     python3 .claude/skills/backlog-loop/next.py --alarm       # the refresh alarm the reserve may go on, if any
     python3 .claude/skills/backlog-loop/next.py --implementer # sonnet <ID>, or opus: who implements the next item
 
@@ -92,10 +93,27 @@ tokens, which is what the fork should read before it opens anything.
 unsized `?`, which may be anything - as the head, as a companion and in a
 tidy batch alike. The driver passes it when the usage check (loop_usage.py)
 finds too little of the 5-hour window left for a large item but enough for a
-small one; it is pacing, not grouping, so for that one fork it overrides
+small one, or too little of the week's headroom - `S` or `XS`, or `M` to
+keep an L out (AF-162); it is pacing, not grouping, so for that one fork it overrides
 D-20's "whatever is linked rides". An item named on the command line is
 printed whatever its size, since it has already been chosen; only what
-next.py chooses is capped `AF-108` `[D-55]`.
+next.py chooses is capped `AF-108` `[D-55]`. When the head a cap leaves is
+in *Someday*, no item at or under the cap in *Now* or *Next* being free
+to take, a line under the item says so, for the fork's progress line: a gap filled
+from the foot of the queue is a fact about the queue a person should see
+(AF-162).
+
+`--large-first` gives an M or L item the first claim on the window, for the
+usage check (loop_usage.py) to pass on a GO with the week read: the head is
+the highest-ranked M or L in *Now*, then *Next*, ahead of any XS or S
+ranked above it, and with neither holding one, the queue's own next item.
+It is a reading of the queue's order and not a rank: an alarm, a security
+alert or an LV item is never passed over for an M - the walk stops at the
+first of them, as at the first M or L - and within the sizes taken, the
+board's order stands. Beside `--max-size M`, an L is passed over as any cap
+passes over what it does not allow. Agreed with the maintainer on
+2026-11-09, so that the M and L items are picked up alongside the XS and S
+items that fill the gaps (AF-162) `[D-55]`.
 
 `--alarm` is for the usage check alone (loop_usage.py), which asks it only
 while the race-weekend reserve is what holds the loop back. It prints the id
@@ -111,8 +129,9 @@ to *Next* or *Someday* is printed only when nothing eligible is above it,
 which is when next.py would choose it anyway `AF-130` `[D-55]`.
 
 `--implementer` is for the driver alone, which runs it before a fork at
-`balanced` or `thorough` and is given the same `--skip` and `--max-size` the
-fork would be. It prints `sonnet <ID> - <why>` when the item the fork would
+`balanced` or `thorough` and is given the same `--skip`, `--max-size` and
+`--large-first` the fork would be, so that it reads the item the fork will
+take. It prints `sonnet <ID> - <why>` when the item the fork would
 take may be implemented on Sonnet under the AF-144 trial, and `opus - <why>`
 otherwise; implementer.py holds the rule (D-60). Anything else - an error,
 an exit other than 0 - is the ordinary Opus fork.
@@ -535,6 +554,37 @@ def first_eligible(ranked, skip):
     return next((r for r in ranked if eligible(r, skip)), None)
 
 
+LARGE = ("M", "L")
+
+
+def goes_first(row):
+    """An item `--large-first` never passes over: an alarm, a security alert
+    or a live-data finding (prefix LV), each first in *Now* by its own rule."""
+    return is_alarm(row) or SECURITY_SOURCE in row["labels"] or row["ident"].startswith("LV-")
+
+
+def choose(ranked, skip, large_first=False):
+    """The head next.py takes. Without `large_first`, first_eligible's. With
+    it, the first eligible row in *Now*, then *Next*, that is an M or L or
+    goes first, and the queue's own next item when neither status holds one
+    (AF-162). `skip` already holds what a cap passes over."""
+    rows = [r for r in ranked if eligible(r, skip)]
+    if large_first:
+        for row in rows:
+            if row["status"] not in ("Now", "Next"):
+                break
+            if goes_first(row) or size_of(row) in LARGE:
+                return row
+    return rows[0] if rows else None
+
+
+def from_someday(head, ranked, skip, cap):
+    """Whether a capped head is a gap filled from *Someday*: no item at or
+    under the cap in *Now* or *Next* is free to take (AF-162)."""
+    return (cap is not None and head is not None and head["status"] == "Someday"
+            and not any(eligible(r, skip) and r["status"] in ("Now", "Next") for r in ranked))
+
+
 def norm(path):
     """A path as the queue's two spellings of it agree.
 
@@ -837,6 +887,9 @@ def main(argv):
     group = "--group" in argv
     if group:
         argv = [a for a in argv if a != "--group"]
+    large_first = "--large-first" in argv
+    if large_first:
+        argv = [a for a in argv if a != "--large-first"]
     if argv[:1] == ["--next-id"]:
         if len(argv) != 2 or not re.fullmatch(r"[A-Z]{2}", argv[1]):
             sys.exit("--next-id needs a two-letter prefix, e.g. PD")
@@ -854,7 +907,7 @@ def main(argv):
     # single item it chooses - which `one_body` fetches below, after the
     # choosing, for the price of the one it needs.
     if argv[:1] == ["--alarm"]:
-        if len(argv) != 1 or group or cap:
+        if len(argv) != 1 or group or cap or large_first:
             sys.exit("--alarm takes only --skip")
         ranked, in_progress, _ = load()
         found = reserve_alarm(ranked, in_progress, skip)
@@ -868,7 +921,7 @@ def main(argv):
 
     if argv[:1] == ["--implementer"]:
         if len(argv) != 1 or group:
-            sys.exit("--implementer takes only --skip and --max-size")
+            sys.exit("--implementer takes only --skip, --max-size and --large-first")
         if open_claude_work():
             head = None
             word, why = implementer.choose(None, True, trial_count)
@@ -876,7 +929,7 @@ def main(argv):
             ranked, _, _ = load()
             if cap:
                 skip |= too_large(ranked, cap)
-            head = first_eligible(ranked, skip)
+            head = choose(ranked, skip, large_first)
             if head is not None:
                 head["body"] = one_body(head["number"])
             word, why = implementer.choose(head, False, trial_count)
@@ -897,6 +950,8 @@ def main(argv):
     everything = ranked + in_progress + unplaced
 
     if argv[:1] == ["--list"]:
+        if large_first:
+            sys.exit("--list takes no --large-first: it lists, it does not choose")
         name = " ".join(argv[1:]) or "Now"
         if name not in QUEUE + ("In progress", "unplaced"):
             sys.exit(f"no status '{name}'; one of {', '.join(QUEUE)}, In progress, unplaced")
@@ -921,7 +976,7 @@ def main(argv):
                          "(landed, declined, never filed, or not yet auto-added)")
             heads.append(row)
     else:
-        head = first_eligible(ranked, skip)
+        head = choose(ranked, skip, large_first)
         if head is None:
             sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked, waiting or in progress"
                      + (f", at size {cap} or smaller" if cap else "")
@@ -932,6 +987,9 @@ def main(argv):
         if not want_bodies:
             row["body"] = one_body(row["number"])
         show(row)
+    if not argv and from_someday(heads[0], ranked, skip, cap):
+        print(f"From Someday: no item at or under size {cap} in Now or Next is free to take, so this gap is filled "
+              "from the foot of the queue - say so in the *item chosen* progress line (AF-162).\n")
     if group:
         taken = {r["number"] for r in heads}
         show_companions(heads[0], ranked, skip, taken)
