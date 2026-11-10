@@ -2752,11 +2752,11 @@ const TITLE = currentTitle(fightRows, META.built)
           latest.winner_id ? link(`drivers/${latest.winner_id}`, latest.winner) : esc(UNRECORDED_WINNER)
         }${
           latest.constructor
-            ? `${esc(WON_FOR)}${liveryMark(winner, true)}${
+            ? `${esc(WON_FOR)}<span class="livery-prose-pair">${liveryMark(winner, true)}${
                 latest.constructor_id
                   ? link(`constructors/${latest.constructor_id}`, latest.constructor)
-                  : esc(latest.constructor)
-              }`
+                  : `<span>${esc(latest.constructor)}</span>`
+              }</span>`
             : ''
         }.</p>
         <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p>`

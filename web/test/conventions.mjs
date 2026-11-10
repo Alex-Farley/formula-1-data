@@ -903,9 +903,21 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     assert.ok(after < table, `.livery-prose's right margin (${after}px) is not smaller than .livery's (${table}px)`)
     assert.ok(before >= after, `.livery-prose's left margin (${before}px) is smaller than its right (${after}px): the mark leans to the word before it`)
     const home = read(join(web, 'src', 'pages', 'Home.jsx'))
-    assert.match(home, /\{WON_FOR\}\s*<LiveryMark colour=\{winnerColour\} prose \/>/, 'Home.jsx draws the mark after WON_FOR without `prose`')
+    // The mark and its name ride in one .livery-prose-pair, so a line cannot
+    // break between them and leave the bar at the end of "...for".
+    assert.match(
+      home,
+      /\{WON_FOR\}\s*<span className="livery-prose-pair">\s*<LiveryMark colour=\{winnerColour\} prose \/>/,
+      'Home.jsx draws the mark after WON_FOR without `prose`, or outside a .livery-prose-pair',
+    )
     const pre = read(join(web, 'scripts', 'prerender.js'))
-    assert.match(pre, /\$\{esc\(WON_FOR\)\}\$\{liveryMark\(winner, true\)\}/, 'prerender.js draws the mark after WON_FOR without `prose`')
+    assert.match(
+      pre,
+      /\$\{esc\(WON_FOR\)\}<span class="livery-prose-pair">\$\{liveryMark\(winner, true\)\}/,
+      'prerender.js draws the mark after WON_FOR without `prose`, or outside a .livery-prose-pair',
+    )
+    const pair = app.slice(app.indexOf('\n.livery-prose-pair {'), app.indexOf('}', app.indexOf('\n.livery-prose-pair {')))
+    assert.match(pair, /white-space:\s*nowrap/, '.livery-prose-pair no longer holds the mark to its name')
     assert.match(pre, /prose\s*\?\s*`<i class="livery livery-prose"/, 'prerender.js liveryMark no longer writes .livery-prose for `prose`')
     assert.match(read(join(web, 'src', 'components', 'LiveryMark.jsx')), /prose \? \(\s*<i className="livery livery-prose"/, 'LiveryMark no longer draws .livery-prose for `prose`')
   })
