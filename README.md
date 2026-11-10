@@ -793,8 +793,8 @@ Two tables hold pointers to things this repository does not contain.
 
 **No image is stored.** A row records which file a car's article carries,
 who took it, and under what licence; the pixels are fetched from Wikimedia's
-media servers (`thumb.wikimedia.org` for a scaled copy, `upload.wikimedia.org`
-for an original) by whatever renders the page. `f1.db` does not grow.
+media servers (`thumb.wikimedia.org` and `upload.wikimedia.org`) by whatever
+renders the page. `f1.db` does not grow.
 
 The claim is deliberately narrow and it *is* checkable: the article already
 passed the constructor, seasons and name checks in `tools/wikispec_fetch.py`,

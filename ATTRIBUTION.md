@@ -189,8 +189,8 @@ lead image, or a photograph in its body whose file name names the car.
 **No image is stored in this repository or in `f1.db`.** The row is a
 *reference and its credit*: which file the article carries, who took it,
 and under what licence. The pixels are fetched from Wikimedia's media
-servers — `thumb.wikimedia.org` for a scaled copy, `upload.wikimedia.org`
-for an original — by whatever renders the page, under Wikimedia's terms.
+servers, `thumb.wikimedia.org` and `upload.wikimedia.org`, by whatever
+renders the page, under Wikimedia's terms.
 
 A second set of rows (`route = 'category'`) covers chassis with no article of
 their own: a photograph filed on Commons under a category named for the

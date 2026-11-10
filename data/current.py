@@ -564,8 +564,7 @@ SOURCE_REGISTRY = [
      "tools/wikimedia_images.py. NO IMAGE IS "
      "STORED - article_images holds a reference and its credit, and the "
      "pixels are fetched from Wikimedia's media servers (thumb.wikimedia.org "
-     "for a scaled copy, upload.wikimedia.org for an original) by whatever "
-     "renders the page.", "reference",
+     "and upload.wikimedia.org) by whatever renders the page.", "reference",
      "Per file, and they differ: sixteen distinct licence strings across the "
      "{{fig:article_route_images}} car-article rows alone - CC BY-SA at "
      "four versions, CC BY at four more, CC0, public domain and national "
