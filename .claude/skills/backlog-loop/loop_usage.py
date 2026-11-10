@@ -521,10 +521,11 @@ def needs(lines, conf=None):
     median over its items that landed on Opus with a weekly cost read within
     one week, once there are EXACT of them, and its floor until then. An L's
     share of the session is its median the same way, never under M_LEFT,
-    and M_LEFT until there are EXACT (AF-162)."""
+    and M_LEFT until there are EXACT (AF-162). A group - ids joined by + -
+    is not a reading: it is several items' cost under one size."""
     conf = conf or settings({})
-    landed = [e for e in item_costs(lines).values()
-              if e["implementer"] == "opus" and "MERGED" in e["words"]]
+    landed = [e for (item, _), e in item_costs(lines).items()
+              if "+" not in item and e["implementer"] == "opus" and "MERGED" in e["words"]]
 
     def exact(e, key):
         low, high = e[key]
@@ -655,9 +656,15 @@ def decide(windows, now, race=None, conf=None, alarm=None, name=None, need=None)
     if cap != "L":
         # When the next size up may start: the later of the session's reset
         # and the week's pace covering it, from each window that holds it back.
+        # A window below the cap was read: a session cap under L has a reset,
+        # and a week cap under L defined catch().
         up = "M" if GATE.index(cap) < GATE.index("M") else "L"
-        until = max([windows["session"][1]] * (GATE.index(s_cap) < GATE.index(up))
-                    + [catch(cost[up])] * (GATE.index(w_cap) < GATE.index(up)))
+        times = []
+        if GATE.index(s_cap) < GATE.index(up):
+            times.append(windows["session"][1])
+        if GATE.index(w_cap) < GATE.index(up):
+            times.append(catch(cost[up]))
+        until = max(times)
     if GATE.index(cap) < GATE.index("M"):
         return "SMALL", until, why, f"--max-size {cap}"
     flags = (["--max-size M"] if cap == "M" else []) + (["--large-first"] if large_first else [])

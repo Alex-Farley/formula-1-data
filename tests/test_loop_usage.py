@@ -822,6 +822,26 @@ class TheSizeGate(unittest.TestCase):
         # The session alone holds it back: its reset.
         self.assertEqual(self.decide(session=40, week=15)[1], SESSION_RESET)
 
+    def test_one_window_unread_and_the_other_capping_is_no_crash(self):
+        # The week holds an M back and the session is unread, as a window
+        # that has just rolled over is: the pause is the week's alone.
+        windows = lu.parse(report(week=33), NOW)
+        del windows["session"]
+        word, until, _, args = self.decide(windows=windows)
+        self.assertEqual((word, args, until), ("SMALL", "--max-size S",
+                                               WEEK_RESET - lu.WEEK + lu.WEEK * 0.28))
+        windows = lu.parse(report(week=30), NOW)
+        del windows["session"]
+        self.assertEqual(self.decide(windows=windows)[:2], ("GO", WEEK_RESET - lu.WEEK + lu.WEEK * 0.30))
+        # The session holds it back and the week is unread: the session's reset.
+        windows = lu.parse(report(session=40), NOW)
+        del windows["week"]
+        self.assertEqual(self.decide(windows=windows)[:2], ("SMALL", SESSION_RESET))
+        need = lu.needs(self.recorded("L", 5, session=(5, 90)), CONF)
+        windows = lu.parse(report(session=20), NOW)
+        del windows["week"]
+        self.assertEqual(self.decide(windows=windows, need=need)[:2], ("GO", SESSION_RESET))
+
     def test_a_held_reserve_comes_off_the_headroom(self):
         race = dt.datetime(2026, 10, 18, 19, 0, tzinfo=UTC)
         # 0.27 * 90 + 10 = 34.3 with the reserve held: 30 used leaves 4.3.
@@ -839,6 +859,9 @@ class TheSizeGate(unittest.TestCase):
         for lines in (self.recorded("M", 5, word="LIMIT"), self.recorded("M", 5, implementer="sonnet"),
                       self.recorded("M", 5, week=None)):
             self.assertEqual(lu.needs(lines, conf)["week"]["M"][1], "floor, 0 of 5 read")
+        # A group is several items under one size, not one item's cost.
+        groups = [end_line(f"AF-{i}+AF-{i + 10}", "M") for i in range(5)]
+        self.assertEqual(lu.needs(groups, conf)["week"]["M"][1], "floor, 0 of 5 read")
         crossed = [line.replace("to 48% resets 2026-10-19T13:59", "to 8% resets 2026-10-26T13:59")
                    for line in self.recorded("M", 5)]
         self.assertEqual(lu.needs(crossed, conf)["week"]["M"][1], "floor, 0 of 5 read")

@@ -987,7 +987,7 @@ def main(argv):
         if not want_bodies:
             row["body"] = one_body(row["number"])
         show(row)
-    if from_someday(heads[0], ranked, skip, cap):
+    if not argv and from_someday(heads[0], ranked, skip, cap):
         print(f"From Someday: no item at or under size {cap} in Now or Next is free to take, so this gap is filled "
               "from the foot of the queue - say so in the *item chosen* progress line (AF-162).\n")
     if group:

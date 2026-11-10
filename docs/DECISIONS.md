@@ -836,9 +836,12 @@ one only for it to pause.
   items of each size landed in each weekly window, so whether the big items
   are getting done is read from the log. None of this changes a check, a
   review or a permission; a pause is always allowed, and the reserve and
-  alarm rules (`AF-130`, `AF-155`, `AF-158`) are as they were, except that
-  the time an `ALARM` names for ordinary work is now when the pace covers
-  an XS, not merely the pace.
+  alarm rules (`AF-130`, `AF-155`, `AF-158`) are as they were, with two
+  consequences of the first rule: the reserve is looked at whenever the
+  week covers no item, which includes headroom above nothing but under an
+  XS's cost as well as being at or past the pace, and the time an `ALARM`
+  names for ordinary work is when the pace covers an XS, not merely the
+  pace.
 
 ### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065), reverted 2026-10-26 (`AF-128`, #1122)
 The maintainer's usage report of 2026-10-18 put 43 % of usage at more than
