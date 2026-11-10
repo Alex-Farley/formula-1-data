@@ -130,6 +130,8 @@ role and not a number:
 | Inside a tile or frame | `--space-6` / `--space-7` |
 | Between card siblings (photos, onward cards, record cards, outline cards, the outline strip) | `--space-6` (12), at every width; `conventions.mjs` holds every card grid to it (VD-86) |
 | Above and below a table's body cell (**provisional**, VD-95) | `--row-pad`: `--space-4` (8) below `--bp-desktop`, `--space-2` (4) from it; §3 *Table* |
+| Between a livery mark and its name: in a table cell, where nothing precedes the mark | `--space-4` (8) after it, `.livery` |
+| Around a livery mark in a sentence, after a word (**provisional**, VD-45) | `--space-2` (4) on each side, `.livery-prose` (`LiveryMark`'s `prose`), so the word space before it makes that gap the larger and the mark reads as the name's |
 
 ### Type — built: the scale and the middle register (VD-84), and the label register (VD-91)
 

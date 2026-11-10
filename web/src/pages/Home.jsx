@@ -327,7 +327,8 @@ export default function Home() {
           // beside the constructor and not the driver, which is clause 3.
           // LiveryMark is given no `year`: its spacer exists to keep a table
           // column's names aligned and there is no column here, so a season
-          // without a colour leaves the prose as it reads today.
+          // without a colour leaves the prose as it reads today. It is given
+          // `prose`, because a word precedes it here (VD-45).
           const winnerColour = latest
             ? colourForEntry({
                 constructorId: latest.constructor_id,
@@ -392,7 +393,7 @@ export default function Home() {
                             {latest.constructor ? (
                               <>
                                 {WON_FOR}
-                                <LiveryMark colour={winnerColour} />
+                                <LiveryMark colour={winnerColour} prose />
                                 {latest.constructor_id ? (
                                   <Link to={`/constructors/${latest.constructor_id}`}>{latest.constructor}</Link>
                                 ) : (

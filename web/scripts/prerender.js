@@ -1797,10 +1797,16 @@ const layoutRows = (circuit, entries) =>
 // The properties come from markStyleAttr, not from a `--livery:` written out
 // here: AF-17 added a second one, and a spelled-out attribute would have
 // given the app the scheme and the static page the primary.
-const liveryMark = (colour) =>
-  colour
-    ? `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
-    : ''
+//
+// `prose` is LiveryMark's: a mark that follows a word in a sentence takes
+// `.livery-prose` (VD-45). Each class is written out whole, because
+// test/conventions.mjs finds the marks by it (AF-59).
+const liveryMark = (colour, prose = false) =>
+  !colour
+    ? ''
+    : prose
+      ? `<i class="livery livery-prose" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
+      : `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
 const winnerMark = (round, year) => liveryMark(winnerColour(round, year))
 
 // A driver's or a constructor's livery band, as components/LiveryScheme.jsx
@@ -2746,7 +2752,7 @@ const TITLE = currentTitle(fightRows, META.built)
           latest.winner_id ? link(`drivers/${latest.winner_id}`, latest.winner) : esc(UNRECORDED_WINNER)
         }${
           latest.constructor
-            ? `${esc(WON_FOR)}${liveryMark(winner)}${
+            ? `${esc(WON_FOR)}${liveryMark(winner, true)}${
                 latest.constructor_id
                   ? link(`constructors/${latest.constructor_id}`, latest.constructor)
                   : esc(latest.constructor)
