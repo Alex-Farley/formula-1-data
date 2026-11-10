@@ -918,6 +918,9 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     )
     const pair = app.slice(app.indexOf('\n.livery-prose-pair {'), app.indexOf('}', app.indexOf('\n.livery-prose-pair {')))
     assert.match(pair, /white-space:\s*nowrap/, '.livery-prose-pair no longer holds the mark to its name')
+    // And the name inside it still wraps, or a long one would run off a phone.
+    const inner = app.slice(app.indexOf('\n.livery-prose-pair > * {'), app.indexOf('}', app.indexOf('\n.livery-prose-pair > * {')))
+    assert.match(inner, /white-space:\s*normal/, "a .livery-prose-pair's name no longer wraps: a long one would overflow a phone")
     assert.match(pre, /prose\s*\?\s*`<i class="livery livery-prose"/, 'prerender.js liveryMark no longer writes .livery-prose for `prose`')
     assert.match(read(join(web, 'src', 'components', 'LiveryMark.jsx')), /prose \? \(\s*<i className="livery livery-prose"/, 'LiveryMark no longer draws .livery-prose for `prose`')
   })
