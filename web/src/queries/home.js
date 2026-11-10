@@ -27,6 +27,7 @@ import { number, ordinal, raceDates } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
+import { ON_A_CAR_PAGE } from './car.js'
 import { STARTS } from './circuit.js'
 import { DRIVER_TEAMS } from './season.js'
 import { raceStage } from './sessions.js'
@@ -45,7 +46,7 @@ export const SHAPE = `
     (SELECT COUNT(*) FROM chassis)        AS chassis,
     (SELECT COUNT(*) FROM circuits)       AS circuits,
     (SELECT COUNT(*) FROM seasons)        AS seasons,
-    (SELECT COUNT(*) FROM article_images WHERE route = 'article') AS images,
+    (SELECT COUNT(*) FROM article_images WHERE ${ON_A_CAR_PAGE}) AS images,
     (SELECT COUNT(*) FROM discrepancies)  AS discrepancies,
     (SELECT COUNT(*) FROM circuit_geometry) AS geometry,
     (SELECT MIN(year) FROM races)         AS from_year,
@@ -158,7 +159,7 @@ export const strip = (shape) => [
   { label: 'Qualifying rows', value: number(shape.qualifying) },
   { label: 'Standings rows', value: number(shape.standings), note: 'after every round' },
   { label: 'Pit stops', value: number(shape.pit_stops), note: 'from 1994' },
-  { label: 'Photographs', value: number(shape.images), note: 'referenced, not stored' },
+  { label: 'Photographs', value: number(shape.images), note: 'of cars; referenced, not stored' },
 ]
 
 export const seasonHeading = (year) => `The ${year} season`

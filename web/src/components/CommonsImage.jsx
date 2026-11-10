@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { THUMB_WIDTH, attribution, canShow, fileLinkName, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
+import { Confidence } from './Page.jsx'
 
 /**
  * A photograph from Wikimedia Commons, with its credit.
@@ -67,6 +68,10 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt,
   const licence = (image.licence ?? '').trim()
 
   const unchecked = showCheck && image.name_matches === 0
+  // A photograph a Commons category supplied rather than an article (AF-56)
+  // says so, with the rung's own pill, linked to the ladder that defines it:
+  // the rung vouches for it less strongly than for an article's choice.
+  const catalogued = image.route === 'category'
 
   return (
     <figure className="photo" data-state={state}>
@@ -112,6 +117,12 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt,
           <>
             {' · '}
             <span className="pill pill-unverified">{UNCHECKED_MARK}</span>
+          </>
+        )}
+        {catalogued && (
+          <>
+            {' · '}
+            <Confidence value={image.confidence} />
           </>
         )}
       </figcaption>

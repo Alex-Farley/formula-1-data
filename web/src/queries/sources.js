@@ -12,13 +12,14 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { host, text } from '../lib/format.js'
+import { ON_A_CAR_PAGE } from './car.js'
 
 export const SOURCES = 'SELECT * FROM source_registry ORDER BY priority, id'
 
 export const LICENCES = `
   SELECT licence, licence_url, COUNT(*) AS images
     FROM article_images
-   WHERE licence IS NOT NULL AND route = 'article'
+   WHERE licence IS NOT NULL AND ${ON_A_CAR_PAGE}
    GROUP BY licence
    ORDER BY images DESC, licence
 `
