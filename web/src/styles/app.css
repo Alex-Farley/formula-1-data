@@ -4068,6 +4068,33 @@ figure.figure > .figure-note:first-child {
   background: transparent;
 }
 
+/* The mark in a sentence (VD-45): "Won by ... for |Mercedes" on the home
+   page. In a table cell nothing precedes the mark, so .livery's right margin
+   is the whole of the gap between it and its name. In a sentence a word space
+   precedes it, and that right margin left the bar nearer the preposition
+   than the constructor it marks. Here the margin is the same small step on
+   both sides, so the word space before it makes the gap behind the mark the
+   larger and the mark reads as the name's. Only where the mark follows text:
+   the table columns keep .livery's margin.
+
+   The mark is an inline box with no space after it, so a line could break
+   between it and its name and leave the bar at the end of "...for". The
+   pair holds the two together: nowrap on the pair governs the break between
+   its children, and the name inside it wraps as text does, so a long name
+   still fits a phone. */
+.livery-prose {
+  margin-left: var(--space-2);
+  margin-right: var(--space-2);
+}
+
+.livery-prose-pair {
+  white-space: nowrap;
+}
+
+.livery-prose-pair > * {
+  white-space: normal;
+}
+
 /* A chart series in a livery: the <g> carries the {light, dark} pair, the
    strokes and fills inside read --livery. This is the one surface that keeps
    the moved pair, and the reason AF-16 did not delete it: a line is told from
