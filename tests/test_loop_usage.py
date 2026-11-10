@@ -905,6 +905,57 @@ class TheSizeGate(unittest.TestCase):
         self.assertEqual(self.decide(week=33, need=need)[3], "--max-size M --large-first")
 
 
+class SavingTheWeek(unittest.TestCase):
+    """AF-164: with an M or L holding the first claim and the week's headroom
+    under its cost, the line is WAIT until the pace covers it, and not SMALL
+    or a GO capped below it - the S items that filled the gap spent what the
+    pace added for the M. The session holding an item back saves nothing."""
+
+    def decide(self, session=25, week=15, large=None, calls=None):
+        def lookup():
+            if calls is not None:
+                calls.append(1)
+            return large or (None, None)
+        return lu.decide(lu.parse(report(session, week), NOW), NOW, None, CONF, large=lookup)
+
+    def test_an_m_waiting_keeps_the_headroom_an_s_would_have_spent(self):
+        # 33 used: 4.4 points of headroom, an S's and not an M's - SMALL before.
+        word, until, why, args = self.decide(week=33, large=("WK-15", "M"))
+        self.assertEqual((word, args), ("WAIT", None))
+        self.assertEqual(until, WEEK_RESET - lu.WEEK + lu.WEEK * ((33 + 5 - 10) / 100))
+        self.assertIn("saving the week for WK-15 (M, 5 points): nothing smaller starts until the pace covers it", why)
+        # With no M or L to save for, the gap is filled as before.
+        self.assertEqual(self.decide(week=33)[::3], ("SMALL", "--max-size S"))
+
+    def test_an_l_waiting_keeps_an_m_out_too(self):
+        # 30 used: 7.4 points, an M's 5 and not an L's 10 - GO capped at M before.
+        word, until, _, _ = self.decide(week=30, large=("AF-99", "L"))
+        self.assertEqual(word, "WAIT")
+        self.assertEqual(until, WEEK_RESET - lu.WEEK + lu.WEEK * ((30 + 10 - 10) / 100))
+        # An M with the first claim is covered there, and starts.
+        self.assertEqual(self.decide(week=30, large=("WK-15", "M"))[::3], ("GO", "--max-size M --large-first"))
+
+    def test_room_for_an_l_asks_nothing(self):
+        calls = []
+        self.assertEqual(self.decide(week=15, large=("AF-99", "L"), calls=calls)[0], "GO")
+        self.assertEqual(calls, [])
+
+    def test_the_session_holding_an_m_back_is_not_saved_for(self):
+        # 40 left of the 5-hour window: an S only, whatever the week says;
+        # the week here covers an L, so its end goes on small items as before.
+        self.assertEqual(self.decide(session=60, week=15, large=("WK-15", "M"))[0], "SMALL")
+
+    def test_the_lookup_fails_towards_filling_the_gap(self):
+        with mock.patch.object(lu.subprocess, "run", side_effect=OSError("no python")):
+            self.assertEqual(lu.large_waiting(), (None, None))
+        for out, code in (("WK-15 M\n", 1), ("nothing", 0), ("WK-15 S", 0)):
+            done = mock.Mock(returncode=code, stdout=out)
+            with mock.patch.object(lu.subprocess, "run", return_value=done):
+                self.assertEqual(lu.large_waiting(), (None, None))
+        with mock.patch.object(lu.subprocess, "run", return_value=mock.Mock(returncode=0, stdout="WK-15 M\n")):
+            self.assertEqual(lu.large_waiting(), ("WK-15", "M"))
+
+
 class TheWeekInTheForkLines(unittest.TestCase):
     """AF-162: each fork reading names the week too, and the end line its
     weekly cost, so the gate above can be read from what items cost."""

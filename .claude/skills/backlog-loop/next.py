@@ -13,6 +13,7 @@ Print the next item of the queue, or one named item, and nothing else.
     python3 .claude/skills/backlog-loop/next.py --group --max-size S # the next item no larger than S
     python3 .claude/skills/backlog-loop/next.py --group --large-first # an M or L in Now or Next first
     python3 .claude/skills/backlog-loop/next.py --alarm       # the refresh alarm the reserve may go on, if any
+    python3 .claude/skills/backlog-loop/next.py --large-waiting  # the M or L the week is saved for, if any
     python3 .claude/skills/backlog-loop/next.py --implementer # sonnet <ID>, or opus: who implements the next item
 
 The queue is GitHub Issues on Alex-Farley/formula-1-data, ranked on the Lap
@@ -127,6 +128,16 @@ running - a fix for it merged and the run that proves it under way is waited
 for, not worked again. The head is the queue's own: an alarm a person moved
 to *Next* or *Someday* is printed only when nothing eligible is above it,
 which is when next.py would choose it anyway `AF-130` `[D-55]`.
+
+`--large-waiting` is for the usage check alone (loop_usage.py), which asks
+it when the week's headroom covers less than an L. It prints `<ID> <size>`
+for the item `--large-first` would take when that item is an M or L, and
+exits 1 when it is not - an XS or S, an alarm, a security alert or an LV
+item, or nothing at all. The check then saves the week's headroom for it
+rather than spending it on smaller items, which until AF-164 could keep an
+M or L waiting for good: every S that filled the gap took the points the
+pace had just added (agreed with the maintainer on 2026-11-10). It takes
+`--skip` as the other modes do; the check passes none.
 
 `--implementer` is for the driver alone, which runs it before a fork at
 `balanced` or `thorough` and is given the same `--skip`, `--max-size` and
@@ -578,6 +589,12 @@ def choose(ranked, skip, large_first=False):
     return rows[0] if rows else None
 
 
+def large_waiting(ranked, skip):
+    """The M or L row `--large-first` would take, or None (AF-164)."""
+    head = choose(ranked, skip, large_first=True)
+    return head if head is not None and size_of(head) in LARGE and not goes_first(head) else None
+
+
 def from_someday(head, ranked, skip, cap):
     """Whether a capped head is a gap filled from *Someday*: no item at or
     under the cap in *Now* or *Next* is free to take (AF-162)."""
@@ -917,6 +934,17 @@ def main(argv):
             sys.exit(1)
         row, pr = found
         print(row["ident"] + (f" #{pr}" if pr else ""))
+        return
+
+    if argv[:1] == ["--large-waiting"]:
+        if len(argv) != 1 or group or cap or large_first:
+            sys.exit("--large-waiting takes only --skip")
+        ranked, _, _ = load()
+        row = large_waiting(ranked, skip)
+        if row is None:
+            print("no M or L item has the first claim in Now or Next", file=sys.stderr)
+            sys.exit(1)
+        print(f"{row['ident']} {size_of(row)}")
         return
 
     if argv[:1] == ["--implementer"]:

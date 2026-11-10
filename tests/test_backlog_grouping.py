@@ -633,6 +633,22 @@ class FirstClaim(unittest.TestCase):
         # Uncapped, reaching Someday is the queue's order and not a gap filled.
         self.assertFalse(next_py.from_someday(head, ranked, set(), None))
 
+    def test_the_week_is_saved_for_the_m_or_l_with_the_first_claim_and_nothing_else(self):
+        # AF-164: what `--large-waiting` names, for loop_usage.py.
+        def waiting(ranked, skip=()):
+            row = next_py.large_waiting(ranked, set(skip))
+            return row and row["ident"]
+
+        ranked = [xs_row(1, "Now", size="S"), xs_row(2, "Now", size="M"), xs_row(3, "Next", size="L")]
+        self.assertEqual(waiting(ranked), "TL-02")
+        self.assertEqual(waiting(ranked, {"TL-02"}), "TL-03")
+        # Only XS and S in Now and Next: nothing to save for.
+        self.assertIsNone(waiting([xs_row(1, "Now", size="S"), xs_row(2, "Next", size="XS")]))
+        # An alarm with the first claim is not an M to save for.
+        alarm = xs_row(1, "Now", size="M", labels=("refresh-failing",))
+        self.assertIsNone(waiting([alarm, xs_row(2, "Now", size="M")]))
+        self.assertIsNone(waiting([]))
+
 
 if __name__ == "__main__":
     unittest.main()
