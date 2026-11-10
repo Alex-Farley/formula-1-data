@@ -7,7 +7,8 @@ WHY THIS FILE EXISTS
     produced a number would pace the loop on a figure nobody gave it. So the
     cases here are, first, that anything not read whole is not read at all,
     and then that each threshold, the weekly pace and the race-weekend
-    reserve decide what the docstring says they do.
+    reserve decide what the docstring says they do, and then that a size
+    starts only when the week covers what an item of it costs (AF-162).
 """
 import contextlib
 import datetime as dt
@@ -45,11 +46,23 @@ def report(session=25, week=15):
 
 
 CONF_LOOK = dict(CONF, ALARM_LOOK=60.0)
+# The pace alone, with an item of any size taken to cost the week nothing:
+# the rules before AF-162, which the pace and reserve cases are about. The
+# size gate's own cases (TheSizeGate) take the floors or a log of their own.
+PACE = lu.needs([], dict(CONF, XS_WEEK=0, S_WEEK=0, M_WEEK=0, L_WEEK=0))
 
 
-def decide(session=25, week=15, race=None):
+def decide(session=25, week=15, race=None, need=PACE):
     """(word, until, why) with no alarm looked for, as before AF-130."""
-    return lu.decide(lu.parse(report(session, week), NOW), NOW, race, CONF)[:3]
+    return lu.decide(lu.parse(report(session, week), NOW), NOW, race, CONF, need=need)[:3]
+
+
+def setUpModule():
+    # check() reads progress.log for what each size costs; a test reads the
+    # log it is given, never the one in the checkout it runs from.
+    patcher = mock.patch.object(lu, "read_log", return_value=[])
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
 
 
 class ReadsOnlyWhatItCanReadWhole(unittest.TestCase):
@@ -107,8 +120,8 @@ class TheSessionWindow(unittest.TestCase):
     def test_a_window_that_has_just_rolled_over_is_go_and_says_why(self):
         windows = lu.parse(report(), NOW)
         del windows["session"]
-        word, _, why, _ = lu.decide(windows, NOW, None, CONF)
-        self.assertEqual(word, "GO")
+        word, _, why, args = lu.decide(windows, NOW, None, CONF)
+        self.assertEqual((word, args), ("GO", "--large-first"))
         self.assertIn("a window just rolled over shows none", " ".join(why))
 
     def test_too_little_for_any_item_waits_for_the_reset(self):
@@ -225,7 +238,7 @@ class TheRaceWeekendReserve(unittest.TestCase):
                 con.commit()
                 con.close()
                 start, name = lu.next_race(NOW, db)
-            return lu.decide(lu.parse(report(week=36), NOW), NOW, start, CONF, name=name)
+            return lu.decide(lu.parse(report(week=36), NOW), NOW, start, CONF, name=name, need=PACE)
         held, released = run([(1, None)]), run([(1, 3)])
         self.assertEqual(held[0], "WAIT")
         self.assertTrue(any("held for the race weekend of 2026-10-13T19:00+00:00)" in w for w in held[2]), held[2])
@@ -271,7 +284,7 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
         def alarm():
             asked.append(True)
             return (found, None) if found else (None, "no refresh alarm to spend it on")
-        out = lu.decide(lu.parse(report(session, week), NOW), NOW, race, CONF_LOOK, alarm)
+        out = lu.decide(lu.parse(report(session, week), NOW), NOW, race, CONF_LOOK, alarm, need=PACE)
         return out, bool(asked)
 
     def test_an_alarm_at_the_head_with_the_reserve_binding_is_allowed(self):
@@ -310,7 +323,7 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
         del windows["session"]
         asked = []
         word, _, why, target = lu.decide(windows, NOW, self.RACE, CONF_LOOK,
-                                         lambda: asked.append(True) or ("AF-150", None))
+                                         lambda: asked.append(True) or ("AF-150", None), need=PACE)
         self.assertEqual((word, target, asked), ("WAIT", None, []))
         self.assertTrue(any(w.startswith("session window not readable") for w in why), why)
 
@@ -324,7 +337,7 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
         windows["session"] = (0, None)
         asked = []
         word, _, why, target = lu.decide(windows, NOW, self.RACE, CONF_LOOK,
-                                         lambda: asked.append(True) or ("AF-150", None))
+                                         lambda: asked.append(True) or ("AF-150", None), need=PACE)
         self.assertEqual((word, target, asked), ("ALARM", "AF-150", [True]))
         self.assertIn("session: none yet (fresh window)", why)
 
@@ -377,9 +390,9 @@ class TheReserveGoesOnAnAlarmAlone(unittest.TestCase):
     def test_a_fresh_window_survives_a_threshold_over_100(self):
         windows = {"session": (0, None), "week": (15, WEEK_RESET)}
         for key in ("M_LEFT", "SMALL_LEFT"):
-            word, until, why, _ = lu.decide(windows, NOW, None, dict(CONF, **{key: 101.0}))
+            word, until, why, args = lu.decide(windows, NOW, None, dict(CONF, **{key: 101.0}))
             self.assertEqual((word, until), ("GO", None))
-            self.assertTrue(lu.line(word, until, why).startswith("GO - session: none yet"))
+            self.assertTrue(lu.line(word, until, why, args).startswith("GO --large-first - session: none yet"))
 
     def test_the_look_is_never_under_its_floor(self):
         for value in ("0", "-5", "3"):
@@ -431,7 +444,7 @@ class TheCommand(unittest.TestCase):
         self.assertTrue(text.startswith("WAIT until 2026-10-14T21:59+00:00 - "), text)
         self.assertEqual(code, 5)
         text, code = self.run_with(json.dumps({"result": report(session=60), "is_error": False}))
-        self.assertTrue(text.startswith("SMALL --max-size S, session resets 2026-10-14T21:59+00:00"), text)
+        self.assertTrue(text.startswith("SMALL --max-size S until 2026-10-14T21:59+00:00 - "), text)
         self.assertEqual(code, 3)
 
     def test_anything_unreadable_carries_on_and_says_so(self):
@@ -474,7 +487,7 @@ class TheAdapter(unittest.TestCase):
     def test_the_adapters_two_lines_decide_as_usages_do(self):
         out = mock.Mock(stdout=report(session=60), returncode=0)
         (text, code), ran = self.check({"LOOP_USAGE_CMD": "my-reader --agent 'two words'"}, out)
-        self.assertTrue(text.startswith("SMALL --max-size S, session resets 2026-10-14T21:59+00:00"), text)
+        self.assertTrue(text.startswith("SMALL --max-size S until 2026-10-14T21:59+00:00 - "), text)
         self.assertEqual(code, 3)
         # Split like a shell would, run without one, and not through claude.
         self.assertEqual(ran.call_args[0][0], ["my-reader", "--agent", "two words"])
@@ -585,7 +598,8 @@ class TheForkLines(unittest.TestCase):
     def test_the_start_line(self):
         printed, cmd = self.fork(["--start", "AF-1", "--size", "S", "--implementer", "sonnet"], usage_json())
         self.assertEqual(printed, "AF-1 usage start: size S, implementer sonnet, "
-                                  "session 25% resets 2026-10-14T21:59+00:00")
+                                  "session 25% resets 2026-10-14T21:59+00:00; "
+                                  "week 15% resets 2026-10-19T13:59+00:00")
         self.assertEqual(cmd[-2:], ["AF-1", printed.split(" ", 1)[1]])
 
     def test_within_one_window_the_cost_is_the_difference(self):
@@ -593,7 +607,9 @@ class TheForkLines(unittest.TestCase):
                                usage_json(41), lines=[self.start_line(25)])
         self.assertEqual(printed, "AF-1 usage end: MERGED, size S, implementer sonnet; "
                                   "from session 25% resets 2026-10-14T21:59+00:00; "
-                                  "to session 41% resets 2026-10-14T21:59+00:00; cost 16 points")
+                                  "to session 41% resets 2026-10-14T21:59+00:00; cost 16 points; "
+                                  "week from 15% resets 2026-10-19T13:59+00:00 "
+                                  "to 15% resets 2026-10-19T13:59+00:00, cost 0 points")
 
     def test_a_reset_mid_item_names_both_windows_and_a_range(self):
         printed, _ = self.fork(["--end", "AF-1", "MERGED", "--size", "S", "--implementer", "sonnet"],
@@ -623,12 +639,13 @@ class TheForkLines(unittest.TestCase):
         printed, _ = self.fork(["--start", "AF-1", "--size", "XS", "--implementer", "opus"],
                                usage_json(text=week_only))
         self.assertEqual(printed, "AF-1 usage start: size XS, implementer opus, session unreadable "
-                                  "(no session line, as a window just rolled over shows)")
+                                  "(no session line, as a window just rolled over shows); "
+                                  "week 15% resets 2026-10-19T13:59+00:00")
         printed, _ = self.fork(["--end", "AF-1", "STOP", "--size", "XS", "--implementer", "opus"],
                                usage_json(30), lines=["12:00:00 " + printed])
         self.assertIn("; from session unreadable; to session 30% resets 2026-10-14T21:59+00:00; "
                       "cost unreadable", printed)
-        self.assertNotIn("points", printed)
+        self.assertNotIn("points", printed.split("; week ")[0])
 
     def test_an_unanswered_usage_at_the_end_is_unreadable(self):
         printed, _ = self.fork(["--end", "AF-1", "LIMIT", "--size", "S", "--implementer", "sonnet"],
@@ -663,7 +680,8 @@ class TheForkLines(unittest.TestCase):
         self.assertIn("from session 42% resets 2026-10-14T21:59+00:00 (the earliest of 2 starts); "
                       "to session 30% resets 2026-10-15T02:30+00:00; cost 30-88 points", printed)
         report = lu.costs([killed, inherited, "12:30:00 " + printed])
-        self.assertRegex(report, r"AF-1 +S +sonnet +MERGED +30-88\n")
+        # The inheriting fork's window shows no week, so the week is not read.
+        self.assertRegex(report, r"AF-1 +S +sonnet +MERGED +30-88 +week unreadable\n")
         self.assertNotIn("Started, with no end line", report)
         self.assertIn("Started, with no end line yet - running, or killed before it wrote one: AF-1 (sonnet)",
                       lu.costs([killed, inherited]))
@@ -721,6 +739,221 @@ class TheCostReport(unittest.TestCase):
 
     def test_an_empty_log_says_so(self):
         self.assertTrue(lu.costs(["10:00:00 usage GO - fine"]).startswith("No fork end lines"))
+
+
+def end_line(item, size, implementer="opus", word="MERGED", session=(10, 30), week=(40, 48),
+             week_reset="2026-10-19T13:59+00:00"):
+    """An end line as fork_line writes one since AF-162: `session` and `week`
+    are (from, to) percentages, each within one window, or None for a week
+    the line did not log."""
+    text = (f"10:00:00 {item} usage end: {word}, size {size}, implementer {implementer}; "
+            f"from session {session[0]}% resets 2026-10-14T21:59+00:00; "
+            f"to session {session[1]}% resets 2026-10-14T21:59+00:00; cost {session[1] - session[0]} points")
+    if week is not None:
+        text += (f"; week from {week[0]}% resets {week_reset} to {week[1]}% resets {week_reset}, "
+                 f"cost {week[1] - week[0]} points")
+    return text
+
+
+class TheSizeGate(unittest.TestCase):
+    """AF-162: a size starts only when the week's headroom, under the pace
+    and under the allowance, covers what an item of that size costs it. At
+    27.4 % elapsed with no race held the pace allows 37.4; the floors are XS 2,
+    S 3, M 5 and L 10."""
+
+    def decide(self, session=25, week=15, race=None, need=None, now=NOW, windows=None):
+        windows = windows or lu.parse(report(session, week), now)
+        return lu.decide(windows, now, race, CONF, need=need)
+
+    def test_an_m_refused_for_weekly_headroom_takes_an_s_instead(self):
+        # 33 used: 4.4 points of headroom, an S's 3 and not an M's 5.
+        word, until, why, args = self.decide(week=33)
+        self.assertEqual((word, args), ("SMALL", "--max-size S"))
+        self.assertIn("weekly headroom 4.4: under an M item's 5 (floor, 0 of 5 read)", why)
+        # The pause, if nothing that small is open: the pace covering an M.
+        self.assertEqual(until, WEEK_RESET - lu.WEEK + lu.WEEK * ((33 + 5 - 10) / 100))
+        self.assertTrue(lu.line(word, until, why, args).startswith("SMALL --max-size S until 2026-10-14T"))
+        # Two points of headroom is an XS's and not an S's.
+        self.assertEqual(self.decide(week=35)[3], "--max-size XS")
+
+    def test_headroom_too_small_for_any_item_waits_for_the_pace_to_cover_an_xs(self):
+        word, until, why, _ = self.decide(week=36)
+        self.assertEqual(word, "WAIT")
+        self.assertEqual(until, WEEK_RESET - lu.WEEK + lu.WEEK * ((36 + 2 - 10) / 100))
+        self.assertIn("weekly headroom 1.4: under an XS item's 2 (floor, 0 of 5 read)", why)
+
+    def test_the_week_of_2026_11_09_waits_for_the_reset(self):
+        # 99 % used with 98 % of the week gone, the pace allowing 100: SMALL
+        # before AF-162, and an XS item started at 11:19 and was killed by
+        # the weekly limit at 11:27. One point covers no item.
+        now = WEEK_RESET - lu.WEEK * 0.02
+        windows = {"session": (55, now + dt.timedelta(hours=3)), "week": (99, WEEK_RESET)}
+        word, until, _, _ = self.decide(now=now, windows=windows)
+        self.assertEqual((word, until), ("WAIT", WEEK_RESET))
+        # The pace alone, as before AF-162, read the same report as SMALL.
+        self.assertEqual(self.decide(now=now, windows=windows, need=PACE)[:2],
+                         ("SMALL", now + dt.timedelta(hours=3)))
+
+    def test_an_m_but_not_an_l_is_go_capped_at_m(self):
+        word, until, why, args = self.decide(week=30)
+        self.assertEqual((word, args), ("GO", "--max-size M --large-first"))
+        self.assertEqual(until, WEEK_RESET - lu.WEEK + lu.WEEK * ((30 + 10 - 10) / 100))
+        self.assertIn("weekly headroom 7.4: under an L item's 10 (floor, 0 of 5 read)", why)
+        self.assertTrue(lu.line(word, until, why, args).startswith("GO --max-size M --large-first until "))
+
+    def test_room_for_an_l_is_go_with_the_first_claim(self):
+        word, until, why, args = self.decide(week=15)
+        self.assertEqual((word, until, args), ("GO", None, "--large-first"))
+        self.assertTrue(lu.line(word, until, why, args).startswith("GO --large-first - session 25% used"))
+
+    def test_a_week_not_read_is_go_in_queue_order_as_before(self):
+        windows = lu.parse(report(), NOW)
+        del windows["week"]
+        word, until, why, args = self.decide(windows=windows)
+        self.assertEqual((word, until, args), ("GO", None, None))
+        self.assertTrue(lu.line(word, until, why, args).startswith("GO - session 25% used"))
+
+    def test_the_session_and_the_week_each_cap_and_the_later_release_wins(self):
+        # The session under M_LEFT and the week under an M: the pause is the
+        # later of the session's reset and the pace covering an M.
+        word, until, _, args = self.decide(session=40, week=33)
+        self.assertEqual((word, args), ("SMALL", "--max-size S"))
+        self.assertEqual(until, max(SESSION_RESET, WEEK_RESET - lu.WEEK + lu.WEEK * 0.28))
+        # The session alone holds it back: its reset.
+        self.assertEqual(self.decide(session=40, week=15)[1], SESSION_RESET)
+
+    def test_a_held_reserve_comes_off_the_headroom(self):
+        race = dt.datetime(2026, 10, 18, 19, 0, tzinfo=UTC)
+        # 0.27 * 90 + 10 = 34.3 with the reserve held: 30 used leaves 4.3.
+        self.assertEqual(self.decide(week=30, race=race)[3], "--max-size S")
+
+    def recorded(self, size, n, week=(40, 48), session=(10, 30), **kw):
+        return [end_line(f"AF-{i}", size, week=week, session=session, **kw) for i in range(n)]
+
+    def test_the_floor_stands_until_five_landed_items_are_read(self):
+        conf = dict(CONF)
+        self.assertEqual(lu.needs(self.recorded("M", 4), conf)["week"]["M"], (5.0, "floor, 4 of 5 read"))
+        self.assertEqual(lu.needs(self.recorded("M", 5), conf)["week"]["M"], (8.0, "median of 5"))
+        # Not landed, not Opus, crossing a weekly reset, or with no week
+        # logged: none of them is a reading.
+        for lines in (self.recorded("M", 5, word="LIMIT"), self.recorded("M", 5, implementer="sonnet"),
+                      self.recorded("M", 5, week=None)):
+            self.assertEqual(lu.needs(lines, conf)["week"]["M"][1], "floor, 0 of 5 read")
+        crossed = [line.replace("to 48% resets 2026-10-19T13:59", "to 8% resets 2026-10-26T13:59")
+                   for line in self.recorded("M", 5)]
+        self.assertEqual(lu.needs(crossed, conf)["week"]["M"][1], "floor, 0 of 5 read")
+
+    def test_a_recorded_cost_moves_the_gate(self):
+        # Five M items that landed at 8 points each: 7.4 points of headroom
+        # (30 used) is no longer enough for an M.
+        need = lu.needs(self.recorded("M", 5), CONF)
+        word, _, why, args = self.decide(week=30, need=need)
+        self.assertEqual((word, args), ("SMALL", "--max-size S"))
+        self.assertIn("weekly headroom 7.4: under an M item's 8 (median of 5)", why)
+
+    def test_an_l_needs_a_fresh_session_and_its_recorded_share_of_it(self):
+        # Until five L items are read, an L needs M_LEFT, as an M does.
+        self.assertEqual(lu.needs([], CONF)["l_left"], (70.0, "M_LEFT, 0 of 5 L items read"))
+        self.assertEqual(self.decide(session=20, need=PACE)[3], "--large-first")
+        # Five that cost 85 points of a window each: 80 left is an M's, not an L's.
+        need = lu.needs(self.recorded("L", 5, session=(5, 90)), CONF)
+        self.assertEqual(need["l_left"], (85.0, "L median of 5, M_LEFT at least"))
+        word, until, why, args = self.decide(session=20, need=need)
+        self.assertEqual((word, until, args), ("GO", SESSION_RESET, "--max-size M --large-first"))
+        self.assertIn("under 85 points left: no L item (L median of 5, M_LEFT at least)", why)
+        # A recorded share under M_LEFT does not lower the bar below it.
+        need = lu.needs(self.recorded("L", 5, session=(5, 45)), CONF)
+        self.assertEqual(need["l_left"][0], 70.0)
+
+    def test_check_takes_the_costs_from_the_log(self):
+        done = mock.Mock(stdout=json.dumps({"result": report(week=30), "is_error": False}), returncode=0)
+        with mock.patch.object(lu.subprocess, "run", return_value=done), \
+                mock.patch.object(lu, "next_race", return_value=None), \
+                mock.patch.object(lu, "read_log", return_value=self.recorded("M", 5)), \
+                mock.patch.dict(os.environ, {}, clear=True):
+            text, code = lu.check(NOW, "claude")
+        self.assertTrue(text.startswith("SMALL --max-size S until "), text)
+        self.assertIn("under an M item's 8 (median of 5)", text)
+        self.assertEqual(code, 3)
+
+    def test_the_floors_follow_the_setting(self):
+        self.assertEqual(lu.settings({"LOOP_USAGE_M_WEEK": "9"})["M_WEEK"], 9.0)
+        need = lu.needs([], dict(CONF, M_WEEK=2.0))
+        self.assertEqual(self.decide(week=33, need=need)[3], "--max-size M --large-first")
+
+
+class TheWeekInTheForkLines(unittest.TestCase):
+    """AF-162: each fork reading names the week too, and the end line its
+    weekly cost, so the gate above can be read from what items cost."""
+    LATER_WEEK = ("Current session: 12% used · resets Oct 20, 3:30am (Europe/London)\n"
+                  "Current week (all models): 6% used · resets Oct 26, 2:59pm (Europe/London)\n")
+
+    def fork(self, argv, reply, now=NOW, lines=()):
+        with mock.patch.object(lu.subprocess, "run", side_effect=[reply, mock.Mock(returncode=0)]), \
+                mock.patch.object(lu, "read_log", return_value=list(lines)), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            lu.fork_main(argv, now, "claude", "unused")
+        return "12:00:00 " + out.getvalue().strip()
+
+    def test_the_weekly_cost_within_one_week(self):
+        start = self.fork(["--start", "AF-1", "--size", "M", "--implementer", "opus"], usage_json(10, 40))
+        end = self.fork(["--end", "AF-1", "MERGED", "--size", "M", "--implementer", "opus"],
+                        usage_json(30, 46), lines=[start])
+        self.assertTrue(end.endswith("; week from 40% resets 2026-10-19T13:59+00:00 "
+                                     "to 46% resets 2026-10-19T13:59+00:00, cost 6 points"), end)
+        self.assertRegex(lu.costs([start, end], CONF), r"AF-1 +M +opus +MERGED +20 +week 6\n")
+        self.assertIn("M   opus    1 item: 1 exact, median 20, mean 20.0; 0 across a reset; 0 unreadable; "
+                      "week 1 exact, median 6", lu.costs([start, end], CONF))
+
+    def test_a_weekly_reset_mid_item_is_a_range(self):
+        start = self.fork(["--start", "AF-1", "--size", "M", "--implementer", "opus"], usage_json(10, 90))
+        later = dt.datetime(2026, 10, 19, 20, 0, tzinfo=UTC)
+        end = self.fork(["--end", "AF-1", "MERGED", "--size", "M", "--implementer", "opus"],
+                        usage_json(text=self.LATER_WEEK), now=later, lines=[start])
+        self.assertIn("; week from 90% resets 2026-10-19T13:59+00:00 to 6% resets 2026-10-26T14:59+00:00, "
+                      "cost 6-16 points", end)
+
+    def test_a_start_written_before_the_week_was_logged(self):
+        old = "12:00:00 AF-1 usage start: size S, implementer opus, session 25% resets 2026-10-14T21:59+00:00"
+        end = self.fork(["--end", "AF-1", "MERGED", "--size", "S", "--implementer", "opus"],
+                        usage_json(30), lines=[old])
+        self.assertIn("cost 5 points; week from start not logged to 15% resets 2026-10-19T13:59+00:00, "
+                      "cost unreadable", end)
+        self.assertFalse(end.endswith("points"), end)
+
+    def test_an_unread_week_is_unreadable_never_zero(self):
+        session_only = "Current session: 25% used · resets Oct 14, 10:59pm (Europe/London)\n"
+        start = self.fork(["--start", "AF-1", "--size", "S", "--implementer", "opus"],
+                          usage_json(text=session_only))
+        self.assertTrue(start.endswith("; week unreadable"), start)
+        end = self.fork(["--end", "AF-1", "MERGED", "--size", "S", "--implementer", "opus"],
+                        usage_json(30), lines=[start])
+        self.assertIn("; week from unreadable to 15% resets 2026-10-19T13:59+00:00, cost unreadable", end)
+
+
+class TheMix(unittest.TestCase):
+    """AF-162: how many items of each size landed in each week, so whether
+    the big items are getting done is read from the log."""
+
+    def test_landed_items_are_counted_by_week_and_size(self):
+        lines = [end_line("AF-1", "M"), end_line("AF-2", "S"),
+                 # the same week read a minute apart
+                 end_line("AF-3", "S", week_reset="2026-10-19T14:00+00:00"),
+                 end_line("AF-4", "L", week_reset="2026-10-26T13:59+00:00"),
+                 # landed in no week this can name, and one that did not land
+                 end_line("AF-5", "XS", week=None), end_line("AF-6", "M", word="SKIPPED"),
+                 # a group is one item, at its end line's size
+                 end_line("AF-7+AF-8", "S")]
+        out = lu.costs(lines, CONF)
+        self.assertIn("  week not logged                  XS 1  S 0  M 0  L 0  ? 0\n"
+                      "  week to 2026-10-19T13:59+00:00   XS 0  S 3  M 1  L 0  ? 0\n"
+                      "  week to 2026-10-26T13:59+00:00   XS 0  S 0  M 0  L 1  ? 0", out)
+
+    def test_the_report_names_what_the_check_takes_each_size_to_cost(self):
+        out = lu.costs([end_line(f"AF-{i}", "M") for i in range(5)], CONF)
+        self.assertIn("XS 2 (floor, 0 of 5 read), S 3 (floor, 0 of 5 read), M 8 (median of 5), "
+                      "L 10 (floor, 0 of 5 read); and an L, 70 points of the session (M_LEFT, 0 of 5 L items read)",
+                      out)
 
 
 if __name__ == "__main__":

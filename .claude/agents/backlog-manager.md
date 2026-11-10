@@ -39,9 +39,10 @@ your own skip list from it.
   session and does not exist in another account. `supervise.py` owns the
   restart.
 - **A usage check that says wait ends your session too.** Step 2's
-  `WAIT until <time> - <why>`, or a fork's `PAUSE:` after a `SMALL`, is
-  returned as `PAUSE: until <time> - <why>` as your first line, with the
-  session reset the `SMALL` line named for a fork's `PAUSE:`. Schedule
+  `WAIT until <time> - <why>`, or a fork's `PAUSE:` after a `SMALL` or a
+  `GO --max-size M`, is returned as `PAUSE: until <time> - <why>` as your
+  first line, with the time that line named after `until` for a fork's
+  `PAUSE:`. Schedule
   nothing; `supervise.py` sleeps until then and starts a fresh session
   `[D-55]`. An `ALARM` is not a wait unless step 2 says it is: it starts
   the fork for the alarm it names.

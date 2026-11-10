@@ -573,5 +573,66 @@ class SizeCap(unittest.TestCase):
         self.assertEqual(next_py.first_eligible(self.ranked, skip)["ident"], "TL-03")
 
 
+class FirstClaim(unittest.TestCase):
+    """`--large-first`, which the driver passes on a GO with the week read
+    (AF-162): the highest-ranked M or L in *Now*, then *Next*, ahead of any
+    XS or S above it; alarms, security alerts and LV items keep their place;
+    and with neither status holding an M or L, the queue's own order."""
+
+    def head(self, ranked, cap=None, large_first=True, skip=()):
+        skip = set(skip) | next_py.too_large(ranked, cap)
+        row = next_py.choose(ranked, skip, large_first)
+        return row and row["ident"]
+
+    def test_an_m_takes_a_fresh_session_ahead_of_a_higher_ranked_s(self):
+        ranked = [xs_row(1, "Now", size="S"), xs_row(2, "Now", size="XS"), xs_row(3, "Now", size="M")]
+        self.assertEqual(self.head(ranked), "TL-03")
+        # Without the flag, the queue's own order, as before.
+        self.assertEqual(self.head(ranked, large_first=False), "TL-01")
+        self.assertEqual(next_py.first_eligible(ranked, set())["ident"], "TL-01")
+
+    def test_an_m_in_next_comes_before_an_s_in_now_and_the_board_order_stands_between_ms(self):
+        ranked = [xs_row(1, "Now", size="S"), xs_row(2, "Next", size="L"), xs_row(3, "Next", size="M")]
+        self.assertEqual(self.head(ranked), "TL-02")
+
+    def test_someday_is_not_reached_for_an_m(self):
+        ranked = [xs_row(1, "Now", size="S"), xs_row(2, "Next", size="?"), xs_row(3, "Someday", size="M")]
+        self.assertEqual(self.head(ranked), "TL-01")
+
+    def test_alarms_security_alerts_and_lv_items_still_go_first(self):
+        m = xs_row(9, "Now", size="M")
+        for first in (xs_row(1, "Now", size="S", labels=("refresh-failing",)),
+                      xs_row(1, "Now", size="XS", labels=("source: security",)),
+                      dict(xs_row(1, "Now", size="S"), ident="LV-18", title="LV-18: a result")):
+            self.assertEqual(self.head([xs_row(5, "Now", size="S"), first, m]), first["ident"])
+        # An M a person ranked above one is still taken first: the board's order.
+        self.assertEqual(self.head([m, dict(xs_row(1, "Now", size="S"), ident="LV-18")]), "TL-09")
+
+    def test_what_is_not_eligible_is_passed_over(self):
+        ranked = [xs_row(1, "Now", size="S"), xs_row(2, "Now", size="M", labels=("decision",)),
+                  xs_row(3, "Now", size="M", waits=1), xs_row(4, "Now", size="M"), xs_row(5, "Now", size="L")]
+        self.assertEqual(self.head(ranked), "TL-04")
+        self.assertEqual(self.head(ranked, skip={"TL-04"}), "TL-05")
+
+    def test_a_cap_at_m_passes_over_an_l(self):
+        ranked = [xs_row(1, "Now", size="S"), xs_row(2, "Now", size="L"), xs_row(3, "Next", size="M")]
+        self.assertEqual(self.head(ranked, cap="M"), "TL-03")
+
+    def test_a_small_fill_comes_from_now_before_someday_and_someday_is_named(self):
+        ranked = [xs_row(1, "Now", size="M"), xs_row(2, "Next", size="L"), xs_row(3, "Next", size="S"),
+                  xs_row(4, "Someday", size="XS")]
+        skip = next_py.too_large(ranked, "S")
+        head = next_py.choose(ranked, skip)
+        self.assertEqual(head["ident"], "TL-03")
+        self.assertFalse(next_py.from_someday(head, ranked, skip, "S"))
+        # With nothing small in Now or Next free to take, Someday, said so.
+        ranked[2]["labels"].append("blocked")
+        head = next_py.choose(ranked, skip)
+        self.assertEqual(head["ident"], "TL-04")
+        self.assertTrue(next_py.from_someday(head, ranked, skip, "S"))
+        # Uncapped, reaching Someday is the queue's order and not a gap filled.
+        self.assertFalse(next_py.from_someday(head, ranked, set(), None))
+
+
 if __name__ == "__main__":
     unittest.main()

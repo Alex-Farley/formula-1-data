@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Which model implements the next item: the Sonnet trial's one rule (AF-144).
 
-    python3 .claude/skills/backlog-loop/next.py --implementer [--skip A,B] [--max-size S]
+    python3 .claude/skills/backlog-loop/next.py --implementer [--skip A,B] [--max-size S] [--large-first]
     git diff --name-only origin/main...HEAD | python3 .claude/skills/backlog-loop/implementer.py
 
 THE TRIAL

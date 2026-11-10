@@ -787,6 +787,58 @@ one only for it to pause.
   limit's too, which keeps such an account unread) stays unread. The `--start` and `--end` readings
   still write such a window as unreadable and never zero, since a cost is a
   difference of two readings and a guessed zero would be a wrong one.
+- **Pacing is by size, and the big items get the first claim (2026-11-10,
+  `AF-162`, #1291).** The maintainer, on 2026-11-09: "make sure that the
+  weekly pacing considers the medium and large items, to ensure they get
+  picked up alongside any smalls and extra-smalls filling the gaps." The
+  evidence that day was two failures. At 11:18 the week stood at 99 % with
+  the pace allowing 100; the check said `SMALL`, LV-17 and AF-161 (XS)
+  started at 11:19, and the weekly limit killed the manager at 11:27 —
+  headroom above nothing had been read as room for an item. That evening,
+  with three M items ranked in *Now* (WK-15, WK-17, WK-18), the `SMALL`
+  forks took CR-19, AF-05 and AF-06 from *Someday*, and nothing in the log
+  said where the gap had been filled from. Four rules follow.
+  1. **A size starts only when the week covers it.** The headroom is what
+     is left under the even pace and under the allowance, whichever is
+     less, and the reserve comes off it as before. The fork's `--start` and
+     `--end` lines now read the week as well as the session, and the end
+     line writes the item's cost in points of the week; a size costs the
+     median of its landed Opus items read within one week, once there are
+     five, and a floor until then: XS 2, S 3, M 5, L 10
+     (`LOOP_USAGE_<size>_WEEK`). The first three are the medians, rounded
+     up, of what the week moved between the `usage` lines either side of
+     each item that landed on Opus from 2026-10-29 to 2026-11-10 (3 XS, 12
+     S, 12 M; interactive use of the same week included); no L ran in that
+     time, and L is set at twice M. The largest size covered is the cap:
+     L, `GO`; M, `GO --max-size M`; XS or S, `SMALL` with that cap; none,
+     `WAIT` until the pace covers an XS. A `SMALL`, and a `GO` capped at M,
+     name when the next size up may start, which is what a fork's `PAUSE:`
+     waits until.
+  2. **The first claim on a full window.** A `GO` with the week read carries
+     `--large-first`, which the driver passes to `next.py --implementer`
+     and the fork to `next.py`: the head is the highest-ranked M or L in
+     *Now*, then *Next*, ahead of any XS or S above it. The walk stops at an
+     alarm, a security alert or an LV item, which keep their place, and with
+     no M or L in either status the queue's own order stands. An XS or S
+     can run in the end of any window; an M starts only with `M_LEFT`
+     points of one left. The session is read as before, so an unread one — a window that has just
+     rolled over, all of it left — carries the flag too.
+  3. **Gaps are filled from the top.** Under a cap the queue's order already
+     takes *Now* and *Next* before *Someday*; `next.py` now says
+     `From Someday:` when the head a cap leaves comes from there, and the
+     fork's *item chosen* line names it.
+  4. **An L needs a fresh window.** It needs its landed items' median share
+     of the 5-hour window, once five are read, and never less than
+     `M_LEFT`; until then `M_LEFT`, as an M. `CONTRIBUTING.md` already says
+     an L that cannot be split into pieces is a decision, not a task.
+  `loop_usage.py --costs` prints the weekly costs beside the session's, the
+  figure the check takes for each size and where it came from, and how many
+  items of each size landed in each weekly window, so whether the big items
+  are getting done is read from the log. None of this changes a check, a
+  review or a permission; a pause is always allowed, and the reserve and
+  alarm rules (`AF-130`, `AF-155`, `AF-158`) are as they were, except that
+  the time an `ALARM` names for ordinary work is now when the pace covers
+  an XS, not merely the pace.
 
 ### D-58 · An item is split at its pull request when the review leaves a fix — 2026-10-19 (`AF-122`, #1065), reverted 2026-10-26 (`AF-128`, #1122)
 The maintainer's usage report of 2026-10-18 put 43 % of usage at more than
