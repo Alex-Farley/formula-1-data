@@ -563,8 +563,8 @@ SOURCE_REGISTRY = [
      "Loaded by "
      "tools/wikimedia_images.py. NO IMAGE IS "
      "STORED - article_images holds a reference and its credit, and the "
-     "pixels are fetched from upload.wikimedia.org by whatever renders the "
-     "page.", "reference",
+     "pixels are fetched from Wikimedia's media servers (thumb.wikimedia.org "
+     "and upload.wikimedia.org) by whatever renders the page.", "reference",
      "Per file, and they differ: sixteen distinct licence strings across the "
      "{{fig:article_route_images}} car-article rows alone - CC BY-SA at "
      "four versions, CC BY at four more, CC0, public domain and national "
@@ -883,7 +883,11 @@ SOURCE_LICENCE = {
     # Sixteen distinct file licences, all free, all requiring attribution.
     # share_alike is set because most of them are a CC BY-SA version and the
     # conservative reading is the one to record here; the per-file licence on
-    # the row is what actually governs each image.
+    # the row is what actually governs each image. The domains resolve a
+    # row's `source`, and article_images has no source column: its
+    # thumb_url names thumb.wikimedia.org or upload.wikimedia.org, but no
+    # row anywhere cites either as a source, so thumb.wikimedia.org is not
+    # added here (PM-53).
     15: ("yes", 1, 1, "commons.wikimedia.org,upload.wikimedia.org"),
 
     # ODbL: share-alike AND a database right, confined to circuit_geometry.
