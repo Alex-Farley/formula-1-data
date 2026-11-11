@@ -210,15 +210,17 @@ WHAT IT DECIDES
 
     Saving the week for it (AF-164): when the headroom covers less than an
     L, `next.py --large-waiting` is asked which M or L that first claim
-    would go to, and when the headroom does not cover that item's own size
+    would go to - the queue's own next item when *Now* and *Next* hold
+    nothing eligible at all, as `--large-first` takes it then - and when the headroom does not cover that item's own size
     the line is WAIT until the pace does, not SMALL or a GO capped below
     it. Before, the gap was filled with XS and S items, each of which took
     the points the pace had just added, so on 2026-11-10 WK-15, WK-17 and
     WK-18 (all M) sat at the head of *Now* while an S was taken from
     *Someday*. Agreed with the maintainer that day, for L as for M. Only
-    the week is saved: when the 5-hour window is what keeps the item out,
-    its end is spent on small items as before, since it cannot be carried
-    over. A lookup that fails finds none, and the gap is filled as before.
+    the week is saved: when the week covers the item and the 5-hour window
+    alone keeps it out, that window's end is spent on small items as
+    before, since it cannot be carried over; when both keep it out, the
+    week is saved all the same. A lookup that fails finds none, and the gap is filled as before.
 
     The reserve is spent on a refresh alarm and on nothing else (AF-130).
     While it is held and the week says wait, but less than 100 % of the week
@@ -303,8 +305,9 @@ ALARM_LOOK_FLOOR = 15
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
 # What `next.py --alarm` prints: an id, and an open pull request's number.
 ALARM_TARGET = re.compile(r"(?:[A-Z]{2}-\d+|#\d+)(?: #\d+)?")
-# What `next.py --large-waiting` prints: an id and its size.
-LARGE_TARGET = re.compile(r"([A-Z]{2,4}-\d+) ([ML])")
+# What `next.py --large-waiting` prints: an id, or `#<n>` for an issue
+# whose title has none, and its size.
+LARGE_TARGET = re.compile(r"([A-Z]{2}-[0-9\u00d8]+|#\d+) ([ML])")
 
 
 def known_zone(name):

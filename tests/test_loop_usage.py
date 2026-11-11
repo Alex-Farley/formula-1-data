@@ -941,9 +941,16 @@ class SavingTheWeek(unittest.TestCase):
         self.assertEqual(calls, [])
 
     def test_the_session_holding_an_m_back_is_not_saved_for(self):
-        # 40 left of the 5-hour window: an S only, whatever the week says;
-        # the week here covers an L, so its end goes on small items as before.
-        self.assertEqual(self.decide(session=60, week=15, large=("WK-15", "M"))[0], "SMALL")
+        # 40 left of the 5-hour window: an S only. At 30 used the week covers
+        # an M, so with the M named it is the session alone that keeps it
+        # out, and its end goes on small items as before.
+        calls = []
+        word, _, why, args = self.decide(session=60, week=30, large=("WK-15", "M"), calls=calls)
+        self.assertEqual((word, args), ("SMALL", "--max-size S"))
+        self.assertEqual(calls, [1])
+        self.assertFalse(any(w.startswith("saving the week") for w in why))
+        # At 33 the week keeps the M out too, and is saved for it.
+        self.assertEqual(self.decide(session=60, week=33, large=("WK-15", "M"))[0], "WAIT")
 
     def test_the_lookup_fails_towards_filling_the_gap(self):
         with mock.patch.object(lu.subprocess, "run", side_effect=OSError("no python")):
@@ -952,8 +959,12 @@ class SavingTheWeek(unittest.TestCase):
             done = mock.Mock(returncode=code, stdout=out)
             with mock.patch.object(lu.subprocess, "run", return_value=done):
                 self.assertEqual(lu.large_waiting(), (None, None))
-        with mock.patch.object(lu.subprocess, "run", return_value=mock.Mock(returncode=0, stdout="WK-15 M\n")):
-            self.assertEqual(lu.large_waiting(), ("WK-15", "M"))
+        # next.py's own idents: an id, one with its Ø, and `#<n>` for an
+        # issue whose title carries none.
+        for out, want in (("WK-15 M\n", ("WK-15", "M")), ("TL-\u00d81 L", ("TL-\u00d81", "L")),
+                          ("#1234 M\n", ("#1234", "M"))):
+            with mock.patch.object(lu.subprocess, "run", return_value=mock.Mock(returncode=0, stdout=out)):
+                self.assertEqual(lu.large_waiting(), want)
 
 
 class TheWeekInTheForkLines(unittest.TestCase):

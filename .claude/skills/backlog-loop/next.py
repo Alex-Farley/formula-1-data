@@ -132,8 +132,8 @@ which is when next.py would choose it anyway `AF-130` `[D-55]`.
 `--large-waiting` is for the usage check alone (loop_usage.py), which asks
 it when the week's headroom covers less than an L. It prints `<ID> <size>`
 for the item `--large-first` would take when that item is an M or L, and
-exits 1 when it is not - an XS or S, an alarm, a security alert or an LV
-item, or nothing at all. The check then saves the week's headroom for it
+exits 1 when it is not - an XS, S or unsized item, an alarm, a security
+alert or an LV item, or nothing at all. The check then saves the week's headroom for it
 rather than spending it on smaller items, which until AF-164 could keep an
 M or L waiting for good: every S that filled the gap took the points the
 pace had just added (agreed with the maintainer on 2026-11-10). It takes
