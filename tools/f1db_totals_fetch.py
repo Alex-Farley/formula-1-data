@@ -37,9 +37,9 @@ What pins it
   the version stamped in harvest/f1db_drivers.txt. refresh.yml runs this
   straight after tools/f1db_fetch.py, so a refresh that moves the harvest
   moves the totals to the same release, and verify.py fails when the two
-  differ (CR-69, #785): a driver still racing is held to the total F1DB
-  published with the results the harvest carries, which a total pinned to
-  an older release cannot be.
+  differ (CR-69, #785; CR-117, #1279): a driver or constructor still racing
+  is held to the total F1DB published with the results the harvest carries,
+  which a total pinned to an older release cannot be.
 - The tag must resolve to a commit, and that commit is stamped in the header.
 - The zip must match the digest the release's own checksums_sha256.txt gives.
 - The deed at that commit must be CC BY 4.0, read by the same licence_check()
@@ -161,7 +161,7 @@ def main():
                     member=CONS_MEMBER)
     stale = [name for name, good in ((OUT, ok), (CONS_OUT, cons_ok)) if not good]
     if args.check and stale:
-        sys.exit(f"harvest/{' and harvest/'.join(stale)} out of date with F1DB {tag}")
+        sys.exit(f"out of date with F1DB {tag}: harvest/{' and harvest/'.join(stale)}")
 
 
 if __name__ == "__main__":

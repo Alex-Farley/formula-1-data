@@ -1059,7 +1059,7 @@ def win_tallies_stored_figures_vs_figures_derived_from_r():
     by_season = {t for spans in harvest.F1DB_CONSTRUCTORS_BY_YEAR.values()
                  for _lo, _hi, t in spans}
     racing = con.execute("""SELECT id, name, wins FROM constructors
-        WHERE last_entry IS NULL ORDER BY id""").fetchall()
+        WHERE last_entry IS NULL OR active = 1 ORDER BY id""").fetchall()
     bad = []
     for r in racing:
         if r["id"] in by_season:

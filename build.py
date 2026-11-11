@@ -584,15 +584,15 @@ def _stage_04_constructors(b):
     for r in T.CONSTRUCTORS:
         (cid, name, full, country, base, first, last, wins, ct, dt, tyears,
          chain, active, notes, conf) = r
-        if last is None and wins is not None:
+        if (last is None or active) and wins is not None:
             # A typed total for a team still racing is a copy of the race
             # records that goes stale with its next win, and verify.py's win
             # reconciliation then stops the refresh: McLaren's 205 did at
             # Norris's win of 2026-11-09 (CR-117, #1279). Stage 30 derives it.
             raise SystemExit(
                 f"data/teams.py types {wins} wins for {cid}, which is still "
-                f"racing (last_entry None). Leave it None: the build derives "
-                f"it from the race records.")
+                f"racing (active, or last_entry None). Leave it None: the "
+                f"build derives it from the race records.")
         cur.execute("""INSERT INTO constructors (id, name, full_name, country, base,
             first_entry, last_entry, wins, constructors_titles, drivers_titles, title_years,
             lineage_chain, active, notes, confidence, source)

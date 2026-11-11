@@ -7,11 +7,11 @@ CONSTRUCTORS tuple order:
  constructors_titles, drivers_titles, title_years, lineage_chain,
  active, notes, confidence
 
-wins is None for every constructor still racing (last_entry None), and
-build.py refuses a typed one: it derives the figure from the race records,
-and verify.py holds it to F1DB's published total. A typed total for a team
-still racing is a copy of the records that goes stale with its next win -
-McLaren's 205 stopped the refresh of 2026-11-09 (CR-117, #1279). A
+wins is None for every constructor still racing (active, or last_entry
+None), and build.py refuses a typed one: it derives the figure from the race
+records, and verify.py holds it to F1DB's published total. A typed total for
+a team still racing is a copy of the records that goes stale with its next
+win - McLaren's 205 stopped the refresh of 2026-11-09 (CR-117, #1279). A
 constructor that has stopped racing keeps its typed figure, which verify.py
 holds to the records.
 """
@@ -407,8 +407,10 @@ ENGINE_ERAS = [
 #
 # wins is left NULL for every one of them, which build.py reads as "derive
 # it from the race records". None of the eighty-five won a championship
-# race; if that is ever wrong, verify.py's constructor win reconciliation
-# says so.
+# race, and F1DB's published totals (harvest/f1db_constructor_totals.txt)
+# give each of them 0. verify.py holds a derived total to those only for a
+# constructor still racing; for these, the reconciliation compares the
+# derived count with itself, so it would not say so if this were wrong.
 # ---------------------------------------------------------------------
 F1DB_CONSTRUCTORS = [
     "alta",                          # 1950-1952     5   Alta
