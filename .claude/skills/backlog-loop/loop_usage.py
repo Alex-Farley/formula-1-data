@@ -208,6 +208,22 @@ WHAT IT DECIDES
     over them for an M. A GO with the session unread carries it too, as a
     window that has just rolled over is (D-55) all left.
 
+    Saving the week for it (AF-164): when the headroom covers less than an
+    L, `next.py --large-waiting` is asked which M or L that first claim
+    would go to - the queue's own next item when *Now* and *Next* hold
+    nothing eligible at all, as `--large-first` takes it then - and when
+    the headroom does not cover that item's own size the line is WAIT
+    until the pace does, not SMALL or a GO capped below it. Before, the
+    gap was filled with XS and S items, each of which took the points the
+    pace had just added, so on 2026-11-10 WK-15, WK-17 and WK-18 (all M)
+    sat at the head of *Now* while an S was taken from *Someday*. Agreed
+    with the maintainer that day, for L as for M. Only
+    the week is saved: when the week covers the item and the 5-hour window
+    alone keeps it out, that window's end is spent on small items as
+    before, since it cannot be carried over; when both keep it out, the
+    week is saved all the same. A lookup that fails finds none, and the
+    gap is filled as before.
+
     The reserve is spent on a refresh alarm and on nothing else (AF-130).
     While it is held and the week says wait, but less than 100 % of the week
     is used and the 5-hour window allows an item, `next.py --alarm` is asked
@@ -291,6 +307,9 @@ ALARM_LOOK_FLOOR = 15
 EXIT = {"GO": 0, "UNKNOWN": 0, "SMALL": 3, "ALARM": 4, "WAIT": 5}
 # What `next.py --alarm` prints: an id, and an open pull request's number.
 ALARM_TARGET = re.compile(r"(?:[A-Z]{2}-\d+|#\d+)(?: #\d+)?")
+# What `next.py --large-waiting` prints: an id, or `#<n>` for an issue
+# whose title has none, and its size.
+LARGE_TARGET = re.compile(r"([A-Z]{2}-[0-9\u00d8]+|#\d+) ([ML])")
 
 
 def known_zone(name):
@@ -495,6 +514,20 @@ def reserve_alarm(timeout=120):
     return target, None
 
 
+def large_waiting(timeout=120):
+    """(id, size): the M or L `next.py --large-waiting` names the week is
+    saved for, or (None, None). Never raises; a lookup that fails is none
+    found, and the gap is filled as before AF-164."""
+    try:
+        run = subprocess.run([sys.executable, os.path.join(HERE, "next.py"), "--large-waiting"],
+                             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                             timeout=timeout, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None, None
+    found = LARGE_TARGET.fullmatch((run.stdout or "").strip()) if run.returncode == 0 else None
+    return (found.group(1), found.group(2)) if found else (None, None)
+
+
 def settings(env=None):
     env = os.environ if env is None else env
     out = {}
@@ -544,12 +577,14 @@ def needs(lines, conf=None):
     return {"week": week, "l_left": l_left}
 
 
-def decide(windows, now, race=None, conf=None, alarm=None, name=None, need=None):
+def decide(windows, now, race=None, conf=None, alarm=None, name=None, need=None, large=None):
     """(word, until, reasons, args). `windows` is parse()'s answer; `race`
     is next_race()'s start, or its None or False, and `name` its name, for
     the line alone; `alarm` is reserve_alarm or a stand-in, called only
     when the reserve could be spent, and None to look for no alarm at all;
-    `need` is needs()'s answer, and the floors when it is None.
+    `need` is needs()'s answer, and the floors when it is None; `large` is
+    large_waiting or a stand-in, called only when the week covers less than
+    an L, and None to save the week for nothing (AF-164).
     `until` is set for WAIT (when to look again), for SMALL and a GO capped
     at M (when the next size up may start, the pause if nothing within the
     cap is open) and for ALARM (when ordinary work may start again). `args`
@@ -647,6 +682,16 @@ def decide(windows, now, race=None, conf=None, alarm=None, name=None, need=None)
                 bigger = GATE[GATE.index(w_cap) + 1]
                 why.append(f"weekly headroom {limit - used:.1f}: under an {bigger} item's "
                            f"{cost[bigger]:g} ({need['week'][bigger][1]})")
+                # An M or L with the first claim keeps the headroom: a
+                # smaller item would spend the points the pace adds for it
+                # (AF-164). The session holding it back is not saved for.
+                target, size = large() if large is not None else (None, None)
+                if target and GATE.index(size) > GATE.index(w_cap):
+                    back = catch(cost[size])
+                    why.append(f"saving the week for {target} ({size}, {cost[size]:g} points): "
+                               "nothing smaller starts until the pace covers it")
+                    until = max(until, back) if word == "WAIT" else back
+                    word = "WAIT"
     else:
         why.append("weekly window not readable")
 
@@ -699,7 +744,7 @@ def check(now=None, claude=None):
     start, name = race if isinstance(race, tuple) else (race, None)
     conf = settings()
     word, until, why, args = decide(windows, now, start, conf, reserve_alarm, name,
-                                    needs(read_log(log_path()), conf))
+                                    needs(read_log(log_path()), conf), large_waiting)
     return line(word, until, why, args), EXIT[word]
 
 
