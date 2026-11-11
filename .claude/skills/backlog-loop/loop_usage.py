@@ -211,16 +211,18 @@ WHAT IT DECIDES
     Saving the week for it (AF-164): when the headroom covers less than an
     L, `next.py --large-waiting` is asked which M or L that first claim
     would go to - the queue's own next item when *Now* and *Next* hold
-    nothing eligible at all, as `--large-first` takes it then - and when the headroom does not cover that item's own size
-    the line is WAIT until the pace does, not SMALL or a GO capped below
-    it. Before, the gap was filled with XS and S items, each of which took
-    the points the pace had just added, so on 2026-11-10 WK-15, WK-17 and
-    WK-18 (all M) sat at the head of *Now* while an S was taken from
-    *Someday*. Agreed with the maintainer that day, for L as for M. Only
+    nothing eligible at all, as `--large-first` takes it then - and when
+    the headroom does not cover that item's own size the line is WAIT
+    until the pace does, not SMALL or a GO capped below it. Before, the
+    gap was filled with XS and S items, each of which took the points the
+    pace had just added, so on 2026-11-10 WK-15, WK-17 and WK-18 (all M)
+    sat at the head of *Now* while an S was taken from *Someday*. Agreed
+    with the maintainer that day, for L as for M. Only
     the week is saved: when the week covers the item and the 5-hour window
     alone keeps it out, that window's end is spent on small items as
     before, since it cannot be carried over; when both keep it out, the
-    week is saved all the same. A lookup that fails finds none, and the gap is filled as before.
+    week is saved all the same. A lookup that fails finds none, and the
+    gap is filled as before.
 
     The reserve is spent on a refresh alarm and on nothing else (AF-130).
     While it is held and the week says wait, but less than 100 % of the week
