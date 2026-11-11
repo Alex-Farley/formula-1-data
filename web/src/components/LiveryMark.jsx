@@ -1,7 +1,8 @@
 import { inColourEra } from '../lib/liveries.js'
 
 /**
- * The 7 px identity bar beside a constructor's or driver's name in a table
+ * The 7 px identity bar beside a constructor's or driver's name, in a table
+ * or, with `prose`, in a sentence
  * (AF-04, widened by AF-17 so its bands are bands). `colour` is what
  * lib/liveries.js colourForEntry() returns: the team's livery from 2010, its
  * national racing colour before 1968, or null. The element takes
@@ -21,8 +22,19 @@ import { inColourEra } from '../lib/liveries.js'
  * database's rule for a missing figure, applied to a mark. In a season no
  * row of which can carry a colour - 1968 to 2009, the declared gap - there
  * is no spacer either: `year` says which, and the column keeps its indent.
+ *
+ * `prose` is for a mark that follows text in a sentence rather than opening
+ * a cell (VD-45): it adds `.livery-prose`, which spaces the mark so that it
+ * sits nearer the name after it than the word before it. A table column
+ * never passes it, and the sentence that does passes no `year`, so it never
+ * draws the spacer. Each element's class is written out whole, because
+ * test/conventions.mjs finds the marks by it (AF-59).
  */
-export default function LiveryMark({ colour, title, year }) {
+export default function LiveryMark({ colour, title, year, prose = false }) {
   if (!colour) return inColourEra(year) ? <i className="livery livery-none" aria-hidden="true" /> : null
-  return <i className="livery" style={colour.mark} title={title ?? colour.title} aria-hidden="true" />
+  return prose ? (
+    <i className="livery livery-prose" style={colour.mark} title={title ?? colour.title} aria-hidden="true" />
+  ) : (
+    <i className="livery" style={colour.mark} title={title ?? colour.title} aria-hidden="true" />
+  )
 }
