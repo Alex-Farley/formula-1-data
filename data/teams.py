@@ -7,31 +7,35 @@ CONSTRUCTORS tuple order:
  constructors_titles, drivers_titles, title_years, lineage_chain,
  active, notes, confidence
 
-Win totals for long-running constructors are the figure most often
-published officially and are marked 'medium' where the exact running
-total moves with the current season.
+wins is None for every constructor still racing (active, or last_entry
+None), and build.py refuses a typed one: it derives the figure from the race
+records, and verify.py holds it to F1DB's published total. A typed total for
+a team still racing is a copy of the records that goes stale with its next
+win - McLaren's 205 stopped the refresh of 2026-11-09 (CR-117, #1279). A
+constructor that has stopped racing keeps its typed figure, which verify.py
+holds to the records.
 """
 
 CONSTRUCTORS = [
     # ------------------------------------------------ current entrants
     ("ferrari", "Ferrari", "Scuderia Ferrari HP", "Italy", "Maranello, Italy", 1950, None,
-     250, 16, 15, "1961,1964,1975,1976,1977,1979,1982,1983,1999,2000,2001,2002,2003,2004,2007,2008",
+     None, 16, 15, "1961,1964,1975,1976,1977,1979,1982,1983,1999,2000,2001,2002,2003,2004,2007,2008",
      "maranello", 1,
      "The only constructor to have contested every season since 1950. Fifteen drivers' titles and sixteen constructors' titles, the last in 2008. Won its first championship Grand Prix at Silverstone in 1951 with Gonzalez.", "medium"),
     ("mercedes", "Mercedes", "Mercedes-AMG PETRONAS Formula One Team", "Germany", "Brackley, United Kingdom", 1954, None,
      None, 9, 10, "2014,2015,2016,2017,2018,2019,2020,2021,2026", "brackley", 1,
      "Two spells: a works team in 1954-55 that won two titles with Fangio and withdrew after Le Mans, and the modern operation that took over Brawn GP in 2010 and won eight consecutive constructors' championships from 2014. Registered first entry 1954; the current entity traces its entry chain through BAR and Honda.", "medium"),
     ("mclaren", "McLaren", "McLaren Mastercard F1 Team", "United Kingdom", "Woking, United Kingdom", 1966, None,
-     206, 10, 14, "1974,1984,1985,1988,1989,1990,1991,1998,2024,2025", "woking", 1,
+     None, 10, 14, "1974,1984,1985,1988,1989,1990,1991,1998,2024,2025", "woking", 1,
      "Founded by Bruce McLaren in 1963, first entry 1966. Second only to Ferrari in wins and titles. The MP4/4 of 1988 won 15 of 16 races. Returned to the top in 2024-25 after a 26-year constructors' drought.", "medium"),
     ("red-bull", "Red Bull Racing", "Oracle Red Bull Racing", "Austria", "Milton Keynes, United Kingdom", 2005, None,
      None, 6, 8, "2010,2011,2012,2013,2022,2023", "milton-keynes", 1,
      "Bought the Jaguar entry for a nominal sum in late 2004. Six constructors' titles and eight drivers' titles in twenty seasons. Its 2023 season — 21 wins from 22 — is the most dominant in the sport's history.", "medium"),
     ("williams", "Williams", "Atlassian Williams F1 Team", "United Kingdom", "Grove, United Kingdom", 1977, None,
-     114, 9, 7, "1980,1981,1986,1987,1992,1993,1994,1996,1997", "grove", 1,
+     None, 9, 7, "1980,1981,1986,1987,1992,1993,1994,1996,1997", "grove", 1,
      "Frank Williams's second and lasting venture. Nine constructors' titles, all between 1980 and 1997. Sold to Dorilton Capital in 2020, ending family control.", "high"),
     ("alpine", "Alpine", "BWT Alpine Formula One Team", "France", "Enstone, United Kingdom", 2021, None,
-     1, 0, 0, None, "enstone", 1,
+     None, 0, 0, None, "enstone", 1,
      "The Renault works entry rebadged for 2021. One win, at the 2021 Hungarian GP with Ocon. The Enstone factory it occupies has won two constructors' titles under earlier names.", "high"),
     # first_entry is 1959, not 2021: Aston Martin entered the DBR4 and DBR5
     # as a constructor in 1959-60. Two spells under one marque is how this
@@ -40,19 +44,19 @@ CONSTRUCTORS = [
     # 1959-60 entries against a constructor whose register life began in
     # 2021, which verify.py now refuses.
     ("aston-martin", "Aston Martin", "Aston Martin Aramco Formula One Team", "United Kingdom", "Silverstone, United Kingdom", 1959, None,
-     0, 0, 0, None, "silverstone", 1,
+     None, 0, 0, None, "silverstone", 1,
      "Two spells. Aston Martin entered the front-engined DBR4 and DBR5 in 1959-60, by which time the rear-engined Coopers had made them obsolete; the marque scored no points. The current entity is unrelated, dating from Lawrence Stroll's 2021 rebrand of Racing Point. Adrian Newey joined as team principal for 2026.", "medium"),
     ("haas", "Haas F1 Team", "TGR Haas F1 Team", "United States", "Kannapolis, United States of America", 2016, None,
-     0, 0, 0, None, "kannapolis", 1,
+     None, 0, 0, None, "kannapolis", 1,
      "The first American constructor since 1986, and the first to run a customer-parts model built around Ferrari supply and Dallara manufacture.", "high"),
     ("racing-bulls", "Racing Bulls", "Visa Cash App Racing Bulls Formula One Team", "Italy", "Faenza, Italy", 1985, None,
-     2, 0, 0, None, "faenza", 1,
+     None, 0, 0, None, "faenza", 1,
      "The Faenza entry, continuously in the championship since Minardi's 1985 debut. Two wins, both giant-killings: Vettel at Monza in 2008 and Gasly at Monza in 2020.", "high"),
     ("audi", "Audi", "Audi Revolut F1 Team", "Germany", "Hinwil, Switzerland", 2026, None,
-     0, 0, 0, None, "hinwil", 1,
+     None, 0, 0, None, "hinwil", 1,
      "The Hinwil operation founded by Peter Sauber, taken over completely by Audi for the 2026 regulations. Audi builds its own power unit at Neuburg an der Donau — the first new works manufacturer entry since Honda's return.", "verified"),
     ("cadillac", "Cadillac", "Cadillac Formula 1 Team", "United States", "Silverstone, United Kingdom", 2026, None,
-     0, 0, 0, None, "cadillac", 1,
+     None, 0, 0, None, "cadillac", 1,
      "The eleventh team, admitted for 2026 after a protracted approval process originally begun as the Andretti-Cadillac bid. Runs Ferrari power units pending its own General Motors unit.", "verified"),
 
     # ------------------------------------------- historic championship winners
@@ -403,8 +407,11 @@ ENGINE_ERAS = [
 #
 # wins is left NULL for every one of them, which build.py reads as "derive
 # it from the race records". None of the eighty-five won a championship
-# race; if that is ever wrong, verify.py's constructor win reconciliation
-# says so.
+# race, and F1DB's published totals (harvest/f1db_constructor_totals.txt)
+# give each of them 0. verify.py holds a derived total to those only for a
+# constructor still racing; for those of these that have stopped, the
+# reconciliation compares the derived count with itself, so it would not
+# say so if this were wrong.
 # ---------------------------------------------------------------------
 F1DB_CONSTRUCTORS = [
     "alta",                          # 1950-1952     5   Alta

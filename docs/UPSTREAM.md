@@ -57,18 +57,22 @@ and never the network. **The repository holds a snapshot**, and the snapshot
 is what `build.py` turns into `f1.db`; the F1DB version in play is stated in
 `README.md` and in the header of every generated harvest file.
 
-One file arrives by a second route. F1DB's career totals per driver are
-computed by its own build and published only in its release artefacts, not
-in the source tree the clone reads, so `tools/f1db_totals_fetch.py` reads
-`f1db-drivers.csv` out of a release's `f1db-csv.zip` into
-`harvest/f1db_driver_totals.txt` - checked against the release's own
-checksum, and against the deed at the tagged commit. It is pinned to the
-release the harvest was read from, and every refresh fetches it again
-straight after the harvest, so the two always name the same release -
-`verify.py` fails when they do not. The totals are the named source the
-career figures typed into `data/drivers.py` are checked against (PM-57,
-#624), and the figure a driver still racing is held to (CR-69, #785): a
-total from an older release goes stale with that driver's next result.
+Two files arrive by a second route. F1DB's career totals per driver and per
+constructor are computed by its own build and published only in its release
+artefacts, not in the source tree the clone reads, so
+`tools/f1db_totals_fetch.py` reads `f1db-drivers.csv` and
+`f1db-constructors.csv` out of a release's `f1db-csv.zip` into
+`harvest/f1db_driver_totals.txt` and `harvest/f1db_constructor_totals.txt` -
+checked against the release's own checksum, and against the deed at the
+tagged commit. They are pinned to the release the harvest was read from, and
+every refresh fetches them again straight after the harvest, so they always
+name the same release - `verify.py` fails when they do not. The driver totals
+are the named source the career figures typed into `data/drivers.py` are
+checked against (PM-57, #624), and the figure a driver still racing is held
+to (CR-69, #785): a total from an older release goes stale with that driver's
+next result. The constructor totals are the figure a constructor still racing
+is held to (CR-117, #1279): its win total is derived from the race records,
+because McLaren's typed one stopped the refresh at its next win.
 
 `.github/workflows/refresh.yml` runs the fetch daily at 06:00 UTC, and every
 three hours from a race weekend's first session until 72 hours after it. If the

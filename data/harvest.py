@@ -1848,6 +1848,7 @@ STORED_TOTALS_DECLARED = [
 CHASSIS_FILE = os.path.join(HERE, "..", "harvest", "chassis.txt")
 F1DB_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "f1db_drivers.txt")
 F1DB_TOTALS_FILE = os.path.join(HERE, "..", "harvest", "f1db_driver_totals.txt")
+F1DB_CONS_TOTALS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructor_totals.txt")
 F1DB_COUNTRIES_FILE = os.path.join(HERE, "..", "harvest", "f1db_countries.txt")
 ENTRANT_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "entrant_drivers.txt")
 ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
@@ -2279,13 +2280,26 @@ def load_f1db_driver_totals():
     returned because the totals come from a release artefact, not the clone
     the rest of the F1DB files are read from; the refresh fetches both for the
     same release, and verify.py fails when they differ (CR-69)."""
-    with open(os.path.abspath(F1DB_TOTALS_FILE), encoding="utf-8") as f:
+    return _totals_release(F1DB_TOTALS_FILE), {
+        r[0]: tuple(int(v) for v in r[1:]) for r in _read_pipe(F1DB_TOTALS_FILE, 4)}
+
+
+def load_f1db_constructor_totals():
+    """(release, {f1db_constructor_id: wins}): F1DB's own published race wins
+    per constructor, read by tools/f1db_totals_fetch.py from the same release
+    artefact as the driver totals. The ids are F1DB's; constructor_for_f1db()
+    maps them. verify.py holds a constructor still racing to them (CR-117)."""
+    return _totals_release(F1DB_CONS_TOTALS_FILE), {
+        r[0]: int(r[1]) for r in _read_pipe(F1DB_CONS_TOTALS_FILE, 2)}
+
+
+def _totals_release(path):
+    with open(os.path.abspath(path), encoding="utf-8") as f:
         m = re.search(r"^# Source: F1DB (\S+) \(", f.read(), re.M)
     if not m:
-        raise SystemExit("f1db_driver_totals.txt names no F1DB release. Rerun "
-                         "tools/f1db_totals_fetch.py.")
-    return m.group(1), {r[0]: tuple(int(v) for v in r[1:])
-                        for r in _read_pipe(F1DB_TOTALS_FILE, 4)}
+        raise SystemExit(f"{os.path.basename(path)} names no F1DB release. "
+                         f"Rerun tools/f1db_totals_fetch.py.")
+    return m.group(1)
 
 
 def f1db_harvest_release():

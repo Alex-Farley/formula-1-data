@@ -584,6 +584,15 @@ def _stage_04_constructors(b):
     for r in T.CONSTRUCTORS:
         (cid, name, full, country, base, first, last, wins, ct, dt, tyears,
          chain, active, notes, conf) = r
+        if (last is None or active) and wins is not None:
+            # A typed total for a team still racing is a copy of the race
+            # records that goes stale with its next win, and verify.py's win
+            # reconciliation then stops the refresh: McLaren's 205 did at
+            # Norris's win of 2026-11-09 (CR-117, #1279). Stage 30 derives it.
+            raise SystemExit(
+                f"data/teams.py types {wins} wins for {cid}, which is still "
+                f"racing (active, or last_entry None). Leave it None: the "
+                f"build derives it from the race records.")
         cur.execute("""INSERT INTO constructors (id, name, full_name, country, base,
             first_entry, last_entry, wins, constructors_titles, drivers_titles, title_years,
             lineage_chain, active, notes, confidence, source)
@@ -3651,10 +3660,11 @@ def _stage_30_derived_win_totals(b):
     cur = b.cur
 
     # --- derived win totals
-    # Fill constructor win counts that were previously unknown, and correct
-    # rows where the stored figure counted something other than constructor
-    # wins. Every other stored figure was reconciled against the derived
-    # count during construction; see verify.py.
+    # Fill constructor win counts that are not typed - every constructor
+    # still racing among them, since stage 4 refuses a typed one (CR-117) -
+    # and correct rows where the stored figure counted something other than
+    # constructor wins. Every other stored figure was reconciled against the
+    # derived count during construction; see verify.py.
     cur.execute("""UPDATE constructors SET wins = (
             SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
               WHERE e.constructor_id = constructors.id AND e.finish_position = 1)
@@ -3663,13 +3673,16 @@ def _stage_30_derived_win_totals(b):
         notes = notes || ' Its Grand Prix victories are credited to the Cooper and Lotus '
                       || 'chassis it entered, so it holds no constructor win total of its own.'
         WHERE id = 'rob-walker'""")
-    for cid, msg in (
-        ("racing-bulls", " The Faenza team's two wins are credited to the constructor names "
-                         "it raced under at the time, Toro Rosso (2008) and AlphaTauri (2020)."),
-        ("sauber", " Its single victory is credited to BMW Sauber, the constructor name in "
-                   "use in 2008.")):
-        cur.execute("UPDATE constructors SET wins = 0, notes = notes || ? WHERE id = ?",
-                    (msg, cid))
+    # Racing Bulls is still racing, so its figure is the derived one, which
+    # already leaves out the two wins the note names; only the note is added.
+    # Sauber has stopped, so its typed figure, which counted its one, is
+    # corrected.
+    cur.execute("UPDATE constructors SET notes = notes || ? WHERE id = 'racing-bulls'",
+                (" The Faenza team's two wins are credited to the constructor names "
+                 "it raced under at the time, Toro Rosso (2008) and AlphaTauri (2020).",))
+    cur.execute("UPDATE constructors SET wins = 0, notes = notes || ? WHERE id = 'sauber'",
+                (" Its single victory is credited to BMW Sauber, the constructor name in "
+                 "use in 2008.",))
 
     cur.execute("""UPDATE drivers SET wins = (
             SELECT COUNT(*) FROM race_entries e
