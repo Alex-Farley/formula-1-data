@@ -2356,6 +2356,22 @@ def records_are_derived():
             count[c] = count.get(c, 0) + 1
         same_set(key, *top(list(count.items())), "constructors", "name", label)
 
+    # The ruling on #643: the qualifying record covers what qualifying holds,
+    # and says so. Counted here by position_text, race by race; a shortfall
+    # is a known_gaps row to write, which is a person's to word, so it warns.
+    n_done = con.execute("SELECT COUNT(*) FROM races WHERE status = 'completed'").fetchone()[0]
+    q_held = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+        AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id AND q.position_text = '1')
+        AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id AND q.position_text = '2')"""
+                         ).fetchone()[0]
+    said = (f"every one of the {n_done} completed races" if q_held == n_done
+            else f"for {q_held} of the {n_done} completed races")
+    r = rows.get("most-qualifying-one-twos")
+    check("records.most-qualifying-one-twos states the qualifying it covers",
+          r is not None and said in r["detail"], said)
+    warn("qualifying holds a first and second place for every completed race (#643: "
+         "a shortfall is a known_gaps row)", q_held == n_done, f"{q_held} of {n_done}")
+
     def team_runs(hits):
         # hits: SQL giving (race_id, c), one row per race and constructor.
         return top(con.execute(f"""WITH o AS (

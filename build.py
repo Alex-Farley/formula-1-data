@@ -7614,12 +7614,45 @@ def derive_records(cur, leave_out=frozenset()):
                            "holds both first and second place, as most-one-two-finishes counts "
                            "them", rows, lead, "one-two"))
 
-    best, holders = streak(one_two, "e.constructor_id")
-    add("most-consecutive-one-two-finishes", "constructors", "Most consecutive one-two finishes",
-        [(team_names[h[0]], h[0]) for h in holders], "constructors", best, "races",
-        run_value(best, holders),
-        run_detail("The same constructor id holding both first and second place, as "
-                   "most-one-two-finishes counts it.", holders, team_names))
+    def every_run(where, best):
+        """{constructor id: [(start, end)]}: every run of `best` consecutive
+        completed races, walked as streak() walks them, so a holder with
+        several record-length runs is shown with each, not with its first."""
+        hit = {}
+        for rid, k in q(f"""SELECT e.race_id, e.constructor_id FROM race_entries e
+                            WHERE {where} AND e.constructor_id IS NOT NULL"""):
+            hit.setdefault(rid, set()).add(k)
+        going, found = {}, {}
+        for rid, year, name in run_order + [(None, None, None)]:
+            now = hit.get(rid, set())
+            for k in [k for k in going if k not in now]:
+                n, start, end = going.pop(k)
+                if n == best:
+                    found.setdefault(k, []).append((start, end))
+            for k in now:
+                n, start, _ = going.get(k, (0, (year, name), None))
+                going[k] = (n + 1, start, (year, name))
+        return found
+
+    def team_run(key, record, where, rule):
+        best, holders = streak(where, "e.constructor_id")
+        runs = every_run(where, best)
+        span = lambda r: f"{race_name(*r[0])} to {race_name(*r[1])}"      # noqa: E731
+        value = (f"{best}, {span(runs[holders[0][0]][0])}"
+                 if len(holders) == 1 and len(runs[holders[0][0]]) == 1
+                 else f"{best}, in {len(runs[holders[0][0]])} runs" if len(holders) == 1
+                 else f"{best} each")
+        add(key, "constructors", record, [(team_names[h[0]], h[0]) for h in holders],
+            "constructors", best, "races", value,
+            f"{rule} Every completed championship race in date order, the Indianapolis 500 "
+            "of 1950-60 included; a run carries over a winter and ends at the first race "
+            "that does not extend it, entered or not. Every run of that length: "
+            + "; ".join(f"{team_names[h[0]]}, " + ", ".join(span(r) for r in runs[h[0]])
+                        for h in holders) + ".")
+
+    team_run("most-consecutive-one-two-finishes", "Most consecutive one-two finishes", one_two,
+             "The same constructor id holding both first and second place, as "
+             "most-one-two-finishes counts it.")
 
     # A fastest lap two drivers of one constructor shared counts once for it,
     # as a one-two counts once among its wins; shared with another
@@ -7650,13 +7683,9 @@ def derive_records(cur, leave_out=frozenset()):
                            "season, as most-constructor-fastest-laps counts them", rows, lead,
                            "fastest lap"))
 
-    best, holders = streak("e.fastest_lap = 1", "e.constructor_id")
-    add("most-consecutive-constructor-fastest-laps", "constructors",
-        "Most consecutive fastest laps by a constructor",
-        [(team_names[h[0]], h[0]) for h in holders], "constructors", best, "races",
-        run_value(best, holders),
-        run_detail("A fastest_lap = 1 entry under the constructor id; a shared fastest lap "
-                   "counts.", holders, team_names))
+    team_run("most-consecutive-constructor-fastest-laps",
+             "Most consecutive fastest laps by a constructor", "e.fastest_lap = 1",
+             "A fastest_lap = 1 entry under the constructor id; a shared fastest lap counts.")
 
     places = """SELECT DISTINCT race_id, finish_position, constructor_id FROM race_entries
                  WHERE finish_position <= 3 AND constructor_id IS NOT NULL"""
