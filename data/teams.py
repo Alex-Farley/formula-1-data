@@ -409,8 +409,9 @@ ENGINE_ERAS = [
 # it from the race records". None of the eighty-five won a championship
 # race, and F1DB's published totals (harvest/f1db_constructor_totals.txt)
 # give each of them 0. verify.py holds a derived total to those only for a
-# constructor still racing; for these, the reconciliation compares the
-# derived count with itself, so it would not say so if this were wrong.
+# constructor still racing; for those of these that have stopped, the
+# reconciliation compares the derived count with itself, so it would not
+# say so if this were wrong.
 # ---------------------------------------------------------------------
 F1DB_CONSTRUCTORS = [
     "alta",                          # 1950-1952     5   Alta
