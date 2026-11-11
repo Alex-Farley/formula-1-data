@@ -1787,9 +1787,10 @@ def records_are_derived():
     # tables, WK-16 the sprint's podiums, points and poles, WK-09 the
     # twelve share tables, WK-11 the three from the first race of a
     # season and the first season, WK-12 the eleven 'before first' and
-    # 'without' tables, and WK-14 the six of a championship career's shape.
+    # 'without' tables, WK-14 the six of a championship career's shape, and
+    # WK-15 the nine constructor forms and front-row lockouts.
     # A derivation that silently drops one fails here.
-    FLOOR = 115
+    FLOOR = 124
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2322,6 +2323,94 @@ def records_are_derived():
                   FROM seasons WHERE {col} IS NOT NULL) WHERE g IS NOT NULL""").fetchall()
         same_set(key, *top(found), table, "full_name" if table == "drivers" else "name",
                  f"the years between one seasons.{col} title and the next")
+
+    # WK-15. The build counts finish_position, grid and qualifying.position
+    # and walks the runs in Python; these read position_text and grid_text,
+    # count races per constructor with a correlated subquery, take the runs
+    # with a window and the wins from the stored constructors.wins. Every
+    # holder is compared.
+    def pair_sql(tbl, col):
+        return f"""SELECT DISTINCT x.race_id, x.constructor_id c FROM {tbl} x
+              JOIN {tbl} y ON y.race_id = x.race_id AND y.{col} = '2'
+                          AND y.constructor_id = x.constructor_id
+             WHERE x.{col} = '1' AND x.constructor_id IS NOT NULL"""
+
+    def text_pair(tbl, col):
+        return con.execute(pair_sql(tbl, col)).fetchall()
+
+    one_twos = text_pair("race_entries", "position_text")
+    year_of = dict(con.execute("SELECT id, year FROM races").fetchall())
+    per_season = {}
+    for race, c in one_twos:
+        per_season[(year_of[race], c)] = per_season.get((year_of[race], c), 0) + 1
+    same_set("most-one-two-finishes-in-a-season",
+             *top([(c, n) for (_, c), n in per_season.items()]), "constructors", "name",
+             "position_text 1 and 2 to one constructor, by season")
+    for key, label, pairs in (
+            ("most-front-row-lockouts", "grid_text 1 and 2 to one constructor",
+             text_pair("race_entries", "grid_text")),
+            ("most-qualifying-one-twos", "qualifying.position_text 1 and 2 to one constructor",
+             text_pair("qualifying", "position_text"))):
+        count = {}
+        for _, c in pairs:
+            count[c] = count.get(c, 0) + 1
+        same_set(key, *top(list(count.items())), "constructors", "name", label)
+
+    # The ruling on #643: the qualifying record covers what qualifying holds,
+    # and says so. Counted here by position_text, race by race; a shortfall
+    # is a known_gaps row to write, which is a person's to word, so it warns.
+    n_done = con.execute("SELECT COUNT(*) FROM races WHERE status = 'completed'").fetchone()[0]
+    q_held = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+        AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id AND q.position_text = '1')
+        AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id AND q.position_text = '2')"""
+                         ).fetchone()[0]
+    said = (f"every one of the {n_done} completed races" if q_held == n_done
+            else f"for {q_held} of the {n_done} completed races")
+    r = rows.get("most-qualifying-one-twos")
+    check("records.most-qualifying-one-twos states the qualifying it covers",
+          r is not None and said in r["detail"], said)
+    warn("qualifying holds a first and second place for every completed race (#643: "
+         "a shortfall is a known_gaps row)", q_held == n_done, f"{q_held} of {n_done}")
+
+    def team_runs(hits):
+        # hits: SQL giving (race_id, c), one row per race and constructor.
+        return top(con.execute(f"""WITH o AS (
+                SELECT id, ROW_NUMBER() OVER (ORDER BY date_iso, year, round) i
+                  FROM races WHERE status = 'completed'),
+              g AS (SELECT h.c, o.i - ROW_NUMBER() OVER (PARTITION BY h.c ORDER BY o.i) grp
+                      FROM ({hits}) h JOIN o ON o.id = h.race_id)
+            SELECT c, COUNT(*) FROM g GROUP BY c, grp""").fetchall())
+
+    same_set("most-consecutive-one-two-finishes",
+             *team_runs(pair_sql("race_entries", "position_text")), "constructors",
+             "name", "a window over position_text 1 and 2 to one constructor")
+    same_set("most-consecutive-constructor-fastest-laps",
+             *team_runs("""SELECT DISTINCT race_id, constructor_id c FROM race_entries
+                            WHERE fastest_lap = 1 AND constructor_id IS NOT NULL"""),
+             "constructors", "name", "a window over the fastest_lap entries")
+    found = con.execute("""SELECT c.id, (SELECT COUNT(*) FROM races r WHERE EXISTS (
+            SELECT 1 FROM race_entries e WHERE e.race_id = r.id AND e.constructor_id = c.id
+               AND e.fastest_lap = 1)) FROM constructors c""").fetchall()
+    same_set("most-constructor-fastest-laps", *top(found), "constructors", "name",
+             "races with a fastest_lap entry, per constructor")
+    found = con.execute("""SELECT c.id, r.year, COUNT(*) FROM constructors c JOIN races r
+         WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id
+                          AND e.constructor_id = c.id AND e.fastest_lap = 1)
+         GROUP BY c.id, r.year""").fetchall()
+    same_set("most-constructor-fastest-laps-in-a-season",
+             *top([(c, n) for c, _, n in found]), "constructors", "name",
+             "races with a fastest_lap entry, per constructor and season")
+    places = """SELECT DISTINCT race_id, position_text, constructor_id FROM race_entries
+                  WHERE position_text IN ('1', '2', '3') AND constructor_id IS NOT NULL"""
+    found = con.execute(f"""SELECT p.constructor_id, COUNT(*) FROM ({places}) p
+          JOIN races r ON r.id = p.race_id GROUP BY p.constructor_id, r.year""").fetchall()
+    same_set("most-constructor-podiums-in-a-season", *top(found), "constructors", "name",
+             "podium places by position_text, per constructor and season")
+    found = con.execute(f"""SELECT p.constructor_id, COUNT(*) FROM ({places}) p
+          JOIN constructors c ON c.id = p.constructor_id
+         WHERE c.wins = 0 GROUP BY p.constructor_id""").fetchall()
+    same_set("most-constructor-podiums-without-a-win", *top(found), "constructors", "name",
+             "podium places by position_text where constructors.wins is 0")
 
     # A reading of Wikipedia's lists is filed against the record as it now
     # stands: every declared reading is a row, and its stored side is the

@@ -5841,6 +5841,7 @@ RECORD_FAMILIES = {
         "highest-season-win-share-driver", "most-entries-without-a-win",
         "most-wins-at-one-grand-prix", "most-wins-from-pole", "most-pole-win-fastest-lap",
         "most-one-two-finishes", "most-consecutive-constructor-wins",
+        "most-one-two-finishes-in-a-season", "most-consecutive-one-two-finishes",
         "most-consecutive-wins-at-one-grand-prix", "most-seasons-with-a-win",
         "most-consecutive-seasons-with-a-win", "most-constructor-seasons-with-a-win",
         "most-consecutive-constructor-seasons-with-a-win",
@@ -5860,6 +5861,7 @@ RECORD_FAMILIES = {
         "highest-constructor-pole-rate", "highest-season-pole-share-constructor",
         "most-entries-before-first-pole", "most-entries-without-a-pole",
         "most-races-without-a-pole-constructor",
+        "most-front-row-lockouts", "most-qualifying-one-twos",
     ),
     "Podiums": (
         "most-podiums", "most-podiums-in-a-season", "most-consecutive-podiums",
@@ -5870,6 +5872,7 @@ RECORD_FAMILIES = {
         "highest-podium-rate", "highest-season-podium-share-driver",
         "most-entries-before-first-podium", "most-entries-without-a-podium",
         "most-races-without-a-podium-constructor",
+        "most-constructor-podiums-in-a-season", "most-constructor-podiums-without-a-win",
     ),
     "Fastest laps": (
         "most-fastest-laps", "most-fastest-laps-in-a-season", "most-consecutive-fastest-laps",
@@ -5880,6 +5883,8 @@ RECORD_FAMILIES = {
         "highest-fastest-lap-rate", "highest-season-fastest-lap-share-driver",
         "highest-season-fastest-lap-share-constructor",
         "most-entries-before-first-fastest-lap", "most-entries-without-a-fastest-lap",
+        "most-constructor-fastest-laps", "most-constructor-fastest-laps-in-a-season",
+        "most-consecutive-constructor-fastest-laps",
     ),
     "Entries and starts": ("most-race-entries", "most-consecutive-starts"),
     "Age": (
@@ -7575,6 +7580,189 @@ def derive_records(cur, leave_out=frozenset()):
             + "; ".join(f"{r[1]}: champion in {r[3]} and next in {r[4]}" for r in lead) + ". "
             + "Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} ({r[3]} to {r[4]})")
             + ".")
+
+    # WK-15: the constructor forms - one-twos in a season and in a row,
+    # fastest laps in total, in a season and in a row, podiums in a season
+    # and without a win - and the two front-row lockouts the ruling on WK-08
+    # (#643) set: one on the starting grid, race_entries.grid 1 and 2 to one
+    # constructor id, and one on qualifying, qualifying.position 1 and 2.
+    # Appended after every older record so none is renumbered. Counted by
+    # constructor id, lineage not merged, as the constructor records above
+    # are. Where Wikipedia's constructor list gave another figure on the day,
+    # data/harvest.py RECORDS_LIST_READINGS files it in `discrepancies`.
+    def team_season(where, count="COUNT(DISTINCT e.race_id)"):
+        """(n, name, id, year) per constructor per season, most first."""
+        return q(f"""SELECT {count} n, c.name, c.id, r.year
+                       FROM race_entries e JOIN races r ON r.id = e.race_id
+                       JOIN constructors c ON c.id = e.constructor_id
+                      WHERE {where}
+                      GROUP BY r.year, c.id ORDER BY n DESC, r.year, c.name""")
+
+    def team_season_detail(rule, rows, lead, noun):
+        return (f"{rule}. " + "; ".join(f"{r[1]}, {r[3]}: {_plural(r[0], noun)} in the "
+                                        f"{races_in[r[3]]} races" for r in lead)
+                + ". Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {r[0]} ({r[3]})") + ".")
+
+    one_two = ("e.finish_position = 1 AND EXISTS (SELECT 1 FROM race_entries b "
+               "WHERE b.race_id = e.race_id AND b.finish_position = 2 "
+               "AND b.constructor_id = e.constructor_id)")
+    rows = team_season(one_two)
+    lead = _leaders(rows)
+    add("most-one-two-finishes-in-a-season", "constructors", "Most one-two finishes in a season",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "races", season_value(lead),
+        team_season_detail("Races per constructor per season in which the same constructor id "
+                           "holds both first and second place, as most-one-two-finishes counts "
+                           "them", rows, lead, "one-two"))
+
+    def every_run(where, best):
+        """{constructor id: [(start, end)]}: every run of `best` consecutive
+        completed races, walked as streak() walks them, so a holder with
+        several record-length runs is shown with each, not with its first."""
+        hit = {}
+        for rid, k in q(f"""SELECT e.race_id, e.constructor_id FROM race_entries e
+                            WHERE {where} AND e.constructor_id IS NOT NULL"""):
+            hit.setdefault(rid, set()).add(k)
+        going, found = {}, {}
+        for rid, year, name in run_order + [(None, None, None)]:
+            now = hit.get(rid, set())
+            for k in [k for k in going if k not in now]:
+                n, start, end = going.pop(k)
+                if n == best:
+                    found.setdefault(k, []).append((start, end))
+            for k in now:
+                n, start, _ = going.get(k, (0, (year, name), None))
+                going[k] = (n + 1, start, (year, name))
+        return found
+
+    def team_run(key, record, where, rule):
+        best, holders = streak(where, "e.constructor_id")
+        runs = every_run(where, best)
+        span = lambda r: f"{race_name(*r[0])} to {race_name(*r[1])}"      # noqa: E731
+        value = (f"{best}, {span(runs[holders[0][0]][0])}"
+                 if len(holders) == 1 and len(runs[holders[0][0]]) == 1
+                 else f"{best}, in {len(runs[holders[0][0]])} runs" if len(holders) == 1
+                 else f"{best} each")
+        add(key, "constructors", record, [(team_names[h[0]], h[0]) for h in holders],
+            "constructors", best, "races", value,
+            f"{rule} Every completed championship race in date order, the Indianapolis 500 "
+            "of 1950-60 included; a run carries over a winter and ends at the first race "
+            "that does not extend it, entered or not. Every run of that length: "
+            + "; ".join(f"{team_names[h[0]]}, " + ", ".join(span(r) for r in runs[h[0]])
+                        for h in holders) + ".")
+
+    team_run("most-consecutive-one-two-finishes", "Most consecutive one-two finishes", one_two,
+             "The same constructor id holding both first and second place, as "
+             "most-one-two-finishes counts it.")
+
+    # A fastest lap two drivers of one constructor shared counts once for it,
+    # as a one-two counts once among its wins; shared with another
+    # constructor's driver, it counts for each.
+    rows = q("""SELECT COUNT(DISTINCT e.race_id) n, c.name, c.id, COUNT(*) k
+                  FROM race_entries e JOIN constructors c ON c.id = e.constructor_id
+                 WHERE e.fastest_lap = 1
+                 GROUP BY c.id ORDER BY n DESC, c.name""")
+    lead = _leaders(rows)
+    doubled = [r for r in lead if r[3] > r[0]]
+    add("most-constructor-fastest-laps", "constructors", "Most fastest laps by a constructor",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "fastest laps",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        "Distinct races with a fastest_lap = 1 entry under the constructor id, so a fastest "
+        "lap two of its drivers shared counts once, and one shared with another constructor's "
+        "driver counts for each. An Indianapolis 500 fastest lap of 1950-60 under no "
+        "constructor id counts for none. "
+        + "".join(f"{r[1]}: {_plural(r[3], 'fastest-lap credit')} in {r[0]} races. "
+                  for r in doubled)
+        + f"Next: {pct_next(rows, lead, lambda r: f'{r[1]} {_num(r[0])}')}.")
+
+    rows = team_season("e.fastest_lap = 1")
+    lead = _leaders(rows)
+    add("most-constructor-fastest-laps-in-a-season", "constructors",
+        "Most fastest laps in a season by a constructor", [(r[1], r[2]) for r in lead],
+        "constructors", lead[0][0], "fastest laps", season_value(lead),
+        team_season_detail("Distinct races with a fastest_lap = 1 entry per constructor per "
+                           "season, as most-constructor-fastest-laps counts them", rows, lead,
+                           "fastest lap"))
+
+    team_run("most-consecutive-constructor-fastest-laps",
+             "Most consecutive fastest laps by a constructor", "e.fastest_lap = 1",
+             "A fastest_lap = 1 entry under the constructor id; a shared fastest lap counts.")
+
+    places = """SELECT DISTINCT race_id, finish_position, constructor_id FROM race_entries
+                 WHERE finish_position <= 3 AND constructor_id IS NOT NULL"""
+    rows = q(f"""SELECT COUNT(*) n, c.name, c.id, r.year FROM ({places}) p
+                   JOIN races r ON r.id = p.race_id JOIN constructors c ON c.id = p.constructor_id
+                  GROUP BY r.year, c.id ORDER BY n DESC, r.year, c.name""")
+    lead = _leaders(rows)
+    add("most-constructor-podiums-in-a-season", "constructors",
+        "Most podium places in a season by a constructor", [(r[1], r[2]) for r in lead],
+        "constructors", lead[0][0], "podiums",
+        tie_value(lead, lambda r: f"{_num(r[0])} in the {races_in[r[3]]} races of {r[3]}",
+                  lambda r: str(r[3]), joiner=", in "),
+        team_season_detail("Places on the podium per constructor per season, as "
+                           "most-constructor-podiums counts them: a double podium counts twice "
+                           "and a shared drive once", rows, lead, "podium place"))
+
+    rows = q(f"""SELECT COUNT(*) n, c.name, c.id, MIN(r.year), MAX(r.year) FROM ({places}) p
+                   JOIN races r ON r.id = p.race_id JOIN constructors c ON c.id = p.constructor_id
+                  WHERE NOT EXISTS (SELECT 1 FROM race_entries w WHERE w.constructor_id = c.id
+                                       AND w.finish_position = 1)
+                  GROUP BY c.id ORDER BY n DESC, c.name""")
+    lead = _leaders(rows)
+    add("most-constructor-podiums-without-a-win", "constructors",
+        "Most podium places by a constructor without a win", [(r[1], r[2]) for r in lead],
+        "constructors", lead[0][0], "podiums",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        "Places on the podium, as most-constructor-podiums counts them, for every constructor "
+        "id with no finish_position = 1 entry. Lineage is not merged: an id is mostly one name "
+        "but can span several - constructors.notes says where - and a win under another id of "
+        "the same team does not end this one. A constructor still racing can end it. "
+        + "; ".join(f"{r[1]}: {_plural(r[0], 'podium place')}, the first in {r[3]} and the "
+                    f"last in {r[4]}" for r in lead)
+        + ". Next: " + pct_next(rows, lead, lambda r: f"{r[1]} {_num(r[0])}") + ".")
+
+    rows = q("""SELECT COUNT(DISTINCT a.race_id) n, c.name, c.id
+                  FROM race_entries a
+                  JOIN race_entries b ON b.race_id = a.race_id AND b.grid = 2
+                                     AND b.constructor_id = a.constructor_id
+                  JOIN constructors c ON c.id = a.constructor_id
+                 WHERE a.grid = 1
+                 GROUP BY c.id ORDER BY n DESC, c.name""")
+    lead = _leaders(rows)
+    add("most-front-row-lockouts", "constructors", "Most front-row lockouts on the grid",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "races",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        "Races in which the same constructor id holds race_entries.grid 1 and 2, the first two "
+        "slots of the starting grid, as the ruling on WK-08 (#643) defines a lockout on the "
+        "grid; one on qualifying is most-qualifying-one-twos. The grid is where the cars "
+        "started, after any penalty, so a car that qualified on the front row and started "
+        "elsewhere does not count. Until the 1973 German Grand Prix a front row could be two, "
+        "three or four cars wide, as Wikipedia's List of Formula One constructor records "
+        "notes; the record counts the first two slots throughout. "
+        f"Next: {pct_next(rows, lead, lambda r: f'{r[1]} {_num(r[0])}')}.")
+
+    held_q = q("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+                    AND (SELECT COUNT(DISTINCT q.position) FROM qualifying q
+                          WHERE q.race_id = r.id AND q.position IN (1, 2)) = 2""")[0][0]
+    rows = q("""SELECT COUNT(DISTINCT a.race_id) n, c.name, c.id
+                  FROM qualifying a
+                  JOIN qualifying b ON b.race_id = a.race_id AND b.position = 2
+                                   AND b.constructor_id = a.constructor_id
+                  JOIN constructors c ON c.id = a.constructor_id
+                 WHERE a.position = 1
+                 GROUP BY c.id ORDER BY n DESC, c.name""")
+    lead = _leaders(rows)
+    add("most-qualifying-one-twos", "constructors", "Most one-two finishes in qualifying",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "races",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        "Races in which the same constructor id holds qualifying.position 1 and 2, as the "
+        "ruling on WK-08 (#643) defines a lockout in qualifying; the starting grid's is "
+        "most-front-row-lockouts, which a grid penalty can make differ from this. "
+        + (f"The qualifying table holds a first and second place for every one of the "
+           f"{completed} completed races" if held_q == completed else
+           f"The qualifying table holds a first and second place for {held_q} of the "
+           f"{completed} completed races, and the record covers those")
+        + ". An Indianapolis 500 of 1950-60 under no constructor id counts for none. "
+        f"Next: {pct_next(rows, lead, lambda r: f'{r[1]} {_num(r[0])}')}.")
 
     return out
 

@@ -1392,14 +1392,21 @@ EXPLAINED_SPANS = [
 # figure and holder: the most drivers' titles with one constructor, the
 # drivers' titles by constructor, the fewest and most seasons before a first
 # title, and the largest gap between two drivers' titles. Where a title is
-# credited otherwise, RECORDS_LIST_CREDITS below has the row. The build
+# credited otherwise, RECORDS_LIST_CREDITS below has the row.
+#
+# WK-15's nine were read on 2026-11-11 against the constructor list at the
+# same revision, 1384688527, still the latest that day and still ending at
+# the 2026 Sao Paulo Grand Prix, as the database then did. Six agree on figure
+# and holder: the most one-twos in a season and in a row, the most fastest
+# laps in a season and in a row, the most podiums in a season and the most
+# without a win. The three below do not. The build
 # files each in
 # `discrepancies` under the holder the list and the record both named, so an
 # open one is shown on that driver's or constructor's page, with the
 # record's figure as it now stands beside the list's: the reading is in the
 # past tense and the record is not. A record that has since passed to
 # another holder files its row resolved.
-#   record key, holder table, holder id, the list's figure on 2026-11-09,
+#   record key, holder table, holder id, the list's figure on the day it was read,
 #   why they differ, status, note
 RECORDS_LIST_READINGS = [
     ("most-entries-before-first-pole", "drivers", "perez",
@@ -1489,6 +1496,40 @@ RECORDS_LIST_READINGS = [
      "and agrees with it. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1384688527",
      "explained", "the list counts the difference of the years"),
+    ("most-constructor-fastest-laps", "constructors", "ferrari",
+     "271",
+     "Wikipedia's List of Formula One constructor records gave Ferrari 271 fastest laps. "
+     "race_entries held 272 Ferrari fastest-lap credits in 270 races: at the 1954 British "
+     "Grand Prix two Ferrari drivers were among the seven who shared the fastest lap, and at "
+     "the 1970 Austrian Grand Prix two Ferrari drivers shared it. The record counts races, "
+     "so each counts once; the list's 271 is neither count, and the list does not say how "
+     "it counts a fastest lap shared within a team. Its figures for McLaren (185), Williams "
+     "(134), Mercedes (125) and Red Bull Racing (104) agreed with race_entries'. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384688527",
+     "open", "sources differ"),
+    ("most-front-row-lockouts", "constructors", "mercedes",
+     "86 front-row lockouts",
+     "Wikipedia's List of Formula One constructor records gave Mercedes 86 front-row "
+     "lockouts, McLaren 70, Ferrari 68, Williams 62, Red Bull Racing 28 and Renault 22, and "
+     "noted that the front row has been two cars since the 1973 German Grand Prix and was "
+     "two, three or four before it. race_entries gave a constructor grid 1 and 2 in 87 "
+     "races for Mercedes, 71 for McLaren, 83 for Ferrari, 62 for Williams, 28 for Red Bull "
+     "Racing and 22 for Renault, and from the 1973 German Grand Prix on in 83, 70, 59, 62, "
+     "28 and 22. The list's McLaren, Williams, Red Bull Racing and Renault figures were the "
+     "count from that race; its Mercedes and Ferrari figures lay between the two counts. It "
+     "does not say how it counts a front row wider than two. The record counts grid 1 and 2 "
+     "in every season, as the ruling on WK-08 (#643) has it. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384688527",
+     "open", "sources differ"),
+    ("most-qualifying-one-twos", "constructors", "mercedes",
+     "88 1-2 qualifying results",
+     "Wikipedia's List of Formula One constructor records gave Mercedes 88 1-2 qualifying "
+     "results, Ferrari 83, McLaren 71, Williams 62, Red Bull Racing 28 and Renault 22. The "
+     "qualifying table gave a constructor first and second place in 92 races for Mercedes, "
+     "four of them in 1954-55, 85 for Ferrari, 73 for McLaren, 62 for Williams, 27 for Red "
+     "Bull Racing and 22 for Renault. The list does not say how it counts. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1384688527",
+     "open", "sources differ"),
 ]
 
 # WK-14: a drivers' title Wikipedia's driver list, read as above, credits to
