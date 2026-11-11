@@ -82,10 +82,12 @@ There are two, from two different licences, and they are not the same shape.
 `harvest/chassis.txt`, `harvest/engines.txt`, `harvest/f1db_constructors.txt`
 and `harvest/entrants.txt` are generated from
 [F1DB](https://github.com/f1db/f1db), which is licensed
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). So is
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). So are
 `harvest/f1db_driver_totals.txt`, F1DB's published career wins, poles and
-fastest laps per driver, which `tools/f1db_totals_fetch.py` reads from an
-F1DB release rather than from its source tree. That is
+fastest laps per driver, and `harvest/f1db_constructor_totals.txt`, its
+published race wins per constructor, both of which
+`tools/f1db_totals_fetch.py` reads from an F1DB release rather than from its
+source tree. That is
 **attribution only — there is no share-alike**, so it places no condition on
 how the rest of this database is licensed. It does require attribution, which
 is given here, in the header of every generated file, in `source_registry`,

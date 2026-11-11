@@ -1038,6 +1038,41 @@ def win_tallies_stored_figures_vs_figures_derived_from_r():
     check("every constructor win total equals the number of races it won", not bad,
           "; ".join(bad))
 
+    # A constructor still racing has no typed total to hold to the records -
+    # build.py derives it, and refuses a typed one, because a typed one went
+    # stale with the next win and stopped the refresh (CR-117, #1279). So its
+    # derived total is held to F1DB's published one instead, from the release
+    # the harvest was read from: the race records against a total someone
+    # else counted, not against themselves. F1DB's ids are summed onto this
+    # register's through the mapping the race records were loaded with; an id
+    # whose meaning depends on the season cannot be apportioned that way, so
+    # a constructor still racing that one maps onto by season fails here.
+    harvest = harvest_module()
+    release, published = harvest.load_f1db_constructor_totals()
+    harvested = harvest.f1db_harvest_release()
+    check("F1DB's constructor totals are from the release the harvest was read from",
+          release == harvested, "" if release == harvested else
+          f"totals {release}, harvest {harvested}: rerun tools/f1db_totals_fetch.py")
+    onto = {}
+    for f1db_id, w in published.items():
+        onto.setdefault(harvest.constructor_for_f1db(f1db_id), []).append(w)
+    by_season = {t for spans in harvest.F1DB_CONSTRUCTORS_BY_YEAR.values()
+                 for _lo, _hi, t in spans}
+    racing = con.execute("""SELECT id, name, wins FROM constructors
+        WHERE last_entry IS NULL ORDER BY id""").fetchall()
+    bad = []
+    for r in racing:
+        if r["id"] in by_season:
+            bad.append(f"{r['name']}: F1DB's total for it is split by season")
+        elif r["id"] not in onto:
+            bad.append(f"{r['name']}: F1DB {release} publishes no total")
+        elif r["wins"] != sum(onto[r["id"]]):
+            bad.append(f"{r['name']}: F1DB {release} publishes {sum(onto[r['id']])}, "
+                       f"got {r['wins']}")
+    check("every constructor still racing holds the win total F1DB publishes",
+          bool(racing) and not bad,
+          "; ".join(bad) if racing else "no constructor is still racing")
+
     # A race entry's constructor must have been entering races that season. This
     # check did not exist until the constructor register was extended, and its
     # absence is why Zhou Guanyu's fastest laps at Suzuka 2022 and Bahrain 2023

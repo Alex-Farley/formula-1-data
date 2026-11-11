@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
 Fetch F1DB's published career totals - wins, poles, fastest laps - for every
-driver it holds.
+driver it holds, and its published race wins for every constructor.
 
     python3 tools/f1db_totals_fetch.py                     # the harvest's release
     python3 tools/f1db_totals_fetch.py --release v2026.14.0
     python3 tools/f1db_totals_fetch.py --check             # regenerate and diff only
 
 Source:  https://github.com/f1db/f1db   (CC BY 4.0), the release artefact
-         f1db-csv.zip, file f1db-drivers.csv
-Writes:  harvest/f1db_driver_totals.txt
+         f1db-csv.zip, files f1db-drivers.csv and f1db-constructors.csv
+Writes:  harvest/f1db_driver_totals.txt, harvest/f1db_constructor_totals.txt
 
 Why a second route into the same source
 ---------------------------------------
@@ -20,6 +20,12 @@ publishes a total per driver, but not in the source tree tools/f1db_fetch.py
 reads: its Gradle build computes them, and they exist only in the released
 artefacts (the same limit PD-45, #520, found for two other driver fields). So
 this reads a release, not a clone.
+
+The constructor totals are what verify.py holds a constructor still racing
+to (CR-117, #1279). Its win total is derived from the race records, and a
+typed figure for one went stale with its next win: McLaren's typed 205 stopped
+the refresh of 2026-11-09 at Norris's win. Held to F1DB's published total, the
+check still constrains the derived figure without being a literal to retype.
 
 A total computed here from F1DB's race files would not do. It would be this
 project's count, not F1DB's claim, and for fastest laps it would silently take
@@ -67,6 +73,9 @@ OUT = "f1db_driver_totals.txt"
 # F1DB's column for each figure, in the order the file writes them.
 FIELDS = (("wins", "totalRaceWins"), ("poles", "totalPolePositions"),
           ("fastest_laps", "totalFastestLaps"))
+CONS_MEMBER = "f1db-constructors.csv"
+CONS_OUT = "f1db_constructor_totals.txt"
+CONS_FIELDS = (("wins", "totalRaceWins"),)
 
 
 def fetch(url):
@@ -94,29 +103,30 @@ def tag_commit(tag):
     return sha
 
 
-def total_rows(zipped):
+def total_rows(zipped, member=MEMBER, fields=FIELDS):
     with zipfile.ZipFile(io.BytesIO(zipped)) as z:
-        text = z.read(MEMBER).decode("utf-8")
+        text = z.read(member).decode("utf-8")
     reader = csv.DictReader(io.StringIO(text))
-    missing = [c for _f, c in FIELDS if c not in (reader.fieldnames or [])]
+    missing = [c for _f, c in fields if c not in (reader.fieldnames or [])]
     if missing:
-        sys.exit(f"{MEMBER} has no {', '.join(missing)} column")
+        sys.exit(f"{member} has no {', '.join(missing)} column")
     rows = []
     for r in reader:
-        values = [r[c] for _f, c in FIELDS]
+        values = [r[c] for _f, c in fields]
         if not all(v.isdigit() for v in values):
-            sys.exit(f"{MEMBER}: {r['id']} has a total that is not a count: {values}")
+            sys.exit(f"{member}: {r['id']} has a total that is not a count: {values}")
         # The id is upstream text, and the refresh writes it unattended: a
         # pipe or a newline in it stops the fetch rather than forging a row.
         rows.append("|".join([_clean(r["id"]), *values]))
     return sorted(rows)
 
 
-def write(rows, version, commit, check):
+def write(rows, version, commit, check, out=OUT,
+          fields="driver_id|wins|poles|fastest_laps", member=MEMBER):
     """tools/f1db_fetch.py's writer, under this tool's own name in the header."""
     return write_harvest(
-        OUT, "driver_id|wins|poles|fastest_laps   (F1DB's own career totals, "
-        f"from the release artefact {ASSET}, {MEMBER})",
+        out, f"{fields}   (F1DB's own career totals, "
+        f"from the release artefact {ASSET}, {member})",
         rows, version, commit, check,
         header=HEADER.replace("tools/f1db_fetch.py", "tools/f1db_totals_fetch.py"))
 
@@ -146,8 +156,12 @@ def main():
         sys.exit(f"{ASSET} from {tag} does not match the release's checksum")
     print(f"F1DB {tag} ({sha[:8]}), {ASSET} sha256 {digest[:12]}")
     ok = write(total_rows(zipped), tag, sha[:8], args.check)
-    if args.check and not ok:
-        sys.exit(f"harvest/{OUT} is out of date with F1DB {tag}")
+    cons_ok = write(total_rows(zipped, CONS_MEMBER, CONS_FIELDS), tag, sha[:8],
+                    args.check, out=CONS_OUT, fields="constructor_id|wins",
+                    member=CONS_MEMBER)
+    stale = [name for name, good in ((OUT, ok), (CONS_OUT, cons_ok)) if not good]
+    if args.check and stale:
+        sys.exit(f"harvest/{' and harvest/'.join(stale)} out of date with F1DB {tag}")
 
 
 if __name__ == "__main__":
