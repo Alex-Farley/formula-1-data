@@ -1824,10 +1824,10 @@ def records_are_derived():
     # twelve share tables, WK-11 the three from the first race of a
     # season and the first season, WK-12 the eleven 'before first' and
     # 'without' tables, WK-14 the six of a championship career's shape,
-    # WK-15 the nine constructor forms and front-row lockouts, and WK-17
-    # the six points-per-race tables.
+    # WK-15 the nine constructor forms and front-row lockouts, WK-17 the six
+    # points-per-race tables, and WK-18 the eight 'other' tables.
     # A derivation that silently drops one fails here.
-    FLOOR = 130
+    FLOOR = 138
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2500,6 +2500,36 @@ def records_are_derived():
         age = pick((a for a, _ in ages), default=None)
         same_set(key, age, {d for a, d in ages if a == age}, "drivers", "full_name",
                  "each scoring entry's age counted by the calendar")
+
+    # WK-18. The build counts distinct constructor and circuit ids in SQL,
+    # takes a career's span by the calendar in Python and the places gained
+    # from grid and finish_position; these gather the sets in Python from
+    # position_text, take the span with julianday() and the places from
+    # grid_text and position_text. Every holder is compared.
+    for what, hit in (("win", "e.position_text = '1'"), ("pole", "e.pole = 1"),
+                      ("podium", "e.position_text IN ('1', '2', '3')")):
+        teams, venues = {}, {}
+        for d, c, v in con.execute(f"""SELECT e.driver_id, e.constructor_id, r.circuit_id
+                FROM race_entries e JOIN races r ON r.id = e.race_id WHERE {hit}"""):
+            if c is not None:
+                teams.setdefault(d, set()).add(c)
+            if v is not None:
+                venues.setdefault(d, set()).add(v)
+        for key, found in ((f"most-constructors-with-a-{what}", teams),
+                           (f"most-circuits-with-a-{what}", venues)):
+            same_set(key, *top([(d, len(v)) for d, v in found.items()]), "drivers",
+                     "full_name", f"the {what}s' distinct ids gathered in Python")
+    same_set("longest-career-span", *top(con.execute("""SELECT e.driver_id,
+            CAST(julianday(MAX(r.date_iso)) - julianday(MIN(r.date_iso)) AS INTEGER)
+          FROM race_entries e JOIN races r ON r.id = e.race_id
+         WHERE COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')
+           AND r.status = 'completed'
+         GROUP BY e.driver_id""").fetchall()),
+             "drivers", "full_name", "julianday() over each driver's starts")
+    same_set("most-positions-gained-in-a-race", *top(con.execute("""SELECT driver_id,
+            CAST(grid_text AS INTEGER) - CAST(position_text AS INTEGER)
+          FROM race_entries WHERE grid_text GLOB '[0-9]*' AND position_text GLOB '[0-9]*'
+        """).fetchall()), "drivers", "full_name", "grid_text against position_text")
 
     # A reading of Wikipedia's lists is filed against the record as it now
     # stands: every declared reading is a row, and its stored side is the

@@ -5861,7 +5861,8 @@ RECORD_FAMILIES = {
         "highest-pole-conversion", "highest-constructor-win-rate",
         "highest-pole-conversion-constructor", "most-consecutive-wins-from-season-start",
         "most-wins-in-first-season", "won-on-debut-driver",
-        "most-races-before-first-win-constructor",
+        "most-races-before-first-win-constructor", "most-constructors-with-a-win",
+        "most-circuits-with-a-win",
     ),
     "Pole positions": (
         "most-poles", "closest-pole-margin", "most-poles-in-a-season", "most-consecutive-poles",
@@ -5875,6 +5876,7 @@ RECORD_FAMILIES = {
         "most-entries-before-first-pole", "most-entries-without-a-pole",
         "most-races-without-a-pole-constructor",
         "most-front-row-lockouts", "most-qualifying-one-twos",
+        "most-constructors-with-a-pole", "most-circuits-with-a-pole",
     ),
     "Podiums": (
         "most-podiums", "most-podiums-in-a-season", "most-consecutive-podiums",
@@ -5886,6 +5888,7 @@ RECORD_FAMILIES = {
         "most-entries-before-first-podium", "most-entries-without-a-podium",
         "most-races-without-a-podium-constructor",
         "most-constructor-podiums-in-a-season", "most-constructor-podiums-without-a-win",
+        "most-constructors-with-a-podium", "most-circuits-with-a-podium",
     ),
     "Fastest laps": (
         "most-fastest-laps", "most-fastest-laps-in-a-season", "most-consecutive-fastest-laps",
@@ -5899,7 +5902,8 @@ RECORD_FAMILIES = {
         "most-constructor-fastest-laps", "most-constructor-fastest-laps-in-a-season",
         "most-consecutive-constructor-fastest-laps",
     ),
-    "Entries and starts": ("most-race-entries", "most-consecutive-starts"),
+    "Entries and starts": ("most-race-entries", "most-consecutive-starts",
+                           "longest-career-span"),
     "Age": (
         "youngest-winner", "oldest-winner", "youngest-starter", "oldest-starter",
         "youngest-polesitter", "oldest-polesitter", "youngest-podium", "oldest-podium",
@@ -5910,7 +5914,8 @@ RECORD_FAMILIES = {
                "most-entries-before-first-points", "most-entries-without-points",
                "most-career-points", "most-points-finishes",
                "most-consecutive-points-finishes", "most-points-without-a-win"),
-    "Races and circuits": ("longest-circuit", "fewest-classified-finishers", "fewest-starters"),
+    "Races and circuits": ("longest-circuit", "fewest-classified-finishers", "fewest-starters",
+                           "most-positions-gained-in-a-race"),
     "Sprints": ("most-sprint-wins", "most-sprint-podiums", "most-sprint-points",
                 "most-sprint-poles"),
 }
@@ -7880,6 +7885,123 @@ def derive_records(cur, leave_out=frozenset()):
         "whose drivers.wins is 0. A sprint win is not a Grand Prix win and does not end it; "
         f"a Grand Prix win would, and a driver still racing may yet take one.{sum_note} "
         f"Next: {pct_next(rows, lead, lambda r: f'{r[1]} {pts(r[0])}')}.")
+
+    # WK-18: the 'other' tables of the two lists that the race records can
+    # derive - wins, poles and podiums with the most constructors and at the
+    # most circuits, the longest span of a career, and the most places gained
+    # in a race. Appended after every older record so none is renumbered.
+    # Races as championship leader and the team-mate pairs were split from
+    # WK-18 on its reread into items of their own, as was the worst finishing
+    # position, which needs a car running at the flag told from a classified
+    # retirement. Where Wikipedia's driver list gave another figure on the
+    # day, data/harvest.py RECORDS_LIST_READINGS files it in `discrepancies`.
+    def most_distinct(where, col, label, join, first="MIN(r.date_iso)"):
+        """(n, driver, id, [labels]) for every driver with an entry meeting
+        `where`, n the distinct `col` among those entries and the labels in
+        the order the driver first met it under each, most first."""
+        seen = {}
+        for did, name, lab, _ in q(f"""SELECT d.id, d.full_name, {label}, {first} f
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                  JOIN drivers d ON d.id = e.driver_id {join}
+                 WHERE {where} AND {col} IS NOT NULL
+                 GROUP BY d.id, {col} ORDER BY d.id, f, {label}"""):
+            seen.setdefault((did, name), []).append(lab)
+        return sorted(((len(v), k[1], k[0], v) for k, v in seen.items()),
+                      key=lambda r: (-r[0], r[1]))
+
+    for what, where, rule in (
+        ("win", "e.finish_position = 1",
+         "race_entries rows with finish_position = 1, a shared drive counted for both drivers"),
+        ("pole", "e.pole = 1",
+         "race_entries rows with pole = 1, the driver the season record credits with pole, as "
+         "drivers.poles counts them"),
+        ("podium", "e.finish_position <= 3",
+         "race_entries rows classified first, second or third, as drivers.podiums counts them"),
+    ):
+        unit = {"win": "wins", "pole": "poles", "podium": "podiums"}[what]
+        record = {"win": "Grand Prix wins", "pole": "Pole positions",
+                  "podium": "Podium finishes"}[what]
+        rows = most_distinct(where, "e.constructor_id", "c.name",
+                             "JOIN constructors c ON c.id = e.constructor_id")
+        lead = _leaders(rows)
+        # An entry under no constructor id cannot name one: said where any
+        # such entry meets the rule, so a reader knows what the count leaves.
+        unteamed, at_indy = q(f"""SELECT COUNT(*), TOTAL(r.gp_id = 'indianapolis-500')
+                                    FROM race_entries e JOIN races r ON r.id = e.race_id
+                                   WHERE {where} AND e.constructor_id IS NULL""")[0]
+        add(f"most-constructors-with-a-{what}", "drivers",
+            f"{record} with the most constructors",
+            [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "constructors",
+            _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+            f"Distinct constructor ids among a driver's {rule}. A constructor is counted under "
+            "the name raced under: lineage is not merged, as it is not for constructors.wins, "
+            "and a privately entered car counts under its constructor id, not its "
+            "entrant. "
+            + (f"{_num(unteamed)} such {'entry' if unteamed == 1 else 'entries'}"
+               + (" - in the Indianapolis 500 of 1950-60 -" if at_indy == unteamed else "")
+               + f" {'is' if unteamed == 1 else 'are'} under no constructor id and "
+               f"count{'s' if unteamed == 1 else ''} for none. " if unteamed else "")
+            + "; ".join(f"{r[1]}: {', '.join(r[3])}" for r in lead)
+            + f". Next: {_also(rows, lead, 1, ties=True)}.")
+
+        rows = most_distinct(where, "r.circuit_id", "ci.name",
+                             "JOIN circuits ci ON ci.id = r.circuit_id")
+        lead = _leaders(rows)
+        add(f"most-circuits-with-a-{what}", "drivers", f"{record} at the most circuits",
+            [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "circuits",
+            _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+            f"Distinct races.circuit_id among a driver's {rule}: the venue, whichever of its "
+            "layouts was raced, so a circuit raced in two configurations is one, and a Grand "
+            "Prix that moved is as many as the circuits it was held at. "
+            + "; ".join(f"{r[1]}: {r[3][0]} first, {r[3][-1]} the {_ordinal(r[0])}"
+                        for r in lead)
+            + f". Next: {_also(rows, lead, 1, ties=True)}.")
+
+    first_last = {}
+    for did, day, year, name in q(f"""SELECT e.driver_id, r.date_iso, r.year, r.name_used
+              FROM race_entries e JOIN races r ON r.id = e.race_id
+             WHERE {STARTED} AND r.status = 'completed' AND r.date_iso IS NOT NULL
+             ORDER BY r.date_iso, r.round"""):
+        first_last.setdefault(did, [(day, year, name)] * 2)[1] = (day, year, name)
+    rows = sorted(((date.fromisoformat(v[-1][0]) - date.fromisoformat(v[0][0])).days,
+                   names[did], did, v[0], v[-1]) for did, v in first_last.items())
+    rows.sort(key=lambda r: (-r[0], r[1]))
+    lead = _leaders(rows)
+    span = lambda r: _age_text(r[3][0], r[4][0])                          # noqa: E731
+    add("longest-career-span", "drivers", "Longest span between a first and a last start",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "days",
+        (f"{span(lead[0])}, {race_name(*lead[0][3][1:])} to {race_name(*lead[0][4][1:])}"
+         if len(lead) == 1 else f"{_num(lead[0][0])} days each"),
+        "From the date of a driver's first start to the date of their last, counted by the "
+        f"calendar; value_num is the span in days. {STARTED_RULE} The seasons between need "
+        "not have been raced, and a driver still racing lengthens it with every start. "
+        + "; ".join(f"{r[1]}: {race_name(*r[3][1:])} to {race_name(*r[4][1:])}" for r in lead)
+        + ". Next: " + ", ".join(f"{r[1]} {span(r)}" for r in _rest(rows, lead)) + ".")
+
+    rows = q("""SELECT e.grid - e.finish_position n, d.full_name, d.id, r.year, r.name_used,
+                       e.grid, e.finish_position
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                  JOIN drivers d ON d.id = e.driver_id
+                 WHERE e.finish_position IS NOT NULL AND e.grid IS NOT NULL
+                 ORDER BY n DESC, r.date_iso, d.full_name""")
+    lead = _leaders(rows)
+    no_slot, pit_lane = q("""SELECT COUNT(*), TOTAL(grid_text = 'PL') FROM race_entries
+                               WHERE finish_position IS NOT NULL AND grid IS NULL""")[0]
+    add("most-positions-gained-in-a-race", "races", "Most places gained in a race",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "places",
+        tie_value(lead, lambda r: f"{_num(r[0])}, {_ordinal(r[5])} to {_ordinal(r[6])}, "
+                                  f"{race_name(r[3], r[4])}",
+                  lambda r: race_name(r[3], r[4])),
+        "race_entries.grid less finish_position, for every classified entry with a grid "
+        "slot held: a classified retirement counts at the place it was classified in, and a "
+        "shared drive counts for each driver from the grid slot their row holds. "
+        + (f"{_num(no_slot)} classified {'entry has' if no_slot == 1 else 'entries have'} "
+           f"no grid slot held and cannot place, {_num(int(pit_lane))} of them a pit-lane "
+           "start (grid_text 'PL'). " if no_slot else "")
+        + "; ".join(f"{r[1]}: {_ordinal(r[5])} to {_ordinal(r[6])}, {race_name(r[3], r[4])}"
+                    for r in lead)
+        + ". Next: " + ", ".join(f"{r[1]} {_num(r[0])} ({race_name(r[3], r[4])})"
+                                 for r in _rest(rows, lead)) + ".")
 
     return out
 

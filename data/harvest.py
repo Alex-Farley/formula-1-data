@@ -1549,6 +1549,26 @@ RECORDS_LIST_READINGS = [
      "counts the race alone throughout. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1385127434",
      "explained", "the list counts a sprint's points"),
+    ("most-constructors-with-a-pole", "drivers", "moss",
+     "5, Moss alone",
+     "Wikipedia's List of Formula One driver records gave Moss alone as taking pole "
+     "positions with five constructors - Mercedes, Maserati, Vanwall, Cooper and Lotus - "
+     "which race_entries agrees with. race_entries holds John Surtees on pole with five as "
+     "well: Team Lotus at the 1960 Portuguese Grand Prix, Lola at the 1962 Dutch, Ferrari "
+     "from the 1963 Italian, Cooper at the 1966 Mexican and Honda at the 1968 Italian. The "
+     "list does not name Surtees, and does not say why. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1385127434",
+     "open", "sources differ"),
+    ("most-constructors-with-a-podium", "drivers", "moss",
+     "6, Moss alone",
+     "Wikipedia's List of Formula One driver records gave Moss alone as finishing on the "
+     "podium with six constructors - Mercedes, Maserati, Vanwall, Cooper, Lotus and BRM - "
+     "which race_entries agrees with. race_entries holds John Surtees on the podium with six "
+     "as well: Team Lotus at the 1960 British Grand Prix, Lola from the 1962 British, Ferrari "
+     "from the 1963 Dutch, Cooper from the 1966 German, Honda from the 1967 South African "
+     "and BRM at the 1969 United States. The list does not name Surtees, and does not say why. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1385127434",
+     "open", "sources differ"),
 ]
 
 # WK-14: a drivers' title Wikipedia's driver list, read as above, credits to
