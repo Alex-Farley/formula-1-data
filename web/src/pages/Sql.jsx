@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { NAMES, NOT_HELD_ANCHOR, SELF_DESCRIBING, TIMING_EMPTY_TABLES, timingEmpty, TWO_FILES } from '../lib/site.js'
 import { complaint, emptyTimingTableRead } from '../lib/sql.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
@@ -9,6 +9,7 @@ import SubNav from '../components/SubNav.jsx'
 import { query, queryReadOnly } from '../data/client.js'
 import { number } from '../lib/format.js'
 import { UNFOLDED } from '../lib/table.js'
+import { useUrlState } from '../lib/urlstate.js'
 import { EXAMPLES, QUESTIONS, TOPICS } from '../lib/questions.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -93,9 +94,10 @@ function SchemaEntry({ entry }) {
 export default function Sql() {
   // The query lives in the URL as well as in state: `?q=` is the permalink,
   // written on every run, read on arrival. A site that asks to be cited
-  // had no way to cite a query.
-  const [params, setParams] = useSearchParams()
-  const arrived = params.get('q')
+  // had no way to cite a query. It is written through useUrlState, which
+  // keeps the address's #fragment and any parameter that is not the query's
+  // (CR-80); the bare address is the default, so START is not written.
+  const [{ q: arrived }, setUrl] = useUrlState({ q: '' })
   const [text, setText] = useState(arrived || START)
   const [state, setState] = useState({ status: 'idle' })
   // One step back. An example replaced whatever the reader had typed, with
@@ -123,7 +125,7 @@ export default function Sql() {
     }
     setState({ status: 'running' })
     ran.current = statement
-    setParams(statement === START ? {} : { q: statement }, { replace: true })
+    setUrl({ q: statement === START ? '' : statement })
     const started = performance.now()
     const controller = new AbortController()
     running.current = controller

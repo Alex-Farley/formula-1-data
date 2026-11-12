@@ -8321,6 +8321,17 @@ try {
     await page.click('button.button')
     await page.waitForFunction(() => new URLSearchParams(location.search).get('q') === 'SELECT 8 AS n', null, { timeout: 10000 })
     pass('running a query writes it to the address')
+    // A run writes the query and nothing else: a link with an #anchor, or a
+    // parameter this page does not own, keeps both (CR-80).
+    await go('/data/sql?q=SELECT%207%20AS%20n&other=kept#anchor', 'SQL console')
+    await page.fill('textarea.sql', 'SELECT 10 AS n')
+    await page.click('button.button')
+    await page.waitForFunction(() => new URLSearchParams(location.search).get('q') === 'SELECT 10 AS n', null, { timeout: 10000 })
+    is(
+      await page.evaluate(() => location.hash + ' ' + new URLSearchParams(location.search).get('other')),
+      '#anchor kept',
+      'running a query keeps the address #fragment and the parameters the page does not own',
+    )
     // The note about the address tells the truth while the reader edits.
     truthy(
       await page
