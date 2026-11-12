@@ -110,7 +110,7 @@ def main(argv=None):
     # argument this script does not take, exits without an export (CR-107).
     ap = argparse.ArgumentParser(
         description="Export f1.db to f1_database.json.",
-        epilog="f1_database.json is gitignored and published as a release asset.")
+        epilog="f1_database.json is gitignored; a release publishes it gzipped.")
     ap.add_argument("--compat", action="store_true",
                     help="also write f1_compat.json, in the original v1 key layout")
     args = ap.parse_args(argv)
