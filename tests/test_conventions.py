@@ -160,6 +160,21 @@ class PublishingPathsCarryBothDatabases(unittest.TestCase):
         self.assertRegex(checkout.group(1), r"(?m)^\s+persist-credentials: false$",
                          "release.yml's checkout leaves its contents: write token in .git/config")
 
+    def test_release_pins_the_tag_to_the_commit_built(self):
+        # AF-145: with no target_commitish, a tag deleted mid-run is recreated
+        # by the release action at the default branch's head, under assets
+        # built from another commit.
+        yml = read(".github/workflows/release.yml")
+        step = re.search(r"(?m)^\s+id: (\w+)\n\s+run: echo \"sha=\$\(git rev-parse HEAD\)\" >> \"\$GITHUB_OUTPUT\"$", yml)
+        self.assertIsNotNone(step, "release.yml records no `git rev-parse HEAD` as a step output")
+        checkout = yml.index("uses: actions/checkout@")
+        self.assertGreater(step.start(), checkout, "release.yml reads HEAD before the checkout")
+        release = re.search(r"uses: softprops/action-gh-release@\S+.*\n\s+with:\n((?:\s{10,}\S.*\n)+)", yml)
+        self.assertIsNotNone(release, "release.yml has no release step with a `with:` block")
+        self.assertRegex(release.group(1),
+                         r"(?m)^\s+target_commitish: \$\{\{ steps\." + step.group(1) + r"\.outputs\.sha \}\}$",
+                         "release.yml's release step does not pin the tag to the commit it built")
+
     def test_site_stages_both(self):
         staging = read("web/scripts/prepare-assets.js")
         for name in ("f1.db", "f1-geometry.db"):
