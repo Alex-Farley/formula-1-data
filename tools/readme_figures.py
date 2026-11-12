@@ -797,6 +797,34 @@ class Figures:
     def wp_last_season(self):
         return str(self._wp_race_one(f"SELECT MAX(year) FROM races WHERE {self._wp_race()}"))
 
+    # The race winners after the Wikipedia harvest ends (CR-99): each cites
+    # formula1.com's results archive (registry entry 7), or F1DB (10) for a
+    # round run since those pages were last read. ATTRIBUTION.md credits
+    # those two, so a winner citing anything else stops the writer.
+    _RESULTS_SOURCES = {7: "formula1.com's results archive", 10: "F1DB"}
+
+    def _later_winners(self):
+        if not hasattr(self, "_lw"):
+            rows = self.con.execute(f"""SELECT DISTINCT r.id, r.year, e.source_id
+                FROM races r JOIN race_entries e ON e.race_id = r.id
+                WHERE e.finish_position = 1 AND NOT {self._wp_race('r.source')}""").fetchall()
+            other = sorted({s for _, _, s in rows if s not in self._RESULTS_SOURCES}, key=str)
+            if other:
+                raise SystemExit(
+                    f"race winners after the Wikipedia harvest cite source_registry "
+                    f"{', '.join(map(str, other))}: ATTRIBUTION.md credits "
+                    f"{' and '.join(self._RESULTS_SOURCES.values())} alone")
+            if len({r for r, _, _ in rows}) != len(rows):
+                raise SystemExit("a race after the Wikipedia harvest has winners citing two "
+                                 "sources: ATTRIBUTION.md counts each race once")
+            self._lw = rows
+        return self._lw
+
+    def results_first_season(self): return str(min(y for _, y, _ in self._later_winners()))
+    def results_last_season(self):  return str(max(y for _, y, _ in self._later_winners()))
+    def results_winners_f1(self):   return n(sum(1 for *_, s in self._later_winners() if s == 7))
+    def results_winners_f1db(self): return n(sum(1 for *_, s in self._later_winners() if s == 10))
+
     def wp_races_f1db(self):
         # Wikipedia-cited races F1DB also classifies: the ones the winner
         # cross-check in build.py ran on, and would have refused whole on a

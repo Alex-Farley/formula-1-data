@@ -349,18 +349,6 @@ RACE_RESULTS = [
     (2026, 12, "Dutch Grand Prix", "norris", "mclaren"),
 ]
 
-REGULATIONS_2026 = {
-    "status": "VERIFIED SUMMARY - always defer to the latest FIA regulation issue for exact legal wording",
-    "current_fia_issues": {
-        "Section A - General Provisions": "Issue 03, dated 2026-06-25",
-        "Section B - Sporting": "Issue 08, dated 2026-08-05",
-        "Section C - Technical": "Issue 20, dated 2026-08-05",
-        "Section D - Financial - F1 Teams": "Issue 07, dated 2026-06-25",
-        "Section E - Financial - PU Manufacturers": "Issue 06, dated 2026-06-25",
-        "Section F - Operational": "Issue 10, dated 2026-08-05",
-    },
-}
-
 # priority, source, url, use, authority, licence, cadence, checkability
 #
 # The last three are the assessment, and they are the point of this table.

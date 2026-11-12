@@ -26,6 +26,7 @@ the current position from the rows themselves.
 | Part | Source | Roughly how much |
 |---|---|---|
 | Race winners <!-- fig:wp_first_season -->1950<!-- /fig -->–<!-- fig:wp_last_season -->2024<!-- /fig --> | Wikipedia season articles | <!-- fig:wp_races -->1,125<!-- /fig --> races |
+| Race winners <!-- fig:results_first_season -->2025<!-- /fig -->–<!-- fig:results_last_season -->2026<!-- /fig --> | formula1.com's results archive, and [F1DB](https://github.com/f1db/f1db) for a round run since those pages were last read | <!-- fig:results_winners_f1 -->36<!-- /fig --> and <!-- fig:results_winners_f1db -->8<!-- /fig --> races |
 | Pole position and fastest lap <!-- fig:wp_poles_first -->1950<!-- /fig -->–<!-- fig:wp_poles_last -->2026<!-- /fig --> | Wikipedia season articles | <!-- fig:wp_pole_races -->1,161<!-- /fig --> / <!-- fig:wp_fl_races -->1,160<!-- /fig --> races |
 | Race venues <!-- fig:wp_venues_first -->1950<!-- /fig -->–<!-- fig:wp_venues_last -->2026<!-- /fig --> | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | <!-- fig:wp_venue_races -->1,161<!-- /fig --> races |
 | Car specifications and design histories | <!-- credit:cars -->Wikipedia per-car articles<!-- /credit --> | <!-- fig:cars -->29<!-- /fig --> curated cars |
