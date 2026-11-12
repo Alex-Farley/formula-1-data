@@ -31,6 +31,7 @@ import re
 import sqlite3
 import sys
 from collections import Counter
+from datetime import date
 from fractions import Fraction
 from urllib.parse import urlparse
 
@@ -1822,10 +1823,11 @@ def records_are_derived():
     # tables, WK-16 the sprint's podiums, points and poles, WK-09 the
     # twelve share tables, WK-11 the three from the first race of a
     # season and the first season, WK-12 the eleven 'before first' and
-    # 'without' tables, WK-14 the six of a championship career's shape, and
-    # WK-15 the nine constructor forms and front-row lockouts.
+    # 'without' tables, WK-14 the six of a championship career's shape,
+    # WK-15 the nine constructor forms and front-row lockouts, and WK-17
+    # the six points-per-race tables.
     # A derivation that silently drops one fails here.
-    FLOOR = 124
+    FLOOR = 130
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -2446,6 +2448,58 @@ def records_are_derived():
          WHERE c.wins = 0 GROUP BY p.constructor_id""").fetchall()
     same_set("most-constructor-podiums-without-a-win", *top(found), "constructors", "name",
              "podium places by position_text where constructors.wins is 0")
+
+    # WK-17. The build sums race_entries and sprint_results in one union,
+    # counts distinct races with points, walks the runs in Python and takes
+    # the ages from julianday(); these sum v_driver_season_points' seasons,
+    # take the winless from the race_results view, group each driver's
+    # entries by race, number the runs with a window and count the ages by
+    # the calendar in Python. Points are compared to two places, as the
+    # records hold a seventh as 0.14. Every holder is compared.
+    def same_points(key, found, what):
+        r = rows.get(key)
+        best = max((round(n, 2) for _, n in found), default=None)
+        ids = {k for k, n in found if round(n, 2) == best}
+        want = sorted({n for (n,) in con.execute(
+            f"SELECT full_name FROM drivers WHERE id IN ({','.join('?' * len(ids))})",
+            sorted(ids))})
+        got = sorted(r["holder"].split(", ")) if r else []
+        check(f"records.{key} agrees with {what}",
+              r is not None and bool(ids) and round(r["value_num"], 2) == best and got == want,
+              f"recomputed {best}: {', '.join(want)}; stored "
+              + (f"{r['value_num']:g}: {r['holder']}" if r else "nothing"))
+
+    season_sums = con.execute("""SELECT driver_id, SUM(points) FROM v_driver_season_points
+        GROUP BY driver_id HAVING SUM(points) > 0""").fetchall()
+    same_points("most-career-points", season_sums, "v_driver_season_points summed by season")
+    winners = {d for (d,) in con.execute("""SELECT winner_id FROM race_results
+        WHERE winner_id IS NOT NULL
+        UNION SELECT co_winner_id FROM race_results WHERE co_winner_id IS NOT NULL""")}
+    same_points("most-points-without-a-win", [(d, n) for d, n in season_sums if d not in winners],
+                "v_driver_season_points for drivers the race_results view names no winner")
+    found = con.execute("""SELECT driver_id, COUNT(*) FROM (
+            SELECT driver_id, race_id FROM race_entries
+             GROUP BY driver_id, race_id HAVING SUM(points) > 0)
+        GROUP BY driver_id""").fetchall()
+    same_set("most-points-finishes", *top(found), "drivers", "full_name",
+             "each driver's entries grouped by race")
+    same_set("most-consecutive-points-finishes", *top(con.execute("""WITH o AS (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY date_iso, year, round) i
+              FROM races WHERE status = 'completed'),
+          h AS (SELECT DISTINCT race_id, driver_id d FROM race_entries WHERE points > 0),
+          g AS (SELECT h.d, o.i - ROW_NUMBER() OVER (PARTITION BY h.d ORDER BY o.i) grp
+                  FROM h JOIN o ON o.id = h.race_id)
+        SELECT d, COUNT(*) FROM g GROUP BY d, grp""").fetchall()),
+             "drivers", "full_name", "a window query over the races with points")
+    ages = [((date.fromisoformat(day) - date.fromisoformat(born)).days, d)
+            for d, born, day in con.execute("""SELECT e.driver_id, dr.born, r.date_iso
+                FROM race_entries e JOIN races r ON r.id = e.race_id
+                JOIN drivers dr ON dr.id = e.driver_id
+               WHERE e.points > 0 AND dr.born IS NOT NULL AND r.date_iso IS NOT NULL""")]
+    for key, pick in (("youngest-points-scorer", min), ("oldest-points-scorer", max)):
+        age = pick((a for a, _ in ages), default=None)
+        same_set(key, age, {d for a, d in ages if a == age}, "drivers", "full_name",
+                 "each scoring entry's age counted by the calendar")
 
     # A reading of Wikipedia's lists is filed against the record as it now
     # stands: every declared reading is a row, and its stored side is the

@@ -1406,6 +1406,13 @@ EXPLAINED_SPANS = [
 # record's figure as it now stands beside the list's: the reading is in the
 # past tense and the record is not. A record that has since passed to
 # another holder files its row resolved.
+#
+# WK-17's six were read on 2026-11-12 against the driver list at revision
+# 1385127434, still ending at the 2026 Sao Paulo Grand Prix, as the database
+# then did. Five agree on figure and holder: the most career points, the most
+# consecutive points finishes, the youngest and the oldest driver to score
+# points, and the most points without a win. The most points finishes does
+# not, and is the row below.
 #   record key, holder table, holder id, the list's figure on the day it was read,
 #   why they differ, status, note
 RECORDS_LIST_READINGS = [
@@ -1530,6 +1537,18 @@ RECORDS_LIST_READINGS = [
      "Bull Racing and 22 for Renault. The list does not say how it counts. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1384688527",
      "open", "sources differ"),
+    ("most-points-finishes", "drivers", "hamilton",
+     "353 points-scoring races",
+     "Wikipedia's List of Formula One driver records gave Hamilton 353 points-scoring races, "
+     "Alonso 278, Schumacher 221, Raikkonen and Vettel 219 each, Verstappen 215, Perez 188, "
+     "Massa 165, Button 162 and Sainz 160. race_entries held a Grand Prix points finish in "
+     "347, 277, 221, 219, 219, 211, 186, 165, 162 and 153 races, and sprint_results a weekend "
+     "that scored in the sprint alone 6, 1, 0, 0, 0, 4, 2, 0, 0 and 7 times: each of the "
+     "list's figures is the sum of the two. The list's table of consecutive points finishes "
+     "counts the race alone, and notes that a sprint's points do not count; the record "
+     "counts the race alone throughout. "
+     "Source: https://en.wikipedia.org/w/index.php?oldid=1385127434",
+     "explained", "the list counts a sprint's points"),
 ]
 
 # WK-14: a drivers' title Wikipedia's driver list, read as above, credits to
