@@ -8265,11 +8265,15 @@ try {
       const future = count("SELECT COUNT(*) FROM sessions WHERE start_utc > strftime('%Y-%m-%dT%H:%MZ', 'now')")
       if (future > 0) {
         await go('/seasons/2026', '2026')
-        const season = await page.$eval('#root main', (m) => m.textContent)
         // A tile among the others (IA-17): the session, and how long until it.
-        const tile = season.match(/Next session.{0,80}/)?.[0] ?? 'no tile'
+        // The tile's own element, not a fixed slice of the page's text, which a
+        // long session and race name cut off before the countdown (CR-105).
+        const tile = await page.$$eval(
+          '#root main dl.stats > div',
+          (tiles) => tiles.find((t) => t.querySelector('dt')?.textContent.trim() === 'Next session')?.textContent ?? 'no tile',
+        )
         truthy(
-          season.includes('Next session') && /\bin (under a minute|\d+ (minutes?|hours|days))/.test(tile),
+          tile !== 'no tile' && /\bin (under a minute|\d+ (minutes?|hours|days))/.test(tile),
           `the season page sets the next session as a tile, computed in the browser — ${tile}`,
         )
       }
