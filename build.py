@@ -7789,10 +7789,22 @@ def derive_records(cur, leave_out=frozenset()):
     # rescaled to one system. Where Wikipedia's driver list gave another
     # figure on the day, data/harvest.py RECORDS_LIST_READINGS files it in
     # `discrepancies`.
-    unheld = q("SELECT COUNT(DISTINCT driver_id) FROM race_entries WHERE points IS NULL")[0][0]
-    unheld_note = (f" {_plural(unheld, 'driver')} with an entry whose points are not held "
-                   f"(NULL) {'is' if unheld == 1 else 'are'} counted on the entries that "
-                   "are held, so may read low." if unheld else "")
+    def unheld_note(tables, effect):
+        """A sentence naming the drivers with a NULL points row in `tables`,
+        and what that does to the figure; empty when there are none."""
+        n = q("SELECT COUNT(DISTINCT driver_id) FROM ("
+              + " UNION ".join(f"SELECT driver_id FROM {t} WHERE points IS NULL" for t in tables)
+              + ")")[0][0]
+        return (f" {_plural(n, 'driver')} with a row whose points are not held (NULL) "
+                f"{'is' if n == 1 else 'are'} {effect}." if n else "")
+
+    sum_note = unheld_note(("race_entries", "sprint_results"),
+                           "counted on the points that are held, so may read low")
+    race_note = unheld_note(("race_entries",),
+                            "counted on the entries whose points are held, so may read low")
+    age_note = unheld_note(("race_entries",),
+                           "placed on the entries whose points are held, so the record may "
+                           "not be the youngest or oldest such driver")
     career = """SELECT x.driver_id, TOTAL(x.points) p FROM (
                     SELECT driver_id, points FROM race_entries
                     UNION ALL SELECT driver_id, points FROM sprint_results) x
@@ -7813,7 +7825,7 @@ def derive_records(cur, leave_out=frozenset()):
     add("most-career-points", "drivers", "Most career points",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "points",
         pts(lead[0][0]) + (" each" if len(lead) > 1 else ""),
-        f"{career_rule}.{unheld_note} Next: {pct_next(rows, lead, lambda r: f'{r[1]} {pts(r[0])}')}.")
+        f"{career_rule}.{sum_note} Next: {pct_next(rows, lead, lambda r: f'{r[1]} {pts(r[0])}')}.")
 
     def points_races(scored):
         return q(f"""SELECT COUNT(DISTINCT x.race_id) n, d.full_name, d.id
@@ -7838,7 +7850,7 @@ def derive_records(cur, leave_out=frozenset()):
         "points; an entry paid nothing reads 0 (DA-36). A sprint is not a Grand Prix, so a "
         "weekend that scored in the sprint alone is not counted; counted with those, the "
         "lead would be " + "; ".join(f"{r[1]} {_num(r[0])}" for r in lead_weekend)
-        + f".{unheld_note} Next: {pct_next(rows, lead, lambda r: f'{r[1]} {_num(r[0])}')}.")
+        + f".{race_note} Next: {pct_next(rows, lead, lambda r: f'{r[1]} {_num(r[0])}')}.")
 
     best, holders = streak("e.points > 0")
     add("most-consecutive-points-finishes", "drivers", "Most consecutive points finishes",
@@ -7846,7 +7858,7 @@ def derive_records(cur, leave_out=frozenset()):
         run_value(best, holders),
         run_detail("Races in which the driver has a race_entries row with points above 0, as "
                    "most-points-finishes counts them; a race missed breaks the run, and a "
-                   "sprint's points do not extend it." + unheld_note, holders, names))
+                   "sprint's points do not extend it." + race_note, holders, names))
 
     for key, record, biggest in (
         ("youngest-points-scorer", "Youngest driver to score points", False),
@@ -7855,7 +7867,7 @@ def derive_records(cur, leave_out=frozenset()):
         by_age(key, record, "e.points > 0", biggest, "scored points",
                "That is race_entries.points above 0, a 1950s point for fastest lap alone and "
                "a shared drive's share included; a sprint's points are not a race entry's "
-               "and are not read." + unheld_note + " ")
+               "and are not read." + age_note + " ")
 
     rows = q(f"""SELECT c.p, d.full_name, d.id FROM ({career}) c
                    JOIN drivers d ON d.id = c.driver_id
@@ -7866,7 +7878,7 @@ def derive_records(cur, leave_out=frozenset()):
         pts(lead[0][0]) + (" each" if len(lead) > 1 else ""),
         "Career points as most-career-points counts them, race and sprint, for every driver "
         "whose drivers.wins is 0. A sprint win is not a Grand Prix win and does not end it; "
-        f"a Grand Prix win would, and a driver still racing may yet take one.{unheld_note} "
+        f"a Grand Prix win would, and a driver still racing may yet take one.{sum_note} "
         f"Next: {pct_next(rows, lead, lambda r: f'{r[1]} {pts(r[0])}')}.")
 
     return out
