@@ -55,6 +55,16 @@ jobs:
           ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
           persist-credentials: false
 
+      # The commit the tag named at checkout, for the release step to pin the
+      # tag to (AF-145). Given a tag that does not exist, the release action
+      # creates it at target_commitish, and with none at the default branch's
+      # head: a tag deleted while this job runs would come back on a commit
+      # these assets were not built from. A tag that still exists is left
+      # where it is.
+      - name: The commit being built
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
@@ -146,6 +156,7 @@ jobs:
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          target_commitish: ${{ steps.commit.outputs.sha }}
           generate_release_notes: true
           files: |
             f1.db
