@@ -800,14 +800,15 @@ class Figures:
     # The race winners after the Wikipedia harvest ends (CR-99): each cites
     # formula1.com's results archive (registry entry 7), or F1DB (10) for a
     # round run since those pages were last read. ATTRIBUTION.md credits
-    # those two, so a winner citing anything else stops the writer.
+    # those two, so a winner citing anything else stops the writer. A race
+    # with no source is counted here, not dropped, so its winner is checked.
     _RESULTS_SOURCES = {7: "formula1.com's results archive", 10: "F1DB"}
 
     def _later_winners(self):
         if not hasattr(self, "_lw"):
             rows = self.con.execute(f"""SELECT DISTINCT r.id, r.year, e.source_id
                 FROM races r JOIN race_entries e ON e.race_id = r.id
-                WHERE e.finish_position = 1 AND NOT {self._wp_race('r.source')}""").fetchall()
+                WHERE e.finish_position = 1 AND NOT COALESCE({self._wp_race('r.source')}, 0)""").fetchall()
             other = sorted({s for _, _, s in rows if s not in self._RESULTS_SOURCES}, key=str)
             if other:
                 raise SystemExit(
