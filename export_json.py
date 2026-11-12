@@ -8,6 +8,7 @@ Export f1.db to JSON.
                                            v1 file so existing consumers of
                                            that file keep working.
 """
+import argparse
 import json
 import os
 import sqlite3
@@ -104,7 +105,15 @@ def check_complete(con, out):
                  f"exist: {', '.join(sorted(stale))}")
 
 
-def main():
+def main(argv=None):
+    # Parsed before anything is opened or written, so `--help`, or an
+    # argument this script does not take, exits without an export (CR-107).
+    ap = argparse.ArgumentParser(
+        description="Export f1.db to f1_database.json.",
+        epilog="f1_database.json is gitignored; a release publishes it gzipped.")
+    ap.add_argument("--compat", action="store_true",
+                    help="also write f1_compat.json, in the original v1 key layout")
+    args = ap.parse_args(argv)
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
     meta = {r["key"]: r["value"] for r in con.execute("SELECT * FROM meta")}
@@ -223,7 +232,7 @@ def main():
         json.dump(out, f, indent=2, ensure_ascii=False)
     print(f"wrote {path}  ({os.path.getsize(path) / 1024:.0f} KB)")
 
-    if "--compat" in sys.argv:
+    if args.compat:
         # The season this file's keys name. FROZEN, and deliberately not
         # meta.current_season: README calls f1_compat.json "the original v1
         # key layout, so anything already consuming that file keeps working",

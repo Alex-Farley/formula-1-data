@@ -56,18 +56,29 @@ SMALL = ("XS", "S")
 # floors, the verdict, the merge gate, the reviewers, the command that starts
 # one out of process, and the procedure they enforce, with the rules file and
 # Claude Code's adapter notes, which hold the rest of it (AF-119): a diff
-# that could rewrite the rule could pass its own check.
+# that could rewrite the rule could pass its own check. Since AF-147 the whole
+# of the loop's script directory is protected, with the harness settings and
+# the loop's tests, and every script in that directory and both settings files
+# are named here as well, because a body may name one by its file name alone,
+# which a directory prefix does not catch. A loop test is caught by its path.
 PROTECTED_FILES = ("build.py", "verify.py", "schema.sql", "export_json.py",
                    "prepare-assets.js", "prerender.js", "parquet-bundle.mjs",
                    "package.json", "package-lock.json", "wrangler.jsonc", "ATTRIBUTION.md",
                    "CODEOWNERS", "f1.db", "f1-geometry.db", "f1_compat.json",
                    "implementer.py", "precheck.sh", "verdict.sh", "merge-step.py", "ci-wait.sh",
                    "floors.py", "merge-main.py", "review-prompt.md", "review.py", "next.py",
+                   "supervise.py", "file.py", "loop_cache.py", "loop_usage.py", "gh_preflight.py",
+                   "progress.sh", "start-check.sh", "settings.json", "settings.local.json",
                    "AGENTS.md", "CLAUDE.md")
 # LICENSE, LICENSE-DATA, LICENSE-GEOMETRY and whatever joins them.
 LICENCE = re.compile(r"(?<![\w-])LICEN[CS]E[\w.-]*")
+# Prefixes, not only directories: `.claude/settings` is settings.json and
+# settings.local.json, and the last three are the loop's own tests - the
+# queue scripts', the supervisor's and usage readings', and the merge gate's.
 PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/", ".claude/agents/",
-                  ".claude/skills/backlog-item/", ".claude/skills/backlog-item-sonnet/")
+                  ".claude/skills/backlog-item/", ".claude/skills/backlog-item-sonnet/",
+                  ".claude/skills/backlog-loop/", ".claude/settings", "tests/test_backlog_",
+                  "tests/test_loop_", "tests/test_merge_step")
 # The release is a workflow (release.yml), and so is the refresh; a body names
 # one by its file name more often than by its directory.
 WORKFLOW = re.compile(r"\b[\w-]+\.ya?ml\b")
