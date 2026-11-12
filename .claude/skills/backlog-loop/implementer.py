@@ -56,7 +56,10 @@ SMALL = ("XS", "S")
 # floors, the verdict, the merge gate, the reviewers, the command that starts
 # one out of process, and the procedure they enforce, with the rules file and
 # Claude Code's adapter notes, which hold the rest of it (AF-119): a diff
-# that could rewrite the rule could pass its own check.
+# that could rewrite the rule could pass its own check. Since AF-147 the whole
+# of the loop's script directory is protected, with the harness settings and
+# the loop's tests: the files named one by one above still catch a body that
+# names a script by its file name alone, which the directory does not.
 PROTECTED_FILES = ("build.py", "verify.py", "schema.sql", "export_json.py",
                    "prepare-assets.js", "prerender.js", "parquet-bundle.mjs",
                    "package.json", "package-lock.json", "wrangler.jsonc", "ATTRIBUTION.md",
@@ -66,8 +69,11 @@ PROTECTED_FILES = ("build.py", "verify.py", "schema.sql", "export_json.py",
                    "AGENTS.md", "CLAUDE.md")
 # LICENSE, LICENSE-DATA, LICENSE-GEOMETRY and whatever joins them.
 LICENCE = re.compile(r"(?<![\w-])LICEN[CS]E[\w.-]*")
+# Prefixes, not only directories: `.claude/settings` is settings.json and
+# settings.local.json, and `tests/test_backlog_` the loop's own tests.
 PROTECTED_DIRS = ("data/", "harvest/", "tools/", ".github/", ".claude/agents/",
-                  ".claude/skills/backlog-item/", ".claude/skills/backlog-item-sonnet/")
+                  ".claude/skills/backlog-item/", ".claude/skills/backlog-item-sonnet/",
+                  ".claude/skills/backlog-loop/", ".claude/settings", "tests/test_backlog_")
 # The release is a workflow (release.yml), and so is the refresh; a body names
 # one by its file name more often than by its directory.
 WORKFLOW = re.compile(r"\b[\w-]+\.ya?ml\b")

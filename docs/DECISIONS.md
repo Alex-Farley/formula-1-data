@@ -1221,10 +1221,14 @@ the target `next` or `until-paused`, the driver runs `next.py
   committed artefacts, and these files of the loop's controls:
   `implementer.py`, `precheck.sh`, `floors.py`, `verdict.sh`,
   `merge-step.py`, `merge-main.py`, `ci-wait.sh`, `next.py`,
-  `review-prompt.md`, `.claude/agents/` and both item skills. The rest of
-  `.claude/skills/backlog-loop/`, `.claude/settings*.json` and the loop's
-  tests are not protected. Over-matching keeps an item on Opus, which is the
-  safe direction;
+  `review-prompt.md`, `.claude/agents/` and both item skills. As first
+  merged, the rest of `.claude/skills/backlog-loop/`, `.claude/settings*.json`
+  and the loop's tests were not protected; `AF-147` added all three as
+  prefixes, because a Sonnet item editing `supervise.py`, `file.py` or the
+  harness settings passed both the text screen and the precheck. The file
+  names stay listed, since a body may name a script by its file name alone,
+  which the prefix does not catch. Over-matching keeps an item on Opus, which is the safe
+  direction;
 - fewer than ten pull requests, merged or open, carry the label
   `implementer: sonnet`. **The trial stops itself at ten** and waits to be
   measured, rather than running on unmeasured.

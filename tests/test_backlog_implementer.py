@@ -63,6 +63,9 @@ class ProtectedPaths(unittest.TestCase):
             ("the rule in .claude/agents/frontend-reviewer.md", ".claude/agents/"),
             ("a rule in AGENTS.md", "AGENTS.md"),
             ("the adapter notes in `CLAUDE.md`", "CLAUDE.md"),
+            ("`.claude/skills/backlog-loop/supervise.py` restarts it", ".claude/skills/backlog-loop/"),
+            ("an allow rule in .claude/settings.json", ".claude/settings"),
+            ("**Where:** tests/test_backlog_next.py", "tests/test_backlog_"),
         ):
             self.assertIn(want, imp.protected_in_text(text), text)
 
@@ -79,12 +82,16 @@ class ProtectedPaths(unittest.TestCase):
             ".github/workflows/ci.yml", ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json",
             "f1.db", ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md",
             "docs/DECISIONS.md", ".claude/skills/backlog-loop/file.py", ".claude/agents/licence-reviewer.md",
-            ".claude/skills/backlog-item/land.md", "AGENTS.md", "CLAUDE.md", "README.md", ""]),
+            ".claude/skills/backlog-item/land.md", "AGENTS.md", "CLAUDE.md", "README.md",
+            ".claude/skills/backlog-loop/SKILL.md", ".claude/settings.json", ".claude/settings.local.json",
+            "tests/test_backlog_next.py", "tests/test_conventions.py", ".claude/skills/dataviz/x.md", ""]),
             ["data/current.py", "verify.py", "web/scripts/prerender.js", ".github/workflows/ci.yml",
              ".github/CODEOWNERS", "LICENSE-DATA", "web/package-lock.json", "f1.db",
              ".claude/skills/backlog-loop/precheck.sh", ".claude/skills/backlog-item-sonnet/SKILL.md",
-             ".claude/agents/licence-reviewer.md", ".claude/skills/backlog-item/land.md",
-             "AGENTS.md", "CLAUDE.md"])
+             ".claude/skills/backlog-loop/file.py", ".claude/agents/licence-reviewer.md",
+             ".claude/skills/backlog-item/land.md", "AGENTS.md", "CLAUDE.md",
+             ".claude/skills/backlog-loop/SKILL.md", ".claude/settings.json", ".claude/settings.local.json",
+             "tests/test_backlog_next.py"])
 
     def test_the_script_exits_one_on_a_protected_diff_and_zero_otherwise(self):
         script = os.path.join(LOOP, "implementer.py")
