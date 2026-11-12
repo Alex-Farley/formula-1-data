@@ -51,8 +51,12 @@ day, except at a circuit data/current.py's RACE_DAY_AFTER_WEEKEND names,
 whose race starts after midnight UTC, where the local day is the one before.
 The model is `era5_seamless` - ERA5-Land where it covers the point, ERA5
 elsewhere - fixed, so every race from 1950 to the latest is the same model's
-reading and a re-run reproduces it. Asked for daily figures in the
-circuit's own time zone:
+reading. A re-run is still not always the last one again: the figures
+Open-Meteo serves for a day can change between runs, and the re-run of
+2026-11-12 (AF-152) moved 36 rows' figures, every one at a circuit in the
+United States or Canada, with no change of day or point. A re-run is taken
+whole, never patched row by row. Asked for daily figures in the circuit's
+own time zone:
 
     temperature_2m_max     the day's highest air temperature, 2 m up, in C
     precipitation_sum      the day's rain (and any snow, as water), in mm

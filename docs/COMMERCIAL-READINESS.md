@@ -16,14 +16,14 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-Of the <!-- fig:sourced_rows -->174,893<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
+Of the <!-- fig:sourced_rows -->174,898<!-- /fig --> sourced rows, <!-- fig:yes_share -->99.6%<!-- /fig --> carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.4%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->174,138<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->174,143<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->755<!-- /fig --> | <!-- fig:facts_only_share -->0.4%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
@@ -430,15 +430,15 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->168,942<!-- /fig --> of the <!-- fig:sourced_rows -->174,893<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->167,022<!-- /fig -->,
+cite Wikipedia: <!-- fig:edition_rows -->168,945<!-- /fig --> of the <!-- fig:sourced_rows -->174,898<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->167,022<!-- /fig -->,
 the <!-- fig:facts_only_rows -->755<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
-nothing of FOM's or the FIA's under anyone's licence, and the <!-- fig:meteo_rows -->1,165<!-- /fig --> rows of
+nothing of FOM's or the FIA's under anyone's licence, and the <!-- fig:meteo_rows -->1,168<!-- /fig --> rows of
 race-day weather modelled through Open-Meteo, CC BY 4.0 as F1DB's are (AF-136). *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
 because §4(b) reaches the database holding the substantial portion and no
 other.
 
-It leaves out the <!-- fig:wp_rows -->5,951<!-- /fig --> rows that cite Wikipedia:
+It leaves out the <!-- fig:wp_rows -->5,953<!-- /fig --> rows that cite Wikipedia:
 
 | Rows | Table | What they are |
 |---:|---|---|
@@ -450,7 +450,7 @@ It leaves out the <!-- fig:wp_rows -->5,951<!-- /fig --> rows that cite Wikipedi
 | <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
 | <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
 | <!-- fig:wp_note_sources -->52<!-- /fig --> | `driver_note_sources` | the driver articles the Friday drivers' notes were checked against (LV-08); each is a citation, and the note it backs is this project's writing, measured against the article in `docs/prose_pass.tsv` |
-| <!-- fig:wp_weather -->1,065<!-- /fig --> | `race_weather_reported` | each race article's infobox `Weather` line, in its own words, and the wet or dry read from them (AF-136) |
+| <!-- fig:wp_weather -->1,067<!-- /fig --> | `race_weather_reported` | each race article's infobox `Weather` line, in its own words, and the wet or dry read from them (AF-136) |
 
 — and six sets a count by `source` cannot see, because the value is
 Wikipedia's while the row cites something else: `circuits.article` and
@@ -475,7 +475,7 @@ from it is a name and a nationality each, bare facts; the `notes` line some
 of them carry is this project's writing and belongs to the prose pass. The
 three steps above apply to the list unchanged.
 
-The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->126,299<!-- /fig --> further rows —
+The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->126,300<!-- /fig --> further rows —
 the rest of every classification in `race_entries`, and qualifying, sprints
 and pit stops — are keyed to them, and an edition without them has no
 spine. So a facts edition has two
