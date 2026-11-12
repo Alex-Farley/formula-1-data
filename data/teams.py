@@ -26,7 +26,7 @@ CONSTRUCTORS = [
      None, 9, 10, "2014,2015,2016,2017,2018,2019,2020,2021,2026", "brackley", 1,
      "Two spells: a works team in 1954-55 that won two titles with Fangio and withdrew after Le Mans, and the modern operation that took over Brawn GP in 2010 and won eight consecutive constructors' championships from 2014. Registered first entry 1954; the current entity traces its entry chain through BAR and Honda.", "medium"),
     ("mclaren", "McLaren", "McLaren Mastercard F1 Team", "United Kingdom", "Woking, United Kingdom", 1966, None,
-     None, 10, 14, "1974,1984,1985,1988,1989,1990,1991,1998,2024,2025", "woking", 1,
+     None, 10, 13, "1974,1984,1985,1988,1989,1990,1991,1998,2024,2025", "woking", 1,
      "Founded by Bruce McLaren in 1963, first entry 1966. Second only to Ferrari in wins and titles. The MP4/4 of 1988 won 15 of 16 races. Returned to the top in 2024-25 after a 26-year constructors' drought.", "medium"),
     ("red-bull", "Red Bull Racing", "Oracle Red Bull Racing", "Austria", "Milton Keynes, United Kingdom", 2005, None,
      None, 6, 8, "2010,2011,2012,2013,2022,2023", "milton-keynes", 1,

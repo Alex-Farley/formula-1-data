@@ -358,6 +358,19 @@ def cross_tabulation_title_counts_vs_season_records():
             cmis.append(f"{row['name']}: seasons say {n}, row says {row['constructors_titles']}")
     check("constructor title counts agree with the seasons table", not cmis, "; ".join(cmis))
 
+    # A drivers' title counts for the team the champion drove for, which is
+    # the season's champion_team - also for a season whose title was decided
+    # before its last round, because the row already names the team. Every
+    # constructor is compared, so a row claiming titles that no season
+    # names fails as well as a row short of one (CR-115).
+    dt = Counter(r[0] for r in con.execute(
+        "SELECT champion_team FROM seasons WHERE champion_team IS NOT NULL"))
+    dmis = [f"{r['name']}: seasons say {dt[r['id']]}, row says {r['drivers_titles']}"
+            for r in con.execute("SELECT id, name, drivers_titles FROM constructors")
+            if (r["drivers_titles"] or 0) != dt[r["id"]]]
+    check("constructor drivers'-title counts agree with seasons.champion_team",
+          not dmis, "; ".join(dmis))
+
 
 @section('TITLE-YEAR STRINGS')
 def title_year_strings():
