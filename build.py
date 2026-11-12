@@ -7957,6 +7957,13 @@ def derive_records(cur, leave_out=frozenset()):
                         for r in lead)
             + f". Next: {_also(rows, lead, 1, ties=True)}.")
 
+    def rest_ties(rows, lead, limit=3):
+        """_rest's runners-up, run on through every row level with the last
+        kept, so a figure shared at the cut is not shown as one holder's."""
+        after = [r for r in rows if r not in lead]
+        rest = after[:limit]
+        return rest + [r for r in after[limit:] if rest and r[0] == rest[-1][0]]
+
     first_last = {}
     for did, day, year, name in q(f"""SELECT e.driver_id, r.date_iso, r.year, r.name_used
               FROM race_entries e JOIN races r ON r.id = e.race_id
@@ -7976,7 +7983,7 @@ def derive_records(cur, leave_out=frozenset()):
         f"calendar; value_num is the span in days. {STARTED_RULE} The seasons between need "
         "not have been raced, and a driver still racing lengthens it with every start. "
         + "; ".join(f"{r[1]}: {race_name(*r[3][1:])} to {race_name(*r[4][1:])}" for r in lead)
-        + ". Next: " + ", ".join(f"{r[1]} {span(r)}" for r in _rest(rows, lead)) + ".")
+        + ". Next: " + ", ".join(f"{r[1]} {span(r)}" for r in rest_ties(rows, lead)) + ".")
 
     rows = q("""SELECT e.grid - e.finish_position n, d.full_name, d.id, r.year, r.name_used,
                        e.grid, e.finish_position
@@ -8001,7 +8008,7 @@ def derive_records(cur, leave_out=frozenset()):
         + "; ".join(f"{r[1]}: {_ordinal(r[5])} to {_ordinal(r[6])}, {race_name(r[3], r[4])}"
                     for r in lead)
         + ". Next: " + ", ".join(f"{r[1]} {_num(r[0])} ({race_name(r[3], r[4])})"
-                                 for r in _rest(rows, lead)) + ".")
+                                 for r in rest_ties(rows, lead)) + ".")
 
     return out
 
