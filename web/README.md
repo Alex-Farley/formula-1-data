@@ -548,9 +548,10 @@ CHROME_PATH=/path/to/chrome npm test   # reuse a browser instead of downloading 
 
 The build is a directory of static files that carries its own database, so it
 needs a static host and nothing else — no server, no API, no database to
-provision. `base: './'` and the `HashRouter` mean there is no deploy-time
-configuration and no rewrite rules to get wrong: the same `dist/` works at a
-domain root, in a subdirectory, or anywhere else.
+provision. Every route is a prerendered file, so there are no rewrite rules
+to get wrong. The path it is served from is fixed at build time: a `dist/`
+built with the default `SITE_BASE` belongs at a domain root, and one for a
+subdirectory is built with `SITE_BASE=/that/path/`.
 
 Three numbers decide which hosts are viable. The largest single file is
 `f1.db` at **19.99 MiB**, the whole `dist/` is about **26 MB**, and each
@@ -691,11 +692,16 @@ of these.
 
 ## Things worth knowing before changing it
 
-**Routing is hash-based.** `#/drivers/senna`, not `/drivers/senna`. A static
-host has nothing to rewrite deep links with, and `base: './'` plus a
-`HashRouter` means the built site works from any subdirectory with no
-configuration. If you put this behind a server that can rewrite, switching to
-`BrowserRouter` is a two-line change.
+**Routing is on the path.** `/drivers/senna`, not `#/drivers/senna`.
+`App.jsx` is a `BrowserRouter` whose `basename` is vite's `base`, and both
+come from `SITE_BASE` (default `/`), which `scripts/prerender.js` also reads
+for canonical URLs and the sitemap. It has to be absolute: prerendering puts
+real files at `/drivers/senna/index.html`, and a relative asset URL there
+would resolve under the route and 404. A deep link needs no rewrite rule
+because the file is on disk; `vite.config.js` makes `npm run preview` serve a
+directory's `index.html` without the trailing slash, as the host does, and
+falls back to `index.html` in `npm run dev` only. The smoke test moves between
+routes with `pushState` and a `popstate` event rather than a hash.
 
 **`locateFile` ignores the filename it is given.** sql.js ships several glue
 builds that ask for different wasm filenames — a bundler resolves the `browser`
