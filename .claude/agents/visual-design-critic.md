@@ -19,7 +19,14 @@ Judge in this order:
    a value or making a comparison is a defect regardless of taste.
 2. **Is it coherent?** One system, actually applied. Every screen is a chance to
    drift.
-3. **Is it any good?** Taste, labelled as taste.
+3. **Does it have character?** Would a fan want to stay on the page, share it or
+   come back to it? A page can be correct, coherent and dull, and dull is a
+   finding. Character that costs no lookup (colour with a meaning, annotation,
+   a page with a point of view) is not decoration. Taste, labelled as taste.
+
+If `.claude/critique/visual-direction.md` exists, read it after the brief: it
+says what the author wants the site to feel like, the references to measure
+it against, and what a bolder chart or page looks like here.
 
 Find the system's stated intent first — a tokens file, a design note, a README.
 Then assess the intent and the execution **separately**, and say which you are
@@ -78,6 +85,18 @@ merged or dropped.
 - **Label taste as taste.** A legibility failure at a stated size is a defect;
   "I would not have chosen this face" is a preference. Both are allowed;
   conflating them is not.
-- **Do not redesign.** Improve what is there, unless you can argue the direction
-  itself fails the content — then argue that once, explicitly.
+- **Propose ambition as well as fixes.** Tag every finding **defect** (it fails
+  the reader), **drift** (it breaks a rule the system marks built) or
+  **ambition** (it is correct and could be much better). For each of the main
+  page templates you review, give at least one bolder direction. Each comes
+  with a mockup (a screenshot of a page you edited in a local copy, or a
+  static HTML sketch built from `web/src/styles/tokens.css`), a before
+  screenshot beside it at phone and desktop width, and a size (S / M / L). A
+  direction that changes a rule the system marks built says which rule, so
+  the change can go through its §8.
+- **Build on what is there.** A bolder direction keeps the grid, the measure,
+  the accessibility floor and the facts. Change the surface, not the data.
 - **Name what is well made**, so it survives the fixes.
+- **File nothing.** Whatever the brief says about filing, a visual critique's
+  findings and mockups go in the report. The maintainer reviews each one as a
+  design, and only what they approve becomes an issue (2026-11-13).
