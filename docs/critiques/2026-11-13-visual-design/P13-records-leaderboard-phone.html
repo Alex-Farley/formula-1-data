@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Records: the leaderboard on a phone - mockup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=Saira+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="mock.css">
+<script>if (location.hash === '#dark') document.documentElement.dataset.theme = 'dark'</script>
+<style>
+.lb { display: grid; grid-template-columns: 11rem 1fr; gap: var(--space-3) var(--space-6); align-items: center; font: var(--size-4)/1.2 var(--sans); }
+.lb .n { text-align: right; color: var(--ink-soft); }
+.lb .b { display: flex; align-items: center; gap: var(--space-4); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; font-size: var(--size-3); }
+.lb .b i { display: block; height: var(--space-6); background: var(--series-ink); }
+.lb .top .b i, .lb .b.top i { background: var(--series-mark); }
+.lb .gapnote { font: var(--weight-medium) var(--size-3)/1 var(--sans); color: var(--ink); margin-left: var(--space-4); }
+@media (width < 768px) {
+  .lb { grid-template-columns: 1fr; gap: 0; }
+  .lb .n { text-align: left; color: var(--ink); margin-top: var(--space-4); margin-bottom: var(--space-2); }
+  .lb .b i { height: var(--space-5); }
+}
+</style>
+</head><body>
+<!-- Mockup for the visual critique of 2026-11-13. Static sketch: the site's built CSS and tokens, real figures from f1.db. -->
+<div class="mk-wrap"><main id="main"><article class="page"><section class="section" style="grid-column:1/-1"><h2>Counted from the race records</h2><h3 style="font-family:var(--disp)">Most Grand Prix wins</h3>
+<figure class="figure" aria-label="Most Grand Prix wins"><div class="figure-body" style="padding:var(--space-7)"><div class="lb"><span class="n">Sir Lewis Hamilton</span><span class="b top"><i style="width:80.0%"></i>106<span class=gapnote>15 clear</span></span><span class="n">Michael Schumacher</span><span class="b"><i style="width:68.7%"></i>91</span><span class="n">Max Verstappen</span><span class="b"><i style="width:55.8%"></i>74</span><span class="n">Sebastian Vettel</span><span class="b"><i style="width:40.0%"></i>53</span><span class="n">Alain Prost</span><span class="b"><i style="width:38.5%"></i>51</span><span class="n">Ayrton Senna</span><span class="b"><i style="width:30.9%"></i>41</span><span class="n">Fernando Alonso</span><span class="b"><i style="width:24.2%"></i>32</span><span class="n">Nigel Mansell</span><span class="b"><i style="width:23.4%"></i>31</span><span class="n">Sir Jackie Stewart</span><span class="b"><i style="width:20.4%"></i>27</span><span class="n">Jim Clark</span><span class="b"><i style="width:18.9%"></i>25</span><span class="n">Niki Lauda</span><span class="b"><i style="width:18.9%"></i>25</span><span class="n">Juan Manuel Fangio</span><span class="b"><i style="width:18.1%"></i>24</span><span class="n">Nelson Piquet</span><span class="b"><i style="width:17.4%"></i>23</span><span class="n">Nico Rosberg</span><span class="b"><i style="width:17.4%"></i>23</span><span class="n">Damon Hill</span><span class="b"><i style="width:16.6%"></i>22</span></div></div><p class="figure-note">One win per driver classified first, so a shared drive counts for both of them.</p></figure></section></article></main></div>
+</body></html>

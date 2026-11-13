@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Home: open on the season - mockup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=Saira+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="mock.css">
+<script>if (location.hash === '#dark') document.documentElement.dataset.theme = 'dark'</script>
+<style>
+.plate { border-top: 4px solid var(--livery); padding-top: var(--space-7); margin-top: var(--space-9); display: grid; gap: var(--space-8); }
+@media (width >= 1180px) { .plate { grid-template-columns: 7fr 5fr; } }
+.plate .who { font-size: var(--size-9); }
+@media (width >= 768px) { .plate .who { font-size: var(--size-10); } }
+.plate .fig { display: flex; align-items: baseline; gap: var(--space-6); margin-top: var(--space-7); flex-wrap: wrap; }
+.plate .fig .sent { margin: 0; flex: 1 1 16rem; }
+.db-line { margin-top: var(--space-9); padding-top: var(--space-6); border-top: 1px solid var(--rule); font: var(--size-4)/1.6 var(--sans); color: var(--ink-soft); }
+.db-line b { color: var(--ink); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+</style>
+</head><body>
+<!-- Mockup for the visual critique of 2026-11-13. Static sketch: the site's built CSS and tokens, real figures from f1.db. -->
+<div class="mk-wrap"><main id="main"><article class="page"><header><h1>Every Formula One race since 1950</h1><p class="lede">Seventy-seven seasons of results, grids, championship tables and pit stops, from Silverstone in May 1950 to the calendar still to be run. Search it, sort it, or write your own SQL.</p></header>
+<div class="slot"><figure class="outline-card"><svg class="outline" viewBox="0 0 500 500" aria-hidden="true"><path d="M216.38 19.757c-17.923 4.414-27.502 8.15-29.356 9.005-18.27 8.424-32.89 17.454-41.726 25.47-11.632 10.552-16.108 21.908-19.57 36.02-4.061 16.556-16.797 66.138-24.74 100.06-3.879 16.555-4.247 36.566-.185 54.032 3.524 15.153 37.757 148.06 49.417 194.762 1.78 7.131 2.858 12.295 3.572 14.637 8.863 29.109 24.428 39.214 37.388 24.74 8.308-9.274 18.861-24.656 28.248-16.462 19.385 16.917 45.557 20.194 66.374 12.915 21.845-7.637 33.093-22.602 38.726-34.564 4.023-8.55 6.926-21.201 8.912-28.198 6.46-22.788 58.489-213.536 68.181-249.148 2.697-9.903-6.611-23.196-20.735-26.199-14.069-2.988-16.616-3.274-33.787-6.003-33.892-5.386-48.923 19.7-55.18 27.97-17.862 23.606-59.473 79.48-73.875 99.81-7.299 10.304-12.254 15.556-18.693 19.171-6.871 3.86-11.492 4.98-18.693 5.457-15.733 1.045-43.48-8.05-47.171-28.154-.778-4.232-1.627-8.452-2.374-12.605-2.733-15.174-4.86-29.288-6.119-37.97-2.03-14.008 11.078-22.014 29.17-6.55 13.644 11.663 27.325 9.64 34.34-3.458 5.474-10.222 3.693-17.099-3.325-24.377-9.62-9.98-22.155-22.559-26.586-27.473-3.537-3.923-7.569-10.732-9.232-16.737-1.486-5.368-5.17-19.466-7.568-29.835-1.978-8.542 12.737-17.465 20.677-7.46 9.464 11.93 18.92 22.85 29.54 32.567 20.68 18.92 52.023 22.238 74.591-13.463 21.538-34.077 30.701-48.147 36.584-58.697 2.926-5.25.988-16.44-7.043-19.441-17.76-6.638-20.77-7.914-36.555-12.28-16.496-4.56-24.376-2.182-43.207 2.458z" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"/></svg><figcaption class="small muted">Last race run: the 2026 Sao Paulo Grand Prix, won by Lando Norris.<br>F1DB, CC BY 4.0 · drawn by Jules Roy</figcaption></figure></div>
+<section class="section" style="grid-column: 1 / -1">
+<div class="lv plate" style="--l:#0f9991;--d:#0f9c94">
+  <div>
+    <p class="label"><span class="mark" style="--a:#0f9c94;--b:#111214"></span>2026 World Champion · Mercedes</p>
+    <h2 class="disp who" style="margin-top:var(--space-4)">Andrea Kimi Antonelli</h2>
+    <div class="fig"><span class="hero-num">111</span><p class="sent">points clear of Max Verstappen after 20 of 23 rounds. The title was settled at the Mexico City Grand Prix, round 19; Mercedes took the constructors' at Sao Paulo, round 20.</p></div>
+  </div>
+  <div class="round-panel"><p class="eyebrow">Last race run</p><h3><a href="#">2026 Sao Paulo Grand Prix</a></h3><p class="muted small">Autodromo Jose Carlos Pace (Interlagos) · 6–8 Nov 2026</p><ol class="podium" aria-label="The podium"><li class="podium-step podium-1"><span class="podium-place">1st</span> <span class="podium-driver"><a href="#">Lando Norris</a></span> <span class="podium-team muted small">McLaren · from pole</span><span class="podium-block livery-series" style="--livery-light: #d66c00; --livery-dark: #ff8000" aria-hidden="true"></span></li><li class="podium-step podium-2"><span class="podium-place">2nd</span> <span class="podium-driver"><a href="#">Max Verstappen</a></span> <span class="podium-team muted small">Red Bull Racing · from 21st</span><span class="podium-block livery-series" style="--livery-light: #1b2a5e; --livery-dark: #4462c9" aria-hidden="true"></span></li><li class="podium-step podium-3"><span class="podium-place">3rd</span> <span class="podium-driver"><a href="#">Isack Hadjar</a></span> <span class="podium-team muted small">Red Bull Racing · from 5th</span><span class="podium-block livery-series" style="--livery-light: #1b2a5e; --livery-dark: #4462c9" aria-hidden="true"></span></li></ol><p><a href="#">See the full classification →</a></p></div>
+</div>
+<p class="db-line">In the database: <b>1,169</b> races since 1950 · <b>27,636</b> entries · <b>27,149</b> qualifying rows · <b>34,771</b> standings rows · <b>22,746</b> pit stops · <b>711</b> photographs. <a href="#">How far to trust it →</a></p>
+</section></article></main></div>
+</body></html>
