@@ -5803,21 +5803,27 @@ def _leaders(rows, biggest=True):
     return [r for r in rows if r[0] == best]
 
 
+def _through_ties(after, limit):
+    """The first `limit` rows, and on through every row level with the last
+    one kept (its figure, r[0]), so a figure shared at the limit is not
+    shown as one holder's (WK-21)."""
+    rest = after[:limit]
+    if rest:
+        rest += [r for r in after[limit:] if r[0] == rest[-1][0]]
+    return rest
+
+
 def _rest(rows, leaders, limit=3):
     """The rows after the leaders, for the detail's 'Next:'."""
-    return [r for r in rows if r not in leaders][:limit]
+    return _through_ties([r for r in rows if r not in leaders], limit)
 
 
-def _also(rows, leaders, name_index, limit=3, ties=False):
-    """'Next: X on 91, Y on 71' - the rows after the leaders, for the detail.
-    With `ties`, the cut runs on through every row level with the last one
-    kept, so a figure shared at the limit is not shown as one driver's."""
+def _also(rows, leaders, name_index, limit=3):
+    """'Next: X on 91, Y on 71' - the rows after the leaders, for the detail,
+    cut as _through_ties cuts them."""
     seen = {r[name_index] for r in leaders}
     after = [r for r in rows if r[name_index] not in seen]
-    rest = after[:limit]
-    if ties and rest:
-        rest += [r for r in after[limit:] if r[0] == rest[-1][0]]
-    return ", ".join(f"{r[name_index]} on {_num(r[0])}" for r in rest)
+    return ", ".join(f"{r[name_index]} on {_num(r[0])}" for r in _through_ties(after, limit))
 
 
 # The family /records shows each record under, and the few it leads with
@@ -6703,7 +6709,7 @@ def derive_records(cur, leave_out=frozenset()):
         _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
         f"sprint_results rows with finish_position 1, 2 or 3, over the {held} sprints held "
         f"since {first}. A sprint is not a Grand Prix, so none of these is in "
-        f"drivers.podiums. Next: {_also(rows, lead, 1, ties=True)}.")
+        f"drivers.podiums. Next: {_also(rows, lead, 1)}.")
 
     scales = q("""SELECT scoring, from_year, to_year FROM points_systems
                    WHERE session = 'sprint' ORDER BY from_year""")
@@ -6719,7 +6725,7 @@ def derive_records(cur, leave_out=frozenset()):
         + ", then ".join(f"{s} ({a if b == a else f'{a}-{b}' if b else f'from {a}'})"
                          for s, a, b in scales)
         + ". Sprint points count towards the championship; race_entries.points does not "
-        f"hold them. Next: {_also(rows, lead, 1, ties=True)}.")
+        f"hold them. Next: {_also(rows, lead, 1)}.")
 
     rows = q("""SELECT COUNT(*) n, d.full_name, d.id
                   FROM sprint_results s JOIN drivers d ON d.id = s.driver_id
@@ -6759,7 +6765,7 @@ def derive_records(cur, leave_out=frozenset()):
         + (f", but one driver can hold both on a weekend: at {both} of these sprints the "
            "driver on sprint pole was also credited with the Grand Prix pole"
            + (f", at every sprint in {every}" if every else "") + ". " if both else ". ")
-        + f"Next: {_also(rows, lead, 1, ties=True)}.")
+        + f"Next: {_also(rows, lead, 1)}.")
 
     # ------------------------------------------------------- constructors
     # From race_entries, not constructors.poles: that column is filled at
@@ -7942,7 +7948,7 @@ def derive_records(cur, leave_out=frozenset()):
                + f" {'is' if unteamed == 1 else 'are'} under no constructor id and "
                f"count{'s' if unteamed == 1 else ''} for none. " if unteamed else "")
             + "; ".join(f"{r[1]}: {', '.join(r[3])}" for r in lead)
-            + f". Next: {_also(rows, lead, 1, ties=True)}.")
+            + f". Next: {_also(rows, lead, 1)}.")
 
         rows = most_distinct(where, "r.circuit_id", "ci.name",
                              "JOIN circuits ci ON ci.id = r.circuit_id")
@@ -7955,7 +7961,7 @@ def derive_records(cur, leave_out=frozenset()):
             "Prix that moved is as many as the circuits it was held at. "
             + "; ".join(f"{r[1]}: {r[3][0]} first, {r[3][-1]} the {_ordinal(r[0])}"
                         for r in lead)
-            + f". Next: {_also(rows, lead, 1, ties=True)}.")
+            + f". Next: {_also(rows, lead, 1)}.")
 
     def rest_ties(rows, lead, limit=3):
         """_rest's runners-up, run on through every row level with the last

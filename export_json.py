@@ -286,9 +286,21 @@ def main(argv=None):
                     JOIN constructors c ON c.id=e.constructor_id
                     WHERE e.year=? AND e.role!='race'""", (SEASON,))],
             },
+            # The team is the standings source's. A driver that source's
+            # table leaves out - a substitute formula1.com does not list -
+            # has none there, so it is read from the season's entries where
+            # they name exactly one constructor, and stays NULL where they
+            # name none or more than one (AF-153).
             f"driver_standings_snapshot_{SEASON}": [dict(r) for r in con.execute("""
-                SELECT position, entity AS driver, team, points FROM v_standings_final
-                WHERE year=? AND table_type='drivers' ORDER BY position""",
+                SELECT f.position, f.entity AS driver,
+                       COALESCE(f.team, (
+                           SELECT MIN(c.name) FROM season_entries e
+                             JOIN constructors c ON c.id = e.constructor_id
+                            WHERE e.year = f.year AND e.driver_id = f.driver_id
+                           HAVING COUNT(DISTINCT e.constructor_id) = 1)) AS team,
+                       f.points
+                FROM v_standings_final f
+                WHERE f.year=? AND f.table_type='drivers' ORDER BY f.position""",
                 (SEASON,))],
             f"calendar_{SEASON}_current": [dict(r) for r in con.execute("""
                 SELECT round, country, city, dates, circuit_name, circuit_id, sprint, status
