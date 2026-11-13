@@ -289,7 +289,6 @@ function ConstructorBody({ constructor, data }) {
             { label: 'Country', value: constructor.country },
             { label: 'Base', value: constructor.base },
             ...recordFigures(constructor, derived).map(([label, value]) => ({ label, value })),
-            { label: 'Lineage chain', value: constructor.lineage_chain },
             { label: 'Confidence', value: <Confidence value={constructor.confidence} /> },
             {
               label: 'Source',
