@@ -41,9 +41,11 @@ go further without a new library:
   value printed. One to three per chart, never a legend to decode.
 - **Direct labels.** A line ends in its driver's or team's name; a bar
   carries its value. A legend is a last resort.
-- **Team colour with a meaning.** Series in the team's sourced colour
-  (`lib/liveries.js`, 2010 on; racing colours, 1950–1967), others in ink,
-  the accent on the one stated value (`[D-61]`).
+- **Team colour with a meaning.** A chart is one or the other (`[D-61]`):
+  its series in the teams' sourced colours (`lib/liveries.js`, 2010 on,
+  where it holds one; racing colours, 1950–1967) and no accent, because a
+  red mark among team colours reads as Ferrari's; or in ink, with the
+  accent on the one stated value. Never both in one chart.
 - **Small multiples** where one chart would overplot: a driver's seasons,
   the circuits a driver won at, a constructor's eras.
 - **A big-number moment.** Where the page's figure is the story (a

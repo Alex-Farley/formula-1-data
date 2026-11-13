@@ -362,8 +362,8 @@ same sentence and told itself not to redesign. Every pass that followed
 that rule pushed toward restraint, and the site it produced was correct,
 coherent and, in the maintainer's words of 2026-11-13, "a bit dry and
 boring, with some pretty basic graphs and tables". The 2026-10-08 review
-(DR-01 to DR-08) dealt with type and layout; nothing in it, or in the
-queue, made a chart richer.
+(DR-01 to DR-08) dealt with type, layout and chart colour; nothing in it,
+or in the queue, made a chart richer.
 
 The rule it changes is the system's first principle, so this is §8's
 *Changing or reversing*; the maintainer ruled on 2026-11-13, choosing to
@@ -378,8 +378,9 @@ findings tagged defect, drift or ambition, a mockup for each bolder
 direction, and `.claude/critique/visual-direction.md`: mostly data
 journalism, with some of a broadcast's energy, as the maintainer chose.
 The brief's third constraint was corrected at the same time: since AF-04,
-`lib/liveries.js` holds each team's sourced colour from 2010, so "there are
-no team livery colours" had stopped being true and would have ruled out the
+`lib/liveries.js` holds a team's sourced colour from 2010 where it has one
+(`LIVERY_GAPS` names the rest), so "there are no team livery colours" had
+stopped being true and would have ruled out the
 team colour the direction asks for. No design skill from outside the
 project was installed: Impeccable runs a downloaded binary and installs
 hooks, so its ideas were restated, with credit, and nothing of it runs.

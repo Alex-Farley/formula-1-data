@@ -96,8 +96,9 @@ is wasted work. Everything else in this project is open to challenge.
 3. **No livery hex value is a sourced fact.** No source publishes one under a
    licence this project can admit. What a source can establish is which
    colour a team raced in a season and what the team called it, and since
-   AF-04 `web/src/lib/liveries.js` holds that for 2010 on, with the page each
-   is read from; national racing colours, keyed off constructor country, cover
+   AF-04 `web/src/lib/liveries.js` holds that for 2010 on, where a source
+   gives one (`LIVERY_GAPS` names where none does), with the page each is
+   read from; national racing colours, keyed off constructor country, cover
    1950–1967. Recommend team colour where those hold it (D-61 already draws
    team and driver series in them). Do not recommend a colour that no entry
    there or in `lib/racingColours.js` holds.
