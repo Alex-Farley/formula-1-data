@@ -288,15 +288,18 @@ def main(argv=None):
             },
             # The team is the standings source's. A driver that source's
             # table leaves out - a substitute formula1.com does not list -
-            # has none there, so it is read from the season's entries where
-            # they name exactly one constructor, and stays NULL where they
-            # name none or more than one (AF-153).
+            # has none there, so it is read from the season's race records
+            # (race_entries), where they name exactly one constructor, and
+            # stays NULL where they name none or more than one (AF-153).
+            # season_entries would not do: it holds one row for a driver who
+            # moved team mid-season.
             f"driver_standings_snapshot_{SEASON}": [dict(r) for r in con.execute("""
                 SELECT f.position, f.entity AS driver,
                        COALESCE(f.team, (
-                           SELECT MIN(c.name) FROM season_entries e
+                           SELECT MIN(c.name) FROM race_entries e
+                             JOIN races r ON r.id = e.race_id
                              JOIN constructors c ON c.id = e.constructor_id
-                            WHERE e.year = f.year AND e.driver_id = f.driver_id
+                            WHERE r.year = f.year AND e.driver_id = f.driver_id
                            HAVING COUNT(DISTINCT e.constructor_id) = 1)) AS team,
                        f.points
                 FROM v_standings_final f
