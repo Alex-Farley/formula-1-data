@@ -1746,13 +1746,15 @@ const outlineCard = (path, circuit, layoutId, caption, rule = false) => outlineC
 // to hold, and there is no slot, so the header keeps the width.
 const slot = (html) => (html ? `<div class="slot">${html}</div>` : '')
 // A confidence tier as components/Page.jsx's Confidence draws it: the pill,
-// linked to the page that says what the tier means.
+// linked to the page that says what the tier means, and the em dash for a
+// tier nobody recorded, as the app has drawn one since CR-25 - so fields()
+// keeps the Confidence row rather than dropping it (CR-116).
 const confidencePill = (value) =>
   value
     ? `<a class="pill pill-${esc(String(value).toLowerCase())}" href="${esc(href('data/quality'))}" title="${esc(
         `Confidence tier "${value}" - what it means, on the quality page`,
       )}">${esc(value)}</a>`
-    : ''
+    : `<span class="empty">${EMPTY}</span>`
 // A circuit's layouts as one list, as Circuit.jsx draws it (IX-32): each
 // timeline row beside the drawing it names, from the same layoutTimeline, so
 // the static page carries the register's history (AF-08) in the app's shape
@@ -3958,7 +3960,7 @@ page({
   // circuit. Whether a trace exists is a fact about this project's own file,
   // not a centreline copied out of it, so the column is answered from the
   // sibling database. Anything that publishes f1.db must publish
-  // f1-geometry.db beside it (CLAUDE.md), so its absence is a broken build,
+  // f1-geometry.db beside it (AGENTS.md), so its absence is a broken build,
   // not eighty dashes nobody would notice.
   const register = all(CIRCUITS)
   const geoPath = join(repo, 'f1-geometry.db')
