@@ -57,8 +57,11 @@ file, in the same change.
 
 ## 1. Principles
 
-1. **Serve the value.** A reader comes for a figure, a result or a
-   comparison. Decoration that delays it is a defect, whatever its taste.
+1. **Serve the value, and give it character.** A reader comes for a
+   figure, a result or a comparison. Decoration that delays it is a defect,
+   whatever its taste. Character that costs no lookup (colour with a
+   meaning, annotation, a page with a point of view) is not decoration, and
+   a page that is correct and dull has a defect too `[D-64]`.
 2. **One system, applied.** Every width, gap and type size is a token, and
    every recurring block is a component. A page is an arrangement of
    components, never a one-off.
@@ -1404,3 +1407,9 @@ for one column, and it cost the most of the three.
 
 The design-pass critique holds the full comparison, and the defects that
 existed whichever version was chosen, with ids.
+
+The maintainer's ruling on VD-107 (#1328), 2026-11-13: **principle 1 amended**
+to "Serve the value, and give it character", so that character which costs
+no lookup is not decoration and a correct, dull page is a defect `[D-64]`.
+The direction, mostly data journalism with some of a broadcast's energy, is
+in `.claude/critique/visual-direction.md`.

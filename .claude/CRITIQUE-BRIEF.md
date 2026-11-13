@@ -93,15 +93,32 @@ is wasted work. Everything else in this project is open to challenge.
    the whole database its data lands in, so merging `f1-geometry.db` into
    `f1.db` would put 117,000 unrelated rows under ODbL. Two files distributed
    together are a Collective Database; the browser merges them at runtime.
-3. **There are no team livery colours.** No source publishes them under a
-   licence this project can admit, and none can be independently checked. The
-   interface uses international racing colours instead, keyed off constructor
-   country, and says so.
+3. **No livery hex value is a sourced fact.** No source publishes one under a
+   licence this project can admit. What a source can establish is which
+   colour a team raced in a season and what the team called it, and since
+   AF-04 `web/src/lib/liveries.js` holds that for 2010 on, where a source
+   gives one (`LIVERY_GAPS` names where none does), with the page each is
+   read from; national racing colours, keyed off constructor country, cover
+   1950–1967. Recommend team colour where those hold it (D-61 already draws
+   team and driver series in them). Do not recommend a colour that no entry
+   there or in `lib/racingColours.js` holds.
 
 Anything else — the whole-download architecture, the confidence ladder, the
 information architecture, the voice, the visual system, what the product is
 *for* — is fair game, including the items on the *measured and rejected* list in
 `AGENTS.md`.
+
+## What the author wants it to feel like
+
+Stated by the author, 2026-11-13: the site reads "a bit dry and boring, with
+some pretty basic graphs and tables", and should be more styled. The
+direction is mostly data journalism (The Athletic, FiveThirtyEight, The
+Pudding, NYT Upshot), with elements of broadcast Formula One graphics: team
+colour, big numerals, contrast. Principle 1 of `docs/design-system.md` was
+amended the same day so that character which costs no lookup is not
+decoration (`[D-64]`). `.claude/critique/visual-direction.md` says what that
+means for a page and a chart here. A visual or interaction critique that
+finds a page correct and dull should say so.
 
 ## The posture
 
