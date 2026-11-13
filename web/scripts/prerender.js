@@ -3699,7 +3699,7 @@ const seasonsTable = (rows) =>
         ${
           practiceOnly
             ? ''
-            : opened(`${tiles(careerStrip(d, derived, thisSeason, standings))}${driverFight ? `<p class="faint">${esc(driverFight)}</p>` : ''}`, finishesChart)
+            : opened(`${tiles(careerStrip(d, derived, thisSeason, standings))}${driverFight ? `<p class="note follows">${esc(driverFight)}</p>` : ''}`, finishesChart)
         }
         ${thisSeasonSection}
         ${
@@ -3899,7 +3899,7 @@ page({
       body: `
         ${opening({ eyebrow: EYEBROWS.constructor(c.country, c.base), title: NAMES.constructor(c.name).headline, lede: c.notes })}
         ${liveryBand(identity, constructorBandNote(c, lastSeason, livery, identity))}
-        ${opened(`${tiles(teamStrip(c, teamDerived))}${teamFight ? `<p class="faint">${esc(teamFight)}</p>` : ''}`, winsSection)}
+        ${opened(`${tiles(teamStrip(c, teamDerived))}${teamFight ? `<p class="note follows">${esc(teamFight)}</p>` : ''}`, winsSection)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>
         ${
