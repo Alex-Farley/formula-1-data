@@ -16,6 +16,7 @@
 import { EMPTY, finished, missing, number, ordinal, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { FOLD_NOUN } from '../lib/table.js'
+import { byRoundText } from '../charts/spark.js'
 import { PRACTICE_SESSIONS, STARTED, carName } from './race.js'
 import { LABELS } from '../lib/site.js'
 import { colourSource, lastTeamColour } from '../lib/liveries.js'
@@ -133,11 +134,26 @@ export const BY_SEASON = `
          -- The entry's own designation where no constructor is resolved:
          -- queries/race.js carName's rule in SQL, so an Indianapolis 500
          -- entry that records its car names it here as on the race page (AF-68).
-         group_concat(DISTINCT COALESCE(k.name, e.entrant)) AS teams
+         group_concat(DISTINCT COALESCE(k.name, e.entrant)) AS teams,
+         -- The season's races by round, for its bars (VD-106, charts/spark.js
+         -- byRoundOf): "round:code" for every race entered, the place or the
+         -- source's own code. One pair a race even if a race ever held two
+         -- of a driver's entries, as no race in f1.db does: the better place,
+         -- and the first code where neither was classified.
+         (SELECT group_concat(b.round || ':' || b.code, ' ')
+            FROM (SELECT r2.round,
+                         COALESCE(CAST(MIN(e2.finish_position) AS TEXT), MIN(e2.position_text)) AS code
+                    FROM race_entries e2
+                    JOIN races r2 ON r2.id = e2.race_id
+                   WHERE e2.driver_id = ?1 AND r2.year = r.year
+                   GROUP BY r2.id) b) AS by_round,
+         -- The calendar's length, rounds not yet run included, so a season
+         -- still running is drawn on the season it is.
+         (SELECT MAX(c.round) FROM races c WHERE c.year = r.year) AS rounds
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
     LEFT JOIN constructors k ON k.id = e.constructor_id
-   WHERE e.driver_id = ?
+   WHERE e.driver_id = ?1
    GROUP BY r.year
    ORDER BY r.year
 `
@@ -561,6 +577,12 @@ export function seasonRows(bySeason, standings) {
     .sort((a, b) => b.year - a.year)
 }
 
+/*
+ * In the order of a weekend, and grouped by it (VD-106): the qualifying's
+ * figure, then the races', then where the championship finished. A group is
+ * a `group` label on neighbouring columns (lib/table.js groupRuns), and both
+ * renderers write the row of heads above these from it.
+ */
 export const SEASON_COLUMNS = [
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'teams', label: 'Constructor', align: 'prose' },
@@ -570,11 +592,15 @@ export const SEASON_COLUMNS = [
   // (VD-29). Not `teams`, `entries`, `championship_text` or `points`: the
   // first carries a livery mark the app draws itself, and an em dash on the
   // others is a season classified nowhere rather than a nought.
-  { key: 'wins', label: 'Wins', align: 'num', collapse: true },
-  { key: 'podiums', label: 'Podiums', align: 'num', collapse: true },
-  { key: 'poles', label: 'Poles', align: 'num', collapse: true },
-  { key: 'fastest_laps', label: 'FL', align: 'num', collapse: true },
-  { key: 'best', label: 'Best', align: 'num', text: (value) => (missing(value) ? EMPTY : `P${value}`) },
+  { key: 'poles', label: 'Poles', align: 'num', collapse: true, group: 'Qualifying' },
+  { key: 'wins', label: 'Wins', align: 'num', collapse: true, group: 'Races' },
+  { key: 'podiums', label: 'Podiums', align: 'num', collapse: true, group: 'Races' },
+  { key: 'fastest_laps', label: 'FL', align: 'num', collapse: true, group: 'Races' },
+  { key: 'best', label: 'Best', align: 'num', group: 'Races', text: (value) => (missing(value) ? EMPTY : `P${value}`) },
+  { key: 'points', label: 'Points scored', align: 'num', group: 'Races', text: (value) => points(value) },
+  // The picture is the app's and prerender's to draw (charts/spark.js); what
+  // the cell says, and what a file taken from the table holds, is this.
+  { key: 'by_round', label: 'By round', align: 'spark', group: 'Races', sortable: false, text: byRoundText },
   {
     key: 'championship_text',
     label: 'Championship',
@@ -582,13 +608,13 @@ export const SEASON_COLUMNS = [
     text: (value, row) => text(value ?? row.championship),
     glossary: 'results',
   },
-  { key: 'points', label: 'Points scored', align: 'num', text: (value) => points(value) },
 ]
 
 export const SEASONS_FOOTER =
-  '“Points scored” adds up every point from the races. The championship column is where the season ' +
-  'actually finished, which before 1991 could be lower once dropped scores were applied. Open a season ' +
-  'for its full table.'
+  '“Points scored” adds up every point from the races. “By round” draws each race entered on the ' +
+  'season’s calendar: a bar for a place, tallest for a win and shortest for 20th or lower, and a tick ' +
+  'for a race not classified. The championship column is where the season actually finished, which before 1991 could ' +
+  'be lower once dropped scores were applied. Open a season for its full table.'
 
 /**
  * TEAM-MATES, SEASON BY SEASON (PD-43).

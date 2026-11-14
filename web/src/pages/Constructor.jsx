@@ -6,6 +6,8 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import Figure from '../charts/Figure.jsx'
 import Photographs from '../components/Photographs.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
+import { ByRoundSpark } from '../charts/Spark.jsx'
+import { byRoundText } from '../charts/spark.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { FIGHT_QUERIES, currentTitle, fightCitation, fightLine, mergeSources } from '../queries/season.js'
 import { span } from '../lib/format.js'
@@ -21,7 +23,6 @@ import {
   DERIVED,
   DESIGNS,
   DESIGN_COLUMNS,
-  ENGINE_SPLIT_FOOTER,
   LINEAGE,
   SEASON_COLUMNS,
   STANDINGS,
@@ -33,6 +34,7 @@ import {
   constructorSeasons,
   lineageChains,
   recordFigures,
+  seasonsFooter,
   teamStrip,
   winsFigure,
 } from '../queries/constructor.js'
@@ -50,6 +52,7 @@ const seasonLink = { render: (year) => <Link to={`/seasons/${year}`}>{year}</Lin
 const SEASON_APP = {
   year: seasonLink,
   championship_text: { sort: (row) => row.championship },
+  by_round: { render: (value, row) => <ByRoundSpark value={value} rounds={row.rounds} label={byRoundText(value)} /> },
 }
 const WIN_APP = {
   year: seasonLink,
@@ -233,7 +236,7 @@ function ConstructorBody({ constructor, data }) {
           sort="year"
           direction="desc"
           columns={withRenders(SEASON_COLUMNS, SEASON_APP)}
-          footer={engineSplit ? ENGINE_SPLIT_FOOTER : undefined}
+          footer={seasonsFooter(engineSplit)}
         />
       </Section>
 

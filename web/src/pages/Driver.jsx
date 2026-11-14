@@ -9,6 +9,8 @@ import { DateText, Dated } from '../components/Dates.jsx'
 import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
+import { ByRoundSpark } from '../charts/Spark.jsx'
+import { byRoundText } from '../charts/spark.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { FIGHT_QUERIES, currentTitle, fightCitation, fightLine, mergeSources } from '../queries/season.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
@@ -97,6 +99,7 @@ const seasonApp = (teams) => ({
     },
   },
   championship_text: { sort: (row) => row.championship },
+  by_round: { render: (value, row) => <ByRoundSpark value={value} rounds={row.rounds} label={byRoundText(value)} /> },
 })
 
 /* A practice session's row: the season and the weekend link as an entry's

@@ -2050,7 +2050,8 @@ try {
     const dashedWins = await page.evaluate(() => {
       const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.startsWith('Season by season'))
       const table = (h2?.closest('section') ?? h2?.parentElement)?.querySelector('table')
-      const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim())
+      // The column heads: the head's last row, under the groups' (VD-106).
+      const heads = [...table.querySelectorAll('thead tr:last-child th')].map((th) => th.textContent.trim())
       const col = heads.indexOf('Wins')
       return [...table.querySelectorAll('tbody tr')].filter((tr) => tr.children[col]?.textContent.trim() === '—').length
     })
@@ -4766,8 +4767,9 @@ try {
         (t) => h2.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING,
       )
       if (!table) return `no table under "${heading}"`
-      // A sorted column's button carries its arrow in the header's text.
-      const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.replace(/[\u25b2\u25bc\s]+$/, '').trim())
+      // A sorted column's button carries its arrow in the header's text, and
+      // the column heads are the head's last row, under any groups (VD-106).
+      const heads = [...table.querySelectorAll('thead tr:last-child th')].map((th) => th.textContent.replace(/[\u25b2\u25bc\s]+$/, '').trim())
       const at = (label) => heads.indexOf(label)
       const row = [...table.querySelectorAll('tbody tr')].find((tr) => tr.children[at(keyColumn)]?.textContent.trim() === key)
       if (!row) return `no row with ${keyColumn} ${key} under "${heading}"`
@@ -6227,6 +6229,82 @@ try {
     }
     await noJs.close()
     await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  // VD-106. The season-by-season tables group their heads and draw each
+  // season's rounds, in both halves alike: the same groups over the same
+  // spans, a <colgroup> for each, and in every row the same bars and ticks
+  // as the database holds rounds. The cells' words are compared row for row
+  // by the parity section; this is the shape the words cannot show.
+  await section('Season by season: column groups and the rounds, in both halves  (VD-106)', async () => {
+    const read = ([root, name]) => {
+      const main = document.querySelector(root)
+      const h2 = [...main.querySelectorAll('section > h2, h2')].find((h) => h.textContent.trim().startsWith(name))
+      const table = (h2?.closest('section') ?? h2?.parentElement)?.querySelector('.table-wrap table')
+      if (!table) return null
+      const rows = [...table.querySelectorAll('thead tr')]
+      const span = (cell) => Number(cell.getAttribute('colspan') ?? 1)
+      const year = (tr) => tr.querySelector('th[scope="row"]')?.textContent.trim()
+      return {
+        headRows: rows.length,
+        groups: [...(rows[0]?.children ?? [])].map((c) => `${c.tagName === 'TH' ? `${c.getAttribute('scope')} ${c.textContent.trim()}` : '-'}:${span(c)}`),
+        colgroups: [...table.querySelectorAll(':scope > colgroup')].map((c) => Number(c.getAttribute('span') ?? 1)),
+        columns: rows[rows.length - 1]?.children.length ?? 0,
+        sticky: rows[0] ? getComputedStyle(rows[0].querySelector('th') ?? rows[0].firstElementChild).position : null,
+        // A group's label is drawn above the heads it names, not over the
+        // first row: its bottom edge at or above their top.
+        above: rows.length === 2 && [...rows[0].querySelectorAll('th')].every((th) => th.getBoundingClientRect().bottom <= rows[1].getBoundingClientRect().top + 0.5),
+        bars: Object.fromEntries(
+          [...table.querySelectorAll('tbody tr')].map((tr) => [year(tr), [tr.querySelectorAll('svg.spark .spark-run').length, tr.querySelectorAll('svg.spark .spark-miss').length]]),
+        ),
+      }
+    }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    const cases = [
+      ['/drivers/hamilton', 'Lewis Hamilton', 'hamilton', 'driver_id'],
+      ['/constructors/ferrari', 'Ferrari', 'ferrari', 'constructor_id'],
+    ]
+    for (const [route, heading, id, key] of cases) {
+      await go(route, heading)
+      await page
+        .waitForFunction(() => document.querySelector('#root main thead tr.groups') !== null, null, { timeout: 10000 })
+        .catch(() => null)
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const app = await page.evaluate(read, ['#root main', 'Season by season'])
+      const flat = await plain.evaluate(read, ['#prerendered main', 'Season by season'])
+      if (!app || !flat) {
+        fail(`${route}: a "Season by season" table in both halves (app ${!!app}, static ${!!flat})`)
+        continue
+      }
+      is(app.headRows, 2, `${route}: the app's seasons carry a row of groups over the column heads`)
+      truthy(
+        app.groups.includes('colgroup Qualifying:1') && app.groups.some((g) => g.startsWith('colgroup Races:')),
+        `${route}: Qualifying and Races are groups, scoped to their columns (${app.groups.join(', ')})`,
+      )
+      is(flat.groups.join(', '), app.groups.join(', '), `${route}: the static groups are the app's, over the same spans`)
+      is(app.colgroups.reduce((a, b) => a + b, 0), app.columns, `${route}: the app's column groups hold every column once`)
+      is(flat.colgroups.join(','), app.colgroups.join(','), `${route}: and the static page writes the same <colgroup>s`)
+      truthy(app.sticky !== 'sticky', `${route}: the groups are not held under the masthead; the column heads are (${app.sticky})`)
+      truthy(app.above && flat.above, `${route}: each group's label is drawn above the column heads, in both halves (app ${app.above}, static ${flat.above})`)
+      // The database's own count of each season's rounds, classified and not.
+      const expected = Object.fromEntries(
+        db
+          .prepare(
+            `SELECT year, SUM(place IS NOT NULL) AS bars, SUM(place IS NULL) AS ticks
+             FROM (SELECT r.year, r.id, MIN(e.finish_position) AS place
+                     FROM race_entries e JOIN races r ON r.id = e.race_id
+                    WHERE e.${key} = ? GROUP BY r.id)
+            GROUP BY year`,
+          )
+          .all(id)
+          .map((r) => [String(r.year), [r.bars, r.ticks]]),
+      )
+      const differs = (got) => Object.keys(expected).filter((year) => JSON.stringify(got[year]) !== JSON.stringify(expected[year]))
+      is(differs(app.bars).join(', '), '', `${route}: each of ${Object.keys(expected).length} seasons draws a bar a round classified and a tick a round not, in the app`)
+      is(differs(flat.bars).join(', '), '', `${route}: and on the static page`)
+    }
+    await noJs.close()
   })
 
   // -------------------------------------------------------------- circuits

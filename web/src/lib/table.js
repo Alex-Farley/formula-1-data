@@ -333,3 +333,43 @@ export const tableKey = (name) =>
 export const foldMore = (count, noun) =>
   `Show all ${count.toLocaleString('en-GB')}${typeof noun === 'string' ? ` ${noun}` : ''}`
 export const FOLD_LESS = `Show the first ${FOLD_TO}`
+
+/**
+ * COLUMN GROUPS (VD-106, DR-07).
+ *
+ * A wide reference table - a driver's seasons, a constructor's - ran its
+ * figures as one flat row of heads, and nothing said which were the
+ * qualifying's, which the races' and which the championship's. A column
+ * declares `group: '<label>'` in its queries module, and both renderers write
+ * a row of heads above the column heads: one `<th scope="colgroup">` over each
+ * run of neighbouring columns that share a label, an empty cell over each run
+ * that has none, and a `<colgroup>` for every run, so the scope has a group
+ * of columns to refer to.
+ *
+ * The runs are read off the columns the table draws, after VD-29's collapse,
+ * so a group whose columns all said one thing and were dropped is dropped
+ * with them, and both halves lose the same heads. Null where no column
+ * declares a group: the table has one row of heads, as it always had.
+ *
+ * Not with a phone set. The phone default hides columns by a class at a
+ * width (WIDE_ONLY), and a span cannot follow it, so a list that declares
+ * both is refused by both renderers rather than drawn with its groups
+ * askew. `test/conventions.mjs` holds every declared list to it.
+ */
+export function groupRuns(columns) {
+  if (!columns.some((column) => column.group)) return null
+  const runs = []
+  for (const column of columns) {
+    const group = column.group ?? null
+    const last = runs[runs.length - 1]
+    if (last && last.group === group) last.span += 1
+    else runs.push({ group, span: 1 })
+  }
+  return runs
+}
+
+/** Why a column list may not be drawn with groups, or null where it may. */
+export const groupFault = (columns) =>
+  columns.some((column) => column.group) && columns.some((column) => column.phone === true)
+    ? `a column list declares both groups and a phone set: ${columns.map((c) => c.key).join(', ')}`
+    : null

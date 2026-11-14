@@ -36,6 +36,8 @@ import {
   chosenColumns,
   defaultColumns,
   foldFault,
+  groupFault,
+  groupRuns,
   onPhone,
   shared,
   sharedLine,
@@ -151,9 +153,14 @@ import { driverName, fastestLapMark, inClassificationOrder, outcome, position, R
 import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
 import { STINT_HEADS, pitPairs, pitWave, stintLaps, stintLayout, stintRows, stintTableRows, stintsShown, stopTitle, unbarredOf } from '../src/charts/stints.js'
 import {
+  BY_ROUND_WIDTH,
+  ROW_SPARK_HEIGHT,
   SEASONS_RACED_WIDTH,
   SPARK_HEIGHT,
   TITLE_RACE_WIDTH,
+  byRoundLayout,
+  byRoundOf,
+  byRoundText,
   runsOf,
   seasonsRacedLayout,
   seasonsRacedText,
@@ -2736,7 +2743,7 @@ describe('a column every row agrees on (VD-29)', () => {
     ].filter((c) => c.collapse === true)
     assert.deepEqual(
       declared.map((c) => c.key),
-      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles'],
+      ['layout_key', 'poles', 'wins', 'podiums', 'fastest_laps', 'poles', 'wins', 'podiums'],
     )
   })
 })
@@ -4101,6 +4108,87 @@ describe('the registers\' small multiples (VD-54)', () => {
     assert.ok(one.runs[0].x + one.runs[0].width <= SEASONS_RACED_WIDTH + 0.1)
     assert.deepEqual(seasonsRacedLayout(null, 1950, 2026).runs, [])
     assert.equal(seasonsRacedLayout('1950', null, 2026), null)
+  })
+})
+
+describe("the season-by-season tables' rounds (VD-106)", () => {
+  it('reads the pairs in round order, a place as a number and a code as itself', () => {
+    assert.deepEqual(byRoundOf('3:DNF 1:2 2:14'), [
+      { round: 1, place: 2, code: '2' },
+      { round: 2, place: 14, code: '14' },
+      { round: 3, place: null, code: 'DNF' },
+    ])
+    assert.deepEqual(byRoundOf(null), [])
+  })
+
+  it('says every round entered, the source code where there is no place, and a constructor round with none classified', () => {
+    assert.equal(byRoundText('4:1 1:3 2:DNF'), 'R1 P3, R2 DNF, R4 P1')
+    assert.equal(byRoundText('1:5 2:'), 'R1 P5, R2 not classified')
+    assert.equal(byRoundText(null), '—')
+  })
+
+  it('draws a bar a place on one scale, a tick for a round not classified, and nothing for a round not entered', () => {
+    const layout = byRoundLayout('1:1 2:20 3:DNF 4:33', 6)
+    assert.equal(layout.width, BY_ROUND_WIDTH)
+    assert.equal(layout.height, ROW_SPARK_HEIGHT)
+    // Rounds 1, 2 and 4 are bars, round 3 a tick, rounds 5 and 6 empty.
+    assert.equal(layout.bars.length, 3)
+    assert.equal(layout.ticks.length, 1)
+    const [win, twentieth, below] = layout.bars
+    assert.ok(win.height > twentieth.height, 'a win stands taller than 20th')
+    assert.equal(below.height, twentieth.height, '33rd is drawn at the floor, as 20th is')
+    assert.ok(layout.ticks[0].height < twentieth.height, 'a tick is shorter than the shortest bar')
+    // Every bar stands on the line and inside the box, in its own slot.
+    for (const bar of layout.bars) {
+      assert.ok(bar.y >= 0 && bar.y + bar.height <= ROW_SPARK_HEIGHT)
+      assert.ok(bar.x >= 0 && bar.x + bar.width <= BY_ROUND_WIDTH + 0.1)
+    }
+    assert.ok(layout.bars[2].x > layout.ticks[0].x && layout.ticks[0].x > layout.bars[1].x)
+    // The last bar of a six-round season ends two slots short of the box.
+    assert.ok(layout.bars[2].x + layout.bars[2].width < (BY_ROUND_WIDTH * 4) / 6 + 0.1)
+    assert.equal(byRoundLayout(null, 6), null)
+  })
+
+  it('draws a season to its last round entered where the calendar is not known', () => {
+    const layout = byRoundLayout('1:1 2:2', null)
+    assert.ok(layout.bars[1].x + layout.bars[1].width > BY_ROUND_WIDTH - 2)
+  })
+})
+
+describe('column groups (VD-106)', () => {
+  it('is a run of neighbours sharing a label, with the columns between them a run of none', () => {
+    const columns = [
+      { key: 'year', rowHeader: true },
+      { key: 'entries' },
+      { key: 'poles', group: 'Qualifying' },
+      { key: 'wins', group: 'Races' },
+      { key: 'best', group: 'Races' },
+      { key: 'championship' },
+    ]
+    assert.deepEqual(groupRuns(columns), [
+      { group: null, span: 2 },
+      { group: 'Qualifying', span: 1 },
+      { group: 'Races', span: 2 },
+      { group: null, span: 1 },
+    ])
+    // A group whose columns collapsed is gone with them.
+    assert.deepEqual(groupRuns(columns.filter((c) => c.key !== 'poles')), [
+      { group: null, span: 2 },
+      { group: 'Races', span: 2 },
+      { group: null, span: 1 },
+    ])
+    assert.equal(groupRuns([{ key: 'year' }, { key: 'wins' }]), null)
+  })
+
+  it('is refused beside a phone set', () => {
+    assert.equal(groupFault([{ key: 'a', group: 'G' }, { key: 'b' }]), null)
+    assert.match(groupFault([{ key: 'a', group: 'G' }, { key: 'b', phone: true }]), /both groups and a phone set/)
+  })
+
+  it('groups the season-by-season tables in a weekend order, the qualifying first', () => {
+    const heads = (columns) => groupRuns(columns).map((run) => `${run.group ?? '-'}:${run.span}`)
+    assert.deepEqual(heads(SEASON_COLUMNS), ['-:3', 'Qualifying:1', 'Races:6', '-:1'])
+    assert.deepEqual(heads(TEAM_SEASON_COLUMNS), ['-:3', 'Qualifying:1', 'Races:5', '-:1'])
   })
 })
 
