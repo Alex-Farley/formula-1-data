@@ -89,6 +89,7 @@ import {
   mergeSources,
   reachTitle,
   seasonAnswer,
+  seasonPlate,
   seasonSources,
   standingsHeading,
   titleHeading,
@@ -2264,10 +2265,18 @@ try {
       label: n.querySelector('.season-plate-label').textContent,
       figure: n.querySelector('.season-plate-figure').textContent,
     }))
-    const strip = (html) => html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'")
-    const staticPlate = staticYear.match(/<div class="season-plate[\s\S]*?<\/div>/)?.[0] ?? ''
-    is(strip(staticPlate.match(/<p class="season-plate-label">[\s\S]*?<\/p>/)?.[0] ?? ''), appPlate.label, 'with the same label')
-    is(strip(staticPlate.match(/<p class="season-plate-figure">[\s\S]*?<\/p>/)?.[0] ?? ''), appPlate.figure, 'and the same margin and sentence')
+    // The plate both renderers are given, from the same function: the app's
+    // text is held to it, and the static markup to it written as prerender
+    // escapes it.
+    const plate = seasonPlate({ season: db.prepare(SEASON).get(year), year, running: false })
+    const enc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    is(appPlate.label, `${plate.label} · ${plate.team}`, 'with its label and team')
+    is(appPlate.figure, `${plate.margin} ${plate.sentence}`, 'and its margin and sentence')
+    truthy(staticYear.includes(`${enc(plate.label)} · <a href="/${plate.teamHref}">${enc(plate.team)}</a></p>`), 'the static plate carries the same label')
+    truthy(
+      staticYear.includes(`<span class="season-plate-margin">${enc(plate.margin)}</span> <span>${enc(plate.sentence)}</span>`),
+      'and the same margin and sentence',
+    )
     truthy(staticYear.includes('<dt>Rounds</dt>') && !staticYear.includes('<dt>Margin</dt>'), 'and the same strip, Rounds kept and Margin left out')
     const running = inProgress()
     if (one("SELECT COUNT(*) FROM races WHERE year = ? AND status != 'completed'", running) > 0) {
