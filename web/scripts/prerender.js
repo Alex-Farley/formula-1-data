@@ -267,6 +267,7 @@ import {
   titleRaceFigure,
   titleSettled,
   titleStrip,
+  seasonPlate,
   wonHereNote,
 } from '../src/queries/season.js'
 import { LATEST as LATEST_RUN, RACES, RACE_COLUMNS, RACES_FOOTER, RACES_LEDE } from '../src/queries/races.js'
@@ -557,6 +558,13 @@ import {
   timelineName,
   timelineStripName,
   timelineYears,
+  ONWARD_OUTLINE_NOTE,
+  WON_AT_HEADING,
+  WON_AT_NOTE,
+  winsAt,
+  wonAt,
+  wonAtCount,
+  wonAtLabel,
 } from '../src/lib/outline.js'
 import { ALL_STARTED, LAP_NOTE, LAP_WORDS, NEXT_WORD, STRIP_NOTE, STRIP_PATH, lapLabel, lapLayout } from '../src/lib/lap.js'
 import {
@@ -626,6 +634,7 @@ import {
   SEASON_TEAMS,
   STANDINGS,
   TEAM_MATES,
+  WINS_AT,
   TEAM_MATE_COLUMNS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
@@ -1846,6 +1855,19 @@ const liveryMark = (colour, prose = false) =>
       : `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
 const winnerMark = (round, year) => liveryMark(winnerColour(round, year))
 
+// components/SeasonPlate.jsx (VD-104 (c)): a concluded season's champion in
+// the pair of the team they won with, or in ink where none is on record.
+const seasonPlateHtml = (plate) =>
+  plate
+    ? `<div class="${plate.colour ? `season-plate livery-series" style="${pairStyle(plate.colour)}` : 'season-plate season-plate-none'}"><p class="season-plate-label">${liveryMark(
+        plate.colour,
+        true,
+      )}${esc(plate.label)}${plate.team ? ` · ${plate.teamHref ? link(plate.teamHref, plate.team) : esc(plate.team)}` : ''}</p><p class="season-plate-name">${link(
+        plate.href,
+        plate.name,
+      )}</p>${plate.margin ? `<p class="season-plate-figure"><span class="season-plate-margin">${esc(plate.margin)}</span> <span>${esc(plate.sentence)}</span></p>` : ''}</div>`
+    : ''
+
 // A driver's or a constructor's livery band, as components/LiveryScheme.jsx
 // draws it and from the same words (lib/liveries.js bandWords, VD-79): the
 // header's aside, which the static page left out, so the app's header was
@@ -1885,6 +1907,25 @@ const outlineStrip = (year, calendar) => {
     )
     .join('')}</ol><p class="faint outline-strip-note">${esc(OUTLINE_RULE)} ${esc(OUTLINE_BY)}.</p></div>`
 }
+
+// components/Outline.jsx's WonAt (VD-104 (b)): the circuits a driver won
+// at, one card each, the credit and the scale caveat once under them.
+const wonAtList = (name, circuits) =>
+  circuits.length
+    ? `<ol class="won-at" aria-label="${esc(wonAtLabel(name))}">${circuits
+        .map(
+          (here) =>
+            `<li>${here.outline ? outlineSvg(here.outline, null) : '<span class="outline outline-none" aria-hidden="true"></span>'}<b>${
+              here.circuit_id ? link(`circuits/${here.circuit_id}`, here.circuit) : esc(here.circuit)
+            }</b><small>${esc(winsAt(here.wins.length))}</small><p class="won-at-races">${here.wins
+              .map(
+                (win) =>
+                  `<a href="${esc(href(`races/${win.year}/${win.round}`))}">${esc(win.year)}<span class="sr-only"> ${esc(win.name_used)}</span></a>`,
+              )
+              .join(' · ')}</p></li>`,
+        )
+        .join('')}</ol><p class="faint outline-strip-note">${esc(WON_AT_NOTE)}</p>`
+    : ''
 
 /**
  * A sentence trimmed to something a search result will not cut mid-word.
@@ -2067,10 +2108,12 @@ const onwardBand = ({ title = 'Keep going', items }) => {
   if (!shown.length) return ''
   return `<nav class="onward" aria-label="${esc(title)}"><h2>${esc(title)}</h2><div>${shown
     .map(
-      ({ to, label, hint }) =>
-        `<a href="${esc(href(to))}"><b>${esc(label)}</b>${hint ? `<span>${esc(hint)}</span>` : ''}</a>`,
+      ({ to, label, hint, outline }) =>
+        `<a href="${esc(href(to))}"${outline ? ' class="onward-race"' : ''}>${outline ? outlineSvg(outline, null) : ''}<b>${esc(label)}</b>${
+          hint ? `<span>${esc(hint)}</span>` : ''
+        }</a>`,
     )
-    .join('')}</div></nav>`
+    .join('')}</div>${shown.some((item) => item.outline) ? `<p class="faint onward-note">${esc(ONWARD_OUTLINE_NOTE)}</p>` : ''}</nav>`
 }
 
 const side = (step, arrow) =>
@@ -3189,7 +3232,7 @@ const seasonsTable = (rows) =>
         ${opening({ eyebrow: EYEBROWS.season(s.rounds, run), title: NAMES.season(year).headline, lede: seasonLede(s.notes, answer?.who) })}
         ${stepperNav(seasonSteps(neighbours))}
         ${opened(
-          `${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}${
+          `${seasonPlateHtml(seasonPlate({ season: s, year, running }))}${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}${
             answer?.basis ? `<p class="faint">${dated(answer.basis)}</p>` : ''
           }`,
           raceChart,
@@ -3673,6 +3716,7 @@ const seasonsTable = (rows) =>
   const resultsOf = db.prepare(DRIVER_RESULTS)
   const thisSeasonOf = db.prepare(THIS_SEASON)
   const teamMatesOf = db.prepare(TEAM_MATES)
+  const winsAtOf = db.prepare(WINS_AT)
   const seasonTeamsOf = db.prepare(SEASON_TEAMS)
 
   for (const { id } of register) {
@@ -3711,6 +3755,9 @@ const seasonsTable = (rows) =>
     // driver, the same columns, the same footer, and no section where the
     // career had no team-mate.
     const teamMates = teamMatesOf.all(id, null)
+    // Driver.jsx's circuits won at (VD-104 (b)), after the career and before
+    // the tables, and no section for a driver who never won.
+    const wonAtHere = wonAt(winsAtOf.all(id))
     const constructors = constructorsOf.all(id).map((c) => c.name)
     // A Friday driver's whole record is the practice sheets (LV-03), as in
     // Driver.jsx: the sentence, the notice and the table are the app's.
@@ -3782,6 +3829,7 @@ const seasonsTable = (rows) =>
             : opened(`${tiles(careerStrip(d, derived, thisSeason, standings))}${driverFight ? `<p class="note follows">${esc(driverFight)}</p>` : ''}`, finishesChart)
         }
         ${thisSeasonSection}
+        ${wonAtHere.length ? `${heading(WON_AT_HEADING, wonAtCount(wonAtHere))}${wonAtList(d.full_name, wonAtHere)}` : ''}
         ${
           practice.length
             ? `<h2>Practice sessions</h2>${fromColumns(PRACTICE_SESSION_COLUMNS, practice, {

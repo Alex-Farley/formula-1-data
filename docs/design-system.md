@@ -822,7 +822,7 @@ carry it.
   comes from*, on every page type. They sat in five places until VD-83;
   `smoke.mjs` holds the place in both halves (§8, test 13).
 
-### Outline card (core) — built: the timeline card's heading (AX-26 #509); pending: the caption (CD-62 #1041)
+### Outline card (core) — built: the timeline card's heading (AX-26 #509); provisional: the race thumbnail and the circuits won at (VD-104 #1239); pending: the caption (CD-62 #1041)
 
 - **Parts:** the drawing on `--stage`, then a **heading or caption in words**:
   *Current layout, raced since 2010 · 5.891 km, 18 turns · outline: F1DB (CC
@@ -844,6 +844,31 @@ carry it.
   link repeats once per card. `lib/outline.js`'s `layoutFacts` gives both
   renderers the list; `smoke.mjs` holds the heading and the list in both
   halves.
+- **The race thumbnail** (provisional, VD-104 #1239 (a)). A race linked as
+  a card of its own is drawn by its outline: the season strip's rounds
+  (AF-03), and an onward card that links a race — a race's next one, a
+  circuit's or a Grand Prix's latest, a car's notable race, `/changes`'
+  latest — with the drawing in a `--space-10` box beside the card's label
+  and hint, decorative, since the label names the race. The band credits
+  the drawing once under its cards (`ONWARD_OUTLINE_NOTE`), as the strip
+  does, and a band with none prints no credit. A race named in a table's
+  row, a circuit's winning chips or the stepper keeps its name alone: a
+  drawing a row tall says nothing the name does not, and the static page
+  would carry the path once per row (some 1.4 kB each). Whether those take
+  one too is the maintainer's question, not this rule's, and is filed on
+  the queue. A record page's strip of its races (VD-112 #1334) is this
+  thumbnail.
+- **Small multiples: the circuits a driver won at** (provisional, VD-104
+  #1239 (b)). On a driver's page with a win, a section *Circuits won at*: a
+  grid of cards, one per circuit, in the strip's box and ink — the drawing
+  (decorative, the layout of the latest win there that F1DB draws), the
+  circuit's name as a link, the count, and each win's year as a link to its
+  race with the race's name read with it. Most wins first, a tie to the
+  circuit won at last; under the grid, once, the drawing rule, the scale
+  caveat and the credit (`WON_AT_NOTE`). The years' lines are 24 px. A
+  driver who never won has no section. `wonAt` in `lib/outline.js` lays it
+  out for both renderers; `units.mjs` holds the grouping and the order, and
+  `smoke.mjs` the cards and race links against the database in both halves.
 
 ### Provenance and citation (core) — built: the name (VD-81), the citation on race, driver, constructor, circuit, car, Grand Prix and season pages (CD-08, CD-46); pending: the citation on a record's page (CD-63 #1046)
 
@@ -860,7 +885,9 @@ carry it.
 
 - ***Keep going* (core) — built:** It is the best cross-page structure on
   the site (service). Its routes are words under the band's rule, not a row
-  of framed cards (VD-93). Home has none: its index is its way on.
+  of framed cards (VD-93). A route to a race carries the race's outline,
+  where F1DB draws one, beside its words (provisional, VD-104 #1239: §3 *Outline card*, the race
+  thumbnail). Home has none: its index is its way on.
 - ***Index* (provisional, VD-93 #923):** home's doors to every part of the
   site, one list, `BOARD` in `queries/home.js`, drawn by both renderers as
   `.board.index`: three to a row from 768 px, one on a phone, each door
@@ -984,15 +1011,31 @@ AF-133's grid — and these are new:
   header carries it, each step adding where its driver started (*2nd, from
   21st*), and the Winner tile leaves the strip. That is its second page, and
   §8 then promotes it to core.
-- **The season plate** — pending (VD-109 #1331, VD-115 #1337, VD-104 #1239
-  (c)). One component: a 4 px rule in the champion's team colour, the
-  champion's label with its livery mark, the name in the display face, and
-  the margin at the hero size beside the sentence that gives it meaning.
-  Home opens on it in place of the six row counts, which become one quiet
-  line (VD-109, `docs/critiques/2026-11-13-visual-design/P01-home-season-plate.html`);
-  a season page carries it in the champion's livery (VD-104 (c)); a
+- **The season plate** — provisional on the season page (VD-104 #1239
+  (c)); pending on home (VD-109 #1331) and a constructor's page (VD-115
+  #1337). One component, `SeasonPlate`: a 4 px rule (`--space-2`) in the
+  champion's team pair, `.livery-series` choosing the light or the dark
+  value as a series does, or in ink where no colour is on record (1968 to
+  2009, or a team with none sourced); the label, *2021 World Champion ·
+  Red Bull Racing*, with the team's livery mark and its name a link, so
+  the colour is never the only cue; the champion's name in the display
+  face at `--size-8`, a stat figure's size, since a name is not a figure
+  and stays out of the hero register (§2 *Type*); and the margin at the
+  hero size beside *points clear of Sir Lewis Hamilton in the final table,
+  with 395.5 points.* A
+  season page opens on it once every round is run; a title settled with
+  rounds to go waits for the last of them, the strip carrying the leader
+  and the gap until then. The strip under it leaves out the
+  *Drivers' champion* and *Margin* tiles it states; where no margin is
+  stored the plate prints no figure and no sentence, and the strip keeps
+  both, *Margin* showing the em dash. The margin is the page's one hero figure, since the season strip
+  is not ranked. No accent (D-61). `seasonPlate` in `queries/season.js`
+  gives both renderers the plate; `units.mjs` holds it and the strip it
+  trims, `smoke.mjs` the plate and the strip in both halves. Home opens on
+  it in place of the six row counts, which become one quiet line (VD-109,
+  `docs/critiques/2026-11-13-visual-design/P01-home-season-plate.html`); a
   constructor page runs it season by season as a livery ribbon (VD-115,
-  `P08-constructor-livery-ribbon.html`), built on VD-104's component.
+  `P08-constructor-livery-ribbon.html`), built on this component.
 - **The weekend lap** (AF-156 #1250). The round's outline, `Outline`
   itself with the marks as its children, so a drawing with stops on it is
   still the one outline component (VD-92's), drawn faint and dashed as the
@@ -1085,8 +1128,9 @@ citation, is already one system and is kept.
 **Per type (the middle of the page):**
 
 - **Driver:** lead chart (championship finishes) · the current season
-  (active drivers only; one statement, not a tile plus a note) · Season by
-  season · Team-mates · Every entry. **Pending:** the lead chart annotated
+  (active drivers only; one statement, not a tile plus a note) · *Circuits
+  won at*, a driver with a win (provisional, VD-104 #1239, §3 *Outline
+  card*) · Season by season · Team-mates · Every entry. **Pending:** the lead chart annotated
   in the shared pattern (VD-124 #1348); Team-mates as a face-off, the two
   names set large over rules in each driver's colour, split tallies for
   qualifying, races and points with the winning side's figure set large,
@@ -1102,7 +1146,8 @@ citation, is already one system and is kept.
   chips (provisional, AF-133) · Every layout raced here (the timeline's rows or the
   other drawings behind one disclosure; absent where there are neither, and
   the slot's card then carries the rule) · Every race here.
-- **Season:** *Who can still win* takes the lede position on a season
+- **Season:** a concluded season opens on its plate, above the tiles
+  (provisional, VD-104 #1239, §3 *Season cycle*). *Who can still win* takes the lede position on a season
   being run, ahead of the season's own note, which follows it as a race's
   follows who won; what the answer was worked out from follows the tiles
   (VD-90: `titleAnswer` and `seasonLede` in `queries/season.js`, which both

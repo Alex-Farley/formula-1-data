@@ -22,7 +22,7 @@ import { carName } from './race.js'
 import { colourForEntry } from '../lib/liveries.js'
 
 export const SEASON = `
-  SELECT s.*, d.full_name AS champion, t.name AS champion_team_name,
+  SELECT s.*, d.full_name AS champion, t.name AS champion_team_name, t.country AS champion_team_country,
          ru.full_name AS runner_up_name, cc.name AS constructors_champion_name
     FROM seasons s
     LEFT JOIN drivers d       ON d.id  = s.drivers_champion
@@ -1542,6 +1542,49 @@ export const ENTRANTS_FOOTER =
   'Where an entrant ran more than one design, no source records which car raced which round — so those race results carry no chassis.'
 
 /**
+ * VD-104 (c): the season plate - a concluded season's champion, in the
+ * colours of the team they won it with. A 4 px rule in the team's pair, the
+ * label with its livery mark, the champion's name in the display face, and
+ * the margin at the hero size with the sentence that says what it is. The
+ * rule is in ink where no colour is on record - 1968 to 2009, or a team with
+ * none sourced - so a colour is never the plate's only cue. Null while the
+ * season is running, a title settled with rounds to go included: the strip
+ * carries the leader and the gap until the last round, and the plate is the
+ * season's end. The margin is the stored one - the champion's points less
+ * the runner-up's - and the sentence carries the champion's points, which
+ * the strip's champion tile did. With no margin stored the plate prints no
+ * figure and no sentence, and titleStrip keeps both tiles: the champion's
+ * points, and the Margin to show it is not established.
+ */
+export const SEASON_PLATE_LABEL = (year) => `${year} World Champion`
+export const seasonPlate = ({ season, year, running }) => {
+  if (running || !season?.drivers_champion) return null
+  const margin = season.margin === null || season.margin === undefined ? null : season.margin
+  return {
+    label: SEASON_PLATE_LABEL(year),
+    team: season.champion_team_name ?? null,
+    teamHref: season.champion_team ? `constructors/${season.champion_team}` : null,
+    name: season.champion ?? season.drivers_champion,
+    href: `drivers/${season.drivers_champion}`,
+    margin: margin === null ? null : points(margin),
+    sentence:
+      margin === null
+        ? null
+        : `${margin === 1 ? 'point' : 'points'} clear of ${season.runner_up_name ?? 'the runner-up'} in the final table${
+            season.champion_points === null || season.champion_points === undefined ? '' : `, with ${points(season.champion_points)} points`
+          }.`,
+    colour: season.champion_team
+      ? colourForEntry({
+          constructorId: season.champion_team,
+          country: season.champion_team_country,
+          year,
+          team: season.champion_team_name,
+        })
+      : null,
+  }
+}
+
+/**
  * The season's tiles, as both renderers draw them (VD-49).
  *
  * A season still running leads with who leads, by how much, after how many
@@ -1549,7 +1592,10 @@ export const ENTRANTS_FOOTER =
  * most-searched page of the year. A season nobody has raced carries
  * NOT_YET_RUN in those slots rather than a dash (IA-17), and the
  * constructors' title before 1958 is "not contested", which is a fact, where
- * a dash would be a gap.
+ * a dash would be a gap. A concluded season with a champion opens on its
+ * plate (seasonPlate, above), which states the champion, their points and
+ * the margin, so the strip leaves those two tiles out - only where the plate
+ * has a margin to print.
  *
  * `running` and `notRun` are the page's own two questions, passed in rather
  * than asked again here, so the strip cannot answer them differently from
@@ -1585,13 +1631,18 @@ export const titleStrip = ({ season, year, running, run, notRun, lead, second, t
     ].filter(Boolean)
   }
   const notYet = { value: NOT_YET_RUN, quiet: true }
+  // The season plate (VD-104 (c)) names the champion, their points and the
+  // margin above the strip, so the strip does not say them twice.
+  const plate = seasonPlate({ season, year, running })
   return [
     {
       label: 'Rounds',
       value: number(season.rounds),
       note: notRun ? NOT_YET_RUN : run === season.rounds ? 'all run' : `${run} run`,
     },
-    {
+    plate?.margin
+      ? null
+      : {
       label: "Drivers' champion",
       kind: 'name',
       ...(season.drivers_champion
@@ -1616,10 +1667,12 @@ export const titleStrip = ({ season, year, running, run, notRun, lead, second, t
           ? `${points(season.constructors_points)} points`
           : undefined,
     },
-    {
+    plate?.margin
+      ? null
+      : {
       label: 'Margin',
       ...(season.margin !== null ? { value: points(season.margin) } : notRun ? notYet : { value: null }),
       note: season.runner_up_name ? `over ${season.runner_up_name}` : undefined,
     },
-  ]
+  ].filter(Boolean)
 }

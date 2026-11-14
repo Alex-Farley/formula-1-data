@@ -89,6 +89,7 @@ import {
   mergeSources,
   reachTitle,
   seasonAnswer,
+  seasonPlate,
   seasonSources,
   standingsHeading,
   titleHeading,
@@ -2209,6 +2210,90 @@ try {
     const staticSeason = await (await fetch(`${BASE}/seasons/${year}`)).text()
     is((staticSeason.match(/<li data-state="/g) ?? []).length, rounds, 'the static page carries the same strip')
     is((staticSeason.match(/<li data-state="next"/g) ?? []).length, toRun > 0 ? 1 : 0, 'and marks the same round next')
+  })
+
+  /*
+   * VD-104: the outline as a race's thumbnail on an onward card, a driver's
+   * circuits won at as small multiples, and a concluded season's plate in
+   * its champion's livery - each in the app and on the static page, each
+   * counted off the database rather than off the page.
+   */
+  await section('/drivers/senna /seasons/<year> /races/<year>/1  (the outline as a thumbnail, the circuits won at, the season plate: VD-104)', async () => {
+    // The circuits won at: one card per circuit, and one race link per win.
+    const circuits = count("SELECT COUNT(DISTINCT r.circuit_id) FROM race_entries e JOIN races r ON r.id = e.race_id WHERE e.driver_id = 'senna' AND e.finish_position = 1")
+    const wins = count("SELECT COUNT(*) FROM race_entries WHERE driver_id = 'senna' AND finish_position = 1")
+    await go('/drivers/senna', 'Ayrton Senna')
+    await page.waitForSelector('#root main .won-at li', { timeout: 20000 })
+    is(await page.$$eval('#root main .won-at > li', (n) => n.length), circuits, `a card for each of the ${circuits} circuits Senna won at`)
+    is(await page.$$eval('#root main .won-at a[href*="/races/"]', (n) => n.length), wins, `and a race link for each of his ${wins} wins`)
+    truthy(
+      await page.$$eval('#root main .won-at > li', (n) => n.every((li, i, all) => i === 0 || Number.parseInt(all[i - 1].querySelector('small').textContent, 10) >= Number.parseInt(li.querySelector('small').textContent, 10))),
+      'most wins first',
+    )
+    const staticSenna = await (await fetch(`${BASE}/drivers/senna`)).text()
+    const staticList = staticSenna.match(/<ol class="won-at"[\s\S]*?<\/ol>/)?.[0] ?? ''
+    is((staticList.match(/<li>/g) ?? []).length, circuits, 'the static page draws the same cards')
+    is((staticList.match(/href="[^"]*\/races\//g) ?? []).length, wins, 'and the same race links')
+    truthy(staticSenna.includes('Jules Roy') && (await page.$eval('#root main .won-at + p', (p) => p.textContent.includes('Jules Roy'))), 'both credit the drawings')
+    const winless = one(
+      `SELECT d.id FROM drivers d WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)
+         AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id AND e.finish_position = 1) ORDER BY d.id LIMIT 1`,
+    )
+    const staticWinless = await (await fetch(`${BASE}/drivers/${winless}`)).text()
+    truthy(!staticWinless.includes('class="won-at"'), `a driver who never won (${winless}) has no cards on the static page`)
+
+    // The season plate: a concluded season's champion and margin, in place
+    // of the two tiles that said them; none on the season being run.
+    const year = one(
+      `SELECT MAX(s.year) FROM seasons s WHERE s.drivers_champion IS NOT NULL AND s.margin IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM races r WHERE r.year = s.year AND r.status != 'completed')`,
+    )
+    const champion = db.prepare('SELECT drivers_champion AS id, margin FROM seasons WHERE year = ?').get(year)
+    await go(`/seasons/${year}`, String(year))
+    await page.waitForSelector('#root main .season-plate', { timeout: 20000 })
+    is(
+      await page.$eval('#root main .season-plate-name a', (a) => new URL(a.href).pathname),
+      `/drivers/${champion.id}`,
+      `the ${year} plate names the champion`,
+    )
+    is(await page.$eval('#root main .season-plate-margin', (n) => n.textContent), String(champion.margin), 'and sets the stored margin')
+    const dts = await page.$$eval('#root main .stats dt', (n) => n.map((dt) => dt.textContent))
+    truthy(!dts.includes("Drivers' champion") && !dts.includes('Margin'), `the strip leaves out what the plate says — ${dts.join(', ')}`)
+    const staticYear = await (await fetch(`${BASE}/seasons/${year}`)).text()
+    truthy(staticYear.includes(`<p class="season-plate-name"><a href="/drivers/${champion.id}">`), 'the static page draws the same plate')
+    const appPlate = await page.$eval('#root main .season-plate', (n) => ({
+      label: n.querySelector('.season-plate-label').textContent,
+      figure: n.querySelector('.season-plate-figure').textContent,
+    }))
+    // The plate both renderers are given, from the same function: the app's
+    // text is held to it, and the static markup to it written as prerender
+    // escapes it.
+    const plate = seasonPlate({ season: db.prepare(SEASON).get(year), year, running: false })
+    const enc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    is(appPlate.label, `${plate.label} · ${plate.team}`, 'with its label and team')
+    is(appPlate.figure, `${plate.margin} ${plate.sentence}`, 'and its margin and sentence')
+    truthy(staticYear.includes(`${enc(plate.label)} · <a href="/${plate.teamHref}">${enc(plate.team)}</a></p>`), 'the static plate carries the same label')
+    truthy(
+      staticYear.includes(`<span class="season-plate-margin">${enc(plate.margin)}</span> <span>${enc(plate.sentence)}</span>`),
+      'and the same margin and sentence',
+    )
+    truthy(staticYear.includes('<dt>Rounds</dt>') && !staticYear.includes('<dt>Margin</dt>'), 'and the same strip, Rounds kept and Margin left out')
+    const running = inProgress()
+    if (one("SELECT COUNT(*) FROM races WHERE year = ? AND status != 'completed'", running) > 0) {
+      truthy(!(await (await fetch(`${BASE}/seasons/${running}`)).text()).includes('class="season-plate'), `the season being run (${running}) has no plate`)
+    }
+
+    // An onward card that links a race carries its outline, credited once.
+    const drawn = one(
+      `SELECT COUNT(*) FROM races r JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id WHERE r.year = ? AND r.round = 2`,
+      year,
+    )
+    await go(`/races/${year}/1`, null)
+    await page.waitForSelector('#root main .onward', { timeout: 20000 })
+    is(await page.$$eval('#root main .onward a.onward-race svg.outline', (n) => n.length), drawn ? 1 : 0, `the next race's card ${drawn ? 'carries' : 'has no'} its outline`)
+    const staticRace = await (await fetch(`${BASE}/races/${year}/1`)).text()
+    is((staticRace.match(/class="onward-race"><svg class="outline"/g) ?? []).length, drawn ? 1 : 0, 'and the static card the same')
+    if (drawn) truthy(staticRace.includes('class="faint onward-note"') && staticRace.includes('Jules Roy'), 'credited under the band')
   })
 
   /*

@@ -7,6 +7,8 @@ import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../lib/
 import { arrived } from '../lib/handover.js'
 import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
 import { ON_THIS_PAGE } from '../lib/wayfinding.js'
+import { ONWARD_OUTLINE_NOTE } from '../lib/outline.js'
+import Outline from './Outline.jsx'
 
 /**
  * A page: an optional way back, a title, an optional standfirst.
@@ -447,6 +449,10 @@ export function Note({ children, id }) {
  * car, a car to the race it won. A reader who has to go back to the nav to
  * find that out mostly does not bother, so each page ends by naming the two to
  * four routes out of it that are worth taking.
+ *
+ * A card that links a race carries the race's outline as its thumbnail
+ * (VD-104 (a)), where lib/wayfinding.js gives the item one: decorative, the
+ * label naming the race, and the credit once under the band.
  */
 export function Onward({ title = 'Keep going', items }) {
   const shown = items.filter(Boolean)
@@ -455,13 +461,15 @@ export function Onward({ title = 'Keep going', items }) {
     <nav className="onward" aria-label={title}>
       <h2>{title}</h2>
       <div>
-        {shown.map(({ to, label, hint }) => (
-          <Link key={`${to}-${label}`} to={to}>
+        {shown.map(({ to, label, hint, outline }) => (
+          <Link key={`${to}-${label}`} to={to} className={outline ? 'onward-race' : undefined}>
+            {outline && <Outline path={outline} decorative />}
             <b>{label}</b>
             {hint && <span>{hint}</span>}
           </Link>
         ))}
       </div>
+      {shown.some((item) => item.outline) && <p className="faint onward-note">{ONWARD_OUTLINE_NOTE}</p>}
     </nav>
   )
 }

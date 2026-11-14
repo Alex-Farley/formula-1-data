@@ -252,10 +252,12 @@ export const ENTRIES = `
   SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
          e.driver_id, d.full_name AS driver, e.grid_text, e.grid,
          e.chassis_id, ch.name AS chassis,
-         e.position_text, e.finish_position, e.status, e.fastest_lap, e.pole
+         e.position_text, e.finish_position, e.status, e.fastest_lap, e.pole,
+         o.path AS outline
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
     LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
     LEFT JOIN drivers d  ON d.id = e.driver_id
     LEFT JOIN chassis ch ON ch.id = e.chassis_id
    WHERE e.chassis_id IN (

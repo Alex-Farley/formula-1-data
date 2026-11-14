@@ -101,8 +101,10 @@ export const RACES = `
          (SELECT e.driver_id FROM race_entries e
            WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winner_id,
          (SELECT k.name FROM race_entries e JOIN constructors k ON k.id = e.constructor_id
-           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS constructor
+           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS constructor,
+         o.path AS outline
     FROM races r
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
    WHERE r.circuit_id = ?
    ORDER BY r.year DESC, r.round DESC
 `

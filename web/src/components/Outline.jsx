@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { TimeText } from './Dates.jsx'
 import { winnerColour } from '../lib/liveries.js'
@@ -7,10 +8,13 @@ import {
   OUTLINE_RULE,
   OUTLINE_VIEWBOX,
   STATE_WORDS,
+  WON_AT_NOTE,
   outlineLabel,
   roundShortName,
   roundStates,
   stripLabel,
+  winsAt,
+  wonAtLabel,
 } from '../lib/outline.js'
 
 /**
@@ -113,6 +117,43 @@ export function OutlineStrip({ year, calendar }) {
         {OUTLINE_RULE} {OUTLINE_BY}.
       </p>
     </div>
+  )
+}
+
+/**
+ * The circuits a driver won at as small multiples (VD-104 (b)): one card per
+ * circuit, lib/outline.js wonAt()'s, its drawing decorative - the name under
+ * it says what it is - then the circuit, a link, the count, and each win a
+ * link to its race, the year shown and the race's name read with it. The
+ * credit and the scale caveat once, under the grid, as the strip prints
+ * them. scripts/prerender.js writes the same list.
+ */
+export function WonAt({ name, circuits }) {
+  if (!circuits.length) return null
+  return (
+    <>
+      <ol className="won-at" aria-label={wonAtLabel(name)}>
+        {circuits.map((here) => (
+          <li key={here.key}>
+            {here.outline ? <Outline path={here.outline} decorative /> : <span className="outline outline-none" aria-hidden="true" />}
+            <b>{here.circuit_id ? <Link to={`/circuits/${here.circuit_id}`}>{here.circuit}</Link> : here.circuit}</b>
+            <small>{winsAt(here.wins.length)}</small>
+            <p className="won-at-races">
+              {here.wins.map((win, i) => (
+                <Fragment key={`${win.year}-${win.round}`}>
+                  {i > 0 ? ' · ' : ''}
+                  <Link to={`/races/${win.year}/${win.round}`}>
+                    {win.year}
+                    <span className="sr-only"> {win.name_used}</span>
+                  </Link>
+                </Fragment>
+              ))}
+            </p>
+          </li>
+        ))}
+      </ol>
+      <p className="faint outline-strip-note">{WON_AT_NOTE}</p>
+    </>
   )
 }
 

@@ -2232,7 +2232,7 @@ describe('the design system holds its grid: widths, breakpoints and tokens (VD-7
   // --space-6, and each grid has a gap to read, so a renamed class fails
   // here rather than passing on nothing.
   it('every card grid gaps its cards by --space-6, at every width (VD-86)', () => {
-    const CARD_GRIDS = ['.photo-grid', '.record-cards', '.onward > div', '.outline-grid', '.outline-strip', '#prerendered .cards']
+    const CARD_GRIDS = ['.photo-grid', '.record-cards', '.onward > div', '.outline-grid', '.outline-strip', '.won-at', '#prerendered .cards']
     const gaps = new Map(CARD_GRIDS.map((selector) => [selector, []]))
     for (const m of app.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selectors = m[1].split(',').map((part) => part.trim())
