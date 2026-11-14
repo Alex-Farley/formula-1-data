@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url'
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
 import { DOCUMENTS, FOOTER_PRIVACY, FOOTER_PRIVACY_LINK, IN_THIS_TAB, LABELS, REPLACED } from '../src/lib/site.js'
-import { FOLD_NOUN, FOLD_TO, UNFOLDED } from '../src/lib/table.js'
+import { FOLD_NOUN, FOLD_TO, UNFOLDED, groupFault, groupRuns } from '../src/lib/table.js'
 import { measurement } from '../scripts/measurement.js'
 import { BEACON_ORIGIN, INLINE_HANDLERS, POLICY } from '../scripts/headers.js'
 import {
@@ -271,9 +271,10 @@ describe('every declared table names its rows (AX-21)', () => {
     join(web, 'src/lib/changes.js'),
   ]
 
-  it('each column list marks a row header, and never on a column taken out of the accessibility tree', async () => {
+  it('each column list marks a row header, and never on a column taken out of the accessibility tree; its groups are runs', async () => {
     const unnamed = []
     const unbuilt = []
+    const grouped = []
     for (const file of modules) {
       const module = await import(file)
       for (const [name, value] of Object.entries(module)) {
@@ -293,10 +294,20 @@ describe('every declared table names its rows (AX-21)', () => {
         for (const column of headers) {
           if (column.ariaHidden) unnamed.push(`${rel(file)}: ${name}.${column.key} is a row header and aria-hidden`)
         }
+        // Column groups (VD-106): never beside a phone set, which both
+        // renderers refuse, and a label is one run of neighbours - the same
+        // label twice is two heads that say one thing (lib/table.js groupRuns).
+        const fault = groupFault(specs)
+        if (fault) grouped.push(`${rel(file)}: ${name}: ${fault}`)
+        const labels = (groupRuns(specs) ?? []).map((run) => run.group).filter(Boolean)
+        for (const label of new Set(labels)) {
+          if (labels.filter((l) => l === label).length > 1) grouped.push(`${rel(file)}: ${name}: the group "${label}" is split`)
+        }
       }
     }
     assert.deepEqual(unbuilt, [], 'a column list built by a function: add it to BUILT with the arguments for its widest shape')
     assert.deepEqual(unnamed, [])
+    assert.deepEqual(grouped, [], 'a column group is one run of neighbouring columns, on a list with no phone set')
   })
 })
 

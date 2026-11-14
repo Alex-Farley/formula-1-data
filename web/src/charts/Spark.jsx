@@ -1,7 +1,8 @@
-import { seasonsRacedLayout, titleRaceLayout } from './spark.js'
+import { byRoundLayout, seasonsRacedLayout, titleRaceLayout } from './spark.js'
 
 /**
- * The two pictures charts/spark.js lays out (VD-54), as a register's cells.
+ * The pictures charts/spark.js lays out, as table cells: the registers' two
+ * (VD-54) and the season-by-season tables' rounds (VD-106).
  * scripts/prerender.js's sparkSvg() draws the same elements with the same
  * classes from the same layout, and a change to one is a change to both.
  *
@@ -32,6 +33,23 @@ export function SeasonsRacedSpark({ value, first, last, label }) {
       <line className="spark-track" x1="0" x2={layout.width} y1={layout.track} y2={layout.track} />
       {layout.runs.map((run) => (
         <rect key={run.x} className="spark-run" x={run.x} y={layout.bar.y} width={run.width} height={layout.bar.height} />
+      ))}
+    </svg>
+  )
+}
+
+export function ByRoundSpark({ value, rounds, label }) {
+  const layout = byRoundLayout(value, rounds)
+  if (!layout) return label
+  return (
+    <svg className="spark" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img">
+      <title>{label}</title>
+      <line className="spark-track" x1="0" x2={layout.width} y1={layout.track} y2={layout.track} />
+      {layout.bars.map((bar) => (
+        <rect key={`b${bar.x}`} className="spark-run" x={bar.x} y={bar.y} width={bar.width} height={bar.height} />
+      ))}
+      {layout.ticks.map((tick) => (
+        <rect key={`t${tick.x}`} className="spark-miss" x={tick.x} y={tick.y} width={tick.width} height={tick.height} />
       ))}
     </svg>
   )

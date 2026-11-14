@@ -77,6 +77,8 @@ import {
   foldMore,
   folds,
   glossaryKey,
+  groupFault,
+  groupRuns,
   onPhone,
   shared,
   sharedLine,
@@ -404,7 +406,6 @@ import {
   DERIVED as TEAM_DERIVED,
   DESIGNS,
   DESIGN_COLUMNS,
-  ENGINE_SPLIT_FOOTER,
   SEASON_COLUMNS as TEAM_SEASON_COLUMNS,
   STANDINGS as TEAM_STANDINGS,
   WINS as TEAM_WINS,
@@ -414,6 +415,7 @@ import {
   WINS_HEADING,
   constructorSeasons,
   recordFigures,
+  seasonsFooter,
   teamStrip,
   winsFigure,
 } from '../src/queries/constructor.js'
@@ -737,7 +739,14 @@ import {
   seasonSteps,
 } from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, flagCarClass, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
-import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
+import {
+  byRoundLayout,
+  byRoundText,
+  seasonsRacedLayout,
+  seasonsRacedText,
+  titleRaceLayout,
+  titleRaceText,
+} from '../src/charts/spark.js'
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
 import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
@@ -988,12 +997,17 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // text-width rule, kind 2) rather than as a paragraph under it. The band
 // holds no Copy or CSV here: those need a script, and the static page has
 // none to give them.
+//
+// `groups` is lib/table.js's groupRuns() over the columns drawn (VD-106): a
+// `<colgroup>` for each run and a row of heads above the column heads, a
+// `<th scope="colgroup">` over a run with a label and an empty cell over one
+// without, as DataTable writes them.
 const FOLD_NAME = '<span class="sr-only fold-name"></span>'
 const foldFaults = []
 let unplacedFaults = []
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { aligns = [], hidden = [], rowHeaders = [], fold = false, unfolded = null, footer = null } = options
+  const { aligns = [], hidden = [], rowHeaders = [], fold = false, unfolded = null, footer = null, groups = null } = options
   const fault = foldFault(rows.length, fold, unfolded)
   if (fault) {
     const heads = headers.map((h) => (typeof h === 'string' ? h : (h.label ?? h.html))).join(' | ')
@@ -1005,9 +1019,19 @@ const table = (headers, rows, options = {}) => {
     return (names ? ` class="${esc(names)}"` : '') + (hidden[i] ? ' aria-hidden="true"' : '')
   }
   const cell = (c, i) => (rowHeaders[i] ? `<th scope="row"${cls(i)}>${c}</th>` : `<td${cls(i)}>${c}</td>`)
+  const span = (n) => (n > 1 ? ` colspan="${n}"` : '')
   return [
     `<div class="table-wrap${folded ? ' is-folded' : ''}"><div class="table-scroll"><table>`,
-    `<thead><tr>${headers
+    groups ? groups.map((run) => `<colgroup${run.span > 1 ? ` span="${run.span}"` : ''}></colgroup>`).join('') : '',
+    '<thead>',
+    groups
+      ? `<tr class="groups">${groups
+          .map((run) =>
+            run.group ? `<th scope="colgroup"${span(run.span)} class="group">${esc(run.group)}</th>` : `<td${span(run.span)}></td>`,
+          )
+          .join('')}</tr>`
+      : '',
+    `<tr>${headers
       .map((h, i) => {
         // A keyed header adds its class to the column's own, and names
         // itself by its label alone (lib/table.js).
@@ -1059,6 +1083,8 @@ const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null
       die(`prerender: column "${c.key}" declares collapse: true and is rendered as a link here`)
     }
   }
+  const grouping = groupFault(declared)
+  if (grouping) die(`prerender: ${grouping}`)
   const { columns: kept, shared: constants } = shared(columns, rows)
   const line = constants.length ? `<p class="table-shared">${esc(sharedLine(constants, rows.length))}</p>` : ''
   return (
@@ -1099,6 +1125,7 @@ const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null
         fold,
         unfolded,
         footer,
+        groups: groupRuns(kept),
       },
     )
   )
@@ -1368,6 +1395,20 @@ const titleRaceSvg = (value, label) =>
     label,
     (l) =>
       `<line class="spark-zero" x1="0" x2="${l.width}" y1="${l.zero}" y2="${l.zero}"/><path class="spark-line" d="${l.line}"/><circle class="spark-end" cx="${l.end.x}" cy="${l.end.y}" r="2"/>`,
+  )
+
+// A season's races by round (VD-106), on a driver's and a constructor's
+// seasons: charts/Spark.jsx's ByRoundSpark.
+const byRoundSvg = (value, rounds, label) =>
+  sparkSvg(
+    byRoundLayout(value, rounds),
+    label,
+    (l) =>
+      `<line class="spark-track" x1="0" x2="${l.width}" y1="${l.track}" y2="${l.track}"/>${l.bars
+        .map((b) => `<rect class="spark-run" x="${b.x}" y="${b.y}" width="${b.width}" height="${b.height}"/>`)
+        .join('')}${l.ticks
+        .map((t) => `<rect class="spark-miss" x="${t.x}" y="${t.y}" width="${t.width}" height="${t.height}"/>`)
+        .join('')}`,
   )
 
 const seasonsRacedSvg = (value, first, last, label) =>
@@ -3843,6 +3884,7 @@ const seasonsTable = (rows) =>
           seasons.length
             ? `<h2>Season by season</h2>${fromColumns(SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
+                by_round: (value, row) => byRoundSvg(value, row.rounds, byRoundText(value)),
               }, { fold: FOLD_NOUN.seasons, footer: SEASONS_FOOTER })}`
             : ''
         }
@@ -4034,7 +4076,8 @@ page({
           seasons.length
             ? `${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
-              }, { fold: FOLD_NOUN.seasons, footer: engineSplit ? ENGINE_SPLIT_FOOTER : null })}`
+                by_round: (value, row) => byRoundSvg(value, row.rounds, byRoundText(value)),
+              }, { fold: FOLD_NOUN.seasons, footer: seasonsFooter(engineSplit) })}`
             : EMPTY_STATE
         }
         ${

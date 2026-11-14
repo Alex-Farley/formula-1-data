@@ -13,6 +13,7 @@
  */
 import { EMPTY, missing, number, points, span, text, yearList } from '../lib/format.js'
 import { derivedAndPublished } from './driver.js'
+import { byRoundText } from '../charts/spark.js'
 import { LABELS, SLOT_MARKS } from '../lib/site.js'
 
 export const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
@@ -54,10 +55,21 @@ export const BY_SEASON = `
          COALESCE(SUM(e.pole = 1), 0)             AS poles,
          SUM(COALESCE(e.points, 0))  AS points,
          MIN(e.finish_position)      AS best,
-         COUNT(DISTINCT e.driver_id) AS drivers
+         COUNT(DISTINCT e.driver_id) AS drivers,
+         -- The season's races by round, for its bars (VD-106, charts/spark.js
+         -- byRoundOf): "round:place" for the best place any of its cars was
+         -- classified in, and the place empty where none was.
+         (SELECT group_concat(b.round || ':' || COALESCE(b.best, ''), ' ')
+            FROM (SELECT r2.round, MIN(e2.finish_position) AS best
+                    FROM race_entries e2
+                    JOIN races r2 ON r2.id = e2.race_id
+                   WHERE e2.constructor_id = ?1 AND r2.year = r.year
+                   GROUP BY r2.id) b) AS by_round,
+         -- The calendar's length, rounds not yet run included.
+         (SELECT MAX(c.round) FROM races c WHERE c.year = r.year) AS rounds
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
-   WHERE e.constructor_id = ?
+   WHERE e.constructor_id = ?1
    GROUP BY r.year
    ORDER BY r.year
 `
@@ -236,6 +248,7 @@ export const constructorSeasons = (bySeason, standings) =>
       }
     })
 
+/* In a weekend's order and grouped by it, as the driver page's are (VD-106). */
 export const SEASON_COLUMNS = [
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'entries', label: 'Entries', align: 'num' },
@@ -243,11 +256,12 @@ export const SEASON_COLUMNS = [
   // Counted from the race records, as the driver page's are, and declared for
   // the same reason (VD-29): a team that never won prints a column of noughts,
   // and the two pages describing the same figures should not differ on it.
-  { key: 'wins', label: 'Wins', align: 'num', collapse: true },
-  { key: 'podiums', label: 'Podiums', align: 'num', collapse: true },
-  { key: 'poles', label: 'Poles', align: 'num', collapse: true },
-  { key: 'best', label: 'Best', align: 'num', text: (value) => (missing(value) ? EMPTY : `P${value}`) },
-  { key: 'points', label: 'Points scored', align: 'num', text: (value) => points(value) },
+  { key: 'poles', label: 'Poles', align: 'num', collapse: true, group: 'Qualifying' },
+  { key: 'wins', label: 'Wins', align: 'num', collapse: true, group: 'Races' },
+  { key: 'podiums', label: 'Podiums', align: 'num', collapse: true, group: 'Races' },
+  { key: 'best', label: 'Best', align: 'num', group: 'Races', text: (value) => (missing(value) ? EMPTY : `P${value}`) },
+  { key: 'points', label: 'Points scored', align: 'num', group: 'Races', text: (value) => points(value) },
+  { key: 'by_round', label: 'By round', align: 'spark', group: 'Races', sortable: false, text: byRoundText },
   {
     key: 'championship_text',
     label: 'Championship',
@@ -259,6 +273,13 @@ export const SEASON_COLUMNS = [
 
 export const ENGINE_SPLIT_FOOTER =
   "The constructors' championship is contested by a chassis–engine pair, so a season can carry more than one entry for the same name. Open the season to see both."
+
+/** What “By round” draws, said under every constructor's seasons (VD-106). */
+export const BY_ROUND_FOOTER =
+  '“By round” draws each race entered on the season’s calendar: a bar for the best place any of its cars was classified in, tallest for a win and shortest for 20th or lower, and a tick for a race none was.'
+
+/** The seasons table's source line: what “By round” draws, and the engine split where there is one. */
+export const seasonsFooter = (engineSplit) => (engineSplit ? `${BY_ROUND_FOOTER} ${ENGINE_SPLIT_FOOTER}` : BY_ROUND_FOOTER)
 
 export const WIN_COLUMNS = [
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },

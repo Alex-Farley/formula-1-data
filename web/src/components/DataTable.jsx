@@ -14,6 +14,8 @@ import {
   foldMore,
   folds,
   glossaryKey,
+  groupFault,
+  groupRuns,
   onPhone,
   shared,
   sharedLine,
@@ -55,6 +57,11 @@ import TakeAway from './TakeAway.jsx'
  * cell, and leaves its header empty: a column that only repeats in colour
  * what the column beside it says in words, which is the classification's
  * result rail (AX-12). scripts/prerender.js reads the same flag.
+ *
+ * `group` is a label the column shares with its neighbours - *Qualifying*,
+ * *Races* - and a table with any draws a row of heads above its column
+ * heads, one `<th scope="colgroup">` over each run, from lib/table.js's
+ * groupRuns() as scripts/prerender.js does (VD-106).
  *
  * `rowHeader` makes the column's cells `<th scope="row">` rather than `<td>`:
  * the cell that says which row this is - the driver, the chassis, the season
@@ -561,6 +568,11 @@ function Table({
   const folded = fold && folds(ordered.length)
   const fault = foldFault(ordered.length, fold, unfolded)
   if (fault) console.error(`DataTable${name ? ` (${name})` : ''}: ${fault}`)
+  // Column groups (VD-106): read off the columns drawn, as prerender reads
+  // them, and refused beside a phone set (lib/table.js).
+  const grouping = groupFault(all)
+  if (grouping) console.error(`DataTable${name ? ` (${name})` : ''}: ${grouping}`)
+  const groups = grouping ? null : groupRuns(arranged)
   const expand = (next) => {
     collapsed.current = !next
     revealing.current = next && Boolean(folded)
@@ -660,7 +672,26 @@ function Table({
                 gives the table a name when somebody enters it with a screen
                 reader, which is the whole point. */}
             {name && <caption className="sr-only">{name}</caption>}
+            {groups?.map((run, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a run is its place in the row
+              <colgroup key={i} span={run.span > 1 ? run.span : undefined} />
+            ))}
             <thead>
+              {groups && (
+                <tr className="groups">
+                  {groups.map((run, i) =>
+                    run.group ? (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: a run is its place in the row
+                      <th key={i} scope="colgroup" colSpan={run.span > 1 ? run.span : undefined} className="group">
+                        {run.group}
+                      </th>
+                    ) : (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: a run is its place in the row
+                      <td key={i} colSpan={run.span > 1 ? run.span : undefined} />
+                    ),
+                  )}
+                </tr>
+              )}
               <tr>
                 {arranged.map((column) => {
                   const active = shownSort === column.key

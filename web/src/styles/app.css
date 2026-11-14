@@ -1860,6 +1860,45 @@ td.spark svg.spark {
   stroke-width: 1;
 }
 
+/* A round entered and not classified, on the season-by-season tables'
+   rounds (VD-106): a tick on the line, quieter than a bar and never mistaken
+   for the shortest one, which is three times its height. */
+.spark-miss {
+  fill: var(--ink-soft);
+}
+
+/*
+ * Column groups (VD-106, docs/design-system.md section 3 *Table*): a row of
+ * heads above the column heads, a label over each run of columns that
+ * belong together and a rule under it, so the rule shows the run's extent.
+ * The label register, as the heads under it are, and set closer: it names
+ * columns and is not one. It is not held under the masthead with the column
+ * heads (VD-89) - those are the ones a reader needs to read a row - and it
+ * scrolls away with the top of the table.
+ */
+thead tr.groups > * {
+  padding: var(--space-3) var(--space-6) var(--space-2);
+  border-bottom: 0;
+}
+
+/* The rule stops short of each side, so two groups side by side read as
+   two runs and not one line. */
+thead tr.groups th.group {
+  text-align: center;
+  background-image: linear-gradient(var(--rule), var(--rule));
+  background-size: calc(100% - var(--space-4)) 1px;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+}
+
+/* Back in the flow: `top` is the sticky heads' offset, and on a relative
+   cell it would move the label down by the masthead's height. */
+.table-wrap[data-fits]:not(.figure .table-wrap) thead tr.groups th {
+  position: relative;
+  top: auto;
+  box-shadow: none;
+}
+
 tbody td.strong,
 tbody th.strong {
   font-weight: var(--weight-semibold);

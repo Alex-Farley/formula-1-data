@@ -1,6 +1,8 @@
 /**
- * Two small multiples drawn inside a register's own table (VD-54): the title
- * race on /seasons and the seasons raced on /constructors, one per row.
+ * Small multiples drawn inside a table, one per row: two in a register's own
+ * table (VD-54), the title race on /seasons and the seasons raced on
+ * /constructors, and one in the season-by-season tables of a driver's and a
+ * constructor's page (VD-106), each season's races by round.
  *
  * The geometry and the words only, as plain numbers and strings, so that both
  * renderers draw the one picture - charts/Spark.jsx in the app and sparkSvg()
@@ -35,6 +37,16 @@ import { linear } from './scales.js'
 export const SPARK_HEIGHT = 24
 export const TITLE_RACE_WIDTH = 64
 export const SEASONS_RACED_WIDTH = 96
+
+/**
+ * The season-by-season tables' picture is shorter than the registers': those
+ * tables are at the reference density (VD-95), whose line is about 15.5 px
+ * from 1180, and a row is never more than its line and its padding - a
+ * 24 px picture would have taken the row from 24.5 px to 33. 14 px sits
+ * inside the line at either density. 72 px is 3 px a round across 24 of them.
+ */
+export const ROW_SPARK_HEIGHT = 14
+export const BY_ROUND_WIDTH = 72
 
 // Inside the box, so a stroke at the edge of its range is not clipped.
 const PAD = 2
@@ -200,5 +212,94 @@ export function seasonsRacedLayout(value, first, last) {
       // Widened to the minimum, the current season's run is kept in the box.
       return { x: round(Math.min(start, SEASONS_RACED_WIDTH - width)), width }
     }),
+  }
+}
+
+// ---------------------------------------------------------------- by round
+
+/*
+ * A season's races, round by round (VD-106): a bar a round classified and a
+ * tick a round entered and not, on the season's own calendar, so a row reads as the season's shape and a column
+ * of them as a career's - the seasons near the top of the box, the seasons
+ * at its foot, and where in a season the rounds were missed.
+ *
+ * The value is the query's `by_round`, "round:code" pairs, space-separated,
+ * in no promised order. The code is the entry's position_text on a driver's
+ * page - its finishing place, or the source's own DNF, DNQ, NC and the rest -
+ * and on a constructor's the best place any of its cars was classified in,
+ * empty where none was.
+ */
+
+// The place the shortest bar stands for, and every place below it: a field
+// of 33 at Indianapolis would otherwise put every other season's twentieth
+// near the top. The words carry the place itself.
+const BY_ROUND_FLOOR = 20
+const BAR_LOW = 3
+const BAR_HIGH = 12
+// A round entered and not classified is a tick on the line, never a bar.
+const TICK = 1
+
+/** The rounds of `by_round`, sorted: [{ round, place, code }]. */
+export function byRoundOf(value) {
+  if (missing(value)) return []
+  return String(value)
+    .trim()
+    .split(/\s+/)
+    .map((pair) => {
+      const at = pair.indexOf(':')
+      const round = Number(at < 0 ? pair : pair.slice(0, at))
+      const code = at < 0 ? '' : pair.slice(at + 1)
+      const place = /^\d+$/.test(code) ? Number(code) : null
+      return { round, place, code }
+    })
+    .filter((r) => Number.isInteger(r.round))
+    .sort((a, b) => a.round - b.round)
+}
+
+/**
+ * The words for one season's bars, which are also the cell's text: every
+ * round entered, in order, with its place - "R1 P3, R2 DNF, R4 P1". A code
+ * that is not a place is the source's own, as the Result column prints it;
+ * an empty one, a constructor's round with no car classified, is said so.
+ */
+export function byRoundText(value) {
+  const rounds = byRoundOf(value)
+  if (!rounds.length) return EMPTY
+  return rounds
+    .map((r) => `R${r.round} ${r.place !== null ? `P${r.place}` : r.code || 'not classified'}`)
+    .join(', ')
+}
+
+/**
+ * The bars, in a box BY_ROUND_WIDTH by ROW_SPARK_HEIGHT: a slot for every
+ * round of the season's calendar, left to right, and a bar in each slot
+ * entered, tallest for a win and shortest for BY_ROUND_FLOOR and below, on a
+ * line the width of the season. One scale for every season, so the rows of
+ * a table compare. `rounds` is the calendar's length; a season whose
+ * calendar is not known is drawn to its last round entered.
+ */
+export function byRoundLayout(value, rounds) {
+  const entered = byRoundOf(value).filter((r) => r.round >= 1)
+  if (!entered.length) return null
+  const length = Math.max(Number.isInteger(rounds) ? rounds : 0, ...entered.map((r) => r.round))
+  const slot = BY_ROUND_WIDTH / length
+  const base = ROW_SPARK_HEIGHT - 1
+  const bar = Math.max(1, slot - 1)
+  const height = (place) =>
+    BAR_LOW + ((BY_ROUND_FLOOR - Math.min(place, BY_ROUND_FLOOR)) / (BY_ROUND_FLOOR - 1)) * (BAR_HIGH - BAR_LOW)
+  const at = (r) => round((r.round - 1) * slot + (slot - bar) / 2)
+  return {
+    width: BY_ROUND_WIDTH,
+    height: ROW_SPARK_HEIGHT,
+    track: base + 0.5,
+    bars: entered
+      .filter((r) => r.place !== null)
+      .map((r) => {
+        const h = round(height(r.place))
+        return { x: at(r), y: round(base - h), width: round(bar), height: h }
+      }),
+    ticks: entered
+      .filter((r) => r.place === null)
+      .map((r) => ({ x: at(r), y: base - TICK, width: round(bar), height: TICK })),
   }
 }

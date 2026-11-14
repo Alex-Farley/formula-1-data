@@ -654,7 +654,7 @@ PD-56's). One question asked of a race: when the field stopped.
 - **Placement:** its own section, *Pit stops*, below the classification and
   qualifying; who stopped first between neighbours follows under an h3.
 
-### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), and the reference density (VD-95 #925); pending: a value bar and the leader in the row (VD-110 #1332), and the season calendar fitting its box (VD-116 #1338)
+### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), and column groups and a picture in a row at the reference density (VD-106 #1248); pending: a value bar and the leader in the row (VD-110 #1332), and the season calendar fitting its box (VD-116 #1338)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -739,8 +739,39 @@ PD-56's). One question asked of a race: when the field stopped.
   `smoke.mjs` (*Dense rows from 1180 px*) reads a register, a
   classification, a driver's seasons and a season's standings at 1440 and
   1,024 in both halves. Not yet built of DR-07: the leader marked inside
-  the table (VD-105 #1247), and column groups and sparkline columns on the
-  season-by-season tables beyond the registers' (VD-106 #1248).
+  the table (VD-105 #1247).
+- **Column groups** (provisional, VD-106 #1248, DR-07). A wide reference
+  table names which of its figures belong together in a row of heads above
+  the column heads: a label over each run of neighbouring columns that share
+  one, centred, with a `--rule` under it that stops `--space-2` short of
+  each side so two groups side by side read as two, and an empty cell over a
+  run with none. A column declares `group` in its queries module and both
+  renderers write the row from `groupRuns()` in `lib/table.js`, over the
+  columns drawn, so a group whose columns all collapsed (VD-29) goes with
+  them. Each run is a `<colgroup>` and each label a `<th scope="colgroup">`.
+  The label register, set closer than the heads under it. **It is not held
+  under the masthead**: the column heads are, as before, and the groups
+  scroll away with the top of the table. Not with a phone set, which hides
+  columns by a class a span cannot follow; both renderers refuse the pair
+  and `conventions.mjs` holds every column list to it, and to one run a
+  label. The season-by-season tables of a driver and a constructor are the
+  first users, in a weekend's order: *Qualifying* (Poles), *Races* (Wins
+  to *By round*), then the championship. `smoke.mjs` (*Season by season:
+  column groups and the rounds*) compares the groups, their spans and their
+  `<colgroup>`s across the halves.
+- **A picture in a row at the reference density** (provisional, VD-106
+  #1248). The registers draw a small multiple per row at 24 px (VD-54); at
+  the reference density that would take a row from 24.5 px to 33, so a
+  season-by-season table's *By round* is `ROW_SPARK_HEIGHT`, 14 px, inside
+  the line at either density, by `BY_ROUND_WIDTH`, 72 px, both named in
+  `charts/spark.js`. A bar for each round classified, on the season's own
+  calendar and one scale for every season - tallest for a win, shortest for
+  20th and below - a tick (`.spark-miss`, `--ink-soft`) for a round entered
+  and not classified, and nothing for a round not entered, on a `--grid`
+  line the season's length. Its words are the cell's text and the picture's
+  `<title>`: every round entered and its place or the source's code. The
+  table's source line says how to read it. `smoke.mjs` counts each season's
+  bars and ticks in both halves against the database.
 - **A table that fits its box** (provisional, IX-45 #848). A table that is
   its page's subject, and has to be read whole, fits its content box from
   `--bp-tablet` rather than scrolling behind the fade. Its columns of words
