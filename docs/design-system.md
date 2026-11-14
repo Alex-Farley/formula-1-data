@@ -224,8 +224,10 @@ neutral or cool, and the gray-100 and white pair (§8, test 17).
 drivers compared side by side drove for one team, the first takes the
 team's colour and the second the second colour of the same livery as
 `lib/liveries.js` holds it (Norris in McLaren's papaya, his team-mate in its
-anthracite), lightened in dark theme to clear 3:1, as `charts/own.js`
-lightens a team colour. A name always sits beside the mark, and such a chart
+anthracite). `lib/liveries.js` holds a light and dark pair only for a
+livery's lead colour, and `conventions.mjs` holds each pair to 3:1, so
+VD-122 adds a dark-theme value for the second colour and extends that check
+to it. A name always sits beside the mark, and such a chart
 takes no accent (`[D-61]`). Where the livery holds no second colour, the
 second driver is drawn in ink.
 

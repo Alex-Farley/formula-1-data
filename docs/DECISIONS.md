@@ -405,9 +405,11 @@ both on 2026-11-14. It is §8's *Changing or reversing*; the ruling is
 recorded on the item.
 
 The rule: where two drivers compared side by side drove for one team, the
-first takes the team's colour and the second its second colour, lightened in
-dark theme to clear 3:1 as `charts/own.js` lightens a team colour; where the
-livery holds no second colour, the second driver is drawn in ink. What it
+first takes the team's colour and the second its second colour; where the
+livery holds no second colour, the second driver is drawn in ink.
+`lib/liveries.js` holds a light and dark pair only for a livery's lead
+colour, and `conventions.mjs` holds each pair to 3:1, so the build adds a
+dark-theme value for the second colour and extends that check to it. What it
 does not change: a name always sits beside the mark, a chart in liveries
 takes no accent (D-61), and no hex value is claimed as a sourced fact, since
 the second colour is a sourced statement of what the team raced in, as the
