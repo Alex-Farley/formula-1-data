@@ -882,7 +882,10 @@ carry it.
     where they outrun the width rather than wrapping. The stuck column heads
     and `html`'s `scroll-padding-top` count its height, so a section it
     opens is not brought to rest under it. It sticks inside the page's
-    `<article>` and leaves with its last section. On a phone it is an
+    `<article>`, so it never stands over the footer. While one of its links
+    has keyboard focus it opens to every line it needs, nothing clipped or
+    faded, its focus ring drawn inside the link, because a browser does not
+    scroll a link half showing at the edge into view. On a phone it is an
     ordinary block of the page and wraps, since the masthead already takes
     two rows there.
   - **Why a strip and not a rail beside the page:** the item asked for a
@@ -915,6 +918,11 @@ edition.
   every round, the next season with one; its h1's words as a link to it, and
   its dates where they are held. With no race scheduled, the clause is left
   out. The words are `DATELINE_*` in `lib/site.js`.
+- **Read off the database, never a clock**, as home's *Next on the
+  calendar* is, so both halves name one race. The next race is the first
+  round still `scheduled`, so while a refresh is late it names a weekend that
+  has passed, until the result lands; that round's own page says it is late
+  (§3, *States*).
 - **Type:** `--size-3` at 500 in `--ink-faint`, the link in `--ink-soft`,
   aligned with the wordmark at the page's width.
 - **Behaviour:** one line, whatever it holds, so the next race arriving a

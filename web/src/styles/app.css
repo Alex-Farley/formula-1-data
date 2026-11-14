@@ -4632,8 +4632,8 @@ a.button.secondary:hover {
    they outrun the width rather than wrapping, so its height is a token the
    stuck column heads and html's scroll-padding can count on; on a phone,
    where the masthead already takes two rows, it is an ordinary block of the
-   page and wraps. It sticks inside the page's <article>, so it leaves with
-   the page's last section and never stands over the footer. */
+   page and wraps. It sticks inside the page's <article>, so it never stands
+   over the footer. */
 .on-this-page {
   margin: var(--space-8) 0 0;
   border-bottom: 1px solid var(--rule);
@@ -4685,11 +4685,14 @@ a.button.secondary:hover {
     scroll-padding-top: calc(var(--masthead-height, 66px) + var(--strip-height) + var(--space-3));
   }
 
+  /* The masthead's height is App's measurement; the static page has none,
+     and falls back on the masthead's one row from 768 px, a line shorter
+     below 1180 (VD-89), so no band of the page shows between the two. */
   .on-this-page {
     display: flex;
     gap: var(--space-5);
     position: sticky;
-    top: var(--masthead-height, 66px);
+    top: var(--masthead-height, 55px);
     z-index: 20;
     box-sizing: border-box;
     height: var(--strip-height);
@@ -4712,5 +4715,34 @@ a.button.secondary:hover {
 
   .on-this-page a {
     white-space: nowrap;
+  }
+
+  /* The scroller clips on both axes, so the ring is drawn inside the link,
+     where the clip cannot take its edges (WCAG 2.4.7). */
+  .on-this-page a:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* A browser does not scroll a link it focuses into view when part of it
+     is already showing, so one cut by the edge would take focus half
+     hidden under the fade. While a link in the strip has keyboard focus the
+     strip opens to every line it needs, nothing clipped or faded, and
+     closes to its one line when focus moves on into the page. */
+  .on-this-page:has(a:focus-visible) {
+    height: auto;
+    min-height: var(--strip-height);
+  }
+
+  .on-this-page:has(a:focus-visible) ol {
+    flex-wrap: wrap;
+    padding-right: 0;
+    overflow: visible;
+    mask-image: none;
+  }
+}
+
+@media (width >= 1180px) {
+  .on-this-page {
+    top: var(--masthead-height, 66px);
   }
 }
