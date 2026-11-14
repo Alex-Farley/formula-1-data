@@ -62,6 +62,7 @@ export default function Photographs({
   alt,
   checks = true,
   more = null,
+  id,
 }) {
   const shown = images.filter(canShow)
   if (shown.length === 0) return null
@@ -85,6 +86,7 @@ export default function Photographs({
 
   return (
     <Section
+      id={id}
       title={title}
       count={shown.length > limit ? `${limit} of ${shown.length}` : `${shown.length}`}
       note={note}

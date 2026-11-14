@@ -690,6 +690,18 @@ export const practiceBySession = (rows, km = null) =>
  * these words, so the two halves label the same disclosure the same way.
  */
 export const PRACTICE_SUMMARY = 'Practice sessions'
+
+/**
+ * The headings of a race page's sections that are not named elsewhere here,
+ * for Race.jsx, prerender.js and the page's *On this page* strip
+ * (lib/wayfinding.js's raceSections), which names each section as its
+ * heading does.
+ */
+export const CLASSIFICATION_HEADING = 'Classification'
+export const QUALIFYING_HEADING = 'Qualifying'
+export const SPRINT_HEADING = 'Sprint'
+export const SPRINT_QUALIFYING_HEADING = 'Sprint qualifying'
+export const TIMETABLE_HEADING = 'Timetable'
 export const practiceSummaryCount = (practice) => practice.map((s) => s.title).join(' · ')
 
 /** The mark a practice-only driver carries on a session sheet, and what it means. */
@@ -720,7 +732,7 @@ export const practiceColumns = (rows) => [
 
 export const practiceFooter = (rows) =>
   [
-    'Each driver’s best lap of the session and the laps they ran: a classification, not lap timing.',
+    'Each driver’s best lap of the session and the laps they ran, as the session’s classification gives them.',
     rows.some((r) => r.practice_only === 1) ? PRACTICE_ONLY_NOTE : '',
   ]
     .filter(Boolean)

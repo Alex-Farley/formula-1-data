@@ -276,6 +276,9 @@
    */
   --page: 1280px;
   --gutter: var(--space-8);
+  /* The *On this page* strip's one line, from --bp-tablet where it sticks
+     (IA-30): the stuck column heads and html's scroll-padding count it. */
+  --strip-height: 40px;
   --columns: 4;
   --col: calc((100cqi - (var(--columns) - 1) * var(--gutter)) / var(--columns));
   --span-2: calc(2 * var(--col) + var(--gutter));

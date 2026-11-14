@@ -237,6 +237,46 @@ hr {
   font-variant-numeric: tabular-nums;
 }
 
+/* The dateline (IA-30, design-system.md §3 *Masthead and dateline*): under
+   the masthead and aligned with the wordmark, out of the sticky band so it
+   costs the reader one line at the top of the page and none while reading.
+   One line, whatever it holds, so the next race arriving after the rest of
+   the line moves nothing; off on a phone, where the masthead already takes
+   two rows before the h1. */
+.dateline {
+  display: none;
+}
+
+@media (width >= 768px) {
+  .dateline {
+    display: block;
+    max-width: var(--page);
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: var(--space-5) var(--space-8) 0;
+    font-size: var(--size-3);
+    font-weight: var(--weight-medium);
+    color: var(--ink-faint);
+  }
+
+  .dateline p {
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .dateline span + span::before {
+    content: '·';
+    margin: 0 var(--space-4);
+  }
+
+  .dateline a {
+    color: var(--ink-soft);
+  }
+}
+
 .masthead nav {
   display: flex;
   gap: var(--space-1);
@@ -1257,7 +1297,9 @@ thead th.num {
 
 .table-wrap[data-fits]:not(.figure .table-wrap) thead th {
   position: sticky;
-  top: var(--masthead-height, 0);
+  /* Under the masthead, and under the page's *On this page* strip where it
+     has one that sticks (IA-30, .on-this-page below). */
+  top: calc(var(--masthead-height, 0px) + var(--strip-offset, 0px));
 }
 
 /* A focused row is not brought to rest under the stuck heads (WCAG 2.4.11):
@@ -4581,4 +4623,94 @@ a.button.secondary:hover {
   margin: var(--space-3) var(--space-3) calc(-1 * var(--space-3));
   padding: var(--space-4) var(--space-5);
   cursor: default;
+}
+
+/* The *On this page* strip (IA-30, design-system.md §3): a long page's
+   sections as one line of links, under its tiles, which both renderers draw
+   from lib/wayfinding.js. From --bp-tablet it sticks under the masthead
+   while its page scrolls, one line high, its links scrolling sideways where
+   they outrun the width rather than wrapping, so its height is a token the
+   stuck column heads and html's scroll-padding can count on; on a phone,
+   where the masthead already takes two rows, it is an ordinary block of the
+   page and wraps. It sticks inside the page's <article>, so it leaves with
+   the page's last section and never stands over the footer. */
+.on-this-page {
+  margin: var(--space-8) 0 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--size-4);
+}
+
+.on-this-page p {
+  flex: none;
+  margin: 0;
+  font-weight: var(--weight-medium);
+  color: var(--ink-faint);
+}
+
+.on-this-page ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 24 px a target at the least (WCAG 2.5.8). */
+.on-this-page a {
+  display: inline-block;
+  min-height: 24px;
+  padding: var(--space-3) 0;
+  color: var(--ink-soft);
+}
+
+.on-this-page a:hover {
+  color: var(--ink);
+}
+
+/* The strip stands for the gap above the block after it, a section, a note
+   or the disagreement box: a section's full --space-9 under it as well would
+   put the race classification's fourth row under the first screen at
+   1440 x 900, which smoke.mjs holds. */
+.page > .on-this-page + * {
+  margin-top: var(--space-8);
+}
+
+@media (width >= 768px) {
+  .page:has(> .on-this-page) {
+    --strip-offset: var(--strip-height);
+  }
+
+  html:has(.page > .on-this-page) {
+    scroll-padding-top: calc(var(--masthead-height, 66px) + var(--strip-height) + var(--space-3));
+  }
+
+  .on-this-page {
+    display: flex;
+    gap: var(--space-5);
+    position: sticky;
+    top: var(--masthead-height, 66px);
+    z-index: 20;
+    box-sizing: border-box;
+    height: var(--strip-height);
+    align-items: center;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: saturate(1.5) blur(10px);
+  }
+
+  /* The last --space-8 fades out over padding of the same width: where the
+     links fit, the fade covers only the padding; where they run on, the cut
+     one fades, which says there is more along the line. */
+  .on-this-page ol {
+    flex-wrap: nowrap;
+    min-width: 0;
+    padding-right: var(--space-8);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    mask-image: linear-gradient(to left, transparent, #000 var(--space-8));
+  }
+
+  .on-this-page a {
+    white-space: nowrap;
+  }
 }

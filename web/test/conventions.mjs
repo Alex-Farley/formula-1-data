@@ -2634,12 +2634,12 @@ describe('one vocabulary: tile labels and provenance headings come from one list
     }
     assert.deepEqual(offenders, [], 'a provenance heading written out rather than read from LABELS')
     const pages = sourceFiles(join(web, 'src', 'pages'), /\.jsx$/).filter((file) =>
-      /<Section title=\{LABELS\.provenance\}>/.test(read(file)),
+      /<Section\b[^>]*\btitle=\{LABELS\.provenance\}>/.test(read(file)),
     )
     assert.ok(pages.length >= 8, `the entity pages read it, ${pages.length} of them`)
     // One per static page template that ends on it; a curated car and a
     // chassis share one since VD-87, as Car.jsx draws both.
-    assert.ok((read(prerender).match(/<h2>\$\{esc\(LABELS\.provenance\)\}<\/h2>/g) ?? []).length >= 8, 'and so does the static half')
+    assert.ok((read(prerender).match(/<h2\b[^>]*>\$\{esc\(LABELS\.provenance\)\}<\/h2>/g) ?? []).length >= 8, 'and so does the static half')
   })
 
   it('the list holds one word for each concept', () => {

@@ -102,6 +102,9 @@ import {
   FACTS_DECLARATION_URL,
   FACTS_FILE,
   FOOTER_EM_DASH,
+  DATELINE_BUILT,
+  DATELINE_NEXT,
+  DATELINE_VERSION,
   FOOTER_PRIVACY,
   FOOTER_PRIVACY_LINK,
   IN_THIS_TAB,
@@ -290,6 +293,7 @@ import {
   NEXT as HOME_NEXT,
   NEXT_RACE,
   NEXT_SEASON,
+  DATELINE_RACE,
   NOTHING_SCHEDULED,
   PER_SEASON,
   READING_HEADING,
@@ -344,6 +348,11 @@ import {
   PRACTICE,
   PRACTICE_ONLY_MARK,
   PRACTICE_SUMMARY,
+  CLASSIFICATION_HEADING,
+  QUALIFYING_HEADING,
+  SPRINT_HEADING,
+  SPRINT_QUALIFYING_HEADING,
+  TIMETABLE_HEADING,
   QUALIFYING,
   QUALIFYING_FOOTER,
   SPRINT_QUALIFYING,
@@ -706,7 +715,18 @@ import {
 // IA-22). The trails were written out here and the onward bands existed only
 // in the app, so the half a crawler and a cold arrival are given had no
 // relational layer at all; both now come from one place.
-import { ONWARD, TRAIL, eraSteps, lastSeasonOf, lastTeamOf, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
+import {
+  ON_THIS_PAGE,
+  ONWARD,
+  TRAIL,
+  eraSteps,
+  lastSeasonOf,
+  lastTeamOf,
+  raceSections,
+  raceSteps,
+  recordsSections,
+  seasonSteps,
+} from '../src/lib/wayfinding.js'
 import { GRID_FLAG_HEADS, crossPath, flagCarClass, gridFlagLayout, gridFlagRows, gridFlagShown, undrawnOf } from '../src/charts/gridFlag.js'
 import { seasonsRacedLayout, seasonsRacedText, titleRaceLayout, titleRaceText } from '../src/charts/spark.js'
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
@@ -1204,8 +1224,23 @@ const EMPTY_STATE = '<p class="state is-empty">No rows here.</p>'
 // it — including the text-node space, because the visible gap is CSS and the
 // accessible name is the text: "Open gaps12" is what a heading-by-heading
 // reader was given the last time somebody left it out.
-const heading = (title, count) =>
-  `<h2>${esc(title)}${count === null || count === undefined ? '' : ` <span class="count">${esc(count)}</span>`}</h2>`
+const heading = (title, count, id = null) =>
+  `<h2${anchored(id)}>${esc(title)}${count === null || count === undefined ? '' : ` <span class="count">${esc(count)}</span>`}</h2>`
+
+/** An h2's address, where a page's *On this page* strip links to it (IA-30). */
+const anchored = (id) => (id ? ` id="${esc(id)}"` : '')
+
+/**
+ * The *On this page* strip (IA-30), as Page.jsx's <OnThisPage> draws it:
+ * lib/wayfinding.js's list for the page, as links to the sections' ids.
+ * sectioned() leaves it standing as a block of the page, as the app has it.
+ */
+const onThisPage = (sections) =>
+  sections.length < 2
+    ? ''
+    : `<nav class="on-this-page" aria-labelledby="on-this-page"><p id="on-this-page">${esc(ON_THIS_PAGE)}</p><ol>${sections
+        .map(({ id, label }) => `<li><a href="#${esc(id)}">${esc(label)}</a></li>`)
+        .join('')}</ol></nav>`
 
 /**
  * The safety milestones, as Eras.jsx draws them: a dated timeline, not a
@@ -1669,9 +1704,9 @@ const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = nul
  */
 const pitSection = (race, entryRows, pits, span) => {
   const rows = stintRows(entryRows, pits)
-  if (!stintsShown(rows)) return `<h2>${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
+  if (!stintsShown(rows)) return `<h2 id="pit-stops">${esc(PITS_HEADING)}</h2><p class="muted">${esc(stintsEmpty(race, span))}</p>`
   const pairs = pitPairs(entryRows, pits)
-  return `<h2>${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure, footer: stintsFooter(unbarredOf(entryRows, pits)) }), {
+  return `<h2 id="pit-stops">${esc(PITS_HEADING)}</h2>${figure(PITS_HEADING, stintsNote(rows, lateStops(rows)), fromColumns(STINT_COLUMNS, stintTableRows(entryRows, pits), {}, { unfolded: UNFOLDED.figure, footer: stintsFooter(unbarredOf(entryRows, pits)) }), {
     plot: stintsSvg(stintLayout(entryRows, pits), stintsLabel(rows, pitWave(pits, stintLaps(rows)))),
   })}${
     pairs.length ? `<h3>${esc(PIT_ORDER_HEADING)}</h3>${fromColumns(PIT_ORDER_COLUMNS, pairs, {}, { unfolded: UNFOLDED.subject, footer: PIT_ORDER_NOTE })}` : ''
@@ -1966,6 +2001,21 @@ const NAV = [
   ['data', 'Data'],
 ]
 
+/**
+ * The dateline under the masthead (IA-30), as App.jsx's <Dateline> draws it:
+ * the version and the build, and the next race from the same query, written
+ * once since every page of one build reads one database.
+ */
+const DATELINE = (() => {
+  const race = one(DATELINE_RACE)
+  const next = race
+    ? `<span>${esc(DATELINE_NEXT)} ${link(`races/${race.year}/${race.round}`, NAMES.race(race.year, race.name_used).headline)}${
+        raceDates(race) === null ? '' : `, ${raceDatesHtml(race)}`
+      }</span>`
+    : ''
+  return `<div class="dateline"><p><span>${esc(DATELINE_VERSION)}${esc(META.version)}${esc(DATELINE_BUILT)}${dateHtml(META.built)}</span>${next}</p></div>`
+})()
+
 const chrome = (body, crumbs, citeUrl, sources = null) => `
 <div class="app pre">
   <a class="skiplink" href="#main">Skip to content</a>
@@ -1975,6 +2025,7 @@ const chrome = (body, crumbs, citeUrl, sources = null) => `
       <nav>${NAV.map(([to, label]) => link(to, label)).join('')}</nav>
     </div>
   </header>
+  ${DATELINE}
   <main id="main" tabindex="-1">
     ${crumbs ? `<nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav>` : ''}
     ${body}
@@ -2266,6 +2317,7 @@ const photographSection = (
     alt = null,
     checks = true,
     more = null,
+    id = null,
   } = {},
 ) => {
   const images = rows.filter(canShow)
@@ -2282,7 +2334,7 @@ const photographSection = (
   const unchecked = `\n      <p class="source-note">${esc(UNCHECKED_NOTE[0])} <span class="pill pill-unverified">${esc(
     UNCHECKED_MARK,
   )}</span> ${esc(UNCHECKED_NOTE[1])}</p>`
-  return `<h2>${esc(title)}</h2>
+  return `<h2${anchored(id)}>${esc(title)}</h2>
       <p class="note">${esc(lede)}</p>
       <div class="photo-grid">${figures(drawn)}</div>${marked(drawn) ? unchecked : ''}${
         rest.length
@@ -2298,17 +2350,18 @@ const photographSection = (
  * photographs under a heading that says they are of this race, then the
  * cars entered under one that says they are the cars.
  */
-const raceStrips = (r) => {
-  const own = all(RACE_PHOTOGRAPHS, r.year, r.round)
+const raceStrips = (r, own, cars) => {
   const category = own[0]?.category
   return `${photographSection(own, {
+    id: 'photographs',
     title: RACE_PHOTOGRAPHS_TITLE,
     note: RACE_PHOTOGRAPHS_NOTE,
     alt: racePhotographAlt(r.year, r.name_used),
     checks: false,
     more: category ? { href: categoryUrl(category), label: raceCategoryLink(category) } : null,
   })}
-        ${photographSection(all(RACE_IMAGES, r.year, r.round), {
+        ${photographSection(cars, {
+          id: 'cars',
           subjects: true,
           title: RACE_CARS_TITLE,
           note: RACE_CARS_NOTE,
@@ -2567,7 +2620,7 @@ const nameTables = (body) => {
 // than the start of a section. Before asides were counted, that h2 started a
 // section inside the open aside, and the browser closed the aside empty with
 // its contents in a plain section beneath it (VD-87).
-const SECTIONING = /<(\/?)(section|h2|aside)\b|<details class="session-sheets">/g
+const SECTIONING = /<(\/?)(section|h2|aside)\b|<details class="session-sheets"|<nav class="on-this-page"/g
 
 const sectioned = (html) => {
   // A block starts at every h2 that is not already inside a section of its
@@ -2583,6 +2636,13 @@ const sectioned = (html) => {
   // global, so a loop would carry its lastIndex from one page into the next.
   for (const match of html.matchAll(SECTIONING)) {
     const [, close, tag] = match
+    // The *On this page* strip is a block of the page in the app, beside the
+    // sections rather than in one, and holds no heading: it stands as written,
+    // and so does what follows it up to the next block.
+    if (match[0].startsWith('<nav')) {
+      if (depth === 0) starts.push({ at: match.index, bare: true }, { at: html.indexOf('</nav>', match.index) + 6, bare: true })
+      continue
+    }
     if (tag === 'section' || tag === 'aside') {
       if (tag === 'aside' && !close && depth === 0) starts.push({ at: match.index, bare: true })
       depth += close ? -1 : 1
@@ -3312,6 +3372,8 @@ const seasonsTable = (rows) =>
     const sprintResults = inClassificationOrder(all(SPRINT_RESULTS, r.year, r.round))
     const pits = all(PITS, r.year, r.round)
     const scheduled = r.status === 'scheduled'
+    const ownPhotographs = all(RACE_PHOTOGRAPHS, r.year, r.round)
+    const carImages = all(RACE_IMAGES, r.year, r.round)
     const sessions = all(RACE_SESSIONS, r.year, r.round)
     const stage = raceStage(r, sessions, STATIC_NOW)
     const day = eventDay(sessions, r.date_iso)
@@ -3344,7 +3406,7 @@ const seasonsTable = (rows) =>
     // strategy once a result is held, before the photographs (VD-83), as
     // Race.jsx places it.
     const timetable = sessions.length
-      ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions, {}, { footer: TIMETABLE_NOTE })}`
+      ? `<h2 id="timetable">${esc(TIMETABLE_HEADING)}</h2>${fromColumns(SESSION_COLUMNS, sessions, {}, { footer: TIMETABLE_NOTE })}`
       : ''
     // The day in the house format (CD-39): a search result is the one place
     // the eyebrow's date is not, and summarise() cuts the rest at a sentence
@@ -3408,9 +3470,25 @@ const seasonsTable = (rows) =>
         ${weatherBlock(raceWeather(one(RACE_WEATHER, r.year, r.round)))}
         ${stepperNav(raceSteps(neighbours))}
         <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
+        ${onThisPage(
+          raceSections({
+            scheduled,
+            timetable: sessions.length > 0,
+            stake: isUpcoming(TITLE, r),
+            classification: entries.length > 0,
+            gridFlag: gridFlagShown(flag),
+            qualifying: qualifying.length > 0,
+            sprint: sprintResults.length > 0,
+            sprintQualifying: sprintQualifying.length > 0,
+            pits: !scheduled && entries.length > 0,
+            practice: practice.length > 0,
+            photographs: ownPhotographs.some(canShow),
+            cars: carImages.some(canShow),
+          }),
+        )}
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
-        ${isUpcoming(TITLE, r) ? ownSection(`<h2>${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}`) : ''}
+        ${isUpcoming(TITLE, r) ? ownSection(`<h2 id="stake">${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}`) : ''}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)
@@ -3419,7 +3497,7 @@ const seasonsTable = (rows) =>
         }
         ${
           entries.length
-            ? `<section class="section"><h2>Classification</h2>${fromColumns(CLASSIFICATION_COLUMNS, entries, {
+            ? `<section class="section"><h2 id="classification">${esc(CLASSIFICATION_HEADING)}</h2>${fromColumns(CLASSIFICATION_COLUMNS, entries, {
                 rail,
                 position_text: (_, row) =>
                   missing(row.finish_position) ? `<span class="tag tag-dnf">${esc(result(row))}</span>` : `<b>${esc(result(row))}</b>`,
@@ -3456,7 +3534,7 @@ const seasonsTable = (rows) =>
           // PD-30: the figure under the classification, as Race.jsx places
           // it - the drawing, its note and its table open beneath it.
           gridFlagShown(flag)
-            ? `<section class="section"><h2>${esc(GRID_FLAG_HEADING)}</h2>${figure(
+            ? `<section class="section"><h2 id="grid-to-flag">${esc(GRID_FLAG_HEADING)}</h2>${figure(
                 GRID_FLAG_HEADING,
                 gridFlagNote(flag),
                 fromColumns(
@@ -3469,7 +3547,7 @@ const seasonsTable = (rows) =>
         }
         ${
           qualifying.length
-            ? `<h2>Qualifying</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {
+            ? `<h2 id="qualifying">${esc(QUALIFYING_HEADING)}</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {
                 driver: driverCell,
                 constructor: constructorCell,
               }, { unfolded: UNFOLDED.subject, footer: QUALIFYING_FOOTER })}${distanceHow(qualifying, 'Qualifying', r.qualifying_laps)}`
@@ -3477,7 +3555,7 @@ const seasonsTable = (rows) =>
         }
         ${
           sprintResults.length
-            ? `<h2>Sprint</h2>${fromColumns(SPRINT_COLUMNS, sprintResults, {
+            ? `<h2 id="sprint">${esc(SPRINT_HEADING)}</h2>${fromColumns(SPRINT_COLUMNS, sprintResults, {
                 rail,
                 driver: driverCell,
                 constructor: constructorCell,
@@ -3487,7 +3565,7 @@ const seasonsTable = (rows) =>
         }
         ${
           sprintQualifying.length
-            ? `<h2>Sprint qualifying</h2>${fromColumns(sprintQualifyingColumns(sprintQualifying), sprintQualifying, {
+            ? `<h2 id="sprint-qualifying">${esc(SPRINT_QUALIFYING_HEADING)}</h2>${fromColumns(sprintQualifyingColumns(sprintQualifying), sprintQualifying, {
                 driver: sessionDriverCell,
                 constructor: constructorCell,
               }, { unfolded: UNFOLDED.subject, footer: sprintQualifyingFooter(sprintQualifying) })}${distanceHow(
@@ -3508,7 +3586,7 @@ const seasonsTable = (rows) =>
           // sectioned() starts a block at every h2 not already inside one,
           // and would otherwise end the disclosure at its first sheet.
           practice.length
-            ? `<details class="session-sheets"><summary>${esc(PRACTICE_SUMMARY)} <span class="count">${esc(
+            ? `<details class="session-sheets" id="practice"><summary>${esc(PRACTICE_SUMMARY)} <span class="count">${esc(
                 practiceSummaryCount(practice),
               )}</span></summary>${practice
                 .map(
@@ -3522,8 +3600,8 @@ const seasonsTable = (rows) =>
             : ''
         }
         ${scheduled ? '' : timetable}
-        ${raceStrips(r)}
-        <h2>${esc(LABELS.provenance)}</h2>
+        ${raceStrips(r, ownPhotographs, carImages)}
+        <h2 id="provenance">${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
           // (VD-49): the circuit, the result, the pole and the fastest lap
@@ -4599,7 +4677,8 @@ page({
     onward: ONWARD.records({ driverWins: all(DRIVER_WINS) }),
     body: `
       ${opening({ title: NAMES.records().headline, lede: RECORDS_STANDFIRST })}
-      <h2>${esc(HEADLINE)} <span class="count">${headline.length}</span></h2>
+      ${onThisPage(recordsSections(families))}
+      ${heading(HEADLINE, headline.length, 'headline')}
       <p class="note">${esc(RECORDS_LEDE)}${asOf ? ` ${dated(asOfLine(asOf))}` : ''}${
           tiers.length === 1
             ? ` ${esc(tierBefore(records.length))}${link('data/quality', tiers[0])}${esc(TIER_AFTER)}`
@@ -4613,7 +4692,7 @@ page({
               .join(' · ')}</nav>`
           : ''
       }
-      ${heading(LEADERBOARDS)}
+      ${heading(LEADERBOARDS, null, 'leaderboards')}
       <div class="split">${part(
         DRIVER_WINS_FIGURE.title,
         leaders(DRIVER_WINS_FIGURE, DRIVER_WINS_COLUMNS, all(DRIVER_WINS), driverLink, DRIVER_WINS_FIGURE.title),
@@ -4621,7 +4700,7 @@ page({
         DRIVER_POLES_FIGURE.title,
         leaders(DRIVER_POLES_FIGURE, DRIVER_POLES_COLUMNS, all(DRIVER_POLES), driverLink, DRIVER_POLES_FIGURE.title),
       )}</div>
-      ${heading(CONSTRUCTORS_HEADING)}
+      ${heading(CONSTRUCTORS_HEADING, null, 'constructors')}
       ${part(
         CONSTRUCTOR_WINS_FIGURE.title,
         leaders(
@@ -4638,9 +4717,9 @@ page({
             `<h2 id="${esc(f.anchor)}">${esc(f.family)} <span class="count">${f.rows.length}</span></h2>${recordTable(f.rows)}`,
         )
         .join('')}
-      ${heading(CHAMPIONS, titles.length)}
+      ${heading(CHAMPIONS, titles.length, 'champions')}
       ${fromColumns(TITLE_COLUMNS, titles, { full_name: (name, row) => link(`drivers/${row.id}`, name) }, { fold: FOLD_NOUN.champions })}
-      ${heading(DECADE_TITLE, decadeCount(decadeOptions(decades)))}
+      ${heading(DECADE_TITLE, decadeCount(decadeOptions(decades)), 'decades')}
       ${part(
         decadeFigureTitle(decade),
         figure(
@@ -4649,13 +4728,13 @@ page({
           fromColumns(DECADE_COLUMNS, decadeLeaders(decades, decade), driverLink, { unfolded: UNFOLDED.figure }),
         ),
       )}
-      ${heading(POLE_TO_WIN_TITLE)}
+      ${heading(POLE_TO_WIN_TITLE, null, 'pole-to-win')}
       ${figure(
         POLE_TO_WIN_TITLE,
         POLE_TO_WIN_NOTE,
         fromColumns(POLE_TO_WIN_COLUMNS, poleToWinRows(all(POLE_TO_WIN)), {}, { unfolded: UNFOLDED.figure }),
       )}
-      ${heading(GRAND_SLAMS_TITLE, grandSlams.length)}
+      ${heading(GRAND_SLAMS_TITLE, grandSlams.length, 'grand-slams')}
       ${noteBox(GRAND_SLAM_NOTE.head, GRAND_SLAM_NOTE.body)}
       ${fromColumns(GRAND_SLAM_COLUMNS, grandSlams, {
         year: (year) => link(`seasons/${year}`, year),

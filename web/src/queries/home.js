@@ -87,6 +87,21 @@ export const NEXT = `
    ORDER BY r.round LIMIT 1
 `
 
+/**
+ * The dateline's next race (IA-30): the first round still to run, in the
+ * season being run or, once that has run every round, the next season with
+ * one, ordered as NEXT is, by round. Read off the database, never off a
+ * clock, so the static page and the app name the same race.
+ */
+export const DATELINE_RACE = `
+  WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
+  SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to
+    FROM races r
+    JOIN now n ON r.year >= n.year
+   WHERE r.status = 'scheduled'
+   ORDER BY r.year, r.round LIMIT 1
+`
+
 export const NEXT_SEASON = `
   WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
   SELECT MIN(r.year) AS year FROM races r, now n
@@ -159,7 +174,7 @@ export const strip = (shape) => [
   { label: 'Qualifying rows', value: number(shape.qualifying) },
   { label: 'Standings rows', value: number(shape.standings), note: 'after every round' },
   { label: 'Pit stops', value: number(shape.pit_stops), note: 'from 1994' },
-  { label: 'Photographs', value: number(shape.images), note: 'of cars; referenced, not stored' },
+  { label: 'Photographs', value: number(shape.images), note: 'of cars, linked from Wikimedia Commons' },
 ]
 
 export const seasonHeading = (year) => `The ${year} season`
@@ -327,9 +342,9 @@ export const chartNote = (seasons) => {
   const grown = seasons.length && raced ? `${number(seasons[0].rounds)} rounds in ${seasons[0].year}; ${number(raced.rounds)} by ${raced.year}.` : ''
   if (!calendars.length) return grown
   const one = calendars.length === 1
-  return `${grown} The ${years(calendars)} column${one ? ' is a calendar' : 's are calendars'}, not ${
-    one ? 'a set of results' : 'sets of results'
-  }.`
+  return `${grown} The ${years(calendars)} column${one ? ' is a calendar' : 's are calendars'}: none of ${
+    one ? 'its' : 'their'
+  } rounds has been run.`
 }
 
 /**
@@ -375,11 +390,11 @@ export const reading = (shape) => [
   {
     head: 'A blank means unknown.',
     body: [
-      'An em dash is a figure nobody has established — never a zero, never a plausible guess.',
+      'An em dash is a figure nobody has established. Nothing is filled in with a zero or a plausible guess.',
     ],
   },
   {
-    head: 'Disagreements and gaps are shown, not settled.',
+    head: 'Disagreements and gaps are published as they stand.',
     body: [
       'Where two sources conflict you see both: there are ',
       ', and what is missing is published too, with what would close it.',
