@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Confidence, FigurePart, Note, Onward, Page, Section } from '../components/Page.jsx'
+import { Confidence, FigurePart, Note, OnThisPage, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { FOLD_NOUN } from '../lib/table.js'
@@ -68,7 +68,7 @@ import {
   RECORDS_STANDFIRST,
 } from '../queries/records.js'
 
-import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { ONWARD, TRAIL, recordsSections } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
 /**
  * What only the app adds to the shared column lists: the links. The queries
@@ -269,7 +269,10 @@ function Body({ data }) {
 
   return (
     <>
-      <Section title={HEADLINE} count={`${headline.length}`}>
+      {/* IA-30: the page's sections, the families by their own addresses. */}
+      <OnThisPage sections={recordsSections(families)} />
+
+      <Section id="headline" title={HEADLINE} count={`${headline.length}`}>
         {/* This sentence stays ABOVE the figures. Its predecessor caveated
             authored rows that could disagree with the leaderboards below, and
             sat 1,900 px under them; the rows are now derived from the same
@@ -310,7 +313,7 @@ function Body({ data }) {
           database opened, was put down 7,000 px away in the decade chart
           (WK-08 review). The static half now carries these two sections too,
           each figure's table open where the chart is drawn here. */}
-      <Section title={LEADERBOARDS}>
+      <Section id="leaderboards" title={LEADERBOARDS}>
         {/* Two figures in one section: each is named by an h3 of its own,
             which names its table too (AX-28), rather than by a second title. */}
         <div className="split">
@@ -340,7 +343,7 @@ function Body({ data }) {
         </div>
       </Section>
 
-      <Section title={CONSTRUCTORS_HEADING}>
+      <Section id="constructors" title={CONSTRUCTORS_HEADING}>
         {/* Named for what it measures, as the drivers' two are, rather than
             for the section: a table list that read only "Constructors"
             beside the record families said nothing of wins. */}
@@ -392,7 +395,7 @@ function Body({ data }) {
       {/* The four sections the static page draws too, from queries/records.js
           (VD-87): with no script it shows the latest decade, which is the one
           the chips open on. */}
-      <Section title={CHAMPIONS} count={`${titles.length}`}>
+      <Section id="champions" title={CHAMPIONS} count={`${titles.length}`}>
         <DataTable
           fold={FOLD_NOUN.champions}
           rows={titles}
@@ -403,7 +406,7 @@ function Body({ data }) {
         />
       </Section>
 
-      <Section title={DECADE_TITLE} count={decadeCount(decadeOptions)}>
+      <Section id="decades" title={DECADE_TITLE} count={decadeCount(decadeOptions)}>
         <div className="filters">
           <Chips
             label="Choose a decade"
@@ -423,7 +426,7 @@ function Body({ data }) {
         </FigurePart>
       </Section>
 
-      <Section title={POLE_TO_WIN_TITLE}>
+      <Section id="pole-to-win" title={POLE_TO_WIN_TITLE}>
         <Figure note={POLE_TO_WIN_NOTE} table={{ rows: poleToWinRows(poleToWin), columns: POLE_TO_WIN_COLUMNS }}>
           <LineChart
             series={[
@@ -440,7 +443,7 @@ function Body({ data }) {
         </Figure>
       </Section>
 
-      <Section title={GRAND_SLAMS_TITLE} count={`${grandSlams.length}`}>
+      <Section id="grand-slams" title={GRAND_SLAMS_TITLE} count={`${grandSlams.length}`}>
         <Note>
           <strong>{GRAND_SLAM_NOTE.head}</strong> {GRAND_SLAM_NOTE.body}
         </Note>

@@ -6,6 +6,7 @@ import { DateText, Dated } from './Dates.jsx'
 import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../lib/tiles.js'
 import { arrived } from '../lib/handover.js'
 import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
+import { ON_THIS_PAGE } from '../lib/wayfinding.js'
 
 /**
  * A page: an optional way back, a title, an optional standfirst.
@@ -461,6 +462,32 @@ export function Onward({ title = 'Keep going', items }) {
           </Link>
         ))}
       </div>
+    </nav>
+  )
+}
+
+/**
+ * The *On this page* strip (IA-30, design-system.md §3): a long page's
+ * sections, as links to their addresses, under its tiles. `sections` is
+ * lib/wayfinding.js's list for the page, which prerender.js's onThisPage()
+ * draws as the same markup. Plain anchors rather than router links, as
+ * /records' family line already was: each is an address on this page, which
+ * the browser scrolls to, html's scroll-padding-top keeping the section's
+ * heading clear of the masthead and of the strip (app.css). Fewer than two
+ * sections is nothing to choose between, and draws nothing.
+ */
+export function OnThisPage({ sections }) {
+  if (sections.length < 2) return null
+  return (
+    <nav className="on-this-page" aria-labelledby="on-this-page">
+      <p id="on-this-page">{ON_THIS_PAGE}</p>
+      <ol>
+        {sections.map(({ id, label }) => (
+          <li key={id}>
+            <a href={`#${id}`}>{label}</a>
+          </li>
+        ))}
+      </ol>
     </nav>
   )
 }

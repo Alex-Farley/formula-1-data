@@ -868,9 +868,67 @@ carry it.
   replaced two grids of doors on home - eight cards and the four of a
   *Popular ways in* band - and `smoke.mjs` holds one index and no onward
   band in both halves.
-- ***On this page* (optional in A) — not built:** a one-line list of the
-  page's sections, under the tiles. It costs about 40 px of the first screen.
-  A page may add it; none is held to it.
+- ***On this page* (optional in A) — provisional (IA-30 #927):** a
+  one-line list of the page's sections, under the tiles, on `/records` and
+  the race page. A page may add it; no other is held to it.
+  - **Parts:** the label *On this page* in the label register, then a link
+    to each section by its heading's words, in the order the page draws
+    them: `raceSections()` and `recordsSections()` in `lib/wayfinding.js`,
+    drawn by `OnThisPage` in `Page.jsx` and `onThisPage()` in
+    `prerender.js`, each section carrying the id its link names. A page
+    with fewer than two sections draws none.
+  - **Behaviour:** from `--bp-tablet` it sticks under the masthead while its
+    page scrolls, one line of `--strip-height`, its links scrolling sideways
+    where they outrun the width rather than wrapping. The stuck column heads
+    and `html`'s `scroll-padding-top` count its height, so a section it
+    opens is not brought to rest under it. It sticks inside the page's
+    `<article>`, so it never stands over the footer. While one of its links
+    has keyboard focus it opens to every line it needs, nothing clipped or
+    faded, its focus ring drawn inside the link, because a browser does not
+    scroll a link half showing at the edge into view. On a phone it is an
+    ordinary block of the page and wraps, since the masthead already takes
+    two rows there.
+  - **Why a strip and not a rail beside the page:** the item asked for a
+    sticky rail in the free right-hand columns. They are free beside the
+    header and the prose, but `/records`' tables and figures and the race
+    classification run the full width, and the classification never shares
+    it (§4). A rail in the margin instead would need a third breakpoint where
+    the grid has two (§2). The strip is the form this section already named.
+  - **Costs:** about 50 px of the first screen, the block after it taking
+    `--space-8` above it rather than a section's `--space-9`; the race
+    page's classification still shows four rows at 1440 × 900 (§4).
+  - **Held by:** `smoke.mjs` (*On this page*): in both halves, every link
+    resolves to a section of that id under that heading, in document order,
+    every top-level section heading is linked, and the two halves list the
+    same links.
+
+### Masthead and dateline — provisional (IA-30 #927)
+
+The masthead is the wordmark, the eight section links, search and the theme
+toggle, sticky at the top of every page (`Chrome` in `App.jsx`, `chrome()` in
+`prerender.js`). Under it, out of the sticky band, is the **dateline**: which
+database the page is reading, when it was built, and the next race on the
+calendar, for example *Database v2.26, built 9 Nov 2026 · Next race: 2026
+Las Vegas Grand Prix, 19–21 Nov 2026*, as a newspaper's dateline names the
+edition.
+
+- **Parts:** the version and the build from the manifest, as the footer
+  prints them; the next race from `DATELINE_RACE` in `queries/home.js`, the
+  first round still to run in the season being run or, once that has run
+  every round, the next season with one; its h1's words as a link to it, and
+  its dates where they are held. With no race scheduled, the clause is left
+  out. The words are `DATELINE_*` in `lib/site.js`.
+- **Read off the database, never a clock**, as home's *Next on the
+  calendar* is, so both halves name one race. The next race is the first
+  round still `scheduled`, so while a refresh is late it names a weekend that
+  has passed, until the result lands; that round's own page says it is late
+  (§3, *States*).
+- **Type:** `--size-3` at 500 in `--ink-faint`, the link in `--ink-soft`,
+  aligned with the wordmark at the page's width.
+- **Behaviour:** one line, whatever it holds, so the next race arriving a
+  moment after the rest of the line moves nothing beneath it. Off below
+  `--bp-tablet`, where the masthead already takes two rows before the h1;
+  the footer carries the version and the build there.
 
 ### Site footer — provisional (IA-31 #981)
 
@@ -1080,7 +1138,8 @@ citation, is already one system and is kept.
 ### Event pages: race
 
 Race pages follow the entity layout (DP-11): the header, with the weather
-line where one is held (§3, Page header), beside the outline slot; tiles; the classification at full width; Grid to flag; qualifying; pit
+line where one is held (§3, Page header), beside the outline slot; tiles;
+*On this page* (§3, provisional, IA-30); the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
 photographs. The page of the next round to run, until its results land,
 carries *What's at stake* after the timetable: the season page's answer and
@@ -1109,7 +1168,9 @@ suite holds the four.
 
 ### Lookup pages: records, Grand Prix, registers, `/data`
 
-Single column. On these pages a table or a card grid leads.
+Single column. On these pages a table or a card grid leads. `/records`
+opens on *On this page* (§3, provisional, IA-30) under its header, each
+record family listed by its own address.
 
 - Records cards align to the top of their row, so opening one derivation
   does not move its neighbours (I8).
@@ -1149,6 +1210,14 @@ puts the classification before the outline (visual defect 7).
 
 - **Voice:** plain, specific, from the reader's side. Name the thing the
   reader recognises. No notes to self in published prose (the Hamilton lede).
+- **No "X, not Y" cadence** (provisional, IA-30 #927): a sentence says what a thing is. A
+  contrast with what it is not stays only where the page invites that very
+  misreading - *entries, not starts*, on a count that could be read as
+  either; *the lap, not cause, tyres or gain*, under a chart a reader would
+  otherwise take as measuring them - and once, not as a rhythm. The design
+  review of 2026-10-08 counted five to eight a page; "shown, not settled",
+  "referenced, not stored" and "a calendar, not a set of results" were the
+  habit, and are rewritten as what the thing is.
 - **One label per concept:**
   - year span: *Seasons*;
   - entries: *Entries*;

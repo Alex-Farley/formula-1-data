@@ -352,6 +352,17 @@ export const IN_THIS_TAB_ANCHOR = 'what-leaves'
 export const FOOTER_EM_DASH = 'An em dash is a figure nobody has established, never a zero.'
 
 /**
+ * The dateline under the masthead (IA-30, design-system.md §3 *Masthead and
+ * dateline*): which database the page is reading, when it was built, and the
+ * next race on the calendar, as a newspaper's dateline says which edition is
+ * in the reader's hand. App.jsx's <Dateline> and prerender.js's chrome() print
+ * these words around the version, the date and the race.
+ */
+export const DATELINE_VERSION = 'Database v'
+export const DATELINE_BUILT = ', built '
+export const DATELINE_NEXT = 'Next race:'
+
+/**
  * How to cite a page. The page is named by its address, not its title: the
  * app and the static page have titled the same route differently since the
  * prerenderer was written, and a citation is the one place that difference

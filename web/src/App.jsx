@@ -1,26 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
-import { DateText } from './components/Dates.jsx'
+import { DateText, RaceDates } from './components/Dates.jsx'
 import Search from './components/Search.jsx'
 import SearchKey from './components/SearchKey.jsx'
 import { Result } from './components/States.jsx'
 import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
 import { useQuery } from './data/useQuery.js'
-import { coverageYears, span } from './lib/format.js'
+import { coverageYears, raceDates, span } from './lib/format.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
 import { CHECKED_LABEL, LAST_CHECKED } from './lib/refresh.js'
 import {
+  DATELINE_BUILT,
+  DATELINE_NEXT,
+  DATELINE_VERSION,
   FOOTER_EM_DASH,
   FOOTER_PRIVACY,
   FOOTER_PRIVACY_LINK,
   IN_THIS_TAB_ANCHOR,
+  NAMES,
   REPORT_ASK,
   REPORT_LINK,
   REPORT_URL,
 } from './lib/site.js'
 
+import { DATELINE_RACE } from './queries/home.js'
 import Home from './pages/Home.jsx'
 import Seasons from './pages/Seasons.jsx'
 import Season from './pages/Season.jsx'
@@ -91,6 +96,43 @@ function Wordmark() {
         <span>{span(years?.from, years?.to)} · every championship race</span>
       </span>
     </Link>
+  )
+}
+
+/**
+ * The dateline under the masthead (IA-30): the database's version and build
+ * from the manifest, which Boot has in hand before Chrome draws, and the next
+ * race from the database, which answers a moment later on the same line - one
+ * line high whatever it holds (app.css), so nothing under it moves when it
+ * does. prerender.js's chrome() writes the same line. Off below --bp-tablet,
+ * where the masthead already takes two rows before the h1.
+ */
+function Dateline() {
+  const manifest = currentProgress().manifest
+  const state = useQuery(DATELINE_RACE)
+  const race = state.data?.rows?.[0] ?? null
+  return (
+    <div className="dateline">
+      <p>
+        <span>
+          {DATELINE_VERSION}
+          {manifest?.version ?? '—'}
+          {DATELINE_BUILT}
+          <DateText iso={manifest?.built} />
+        </span>
+        {race && (
+          <span>
+            {DATELINE_NEXT}{' '}
+            <Link to={`/races/${race.year}/${race.round}`}>{NAMES.race(race.year, race.name_used).headline}</Link>
+            {raceDates(race) !== null && (
+              <>
+                , <RaceDates race={race} />
+              </>
+            )}
+          </span>
+        )}
+      </p>
+    </div>
   )
 }
 
@@ -410,6 +452,7 @@ function Chrome() {
           <ThemeToggle />
         </div>
       </header>
+      <Dateline />
 
       <main id="main" tabIndex={-1}>
         <Routes>

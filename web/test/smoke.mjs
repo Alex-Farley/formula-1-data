@@ -1447,6 +1447,100 @@ try {
     await noJs.close()
   })
 
+  await section('On this page and the dateline  (records and race pages, both renderers: IA-30)', async () => {
+    // The strip's links are lib/wayfinding.js's lists, and each renderer
+    // gives its sections their ids from the same conditions it draws them on.
+    // Read off the page, not off the list: every top-level section heading is
+    // linked, in order, by its own words, and every link lands on that
+    // section, so a section added without its link, or a link left to a
+    // section that has gone, fails here in whichever half it happened.
+    const readStrip = (root) => {
+      const main = document.querySelector(root)
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const strip = main.querySelector('.page > nav.on-this-page')
+      const headings = [...main.querySelectorAll('.page > section > h2, .page > section > details.session-sheets > summary')]
+      const links = strip ? [...strip.querySelectorAll('a')] : []
+      return {
+        strip: Boolean(strip),
+        label: strip?.querySelector('p')?.textContent ?? null,
+        links: links.map((a) => `${a.getAttribute('href')} ${clean(a)}`),
+        headings: headings.map(clean),
+        landed: links.map((a, i) => {
+          const target = main.querySelector(`[id="${a.getAttribute('href').slice(1)}"]`)
+          const heading = headings[i]
+          return Boolean(target && heading && (target === heading || target.contains(heading)) && clean(heading).startsWith(clean(a)))
+        }),
+      }
+    }
+    const next = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used FROM races r
+          WHERE r.status = 'scheduled' AND r.year >= (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season')
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get()
+    const sprint = one("SELECT r.year || '/' || r.round FROM races r WHERE r.sprint = 1 AND r.status = 'completed' ORDER BY r.year DESC, r.round DESC LIMIT 1")
+    const routes = ['/records', `/races/${sprint}`, ...(next ? [`/races/${next.year}/${next.round}`] : [])]
+    const app = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'en-GB' })
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const live = await app.newPage()
+    const plain = await noJs.newPage()
+    for (const route of routes) {
+      await live.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      await live.waitForSelector('#root main h1')
+      await live.waitForFunction(() => !document.querySelector('#root main .state:not(.is-empty), #root main .skeleton-table'))
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const halves = [
+        ['the app', await live.evaluate(readStrip, '#root main')],
+        ['the static page', await plain.evaluate(readStrip, '#prerendered')],
+      ]
+      for (const [half, got] of halves) {
+        truthy(got.strip && got.label === 'On this page', `${route}, ${half}: the strip is a block of the page, labelled`)
+        is(got.links.length, got.headings.length, `${route}, ${half}: one link for each of the ${got.headings.length} section headings`)
+        truthy(
+          got.links.length > 1 && got.landed.every(Boolean),
+          `${route}, ${half}: each link lands on its section, in order — ${got.links.filter((_, i) => !got.landed[i]).join('; ') || 'all'}`,
+        )
+      }
+      is(halves[0][1].links.join(' | '), halves[1][1].links.join(' | '), `${route}: the two halves list the same links`)
+    }
+
+    // It sticks under the masthead, and a section it opens comes to rest
+    // under it rather than behind it.
+    await live.goto(`${BASE}/races/${sprint}`, { waitUntil: 'load' })
+    await live.waitForSelector('#root main .on-this-page')
+    await live.click('#root main .on-this-page a[href="#qualifying"]')
+    await live.waitForTimeout(400)
+    const rest = await live.evaluate(() => {
+      const strip = document.querySelector('#root main .on-this-page').getBoundingClientRect()
+      const masthead = document.querySelector('#root .masthead').getBoundingClientRect()
+      const heading = document.querySelector('#root main #qualifying > h2').getBoundingClientRect()
+      return { strip: strip.top, bottom: strip.bottom, masthead: masthead.bottom, heading: heading.top, y: window.scrollY }
+    })
+    truthy(rest.y > 900 && Math.abs(rest.strip - rest.masthead) <= 1, `the strip is stuck under the masthead — at ${Math.round(rest.strip)}, the masthead ending at ${Math.round(rest.masthead)}`)
+    truthy(rest.heading >= rest.bottom && rest.heading < rest.bottom + 40, `and the section it opened rests under it — its heading at ${Math.round(rest.heading)}, the strip ending at ${Math.round(rest.bottom)}`)
+
+    // The dateline, in both halves: the database's version and the next race.
+    const version = one("SELECT value FROM meta WHERE key = 'version'")
+    const readDateline = () => {
+      const line = document.querySelector('.dateline')
+      const link = line?.querySelector('a')
+      return { text: line?.textContent ?? '', href: link?.getAttribute('href') ?? null, name: link?.textContent ?? null }
+    }
+    for (const [half, got] of [
+      ['the app', await live.evaluate(readDateline)],
+      ['the static page', await plain.evaluate(readDateline)],
+    ]) {
+      truthy(got.text.startsWith(`Database v${version}, built `), `${half}: the dateline names the database's version and build — ${got.text}`)
+      if (next) {
+        is(got.href, `/races/${next.year}/${next.round}`, `${half}: and links the next race to run`)
+        is(got.name, `${next.year} ${next.name_used}`, `${half}: by its page's own name`)
+      } else is(got.href, null, `${half}: and, with no race scheduled, names none`)
+    }
+    await app.close()
+    await noJs.close()
+  })
+
   await section('The JSON API  (/api/v1)', async () => {
     const get = async (path) => {
       const response = await fetch(`${BASE}/api/v1/${path}`)
@@ -2890,7 +2984,8 @@ try {
       .get()
     if (unrun) {
       const html = await (await fetch(`${BASE}/races/${unrun.year}/${unrun.round}`)).text()
-      const first = html.match(/<h2>([^<]*)/)?.[1]
+      // An h2 may carry the id the page's On this page strip links (IA-30).
+      const first = html.match(/<h2\b[^>]*>([^<]*)/)?.[1]
       is(first, 'Timetable', `/races/${unrun.year}/${unrun.round}: the static page of a round not yet run leads with its timetable`)
       await go(`/races/${unrun.year}/${unrun.round}`, 'Grand Prix')
       is(
@@ -3418,8 +3513,11 @@ try {
       await still.goto(`${BASE}${route}`, { waitUntil: 'load' })
       const gapAfterTiles = (root) => {
         const tiles = document.querySelector(`${root} .page > header + section.section`)
-        const note = tiles?.nextElementSibling
-        return note?.matches('.note-box') ? note.getBoundingClientRect().top - tiles.getBoundingClientRect().bottom : null
+        // The On this page strip (IA-30) stands between them, where the page
+        // has one, and the note is held clear of it instead.
+        const above = tiles?.nextElementSibling?.matches('.on-this-page') ? tiles.nextElementSibling : tiles
+        const note = above?.nextElementSibling
+        return note?.matches('.note-box') ? note.getBoundingClientRect().top - above.getBoundingClientRect().bottom : null
       }
       for (const width of [1440, 400]) {
         await page.setViewportSize({ width, height: 900 })
@@ -4054,7 +4152,7 @@ try {
       return [...(h2?.closest('section')?.querySelectorAll('tbody th') ?? [])].map((n) => n.textContent).find((t) => t.includes('Pescarolo'))
     }, GRID_FLAG_HEADING)
     truthy(flagCell && !flagCell.includes('*'), `Grid to flag names the row without the mark — "${flagCell}"`)
-    const flagAt = html.indexOf(`<h2>${GRID_FLAG_HEADING}`)
+    const flagAt = html.indexOf(`<h2 id="grid-to-flag">${GRID_FLAG_HEADING}`)
     const flagHtml = html.slice(flagAt, html.indexOf('</section>', flagAt))
     truthy(flagAt > 0 && flagHtml.includes('Pescarolo') && !flagHtml.includes('Pescarolo *'), 'and so does the static page')
   })
@@ -6993,7 +7091,11 @@ try {
         at(HEADLINE) === 0 && at(LEADERBOARDS) === 1 && at(CONSTRUCTORS_HEADING) === 2 && at(recordFamilies(db.prepare(RECORDS_SQL).all())[0].family) === 3,
         `the cards, then the leaderboards, then the families — ${order.slice(0, 4).join(' / ')}`,
       )
-      const staticOrder = [HEADLINE, LEADERBOARDS, CONSTRUCTORS_HEADING].map((h) => html.indexOf(`<h2>${h}`))
+      const staticOrder = [
+        [HEADLINE, 'headline'],
+        [LEADERBOARDS, 'leaderboards'],
+        [CONSTRUCTORS_HEADING, 'constructors'],
+      ].map(([h, id]) => html.indexOf(`<h2 id="${id}">${h}`))
       const firstFamily = html.indexOf(`<h2 id="${recordFamilies(db.prepare(RECORDS_SQL).all())[0].anchor}">`)
       truthy(
         staticOrder.every((n, i) => n > 0 && (i === 0 || n > staticOrder[i - 1])) && firstFamily > staticOrder[2],
@@ -7006,9 +7108,14 @@ try {
     {
       const families = recordFamilies(db.prepare(RECORDS_SQL).all())
       const html = await (await fetch(`${BASE}/records`)).text()
-      const app = await page.$$eval('#root main section[id]', (nodes) =>
-        nodes.map((n) => ({ id: n.id, rows: Number(n.querySelector('.table-wrap')?.dataset.rows) })),
-      )
+      // Every section has an id now, for the On this page strip (IA-30);
+      // these are the families'.
+      const anchors = new Set(families.map((f) => f.anchor))
+      const app = (
+        await page.$$eval('#root main section[id]', (nodes) =>
+          nodes.map((n) => ({ id: n.id, rows: Number(n.querySelector('.table-wrap')?.dataset.rows) })),
+        )
+      ).filter((s) => anchors.has(s.id))
       const links = await page.$$eval('#root main nav[aria-label="Records by family"] a', (as) => as.map((a) => a.getAttribute('href')))
       is(app.map((s) => s.id).join(', '), families.map((f) => f.anchor).join(', '), 'a section per family, in order, at its own address')
       is(app.map((s) => s.rows).join(', '), families.map((f) => f.rows.length).join(', '), 'each holds its family’s records below the headline')
@@ -7022,7 +7129,7 @@ try {
         families.every((f) => html.includes(`<h2 id="${f.anchor}">`) && html.includes(`href="#${f.anchor}"`)),
         'the static page carries the same sections and the same links',
       )
-      truthy(html.includes(`<h2>${HEADLINE} <span class="count">`), 'and leads with the same headline table')
+      truthy(html.includes(`<h2 id="headline">${HEADLINE} <span class="count">`), 'and leads with the same headline table')
 
       // The handover puts back the static page's offset, so the families have
       // to stand where they stand on the static page. They came after the
@@ -8246,7 +8353,7 @@ try {
       const shown = await page.$$eval('#root main .table-wrap', (nodes) => nodes.map((n) => Number(n.dataset.rows)))
       truthy(shown.includes(n) && app.includes('Sprint qualifying') && app.includes('At the circuit') && app.includes('UTC'), `the app lists the ${n} sessions with the circuit clock and UTC`)
       const html = await (await fetch(`${BASE}/races/2026/${sprintRound}`)).text()
-      truthy(html.includes('<h2>Timetable</h2>') && html.includes('Sprint qualifying') && html.includes('At the circuit'), 'the static page carries the same timetable')
+      truthy(html.includes('<h2 id="timetable">Timetable</h2>') && html.includes('Sprint qualifying') && html.includes('At the circuit'), 'the static page carries the same timetable')
 
       // A round with no entries held says nothing about entries (PD-47,
       // UR-20): "Entries 0" on a race not yet run read as a claim that
@@ -10124,7 +10231,7 @@ try {
         .all(timetableRound.year, timetableRound.round)
         .map((row) => row.start_utc)
       const html = await (await fetch(`${BASE}${TIMETABLE_ROUTE}`)).text()
-      const timetable = html.slice(html.indexOf('<h2>Timetable</h2>'))
+      const timetable = html.slice(html.indexOf('<h2 id="timetable">Timetable</h2>'))
       const staticTimes = [...timetable.slice(0, timetable.indexOf('</table>')).matchAll(/<time datetime="([^"]+)">([^<]+)<\/time>/g)].map((m) => ({
         datetime: m[1],
         text: m[2],
