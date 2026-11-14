@@ -4,7 +4,11 @@
 as mockups and filed: P01, P03, P04, P08, P10, P11, P12 and P13 (VD-108 to
 VD-115), with their mockups in `2026-11-13-visual-design/`. Sent back for a
 second version: P02, P05, P07 and P09 ("labels handled more gracefully") and
-P06 ("the idea works, but the styling is very boring"). Of the defects with no
+P06 ("the idea works, but the styling is very boring"); all five second
+versions were approved on 2026-11-14 and filed as VD-121 (P09v2, which sets
+the shared annotation pattern), VD-122 (P06v2, with the rule that a team-mate
+from the same team takes that team's second livery colour), VD-123 (P02v2),
+VD-124 (P05v2, IX-50 declined in its favour) and VD-125 (P07v2). Of the defects with no
 mockup, all were filed: 1 to 3 as one tidy batch (VD-116), 4 (VD-117), 8
 (VD-119), 9 (VD-118) and 11 (VD-120). Items 5 to 7 are carried by the revised
 charts, 10 by P13 and AF-98, and 12 by IA-30. The `proposals.json`, `shots/`
