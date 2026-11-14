@@ -46,7 +46,7 @@ the current position from the rows themselves.
 | 2026 season, entry list, standings, calendar | <!-- credit:season_entries,sessions,standings,races -->formula1.com<!-- /credit --> | current season |
 | How each grid was set, from 1996 | <!-- credit:qualifying_formats -->The FIA Sporting Regulations of each season from 2009, and formula1.com's history of qualifying formats before that<!-- /credit -->; the facts only, with notes written for this project | every season from 1996 |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | <!-- fig:drivers_verified -->7<!-- /fig --> drivers at `verified` |
-| Background lines for the drivers who only ran in Friday practice | <!-- credit:driver_note_sources -->Each driver's own Wikipedia article<!-- /credit -->, cited row by row in `driver_note_sources`; the lines are written for this project, and labelled in `docs/prose_pass.tsv` | <!-- fig:wp_note_sources -->52<!-- /fig --> drivers |
+| Background lines for the drivers who only ran in Friday practice | <!-- credit:driver_note_sources -->Each driver's own Wikipedia article<!-- /credit -->, cited row by row in `driver_note_sources`; the lines are written for this project, and labelled in `docs/prose_pass.tsv` | <!-- fig:wp_note_sources -->55<!-- /fig --> drivers |
 | Regulations, safety, technical, glossary, eras | <!-- credit:glossary,eras,engine_eras,governance,safety_milestones,technical_innovations,points_systems,tyre_suppliers,constructor_lineage,grands_prix,personnel,engine_manufacturers -->Written for this project from general knowledge<!-- /credit -->. Since v2.16 this is a named provenance — `authored`, `source_registry` entry 18 — and everything carrying it sits at `medium`, because nothing here can contradict it | <!-- fig:authored_tables -->12<!-- /fig --> tables, <!-- fig:authored_rows -->342<!-- /fig --> rows |
 
 Every row carries a `confidence` value and most carry a `source` URL. The
@@ -287,7 +287,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->181,157<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->181,168<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to

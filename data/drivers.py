@@ -1036,7 +1036,8 @@ F1DB_NUMBER_UNSETTLED = {
 # names them as a warning rather than failing the refresh.
 #
 # Columns: first-last practice season, sessions (practice and sprint
-# qualifying), name as F1DB writes it.
+# qualifying, as the harvest at F1DB v2026.20.0 holds them), name as F1DB
+# writes it.
 # ---------------------------------------------------------------------
 F1DB_PRACTICE_DRIVERS = [
     "bas-leinders",                     # 2004          34  Bas Leinders
@@ -1076,21 +1077,24 @@ F1DB_PRACTICE_DRIVERS = [
     "patricio-oward",                   # 2022-2025      5  Patricio O'Ward
     "robert-shwartzman",                # 2022-2024      6  Robert Shwartzman
     "theo-pourchaire",                  # 2022-2023      3  Théo Pourchaire
-    "frederik-vesti",                   # 2023-2026      6  Frederik Vesti
+    "frederik-vesti",                   # 2023-2026      7  Frederik Vesti
     "jake-dennis",                      # 2023           1  Jake Dennis
     "zak-osullivan",                    # 2023           1  Zak O'Sullivan
     "arthur-leclerc",                   # 2024-2025      2  Arthur Leclerc
-    "ayumu-iwasa",                      # 2024-2026      8  Ayumu Iwasa
-    "luke-browning",                    # 2024-2026      6  Luke Browning
+    "ayumu-iwasa",                      # 2024-2026      9  Ayumu Iwasa
+    "luke-browning",                    # 2024-2026      8  Luke Browning
     "alexander-dunne",                  # 2025           2  Alexander Dunne
     "antonio-fuoco",                    # 2025           1  Antonio Fuoco
     "cian-shields",                     # 2025           1  Cian Shields
-    "dino-beganovic",                   # 2025-2026      4  Dino Beganovic
-    "jak-crawford",                     # 2025-2026      5  Jak Crawford
+    "dino-beganovic",                   # 2025-2026      5  Dino Beganovic
+    "jak-crawford",                     # 2025-2026      6  Jak Crawford
     "paul-aron",                        # 2025-2026      9  Paul Aron
     "victor-martins",                   # 2025           1  Victor Martins
-    "colton-herta",                     # 2026           3  Colton Herta
-    "leonardo-fornaroli",               # 2026           2  Leonardo Fornaroli
+    "colton-herta",                     # 2026           6  Colton Herta
+    "freddie-slater",                   # 2026           2  Freddie Slater
+    "gabriele-mini",                    # 2026           2  Gabriele Minì
+    "leonardo-fornaroli",               # 2026           4  Leonardo Fornaroli
+    "nikola-tsolov",                    # 2026           1  Nikola Tsolov
 ]
 
 
@@ -1336,8 +1340,22 @@ PRACTICE_DRIVER_NOTES = {
         "An IndyCar driver from 2018 to 2025, who moved to Formula 2 with "
         "Hitech in 2026 as Cadillac's Formula One test driver.",
         _WP + "Colton_Herta"),
+    "freddie-slater": (
+        "The 2025 Formula Regional European champion and the first driver "
+        "signed to Audi's development programme, in FIA Formula 3 with "
+        "Trident in 2026.",
+        _WP + "Freddie_Slater_(racing_driver)"),
+    "gabriele-mini": (
+        "Champion of Italian F4 in 2020 and second in FIA Formula 3 in 2024; "
+        "in 2026 an Alpine Academy driver, with MP Motorsport in Formula 2.",
+        _WP + "Gabriele_Min%C3%AC"),
     "leonardo-fornaroli": (
         "The 2024 FIA Formula 3 and 2025 Formula 2 champion, and McLaren's "
         "reserve driver in 2026.",
         _WP + "Leonardo_Fornaroli"),
+    "nikola-tsolov": (
+        "A Red Bull junior, second in the 2025 FIA Formula 3 season and with "
+        "Campos in Formula 2 in 2026, and the first Bulgarian driver at a "
+        "Formula One weekend.",
+        _WP + "Nikola_Tsolov"),
 }
