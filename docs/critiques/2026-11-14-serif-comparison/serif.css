@@ -1,0 +1,46 @@
+/*
+ * VD-96 (DR-03): the proposal, as one stylesheet laid over the site's own.
+ *
+ * With no data-font on <html> nothing here applies and the page is the site
+ * as it is built today. With one, the prose roles take the serif named and
+ * the headings below h1 drop the capitals. Sizes, weights, colours and the
+ * measure are the site's own tokens, unchanged, so what differs between the
+ * three columns is the face and the case and nothing else.
+ */
+
+html[data-font='source-serif'] {
+  --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+}
+
+html[data-font='newsreader'] {
+  --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+}
+
+/* The prose roles: the lede, a note under a heading or a block, a note box,
+   a table's foot, the "how it is derived" text, a figure's note, a source
+   line, the reading of a recorded disagreement, and /data's running prose.
+   Labels, tiles, tables, pills, captions and credits stay in Saira: they are
+   the label register (D-62), not prose. */
+html[data-font] .lede,
+html[data-font] .section > .note,
+html[data-font] p.note,
+html[data-font] .note-box,
+html[data-font] .table-foot,
+html[data-font] .table-how p,
+html[data-font] .figure-note,
+html[data-font] .source-note,
+html[data-font] .disagreement-why,
+html[data-font] p.measure,
+html[data-font] p.faint,
+html[data-font] .livery-band > span {
+  font-family: var(--serif);
+}
+
+/* Condensed capitals for the h1 only; h2 and below in the words as written.
+   The display face stays: only the case and its tracking go. */
+html[data-font][data-heads='mixed'] .section > h2,
+html[data-font][data-heads='mixed'] .session-sheets > summary,
+html[data-font][data-heads='mixed'] .carcard-body h3 {
+  text-transform: none;
+  letter-spacing: 0;
+}
