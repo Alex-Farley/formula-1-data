@@ -16,6 +16,11 @@ loads Saira from Google Fonts. The critique itself is
 | `P04-race-grid-to-flag.html` | VD-113 (#1335) |
 | `P13-records-leaderboard-phone.html` | VD-114 (#1336) |
 | `P08-constructor-livery-ribbon.html` | VD-115 (#1337) |
+| `P09v2.html` | VD-121 (#1345), which sets the annotation pattern the next three use |
+| `P06v2.html` | VD-122 (#1346) |
+| `P02v2.html` | VD-123 (#1347) |
+| `P05v2.html` | VD-124 (#1348) |
+| `P07v2.html` | VD-125 (#1349) |
 
 `site.css` is the site's built stylesheet at `9c548a8`, copied so the
 mockups render without a build; it is a snapshot and goes stale as the site
@@ -23,5 +28,5 @@ changes, which is expected. Build from the tokens, not from this copy.
 
 Every figure in a mockup was read from `f1.db` when it was drawn. A page
 derives its figures; it never types the ones shown here. P02, P05, P06, P07
-and P09 were sent back for a second version and join this folder only if
-the maintainer approves it.
+and P09 were sent back for a second version; the maintainer approved all five
+second versions on 2026-11-14, and only those (`v2`) are kept.

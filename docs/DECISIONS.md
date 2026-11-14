@@ -389,6 +389,32 @@ What it does not change: the floors in §7, principle 4 (the static page and
 the app are one page), D-61's one accent per chart, and the rule that no
 hex value is claimed as a sourced fact.
 
+### D-65 · A team-mate from the same team takes that team's second livery colour — 2026-11-14 (`VD-122`, #1346)
+D-61 draws team and driver series in their sourced liveries, one colour per
+team. A comparison of two team-mates, the one place the site sets two
+drivers side by side as the subject, then has one colour for both: Norris
+and all three of his team-mates drove for McLaren. The first version of the
+team-mates comparison (P06 in the visual critique of 2026-11-13) was grey
+bars, and the maintainer sent it back as "very boring".
+
+The second version drew the team-mate in the livery's second colour as
+`lib/liveries.js` holds it (McLaren's anthracite against Norris's papaya).
+No rule covered a team's second colour standing for a person, so the review
+page named it as a question beside the design, and the maintainer approved
+both on 2026-11-14. It is §8's *Changing or reversing*; the ruling is
+recorded on the item.
+
+The rule: where two drivers compared side by side drove for one team, the
+first takes the team's colour and the second its second colour; where the
+livery holds no second colour, the second driver is drawn in ink.
+`lib/liveries.js` holds a light and dark pair only for a livery's lead
+colour, and `conventions.mjs` holds each pair to 3:1, so the build adds a
+dark-theme value for the second colour and extends that check to it. What it
+does not change: a name always sits beside the mark, a chart in liveries
+takes no accent (D-61), and no hex value is claimed as a sourced fact, since
+the second colour is a sourced statement of what the team raced in, as the
+first is.
+
 ---
 
 ## The queue
