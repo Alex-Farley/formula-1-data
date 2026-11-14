@@ -28,6 +28,27 @@
  * renderers draw the last one as the current page rather than as a link.
  */
 import { eraKey, eraPath } from '../queries/eras.js'
+import {
+  CLASSIFICATION_HEADING,
+  GRID_FLAG_HEADING,
+  PITS_HEADING,
+  PRACTICE_SUMMARY,
+  QUALIFYING_HEADING,
+  SPRINT_HEADING,
+  SPRINT_QUALIFYING_HEADING,
+  TIMETABLE_HEADING,
+} from '../queries/race.js'
+import {
+  CHAMPIONS,
+  CONSTRUCTORS_HEADING,
+  DECADE_TITLE,
+  GRAND_SLAMS_TITLE,
+  HEADLINE,
+  LEADERBOARDS,
+  POLE_TO_WIN_TITLE,
+} from '../queries/records.js'
+import { STAKE_HEADING } from '../queries/season.js'
+import { LABELS, RACE_CARS_TITLE, RACE_PHOTOGRAPHS_TITLE } from './site.js'
 
 /* --------------------------------------------------------------- trails */
 
@@ -578,3 +599,60 @@ export const seasonSteps = (neighbours) => ({
     : null,
   next: neighbours.next ? { to: `/seasons/${neighbours.next}`, label: `${neighbours.next} season` } : null,
 })
+
+/* --------------------------------------------------------- On this page */
+
+/**
+ * The *On this page* strip (IA-30, design-system.md §3): the sections of a
+ * long page, as links to their addresses, in the order the page draws them.
+ * /records runs some 23,000 px at 1440 and a race page some 5,000, and
+ * neither had a way to its own sections but /records' line of record
+ * families, under its headline cards.
+ *
+ * Each list is data here and both renderers draw it: Page.jsx's
+ * <OnThisPage> and prerender.js's onThisPage() write the same markup, and
+ * each page gives its own sections the ids named here. Which sections are on
+ * the page is each renderer's to say, from the same conditions it draws them
+ * on; smoke.mjs holds every link to a section with that id and that heading,
+ * in document order, and every top-level section heading to a link, in both
+ * halves, so a section added without its link, or a link left to a section
+ * that has gone, fails the suite.
+ */
+export const ON_THIS_PAGE = 'On this page'
+
+const listed = (entries) => entries.filter(Boolean).map(([id, label]) => ({ id, label }))
+
+/**
+ * A race page's sections. `on` holds a flag for each optional section; the
+ * timetable leads a round not yet run and follows the result once one is
+ * held, as both renderers place it (PD-57).
+ */
+export const raceSections = (on) =>
+  listed([
+    on.scheduled && on.timetable && ['timetable', TIMETABLE_HEADING],
+    on.stake && ['stake', STAKE_HEADING],
+    on.classification && ['classification', CLASSIFICATION_HEADING],
+    on.gridFlag && ['grid-to-flag', GRID_FLAG_HEADING],
+    on.qualifying && ['qualifying', QUALIFYING_HEADING],
+    on.sprint && ['sprint', SPRINT_HEADING],
+    on.sprintQualifying && ['sprint-qualifying', SPRINT_QUALIFYING_HEADING],
+    on.pits && ['pit-stops', PITS_HEADING],
+    on.practice && ['practice', PRACTICE_SUMMARY],
+    !on.scheduled && on.timetable && ['timetable', TIMETABLE_HEADING],
+    on.photographs && ['photographs', RACE_PHOTOGRAPHS_TITLE],
+    on.cars && ['cars', RACE_CARS_TITLE],
+    ['provenance', LABELS.provenance],
+  ])
+
+/** /records' sections: the four ahead of the families, each family by its own address, and the four after. */
+export const recordsSections = (families) =>
+  listed([
+    ['headline', HEADLINE],
+    ['leaderboards', LEADERBOARDS],
+    ['constructors', CONSTRUCTORS_HEADING],
+    ...families.map((f) => [f.anchor, f.family]),
+    ['champions', CHAMPIONS],
+    ['decades', DECADE_TITLE],
+    ['pole-to-win', POLE_TO_WIN_TITLE],
+    ['grand-slams', GRAND_SLAMS_TITLE],
+  ])

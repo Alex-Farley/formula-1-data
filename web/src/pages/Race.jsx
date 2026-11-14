@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats, Stepper } from '../components/Page.jsx'
+import { Confidence, Fields, Note, OnThisPage, Onward, Page, Section, Slot, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { UNFOLDED } from '../lib/table.js'
@@ -24,11 +24,16 @@ import {
   EYEBROWS,
   LABELS,
 } from '../lib/site.js'
-import { categoryUrl } from '../lib/commons.js'
+import { canShow, categoryUrl } from '../lib/commons.js'
 import { LAYOUT_RACED, NO_LAYOUT_RECORDED, layoutRaced, outlineCaption, raceLayoutNote } from '../lib/outline.js'
 import { RACE_IMAGES, RACE_PHOTOGRAPHS } from '../queries/photographs.js'
 import {
   CLASSIFICATION_COLUMNS,
+  CLASSIFICATION_HEADING,
+  QUALIFYING_HEADING,
+  SPRINT_HEADING,
+  SPRINT_QUALIFYING_HEADING,
+  TIMETABLE_HEADING,
   ENTRY_NOTE_MARK,
   ENTRY_NOTE_SPOKEN,
   ENTRIES,
@@ -99,7 +104,7 @@ import { gridFlagRows, gridFlagShown, undrawnOf } from '../charts/gridFlag.js'
 import Stints from '../charts/Stints.jsx'
 import { lateStops, pitPairs, pitWave, stintLaps, stintRows, stintTableRows, stintsShown, unbarredOf } from '../charts/stints.js'
 
-import { ONWARD, TRAIL, raceSteps } from '../lib/wayfinding.js'
+import { ONWARD, TRAIL, raceSections, raceSteps } from '../lib/wayfinding.js'
 /*
  * The React renders for the columns queries/race.js defines — the links, the
  * tags, the rail; the router is the reason they live here. The words each
@@ -367,7 +372,7 @@ function RaceBody({ race, data, year, round }) {
   const stake = isUpcoming(fight, race) ? fight : null
 
   const timetable = sessions.length > 0 && (
-    <Section title="Timetable" count={`${sessions.length} sessions`}>
+    <Section id="timetable" title={TIMETABLE_HEADING} count={`${sessions.length} sessions`}>
       <DataTable
         rows={sessions}
         rowKey={(row) => row.kind}
@@ -406,6 +411,25 @@ function RaceBody({ race, data, year, round }) {
         <Stats items={raceStrip(race, entries, qualifying)} />
       </Section>
 
+      {/* IA-30: the page's sections, from the conditions each is drawn on
+          below; prerender.js asks the same questions of the same rows. */}
+      <OnThisPage
+        sections={raceSections({
+          scheduled,
+          timetable: sessions.length > 0,
+          stake: Boolean(stake),
+          classification: classified.length > 0,
+          gridFlag: gridFlagShown(flag),
+          qualifying: qualifying.length > 0,
+          sprint: sprint.length > 0,
+          sprintQualifying: sprintQualifying.length > 0,
+          pits: !scheduled && classified.length > 0,
+          practice: practice.length > 0,
+          photographs: photographs.some(canShow),
+          cars: rows(data, 'images').some(canShow),
+        })}
+      />
+
       {/* PD-57: what the reader came for, straight under the figures - the
           classification once a result is held, the timetable before. */}
       {pending && (
@@ -422,7 +446,7 @@ function RaceBody({ race, data, year, round }) {
       {scheduled && timetable}
 
       {stake && (
-        <Section title={STAKE_HEADING}>
+        <Section id="stake" title={STAKE_HEADING}>
           <p>{stake.who}</p>
           {stake.basis && (
             <p className="note follows">
@@ -441,7 +465,7 @@ function RaceBody({ race, data, year, round }) {
       )}
 
       {classified.length > 0 && (
-        <Section title="Classification" count={`${classified.length} entries`}>
+        <Section id="classification" title={CLASSIFICATION_HEADING} count={`${classified.length} entries`}>
           <DataTable
             unfolded={UNFOLDED.subject}
             rows={classified}
@@ -483,7 +507,7 @@ function RaceBody({ race, data, year, round }) {
           charts/gridFlag.js says what the lines can and cannot claim,
           and scripts/prerender.js draws the same figure. */}
       {gridFlagShown(flag) && (
-        <Section title={GRID_FLAG_HEADING}>
+        <Section id="grid-to-flag" title={GRID_FLAG_HEADING}>
           <Figure
             note={gridFlagNote(flag)}
             table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS, footer: gridFlagUndrawn(undrawnOf(entries)) }}
@@ -494,7 +518,7 @@ function RaceBody({ race, data, year, round }) {
       )}
 
       {qualifying.length > 0 && (
-        <Section title="Qualifying" count={`${qualifying.length} entries`}>
+        <Section id="qualifying" title={QUALIFYING_HEADING} count={`${qualifying.length} entries`}>
           <DataTable
             unfolded={UNFOLDED.subject}
             rows={qualifying}
@@ -509,7 +533,7 @@ function RaceBody({ race, data, year, round }) {
       )}
 
       {sprint.length > 0 && (
-        <Section title="Sprint" count={`${sprint.length} entries`}>
+        <Section id="sprint" title={SPRINT_HEADING} count={`${sprint.length} entries`}>
           <DataTable
             unfolded={UNFOLDED.subject}
             rows={sprint}
@@ -523,7 +547,7 @@ function RaceBody({ race, data, year, round }) {
       )}
 
       {sprintQualifying.length > 0 && (
-        <Section title="Sprint qualifying" count={`${sprintQualifying.length} entries`}>
+        <Section id="sprint-qualifying" title={SPRINT_QUALIFYING_HEADING} count={`${sprintQualifying.length} entries`}>
           <DataTable
             unfolded={UNFOLDED.subject}
             rows={sprintQualifying}
@@ -542,7 +566,7 @@ function RaceBody({ race, data, year, round }) {
           claim, and scripts/prerender.js draws the same. A race run with no
           figure says why, rather than losing the section. */}
       {!scheduled && classified.length > 0 && (
-        <Section title={PITS_HEADING} count={pits.length > 0 ? `${pits.length} stops` : undefined}>
+        <Section id="pit-stops" title={PITS_HEADING} count={pits.length > 0 ? `${pits.length} stops` : undefined}>
           {stintsShown(stints) ? (
             <>
               <Figure
@@ -577,7 +601,7 @@ function RaceBody({ race, data, year, round }) {
           queries/race.js says why, and the static page draws the same. */}
       {practice.length > 0 && (
         <section className="section">
-          <details className="session-sheets">
+          <details className="session-sheets" id="practice">
             <summary>
               {PRACTICE_SUMMARY} <span className="count">{practiceSummaryCount(practice)}</span>
             </summary>
@@ -613,6 +637,7 @@ function RaceBody({ race, data, year, round }) {
           and after every section of the page's own, before where they come
           from, as on every page type (VD-83). */}
       <Photographs
+        id="photographs"
         images={photographs}
         title={RACE_PHOTOGRAPHS_TITLE}
         note={RACE_PHOTOGRAPHS_NOTE}
@@ -624,9 +649,9 @@ function RaceBody({ race, data, year, round }) {
             : null
         }
       />
-      <Photographs images={rows(data, 'images')} title={RACE_CARS_TITLE} note={RACE_CARS_NOTE} subjects />
+      <Photographs id="cars" images={rows(data, 'images')} title={RACE_CARS_TITLE} note={RACE_CARS_NOTE} subjects />
 
-      <Section title={LABELS.provenance}>
+      <Section id="provenance" title={LABELS.provenance}>
         <Fields
           items={[
             // The event this race is an edition of, and the way to every other
