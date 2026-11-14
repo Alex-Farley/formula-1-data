@@ -29,6 +29,7 @@ import {
   SEASON_TEAMS,
   STANDINGS,
   TEAM_MATES,
+  WINS_AT,
   TEAM_MATE_COLUMNS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
@@ -58,6 +59,8 @@ import { comparePath, compareWith } from '../queries/compare.js'
 
 import { ONWARD, TRAIL, lastTeamOf } from '../lib/wayfinding.js'
 import SearchKey from '../components/SearchKey.jsx'
+import { WonAt } from '../components/Outline.jsx'
+import { WON_AT_HEADING, wonAt, wonAtCount } from '../lib/outline.js'
 /**
  * What only the app adds to the shared column lists: links, the sort key
  * behind a text column, and the markup a result wears. Everything a cell
@@ -255,6 +258,7 @@ export default function Driver() {
     disagreements: [DRIVER_DISAGREEMENTS, [id]],
     thisSeason: [THIS_SEASON, [id]],
     teamMates: [TEAM_MATES, [id, null]],
+    winsAt: [WINS_AT, [id]],
     sources: [DRIVER_SOURCES, [id]],
     practice: [DRIVER_PRACTICE, [id]],
     // AF-132: where a contender stands in the title fight being run.
@@ -323,6 +327,7 @@ function DriverBody({ driver, data }) {
   const differ = pointsDiffer(driver, derived)
   const thisSeason = rows(data, 'thisSeason')
   const teamMates = rows(data, 'teamMates')
+  const wonAtHere = useMemo(() => wonAt(rows(data, 'winsAt')), [data])
   // A Friday driver's whole record is the practice sheets (LV-03).
   const practiceOnly = driver.practice_only === 1
   const practice = rows(data, 'practice')
@@ -398,6 +403,15 @@ function DriverBody({ driver, data }) {
           driver: no rows, no section. */}
       {thisSeason.length > 0 && (
         <ThisSeason name={driver.full_name} rows={thisSeason} standings={standings} />
+      )}
+
+      {/* The circuits won at, as small multiples (VD-104 (b)), after the
+          career and before the tables: a driver who never won has no
+          section, as it has no cards. */}
+      {wonAtHere.length > 0 && (
+        <Section title={WON_AT_HEADING} count={wonAtCount(wonAtHere)}>
+          <WonAt name={driver.full_name} circuits={wonAtHere} />
+        </Section>
       )}
 
       {!practiceOnly && (

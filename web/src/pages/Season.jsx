@@ -18,6 +18,7 @@ import { coverageYears, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
+import SeasonPlate from '../components/SeasonPlate.jsx'
 import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { SEASON_IMAGES } from '../queries/photographs.js'
 import {
@@ -70,6 +71,7 @@ import {
   seasonAnswer,
   titleRaceFigure,
   titleStrip,
+  seasonPlate,
   wonHereNote,
 } from '../queries/season.js'
 
@@ -535,6 +537,9 @@ function SeasonBody({ year, season, data }) {
       <Section>
         {/* The strip is queries/season.js's, which the static page draws
             too (VD-49); the next session's tile is the browser's alone. */}
+        {/* A concluded season opens on its champion (VD-104 (c)); the strip
+            under it then leaves out the two tiles the plate states. */}
+        <SeasonPlate plate={seasonPlate({ season, year, running })} />
         <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
         {answer?.basis && (
           <p className="note follows">

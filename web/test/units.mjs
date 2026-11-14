@@ -5010,3 +5010,59 @@ describe('the race weekend forecast (AF-143)', () => {
     assert.equal(calls.length, 4, 'an answer FRESH_MS old is asked for again')
   })
 })
+
+describe('the outline as a thumbnail, the circuits won at and the season plate (VD-104)', async () => {
+  const { WON_AT_NOTE, wonAt, wonAtCount, winsAt } = await import('../src/lib/outline.js')
+  const { seasonPlate, titleStrip: strip } = await import('../src/queries/season.js')
+
+  it('groups a driver’s wins by circuit, most wins first, a tie to the circuit won at last', () => {
+    const win = (circuit_id, year, round, outline = null) => ({ circuit_id, circuit: circuit_id.toUpperCase(), year, round, name_used: `${circuit_id} GP`, f1db_layout_id: outline && `${circuit_id}-${year}`, outline })
+    const cards = wonAt([win('a', 1990, 1, 'M1'), win('b', 1990, 2), win('c', 1991, 1, 'M3'), win('a', 1992, 1), win('b', 1993, 4, 'M5')])
+    assert.deepEqual(cards.map((c) => c.circuit_id), ['b', 'a', 'c'], 'two wins each at a and b, and b was won at last')
+    assert.deepEqual(cards.map((c) => c.wins.length), [2, 2, 1])
+    assert.equal(cards.reduce((n, c) => n + c.wins.length, 0), 5, 'every win is on a card')
+    assert.equal(cards[1].layoutId, 'a-1990', 'a circuit is drawn as the latest win there that has a drawing')
+    assert.equal(cards[1].outline, 'M1')
+    assert.deepEqual(cards[0].wins.map((w) => w.year), [1990, 1993], 'the wins in date order')
+    assert.deepEqual(wonAt([]), [])
+    assert.deepEqual(wonAt(null), [])
+    assert.equal(wonAtCount(cards), '3 circuits')
+    assert.equal(wonAtCount([cards[0]]), '1 circuit')
+    assert.equal(winsAt(1), '1 win')
+    assert.match(WON_AT_NOTE, /not to scale/)
+    assert.match(WON_AT_NOTE, /Jules Roy/)
+  })
+
+  it('draws a plate for a concluded season with a champion, and the strip leaves out what it says', () => {
+    const season = {
+      rounds: 22, drivers_champion: 'max', champion: 'Max', champion_team: 'red-bull', champion_team_name: 'Red Bull Racing',
+      champion_team_country: 'Austria', margin: 8, runner_up_name: 'Lewis', constructors_champion: 'mercedes', constructors_champion_name: 'Mercedes', champion_points: 395.5,
+    }
+    const plate = seasonPlate({ season, year: 2021, running: false })
+    assert.equal(plate.label, '2021 World Champion')
+    assert.equal(plate.href, 'drivers/max')
+    assert.equal(plate.teamHref, 'constructors/red-bull')
+    assert.equal(plate.margin, '8')
+    assert.equal(plate.sentence, 'points clear of Lewis in the final table.')
+    assert.ok(plate.colour, 'a 2021 team is in the livery era')
+    assert.equal(seasonPlate({ season: { ...season, margin: 1 }, year: 2021, running: false }).sentence, 'point clear of Lewis in the final table.')
+    assert.equal(seasonPlate({ season, year: 2021, running: true }), null, 'none while the season is running')
+    assert.equal(seasonPlate({ season: { ...season, drivers_champion: null }, year: 2021, running: false }), null, 'none without a champion')
+    assert.equal(seasonPlate({ season: { ...season, champion_team: null }, year: 1985, running: false }).colour, null, 'ink where no team is on record')
+    const labels = (s) => strip({ season: s, year: 2021, running: false, run: 22, notRun: false }).map((t) => t.label)
+    assert.deepEqual(labels(season), ['Rounds', "Constructors' champion"])
+    const unmeasured = seasonPlate({ season: { ...season, margin: null }, year: 2021, running: false })
+    assert.equal(unmeasured.margin, null, 'no margin stored, no figure')
+    assert.deepEqual(labels({ ...season, margin: null }), ['Rounds', "Constructors' champion", 'Margin'], 'and the tile stays, to show it is not established')
+    assert.deepEqual(labels({ ...season, drivers_champion: null }), ['Rounds', "Drivers' champion", "Constructors' champion", 'Margin'])
+  })
+
+  it('gives an onward card that links a race its outline, and none where nothing is drawn', () => {
+    const race = { circuit_id: 'monaco', circuit: 'Monaco' }
+    const next = (neighbours) => ONWARD.race({ race, year: 2021, winners: [], neighbours }).items.filter(Boolean).find((item) => item.label === 'The next race')
+    assert.equal(next({ next: '2021/6', next_outline: 'M0' }).outline, 'M0')
+    assert.equal(next({ next: '2021/6', next_outline: null }).outline, null)
+    const circuit = ONWARD.circuit({ races: [{ year: 2021, round: 5, name_used: 'Monaco GP', status: 'completed', outline: 'M9' }], winners: [] })
+    assert.equal(circuit.items.filter(Boolean)[0].outline, 'M9')
+  })
+})

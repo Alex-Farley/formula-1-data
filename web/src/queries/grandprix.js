@@ -54,9 +54,10 @@ export const CIRCUITS = `
 export const EDITIONS = `
   SELECT r.year, r.round, r.name_used, r.status, r.sprint, r.circuit_id, c.name AS circuit,
          rr.winner, rr.winner_id, rr.co_winner_id, rr.constructor, rr.constructor_id, rr.entrant,
-         k.country AS constructor_country
+         k.country AS constructor_country, o.path AS outline
     FROM races r
     LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
     LEFT JOIN race_results rr ON rr.id = r.id
     LEFT JOIN constructors k ON k.id = rr.constructor_id
    WHERE r.gp_id = ?

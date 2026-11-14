@@ -219,6 +219,7 @@ export const ONWARD = {
               to: `/races/${latest.year}/${latest.round}`,
               label: `${latest.year} ${latest.name_used}`,
               hint: 'The latest edition run, in full.',
+              outline: latest.outline,
             }
           : null,
         winners[0]
@@ -255,7 +256,12 @@ export const ONWARD = {
           }
         : null,
       neighbours.next
-        ? { to: `/races/${neighbours.next}`, label: 'The next race', hint: 'Where the championship went from here.' }
+        ? {
+            to: `/races/${neighbours.next}`,
+            label: 'The next race',
+            hint: 'Where the championship went from here.',
+            outline: neighbours.next_outline,
+          }
         : null,
     ],
   }),
@@ -351,6 +357,7 @@ export const ONWARD = {
             to: `/races/${latest.year}/${latest.round}`,
             label: `${latest.year} ${latest.name_used}`,
             hint: 'The most recent race held here, in full.',
+            outline: latest.outline,
           }
         : null,
       winners[0]
@@ -397,6 +404,7 @@ export const ONWARD = {
             to: `/races/${notableRace.year}/${notableRace.round}`,
             label: `${notableRace.year} ${notableRace.name_used}`,
             hint: firstWin ? 'Its first win, in full.' : 'A race it entered, in full.',
+            outline: notableRace.outline,
           }
         : null,
       car?.supersedes_id
@@ -540,6 +548,7 @@ export const ONWARD = {
             to: `/races/${latest.year}/${latest.round}`,
             label: latest.name_used,
             hint: 'The most recent race this database holds the classification of.',
+            outline: latest.outline,
           }
         : null,
       {

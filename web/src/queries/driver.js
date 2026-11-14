@@ -207,6 +207,23 @@ export const RESULTS = `
 `
 
 /**
+ * VD-104 (b): every win, in date order, with the circuit and F1DB's drawing
+ * of the layout raced - lib/outline.js wonAt() groups them into the small
+ * multiples. A win is an entry classified first, as DERIVED counts them, so
+ * the cards' wins add up to the strip's.
+ */
+export const WINS_AT = `
+  SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
+         r.f1db_layout_id, o.path AS outline
+    FROM race_entries e
+    JOIN races r ON r.id = e.race_id
+    LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+   WHERE e.driver_id = ? AND e.finish_position = 1
+   ORDER BY r.year, r.round
+`
+
+/**
  * The constructors a driver raced for in each season, latest first within a
  * season: queries/season.js DRIVER_TEAMS, for one driver across a career
  * rather than one season across a grid, with the same order and the same

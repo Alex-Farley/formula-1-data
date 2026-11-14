@@ -49,8 +49,9 @@ export const UNRESULTED = `
 
 /** The most recent race this database holds the classification of. */
 export const LATEST = `
-  SELECT r.year, r.round, r.name_used, r.date_iso
+  SELECT r.year, r.round, r.name_used, r.date_iso, o.path AS outline
     FROM races r
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
    WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
    ORDER BY r.date_iso DESC, r.round DESC
    LIMIT 1

@@ -239,7 +239,7 @@ export const NEIGHBOURS = `
           WHERE (year < ?1) OR (year = ?1 AND round < ?2)
           ORDER BY year DESC, round DESC LIMIT 1),
        after AS (
-         SELECT year, round, name_used FROM races
+         SELECT year, round, name_used, f1db_layout_id FROM races
           WHERE (year > ?1) OR (year = ?1 AND round > ?2)
           ORDER BY year, round LIMIT 1)
   SELECT
@@ -247,6 +247,7 @@ export const NEIGHBOURS = `
     (SELECT year || ' ' || name_used FROM before) AS previous_name,
     (SELECT year || '/' || round FROM after)      AS next,
     (SELECT year || ' ' || name_used FROM after)  AS next_name,
+    (SELECT o.path FROM after JOIN circuit_outlines o ON o.f1db_layout_id = after.f1db_layout_id) AS next_outline,
     (SELECT COUNT(*) FROM races WHERE year = ?1)  AS rounds
 `
 

@@ -313,3 +313,46 @@ export const roundShortName = (name) => {
 
 /** The strip's accessible name. */
 export const stripLabel = (year) => `The ${year} calendar as circuit outlines`
+
+/**
+ * VD-104 (a): a race linked as a card of its own - an onward card - carries
+ * the race's outline as its thumbnail, beside the name, the way the season
+ * strip draws every round. A race named in a table's row, a chip or the
+ * stepper does not (design-system.md §3, *The race thumbnail*). The band
+ * credits the drawing once, under its cards, as the strip does; a band with
+ * no drawing in it prints no credit.
+ */
+export const ONWARD_OUTLINE_NOTE = `Outline: ${OUTLINE_BY}.`
+
+/**
+ * VD-104 (b): the circuits a driver won at, as small multiples - one card
+ * per circuit, its drawing, its name, the wins there and each of them a link
+ * to its race. `rows` are queries/driver.js WINS_AT's, one per win in date
+ * order. A circuit's drawing is the layout of the latest win there that F1DB
+ * draws, since a circuit raced on several layouts has more than one, and a
+ * circuit where none is drawn keeps its card with an empty box. Most wins
+ * first; a tie goes to the circuit won at most recently, which no two
+ * circuits share, so the order is total.
+ */
+export const WON_AT_HEADING = 'Circuits won at'
+export const wonAtCount = (circuits) => `${circuits.length} ${circuits.length === 1 ? 'circuit' : 'circuits'}`
+export const winsAt = (n) => `${n} ${n === 1 ? 'win' : 'wins'}`
+export const WON_AT_DRAWN = 'Each drawing is the layout of the latest win there that F1DB draws.'
+export const WON_AT_NOTE = `${WON_AT_DRAWN} ${OUTLINE_SCALE_NOTE} ${OUTLINE_BY}.`
+export const wonAtLabel = (name) => `The circuits ${name} won at, most wins first`
+
+export const wonAt = (rows) => {
+  const byCircuit = new Map()
+  ;(rows ?? []).forEach((row, at) => {
+    const key = row.circuit_id ?? `race-${row.year}-${row.round}`
+    const circuit = byCircuit.get(key) ?? { key, circuit_id: row.circuit_id, circuit: row.circuit, wins: [], outline: null, layoutId: null, last: -1 }
+    circuit.wins.push({ year: row.year, round: row.round, name_used: row.name_used })
+    if (row.outline) {
+      circuit.outline = row.outline
+      circuit.layoutId = row.f1db_layout_id
+    }
+    circuit.last = at
+    byCircuit.set(key, circuit)
+  })
+  return [...byCircuit.values()].sort((a, b) => b.wins.length - a.wins.length || b.last - a.last)
+}
