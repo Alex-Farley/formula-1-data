@@ -4225,8 +4225,10 @@ figure.figure > .figure-note:first-child {
 /* The season plate (VD-104 (c)): a 4 px rule in the champion's team pair -
    .livery-series picks the light or the dark value, held to 3:1 like any
    series - or in ink where no colour is on record; the label, the name in
-   the display face, and the margin at the hero size beside its sentence.
-   The margin is the page's one hero figure: the season strip is not ranked. */
+   the display face at a stat figure's size - a name is not a figure, so it
+   stays out of the hero register (§2 Type) - and the margin at the hero
+   size beside its sentence. The margin is the page's one hero figure: the
+   season strip is not ranked. */
 .season-plate {
   border-top: var(--space-2) solid var(--livery);
   padding-top: var(--space-7);
@@ -4247,7 +4249,7 @@ figure.figure > .figure-note:first-child {
 .season-plate-name {
   margin: var(--space-4) 0 0;
   font-family: var(--disp);
-  font-size: var(--size-9);
+  font-size: var(--size-8);
   font-weight: var(--weight-bold);
   line-height: 1.05;
   overflow-wrap: anywhere;
@@ -4282,7 +4284,6 @@ figure.figure > .figure-note:first-child {
 }
 
 @media (width >= 768px) {
-  .season-plate-name,
   .season-plate-margin {
     font-size: var(--size-10);
   }

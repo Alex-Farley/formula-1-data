@@ -1019,14 +1019,16 @@ AF-133's grid — and these are new:
   2009, or a team with none sourced); the label, *2021 World Champion ·
   Red Bull Racing*, with the team's livery mark and its name a link, so
   the colour is never the only cue; the champion's name in the display
-  face at `--size-9`, `--size-10` from 768; and the margin at the hero
-  size beside *points clear of Sir Lewis Hamilton in the final table.* A
+  face at `--size-8`, a stat figure's size, since a name is not a figure
+  and stays out of the hero register (§2 *Type*); and the margin at the
+  hero size beside *points clear of Sir Lewis Hamilton in the final table,
+  with 395.5 points.* A
   season page opens on it once every round is run; a title settled with
   rounds to go waits for the last of them, the strip carrying the leader
   and the gap until then. The strip under it leaves out the
-  *Drivers' champion* and *Margin* tiles it states, and keeps *Margin* to
-  show the em dash where no margin is stored, the plate then printing no
-  figure. The margin is the page's one hero figure, since the season strip
+  *Drivers' champion* and *Margin* tiles it states; where no margin is
+  stored the plate prints no figure and no sentence, and the strip keeps
+  both, *Margin* showing the em dash. The margin is the page's one hero figure, since the season strip
   is not ranked. No accent (D-61). `seasonPlate` in `queries/season.js`
   gives both renderers the plate; `units.mjs` holds it and the strip it
   trims, `smoke.mjs` the plate and the strip in both halves. Home opens on

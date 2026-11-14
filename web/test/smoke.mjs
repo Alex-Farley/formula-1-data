@@ -2260,7 +2260,15 @@ try {
     truthy(!dts.includes("Drivers' champion") && !dts.includes('Margin'), `the strip leaves out what the plate says — ${dts.join(', ')}`)
     const staticYear = await (await fetch(`${BASE}/seasons/${year}`)).text()
     truthy(staticYear.includes(`<p class="season-plate-name"><a href="/drivers/${champion.id}">`), 'the static page draws the same plate')
-    truthy(!staticYear.includes('<dt>Margin</dt>'), 'and the same strip')
+    const appPlate = await page.$eval('#root main .season-plate', (n) => ({
+      label: n.querySelector('.season-plate-label').textContent,
+      figure: n.querySelector('.season-plate-figure').textContent,
+    }))
+    const strip = (html) => html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'")
+    const staticPlate = staticYear.match(/<div class="season-plate[\s\S]*?<\/div>/)?.[0] ?? ''
+    is(strip(staticPlate.match(/<p class="season-plate-label">[\s\S]*?<\/p>/)?.[0] ?? ''), appPlate.label, 'with the same label')
+    is(strip(staticPlate.match(/<p class="season-plate-figure">[\s\S]*?<\/p>/)?.[0] ?? ''), appPlate.figure, 'and the same margin and sentence')
+    truthy(staticYear.includes('<dt>Rounds</dt>') && !staticYear.includes('<dt>Margin</dt>'), 'and the same strip, Rounds kept and Margin left out')
     const running = inProgress()
     if (one("SELECT COUNT(*) FROM races WHERE year = ? AND status != 'completed'", running) > 0) {
       truthy(!(await (await fetch(`${BASE}/seasons/${running}`)).text()).includes('class="season-plate'), `the season being run (${running}) has no plate`)

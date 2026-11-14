@@ -1551,8 +1551,10 @@ export const ENTRANTS_FOOTER =
  * season is running, a title settled with rounds to go included: the strip
  * carries the leader and the gap until the last round, and the plate is the
  * season's end. The margin is the stored one - the champion's points less
- * the runner-up's - and with none stored the plate prints no figure, and
- * titleStrip keeps the Margin tile to show it is not established.
+ * the runner-up's - and the sentence carries the champion's points, which
+ * the strip's champion tile did. With no margin stored the plate prints no
+ * figure and no sentence, and titleStrip keeps both tiles: the champion's
+ * points, and the Margin to show it is not established.
  */
 export const SEASON_PLATE_LABEL = (year) => `${year} World Champion`
 export const seasonPlate = ({ season, year, running }) => {
@@ -1568,7 +1570,9 @@ export const seasonPlate = ({ season, year, running }) => {
     sentence:
       margin === null
         ? null
-        : `${margin === 1 ? 'point' : 'points'} clear of ${season.runner_up_name ?? 'the runner-up'} in the final table.`,
+        : `${margin === 1 ? 'point' : 'points'} clear of ${season.runner_up_name ?? 'the runner-up'} in the final table${
+            season.champion_points === null || season.champion_points === undefined ? '' : `, with ${points(season.champion_points)} points`
+          }.`,
     colour: season.champion_team
       ? colourForEntry({
           constructorId: season.champion_team,
@@ -1589,9 +1593,9 @@ export const seasonPlate = ({ season, year, running }) => {
  * NOT_YET_RUN in those slots rather than a dash (IA-17), and the
  * constructors' title before 1958 is "not contested", which is a fact, where
  * a dash would be a gap. A concluded season with a champion opens on its
- * plate (seasonPlate, above), which states the champion and the margin, so
- * the strip leaves those two tiles out - the margin's only where the plate
- * has one to print.
+ * plate (seasonPlate, above), which states the champion, their points and
+ * the margin, so the strip leaves those two tiles out - only where the plate
+ * has a margin to print.
  *
  * `running` and `notRun` are the page's own two questions, passed in rather
  * than asked again here, so the strip cannot answer them differently from
@@ -1627,8 +1631,8 @@ export const titleStrip = ({ season, year, running, run, notRun, lead, second, t
     ].filter(Boolean)
   }
   const notYet = { value: NOT_YET_RUN, quiet: true }
-  // The season plate (VD-104 (c)) names the champion and sets the margin
-  // above the strip, so the strip does not say either twice.
+  // The season plate (VD-104 (c)) names the champion, their points and the
+  // margin above the strip, so the strip does not say them twice.
   const plate = seasonPlate({ season, year, running })
   return [
     {
@@ -1636,7 +1640,7 @@ export const titleStrip = ({ season, year, running, run, notRun, lead, second, t
       value: number(season.rounds),
       note: notRun ? NOT_YET_RUN : run === season.rounds ? 'all run' : `${run} run`,
     },
-    plate
+    plate?.margin
       ? null
       : {
       label: "Drivers' champion",
