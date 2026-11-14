@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->181,157<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->56<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->181,168<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -188,15 +188,15 @@ all <!-- fig:sprint_races -->30<!-- /fig --> sprints since 2021
 the <!-- fig:sprint_qualifying -->488<!-- /fig --> rows of the sessions that set their
 grids; the classification of every practice, warm-up and pre-qualifying
 session F1DB holds, 1977 on
-— <!-- fig:practice -->49,944<!-- /fig --> rows
+— <!-- fig:practice -->49,949<!-- /fig --> rows
 over <!-- fig:practice_weekends -->792<!-- /fig --> weekends, each driver's best lap
 and laps run, which is a classification and not lap timing;
 and <!-- fig:pit_stops -->22,746<!-- /fig --> pit stops — the lap, the order and the
 time in the pit lane of each.
 
-**Drivers** — <!-- fig:drivers -->916<!-- /fig --> rows: every driver in the
+**Drivers** — <!-- fig:drivers -->919<!-- /fig --> rows: every driver in the
 full classification, and
-the <!-- fig:drivers_practice_only -->53<!-- /fig --> who drove in practice and never
+the <!-- fig:drivers_practice_only -->56<!-- /fig --> who drove in practice and never
 started a race, with the World Champions and the current grid carrying
 full career figures, and the
 complete <!-- fig:season_entries_year -->2026<!-- /fig --> entry list
