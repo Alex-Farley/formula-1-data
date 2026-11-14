@@ -45,11 +45,13 @@ export function ByRoundSpark({ value, rounds, label }) {
     <svg className="spark" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} role="img">
       <title>{label}</title>
       <line className="spark-track" x1="0" x2={layout.width} y1={layout.track} y2={layout.track} />
-      {layout.bars.map((bar) => (
-        <rect key={`b${bar.x}`} className="spark-run" x={bar.x} y={bar.y} width={bar.width} height={bar.height} />
+      {layout.bars.map((bar, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a bar is its place in the round order, never reordered
+        <rect key={`b${i}`} className="spark-run" x={bar.x} y={bar.y} width={bar.width} height={bar.height} />
       ))}
-      {layout.ticks.map((tick) => (
-        <rect key={`t${tick.x}`} className="spark-miss" x={tick.x} y={tick.y} width={tick.width} height={tick.height} />
+      {layout.ticks.map((tick, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: a tick is its place in the round order, never reordered
+        <rect key={`t${i}`} className="spark-miss" x={tick.x} y={tick.y} width={tick.width} height={tick.height} />
       ))}
     </svg>
   )

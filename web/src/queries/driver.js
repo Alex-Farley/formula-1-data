@@ -136,12 +136,17 @@ export const BY_SEASON = `
          -- entry that records its car names it here as on the race page (AF-68).
          group_concat(DISTINCT COALESCE(k.name, e.entrant)) AS teams,
          -- The season's races by round, for its bars (VD-106, charts/spark.js
-         -- byRoundOf): "round:position_text" for every entry, the place or
-         -- the source's own code. A driver has one entry a race.
-         (SELECT group_concat(r2.round || ':' || e2.position_text, ' ')
-            FROM race_entries e2
-            JOIN races r2 ON r2.id = e2.race_id
-           WHERE e2.driver_id = ?1 AND r2.year = r.year) AS by_round,
+         -- byRoundOf): "round:code" for every race entered, the place or the
+         -- source's own code. One pair a race even if a race ever held two
+         -- of a driver's entries, as no race in f1.db does: the better place,
+         -- and the first code where neither was classified.
+         (SELECT group_concat(b.round || ':' || b.code, ' ')
+            FROM (SELECT r2.round,
+                         COALESCE(CAST(MIN(e2.finish_position) AS TEXT), MIN(e2.position_text)) AS code
+                    FROM race_entries e2
+                    JOIN races r2 ON r2.id = e2.race_id
+                   WHERE e2.driver_id = ?1 AND r2.year = r.year
+                   GROUP BY r2.id) b) AS by_round,
          -- The calendar's length, rounds not yet run included, so a season
          -- still running is drawn on the season it is.
          (SELECT MAX(c.round) FROM races c WHERE c.year = r.year) AS rounds

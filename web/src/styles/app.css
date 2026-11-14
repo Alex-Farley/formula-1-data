@@ -1861,8 +1861,9 @@ td.spark svg.spark {
 }
 
 /* A round entered and not classified, on the season-by-season tables'
-   rounds (VD-106): a tick on the line, quieter than a bar and never mistaken
-   for the shortest one, which is three times its height. */
+   rounds (VD-106): a tick on the line, in the bars' own ink (--series-ink is
+   --ink-soft) and told from them by height alone - a pixel, never mistaken
+   for the shortest bar, which is three times as tall. */
 .spark-miss {
   fill: var(--ink-soft);
 }
