@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VD-96: a text serif for prose - the comparison</title>
+<style>
+  body { margin: 0; font: 15px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; color: #1b1d22; background: #eceef1; }
+  .intro { max-width: 760px; padding: 24px 20px 8px; }
+  h1 { font-size: 24px; margin: 0 0 8px; }
+  h2 { font-size: 17px; margin: 20px 0 6px; }
+  p, li { margin: 0 0 8px; }
+  code { font-size: 13px; }
+  .controls { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #ccd; }
+  .controls fieldset { border: 0; margin: 0; padding: 0; display: flex; gap: 4px; align-items: center; }
+  .controls legend { float: left; font-weight: 600; margin-right: 6px; }
+  .controls label { padding: 3px 8px; border: 1px solid #aab; border-radius: 3px; cursor: pointer; background: #f6f7f9; }
+  .controls input { position: absolute; opacity: 0; }
+  .controls input:checked + span { font-weight: 700; }
+  .controls label:has(input:checked) { background: #1b1d22; color: #fff; border-color: #1b1d22; }
+  .controls label:has(input:focus-visible) { outline: 2px solid #2a6ad8; outline-offset: 2px; }
+  .frames { display: flex; gap: 16px; padding: 16px 20px 40px; overflow-x: auto; }
+  .frames.desktop { flex-direction: column; }
+  figure { margin: 0; flex: none; }
+  figcaption { font-weight: 700; margin: 0 0 6px; }
+  figcaption small { font-weight: 400; color: #555; }
+  iframe { display: block; border: 1px solid #aab; background: #fff; width: 400px; height: 1700px; }
+  .desktop iframe { width: 1440px; height: 1000px; }
+</style>
+</head>
+<body>
+<div class="intro">
+  <h1>VD-96 (DR-03): a text serif for prose</h1>
+  <p>The design review of 8 October found every voice on the site in the same
+  condensed sans, with condensed capitals at every heading level, and prose -
+  ledes, notes, where a figure comes from - with no voice of its own. It
+  proposed a roman text serif for that prose, condensed capitals for the h1
+  only, and h2 and below in the words as written. This page sets the two
+  candidates it named beside the site as built, on three real pages, so that
+  one can be chosen before anything is built.</p>
+
+  <h2>What you are looking at</h2>
+  <ul>
+    <li><b>Current</b>: the page as lapledger.org serves it before the app
+      takes over, from a build of <code>main</code> at <code>7d60b10</code>.</li>
+    <li><b>Source Serif 4</b> and <b>Newsreader</b>: the same page with
+      <code>serif.css</code> laid over it. Each column changes the prose
+      face and the heading case and nothing else: the sizes, weights,
+      colours and text widths are the site's own tokens, untouched. At the
+      same size Newsreader sets visibly smaller than Source Serif 4 and Saira;
+      if it is chosen, the build gives its roles a size of their own rather
+      than reading this page as the size it would ship at.</li>
+    <li>In serif: the lede, a note under a heading or a block, a note box, a
+      table's foot, a figure's note, the <i>How it is derived</i> text, a
+      source line, the reading of a recorded disagreement, and the running
+      prose on /data. In Saira still: tiles, tables, labels, pills, photo
+      captions and credits - the label register, which D-62 settled.</li>
+    <li>The page title stays in condensed capitals. Section heads drop the
+      capitals; <i>Section heads</i> below puts them back, to see the face on
+      its own.</li>
+    <li>These are copies: the links do nothing, and the race and driver
+      pages show their opening state, before the app adds what it adds. The
+      race page loads its photographs from Wikimedia Commons.</li>
+  </ul>
+
+  <h2>To decide</h2>
+  <p>Which one: <b>Source Serif 4</b>, <b>Newsreader</b>, or <b>neither</b>
+  (prose stays in Saira, and DR-03 is declined). And, separately: section
+  heads in the words as written, as DR-03 proposes, or kept in capitals.
+  Nothing is built until the item records the choice; the build then sets
+  the chosen face as a token and a font role in <code>tokens.css</code>,
+  writes it into design-system.md section 2 <i>Type</i>, and updates the type tests.</p>
+</div>
+
+<form class="controls" id="controls">
+  <fieldset><legend>Page</legend>
+    <label><input type="radio" name="page" value="race" checked /><span>Race</span></label>
+    <label><input type="radio" name="page" value="driver" /><span>Driver</span></label>
+    <label><input type="radio" name="page" value="data" /><span>/data</span></label>
+  </fieldset>
+  <fieldset><legend>Theme</legend>
+    <label><input type="radio" name="theme" value="light" checked /><span>Light</span></label>
+    <label><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
+  </fieldset>
+  <fieldset><legend>Width</legend>
+    <label><input type="radio" name="width" value="phone" checked /><span>400 px, side by side</span></label>
+    <label><input type="radio" name="width" value="desktop" /><span>1440 px, stacked</span></label>
+  </fieldset>
+  <fieldset><legend>Section heads</legend>
+    <label><input type="radio" name="heads" value="mixed" checked /><span>As written</span></label>
+    <label><input type="radio" name="heads" value="caps" /><span>Capitals</span></label>
+  </fieldset>
+</form>
+
+<div class="frames" id="frames">
+  <figure><figcaption>Current <small>Saira, as built</small></figcaption><iframe data-font="" title="Current"></iframe></figure>
+  <figure><figcaption>Source Serif 4 <small>Adobe, SIL Open Font Licence</small></figcaption><iframe data-font="source-serif" title="Source Serif 4"></iframe></figure>
+  <figure><figcaption>Newsreader <small>Production Type, SIL Open Font Licence</small></figcaption><iframe data-font="newsreader" title="Newsreader"></iframe></figure>
+</div>
+
+<script>
+  const form = document.getElementById('controls')
+  const frames = document.getElementById('frames')
+  function show() {
+    const v = Object.fromEntries(new FormData(form))
+    frames.className = 'frames' + (v.width === 'desktop' ? ' desktop' : '')
+    for (const f of frames.querySelectorAll('iframe')) {
+      const q = new URLSearchParams({ theme: v.theme, heads: v.heads })
+      if (f.dataset.font) q.set('font', f.dataset.font)
+      const src = v.page + '.html?' + q
+      if (f.getAttribute('src') !== src) f.setAttribute('src', src)
+    }
+  }
+  form.addEventListener('change', show)
+  show()
+</script>
+</body>
+</html>

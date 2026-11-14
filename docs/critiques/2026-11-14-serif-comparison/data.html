@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Inline so the tab icon costs no request, and so a browser asking a
+     static host for /favicon.ico does not get a 404. Eight cells of a
+     chequered field, one in accent: the fact that has been checked. The
+     4x4 grid holds to 24px; below that the mark is redrawn 3x3. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='3' fill='%2314161b'/%3E%3Crect width='8' height='8' fill='%23fff'/%3E%3Crect x='16' width='8' height='8' fill='%23fff'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%23fff'/%3E%3Crect x='24' y='8' width='8' height='8' fill='%23fff'/%3E%3Crect y='16' width='8' height='8' fill='%23fff'/%3E%3Crect x='16' y='16' width='8' height='8' fill='%23c81028'/%3E%3Crect x='8' y='24' width='8' height='8' fill='%23fff'/%3E%3Crect x='24' y='24' width='8' height='8' fill='%23fff'/%3E%3C/svg%3E" />
+    <!-- Saira Condensed carries names and figures, Saira the interface and,
+         in its tabular figures, every number that has to line up in a
+         column, and JetBrains Mono machine text only: SQL, code, keys, a URL
+         (VD-91). Google
+         Fonts is the one font host worth a blocking request here; each face
+         declares a real fallback stack in tokens.css for the moment it is not. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Loaded without blocking the first paint. This app is built to be
+         served from any static host and to keep working with the database
+         cached offline, so a third-party stylesheet must never be able to hold
+         the page: the media/onload swap fetches it at low priority, and the
+         fallback stacks in tokens.css carry the design until it lands (or if
+         it never does). Saira is requested at 700 as well because the design
+         uses it and a browser told not to synthesise weight would otherwise
+         collapse every bold rule to 600. -->
+    <link
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=Saira+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=Saira+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      />
+    </noscript>
+    <title>Data — Lap Ledger</title>
+<meta name="description" content="The whole site is one SQLite file, and you can have it. Formula One 1950–2027, v2.26, built 2026-11-09. Every figure is cross-checked against independent sources, with every disagreement and every gap published in the data: a confidence tier on every row, both readings wherever two sources differ, and a register of what nobody has established." />
+    <!-- The database is content-addressed by db-manifest.json and cached in
+         IndexedDB, so warming the connection early is worth a few milliseconds
+         off a cold visit. -->
+    <link rel="stylesheet" crossorigin href="site.css">
+    <link rel="canonical" href="https://lapledger.org/data" />
+    <link rel="alternate" type="application/atom+xml" title="Lap Ledger — what changed" href="https://lapledger.org/feed.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Lap Ledger" />
+    <meta property="og:title" content="Data — Lap Ledger" />
+    <meta property="og:description" content="The whole site is one SQLite file, and you can have it. Formula One 1950–2027, v2.26, built 2026-11-09. Every figure is cross-checked against independent sources, with every disagreement and every gap published in the data: a confidence tier on every row, both readings wherever two sources differ, and a register of what nobody has established." />
+    <meta property="og:url" content="https://lapledger.org/data" />
+    <meta property="og:image" content="https://lapledger.org/share-card.png" />
+    <meta property="og:image:alt" content="Lap Ledger: a chequered field with one cell marked in red" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Data — Lap Ledger" />
+    <meta name="twitter:description" content="The whole site is one SQLite file, and you can have it. Formula One 1950–2027, v2.26, built 2026-11-09. Every figure is cross-checked against independent sources, with every disagreement and every gap published in the data: a confidence tier on every row, both readings wherever two sources differ, and a register of what nobody has established." />
+    <meta name="twitter:image" content="https://lapledger.org/share-card.png" />
+    <meta name="twitter:image:alt" content="Lap Ledger: a chequered field with one cell marked in red" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Dataset","name":"Lap Ledger — Formula One, 1950–2027","description":"Every figure is cross-checked against independent sources, with every disagreement and every gap published in the data: a confidence tier on every row, both readings wherever two sources differ, and a register of what nobody has established.","url":"https://lapledger.org/data","version":"2.26","identifier":"sha256:ecc3ba9aa8efa5885f48086c742f9782e06a47678d4e531058ef62def0a04033","dateModified":"2026-11-09","temporalCoverage":"1950/2027","license":"https://creativecommons.org/licenses/by-sa/4.0/","isAccessibleForFree":true,"creator":{"@type":"Person","name":"Alex Farley","url":"https://lapledger.org/about"},"publisher":{"@type":"Person","name":"Alex Farley","url":"https://lapledger.org/about"},"distribution":[{"@type":"DataDownload","name":"f1.db.gz — the SQLite database, gzipped","contentUrl":"https://lapledger.org/f1.db.gz","encodingFormat":"application/gzip"},{"@type":"DataDownload","name":"f1.db — the SQLite database, uncompressed, from the repository","contentUrl":"https://github.com/Alex-Farley/formula-1-data/raw/main/f1.db","encodingFormat":"application/vnd.sqlite3"},{"@type":"DataDownload","name":"f1-geometry.db — circuit centrelines, © OpenStreetMap contributors, ODbL 1.0","contentUrl":"https://lapledger.org/f1-geometry.db","encodingFormat":"application/vnd.sqlite3","license":"https://opendatacommons.org/licenses/odbl/1-0/"},{"@type":"DataDownload","name":"f1-parquet.zip — every table as Parquet","contentUrl":"https://lapledger.org/f1-parquet.zip","encodingFormat":"application/zip"}]}</script>
+  
+    <!-- VD-96 comparison: the two serif candidates, loaded beside the site's own faces. -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" />
+    <link rel="stylesheet" href="serif.css" />
+    <script src="variant.js"></script>
+  </head>
+  <body>
+    <!-- Filled at build time by scripts/prerender.js, one route at a time: the
+         page's facts as plain HTML, written straight from f1.db.
+
+         It sits OUTSIDE #root on purpose. React never reconciles with it, so
+         there is no hydration contract to keep and no mismatch to warn about;
+         main.jsx simply removes it once the database is open. Until then it is
+         what the reader looks at, which is a better first paint than a
+         progress bar — and if the database never arrives, it is what they keep
+         rather than being left with an error and nothing else.
+
+         In dev this is empty and the app renders as it always did. -->
+    <div id="prerendered">
+<div class="app pre">
+  <a class="skiplink" href="#main">Skip to content</a>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="wordmark" href="/"><span><b>Lap Ledger</b><span>1950–2027 · every championship race</span></span></a>
+      <nav><a href="/seasons">Seasons</a><a href="/races">Races</a><a href="/drivers">Drivers</a><a href="/constructors">Constructors</a><a href="/circuits">Circuits</a><a href="/cars">Cars</a><a href="/records">Records</a><a href="/data">Data</a></nav>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><span class="sep">/</span><span aria-current="page">Data</span></nav>
+    <article class="page"><header><h1>Data</h1><p class="lede">The whole site is one SQLite file, and you can have it. What it is, the files
+        it comes as, how far to trust it, and what you may do with it.</p></header><section class="section">
+      <div role="group" aria-label="At a glance"><dl class="stats" style="--tiles: 5"><div><dt>Database</dt><dd>v2.26<small>meta.version</small></dd></div><div><dt>Built</dt><dd><time datetime="2026-11-09">9 Nov 2026</time><small>meta.built</small></dd></div><div><dt>Covers</dt><dd>1950-2027</dd></div><div><dt>Tables</dt><dd>56<small>and 43 views</small></dd></div><div><dt>Races</dt><dd>1,196<small>27,636 race entries</small></dd></div></dl></div>
+      <p class="measure">Every figure is cross-checked against independent sources, with every disagreement and every gap published in the data: a confidence tier on every row, both readings wherever two sources differ, and a register of what nobody has established.</p>
+      </section><section class="section"><h2>The files</h2>
+      <ul class="cards">
+        <li><a href="/f1.db.gz"><code>f1.db.gz</code></a> — the database, gzipped. One gunzip gives the SQLite file: <code>gunzip f1.db.gz</code>, then open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
+        <li><a href="https://github.com/Alex-Farley/formula-1-data/raw/main/f1.db"><code>f1.db</code></a> — the same file uncompressed, too large for this host to serve: the repository’s current copy, which the next deploy is built from.</li>
+        <li><a href="/f1-geometry.db"><code>f1-geometry.db</code></a> — the circuit centrelines, © OpenStreetMap contributors under ODbL 1.0, in a file of their own.</li>
+        <li><a href="/f1-parquet.zip"><code>f1-parquet.zip</code></a> — every table as Parquet, one file each; pandas, polars and DuckDB read it directly.</li>
+      </ul>
+      <p class="measure">Two files rather than one because distributing them together keeps them a collective database: merging them would pull 117,000 unrelated rows under the centrelines’ share-alike licence. Take both, or you have no geometry and no way to get it. Everything you need to read it is inside it: SELECT sql FROM sqlite_master for the commented schema, SELECT * FROM meta for the version, the build date and what is held, and SELECT * FROM source_registry for the licence of every row.</p>
+      <p class="faint">Two JSON exports — <code>f1_database.json.gz</code>, every table, and
+        <code>f1_compat.json</code>, the original v1 key layout — are written by the same build
+        and travel with each release rather than being served from here.</p>
+      <dl class="fields"><dt>f1.db digest</dt><dd><code>ecc3ba9aa8efa588</code></dd><dt>f1-geometry.db digest</dt><dd><code>3abdfb449dd225b6</code></dd></dl>
+      <p class="source-note">The first sixteen hex digits of each file’s SHA-256, as db-manifest.json carries them. <a href="/SHA256SUMS"><code>SHA256SUMS</code></a>, beside the files themselves, gives the whole of each and names what it covers; it is rewritten on every deploy, and the copies attached to a release are digested by that release’s own list instead.</p>
+      </section><section class="section"><h2>As JSON</h2>
+      <p class="measure">The same data as static JSON, one file per driver, constructor, circuit, season and race weekend, open to any site’s scripts. It is rebuilt with every deploy and carries its licence and version in every file; the index lists the rest.</p>
+      <ul class="cards">
+        <li><a href="/api/v1/index.json"><code>/api/v1/index.json</code></a> — the index: every endpoint, and what the files were written from</li><li><a href="/api/v1/drivers.json"><code>/api/v1/drivers.json</code></a> — the drivers, one row each; then api/v1/drivers/{id}.json</li><li><a href="/api/v1/constructors.json"><code>/api/v1/constructors.json</code></a> — the constructors; then api/v1/constructors/{id}.json</li><li><a href="/api/v1/circuits.json"><code>/api/v1/circuits.json</code></a> — the circuits; then api/v1/circuits/{id}.json</li><li><a href="/api/v1/seasons.json"><code>/api/v1/seasons.json</code></a> — every season; then api/v1/seasons/{year}.json</li><li><a href="/api/v1/races/2026/15.json"><code>/api/v1/races/2026/15.json</code></a> — a race weekend, every session: api/v1/races/{year}/{round}.json</li>
+      </ul>
+      </section><section class="section"><h2>What explains it</h2>
+      <ul class="cards">
+        <li><a href="/schema.sql"><code>schema.sql</code></a> — The schema, commented: every table, every column, and the reasoning behind the ones that need it.</li><li><a href="/ATTRIBUTION.md"><code>ATTRIBUTION.md</code></a> — Where each part of the data came from, what its licence requires, and what that requirement cost or bought.</li><li><a href="/LICENSE-DATA"><code>LICENSE-DATA</code></a> — The terms the data is offered under — CC BY-SA 4.0; CC BY 4.0 for the columns holding this project’s own writing: its reading of each disagreement, its account of each gap and the prose of ten of its twelve reference tables; and CC BY 4.0 for f1-facts.db, the facts alone — and why share-alike rather than something looser.</li>
+      </ul>
+      <p class="measure">The database is served from here, so the documents that explain it are served from here too. <a href="https://github.com/Alex-Farley/formula-1-data">The repository</a> holds the build, the
+        checks that gate it and the source data they read, so the cross-checking claimed above can
+        be read rather than taken on trust.</p>
+      </section><section class="section"><h2>Which ids you may keep</h2>
+      <p class="note">For anyone who keeps an id from one release to join on in the next. The file states its own policy in three rows of its meta table, and this is what they say.</p>
+      <p class="measure">Integer <code>id</code> columns are surrogates, handed out by the build in insert order, and are NOT stable between releases except in the tables named by meta.id_stability_stable. There the maintainers undertake not to renumber them; nothing in the build measures that, because no release is compared with the one before it. Join on the natural keys published in meta.id_stability_keys - a <code>?</code> in one of those marks a column that holds NULL, so join it with IS rather than =. A text id is a natural key and does not move.</p>
+      <dl class="fields"><dt>Stable ids</dt><dd><code>circuit_layouts</code>, <code>pit_stops</code>, <code>qualifying</code>, <code>race_entries</code>, <code>races</code>, <code>season_entrants</code>, <code>sprint_results</code></dd><dt>Natural keys</dt><dd><code>circuit_layouts(circuit_id, layout_key)</code>; <code>discrepancies(key)</code>; <code>known_gaps(key)</code>; <code>pit_stops(race_id, source, driver_key, stop_number)</code>; <code>practice(race_id, session, driver_id)</code>; <code>qualifying(race_id, driver_id)</code>; <code>race_entries(race_id, driver_id)</code>; <code>race_weather_modelled(race_id)</code>; <code>race_weather_reported(race_id)</code>; <code>races(year, round)</code>; <code>records(key)</code>; <code>season_entrants(year, entrant_id, f1db_constructor_id, engine_manufacturer_id)</code>; <code>sprint_qualifying(race_id, driver_id)</code>; <code>sprint_results(race_id, driver_id)</code>; <code>standings(year, table_type, after_round, basis, driver_id, constructor_id, engine_id, source, position_text)</code></dd></dl>
+      <p class="measure">All three are rows of <code>meta</code>: <code>SELECT key, value FROM meta WHERE key LIKE &#39;id_stability%&#39;</code> reads them. The README
+        sets the policy out table by table, under <a href="https://github.com/Alex-Farley/formula-1-data/blob/main/README.md#identifiers">Identifiers</a>.</p>
+      </section><section class="section"><h2>How far to trust it</h2>
+      <div role="group" aria-label="At a glance"><dl class="stats" style="--tiles: 3"><div><dt>Disagreements on record</dt><dd>170<small>84 still open</small></dd></div><div><dt>Open gaps</dt><dd>14<small>and what would close each</small></dd></div><div><dt>Sources</dt><dd>19<small>each with its licence</small></dd></div></dl></div>
+      <p class="measure">The ladder, from the top: <a class="pill pill-verified" href="/data/quality" title="Confidence tier &quot;verified&quot; - what it means, on the quality page">verified</a> <a class="pill pill-high" href="/data/quality" title="Confidence tier &quot;high&quot; - what it means, on the quality page">high</a> <a class="pill pill-reference" href="/data/quality" title="Confidence tier &quot;reference&quot; - what it means, on the quality page">reference</a> <a class="pill pill-medium" href="/data/quality" title="Confidence tier &quot;medium&quot; - what it means, on the quality page">medium</a> <a class="pill pill-unverified" href="/data/quality" title="Confidence tier &quot;unverified&quot; - what it means, on the quality page">unverified</a> <a class="pill pill-catalogued" href="/data/quality" title="Confidence tier &quot;catalogued&quot; - what it means, on the quality page">catalogued</a>. Only an official source — the FIA or formula1.com — carries a row to the top. Where a
+        career total derived from the race records differs from a published one, both are shown.
+        <a href="/data/quality">The full account</a>: the ladder defined, every gap, every
+        disagreement, and the reconciliation that runs on each build.</p>
+      <p class="measure">Career totals are counted from the race records wherever the records can support it, and an em dash means nobody has established that figure — never zero.</p>
+      </section><section class="section"><h2>What you may do with it</h2>
+      <dl class="fields"><dt>Redistributable</dt><dd>8 sources — their rows may be passed on under the licence shown beside them.</dd><dt>Facts only</dt><dd>7 sources — the facts are used; nothing is copied.</dd><dt>Not redistributable</dt><dd>4 sources — on the register so the position is on record; no row may cite one.</dd></dl>
+      <p class="measure" id="not-held">Nobody publishes Formula One race timing under a licence that permits passing it on, so this database holds none of it: lap times, stints, race timing and race control messages ship as four empty tables, on purpose. Everything that is here may be passed on under the licence shown beside it; the pit stops and the qualifying times come from F1DB, whose CC BY 4.0 allows exactly that.</p>
+      <p class="measure">Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0 and
+        carry share-alike; the centrelines are ODbL and the obligation follows
+        <code>f1-geometry.db</code> alone. Most of what this project wrote itself — its reading of
+        every disagreement, its account of every gap and the prose of ten of its twelve reference
+        tables — is CC BY 4.0 and carries no share-alike;
+        <code>meta.project_prose_columns</code> names those columns inside the database.
+        <a href="/data/sources">Every source</a>, what it is
+        trusted for, and what each licence cost or bought.</p>
+      <p class="measure">f1.db as a whole is CC BY-SA 4.0. Its facts are also published alone, as f1-facts.db, under CC BY 4.0 with no share-alike: f1.db less everything that stays share-alike — chiefly the car specifications, circuit layouts and quotations taken from Wikipedia, the prose not granted CC BY 4.0, and the register of Commons photographs — with the race rows that cite a Wikipedia season article rebuilt from F1DB, so that nothing Wikipedia made is in it. It is a release asset published beside f1.db, from the first release after v2.25, rather than a file served from here, and LICENSE-DATA states its terms. <a href="https://github.com/Alex-Farley/formula-1-data/blob/main/tools/facts_artefact.py"><code>tools/facts_artefact.py</code></a>
+        names every table and column it leaves out, and why.</p>
+      <p class="measure">The team livery palette this site draws from 2010 is
+        <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> as well, and carries share-alike:
+        most of its entries adapt the colour tables of Wikipedia&rsquo;s
+        <a href="https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries">Formula One sponsorship liveries</a> article. It is in the site&rsquo;s
+        code, <code>web/src/lib/liveries.js</code>, not in <code>f1.db</code>, and the code around
+        it is MIT.</p>
+      </section><section class="section"><h2>Ask it something</h2>
+      <p class="measure"><a href="/data/sql">The SQL console</a> runs any read against the whole database in your
+        browser &mdash; and a query&rsquo;s address is a link to it.</p>
+      <p class="measure">Where a view exists, start from it. <code>standings</code> keeps a row after every round
+        and more than one source&rsquo;s reading of each, so the obvious query over it answers with the season
+        several times over. <code>v_standings_final</code> folds both away: each season&rsquo;s table as it
+        finished, or as it stands, one source&rsquo;s reading of each entrant. What it does not fold is the constructors&rsquo;
+        championship&rsquo;s own grain &mdash; Cooper-Climax and Cooper-Maserati are two 1960 entries and not
+        one &mdash; so count that side on <code>constructor_id</code> and <code>engine_id</code> together. The
+        console&rsquo;s schema panel prints the commented schema of every table and view, which is where each
+        column says what it means.</p>
+      </section><section class="section"><h2 id="what-leaves">What leaves this tab</h2>
+      <p class="measure">Every page here is a query against one SQLite file, running in this tab: nothing you search for, sort or type is sent as you do it. Four things leave: the address you arrive on, counted once and without cookies by Cloudflare; the photographs, from Wikimedia Commons as you reach them; the fonts, from Google; and, when the home page is open in the week before a race weekend or during it, a request to Open-Meteo for the forecast at the circuit. Moving between pages counts nothing further — but a search, a filter or a SQL statement is kept in the address, so arriving at one of those, by reload or by a link, hands it over with the page. Once it has loaded, this tab keeps working without a network.</p></section><nav class="onward" aria-label="Keep going"><h2>Keep going</h2><div><a href="/data/quality"><b>Data quality</b><span>The ladder, the gaps, the disagreements, the coverage.</span></a><a href="/data/sources"><b>Sources and licences</b><span>Who says so, and what you may reuse.</span></a><a href="/data/sql"><b>SQL console</b><span>Pull the rows you need straight out of the database.</span></a></div></nav></article>
+    <aside class="cite" aria-label="How to cite this page"><p>Cite this page as Lap Ledger, database v2.26 built <time datetime="2026-11-09">9 November 2026</time>, digest ecc3ba9aa8efa588, <span class="url">https://lapledger.org/data</span>. The digest names the exact file the figures came from; a version and a build date alone can name more than one.</p></aside>
+  </main>
+  <footer class="sitefoot"><div class="sitefoot-inner"><div>
+    <p>It all runs in this tab, and nothing you search for is sent as you type it. <a href="/data#what-leaves">What does leave, and when</a>.</p>
+    <p>An em dash is a figure nobody has established, never a zero. <a href="/data/quality">How far to trust it</a> · <a href="/data/sql">write your own query</a> · <a href="/changes">what changed</a> · <a href="/about">who publishes this</a>.</p>
+    <p>Found something wrong? <a href="https://github.com/Alex-Farley/formula-1-data/issues/new?template=report.yml">Report it</a>.</p>
+    <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0), photographs from Wikimedia Commons under the licence shown with each. Circuit outlines from F1DB (CC BY 4.0), drawn by Jules Roy. <a href="/data/sources">Full credits</a>. Unaffiliated with Formula One, the FIA or any team.</p>
+  </div><dl><dt>Database</dt><dd>v2.26</dd><dt>Built</dt><dd><time datetime="2026-11-09">9 Nov 2026</time></dd><dt>Checked</dt><dd><time datetime="2026-11-14">14 Nov 2026</time></dd><dt>Digest</dt><dd><code>ecc3ba9aa8efa588</code></dd></dl></div></footer>
+</div></div>
+    <div id="root"></div>
+    <!-- The one status message that outlives both halves (VD-79, DP-28): the
+         static page and the app each come and go, and a live region inside
+         either is gone at the moment there is something to say. It is here
+         from the first paint, so the sentence lib/handover.js writes into it
+         at the handover is a change a screen reader announces. -->
+    <p id="page-status" class="sr-only" role="status"></p>
+  </body>
+</html>
