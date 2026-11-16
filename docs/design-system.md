@@ -329,7 +329,8 @@ string runs past.
 
 - **Job:** say what this page is, and how to move along a sequence.
 - **Parts:** eyebrow, h1, lede, stepper; on a race page, the weather line
-  between the lede and the stepper.
+  between the lede and the stepper, and the podium under the weather line
+  (§3 *Season cycle*, VD-108).
   - The **eyebrow** is a dateline in the body face, `--size-4` at 500 in
     `--ink-soft`, not a chip of tracked capitals (VD-91). It follows one
     rule: the page type, then the facts that identify the entity, for example *Driver · United Kingdom · born 7
@@ -1034,7 +1035,7 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
-### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); pending: the podium on every race page (VD-108 #1330), and the season plate (VD-109 #1331, VD-115 #1337)
+### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); core: the podium, on home and every race page (VD-108 #1330); pending: the season plate (VD-109 #1331, VD-115 #1337)
 
 Home's season block follows the calendar while the season being run has a
 round to come, in three states worked out from the database and a clock —
@@ -1059,10 +1060,16 @@ AF-133's grid — and these are new:
   none is on record, so colour is never the only cue. Heights are spacing
   tokens. A place held by two entries or by none is not drawn: the panel
   keeps its sentence. Race gaps are not shown: the database holds no
-  race times (AF-157 #1252). **Pending (VD-108 #1330):** every race page's
-  header carries it, each step adding where its driver started (*2nd, from
-  21st*), and the Winner tile leaves the strip. That is its second page, and
-  §8 then promotes it to core.
+  race times (AF-157 #1252). **Core** since its second page (VD-108 #1330,
+  §8 *Promoting*): every race page's header carries it under the weather
+  line, in a round panel labelled *The podium · and where each started*,
+  each step's team line adding where its driver started — *from pole*,
+  *from 21st*, *from the front of the grid* where the driver started first
+  without the pole credit, *from the pit lane*, or *grid not recorded*
+  (`podiumStart` in `queries/race.js`). Where it is drawn the Winner tile
+  leaves the strip; where a place is shared or empty the strip keeps it.
+  One component in each renderer, `components/Podium.jsx` and
+  `podiumHtml()` in `prerender.js`, from `podium()` in `lib/podium.js`.
 - **The season plate** — provisional on the season page (VD-104 #1239
   (c)); pending on home (VD-109 #1331) and a constructor's page (VD-115
   #1337). One component, `SeasonPlate`: a 4 px rule (`--space-2`) in the
@@ -1235,7 +1242,10 @@ citation, is already one system and is kept.
 ### Event pages: race
 
 Race pages follow the entity layout (DP-11): the header, with the weather
-line where one is held (§3, Page header), beside the outline slot; tiles;
+line where one is held (§3, Page header) and under it the podium where one
+can be drawn (§3, *Season cycle*, VD-108; on a phone under the standfirst,
+above the tiles), beside the outline slot; tiles, the Winner tile left out
+where the podium names the winner;
 *On this page* (§3, provisional, IA-30); the classification at full width; Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
 photographs. The page of the next round to run, until its results land,
@@ -1251,9 +1261,7 @@ scroll at tablet width.
 The slot is written after the classification, so below 1180 the outline
 follows the result.
 
-**Pending:** the podium in the header, under the weather line, each step
-with its start slot, and the Winner tile gone from the strip (VD-108 #1330;
-on a phone it stacks under the standfirst, above the tiles); Grid to flag
+**Pending:** Grid to flag
 naming its story, the biggest climb and fall drawn in full ink and labelled
 over a halo, the other lines in `--rule-strong`, with a title that states it
 (VD-113 #1335).

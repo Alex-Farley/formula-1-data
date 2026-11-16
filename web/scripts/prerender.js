@@ -67,6 +67,7 @@ import {
   yearList,
 } from '../src/lib/format.js'
 import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../src/lib/tiles.js'
+import { podiumTeam } from '../src/lib/podium.js'
 import {
   FOLD_LESS,
   FOLD_NOUN,
@@ -395,6 +396,8 @@ import {
   QUALIFYING_LAPS,
   qualifyingColumns,
   raceLede,
+  racePodium,
+  RACE_PODIUM_HEADING,
   raceStrip,
   raceWeather,
   railOf,
@@ -1504,6 +1507,20 @@ const tidy = (path) => path.replace(/\s+/g, ' ').replace(/-?\d+\.\d{3,}/g, (n) =
 // A colour pair as own.js hands it to an element: the two custom
 // properties `.livery-series` resolves per theme, and the class with them.
 const pairStyle = (colour) => esc(`--livery-light: ${colour.light}; --livery-dark: ${colour.dark}`)
+// components/Podium.jsx, on home and in a race's header (AF-135, VD-108):
+// first to third in the markup, stood by app.css.
+const podiumHtml = (list) =>
+  `<ol class="podium" aria-label="${esc(PODIUM_LABEL)}">${list
+    .map(
+      (step) =>
+        `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span> <span class="podium-driver">${
+          step.driver_id ? link(`drivers/${step.driver_id}`, step.driver) : esc(step.driver)
+        }</span> <span class="podium-team muted small">${esc(podiumTeam(step))}</span><span class="${
+          step.colour ? `podium-block livery-series" style="${pairStyle(step.colour)}` : 'podium-block podium-block-none'
+        }" aria-hidden="true"></span></li>`,
+    )
+    .join('')}</ol>`
+
 const ownAttrs = (colour) => (colour ? ` class="livery-series" style="${pairStyle(colour)}"` : '')
 
 // The <svg> every lead plot opens with: the app's viewBox at the width laid
@@ -2770,9 +2787,11 @@ const structure = (body, tail = '') => {
   // figure's own </figure>, which a photograph holds exactly one of.
   // The eyebrow and the livery band are the header's as well (VD-79): Page
   // draws the one above the h1 and takes the other as its aside. So is a
-  // race's weather line (AF-142), which Race.jsx passes in its aside too.
+  // race's weather line (AF-142), which Race.jsx passes in its aside too,
+  // and its podium under that (VD-108), whose wrapper closes on the steps'
+  // own </ol>.
   const head = body.match(
-    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<div class="race-weather">[\s\S]*?<\/div>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
+    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<div class="race-weather">[\s\S]*?<\/div>)?(\s*<div class="race-podium[\s\S]*?<\/ol>\s*<\/div>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
   )
   if (!head) die('prerender: a page body that does not open on an h1')
   return `<article class="page"><header>${head.slice(1).map((part) => part?.trim() ?? '').join('')}</header>${sectioned(
@@ -2868,19 +2887,6 @@ const TITLE = currentTitle(fightRows, META.built)
   const nextStarts = cycle.state === CYCLE.off ? [] : winnerStarts(all(HOME_NEXT_STARTS))
   const nextStartsRows = startsTable(nextStarts)
   const history = Boolean(upcoming?.circuit) && nextStartsRows.some((row) => row.key.startsWith('slot-'))
-
-  // Home.jsx's Podium: first to third in the markup, stood by app.css.
-  const podiumHtml = (list) =>
-    `<ol class="podium" aria-label="${esc(PODIUM_LABEL)}">${list
-      .map(
-        (step) =>
-          `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span> <span class="podium-driver">${
-            step.driver_id ? link(`drivers/${step.driver_id}`, step.driver) : esc(step.driver)
-          }</span> <span class="podium-team muted small">${text(step.constructor)}</span><span class="${
-            step.colour ? `podium-block livery-series" style="${pairStyle(step.colour)}` : 'podium-block podium-block-none'
-          }" aria-hidden="true"></span></li>`,
-      )
-      .join('')}</ol>`
 
   const racePlace = (race) =>
     `<p class="muted small">${[race.circuit ? esc(race.circuit) : null, raceDates(race) ? raceDatesHtml(race) : null].filter(Boolean).join(' \u00b7 ')}</p>`
@@ -3417,6 +3423,9 @@ const seasonsTable = (rows) =>
   // the grid in half.
   const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
   // AF-142: the header's weather line, as Race.jsx's RaceWeather writes it.
+  // Race.jsx's RacePodium (VD-108): the header's podium, under the weather.
+  const racePodiumBlock = (steps) =>
+    steps ? `<div class="race-podium round-panel"><p class="eyebrow">${esc(RACE_PODIUM_HEADING)}</p>${podiumHtml(steps)}</div>` : ''
   const weatherBlock = (weather) =>
     weather
       ? `<div class="race-weather"><p>${
@@ -3552,6 +3561,7 @@ const seasonsTable = (rows) =>
       body: `
         ${opening({ eyebrow: EYEBROWS.race(r.round, neighbours.rounds, r.date_iso), title: headline, lede: standfirst })}
         ${weatherBlock(raceWeather(one(RACE_WEATHER, r.year, r.round)))}
+        ${racePodiumBlock(racePodium(r, entryRows))}
         ${stepperNav(raceSteps(neighbours))}
         <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
         ${onThisPage(

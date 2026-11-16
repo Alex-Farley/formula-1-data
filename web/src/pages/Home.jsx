@@ -10,10 +10,10 @@ import GridStarts from '../charts/GridStarts.jsx'
 import ReachChart from '../charts/ReachChart.jsx'
 import { drawnColours } from '../charts/gridStarts.js'
 import LiveryMark from '../components/LiveryMark.jsx'
+import Podium from '../components/Podium.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { EMPTY, number, raceDates } from '../lib/format.js'
+import { number, raceDates } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
-import { ownColour } from '../charts/own.js'
 import { resultsPending } from '../lib/refresh.js'
 import { NAMES } from '../lib/site.js'
 
@@ -42,7 +42,6 @@ import {
   NEXT_SESSIONS,
   NEXT_STARTS,
   PODIUM,
-  PODIUM_LABEL,
   THIS_WEEKEND,
   homeCycle,
   podium,
@@ -95,36 +94,6 @@ function useClock(every = 60000) {
     return () => clearInterval(id)
   }, [every])
   return clock
-}
-
-/**
- * The last race's top three as steps (AF-135): read first to third, and
- * stood second, first, third by app.css. Each step names its place, driver
- * and team, so the team's colour is never the only cue; a team with no
- * colour on record stands as an outline.
- */
-function Podium({ steps }) {
-  return (
-    <ol className="podium" aria-label={PODIUM_LABEL}>
-      {steps.map((step) => {
-        const own = ownColour(step.colour)
-        return (
-          <li key={step.place} className={`podium-step podium-${step.place}`}>
-            <span className="podium-place">{step.ordinal}</span>{' '}
-            <span className="podium-driver">
-              {step.driver_id ? <Link to={`/drivers/${step.driver_id}`}>{step.driver}</Link> : step.driver}
-            </span>{' '}
-            <span className="podium-team muted small">{step.constructor ?? EMPTY}</span>
-            <span
-              className={own.className ? `podium-block ${own.className}` : 'podium-block podium-block-none'}
-              style={own.style}
-              aria-hidden="true"
-            />
-          </li>
-        )
-      })}
-    </ol>
-  )
 }
 
 /**

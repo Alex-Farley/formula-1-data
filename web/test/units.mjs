@@ -184,6 +184,9 @@ import {
   distanceMethod,
   lapSeconds,
   layoutLength,
+  podiumStart,
+  racePodium,
+  raceStrip,
   practiceBySession,
   practiceColumns,
   qualifyingColumns,
@@ -4638,6 +4641,56 @@ describe('a session gap as a distance on the track (AF-131)', () => {
     } finally {
       db.close()
     }
+  })
+})
+
+describe("the race header's podium (VD-108)", () => {
+  const entry = (finish_position, driver_id, over = {}) => ({
+    finish_position,
+    driver_id,
+    driver: driver_id,
+    constructor_id: 'mclaren',
+    constructor: 'McLaren',
+    constructor_country: null,
+    entrant: null,
+    grid: 4,
+    grid_text: '4',
+    pole: 0,
+    fastest_lap: 0,
+    ...over,
+  })
+  const race = { status: 'completed', year: 2026, circuit_id: 'interlagos', circuit: 'Interlagos' }
+  const three = [entry(1, 'a', { grid: 1, grid_text: '1', pole: 1 }), entry(2, 'b', { grid: 21, grid_text: '21' }), entry(3, 'c', { grid: 5, grid_text: '5' }), entry(4, 'd')]
+
+  it('says where each driver started, a slot or the words for one that is not', () => {
+    assert.equal(podiumStart(entry(1, 'a', { grid: 1, grid_text: '1', pole: 1 })), 'from pole')
+    assert.equal(podiumStart(entry(1, 'a', { grid: 1, grid_text: '1', pole: 0 })), 'from the front of the grid', 'first on the grid without the pole credit (2022 Brazil)')
+    assert.equal(podiumStart(entry(2, 'b', { grid: 21, grid_text: '21' })), 'from 21st')
+    assert.equal(podiumStart(entry(2, 'b', { grid: 12, grid_text: '12' })), 'from 12th')
+    assert.equal(podiumStart(entry(2, 'b', { grid: null, grid_text: 'PL' })), 'from the pit lane')
+    assert.equal(podiumStart(entry(2, 'b', { grid: null, grid_text: null })), 'grid not recorded', 'a slot nobody recorded is not a zero')
+    assert.equal(podiumStart(entry(2, 'b', { grid: 1, grid_text: '8' })), null, 'a slot the source states otherwise says nothing')
+  })
+
+  it('stands the three with their starts, and declines a shared place, a missing one and a round not run', () => {
+    assert.deepEqual(
+      racePodium(race, three).map((s) => [s.ordinal, s.driver, s.constructor, s.start]),
+      [['1st', 'a', 'McLaren', 'from pole'], ['2nd', 'b', 'McLaren', 'from 21st'], ['3rd', 'c', 'McLaren', 'from 5th']],
+    )
+    assert.equal(racePodium(race, [three[0], three[1], three[2], entry(3, 'e')]), null)
+    assert.equal(racePodium(race, [three[0], three[1]]), null)
+    assert.equal(racePodium({ ...race, status: 'scheduled' }, three), null)
+    // The car by carName()'s rule, as the standfirst names it (AF-64).
+    const indy = entry(1, 'parsons', { constructor_id: null, constructor: null, entrant: 'Kurtis Kraft-Offenhauser' })
+    assert.equal(racePodium(race, [indy, three[1], three[2]])[0].constructor, 'Kurtis Kraft-Offenhauser')
+  })
+
+  it('takes the Winner tile out of the strip only where the podium is drawn', () => {
+    const labels = (entries) => raceStrip(race, entries, []).map((t) => t.label)
+    assert.ok(!labels(three).includes('Winner'))
+    assert.ok(labels(three).includes('Pole'))
+    const shared = [three[0], three[1], three[2], entry(3, 'e')]
+    assert.ok(labels(shared).includes('Winner'), 'a declined podium keeps the tile, so the strip still names who won')
   })
 })
 

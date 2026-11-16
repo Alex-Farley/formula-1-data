@@ -51,6 +51,7 @@ import {
   QUALIFYING_FOOTER,
   RACE,
   RACE_HISTORY,
+  RACE_PODIUM_HEADING,
   RACE_SOURCES,
   RACE_WEATHER,
   SHARED_DRIVE_NOTE,
@@ -71,6 +72,7 @@ import {
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
+  racePodium,
   raceStrip,
   raceWeather,
   railOf,
@@ -98,6 +100,7 @@ import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, fightCitat
 import { currentProgress } from '../data/client.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
+import Podium from '../components/Podium.jsx'
 import Figure from '../charts/Figure.jsx'
 import GridFlag from '../charts/GridFlag.jsx'
 import { gridFlagRows, gridFlagShown, undrawnOf } from '../charts/gridFlag.js'
@@ -277,6 +280,19 @@ function RaceWeather({ weather }) {
   )
 }
 
+/* VD-108: the podium in the header, under the weather line, each step with
+   where its driver started; queries/race.js's racePodium() says when there
+   is none, and scripts/prerender.js writes the same block. */
+function RacePodium({ steps }) {
+  if (!steps) return null
+  return (
+    <div className="race-podium round-panel">
+      <p className="eyebrow">{RACE_PODIUM_HEADING}</p>
+      <Podium steps={steps} />
+    </div>
+  )
+}
+
 const sprintRenders = (year) => ({ rail: RAIL, driver: driverLink, constructor: constructorLink(year), status: outTag })
 
 const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
@@ -402,6 +418,7 @@ function RaceBody({ race, data, year, round }) {
       aside={
         <>
           <RaceWeather weather={raceWeather(data.weather.rows[0])} />
+          <RacePodium steps={racePodium(race, entries)} />
           <Stepper {...raceSteps(neighbours)} />
         </>
       }

@@ -690,6 +690,15 @@ main {
   height: var(--space-8);
 }
 
+/* VD-108: a race's podium, in its header under the weather line, at the
+   lede's measure - on a phone under the standfirst and above the tiles,
+   where the header already falls. The panel's rule and label are home's
+   round panel's. */
+.race-podium {
+  margin: var(--space-8) 0 0;
+  max-width: var(--measure);
+}
+
 /* The weekend's sessions, the words the lap stands for: each one's mark as
    the lap draws it, its name, and its start at the line's end, so a start
    written wider in the reader's form than in the static page's moves

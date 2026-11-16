@@ -53,6 +53,7 @@ import {
   PITS_HEADING,
   PIT_ORDER_HEADING,
   PRACTICE_SESSIONS,
+  RACE_PODIUM_HEADING,
   RACE_SOURCES,
   RACE_WEATHER,
   WEATHER_CREDIT,
@@ -4117,7 +4118,9 @@ try {
         how: block?.querySelector('details')?.open,
         credit: block?.querySelector('details p')?.textContent,
         afterLede: block?.previousElementSibling?.className,
-        beforeStepper: block?.nextElementSibling?.className,
+        // The podium stands between the line and the stepper where the race
+        // has one (VD-108), so the line's next block is either.
+        beforeStepper: block?.nextElementSibling?.classList[0],
       }
     })
     const html = await (await fetch(`${BASE}/races/1951/3`)).text()
@@ -4130,7 +4133,11 @@ try {
     is(app.how, false, 'the method is folded')
     is(app.credit, WEATHER_METHOD, 'with the credit inside it in the app')
     is(unescape(staticBlock(html)).includes(WEATHER_METHOD), true, 'and on the static page')
-    is([app.afterLede, app.beforeStepper].join(' '), 'lede stepper', 'the line is the header\'s, between the lede and the stepper')
+    is(
+      [app.afterLede, app.beforeStepper].join(' '),
+      `lede ${one(`SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = 1951 AND r.round = 3 AND e.finish_position BETWEEN 1 AND 3`) === 3 ? 'race-podium' : 'stepper'}`,
+      "the line is the header's, under the lede and over the podium, or the stepper where there is none",
+    )
     truthy(/<header>[\s\S]*race-weather[\s\S]*<\/header>/.test(html.slice(html.indexOf('<article'), html.indexOf('class="section"'))), 'and in the static header too')
     for (const halfHtml of [await page.content(), html]) {
       truthy(unescape(halfHtml).includes('Two sources disagree about this race'), 'the model and the report disagree here, and the box says so in both halves')
@@ -4704,9 +4711,10 @@ try {
      * "Watson-Offenhauser" -- that no constructor row holds, so constructor_id
      * is NULL. carName() in queries/race.js falls back to the entrant, and the
      * claim here is that all four surfaces on the page apply it: the
-     * standfirst, the Winner tile, the classification's Constructor cell and
-     * the static Constructor fact row. Two of the four did and two did not,
-     * so the page named the car above and below a blank (AF-64).
+     * standfirst, the winner's podium step (the Winner tile until VD-108),
+     * the classification's Constructor cell and the static Constructor fact
+     * row. Two of the four did and two did not, so the page named the car
+     * above and below a blank (AF-64).
      */
     const car = one(
       `SELECT e.entrant FROM race_entries e JOIN races r ON r.id = e.race_id
@@ -4716,14 +4724,9 @@ try {
 
     await go('/races/1950/3')
     is(
-      await page.$eval('#root main .stats', (dl) => {
-        const tile = [...dl.querySelectorAll(':scope > div')].find(
-          (el) => el.querySelector('dt')?.textContent === 'Winner',
-        )
-        return tile?.querySelector('dd small')?.textContent ?? ''
-      }),
+      ((await text('#root main .race-podium .podium-1 .podium-team')) ?? '').split(' \u00b7 ')[0],
       car,
-      'the Winner tile names the car under the driver',
+      "the winner's podium step names the car under the driver",
     )
     truthy((await text('#root main .lede')).includes(car), 'and the standfirst names it')
     is(
@@ -4743,6 +4746,71 @@ try {
       car,
       'and the static Constructor fact row names it rather than an em dash',
     )
+  })
+
+  await section('/races/1976/9 and /races/1951/2  (the podium in the header, each step with its start: VD-108)', async () => {
+    /*
+     * A race page opens on its podium, under the weather line, and the
+     * Winner tile leaves the strip - where the podium can be drawn. Where it
+     * cannot, a place held by a shared drive, the strip keeps the tile, so
+     * the opening still names who won. Each step's start is read here off
+     * race_entries in SQL of its own, not through podiumStart(), so the test
+     * is not the rule it checks. The header's parity between the halves is
+     * the "Both renderers draw one page" section's; this reads both anyway
+     * for what that one does not: the strip's tiles.
+     */
+    const expected = (year, round) =>
+      db
+        .prepare(
+          `SELECT e.finish_position AS place, d.full_name AS driver,
+                  CASE WHEN e.grid = 1 AND e.pole = 1 THEN 'from pole'
+                       WHEN e.grid = 1 THEN 'from the front of the grid'
+                       WHEN e.grid IS NOT NULL THEN 'from ' || e.grid ||
+                            CASE WHEN e.grid % 100 BETWEEN 11 AND 13 THEN 'th'
+                                 WHEN e.grid % 10 = 1 THEN 'st' WHEN e.grid % 10 = 2 THEN 'nd'
+                                 WHEN e.grid % 10 = 3 THEN 'rd' ELSE 'th' END
+                       WHEN e.grid_text = 'PL' THEN 'from the pit lane'
+                       ELSE 'grid not recorded' END AS start
+             FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
+            WHERE r.year = ? AND r.round = ? AND e.finish_position BETWEEN 1 AND 3
+            ORDER BY e.finish_position`,
+        )
+        .all(year, round)
+        .map((row) => `${row.place} ${row.driver} ${row.start}`)
+    const read = (root) => ({
+      steps: [...document.querySelectorAll(`${root} article.page > header > .race-podium ol.podium > li`)].map((li) => {
+        const team = li.querySelector('.podium-team')?.textContent ?? ''
+        return `${parseInt(li.querySelector('.podium-place')?.textContent ?? '', 10)} ${li.querySelector('.podium-driver')?.textContent} ${team.split(' · ').at(-1)}`
+      }),
+      label: document.querySelector(`${root} article.page > header > .race-podium > .eyebrow`)?.textContent ?? null,
+      tiles: [...document.querySelectorAll(`${root} dl.stats > div > dt`)].map((dt) => dt.textContent),
+    })
+    const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+    const still = await quiet.newPage()
+    for (const [route, year, round] of [['/races/1976/9', 1976, 9], ['/races/1951/2', 1951, 2]]) {
+      const shared = one(
+        `SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+          WHERE r.year = ? AND r.round = ? AND e.finish_position BETWEEN 1 AND 3`,
+        year,
+        round,
+      ) !== 3
+      await go(route)
+      await still.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      for (const [half, got] of [
+        ['the app', await page.evaluate(read, '#root main')],
+        ['the static page', await still.evaluate(read, '#prerendered')],
+      ]) {
+        if (shared) {
+          is(got.steps.length, 0, `${route}, ${half}: a podium place held by two entries draws no podium`)
+          truthy(got.tiles.includes('Winner'), `${route}, ${half}: and the strip keeps its Winner tile`)
+        } else {
+          is(got.steps.join(' | '), expected(year, round).join(' | '), `${route}, ${half}: the podium stands first to third, each with where the driver started`)
+          is(got.label, RACE_PODIUM_HEADING, `${route}, ${half}: under its label`)
+          truthy(!got.tiles.includes('Winner'), `${route}, ${half}: and the Winner tile has left the strip — ${got.tiles.join(', ')}`)
+        }
+      }
+    }
+    await quiet.close()
   })
 
   await section('/seasons/1950 and /drivers/parsons  (the Indianapolis 500 names its car off the race page too)', async () => {
