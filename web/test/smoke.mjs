@@ -3942,6 +3942,73 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 
+  await section('/records  (the record cards: four to a row from 1180, two from 768, one below, in both halves, every bar inside its card: VD-111)', async () => {
+    /*
+     * docs/design-system.md section 3, *Record card*. The cards were
+     * auto-fill from 240 px and two to a row on a phone; with the comparator
+     * they are on column multiples, as the photo strip is, and one to a row
+     * below 768 so the bars and their figures have the card's width.
+     */
+    const read = (scope) => {
+      const cards = [...document.querySelector(scope).querySelectorAll('ul.record-cards')[0].children]
+      const top = cards[0].getBoundingClientRect().top
+      const out = cards.flatMap((card) => {
+        const edge = card.getBoundingClientRect().right
+        return [...card.querySelectorAll('.record-card-bar, .record-card-value, .record-card-margin')]
+          .filter((part) => part.getBoundingClientRect().right > edge + 0.5 || part.scrollWidth > part.clientWidth + 1)
+          .map((part) => `${card.querySelector('h3').textContent.trim()}: ${part.className}`)
+      })
+      return { row: cards.filter((card) => Math.abs(card.getBoundingClientRect().top - top) < 1).length, bars: document.querySelector(scope).querySelectorAll('.record-card-bar').length, out }
+    }
+    await go('/records', 'Records')
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    await plain.goto(`${BASE}/records`, { waitUntil: 'load' })
+    for (const [width, perRow] of [
+      [1440, 4],
+      [1180, 4],
+      [1179, 2],
+      [768, 2],
+      [767, 1],
+      [320, 1],
+    ]) {
+      await page.setViewportSize({ width, height: 900 })
+      await plain.setViewportSize({ width, height: 900 })
+      for (const [half, got] of [
+        ['the app', await page.evaluate(read, '#root main')],
+        ['the static page', await plain.evaluate(read, '#prerendered main')],
+      ]) {
+        is(got.row, perRow, `/records at ${width}, ${half}: ${perRow} cards to a row`)
+        truthy(got.bars > 0, `/records at ${width}, ${half}: the cards draw their bars (${got.bars})`)
+        is(got.out.join('; '), '', `/records at ${width}, ${half}: every figure, bar and margin stays inside its card`)
+      }
+    }
+    // The holder's bar in the accent and the rest in ink (D-61).
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const fills = await page.evaluate(() => {
+      const probe = (name) => {
+        const el = document.createElement('i')
+        el.style.background = `var(${name})`
+        document.body.append(el)
+        const colour = getComputedStyle(el).backgroundColor
+        el.remove()
+        return colour
+      }
+      const bars = [...document.querySelectorAll('#root main .record-card-bar')]
+      return {
+        mark: probe('--series-mark'),
+        ink: probe('--series-ink'),
+        holder: [...new Set(bars.filter((b) => b.classList.contains('is-holder')).map((b) => getComputedStyle(b.querySelector('i')).backgroundColor))],
+        rest: [...new Set(bars.filter((b) => !b.classList.contains('is-holder')).map((b) => getComputedStyle(b.querySelector('i')).backgroundColor))],
+      }
+    })
+    is(fills.holder.join(' '), fills.mark, '/records: every holder’s bar is in --series-mark')
+    is(fills.rest.join(' '), fills.ink, '/records: every other bar is in --series-ink')
+    truthy(fills.mark !== fills.ink, `/records: and the two differ (${fills.mark}, ${fills.ink})`)
+    await noJs.close()
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
   await section('/races  (the race photographs lead, and say so)', async () => {
     /*
      * PD-64. The race page showed each entered car's article photograph under
@@ -7297,23 +7364,67 @@ try {
       const read = (root) =>
         [...root.querySelectorAll('ul.record-cards > li.record-card')].map((li) => {
           const t = (sel) => li.querySelector(sel)?.textContent.replace(/\s+/g, ' ').trim() ?? ''
+          const bars = li.querySelector('.record-card-bars')
           return [
             t('h3.record-card-name'),
             li.querySelector('h3.record-card-name a')?.getAttribute('href') ?? '',
-            t('.record-card-value'),
+            t('.record-card-value > b'),
+            t('.record-card-value > span'),
             t('.record-card-holder'),
             li.querySelector('.record-card-holder a')?.getAttribute('href') ?? '',
             t('details.record-card-how > p'),
             li.querySelector('details.record-card-how')?.open ? 'open' : 'closed',
             [...li.querySelectorAll('.record-card-extra')].map((p) => p.textContent.replace(/\s+/g, ' ').trim()).join(' / '),
+            // VD-111: the comparator, bar by bar - its name, which bars are
+            // the holder's, each name, figure and share - and the margin.
+            bars?.getAttribute('role') ?? '',
+            bars?.getAttribute('aria-label') ?? '',
+            [...li.querySelectorAll('.record-card-bar')]
+              .map((bar) => `${bar.previousElementSibling?.textContent.trim()}=${bar.textContent.trim()}@${bar.querySelector('i')?.style.getPropertyValue('--share').trim()}${bar.classList.contains('is-holder') ? '*' : ''}`)
+              .join(' / '),
+            t('.record-card-margin'),
           ].join(' | ')
         })
       const app = await page.$eval('#root main', read)
       is(app.length, headlines.length, 'the page leads with the headline records, a card each')
+      // VD-111: the value's leading number set apart, and the rest of the
+      // value beside it, after the unit where the number is value_num.
+      const opened = (r) => {
+        const figure = r.value.match(/^(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?=$|[\s,])/)?.[0] ?? ''
+        const rest = r.value.slice(figure.length).replace(/^,?\s*/, '')
+        const counts = Number(figure.replace(/,/g, '')) === r.value_num
+        return { figure, qualifier: counts ? `${r.unit}${rest ? (r.value.slice(figure.length).startsWith(',') ? ', ' : ' ') + rest : ''}` : rest }
+      }
       truthy(
-        headlines.every((r, i) => app[i]?.startsWith(`${r.record} | /records/${r.key} | ${r.value} | ${r.holder} |`) && app[i].includes(`| ${asShown(r.detail)} | closed |`)),
-        'each card names its record and links its page, then the value, the holder and the derivation, folded',
+        headlines.every((r, i) => {
+          const { figure, qualifier } = opened(r)
+          return figure && app[i]?.startsWith(`${r.record} | /records/${r.key} | ${figure} | ${qualifier} | ${r.holder} |`) && app[i].includes(`| ${asShown(r.detail)} | closed |`)
+        }),
+        'each card names its record and links its page, then its number and the rest of the value, the holder and the derivation, folded',
       )
+      // The comparator on the wins card against the race records themselves:
+      // the holder and the next two drivers by wins, a tie at the third kept,
+      // the holder's bar marked, and the margin the gap to the second.
+      {
+        const winners = db
+          .prepare('SELECT d.full_name, COUNT(*) AS wins FROM race_entries e JOIN drivers d ON d.id = e.driver_id WHERE e.finish_position = 1 GROUP BY e.driver_id ORDER BY wins DESC, d.full_name')
+          .all()
+        const third = winners[2].wins
+        const expected = winners.filter((w, i) => i < 3 || w.wins === third)
+        const card = app[headlines.findIndex((r) => r.key === 'most-wins')] ?? ''
+        const fields = card.split(' | ')
+        const bars = fields.at(-2).split(' / ')
+        is(
+          bars.map((b) => b.replace(/@[\d.]+/, '')).join(' / '),
+          expected.map((w, i) => `${w.full_name}=${w.wins}${i === 0 ? '*' : ''}`).join(' / '),
+          'the wins card draws the holder and the next two by wins, the holder marked',
+        )
+        is(bars[0].match(/@([\d.]+)/)?.[1], '1', 'and the holder’s bar is the longest')
+        const level = winners.filter((w) => w.wins === winners[1].wins).map((w) => w.full_name)
+        const names = level.length < 2 ? level[0] : `${level.slice(0, -1).join(', ')} and ${level.at(-1)}`
+        is(fields.at(-1), `${winners[0].wins - winners[1].wins} clear of ${names}`, 'and says how far clear of the next the holder is')
+        is(fields.at(-4), 'img', 'and the bars are one image to a screen reader')
+      }
       const html = await (await fetch(`${BASE}/records`)).text()
       // The same reader over the served markup, parsed in the page: an
       // expression evaluated by the driver, so the site's CSP has no say.

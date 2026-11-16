@@ -160,6 +160,7 @@ unused.
 | Section head (h2) | `--size-7` 20 |
 | A tile figure | `--size-8` 25 |
 | One hero figure per page | `--size-9`–`--size-11`, by width (VD-84) |
+| A record card's figure, on `/records`, whose numbers are the page | `--size-10` at every width (provisional, VD-111) |
 | Page title | `--size-display` |
 
 **The label register (VD-91, `[D-62]`).** A label, a column head, a count,
@@ -494,6 +495,50 @@ inside it is scaled, until the app redraws it at the width it occupies.
   a page still opens on its tiles with no heading above them. The name is
   `TILE_STRIP_NAME` in `lib/tiles.js`, and §8's test 5 reads it on every
   strip in both halves (VD-88).
+
+### Record card (A) — provisional (VD-111 #1333)
+
+Decided on the 2026-11-13 visual critique
+(`docs/critiques/2026-11-13-visual-design/P11-records-cards-margin.html`).
+`/records`'s headline records, one card each, under a rule (VD-93), never
+a frame.
+
+- **Job:** a record, and how far its holder is clear of the next.
+- **Parts:** the record's name (`--size-4`, semibold, a link to its page);
+  the number the value opens with at `--size-10` in the display face, with
+  the rest of the value beside it as its qualifier at `--size-4`
+  (`cardFigure`: where the number is `value_num`, the unit leads the
+  qualifier, *<n> wins*; where it is not, as an age held in days and
+  written in years, the value's own words do); the holder, a link where
+  there is one; the comparator; the margin; and the derivation folded
+  under *How it is derived*. A value that opens with no number is set
+  whole at the tile's `--size-8`.
+- **The comparator:** the holder's bar and the next two (`COMPARED`), read
+  from the record's own derivation, the *Next:* list that closes it
+  (`cardComparator`), so the card and the derivation it folds cannot
+  disagree. Each name beside its bar and each figure printed at its end;
+  the holder's bar in `--series-mark` and its name semibold in ink, the
+  rest in `--series-ink` (`[D-61]`: the one value the card states). Each
+  bar is its share of the longest; the longest leaves room at its end for
+  a four-figure value. A shared record draws a bar for each holder, all
+  marked; a tie at the third bar is drawn whole. A derivation with no
+  *Next:* list, or one in neither of the build's two forms, draws no
+  comparator rather than a guessed one, and the card keeps its figure and
+  holder.
+- **The margin:** one line in the label register, in ink: *<gap> clear
+  of <the next>*, every runner level at the next figure named, or
+  *Shared; <the next> next on <figure>* for a shared record; none where
+  the holder and the next are level.
+- **Widths:** four to a row from `--bp-desktop`, two from `--bp-tablet`,
+  one below, a `--space-6` apart. Each card keeps its own height (IX-47).
+- **Accessibility:** the bars are one `role="img"` whose name carries every
+  name and figure; the printed figures make the bar never the only cue.
+- **One card drawn by both renderers:** `Records.jsx`'s `RecordCards` and
+  `prerender.js`'s `recordCards`, from the two functions in
+  `queries/records.js`. `smoke.mjs` (*/records*) reads every card's name,
+  figure, qualifier, holder, bars and margin in both halves, and the wins
+  card against the race records; */records (the record cards)* reads the columns, the
+  bars inside their cards from 1440 to 320, and the two fills.
 
 ### Figure, and its `lead` variant (core) — built (VD-80); pending: annotation (VD-121 #1345)
 
@@ -1304,17 +1349,13 @@ record family listed by its own address.
 
 - Records cards align to the top of their row, so opening one derivation
   does not move its neighbours (I8).
+- **A record card sets its number large** (provisional, VD-111 #1333): §3,
+  *Record card*.
 - Registers keep their address contract.
 - `/data` keeps its sub-navigation.
 
 **Pending, records (decided on the 2026-11-13 visual critique):**
 
-- **A record card sets its number large** (VD-111 #1333): the value at
-  `--size-10` in the display face, the rest of the string as a qualifier at
-  `--size-4`, the holder a link, then three bars (the holder in
-  `--series-mark`, the next two in `--series-ink`, values printed), a
-  one-line margin in the label register, and the existing disclosure. Four
-  cards a row from 1180, two from 768, one below.
 - **A record's page is built around its record** (VD-112 #1334, with PD-61
   #796 and VD-104 (a)): the number at twice `--size-11` with the sentence
   that gives it meaning, a strip of the races' outlines that link to them

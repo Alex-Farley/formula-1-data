@@ -1607,12 +1607,15 @@ tbody th.record-derivation {
  * wrapped to six lines and set every row 94-132 px tall at 1440 and 151-228
  * px at 400, so the page a reader quotes from showed two of its twelve
  * records on the first screen at 1440 and none at 400. A card leads with the
- * name, as a tile leads with its label, then the value at the tile's display
- * size and the holder; the derivation is folded away under its heading and
- * printed in full on the record's own page.
+ * name, as a tile leads with its label, then the value's number large with
+ * the rest of the value beside it, the holder and the comparator (VD-111);
+ * the derivation is folded away under its heading and printed in full on the
+ * record's own page.
  *
- * Four to a row at 1440 and two at a phone's width, never one: one card to a
- * row at 400 put the second value below the first screen.
+ * Four to a row from --bp-desktop, two from --bp-tablet and one below
+ * (VD-111), on column multiples as the photo strip is. Two to a row on a
+ * phone held a card to half its width, too narrow for the names and bars of
+ * the comparator the card now carries.
  *
  * Each card keeps its own height (IX-47). The cards of a row used to share
  * it, which lined the closed summaries up, and opening one derivation then
@@ -1623,16 +1626,22 @@ tbody th.record-derivation {
 .record-cards {
   display: grid;
   align-items: start;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
   margin: 0 0 var(--space-7);
   padding: 0;
   list-style: none;
 }
 
-@media (width < 768px) {
+@media (width >= 768px) {
   .record-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1180px) {
+  .record-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* a card grid: four records to the row, the box spanning its column */
   }
 }
 
@@ -1667,19 +1676,96 @@ tbody th.record-derivation {
   text-underline-offset: 3px;
 }
 
+/* The number the value opens with, large, and the rest of it beside it as
+   its qualifier (VD-111). A value with no number to lead with is set whole
+   (.record-card-whole), at the tile's figure size, as every value was. */
 .record-card-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-4);
+}
+
+.record-card-value > b {
   font-family: var(--disp);
-  font-size: var(--size-8);
+  font-size: var(--size-10);
   font-weight: var(--weight-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-card-value > b.record-card-whole {
+  min-width: 0;
+  font-size: var(--size-8);
   line-height: 1.12;
   letter-spacing: -0.005em;
   overflow-wrap: break-word;
 }
 
-.record-card-holder {
-  margin-top: var(--space-2);
+.record-card-value > span {
+  min-width: 0;
   font-size: var(--size-4);
+  line-height: 1.3;
   color: var(--ink-soft);
+}
+
+.record-card-holder {
+  margin-top: var(--space-3);
+  font-size: var(--size-4);
+}
+
+/*
+ * The comparator (VD-111; docs/design-system.md section 3, *Record card*,
+ * provisional): the holder's bar and the next two, each name beside its bar
+ * and each figure printed at the bar's end, the holder's in --series-mark and
+ * the rest in --series-ink (D-61: the one value the card states takes the
+ * accent). One image to a screen reader, its name carrying every figure.
+ */
+.record-card-bars {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr); /* the names as wide as the longest, the bars the rest */
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin-top: var(--space-5);
+  font-size: var(--size-3);
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+.record-card-bars .is-holder {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.record-card-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The longest bar leaves room at its end for a four-figure value and the gap
+   before it, so a figure never runs out of the card: the width is the
+   bar's share of that, not a span. */
+.record-card-bar > i {
+  display: block;
+  flex: none;
+  width: calc(var(--share) * (100% - 3.5em)); /* a comparator bar: its share of the longest */
+  height: var(--space-3);
+  background: var(--series-ink);
+}
+
+.record-card-bar.is-holder > i {
+  background: var(--series-mark);
+}
+
+/* The margin to the next, in the label register and in ink. */
+.record-card-margin {
+  margin-top: var(--space-4);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+  color: var(--ink);
 }
 
 .record-card-name a:hover,
@@ -1718,10 +1804,6 @@ tbody th.record-derivation {
 @media (width < 768px) {
   .record-card {
     padding: var(--space-4) 0 0;
-  }
-
-  .record-card-value {
-    font-size: var(--size-7);
   }
 }
 

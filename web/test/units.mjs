@@ -254,7 +254,9 @@ import { UNRESULTED } from '../src/queries/changes.js'
 import {
   LEADERS_DRAWN,
   asOfOf,
+  cardComparator,
   cardExtras,
+  cardFigure,
   familyAnchor,
   headlineRecords,
   leadersDrawn,
@@ -2130,6 +2132,86 @@ describe('the queries a page and the prerenderer share', () => {
     // The headline cards carry the same two, on the same condition (VD-68).
     assert.deepEqual(cardExtras(shared), [])
     assert.deepEqual(cardExtras([{ ...apart[0], confidence: 'high' }, apart[1]]).map((c) => c.key), ['as_of', 'confidence'])
+  })
+
+  it("sets a record card's number apart from the rest of its value (VD-111)", () => {
+    const card = (value, value_num, unit) => cardFigure({ value, value_num, unit })
+    assert.deepEqual(card('106', 106, 'wins'), { figure: '106', qualifier: 'wins', counts: true })
+    assert.deepEqual(card('7 each', 7, 'titles'), { figure: '7', qualifier: 'titles each', counts: true })
+    assert.deepEqual(card('19 of the 22 races in 2023', 19, 'wins'), { figure: '19', qualifier: 'wins of the 22 races in 2023', counts: true })
+    // A comma after the figure is the sentence's, not a thousands separator.
+    assert.deepEqual(card('10, 2023 Miami Grand Prix to 2023 Italian Grand Prix', 10, 'wins'), {
+      figure: '10',
+      qualifier: 'wins, 2023 Miami Grand Prix to 2023 Italian Grand Prix',
+      counts: true,
+    })
+    assert.deepEqual(card('3,723.5', 3723.5, 'points'), { figure: '3,723.5', qualifier: 'points', counts: true })
+    // An age is held in days and written in years: the figure is the
+    // value's, and its own words say what it counts, not value_num's unit.
+    assert.deepEqual(card('18 years, 228 days, 2016 Spanish Grand Prix', 6802, 'days'), {
+      figure: '18',
+      qualifier: 'years, 228 days, 2016 Spanish Grand Prix',
+      counts: false,
+    })
+    // No number to lead with, or nothing beside one that is not value_num.
+    assert.equal(card('Ferrari', 1, 'titles'), null)
+    assert.equal(card('1958', 1, 'points'), null)
+    assert.equal(card('40.63%', 40.63, 'per cent'), null)
+  })
+
+  it("draws a record card's holder and the next two from its derivation, with the margin (VD-111)", () => {
+    const record = (over) => ({
+      record: 'Most Grand Prix wins',
+      holder: 'Sir Lewis Hamilton',
+      holder_id: 'hamilton',
+      value: '106',
+      value_num: 106,
+      unit: 'wins',
+      detail: 'drivers.wins. Next: Michael Schumacher on 91, Max Verstappen on 74, Sebastian Vettel on 53.',
+      ...over,
+    })
+    const read = (c) => c.bars.map((b) => `${b.label} ${b.figure}${b.holder ? '*' : ''}`)
+    const wins = cardComparator(record())
+    assert.deepEqual(read(wins), ['Sir Lewis Hamilton 106*', 'Michael Schumacher 91', 'Max Verstappen 74'])
+    assert.deepEqual(wins.bars.map((b) => b.share), [1, 0.8585, 0.6981])
+    assert.equal(wins.margin, '15 clear of Michael Schumacher')
+    assert.equal(wins.label, 'Most Grand Prix wins: Sir Lewis Hamilton 106, Michael Schumacher 91, Max Verstappen 74')
+
+    // A shared record draws a bar for each holder, both marked, and says who
+    // is next; a suffixed name is one name.
+    const shared = cardComparator(
+      record({
+        holder: 'Michael Schumacher, Kurt Ahrens, Jr.',
+        holder_id: null,
+        value: '7 each',
+        value_num: 7,
+        detail: 'Next: Juan Manuel Fangio on 5, Alain Prost on 4, Max Verstappen on 4.',
+      }),
+    )
+    assert.deepEqual(read(shared), ['Michael Schumacher 7*', 'Kurt Ahrens, Jr. 7*', 'Juan Manuel Fangio 5'])
+    assert.equal(shared.margin, 'Shared; Juan Manuel Fangio next on 5')
+
+    // A season's form, and a tie at the third bar drawn whole; a margin to two
+    // level runners names both.
+    const season = cardComparator(
+      record({
+        value: '19 of the 22 races in 2023',
+        value_num: 19,
+        detail: 'Next: Max Verstappen 15 (2022), Michael Schumacher 13 (2004), Sebastian Vettel 13 (2013).',
+      }),
+    )
+    assert.deepEqual(read(season), ['Sir Lewis Hamilton 19*', 'Max Verstappen 2022 15', 'Michael Schumacher 2004 13', 'Sebastian Vettel 2013 13'])
+    assert.equal(cardComparator(record({ detail: 'Next: A on 91, B on 91, C on 74.' })).margin, '15 clear of A and B')
+    assert.equal(cardComparator(record({ value: '3,723.5', value_num: 3723.5, detail: 'Next: A on 3098.' })).margin, '625.5 clear of A')
+
+    // No comparator rather than a guessed one: no list, a list in another
+    // form or with an item that fits neither, an age, or nothing to scale.
+    assert.equal(cardComparator(record({ detail: 'Every completed championship race in date order.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: Michael Schumacher 21 years, 92 days, Kimi Raikkonen 20 years, 283 days.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: A on 91, B with Ferrari 72.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: A on 91. And a sentence after it.' })), null)
+    assert.equal(cardComparator(record({ value: '18 years, 228 days', value_num: 6802, unit: 'days', detail: 'Next: A on 6900.' })), null)
+    assert.equal(cardComparator(record({ value: '0', value_num: 0, detail: 'Next: A on 0.' })), null)
   })
 
   it('draws a leaderboard to fifteen, and keeps a tie at the cut whole (VD-68)', () => {
