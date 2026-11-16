@@ -193,9 +193,11 @@ export function cardFigure(row) {
   const counts = asNumber(m[1]) === row.value_num
   const rest = tail.replace(/^,?\s*/, '')
   if (counts) {
-    const unit = row.unit ?? ''
+    // A value that already names its unit ('1,234 points') is not given it
+    // twice.
+    const unit = row.unit && !rest.startsWith(row.unit) ? row.unit : ''
     // '10, 2023 Miami Grand Prix to ...' keeps its comma after the unit.
-    const qualifier = !tail ? unit : !unit ? rest : tail.startsWith(',') ? `${unit}${tail}` : `${unit} ${rest}`
+    const qualifier = !tail ? row.unit ?? '' : !unit ? rest : tail.startsWith(',') ? `${unit}${tail}` : `${unit} ${rest}`
     return { figure: m[1], qualifier, counts }
   }
   return rest ? { figure: m[1], qualifier: rest, counts } : null
@@ -218,8 +220,34 @@ function listItems(text) {
 // that fits neither, gives no comparator rather than a guessed one.
 const NEXT_FORMS = [
   [new RegExp(`^(.+) on (${NUM})$`), (m) => ({ label: m[1], figure: m[2] })],
-  [new RegExp(`^(.+) (${NUM}) \\((\\d{4})\\)$`), (m) => ({ label: `${m[1]} ${m[3]}`, figure: m[2] })],
+  [new RegExp(`^(.+) (${NUM}) \\((\\d{4})\\)$`), (m) => ({ label: `${m[1]} ${m[3]}`, figure: m[2], season: true })],
 ]
+
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * The holder's bars where the runners are seasons ('Max Verstappen 15
+ * (2022)'), each labelled with its own season as they are: from the
+ * derivation's 'Max Verstappen, 2023: 19 of 22', one bar for each season it
+ * names a holder in - a shared record held twice by one driver draws both -
+ * or, for one holder the derivation does not name so, the one year the value
+ * gives ('575, 2023'). Null where a holder's season cannot be found: a bar
+ * that compares a driver with seasons is not drawn.
+ */
+function seasonHolders(row, holders, figure) {
+  const before = row.detail.slice(0, row.detail.lastIndexOf('Next: '))
+  const bars = []
+  for (const holder of holders) {
+    let years = [...before.matchAll(new RegExp(`(?:^|[\\s.;:])${escapeRe(holder)}, (\\d{4}):`, 'g'))].map((m) => m[1])
+    if (!years.length && holders.length === 1) {
+      const inValue = row.value.slice(figure.length).match(/\b\d{4}\b/g) ?? []
+      years = inValue.length === 1 ? inValue : []
+    }
+    if (!years.length) return null
+    for (const year of years) bars.push(`${holder} ${year}`)
+  }
+  return bars
+}
 
 /**
  * The rows a record's derivation names after its holder, from the 'Next:'
@@ -230,6 +258,10 @@ export function nextList(detail) {
   const at = (detail ?? '').lastIndexOf('Next: ')
   if (at < 0) return null
   const text = detail.slice(at + 'Next: '.length).replace(/\.$/, '')
+  // A sentence after the list ('Next: A on 5. B on 3.') would otherwise read
+  // as a runner named 'A on 5. B': a full stop after a figure or a bracket
+  // ends the list, and the list is then not one the card can read.
+  if (/[\d)]\.\s/.test(text)) return null
   const items = listItems(text)
   for (const [form, read] of NEXT_FORMS) {
     const matched = items.map((item) => form.exec(item))
@@ -262,7 +294,8 @@ const decimals = (figure) => (figure.split('.')[1] ?? '').length
  *
  * `bars` are [{ label, figure, holder, share }], `share` the bar's length
  * against the longest, 0 to 1. A shared record (no holder_id) draws a bar for
- * each holder, all marked; past COMPARED the rest are cut as throughTies()
+ * each holder, all marked; where the runners are seasons, each holder's bar
+ * is its season too (seasonHolders), or there are no bars; past COMPARED the rest are cut as throughTies()
  * cuts, so a tie at the third bar is drawn whole. `margin` says how far clear
  * the holder is of the next, or, for a shared record, who is next on what;
  * null where the two are level. `label` is the bars' accessible name, every
@@ -277,7 +310,9 @@ export function cardComparator(row) {
   if (!figure?.counts) return null
   const next = nextList(row.detail)
   if (!next?.length) return null
-  const holders = row.holder_id ? [row.holder] : listItems(row.holder)
+  const named = row.holder_id ? [row.holder] : listItems(row.holder)
+  const holders = next[0].season ? seasonHolders(row, named, figure.figure) : named
+  if (!holders) return null
   const top = holders.map((label) => ({ label, figure: figure.figure, value: row.value_num, holder: true }))
   const bars = [...top, ...throughTies(next, Math.max(0, COMPARED - top.length)).map((r) => ({ ...r, holder: false }))]
   const longest = Math.max(...bars.map((b) => b.value))

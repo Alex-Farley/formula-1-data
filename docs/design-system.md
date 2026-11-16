@@ -521,7 +521,9 @@ a frame.
   rest in `--series-ink` (`[D-61]`: the one value the card states). Each
   bar is its share of the longest; the longest leaves room at its end for
   a four-figure value. A shared record draws a bar for each holder, all
-  marked; a tie at the third bar is drawn whole. A derivation with no
+  marked; where the runners are seasons (*Max Verstappen 2022*), the
+  holder's bar names its season too, or the card draws no bars; a tie at
+  the third bar is drawn whole. A derivation with no
   *Next:* list, or one in neither of the build's two forms, draws no
   comparator rather than a guessed one, and the card keeps its figure and
   holder.
