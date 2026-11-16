@@ -19,7 +19,7 @@ import { EMPTY, missing, number, points, raceDates, roundResult, text } from '..
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { carName } from './race.js'
-import { colourForEntry } from '../lib/liveries.js'
+import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 
 export const SEASON = `
   SELECT s.*, d.full_name AS champion, t.name AS champion_team_name, t.country AS champion_team_country,
@@ -1004,7 +1004,7 @@ export function crownedTitles({ season, year, remaining, standings, rounds, afte
     const round = counted && !missing(afterRound) ? clinchRound(title, kind, id) : null
     const race = (rounds ?? []).find((r) => r.round === round)?.name_used
     const at = race ? `, clinched at the ${race} (round ${number(round)})` : ''
-    return { id, line: `${name} is the ${year} ${honour}${at}.` }
+    return { id, round: race ? round : null, line: `${name} is the ${year} ${honour}${at}.` }
   }
   const drivers = crowned('drivers', season?.drivers_champion, season?.champion, 'World Champion')
   const constructors = crowned(
@@ -1456,18 +1456,84 @@ const position = (value, row) => text(value ?? row.position)
 const behind = (value) => (missing(value) || value === 0 ? EMPTY : points(value))
 const won = (value) => (missing(value) ? EMPTY : number(value))
 
+// `has-bar` on Points: the cell carries the figure and the bar beside it, its
+// head over the figure rather than right-aligned to the cell's edge (VD-110).
+// Below 768 px Wins is the column that goes, as the phone set says, and the
+// bar stacks under its figure.
 export const DRIVERS_FINAL_COLUMNS = [
-  { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
+  { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results', phone: true },
   { key: 'entity', rowHeader: true, label: 'Driver' },
   { key: 'wins', label: 'Wins', align: 'num', text: won },
-  { key: 'points', label: 'Points', align: 'num', text: points },
-  { key: 'gap', label: 'Gap', align: 'num', text: behind },
+  { key: 'points', label: 'Points', align: 'num', cellClass: 'has-bar', text: points, phone: true },
+  { key: 'gap', label: 'Gap', align: 'num', text: behind, phone: true },
 ]
+
+// The bar beside each total (VD-110), said once and printed under both
+// standings tables, by both renderers.
+export const BAR_FOOTER =
+  "Each bar is a total against the leader's, in the colour of the mark beside the name, or in ink where there is none."
 
 export const DRIVERS_FINAL_FOOTER =
   'A driver with points and no position was excluded from the classification: the points stand, the position does not. ' +
   'Wins are counted from the race records, and a shared drive is a win for both of its drivers. ' +
-  GAP_FOOTER
+  `${GAP_FOOTER} ${BAR_FOOTER}`
+
+/*
+ * THE LEADER IN THE ROW, AND A BAR IN THE POINTS (VD-105, VD-110).
+ *
+ * A standings table's leader is marked in its own row rather than read from
+ * the tiles above it: DataTable's `leader` and prerender's option of the same
+ * name take this predicate, and both write lib/table.js's LEADER class on the
+ * row. The table ranks by position, so the leader is every row at P1: a
+ * place two rows share at the top marks both, never the first one sorted,
+ * and a level total split by countback marks the one the source placed
+ * first, which is what the position says. A row nobody placed is no leader.
+ */
+export const standingsLeader = (row) => row.position === 1
+
+/**
+ * The pill on the champion's row (VD-110), or null: the leader whose id is
+ * the season's recorded champion, and, where crownedTitles() names the round
+ * the title was clinched at, that round - "champion · settled R19". A
+ * leader who is not yet champion has the row's mark and no pill, since
+ * "leads" says nothing position 1 does not. A constructor's two engines are
+ * two rows, and only the one at P1 is the champion's.
+ */
+export function championPill(kind, row, season, crowned) {
+  if (!standingsLeader(row)) return null
+  const id = kind === 'drivers' ? row.driver_id : row.constructor_id
+  const champion = kind === 'drivers' ? season?.drivers_champion : season?.constructors_champion
+  if (missing(id) || id !== champion) return null
+  const held = crowned?.[kind]
+  return held?.id === id && Number.isInteger(held.round) ? `champion · settled R${held.round}` : 'champion'
+}
+
+/**
+ * Each total as a share of the leader's, for the bar beside it (VD-110):
+ * a function of a row's points, null where the points are not held or no
+ * leader has a total above nought to measure against. The leader's total is
+ * the one the Gap column measures from, the highest a classified row holds;
+ * a share is held to 0 to 1, so an excluded row can never draw past the
+ * leader's bar, and rounded so the two renderers write one value.
+ */
+export function pointsShare(rows) {
+  const held = rows.filter((r) => !missing(r.position) && typeof r.points === 'number').map((r) => r.points)
+  const top = held.length ? Math.max(...held) : null
+  return (value) =>
+    typeof value !== 'number' || !(top > 0) ? null : Number(Math.min(1, Math.max(0, value / top)).toFixed(4))
+}
+
+/**
+ * The colour beside a standings row and in its bar, and the mark's tooltip:
+ * a driver's last team of the season (DRIVER_TEAMS through lastTeamColour(),
+ * which names every team where there was more than one), a constructor's own
+ * (colourForEntry()). Both renderers read it.
+ */
+export function standingsColour(kind, row, year, teams) {
+  if (kind === 'drivers') return lastTeamColour(teams.get(row.driver_id), year)
+  const colour = colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: row.entity })
+  return { colour, title: colour?.title }
+}
 
 /** "McLaren mercedes" where the championship is contested by a chassis–engine pair. */
 export const constructorEntity = (name, row) => (row.engine_id ? `${text(name)} ${row.engine_id}` : text(name))
@@ -1475,7 +1541,7 @@ export const constructorEntity = (name, row) => (row.engine_id ? `${text(name)} 
 export const CONSTRUCTORS_FINAL_COLUMNS = [
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'entity', rowHeader: true, label: 'Constructor', text: constructorEntity },
-  { key: 'points', label: 'Points', align: 'num', text: points },
+  { key: 'points', label: 'Points', align: 'num', cellClass: 'has-bar', text: points },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },
 ]
 
@@ -1491,7 +1557,9 @@ export const CONSTRUCTORS_GAP_FOOTER = GAP_FOOTER
  * pair's wins cannot be told apart without asserting something no source does.
  */
 export const constructorsFooter = (ambiguous) =>
-  ambiguous ? `${CONSTRUCTORS_GAP_FOOTER} ${CONSTRUCTORS_PAIR_FOOTER}` : CONSTRUCTORS_GAP_FOOTER
+  ambiguous
+    ? `${CONSTRUCTORS_GAP_FOOTER} ${CONSTRUCTORS_PAIR_FOOTER} ${BAR_FOOTER}`
+    : `${CONSTRUCTORS_GAP_FOOTER} ${BAR_FOOTER}`
 
 /**
  * What stands where a constructors' table would, and why it is empty (CD-32).

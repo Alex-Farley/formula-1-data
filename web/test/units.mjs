@@ -136,6 +136,9 @@ import {
   outSince,
   reachFigures,
   teamAvailable,
+  championPill,
+  pointsShare,
+  standingsLeader,
 } from '../src/queries/season.js'
 import { reachLayout, reachText } from '../src/charts/reachChart.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
@@ -5156,5 +5159,46 @@ describe('the outline as a thumbnail, the circuits won at and the season plate (
     assert.equal(next({ next: '2021/6', next_outline: null }).outline, null)
     const circuit = ONWARD.circuit({ races: [{ year: 2021, round: 5, name_used: 'Monaco GP', status: 'completed', outline: 'M9' }], winners: [] })
     assert.equal(circuit.items.filter(Boolean)[0].outline, 'M9')
+  })
+})
+
+describe('the leader in the row and a bar in the points (VD-105, VD-110)', () => {
+  it('marks every row at P1, so a shared place at the top marks both and a countback the one placed first', () => {
+    const rows = [
+      { position: 1, points: 30 },
+      { position: 1, points: 30 },
+      { position: 3, points: 30 },
+      { position: null, points: 40 },
+    ]
+    assert.deepEqual(rows.map(standingsLeader), [true, true, false, false])
+  })
+
+  it('names the champion on their own row, with the round only where it was worked out', () => {
+    const season = { drivers_champion: 'antonelli', constructors_champion: 'mercedes' }
+    const row = { position: 1, driver_id: 'antonelli', constructor_id: 'mercedes' }
+    const crowned = { drivers: { id: 'antonelli', round: 19 }, constructors: { id: 'mercedes', round: null } }
+    assert.equal(championPill('drivers', row, season, crowned), 'champion · settled R19')
+    assert.equal(championPill('constructors', row, season, crowned), 'champion', 'no round worked out, no round named')
+    assert.equal(championPill('drivers', row, season, undefined), 'champion', 'a concluded season')
+    assert.equal(championPill('drivers', { ...row, position: 2 }, season, crowned), null, 'only the leader')
+    assert.equal(championPill('drivers', row, { drivers_champion: null }, crowned), null, 'a leader who is not yet champion')
+    assert.equal(championPill('drivers', { ...row, driver_id: null }, { drivers_champion: null }, crowned), null, 'no id is nobody')
+    assert.equal(championPill('drivers', row, season, { drivers: { id: 'russell', round: 19 } }), 'champion', "another's round is not theirs")
+  })
+
+  it("measures each total against the highest a classified row holds, from 0 to 1", () => {
+    const share = pointsShare([
+      { position: 1, points: 390 },
+      { position: 2, points: 279 },
+      { position: null, points: 400 },
+      { position: 3, points: null },
+    ])
+    assert.equal(share(390), 1)
+    assert.equal(share(279), 0.7154)
+    assert.equal(share(400), 1, 'an excluded total never draws past the leader')
+    assert.equal(share(0), 0)
+    assert.equal(share(null), null, 'a total not held draws no bar')
+    assert.equal(pointsShare([{ position: 1, points: 0 }])(0), null, 'nothing to measure against')
+    assert.equal(pointsShare([])(10), null)
   })
 })

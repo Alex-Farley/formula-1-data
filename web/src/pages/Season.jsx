@@ -14,9 +14,10 @@ import LineChart from '../charts/LineChart.jsx'
 import ReachChart from '../charts/ReachChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
-import { coverageYears, number } from '../lib/format.js'
-import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
+import { coverageYears, number, points } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
+import ValueBar from '../components/ValueBar.jsx'
 import Photographs from '../components/Photographs.jsx'
 import SeasonPlate from '../components/SeasonPlate.jsx'
 import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, SPRINT } from '../lib/site.js'
@@ -56,14 +57,18 @@ import {
   WON_HERE,
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
+  championPill,
   constructorsFooter,
   entrantNames,
   latestRound,
   nextLine,
   noConstructorsNote,
+  pointsShare,
   seasonLede,
   seasonSources,
+  standingsColour,
   standingsHeading,
+  standingsLeader,
   stillRunning,
   teamsByDriver,
   REACH_HEADING,
@@ -123,8 +128,12 @@ const calendarRenders = (year) => ({
  * The colour mark beside a name in the two standings tables: the team's
  * livery from 2010, the national racing colour before 1968, nothing between
  * (lib/liveries.js). A driver's mark is their last team of the season, from
- * DRIVER_TEAMS through lastTeamColour(), which the driver page reads too; the
- * tooltip names every team where there was more than one.
+ * DRIVER_TEAMS through standingsColour(), which scripts/prerender.js reads
+ * too; the tooltip names every team where there was more than one.
+ *
+ * The same colour draws the bar beside each total, scaled to the leader's
+ * (VD-110), and the champion's row carries championPill()'s words beside the
+ * name. Both are queries/season.js's, so the static table draws them alike.
  */
 /*
  * A standings position sorts on the number: `position_text` is the source's
@@ -135,37 +144,36 @@ const calendarRenders = (year) => ({
 const POSITION_SORT = { position_text: { sort: (row) => row.position } }
 const STANDINGS_OPENING = { key: 'position_text', direction: 'asc' }
 
-const driversRenders = (year, teams) => ({
-  ...POSITION_SORT,
-  entity: {
-    render: (name, row) => {
-      const { colour, title } = lastTeamColour(teams.get(row.driver_id), year)
-      return (
-        <>
-          <LiveryMark colour={colour} title={title} year={year} />
-          {row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name)}
-        </>
-      )
+const standingsRenders = (kind, rows, { year, teams, season, crowned }) => {
+  const share = pointsShare(rows)
+  return {
+    ...POSITION_SORT,
+    entity: {
+      render: (name, row) => {
+        const { colour, title } = standingsColour(kind, row, year, teams)
+        const id = kind === 'drivers' ? row.driver_id : row.constructor_id
+        const pill = championPill(kind, row, season, crowned)
+        // A constructors' row can be a chassis-engine pair, and says which.
+        const engine = kind === 'constructors' ? row.engine_id : null
+        return (
+          <>
+            <LiveryMark colour={colour} title={title} year={year} />
+            {id ? <Link to={`/${kind}/${id}`}>{name}</Link> : cell(name)}
+            {engine ? ' ' : ''}
+            {engine ? <span className="tag tag-id">{engine}</span> : null}
+            {pill ? ' ' : ''}
+            {pill ? <span className="pill pill-champion">{pill}</span> : null}
+          </>
+        )
+      },
     },
-  },
-})
-
-const constructorsRenders = (year) => ({
-  ...POSITION_SORT,
-  entity: {
-    render: (name, row) => {
-      const colour = colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: name })
-      return (
-        <>
-          <LiveryMark colour={colour} year={year} />
-          {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
-          {row.engine_id ? ' ' : ''}
-          {row.engine_id ? <span className="tag tag-id">{row.engine_id}</span> : null}
-        </>
-      )
+    points: {
+      render: (value, row) => (
+        <ValueBar figure={points(value)} share={share(value)} colour={standingsColour(kind, row, year, teams).colour} />
+      ),
     },
-  },
-})
+  }
+}
 
 /*
  * The grid: the driver links to their page, a seat that is not a race seat
@@ -474,8 +482,15 @@ function SeasonBody({ year, season, data }) {
       />
     </Section>
   )
+  // What the standings rows are drawn from beside their figures: the colours,
+  // and the champion's pill, which names the round a title was clinched at
+  // only where the answer above worked it out (LV-15).
+  const marking = { year, teams, season, crowned: answer?.crowned }
+  // One table above the other, each the full width, as the static page has
+  // always drawn them: a total's bar needs the room (VD-110), and a table
+  // never sits beside a column that clips it (docs/design-system.md, *Table*).
   const standingsSection = (
-    <div className="split">
+    <>
       <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
         <DataTable
           unfolded={UNFOLDED.subject}
@@ -484,7 +499,8 @@ function SeasonBody({ year, season, data }) {
           sortable
           opening={STANDINGS_OPENING}
           page={40}
-          columns={withRenders(DRIVERS_FINAL_COLUMNS, driversRenders(year, teams))}
+          leader={standingsLeader}
+          columns={withRenders(DRIVERS_FINAL_COLUMNS, standingsRenders('drivers', driversFinal, marking))}
           footer={DRIVERS_FINAL_FOOTER}
           // "No rows here." is true of a season nobody has raced and says
           // nothing about it; the reason is the whole of what the page has
@@ -506,12 +522,13 @@ function SeasonBody({ year, season, data }) {
             sortable
             opening={STANDINGS_OPENING}
             page={40}
-            columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, constructorsRenders(year))}
+            leader={standingsLeader}
+            columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, standingsRenders('constructors', constructorsFinal, marking))}
             footer={constructorsFooter(ambiguous)}
           />
         )}
       </Section>
-    </div>
+    </>
   )
 
   return (

@@ -157,6 +157,15 @@ export const PHONE = '(width < 768px)'
 /** The class on a column the phone default leaves out. */
 export const WIDE_ONLY = 'wide-only'
 
+/**
+ * The class on a row its table marks as its leader (VD-105): DataTable's
+ * `leader` and prerender's option of the same name take a predicate from the
+ * page's queries module and write this on every row it holds for, so a tie
+ * at the top marks each of the rows tied. app.css draws it (docs/design-system.md
+ * section 3, *Table*).
+ */
+export const LEADER = 'is-leader'
+
 /** The columns a table opens on where nobody has chosen. */
 export const defaultColumns = (columns) => columns.filter((column) => column.optional !== true)
 
