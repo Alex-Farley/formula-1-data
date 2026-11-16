@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Confidence, FigurePart, Note, OnThisPage, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -47,7 +47,9 @@ import {
   TITLES,
   asOfLine,
   asOfOf,
+  cardComparator,
   cardExtras,
+  cardFigure,
   constructorWinsNote,
   decadeCount,
   decadeFigureTitle,
@@ -105,19 +107,49 @@ const withApp = (columns, app) => columns.map((column) => ({ ...column, ...app[c
  * six lines, so a row stood 94-132 px tall at 1440 and the page showed two of
  * its twelve records on the first screen. Each record's own page carries the
  * derivation in full. scripts/prerender.js writes the same markup.
+ *
+ * VD-111: the value is its number, large, with the rest of it beside it
+ * (cardFigure), and under the holder the holder's bar and the next two with
+ * the margin to the next (cardComparator), read from the record's own
+ * derivation. The bars are one image with every figure in its name; each
+ * figure is printed beside its bar too, so the bar is never the only cue.
  */
 function RecordCards({ rows, extras }) {
   return (
     <ul className="record-cards">
       {rows.map((row) => {
         const path = holderPath(row)
+        const figure = cardFigure(row)
+        const compared = cardComparator(row)
         return (
           <li key={row.id} className="record-card">
             <h3 className="record-card-name">
               <Link to={`/${recordPath(row)}`}>{row.record}</Link>
             </h3>
-            <p className="record-card-value">{row.value}</p>
+            <p className="record-card-value">
+              {figure ? (
+                <>
+                  <b>{figure.figure}</b> <span>{figure.qualifier}</span>
+                </>
+              ) : (
+                <b className="record-card-whole">{row.value}</b>
+              )}
+            </p>
             <p className="record-card-holder">{path ? <Link to={`/${path}`}>{row.holder}</Link> : row.holder}</p>
+            {compared && (
+              <div className="record-card-bars" role="img" aria-label={compared.label}>
+                {compared.bars.map((bar, i) => (
+                  <Fragment key={i}>
+                    <span className={bar.holder ? 'is-holder' : undefined}>{bar.label}</span>
+                    <span className={bar.holder ? 'record-card-bar is-holder' : 'record-card-bar'}>
+                      <i style={{ '--share': bar.share }} />
+                      {bar.figure}
+                    </span>
+                  </Fragment>
+                ))}
+              </div>
+            )}
+            {compared?.margin && <p className="record-card-margin">{compared.margin}</p>}
             {extras.map((column) => (
               <p key={column.key} className="record-card-extra">
                 {column.label}: {column.key === 'confidence' ? <Confidence value={row.confidence} /> : row[column.key]}

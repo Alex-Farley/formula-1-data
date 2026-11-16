@@ -709,7 +709,9 @@ import {
   TITLES,
   asOfLine,
   asOfOf,
+  cardComparator,
   cardExtras,
+  cardFigure,
   decadeCount,
   decadeFigureTitle,
   decadeLeaders,
@@ -4769,14 +4771,30 @@ page({
   const headline = headlineRecords(records)
   const families = recordFamilies(records)
   const extras = cardExtras(records)
-  // The cards, as Records.jsx's RecordCards draws them.
+  // The cards, as Records.jsx's RecordCards draws them: the figure large with
+  // its qualifier, and the holder's bar and the next two with the margin
+  // under them (VD-111), from the same two functions.
   const recordCards = (rows) =>
     `<ul class="record-cards">${rows
       .map((row) => {
         const path = holderPath(row)
-        return `<li class="record-card"><h3 class="record-card-name">${link(recordPath(row), row.record)}</h3><p class="record-card-value">${esc(
-          row.value,
-        )}</p><p class="record-card-holder">${path ? link(path, row.holder) : esc(row.holder)}</p>${extras
+        const figure = cardFigure(row)
+        const compared = cardComparator(row)
+        const value = figure ? `<b>${esc(figure.figure)}</b> <span>${esc(figure.qualifier)}</span>` : `<b class="record-card-whole">${esc(row.value)}</b>`
+        const bars = compared
+          ? `<div class="record-card-bars" role="img" aria-label="${esc(compared.label)}">${compared.bars
+              .map(
+                (bar) =>
+                  `<span${bar.holder ? ' class="is-holder"' : ''}>${esc(bar.label)}</span><span class="record-card-bar${
+                    bar.holder ? ' is-holder' : ''
+                  }"><i style="--share: ${bar.share}"></i>${esc(bar.figure)}</span>`,
+              )
+              .join('')}</div>`
+          : ''
+        const margin = compared?.margin ? `<p class="record-card-margin">${esc(compared.margin)}</p>` : ''
+        return `<li class="record-card"><h3 class="record-card-name">${link(recordPath(row), row.record)}</h3><p class="record-card-value">${value}</p><p class="record-card-holder">${
+          path ? link(path, row.holder) : esc(row.holder)
+        }</p>${bars}${margin}${extras
           .map(
             (c) =>
               `<p class="record-card-extra">${esc(c.label)}: ${c.key === 'confidence' ? confidencePill(row.confidence) : esc(row[c.key])}</p>`,
