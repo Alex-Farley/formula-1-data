@@ -1572,7 +1572,7 @@ describe('what the pages send, and to whom (PD-0)', () => {
    */
   const HOSTS = {
     // load
-    'fonts.googleapis.com': ['load', 'the stylesheet for Saira and JetBrains Mono, non-blocking in index.html'],
+    'fonts.googleapis.com': ['load', 'the stylesheet for Saira, Source Serif 4 and JetBrains Mono, non-blocking in index.html'],
     'fonts.gstatic.com': ['load', 'the font files that stylesheet names'],
     'static.cloudflareinsights.com': ['load', 'the Web Analytics beacon, one count per arrival (PD-0)'],
     // Named only by the content security policy (scripts/headers.js), which
@@ -2102,11 +2102,11 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     '.schema-list .cols': "a table's column names, as SQL writes them", '.schema-list .ddl pre': 'DDL',
     '.tag-id': 'an engine id beside its team, as the database stores it',
   }
-  const DISPLAY_CAPS = {
-    '.wordmark b': 'the wordmark', '.page h1': 'the page title', '.section > h2': 'a section head',
-    '.session-sheets > summary': 'set as the section heads around it', '.carcard-body h3': "a car's name, a heading",
-    '.lapcard b': "a circuit's name on its card, a heading",
-  }
+  // A section head, the session sheets' summary set as one, and a car's and a
+  // circuit's name on its card left this list in VD-96 (DR-03): condensed
+  // capitals are the page title's, and every heading under it is in the words
+  // as written. The wordmark is the site's name, not a heading.
+  const DISPLAY_CAPS = { '.wordmark b': 'the wordmark', '.page h1': 'the page title' }
   it('monospace is set only on machine text, and caps and tracking only on display headings (VD-91)', () => {
     const rules = [...app.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selectors: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), body: m[2] }))
     const mono = []
@@ -2140,6 +2140,43 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     assert.deepEqual(stale, [], 'declared machine text, and no longer set in monospace: take it out of MACHINE')
     const staleCaps = Object.keys(DISPLAY_CAPS).filter((s) => !capsSeen.has(s))
     assert.deepEqual(staleCaps, [], 'declared a display heading in capitals, and no longer set in them: take it out of DISPLAY_CAPS')
+  })
+
+  // VD-96 (DR-03). The text serif is prose's voice: the sentences a reader
+  // reads rather than scans. A label, a tile, a table, a pill, a control and
+  // a heading stay in Saira, and a register creeps across one rule at a
+  // time, so every rule that sets the serif names a role declared here.
+  const PROSE = {
+    '.lede': "a page's lede", '.section > .note': "a section's intro", 'p.note': 'a note under a block',
+    '.note-box': 'a note box', '.table-foot > span': "a table's source line, not the controls beside it",
+    '.table-how p': 'how a column is derived', '.figure-note': "a figure's note", '.source-note': 'a source line',
+    '.disagreement-why': "a recorded disagreement's reading", 'p.measure': 'running text at the measure, as on /data',
+    'p.faint': 'a faint line of running text: the footer credit, a caveat', '.livery-band span': 'the sentence under a livery band',
+  }
+  it('the text serif is set only on prose, and never on a heading (VD-96)', () => {
+    const rules = [...app.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selectors: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), body: m[2] }))
+    // The token or the generic keyword; sans-serif is not it.
+    const SERIF = /(?:^|[;\s])font(?:-family)?\s*:[^;]*(?:var\(--serif\)|(?<![-\w])serif\b)/
+    const off = []
+    const seen = new Set()
+    for (const { selectors, body } of rules) {
+      if (!SERIF.test(body)) continue
+      for (const selector of selectors) {
+        seen.add(selector)
+        if (!(selector in PROSE)) off.push(selector)
+      }
+    }
+    assert.deepEqual(off, [], `the serif on what is not prose:\n  ${off.join('\n  ')}\nA label, a control or a heading is Saira; a prose role is declared in PROSE with what it is.`)
+    const stale = Object.keys(PROSE).filter((s) => !seen.has(s))
+    assert.deepEqual(stale, [], 'declared prose, and no longer set in the serif: take it out of PROSE')
+    const heads = Object.keys(PROSE).filter((s) => /\bh[1-6]\b|summary/.test(s) || s in DISPLAY_CAPS)
+    assert.deepEqual(heads, [], 'a heading declared as prose')
+    // A pill inside a source line is a label still: it names its face rather
+    // than inheriting the line's.
+    const pill = rules.find((r) => r.selectors.includes('.pill'))
+    assert.ok(pill && /font-family\s*:\s*var\(--sans\)/.test(pill.body), '.pill sets the label face, var(--sans), so a pill in prose is not set in the serif')
+    // The token names the face chosen, and only that one serif.
+    assert.match(tokens, /--serif:\s*'Source Serif 4',/, '--serif leads with Source Serif 4, the face the maintainer chose on #928')
   })
 
   it('each scale ascends, and neighbouring type sizes are at least 9% apart', () => {

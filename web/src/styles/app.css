@@ -499,10 +499,10 @@ main {
   margin: var(--space-9) 0 0;
 }
 
+/* A section head is in the words as written: condensed capitals are the page
+   title's alone (VD-96, DR-03). */
 .section > h2 {
   font-size: var(--size-7);
-  text-transform: uppercase;
-  letter-spacing: 0.035em;
   margin: 0 0 var(--space-1);
   display: flex;
   align-items: baseline;
@@ -515,7 +515,6 @@ main {
   font-size: var(--size-3);
   font-weight: var(--weight-medium);
   letter-spacing: 0;
-  text-transform: none;
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -555,8 +554,6 @@ main {
   font-weight: var(--weight-bold);
   font-size: var(--size-7);
   line-height: 1.1;
-  text-transform: uppercase;
-  letter-spacing: 0.035em;
 }
 
 .session-sheets > summary .count {
@@ -564,8 +561,6 @@ main {
   font-family: var(--sans);
   font-size: var(--size-3);
   font-weight: var(--weight-medium);
-  letter-spacing: 0;
-  text-transform: none;
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -2182,6 +2177,7 @@ tbody th.strong {
 .pill {
   display: inline-block;
   text-decoration: none; /* a pill is a link now, and the only underlined one would be odd */
+  font-family: var(--sans); /* the label register, inside a line of prose too (VD-96) */
   font-size: var(--size-2);
   font-weight: var(--weight-medium);
   padding: var(--space-1) var(--space-3);
@@ -2273,6 +2269,25 @@ tbody th.strong {
 }
 
 /* ------------------------------------------------------------ prose bits */
+
+/* The prose voice (VD-96, DR-03): the sentences a reader reads rather than
+   scans are set in the text serif, at the sizes their own rules give them.
+   A table's foot is its source line, the span, not the controls beside it.
+   Every selector here is declared in conventions.mjs (PROSE), and anything
+   else that sets the serif fails there. */
+.lede,
+.section > .note,
+p.note,
+.note-box,
+.table-foot > span,
+.table-how p,
+.figure-note,
+.source-note,
+.disagreement-why,
+p.measure,
+p.faint {
+  font-family: var(--serif);
+}
 
 /* A note box has one edge, its left rule, so the box and its lines end
    together at the measure: a column line from --bp-desktop. */
@@ -4401,7 +4416,7 @@ figure.figure > .figure-note:first-child {
 .livery-band span {
   display: block;
   margin-top: var(--space-3);
-  font-family: var(--sans);
+  font-family: var(--serif);
   font-size: var(--size-4);
   line-height: 1.5;
   letter-spacing: 0;
@@ -4492,8 +4507,6 @@ figure.figure > .figure-note:first-child {
   font-family: var(--disp);
   font-size: var(--size-7);
   font-weight: var(--weight-bold);
-  letter-spacing: 0.005em;
-  text-transform: uppercase;
   margin: 0;
   line-height: 1.05;
 }
@@ -4585,8 +4598,6 @@ figure.figure > .figure-note:first-child {
   font-family: var(--disp);
   font-size: var(--size-5);
   font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
   line-height: 1.1;
 }
 

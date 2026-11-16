@@ -136,7 +136,7 @@ role and not a number:
 | Between a livery mark and its name: in a table cell, where nothing precedes the mark | `--space-4` (8) after it, `.livery` |
 | Around a livery mark in a sentence, after a word (**provisional**, VD-45) | `--space-2` (4) on each side, `.livery-prose` (`LiveryMark`'s `prose`), so the word space before it makes that gap the larger and the mark reads as the name's; the mark and the name sit in one `.livery-prose-pair`, so a line never breaks between them |
 
-### Type — built: the scale and the middle register (VD-84), and the label register (VD-91)
+### Type — built: the scale and the middle register (VD-84), the label register (VD-91), and the prose voice and heading case (VD-96)
 
 The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
@@ -169,9 +169,30 @@ case, as the confidence tiers are stored (*verified*, *high*). Monospace is mach
 URL, an id shown as stored, like an engine's beside its team), and a figure in a column lines up in Saira's
 own tabular figures (`.num`), not in a second face; a tile's figure keeps
 the display face. Caps and tracking belong to the
-display face, on headings. `--size-1` (10 px) is retired, and nothing is set
+display face, on the page title (VD-96, below). `--size-1` (10 px) is retired, and nothing is set
 under 11 px; its number is left as a hole so that `--size-2` to `--size-11`
 keep their names. `conventions.mjs` holds all three (§8, test 16).
+
+**The prose voice (VD-96, DR-03, `[D-66]`).** Prose is set in a text serif,
+`--serif` (Source Serif 4): the sentences a reader reads rather than scans,
+which are a page's lede, a section's intro and a note under a block, a note
+box, a table's source line in its footer band (the line, not the controls
+beside it), how a column is derived, a figure's note, a source line, a
+recorded disagreement's reading, the sentence under a livery band, and
+running text at the measure and in faint, as on `/data` and in the footer's
+credit. Each keeps the size, weight, ink and measure its own rule gives it:
+at the scale's steps Source Serif 4 holds Saira's colour, so the face
+changed and the scale did not. Labels, tiles, tables, pills, controls, a
+photograph's caption and credit, and headings stay in Saira; a pill inside a line of prose
+names the label face rather than taking the line's. `conventions.mjs` holds
+the list (`PROSE`) and refuses the serif anywhere else (§8, test 18).
+
+**Heading case (VD-96, `[D-66]`).** Condensed capitals are the page
+title's: the h1 stays in them, and a section head (h2), the session sheets'
+summary set as one, a car's name on its card (h3) and a circuit's on its
+card are in the words as written, in the display face, untracked. The
+wordmark, the site's name rather than a heading, keeps them; `DISPLAY_CAPS`
+declares the two.
 
 **A box's heading — pending (VD-119 #1341).** The disagreement box's
 heading is an h2 set at `--size-4` in the display face, the smallest
@@ -1495,7 +1516,7 @@ The system is held by tests, not by memory.
 VD-78: 1, 2, 3, 4, 8 and 9. Built in VD-79: 5 and 10. Built in VD-80: 6.
 Built in VD-81: 7. Built in CD-57: 11. Built in VD-82: 12. Built in
 VD-83: 13. Built in VD-84: 14. Built in VD-86: 4's reading order, and 15.
-Built in VD-91: 16. Built in VD-93: 17.
+Built in VD-91: 16. Built in VD-93: 17. Built in VD-96: 18.
 
 1. **Widths are spans.** Every `width`, `max-width` and
    `grid-template-columns` in `app.css` is a `--span-*`, `--measure*`,
@@ -1596,6 +1617,13 @@ Built in VD-91: 16. Built in VD-93: 17.
     radius or shadow, and all but the onward routes draw a rule above
     themselves; home's rounds and conventions are not `.panel`s in either
     renderer (`conventions.mjs`, VD-93).
+18. **One prose voice.** Every rule in `app.css` that sets the text serif,
+    by token or keyword, names a prose role declared in `PROSE`, which
+    refuses an entry that no longer applies and any heading; `.pill` names
+    the label face, so a pill in a line of prose keeps it; and `--serif`
+    leads with the face chosen (`conventions.mjs`, VD-96). Both renderers
+    share the stylesheet, so the static page and the app agree by
+    construction.
 
 ### How a change to the system is made
 
@@ -1689,3 +1717,9 @@ was "very boring"; the annotation pattern in §3 *Figure* is that answer.
 **A team-mate from the same team takes that team's second livery colour**
 `[D-65]`. The critique and the approved mockups are
 `docs/critiques/2026-11-13-visual-design.md` and the folder beside it.
+
+The maintainer's ruling on VD-96 (#928), 2026-11-16, from the side-by-side
+comparison in `docs/critiques/2026-11-14-serif-comparison/`: **Source Serif
+4 for prose**, chosen over Newsreader and over leaving prose in Saira, and
+**section heads in the words as written**, the page title staying in
+capitals `[D-66]`.
