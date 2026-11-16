@@ -846,8 +846,9 @@ PD-56's). One question asked of a race: when the field stopped.
     where the row sorts to.
   - **The champion's pill.** The leader whose id is the season's recorded
     champion carries a hairline pill in ink beside the name, *champion*,
-    and *champion · settled R19* where the title was clinched with rounds
-    to run and the arithmetic names the round (`championPill`). A leader
+    and, in a season still running, *champion · settled R19* where the
+    title was clinched with rounds to run and the arithmetic names the
+    round (`championPill`); a season that has ended reads *champion*. A leader
     not yet champion has the row's mark and no pill. Below 768 px it takes
     a line of its own under the name.
   - **The value bar.** The subject column (a season's Points, `has-bar`)

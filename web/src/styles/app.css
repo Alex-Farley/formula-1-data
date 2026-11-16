@@ -1763,17 +1763,21 @@ tbody tr.is-highlight th {
  * The leader in the row (VD-105, VD-110; docs/design-system.md section 3,
  * *Table*, provisional). A standings table's P1 is marked where it is read,
  * not in a card above the table: an ink rule above the row and below it,
- * and the row's words semibold in ink. The rule above is the row's own
- * border in ink; the one below is an inset shadow, so it is drawn whether
- * or not a row follows, as on a table sorted with the leader last. Both
- * renderers write the class from one predicate (lib/table.js LEADER).
+ * and the row's words semibold in ink. Both rules are inset shadows, not
+ * borders: the one below is drawn whether or not a row follows, as on a
+ * table sorted with the leader last, and the one above survives a table
+ * that fits its box, which clears its first row's top border once the app
+ * has measured it (.table-wrap[data-fits] above), so the leader's row,
+ * first in the default sort, keeps its rule at the handover. Both renderers
+ * write the class from one predicate (lib/table.js LEADER).
  */
 tbody tr.is-leader td,
 tbody tr.is-leader th {
   font-weight: var(--weight-semibold);
   color: var(--ink);
-  border-top-color: var(--ink);
-  box-shadow: inset 0 -1px 0 var(--ink);
+  box-shadow:
+    inset 0 1px 0 var(--ink),
+    inset 0 -1px 0 var(--ink);
 }
 
 /* The champion's pill beside the name on that row: the hairline pill, its

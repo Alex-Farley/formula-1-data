@@ -6340,6 +6340,10 @@ try {
         shares: rows.map((r) => (bar(r) ? Number(bar(r).style.getPropertyValue('--share')) : null)),
         coloured: rows.filter((r) => r.querySelector('.value-bar > i.livery-series')).length,
         weight: lead ? getComputedStyle(lead.querySelector('th[scope="row"]')).fontWeight : null,
+        // The ink rules above and below the leader's row, as two inset
+        // shadows: a table that fits its box clears its first row's top
+        // border in the app, so a border would vanish at the handover.
+        rules: lead ? getComputedStyle(lead.querySelector('th[scope="row"]')).boxShadow : null,
         drawn: first ? first.getBoundingClientRect().width : 0,
         wins: wins ? getComputedStyle(wins).display : null,
         // On a phone the bar stacks under its figure.
@@ -6372,6 +6376,8 @@ try {
           is(app.leaders.length, leaders, `${where}: the app marks every row at P1 as the leader, and no other`)
           is(flat.leaders.join(' | '), app.leaders.join(' | '), `${where}: the static page marks the same rows`)
           is(app.weight, '600', `${where}: the leader's row is semibold`)
+          is((app.rules ?? '').match(/inset/g)?.length ?? 0, 2, `${where}: the leader's row has a rule above and below it (${app.rules})`)
+          is(flat.rules, app.rules, `${where}: the static page draws the leader's rules as the app does`)
           is(app.shares.filter((v) => v !== null).length, totals, `${where}: a bar beside every total held`)
           is(flat.shares.join(','), app.shares.join(','), `${where}: the static bars are the app's shares`)
           is(Math.max(...app.shares.filter((v) => v !== null)), 1, `${where}: the leader's total is the whole of the scale`)
