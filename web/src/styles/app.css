@@ -1760,6 +1760,103 @@ tbody tr.is-highlight th {
 }
 
 /*
+ * The leader in the row (VD-105, VD-110; docs/design-system.md section 3,
+ * *Table*, provisional). A standings table's P1 is marked where it is read,
+ * not in a card above the table: an ink rule above the row and below it,
+ * and the row's words semibold in ink. The rule above is the row's own
+ * border in ink; the one below is an inset shadow, so it is drawn whether
+ * or not a row follows, as on a table sorted with the leader last. Both
+ * renderers write the class from one predicate (lib/table.js LEADER).
+ */
+tbody tr.is-leader td,
+tbody tr.is-leader th {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  border-top-color: var(--ink);
+  box-shadow: inset 0 -1px 0 var(--ink);
+}
+
+/* The champion's pill beside the name on that row: the hairline pill, its
+   line and its words in ink, as the row is. Below 768 px it takes a line of
+   its own under the name. Two classes, as .pill is declared further down
+   and would otherwise draw its own hairline over this one. */
+.pill.pill-champion {
+  margin-left: var(--space-2);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/*
+ * A figure with a bar beside it (VD-110; section 3, *Table*, provisional):
+ * a standings total and its share of the leader's, the bar in the row's
+ * pair as a chart series wears it (.livery-series) or in ink where there is
+ * none (D-61). The figure is the cell's text and always printed, so the bar
+ * is never the only cue. The head sits over the figures, at the cell's left,
+ * not at its right edge, where the bars run.
+ */
+tbody td.has-bar,
+tbody th.has-bar,
+thead th.has-bar {
+  text-align: left;
+}
+
+th.num.sortable.has-bar button {
+  justify-content: flex-start;
+}
+
+/* The column a bar needs to run in: without a width of its own the cell is
+   as wide as its figure, and a bar sized in a share of the cell has nothing
+   to be a share of. Two fifths of the table, the approved mockup's. */
+thead th.has-bar {
+  width: 40%; /* the column a value bar runs in */
+}
+
+.value-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* The figures right-aligned over each other in a box of one width, about a
+   four-figure total's - a width in the figure's own em, not a span. */
+.value-bar > span {
+  min-width: 2.6em; /* a four-figure total, so the figures align */
+  text-align: right;
+}
+
+/* The leader's bar is four fifths of the cell, so the longest leaves room
+   beside its figure: the width is the share of that, not a span. */
+.value-bar > i {
+  display: block;
+  flex: none;
+  width: calc(var(--share) * 80%); /* a value bar: its share of the leader's */
+  height: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--series-ink);
+}
+
+.value-bar > i.livery-series {
+  background: var(--livery);
+}
+
+@media (width < 768px) {
+  .value-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .value-bar > span {
+    text-align: left;
+  }
+
+  .pill.pill-champion {
+    display: table;
+    margin: var(--space-2) 0 0;
+  }
+}
+
+/*
  * The result rail.
  *
  * A classification is the one table where the shape of the result should read

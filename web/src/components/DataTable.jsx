@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import {
   FOLD_LESS,
   FOLD_TO,
+  LEADER,
   PHONE,
   UNFOLDED,
   WIDE_ONLY,
@@ -125,6 +126,12 @@ import TakeAway from './TakeAway.jsx'
  *     fails on; scripts/prerender.js refuses the same table outright. Opening
  *     the fold moves focus to the first row it revealed, so a keyboard reader
  *     is not left on a summary thousands of pixels below the rows (DP-29).
+ *
+ * `leader` is a predicate over a row from the page's queries module, and
+ * every row it holds for is marked as the table's leader - lib/table.js's
+ * LEADER class, which app.css draws and scripts/prerender.js writes from the
+ * same predicate (VD-105). It is a property of the row, not of where the row
+ * sorts to: a reader who re-sorts the table still finds the leader marked.
  *
  * `remember` keeps the sort and the expansion in the address, keyed by the
  * table's name (VD-82, IX-46): see Table below. It is on unless a table has
@@ -285,6 +292,7 @@ function Table({
   empty = 'No rows here.',
   rowKey,
   highlight,
+  leader,
   page = PAGE,
   sortable = true,
   fold = false,
@@ -754,7 +762,10 @@ function Table({
               {visible.map((row, i) => (
                 <tr
                   key={rowKey ? rowKey(row, i) : i}
-                  className={highlight?.(row) ? 'is-highlight' : undefined}
+                  className={
+                    [highlight?.(row) ? 'is-highlight' : null, leader?.(row) ? LEADER : null].filter(Boolean).join(' ') ||
+                    undefined
+                  }
                 >
                   {arranged.map((column) => {
                     const Cell = column.rowHeader ? 'th' : 'td'

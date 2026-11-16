@@ -675,7 +675,7 @@ PD-56's). One question asked of a race: when the field stopped.
 - **Placement:** its own section, *Pit stops*, below the classification and
   qualifying; who stopped first between neighbours follows under an h3.
 
-### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), and column groups and a picture in a row at the reference density (VD-106 #1248); pending: a value bar and the leader in the row (VD-110 #1332), and the season calendar fitting its box (VD-116 #1338)
+### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), column groups and a picture in a row at the reference density (VD-106 #1248), and a value bar and the leader in the row (VD-110 #1332, VD-105 #1247); pending: the season calendar fitting its box (VD-116 #1338)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -759,8 +759,8 @@ PD-56's). One question asked of a race: when the field stopped.
 
   `smoke.mjs` (*Dense rows from 1180 px*) reads a register, a
   classification, a driver's seasons and a season's standings at 1440 and
-  1,024 in both halves. Not yet built of DR-07: the leader marked inside
-  the table (VD-105 #1247).
+  1,024 in both halves. DR-07's other half, the leader marked inside the
+  table, is *a value bar, and the leader in the row* below (VD-105 #1247).
 - **Column groups** (provisional, VD-106 #1248, DR-07). A wide reference
   table names which of its figures belong together in a row of heads above
   the column heads: a label over each run of neighbouring columns that share
@@ -827,16 +827,47 @@ PD-56's). One question asked of a race: when the field stopped.
   in both halves, their classification and qualifying sheets (*the
   classification and the qualifying sheets fit their box*).
 
-**A value bar, and the leader in the row — pending (VD-110 #1332, with
-VD-105 #1247 and VD-106 #1248).** Decided on the 2026-11-13 visual critique
-(`docs/critiques/2026-11-13-visual-design/P10-season-standings-designed.html`).
-A table's subject column (a season's Points) carries its figure and an
-inline bar in the row's team colour, scaled to the leader's total; the team
-mark stays beside the name. The leader's row is marked in the row itself:
-an ink rule above and below, semibold type and a hairline pill, never a
-card above the table. Below 768 px a secondary column hides and the bar
-stacks under its figure. The figure is always printed, so the bar is never
-the only cue.
+- **A value bar, and the leader in the row** (provisional, VD-110 #1332
+  and VD-105 #1247). Decided on the 2026-11-13 visual critique
+  (`docs/critiques/2026-11-13-visual-design/P10-season-standings-designed.html`).
+  A season's two standings tables are the first users, each at the full
+  width, one above the other, as the static page always drew them: the
+  bars need the room, and side by side the drivers' Points column had
+  room for little more than its figures.
+  - **The leader in the row.** A table marks its leader in the row itself,
+    never in a card above it: an ink rule above the row and below it, and
+    the row's words semibold in ink (`tr.is-leader`, lib/table.js's
+    `LEADER`). A column list's page passes a predicate from its queries
+    module - DataTable's `leader`, prerender's option of the same name - so
+    both halves mark the same rows. A standings table ranks by position, so
+    its leader is every row at P1: a place shared at the top marks both
+    rows, never the first one sorted, and a level total split on countback
+    marks the row the source placed first. It belongs to the row, not to
+    where the row sorts to.
+  - **The champion's pill.** The leader whose id is the season's recorded
+    champion carries a hairline pill in ink beside the name, *champion*,
+    and *champion · settled R19* where the title was clinched with rounds
+    to run and the arithmetic names the round (`championPill`). A leader
+    not yet champion has the row's mark and no pill. Below 768 px it takes
+    a line of its own under the name.
+  - **The value bar.** The subject column (a season's Points, `has-bar`)
+    carries its figure and a bar beside it, the figure's share of the
+    leader's total, the highest a classified row holds, held to 0 to 1
+    (`pointsShare`), the leader's bar four fifths of the cell. The bar is
+    in the row's colour worn as a chart series wears it (`.livery-series`,
+    the pair held to 3:1), or in ink where none is on record (D-61: a table
+    in liveries takes no accent). The mark stays beside the name. The figure
+    is the cell's whole text and always printed, so the bar is never the
+    only cue and the table still copies as data; the table's source line
+    says how to read the bar. Below 768 px Wins goes (the phone set) and the
+    bar stacks under its figure; the table still scrolls there, as every
+    table does.
+
+  `smoke.mjs` (*the leader in the row and a bar in the points, in both
+  halves*) reads 2026, 1997 and 1958 at 1440 and 375 in both halves: the
+  rows marked against the database's P1, a bar for each total held with
+  the same shares, the pill on the champion's row, the colours or ink, and
+  Wins and the stacking on a phone.
 
 **The season calendar fits its box — pending (VD-116 #1338).** At 1440 the
 2026 calendar overflows by 55 px and clips *Fastest lap*. It takes *a table
@@ -1210,10 +1241,11 @@ citation, is already one system and is kept.
   opens on who holds it and the round it was clinched at, and the answer and
   the reach chart cover the title left (LV-15: `seasonAnswer`) ·
   lead chart · *Who can still win*, the reach chart for each title the
-  answer covers (provisional, AF-132) · standings · calendar · Who entered · photographs.
+  answer covers (provisional, AF-132) · standings, each table at the full
+  width with its leader in the row and a bar beside each total (provisional,
+  VD-110) · calendar · Who entered · photographs.
   **Pending:** the title-race chart annotated, the pattern's first use
-  (VD-121 #1345); the standings with value bars and the leader in the row
-  (VD-110 #1332); the stray OpenStreetMap sentence in *The next round* moved
+  (VD-121 #1345); the stray OpenStreetMap sentence in *The next round* moved
   into its outline card (VD-116 #1338). The
   photographs follow *Who entered* so that they sit where the photo strip
   puts them on every type (§3), which this line had the other way round.

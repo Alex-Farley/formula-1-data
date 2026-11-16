@@ -2522,7 +2522,8 @@ try {
       const from = html.indexOf(`<h2>${heading}</h2>`)
       if (from < 0) return null
       const start = html.indexOf('<tbody>', from)
-      return (html.slice(start, html.indexOf('</tbody>', start)).match(/<tr>/g) ?? []).length
+      // A row may carry a class - the leader's (VD-105) - so a <tr> with attributes counts.
+      return (html.slice(start, html.indexOf('</tbody>', start)).match(/<tr[\s>]/g) ?? []).length
     }
 
     // The next round: the round the strip marks next, in both halves, and
@@ -6304,6 +6305,96 @@ try {
       is(differs(app.bars).join(', '), '', `${route}: each of ${Object.keys(expected).length} seasons draws a bar a round classified and a tick a round not, in the app`)
       is(differs(flat.bars).join(', '), '', `${route}: and on the static page`)
     }
+    await noJs.close()
+  })
+
+  // VD-105, VD-110. A season's standings mark their leader in the row and
+  // carry a bar beside each total, in both halves alike: the same rows marked,
+  // the same pill, the same shares. The cells' words are compared row for
+  // row by the parity section; these are what the words cannot show. 2026 is
+  // a title settled with rounds to run, in the teams' liveries; 1997 holds a
+  // disqualified driver with points and no position, in the years no colour
+  // is on record (1968 to 2009); 1958 is in the national racing colours.
+  await section('/seasons/2026 /seasons/1997 /seasons/1958  (the leader in the row and a bar in the points, in both halves: VD-105, VD-110)', async () => {
+    const read = ([root, name]) => {
+      const main = document.querySelector(root)
+      // "Drivers' standings after round 20", or "Final drivers' standings".
+      const h2 = [...main.querySelectorAll('h2')].find((h) => h.textContent.trim().toLowerCase().includes(name))
+      if (!h2) return null
+      // The table under this heading: its sibling on the static page, where
+      // one parent holds every heading, and inside its section in the app.
+      let table = null
+      for (let el = h2.nextElementSibling; !table && el && el.tagName !== 'H2'; el = el.nextElementSibling) {
+        table = el.matches('.table-wrap') ? el.querySelector('table') : el.querySelector('.table-wrap table')
+      }
+      if (!table) return null
+      const rows = [...table.querySelectorAll('tbody tr')]
+      const bar = (r) => r.querySelector('.value-bar > i')
+      const lead = rows.find((r) => r.classList.contains('is-leader'))
+      const wins = [...table.querySelectorAll('thead th')].find((th) => th.textContent.trim().startsWith('Wins'))
+      const first = lead && bar(lead)
+      return {
+        rows: rows.length,
+        leaders: rows.filter((r) => r.classList.contains('is-leader')).map((r) => r.querySelector('th[scope="row"]')?.textContent.trim()),
+        pills: [...table.querySelectorAll('.pill-champion')].map((pill) => pill.textContent.trim()),
+        shares: rows.map((r) => (bar(r) ? Number(bar(r).style.getPropertyValue('--share')) : null)),
+        coloured: rows.filter((r) => r.querySelector('.value-bar > i.livery-series')).length,
+        weight: lead ? getComputedStyle(lead.querySelector('th[scope="row"]')).fontWeight : null,
+        drawn: first ? first.getBoundingClientRect().width : 0,
+        wins: wins ? getComputedStyle(wins).display : null,
+        // On a phone the bar stacks under its figure.
+        stacked: first ? first.getBoundingClientRect().top >= first.previousElementSibling.getBoundingClientRect().bottom - 0.5 : null,
+      }
+    }
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    for (const year of [2026, 1997, 1958]) {
+      const route = `/seasons/${year}`
+      for (const width of [1440, 375]) {
+        await page.setViewportSize({ width, height: 900 })
+        await plain.setViewportSize({ width, height: 900 })
+        await go(route, String(year))
+        await page
+          .waitForFunction(() => document.querySelector('#root main tr.is-leader') !== null, null, { timeout: 10000 })
+          .catch(() => null)
+        await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        for (const kind of ['drivers', 'constructors']) {
+          const where = `${route} at ${width}, ${kind}`
+          const name = `${kind}' standings`
+          const app = await page.evaluate(read, ['#root main', name])
+          const flat = await plain.evaluate(read, ['#prerendered main', name])
+          if (!app || !flat) {
+            fail(`${where}: a standings table in both halves (app ${!!app}, static ${!!flat})`)
+            continue
+          }
+          const leaders = count(`SELECT COUNT(*) FROM v_standings_final WHERE year = ? AND table_type = ? AND position = 1`, year, kind)
+          const totals = count(`SELECT COUNT(*) FROM v_standings_final WHERE year = ? AND table_type = ? AND points IS NOT NULL`, year, kind)
+          is(app.leaders.length, leaders, `${where}: the app marks every row at P1 as the leader, and no other`)
+          is(flat.leaders.join(' | '), app.leaders.join(' | '), `${where}: the static page marks the same rows`)
+          is(app.weight, '600', `${where}: the leader's row is semibold`)
+          is(app.shares.filter((v) => v !== null).length, totals, `${where}: a bar beside every total held`)
+          is(flat.shares.join(','), app.shares.join(','), `${where}: the static bars are the app's shares`)
+          is(Math.max(...app.shares.filter((v) => v !== null)), 1, `${where}: the leader's total is the whole of the scale`)
+          truthy(app.drawn > 0, `${where}: the leader's bar is drawn (${app.drawn.toFixed(1)} px)`)
+          is(flat.pills.join(' | '), app.pills.join(' | '), `${where}: the champion's pill reads the same in both halves`)
+          const champion = one(`SELECT ${kind === 'drivers' ? 'drivers_champion' : 'constructors_champion'} FROM seasons WHERE year = ?`, year)
+          is(app.pills.length, champion ? 1 : 0, `${where}: one pill, on the champion's row (${app.pills.join(', ')})`)
+          if (year === 1997) is(app.coloured + flat.coloured, 0, `${where}: no colour is on record, so every bar is ink`)
+          else truthy(app.coloured > 0 && app.coloured === flat.coloured, `${where}: the bars wear the rows' colours (${app.coloured}, ${flat.coloured})`)
+          if (kind === 'drivers') {
+            const wins = width < 768 ? 'none' : 'table-cell'
+            is(`${app.wins} ${flat.wins}`, `${wins} ${wins}`, `${where}: Wins ${width < 768 ? 'goes on a phone' : 'is drawn'}, in both halves`)
+          }
+          if (width < 768) truthy(app.stacked && flat.stacked, `${where}: the bar stacks under its figure on a phone (app ${app.stacked}, static ${flat.stacked})`)
+        }
+      }
+    }
+    // 2026's title was settled with rounds to run, and the pill names the round.
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await go('/seasons/2026', '2026')
+    await page.waitForFunction(() => document.querySelector('#root main .pill-champion') !== null, null, { timeout: 10000 }).catch(() => null)
+    const pill = await page.$eval('#root main .pill-champion', (el) => el.textContent.trim()).catch(() => null)
+    truthy(/^champion · settled R\d+$/.test(pill ?? ''), `/seasons/2026: the champion's pill names the round the title was settled at (${pill})`)
     await noJs.close()
   })
 
@@ -11076,14 +11167,15 @@ try {
         // A body cell is a <td> or, for the column that names the row, a
         // <th scope="row"> (AX-21); both are cells of the row, in order.
         const bodyCells = (row) => [...row.matchAll(/<(td|th)[^>]*>([\s\S]*?)<\/\1>/g)]
-        const first = body.match(/<tr>([\s\S]*?)<\/tr>/)?.[1] ?? ''
+        // A row may carry a class - the leader's (VD-105) - as DataTable's may.
+        const first = body.match(/<tr(?:\s[^>]*)?>([\s\S]*?)<\/tr>/)?.[1] ?? ''
         return {
           // AX-17: the name the table gives assistive technology, which is the
           // heading above it in both halves. Read from the whole slice, not
           // from the head: a <caption> is a child of <table>, before <thead>.
           caption: decode((markup.match(/<caption[^>]*>([\s\S]*?)<\/caption>/) ?? ['', ''])[1]),
           heads: cells(markup.slice(0, markup.indexOf('</thead>')), 'th'),
-          rows: [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => bodyCells(m[1]).map((c) => decode(c[2]))),
+          rows: [...body.matchAll(/<tr(?:\s[^>]*)?>([\s\S]*?)<\/tr>/g)].map((m) => bodyCells(m[1]).map((c) => decode(c[2]))),
           rowHeads: bodyCells(first)
             .map((c, i) => (c[1] === 'th' && /scope="row"/.test(c[0]) ? i : -1))
             .filter((i) => i >= 0),

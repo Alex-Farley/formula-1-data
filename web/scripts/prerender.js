@@ -60,6 +60,7 @@ import {
   houseTime,
   missing,
   number,
+  points,
   raceDates,
   result,
   span,
@@ -70,6 +71,7 @@ import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../src/
 import {
   FOLD_LESS,
   FOLD_NOUN,
+  LEADER,
   UNFOLDED,
   WIDE_ONLY,
   defaultColumns,
@@ -197,6 +199,7 @@ import {
   LIVERY_LICENCE,
   bandWords,
   colourForEntry,
+  inColourEra,
   constructorBandNote,
   driverBandNote,
   liveryFor,
@@ -248,6 +251,10 @@ import {
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
   constructorsFooter,
+  championPill,
+  pointsShare,
+  standingsColour,
+  standingsLeader,
   entrantNames,
   latestRound,
   nextLine,
@@ -1002,12 +1009,16 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // `<colgroup>` for each run and a row of heads above the column heads, a
 // `<th scope="colgroup">` over a run with a label and an empty cell over one
 // without, as DataTable writes them.
+//
+// `leaders` is one flag a row, true where the row is its table's leader: the
+// row takes lib/table.js's LEADER class, as DataTable's `leader` writes it
+// from the same predicate (VD-105).
 const FOLD_NAME = '<span class="sr-only fold-name"></span>'
 const foldFaults = []
 let unplacedFaults = []
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { aligns = [], hidden = [], rowHeaders = [], fold = false, unfolded = null, footer = null, groups = null } = options
+  const { aligns = [], hidden = [], rowHeaders = [], fold = false, unfolded = null, footer = null, groups = null, leaders = [] } = options
   const fault = foldFault(rows.length, fold, unfolded)
   if (fault) {
     const heads = headers.map((h) => (typeof h === 'string' ? h : (h.label ?? h.html))).join(' | ')
@@ -1041,7 +1052,7 @@ const table = (headers, rows, options = {}) => {
       })
       .join('')}</tr></thead>`,
     '<tbody>',
-    rows.map((cells) => `<tr>${cells.map(cell).join('')}</tr>`).join(''),
+    rows.map((cells, r) => `<tr${leaders[r] ? ` class="${LEADER}"` : ''}>${cells.map(cell).join('')}</tr>`).join(''),
     '</tbody></table></div>',
     folded
       ? `<details class="table-fold"><summary><span class="fold-more">${esc(foldMore(rows.length, fold))}</span><span class="fold-less">${esc(FOLD_LESS)}</span>${FOLD_NAME}</summary></details>`
@@ -1062,7 +1073,7 @@ const table = (headers, rows, options = {}) => {
 // A column with a React-only `render` and no `text` falls back to the
 // formatted raw value here; a render that changes the text must come with a
 // matching `text`, or the two renderers part.
-const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null, footer = null } = {}) => {
+const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null, footer = null, leader = null } = {}) => {
   // The default set, never the full one: a column declared `optional` waits
   // for a reader to ask for it, in the app, through `?cols=` (IA-23). The
   // phone default is the same table with the columns it leaves out marked
@@ -1126,6 +1137,7 @@ const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null
         unfolded,
         footer,
         groups: groupRuns(kept),
+        leaders: leader ? rows.map((row) => leader(row)) : [],
       },
     )
   )
@@ -1895,6 +1907,42 @@ const liveryMark = (colour, prose = false) =>
       ? `<i class="livery livery-prose" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
       : `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
 const winnerMark = (round, year) => liveryMark(winnerColour(round, year))
+
+// components/LiveryMark.jsx in a table column: the mark with a tooltip of
+// the caller's, and, where the season is one a colour could be on record for
+// and this row has none, the transparent spacer that keeps the names aligned.
+const columnMark = (colour, title, year) =>
+  colour
+    ? `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(title ?? colour.title)}" aria-hidden="true"></i>`
+    : inColourEra(year)
+      ? '<i class="livery livery-none" aria-hidden="true"></i>'
+      : ''
+
+// components/ValueBar.jsx: a figure and its bar, `share` of the leader's, in
+// the row's pair as a series wears it or in ink, the figure the cell's text.
+const valueBar = (figure, share, colour) => {
+  const shown = figure === EMPTY ? `<span class="empty">${EMPTY}</span>` : esc(figure)
+  if (share === null) return shown
+  const style = `${colour ? `${pairStyle(colour)}; ` : ''}--share: ${share}`
+  return `<span class="value-bar"><span>${shown}</span><i${colour ? ' class="livery-series"' : ''} style="${style}" aria-hidden="true"></i></span>`
+}
+
+// Season.jsx's standingsRenders(), as the cells the static standings print.
+const standingsLinks = (kind, rows, { year, teams, season, crowned }) => {
+  const share = pointsShare(rows)
+  return {
+    entity: (name, row) => {
+      const { colour, title } = standingsColour(kind, row, year, teams)
+      const id = kind === 'drivers' ? row.driver_id : row.constructor_id
+      const engine = kind === 'constructors' ? row.engine_id : null
+      const pill = championPill(kind, row, season, crowned)
+      return `${columnMark(colour, title, year)}${id ? link(`${kind}/${id}`, name) : text(name)}${engine ? ` ${idTag(engine)}` : ''}${
+        pill ? ` <span class="pill pill-champion">${esc(pill)}</span>` : ''
+      }`
+    },
+    points: (value, row) => valueBar(points(value), share(value), standingsColour(kind, row, year, teams).colour),
+  }
+}
 
 // components/SeasonPlate.jsx (VD-104 (c)): a concluded season's champion in
 // the pair of the team they won with, or in ink where none is on record.
@@ -3226,13 +3274,20 @@ const seasonsTable = (rows) =>
     winning_team: (name, row) =>
       row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(winningCar(row)),
   }, { unfolded: UNFOLDED.subject, footer: CALENDAR_FOOTER })}`
+    // Season.jsx's standingsRenders(): the mark beside each name, the
+    // champion's pill, and each total with its bar against the leader's
+    // (VD-110), all from queries/season.js, on the rows it marks as the
+    // leader's (VD-105).
+    const marking = { year, teams: teamsByDriver(all(DRIVER_TEAMS, year)), season: s, crowned: answer?.crowned }
     const seasonStandings = `
   <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
   ${
     driversFinal.length
-      ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
-          entity: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
-        }, { unfolded: UNFOLDED.subject, footer: DRIVERS_FINAL_FOOTER })
+      ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, standingsLinks('drivers', driversFinal, marking), {
+          unfolded: UNFOLDED.subject,
+          footer: DRIVERS_FINAL_FOOTER,
+          leader: standingsLeader,
+        })
       : notRun
         ? `<p class="state is-empty">${esc(NOT_RUN_STANDINGS)}</p>`
         : EMPTY_STATE
@@ -3240,10 +3295,11 @@ const seasonsTable = (rows) =>
   <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
   ${
     constructorsFinal.length
-      ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
-          entity: (name, row) =>
-            `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${idTag(row.engine_id)}` : ''}`,
-        }, { unfolded: UNFOLDED.subject, footer: constructorsFooter(constructorsFinal.some((r) => r.engine_id)) })
+      ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, standingsLinks('constructors', constructorsFinal, marking), {
+          unfolded: UNFOLDED.subject,
+          footer: constructorsFooter(constructorsFinal.some((r) => r.engine_id)),
+          leader: standingsLeader,
+        })
       : noteBox(noConstructors.head, noConstructors.body)
   }`
     page({
