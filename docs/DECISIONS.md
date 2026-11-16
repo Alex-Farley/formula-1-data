@@ -415,6 +415,33 @@ takes no accent (D-61), and no hex value is claimed as a sourced fact, since
 the second colour is a sourced statement of what the team raced in, as the
 first is.
 
+### D-66 · Prose in a text serif; capitals for the page title alone — 2026-11-16 (`VD-96`, #928)
+Every voice on the site was one sans, Saira, in its condensed cut for
+headings, and condensed capitals were set on the page title, on every
+section head and on a car's and a circuit's name on its card. The design review of 2026-10-08 named it (DR-03, Hallmark gate 55, and
+an in-page detector's `tight-leading` on /records at 400 px): a lede, a note
+and a line saying where a figure comes from had no voice of their own.
+
+The rules it changes are the system's own: §2 gave every role but machine
+text to Saira, and section heads were among the display headings set in
+capitals. That is §8's *Changing or reversing*. The review proposed a text
+serif and named two; a side-by-side comparison of both against the site as
+built, on a race page, a driver page and /data at 400 and 1440 px in both
+themes, was published on the item on 2026-11-14, and the maintainer ruled
+on 2026-11-16: Source Serif 4, and section heads in the words as written,
+with the page title in capitals. The ruling is recorded on the item, and
+the comparison is `docs/critiques/2026-11-14-serif-comparison/`.
+
+The comparison recommended Source Serif 4 over Newsreader because at the
+scale's existing steps it holds Saira's size and colour, so the voice
+changes without re-tuning the scale; Newsreader, the more literary, set
+visibly smaller and would have needed a size step of its own. The prose roles are named in §2
+*Type* and held by `conventions.mjs`; labels, tiles, tables, pills,
+controls and headings stay in Saira, as D-62 set them. What it costs is a
+fourth face on the font request. What it does not change: the scale, the
+weights, the inks, the measure, any contrast floor, the label register, or
+the page title's capitals.
+
 ---
 
 ## The queue

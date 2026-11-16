@@ -168,6 +168,14 @@
   /* type */
   --disp: 'Saira Condensed', 'Arial Narrow', Arial, sans-serif;
   --sans: 'Saira', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  /* Prose only (VD-96, DR-03): a lede, a note, a note box, a table's or a
+     figure's source line, how a figure is derived, a recorded disagreement's
+     reading and /data's running text - the sentences a reader reads rather
+     than scans. Labels, tiles, tables, pills, controls and headings stay in
+     Saira; conventions.mjs holds the list (PROSE). It is set at the scale's
+     own steps: at the same size Source Serif 4 holds Saira's size and
+     colour, the reason the comparison on #928 gave for it over Newsreader. */
+  --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
   /* Machine text only (VD-91): SQL, code, keys, a URL, a digest or an id -
      text a reader would copy into something else. A figure is not machine
      text: it is set in Saira's own tabular figures (app.css, .num), and a
