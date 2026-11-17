@@ -3547,16 +3547,22 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
     # The table is keyed on (race, source, driver, stop) precisely so that
     # F1DB, Jolpica and FastF1 can hold the same stop side by side and be
     # compared, rather than the last loader to run winning.
-    pit_rows = pit_skipped = ignored = 0
+    pit_rows = pit_skipped = 0
     timed = 0
-    rows = HV.load_f1db_pit_stops()
-    repeats = _pit_stop_repeats(rows, HV.F1DB_PIT_STOP_REPEATS)
-    for r in rows:
+    stored = []
+    for r in HV.load_f1db_pit_stops():
         rid = b.race_for(r["year"], r["round"], "pit stops")
         did = f1db_drivers.get(r["driver_id"])
         if rid is None or not did:
             pit_skipped += 1
             continue
+        stored.append((r, rid, did))
+    # Repeats are counted over the rows that reach the table, so a round
+    # not yet on the calendar, or a driver F1DB has and the register does
+    # not, is skipped whole rather than refused (review of #1374).
+    repeats = _pit_stop_repeats([r for r, _, _ in stored], HV.F1DB_PIT_STOP_REPEATS)
+    ignored = {}
+    for r, rid, did in stored:
         millis = _pit_millis(r)
         cur.execute("""INSERT OR IGNORE INTO pit_stops (race_id, driver_id,
                 driver_key, stop_number, lap_number, pit_lane_seconds, source)
@@ -3565,20 +3571,26 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
              int(r["lap"]) if r["lap"] else None,
              millis / 1000 if millis is not None else None))
         pit_rows += cur.rowcount
-        ignored += 1 - cur.rowcount
         timed += cur.rowcount if millis is not None else 0
-    # Every row the key turned away is a declared repeat, and no other: a
-    # row lost to the key for any other reason is lost without a word,
-    # which is what LV-13 found.
-    if ignored != sum(repeats.values()):
+        if not cur.rowcount:
+            race = (int(r["year"]), int(r["round"]))
+            ignored[race] = ignored.get(race, 0) + 1
+    # Every row the key turned away is a declared repeat, race by race, and
+    # no other: a row lost to the key for any other reason - two F1DB
+    # drivers read as one, say - is lost without a word, which is what
+    # LV-13 found.
+    if ignored != repeats:
         raise SystemExit(
-            f"pit stops: {ignored} F1DB rows were not stored, against "
-            f"{sum(repeats.values())} declared repeats in data/harvest.py "
-            f"F1DB_PIT_STOP_REPEATS")
+            "pit stops: the F1DB rows the key turned away are not the "
+            "declared repeats: "
+            + "; ".join(f"{y} round {n} turned away {ignored.get((y, n), 0)}, "
+                        f"repeats {repeats.get((y, n), 0)}"
+                        for y, n in sorted(set(ignored) | set(repeats))
+                        if ignored.get((y, n), 0) != repeats.get((y, n), 0)))
     if pit_rows:
         print(f"  pit stops: {pit_rows} rows from F1DB, {timed} with a "
-              f"pit-lane time ({pit_skipped} skipped, {ignored} declared "
-              f"repeats dropped)")
+              f"pit-lane time ({pit_skipped} skipped, "
+              f"{sum(repeats.values())} declared repeats dropped)")
 
 
 def _pit_stop_repeats(rows, declared):

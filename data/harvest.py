@@ -2984,12 +2984,14 @@ def load_f1db_pit_stops():
 # Where F1DB's pit stops list one stop more than once (LV-13, #1159).
 # pit_stops is keyed on (race, source, driver, stop), so INSERT OR IGNORE
 # used to keep the first row and drop the rest without a word. build.py now
-# counts, race by race, the rows that repeat a stop already read, and stops
-# on a count that differs from the one declared here - an undeclared repeat,
-# or a declaration the rows no longer bear out, which is how this one comes
-# out when F1DB corrects its file - and on a repeat that differs from the
-# row it repeats in lap or time, which is two readings of one stop and a
-# choice, not a repeat.
+# counts, race by race, the rows that repeat a stop already read among those
+# that reach the table, and stops on a count that differs from the one
+# declared here - an undeclared repeat, or a declaration the rows no longer
+# bear out, which is how this one comes out when F1DB corrects its file -
+# and on a repeat that differs from the row it repeats in lap or time, which
+# is two readings of one stop and a choice, not a repeat. A correction to a
+# race already committed cannot be held back, so it fails each refresh whole
+# until the declaration is removed (#1375).
 #   (year, round): rows that repeat a stop, and are dropped
 #
 # 2026 round 13, the Italian Grand Prix. F1DB v2026.20.0's pit-stops.yml
