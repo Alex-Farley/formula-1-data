@@ -273,11 +273,24 @@ const unescaped = (text) =>
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
 
+// Served HTML as the reader reads it: its tags taken out until none is
+// left, so that a tag the first pass leaves behind is not kept, then
+// unescaped, with its white space as the browser collapses it (VD-112).
+const servedText = (html) => {
+  let out = html
+  let before
+  do {
+    before = out
+    out = out.replace(/<[^>]+>/g, '')
+  } while (out !== before)
+  return unescaped(out).replace(/\s+/g, ' ').trim()
+}
+
 // A record page's lead and fields as the static half writes them (VD-112):
 // the figure, each line of words beside it, then each field's value.
 const staticLead = (html) => {
   const article = html.split('</article>')[0]
-  const text = (m) => unescaped(m.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+  const text = servedText
   const lead = article.match(/<div class="record-lead">([\s\S]*?)<\/div><\/div>/)?.[1] ?? ''
   return [
     ...[...lead.matchAll(/<b class="record-lead-(?:figure|whole)">([\s\S]*?)<\/b>/g)].map((m) => text(m[1])),
@@ -7686,7 +7699,7 @@ try {
       )
       const servedRuns = [...(served.match(/<ol class="record-runs">([\s\S]*?)<\/ol>/)?.[1] ?? '').matchAll(/<li( class="is-holder")?>([\s\S]*?)<\/li>/g)].map((m) => ({
         holder: Boolean(m[1]),
-        text: unescaped(m[2].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim(),
+        text: servedText(m[2]),
       }))
       is(JSON.stringify(servedRuns), JSON.stringify(runs.map(({ holder, text }) => ({ holder, text }))), 'and the same longest runs')
       is(staticLead(html).slice(0, 2).join(' | '), lead.join(' | '), 'and the same lead')
@@ -7695,7 +7708,7 @@ try {
       const note = await page.$eval('#root main .record-runs-note', (p) => p.textContent.replace(/\s+/g, ' ').trim())
       truthy(/ends at the first race the driver did not win/.test(note), `the runs' rule is stated under them (${note})`)
       const servedNote = served.match(/<p class="faint record-runs-note">([\s\S]*?)<\/p>/)?.[1] ?? ''
-      is(unescaped(servedNote.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim(), note, 'and the static page states it the same')
+      is(servedText(servedNote), note, 'and the static page states it the same')
     }
 
     await go('/records/no-such-record', 'No such record')
