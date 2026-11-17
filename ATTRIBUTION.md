@@ -299,11 +299,15 @@ derivative, so the obligation follows the file it belongs to and no further.
 - **Want the maps?** `python3 tools/geometry_overlay.py --apply` merges them
   into your copy. That copy is then a Derivative Database under ODbL — fine
   to hold, not the file to redistribute, and `verify.py` says so.
-- **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Of what
-  is published, nothing else derives from OpenStreetMap; in the repository,
-  the three `harvest/` files below do.
-- The website merges the two **in your browser**, which is why the track maps
-  work without `f1.db` ever containing the data.
+- **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Of the
+  database files published, nothing else derives from OpenStreetMap; in the
+  repository, the three `harvest/` files below do.
+- The website merges the two **in your browser**, which is how a circuit's
+  page states its trace without `f1.db` ever containing the data. The static
+  copy of each circuit page, written when the site is built, carries the same
+  figures — the relation, the length measured against the published one, the
+  points, whether the walk closes — read from `f1-geometry.db`, with the
+  credit under them on every page that carries them.
 
 The centrelines are still checked on every build — the re-measurement that
 catches Monaco's relation reading 12% long runs against the overlay.

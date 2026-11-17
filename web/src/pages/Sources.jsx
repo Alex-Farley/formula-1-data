@@ -82,7 +82,7 @@ export default function Sources() {
                 {geometry.map((row) => `${number(row.n)} traced centrelines under ${row.licence}`).join(', ')}
                 , published as <code>f1-geometry.db</code>. <code>f1.db</code> contains no
                 OpenStreetMap data of any kind, so it is not a Derivative Database and does not
-                carry ODbL; your browser merged the two to read what each trace measures, and the
+                carry ODbL; what each trace measures is read from that file, and the
                 circuits on this site are drawn from F1DB’s outlines. That
                 containment is deliberate: ODbL reaches the whole database it lands in, so
                 twenty-five centrelines inside <code>f1.db</code> would set the licence of
