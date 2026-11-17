@@ -3547,9 +3547,11 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
     # The table is keyed on (race, source, driver, stop) precisely so that
     # F1DB, Jolpica and FastF1 can hold the same stop side by side and be
     # compared, rather than the last loader to run winning.
-    pit_rows = pit_skipped = 0
+    pit_rows = pit_skipped = ignored = 0
     timed = 0
-    for r in HV.load_f1db_pit_stops():
+    rows = HV.load_f1db_pit_stops()
+    repeats = _pit_stop_repeats(rows, HV.F1DB_PIT_STOP_REPEATS)
+    for r in rows:
         rid = b.race_for(r["year"], r["round"], "pit stops")
         did = f1db_drivers.get(r["driver_id"])
         if rid is None or not did:
@@ -3563,10 +3565,60 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
              int(r["lap"]) if r["lap"] else None,
              millis / 1000 if millis is not None else None))
         pit_rows += cur.rowcount
+        ignored += 1 - cur.rowcount
         timed += cur.rowcount if millis is not None else 0
+    # Every row the key turned away is a declared repeat, and no other: a
+    # row lost to the key for any other reason is lost without a word,
+    # which is what LV-13 found.
+    if ignored != sum(repeats.values()):
+        raise SystemExit(
+            f"pit stops: {ignored} F1DB rows were not stored, against "
+            f"{sum(repeats.values())} declared repeats in data/harvest.py "
+            f"F1DB_PIT_STOP_REPEATS")
     if pit_rows:
         print(f"  pit stops: {pit_rows} rows from F1DB, {timed} with a "
-              f"pit-lane time ({pit_skipped} skipped)")
+              f"pit-lane time ({pit_skipped} skipped, {ignored} declared "
+              f"repeats dropped)")
+
+
+def _pit_stop_repeats(rows, declared):
+    """{(year, round): rows repeating a stop already read}, for F1DB's pit
+    stops, once it agrees with data/harvest.py F1DB_PIT_STOP_REPEATS
+    (LV-13, #1159).
+
+    A repeat is a row with a race, driver and stop already read, which the
+    table's key keeps out. The build stops on a race whose count differs from
+    the declaration - an undeclared repeat, a declaration no longer borne out,
+    or a different number - and on a repeat that differs from the row it
+    repeats, which is two readings of one stop rather than one read twice. A
+    row with no stop number is not a repeat: the key holds each such row."""
+    first, found, clashes = {}, {}, []
+    for r in rows:
+        if not r["stop"]:
+            continue
+        key = (int(r["year"]), int(r["round"]), r["driver_id"], int(r["stop"]))
+        if key not in first:
+            first[key] = r
+        elif first[key] != r:
+            clashes.append(key)
+        else:
+            found[key[:2]] = found.get(key[:2], 0) + 1
+    if clashes:
+        raise SystemExit(
+            "pit stops: F1DB gives one stop two readings: "
+            + "; ".join(f"{y} round {n} {d} stop {s}" for y, n, d, s in clashes)
+            + ". Which is right is a choice for a second source, not the key.")
+    wrong = [k for k in sorted(set(found) | set(declared))
+             if found.get(k, 0) != declared.get(k, 0)]
+    if wrong:
+        raise SystemExit(
+            "pit stops: F1DB's repeated stops differ from data/harvest.py "
+            "F1DB_PIT_STOP_REPEATS: "
+            + "; ".join(f"{y} round {n} repeats {found.get((y, n), 0)}, "
+                        f"declared {declared.get((y, n), 0)}" for y, n in wrong)
+            + ". Declare a repeat with what F1DB's file holds, or remove a "
+              "declaration F1DB has corrected.")
+    return found
 
 
 def _pit_millis(r):
