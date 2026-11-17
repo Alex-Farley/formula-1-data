@@ -13,13 +13,14 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, finished, missing, number, ordinal, points, result, span, text, yearList } from '../lib/format.js'
+import { EMPTY, finished, inWords, missing, number, ordinal, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { byRoundText } from '../charts/spark.js'
 import { PRACTICE_SESSIONS, STARTED, carName } from './race.js'
 import { LABELS } from '../lib/site.js'
-import { colourSource, lastTeamColour } from '../lib/liveries.js'
+import { colourForEntry, colourSource, lastTeamColour } from '../lib/liveries.js'
+import { shortNames } from './season.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -657,6 +658,7 @@ export const TEAM_MATES = `
   SELECT r.year, e.constructor_id, k.name AS constructor, k.country AS constructor_country,
          o.driver_id AS mate_id, d.full_name AS mate,
          COUNT(*) AS races,
+         MAX(r.year * 100 + r.round) AS last_round,
          CAST(TOTAL(qa.position IS NOT NULL AND qb.position IS NOT NULL) AS INTEGER) AS both_qualified,
          CAST(TOTAL(qa.position < qb.position) AS INTEGER) AS qualified_ahead,
          CAST(TOTAL(qa.position > qb.position) AS INTEGER) AS qualified_behind,
@@ -749,6 +751,218 @@ export const teamMatesFooter = (name) =>
   'driver’s own from those Grands Prix, before any dropped scores and without Sprint points. Before the 1980s a constructor’s ' +
   'cars were often entered by private teams as well as its own, so a pairing then can be two drivers who never shared a garage. ' +
   'The figures say who was ahead, not who was better.'
+
+/**
+ * THE FACE-OFF (VD-122): the Team-mates section's opening, over the table,
+ * worked out here so scripts/prerender.js draws the same blocks from the
+ * same TEAM_MATES rows. Every figure is a sum of the table's own columns, so
+ * the face-off can say nothing the table under it does not.
+ *
+ * One block per team-mate shown, at most FACE_OFFS of them: the latest
+ * team-mate - the one with the latest round together (`last_round`), not
+ * the first row, which within a year is ordered by team name; two shared
+ * that round goes to the query's order - and then those with the most
+ * Grands Prix together, a tie going to the later pairing and then the
+ * name. A career of 106 team-mates is not 106 blocks; the table
+ * holds every pairing, and the note under the blocks says how many are
+ * shown of how many. The blocks are set latest first, as the table is.
+ *
+ * Each block's colours are its last season's team (D-65): the driver in the
+ * team's pair and the team-mate in the livery's second colour, or in ink
+ * where it has none, as charts/own.js faceColours() writes them.
+ */
+export const FACE_OFFS = 3
+
+/** The three counts, in the table's order, and how a sentence names each. */
+const TALLIES = [
+  { key: 'qualifying', label: 'Qualifying, ahead', phrase: 'in qualifying', mine: 'qualified_ahead', theirs: 'qualified_behind', of: 'both_qualified' },
+  { key: 'race', label: 'Race, ahead when both classified', phrase: 'on finishes', mine: 'finished_ahead', theirs: 'finished_behind', of: 'both_classified' },
+  { key: 'points', label: 'Points', phrase: 'on points', mine: 'points', theirs: 'mate_points', of: null },
+]
+
+/**
+ * One count over some rows: the two figures, who is ahead ('mine',
+ * 'theirs', 'level'), and each bar's share. Qualifying with no race where
+ * both have a position is not established - an em dash, no bar, no winner -
+ * and a race count with no race both were classified in reads none, as the
+ * table's cell does. Points are always established: each driver's own, and
+ * 0-0 is a real level.
+ */
+function tally(spec, rows) {
+  // Every column summed is a TOTAL in TEAM_MATES, so none is ever NULL.
+  const sum = (key) => rows.reduce((total, row) => total + row[key], 0)
+  const mine = sum(spec.mine)
+  const theirs = sum(spec.theirs)
+  const established = spec.of === null || sum(spec.of) > 0
+  const format = spec.key === 'points' ? points : number
+  if (!established) {
+    const empty = spec.key === 'qualifying' ? EMPTY : 'none'
+    return { key: spec.key, label: spec.label, established, mine: empty, theirs: empty, ahead: null, share: null }
+  }
+  const ahead = mine > theirs ? 'mine' : theirs > mine ? 'theirs' : 'level'
+  const whole = mine + theirs
+  return {
+    key: spec.key,
+    label: spec.label,
+    established,
+    mine: format(mine),
+    theirs: format(theirs),
+    ahead,
+    share: whole > 0 ? Number((mine / whole).toFixed(4)) : null,
+  }
+}
+
+const tallies = (rows) => TALLIES.map((spec) => tally(spec, rows))
+
+const joinAnd = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`)
+
+/**
+ * The line between the two names: who was ahead on which count. One driver
+ * ahead on every established count is said once, with "every season" where
+ * each season of two or more was the same; otherwise each side's counts and
+ * any level one, in the table's order.
+ */
+function blockVerdict(a, b, counts, seasons) {
+  const sides = { mine: a, theirs: b }
+  const on = (side) => counts.filter((t) => t.ahead === side)
+  const told = counts.filter((t) => t.established)
+  // "on finishes and points": a second "on" in a row is dropped.
+  const phrase = (list) =>
+    list.length === 3
+      ? 'on all three counts'
+      : joinAnd(
+          list
+            .map((t) => TALLIES.find((s) => s.key === t.key).phrase)
+            .map((p, i, all) => (i > 0 && p.startsWith('on ') && all[i - 1].startsWith('on ') ? p.slice(3) : p)),
+        )
+  for (const side of ['mine', 'theirs']) {
+    if (told.length && on(side).length === told.length) {
+      const every =
+        seasons.length > 1 && seasons.every((s) => s.tallies.filter((t) => t.established).every((t) => t.ahead === side))
+      return `${sides[side]} ahead ${phrase(told)}${every ? ', every season' : ''}.`
+    }
+  }
+  const clauses = []
+  for (const side of ['mine', 'theirs']) if (on(side).length) clauses.push(`${sides[side]} ahead ${phrase(on(side))}`)
+  if (on('level').length) clauses.push(`level ${phrase(on('level'))}`)
+  const line = clauses.join('; ')
+  // Only "level" is capitalised: a name keeps its own case ("de Changy").
+  return `${clauses[0].startsWith('level ') ? capitalise(line) : line}.`
+}
+
+/**
+ * The headline over the blocks, about the latest team-mate: who
+ * out-qualified whom, and by how much, the one ahead's figure first; where
+ * qualifying is not established, who finished ahead; where neither is, who
+ * outscored whom. `figure` is the part set apart, in tabular ink with no
+ * accent (D-61 rule 2).
+ */
+function headline(block) {
+  const [a, b] = block.names
+  const [q, race, pts] = block.tallies
+  const say = (t, verb, level) => {
+    if (t.ahead === 'level') return { text: `${a} and ${b} level ${level}`, figure: `${t.mine}–${t.theirs}` }
+    const [who, whom, x, y] = t.ahead === 'mine' ? [a, b, t.mine, t.theirs] : [b, a, t.theirs, t.mine]
+    return { text: `${who} ${verb} ${whom}`, figure: `${x}–${y}` }
+  }
+  if (q.established) return say(q, 'out-qualified', 'in qualifying')
+  if (race.established) return say(race, 'finished ahead of', 'on finishes')
+  return say(pts, 'outscored', 'on points')
+}
+
+/**
+ * The faceOffs() result, or null where there is no team-mate: `headline`
+ * ({ text, figure }), `standfirst` (the sentences under it), `blocks` (each
+ * with the two `names`, the `span`, `seasonCount` and the `when` they make
+ * under the verdict, the `verdict`, its
+ * `tallies`, its `seasons` - each a year, newest first, and its tallies,
+ * summed over the year's rows where the two shared more than one team - and the
+ * `colour` its last season's team wears), and `note`, the key under them.
+ */
+export function faceOffs(name, rows) {
+  if (!rows.length) return null
+  const byMate = new Map()
+  for (const row of rows) {
+    if (!byMate.has(row.mate_id)) byMate.set(row.mate_id, [])
+    byMate.get(row.mate_id).push(row)
+  }
+  const mates = [...byMate.values()].map((list) => ({
+    rows: list,
+    races: list.reduce((n, row) => n + row.races, 0),
+    last: Math.max(...list.map((row) => row.last_round)),
+    mate: list[0].mate,
+  }))
+  const latest = mates.reduce((best, m) => (m.last > best.last ? m : best))
+  const others = mates
+    .filter((m) => m !== latest)
+    .sort((x, y) => y.races - x.races || y.last - x.last || x.mate.localeCompare(y.mate))
+    .slice(0, FACE_OFFS - 1)
+  const shown = [latest, ...others].sort((x, y) => y.last - x.last || y.races - x.races || x.mate.localeCompare(y.mate))
+  const blocks = shown.map(({ rows: list }) => {
+    const [a, b] = shortNames([name, list[0].mate])
+    const years = [...new Set(list.map((row) => row.year))].sort((x, y) => x - y)
+    // One split a year: a pairing at two teams in a season is one season.
+    const seasons = [...new Set(list.map((row) => row.year))].map((year) => ({
+      key: String(year),
+      year,
+      tallies: tallies(list.filter((row) => row.year === year)),
+    }))
+    const counts = tallies(list)
+    const last = list[0]
+    return {
+      key: last.mate_id,
+      mate_id: last.mate_id,
+      names: [a, b],
+      span: yearList(years.join(',')),
+      seasonCount: years.length,
+      when: `${yearList(years.join(','))} · ${plural(years.length, 'season')}`,
+      constructors: [...new Set(list.map((row) => row.constructor))],
+      verdict: blockVerdict(a, b, counts, seasons),
+      tallies: counts,
+      seasons,
+      colour: colourForEntry({ constructorId: last.constructor_id, country: last.constructor_country, year: last.year, team: last.constructor }),
+    }
+  })
+  const first = blocks[0]
+  const [a] = first.names
+  const together = `${capitalise(inWords(first.seasonCount))} ${first.seasonCount === 1 ? 'season' : 'seasons'} together at ${joinAnd(first.constructors)}.`
+  // Across every pairing, not only the blocks: a row is a team-mate season.
+  const counted = rows.filter((row) => row.both_qualified > 0)
+  const ahead = counted.filter((row) => row.qualified_ahead > row.qualified_behind).length
+  const level = counted.filter((row) => row.qualified_ahead === row.qualified_behind).length
+  const behind = counted.length - ahead - level
+  const across = counted.length
+    ? ` Across ${plural(byMate.size, 'team-mate')}, ${a} was ahead in qualifying in ${number(ahead)} of ${plural(counted.length, 'team-mate season')}` +
+      `${level ? `, level in ${number(level)}` : ''}${behind ? `, behind in ${number(behind)}` : ''}.`
+    : ''
+  const some =
+    byMate.size > blocks.length
+      ? ` Shown: the latest team-mate and the ${inWords(blocks.length - 1)} ${blocks.length === 2 ? 'other' : 'others'} with the most Grands Prix together, of ${plural(byMate.size, 'team-mate')}; the table has every pairing.`
+      : ' The table has every pairing.'
+  return {
+    headline: headline(first),
+    standfirst: `${together}${across}`,
+    blocks,
+    note: `${colourKey(a, blocks)} The larger figure is the one ahead, and the tick marks level.${some}`,
+  }
+}
+
+/**
+ * What the colours are, naming only the cases the blocks drawn hold: a
+ * team with a second colour, one without, and a pairing with no colour on
+ * record (1968-2009, or a declared gap), which takes the chart slots.
+ */
+function colourKey(a, blocks) {
+  const kinds = new Set(blocks.map((b) => (!b.colour ? 'none' : b.colour.second ? 'two' : 'one')))
+  if (!kinds.has('two') && !kinds.has('one')) return 'No team colour is on record for these pairings, so the two drivers are in the chart colours.'
+  const mate = kinds.has('two')
+    ? `the team-mate in its livery’s second colour${kinds.has('one') ? ', or in ink where it has none' : ''}`
+    : 'the team-mate in ink, the team having no second colour on record'
+  const none = kinds.has('none') ? ' Where no colour is on record, the two are in the chart colours.' : ''
+  return `${a} is drawn in the colour of each pairing’s last team, ${mate}.${none}`
+}
+
+const capitalise = (words) => `${words.charAt(0).toUpperCase()}${words.slice(1)}`
 
 /** "Every entry": one row per race the driver was entered for, latest first. */
 export const ENTRY_COLUMNS = [

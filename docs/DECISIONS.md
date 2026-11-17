@@ -415,6 +415,17 @@ takes no accent (D-61), and no hex value is claimed as a sourced fact, since
 the second colour is a sourced statement of what the team raced in, as the
 first is.
 
+As built (VD-122): the second colour is the accent a mark already draws
+(`liveryPair`), and its pair moves in both themes, not only the dark one,
+because a pale accent - a white, BWT pink - fails 3:1 on the light panel as
+anthracite fails it on the dark. Two liveries' accents cannot be moved to
+3:1 and still be told from the lead (McLaren 2015-16's black against its
+graphite, Sauber 2013-14's white against its dark grey); they carry no
+second, and their team-mates are drawn in ink. The ink is `--ink`, not the
+chart's softer `--series-ink`, which sat too near the German silver of the
+1954-55 Mercedes. With no colour on record at all, the pair takes the two
+chart slots, as D-61's third rule gives any two series without one.
+
 ### D-66 · Prose in a text serif; capitals for the page title alone — 2026-11-16 (`VD-96`, #928)
 Every voice on the site was one sans, Saira, in its condensed cut for
 headings, and condensed capitals were set on the page title, on every

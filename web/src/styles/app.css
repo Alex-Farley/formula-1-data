@@ -4735,6 +4735,266 @@ figure.figure > .figure-note:first-child {
   --livery: var(--livery-dark);
 }
 
+/* The team-mates face-off (VD-122, D-65): the driver in the pairing's last
+   team's pair and the team-mate in the livery's second colour, or in ink
+   where it has none (.face-off-owned, from charts/own.js faceColours); with
+   no colour on record, the first two chart slots, which faceColours sets on
+   the block itself (D-61 rule 3). The names
+   in the display face at a stat figure's size - a name is not a figure - in
+   sentence case (D-66), over 4 px rules; the leading figure of each tally
+   large in ink, the other smaller and faint. No accent anywhere (D-61). */
+.face-off {
+  border-top: 1px solid var(--rule-strong);
+  padding: var(--space-7) 0 var(--space-9);
+}
+
+.face-off-owned {
+  --face-a: var(--face-a-light);
+  --face-b: var(--face-b-light, var(--ink));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) .face-off-owned {
+    --face-a: var(--face-a-dark);
+    --face-b: var(--face-b-dark, var(--ink));
+  }
+}
+
+:root[data-theme='dark'] .face-off-owned {
+  --face-a: var(--face-a-dark);
+  --face-b: var(--face-b-dark, var(--ink));
+}
+
+.face-headline {
+  margin: var(--space-4) 0 var(--space-3);
+  font-family: var(--disp);
+  font-size: var(--size-8);
+  font-weight: var(--weight-bold);
+  line-height: 1.05;
+}
+
+.face-headline em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.face-names {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--space-4) var(--space-6);
+}
+
+.face-name {
+  padding-bottom: var(--space-3);
+  border-bottom: var(--space-2) solid var(--face-a);
+  font-family: var(--disp);
+  font-size: var(--size-8);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.face-name-mate {
+  text-align: right;
+  border-bottom-color: var(--face-b);
+}
+
+/* On a phone the line between the names is a row of its own under them, so
+   neither name is squeezed by it; from 768 it sits between them. */
+.face-verdict {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  line-height: 1.3;
+  color: var(--ink-faint);
+}
+
+.face-verdict b {
+  display: block;
+  font-size: var(--size-4);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.face-tallies {
+  display: grid;
+  gap: var(--space-7) var(--space-9);
+  margin-top: var(--space-7);
+}
+
+.face-label {
+  margin: 0 0 var(--space-3);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.face-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto; /* a figure at either end of the bar, each at its own width */
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.face-figure {
+  min-width: 2ch; /* a one-digit figure keeps the bar where a two-digit one puts it */
+  font-family: var(--disp);
+  font-size: var(--size-7);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.face-figure.face-win {
+  font-size: var(--size-9);
+  color: var(--ink);
+}
+
+.face-figure-mate {
+  text-align: right;
+}
+
+/* The split bar: the driver's share from the left in --face-a, the rest in
+   --face-b, and a tick in ink at the middle, where level would meet. */
+.duel {
+  position: relative;
+  display: flex;
+  height: var(--space-6);
+}
+
+.duel > i {
+  display: block;
+  background: var(--face-b);
+}
+
+.duel > i:first-child {
+  flex: none;
+  width: calc(var(--share) * 100%); /* the driver's share of the two figures */
+  background: var(--face-a);
+}
+
+.duel > i + i {
+  flex: 1 1 0;
+}
+
+.duel::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(-1 * var(--space-3));
+  bottom: calc(-1 * var(--space-3));
+  border-left: 1px solid var(--ink);
+}
+
+.duel-none::after {
+  border-left-color: var(--rule);
+}
+
+.face-seasons {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-7);
+}
+
+.face-season {
+  display: grid;
+  grid-template-columns: 2.6rem repeat(3, minmax(0, 1fr)); /* the year at four digits, then the three counts */
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--size-3);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
+.face-season > b {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.face-season-head {
+  font-size: var(--size-2);
+  font-weight: var(--weight-medium);
+  color: var(--ink-faint);
+}
+
+.face-mini {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.face-mini > .duel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: var(--space-3);
+}
+
+.face-mini > .duel::after {
+  top: calc(-1 * var(--space-2));
+  bottom: calc(-1 * var(--space-2));
+}
+
+.face-mini-figure.face-win {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.face-key {
+  margin-top: var(--space-2);
+}
+
+@media (width >= 768px) {
+  .face-headline {
+    font-size: var(--size-9);
+  }
+
+  .face-names {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); /* two names at either end, the verdict between at its own width */
+  }
+
+  .face-name {
+    font-size: var(--size-10);
+  }
+
+  .face-verdict {
+    grid-column: auto;
+    grid-row: auto;
+    max-width: var(--span-4);
+    padding-bottom: var(--space-4);
+    text-align: center;
+  }
+
+  .face-season {
+    grid-template-columns: 3.5rem repeat(3, minmax(0, 1fr)); /* the year with room, then the three counts */
+    gap: var(--space-5);
+  }
+
+  .face-mini {
+    grid-template-columns: 3.2em minmax(0, 1fr) 3.2em; /* a figure at either end of the small bar, up to a season's 413.5 */
+  }
+
+  .face-mini > .duel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+@media (width >= 1180px) {
+  .face-tallies {
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* the three counts side by side, as wide as each other */
+  }
+
+  .face-season {
+    gap: var(--space-9);
+  }
+}
+
 /* The season plate (VD-104 (c)): a 4 px rule in the champion's team pair -
    .livery-series picks the light or the dark value, held to 3:1 like any
    series - or in ink where no colour is on record; the label, the name in

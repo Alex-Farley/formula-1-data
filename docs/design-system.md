@@ -244,16 +244,23 @@ luminance of the grey it replaced, because the livery pairs were stepped
 against it. `conventions.mjs` refuses a surface, ink or rule that is
 neutral or cool, and the gray-100 and white pair (§8, test 17).
 
-**A team-mate's colour — pending (VD-122 #1346), `[D-65]`.** Where two
+**A team-mate's colour — built (VD-122 #1346), `[D-65]`.** Where two
 drivers compared side by side drove for one team, the first takes the
 team's colour and the second the second colour of the same livery as
 `lib/liveries.js` holds it (Norris in McLaren's papaya, his team-mate in its
-anthracite). `lib/liveries.js` holds a light and dark pair only for a
-livery's lead colour, and `conventions.mjs` holds each pair to 3:1, so
-VD-122 adds a dark-theme value for the second colour and extends that check
-to it. A name always sits beside the mark, and such a chart
-takes no accent (`[D-61]`). Where the livery holds no second colour, the
-second driver is drawn in ink.
+anthracite). The second colour is the mark's accent (`liveryPair`), and each
+livery entry carries it as `second`, a light and dark pair moved in
+lightness only as far as 3:1 on the surfaces the lead's pair clears - the
+dark value lifted, and the light one darkened where the accent is pale, as
+a white accent is. `conventions.mjs` holds every `second` to 3:1, to the
+accent, and at least `ACCENT_APART` from the lead's pair in each theme; the
+two entries where that cannot hold (McLaren 2015-16, Sauber 2013-14) say
+null and are named in the test. A name always sits beside the mark, and
+such a chart takes no accent (`[D-61]`). Where the livery holds no second
+colour, a national colour included, the second driver is drawn in
+`--ink`, the full ink rather than `--series-ink`, which sits too near the
+German silver; with no colour on record, the two take the first two chart
+slots, rule 3 of the Figure's colour rules.
 
 **Close team colours in one chart — pending (VD-120 #1342).** Where two
 liveries in one chart are hard to tell apart (Red Bull's navy beside
@@ -544,7 +551,7 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the team-mates face-off (VD-122 #1346); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
 
 **Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
@@ -653,6 +660,49 @@ to the dot plot.
     containment half.
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
+
+**The team-mates face-off** (provisional, VD-122 #1346). Decided on the
+2026-11-13 visual critique (`docs/critiques/2026-11-13-visual-design/P06v2.html`,
+approved 2026-11-14): a driver's Team-mates section opens with who was
+ahead of whom, before the table that holds every pairing.
+`faceOffs()` in `queries/driver.js` sums the table's own `TEAM_MATES` rows
+and writes every sentence; `charts/FaceOff.jsx` draws it and the static
+page's `faceOffHtml()` writes the same markup.
+
+- **Parts:** a headline in the display face, generated, about the latest
+  team-mate (*Norris out-qualified Piastri 61–29*: who led in qualifying,
+  or on finishes where qualifying is not established, or on points), the
+  figure in tabular ink; a standfirst in the section-intro voice; then one
+  block per team-mate shown, each the two surnames at either end over 4 px
+  rules in their colours with a generated line between them saying who was
+  ahead on what, three split tallies (qualifying, race when both
+  classified, points) and each season as a small split; last, a key in
+  faint prose saying what the colours and the figures are.
+- **How many:** at most three blocks (`FACE_OFFS`): the latest team-mate,
+  and the two others with the most Grands Prix together, set latest first.
+  A career of 106 team-mates is not 106 blocks; the key says how many are
+  shown of how many, and the table under it has every pairing.
+- **A tally:** a bar split at the driver's share of the two figures, the
+  driver from the left, with a tick in ink at the middle where level would
+  meet. The leading figure is `--size-9` in ink and the other `--size-7` in
+  `--ink-faint`; level, neither leads. Qualifying with no race both have a
+  position in is an em dash and draws no bar, a race count with no race both
+  were classified in reads *none*, as the table's cells do, and a 0–0 in
+  points is a level with no bar to split.
+- **Type:** names in the display face at `--size-8`, `--size-10` from 768,
+  in sentence case (`[D-66]`: capitals for the page title alone, so the
+  mockup's capitals are not built).
+- **Colour:** `[D-65]` above, the block's last season's team, as
+  `charts/own.js` `faceColours()` writes it. No accent anywhere (`[D-61]`).
+- **Second cue:** both figures are printed beside every bar and the names
+  beside every rule, so colour is never the only cue (1.4.1). The bars are
+  hidden from assistive technology, each printed figure following its
+  driver's name in sr-only text; the per-season splits are hidden too, the
+  table under them holding every season's figures under its own headers.
+  A pairing at two teams in one season is one split, summed.
+- **Phone:** the line between the names drops to a row under them, the
+  tallies stack, and each season's small split sets its figures over its
+  bar.
 
 **The reach chart** (provisional, AF-132). A figure for one question: who
 can still catch the leader. One row per contender: a solid bar from nought

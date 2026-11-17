@@ -9,6 +9,7 @@ import { DateText, Dated } from '../components/Dates.jsx'
 import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
+import FaceOffs from '../charts/FaceOff.jsx'
 import { ByRoundSpark } from '../charts/Spark.jsx'
 import { byRoundText } from '../charts/spark.js'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -56,6 +57,7 @@ import {
   thisSeasonLine,
   teamMateCount,
   teamMatesFooter,
+  faceOffs,
 } from '../queries/driver.js'
 import { comparePath, compareWith } from '../queries/compare.js'
 
@@ -330,6 +332,8 @@ function DriverBody({ driver, data }) {
   const differ = pointsDiffer(driver, derived)
   const thisSeason = rows(data, 'thisSeason')
   const teamMates = rows(data, 'teamMates')
+  // The face-off over the table (VD-122), from the table's own rows.
+  const faceOff = useMemo(() => faceOffs(driver.full_name, teamMates), [driver.full_name, teamMates])
   const wonAtHere = useMemo(() => wonAt(rows(data, 'winsAt')), [data])
   // A Friday driver's whole record is the practice sheets (LV-03).
   const practiceOnly = driver.practice_only === 1
@@ -436,6 +440,7 @@ function DriverBody({ driver, data }) {
           no section, as it has no rows (PD-43). */}
       {teamMates.length > 0 && (
         <Section title="Team-mates" count={teamMateCount(teamMates)}>
+          <FaceOffs faceOff={faceOff} />
           <DataTable
             rows={teamMates}
             fold={FOLD_NOUN.teamMates}
