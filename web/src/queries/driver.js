@@ -658,6 +658,7 @@ export const TEAM_MATES = `
   SELECT r.year, e.constructor_id, k.name AS constructor, k.country AS constructor_country,
          o.driver_id AS mate_id, d.full_name AS mate,
          COUNT(*) AS races,
+         MAX(r.year * 100 + r.round) AS last_round,
          CAST(TOTAL(qa.position IS NOT NULL AND qb.position IS NOT NULL) AS INTEGER) AS both_qualified,
          CAST(TOTAL(qa.position < qb.position) AS INTEGER) AS qualified_ahead,
          CAST(TOTAL(qa.position > qb.position) AS INTEGER) AS qualified_behind,
@@ -758,9 +759,11 @@ export const teamMatesFooter = (name) =>
  * the face-off can say nothing the table under it does not.
  *
  * One block per team-mate shown, at most FACE_OFFS of them: the latest
- * team-mate - the first row, the query being newest first - and then those
- * with the most Grands Prix together, a tie going to the later pairing and
- * then the name. A career of 106 team-mates is not 106 blocks; the table
+ * team-mate - the one with the latest round together (`last_round`), not
+ * the first row, which within a year is ordered by team name; two shared
+ * that round goes to the query's order - and then those with the most
+ * Grands Prix together, a tie going to the later pairing and then the
+ * name. A career of 106 team-mates is not 106 blocks; the table
  * holds every pairing, and the note under the blocks says how many are
  * shown of how many. The blocks are set latest first, as the table is.
  *
@@ -843,14 +846,16 @@ function blockVerdict(a, b, counts, seasons) {
   for (const side of ['mine', 'theirs']) if (on(side).length) clauses.push(`${sides[side]} ahead ${phrase(on(side))}`)
   if (on('level').length) clauses.push(`level ${phrase(on('level'))}`)
   const line = clauses.join('; ')
-  return `${line.charAt(0).toUpperCase()}${line.slice(1)}.`
+  // Only "level" is capitalised: a name keeps its own case ("de Changy").
+  return `${clauses[0].startsWith('level ') ? capitalise(line) : line}.`
 }
 
 /**
  * The headline over the blocks, about the latest team-mate: who
  * out-qualified whom, and by how much, the one ahead's figure first; where
  * qualifying is not established, who finished ahead; where neither is, who
- * outscored whom. `figure` is the part set in the team's colour.
+ * outscored whom. `figure` is the part set apart, in tabular ink with no
+ * accent (D-61 rule 2).
  */
 function headline(block) {
   const [a, b] = block.names
@@ -870,7 +875,8 @@ function headline(block) {
  * ({ text, figure }), `standfirst` (the sentences under it), `blocks` (each
  * with the two `names`, the `span`, `seasonCount` and the `when` they make
  * under the verdict, the `verdict`, its
- * `tallies`, its `seasons` - each a year and its own tallies - and the
+ * `tallies`, its `seasons` - each a year, newest first, and its tallies,
+ * summed over the year's rows where the two shared more than one team - and the
  * `colour` its last season's team wears), and `note`, the key under them.
  */
 export function faceOffs(name, rows) {
@@ -883,10 +889,10 @@ export function faceOffs(name, rows) {
   const mates = [...byMate.values()].map((list) => ({
     rows: list,
     races: list.reduce((n, row) => n + row.races, 0),
-    last: list[0].year,
+    last: Math.max(...list.map((row) => row.last_round)),
     mate: list[0].mate,
   }))
-  const latest = mates.find((m) => m.rows.includes(rows[0]))
+  const latest = mates.reduce((best, m) => (m.last > best.last ? m : best))
   const others = mates
     .filter((m) => m !== latest)
     .sort((x, y) => y.races - x.races || y.last - x.last || x.mate.localeCompare(y.mate))
@@ -895,7 +901,12 @@ export function faceOffs(name, rows) {
   const blocks = shown.map(({ rows: list }) => {
     const [a, b] = shortNames([name, list[0].mate])
     const years = [...new Set(list.map((row) => row.year))].sort((x, y) => x - y)
-    const seasons = list.map((row) => ({ key: `${row.year}-${row.constructor_id}`, year: row.year, tallies: tallies([row]) }))
+    // One split a year: a pairing at two teams in a season is one season.
+    const seasons = [...new Set(list.map((row) => row.year))].map((year) => ({
+      key: String(year),
+      year,
+      tallies: tallies(list.filter((row) => row.year === year)),
+    }))
     const counts = tallies(list)
     const last = list[0]
     return {

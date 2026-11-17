@@ -5666,8 +5666,8 @@ describe("the team-mates face-off (VD-122), on rows written out", async () => {
   const { faceOffs, FACE_OFFS } = await import('../src/queries/driver.js')
   const { faceColours } = await import('../src/charts/own.js')
   // One TEAM_MATES row: a season with one team-mate, the driver's figure first.
-  const row = (year, mate, [qa, qb, bq], [fa, fb, bc], [p, mp], { races = 10, team = 'mclaren', name = 'McLaren', country = 'United Kingdom' } = {}) => ({
-    year, constructor_id: team, constructor: name, constructor_country: country, mate_id: mate.toLowerCase(), mate: `Some ${mate}`,
+  const row = (year, mate, [qa, qb, bq], [fa, fb, bc], [p, mp], { races = 10, round = 10, team = 'mclaren', name = 'McLaren', country = 'United Kingdom' } = {}) => ({
+    year, constructor_id: team, constructor: name, constructor_country: country, mate_id: mate.toLowerCase(), mate: `Some ${mate}`, last_round: year * 100 + round,
     races, both_qualified: bq, qualified_ahead: qa, qualified_behind: qb, both_classified: bc, finished_ahead: fa, finished_behind: fb, points: p, mate_points: mp,
   })
   // Newest first, as the query orders them.
@@ -5715,6 +5715,28 @@ describe("the team-mates face-off (VD-122), on rows written out", async () => {
     assert.deepEqual(Object.keys(national.vars), ['--face-a-light', '--face-a-dark'], 'a national colour has no second, so the team-mate takes the ink fallback')
     const none = faceColours(faceOffs('A Driver', [row(1990, 'Mate', [1, 0, 1], [1, 0, 1], [1, 0])]).blocks[0].colour)
     assert.deepEqual(none, { className: 'face-off', vars: { '--face-a': 'var(--series-1)', '--face-b': 'var(--series-2)' } })
+  })
+  it('takes the latest team-mate by round, not by the team name a year is ordered by', () => {
+    // As the query orders them: 1955 at Ferrari (rounds to 3) before 1955 at Lancia (to 7).
+    const late = faceOffs('A Driver', [
+      row(1955, 'Early', [1, 0, 1], [1, 0, 1], [1, 0], { round: 3, team: 'ferrari', name: 'Ferrari', country: 'Italy' }),
+      row(1955, 'Later', [0, 1, 1], [0, 1, 1], [0, 1], { round: 7, team: 'lancia', name: 'Lancia', country: 'Italy' }),
+    ])
+    assert.deepEqual(late.blocks.map((b) => b.mate_id), ['later', 'early'])
+    assert.deepEqual(late.headline, { text: 'Later out-qualified Driver', figure: '1–0' })
+  })
+  it('keeps a name\'s own case at the start of the verdict, and capitalises only "level"', () => {
+    const particle = faceOffs('Alain de Changy', [row(1959, 'Mate', [2, 1, 3], [0, 1, 1], [0, 0])])
+    assert.equal(particle.blocks[0].verdict, 'de Changy ahead in qualifying; Mate ahead on finishes; level on points.')
+    const level = faceOffs('A Driver', [row(1959, 'Mate', [1, 1, 2], [0, 0, 0], [0, 0])])
+    assert.equal(level.blocks[0].verdict, 'Level in qualifying and on points.')
+  })
+  it('draws a season shared at two teams as one split, summed', () => {
+    const two = faceOffs('A Driver', [
+      row(1954, 'Mate', [1, 0, 1], [1, 0, 1], [3, 0], { team: 'ferrari', name: 'Ferrari', country: 'Italy' }),
+      row(1954, 'Mate', [0, 2, 2], [0, 1, 1], [0, 4], { team: 'maserati', name: 'Maserati', country: 'Italy' }),
+    ])
+    assert.deepEqual(two.blocks[0].seasons.map((s) => [s.year, ...s.tallies.map((t) => `${t.mine}–${t.theirs}`)]), [[1954, '1–2', '1–1', '3–4']])
   })
   it('has nothing to say with no team-mate', () => assert.equal(faceOffs('A Driver', []), null))
 })

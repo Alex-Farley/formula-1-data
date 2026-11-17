@@ -1964,10 +1964,10 @@ const columnMark = (colour, title, year) =>
 // charts/FaceOff.jsx: the team-mates face-off (VD-122), the same markup
 // from the same faceOffs() result, so nothing moves at the handover.
 const faceFigure = (tally, side, base) => `${base}${tally.ahead === side ? ' face-win' : ''}`
-const duel = (tally, names) =>
+const duel = (tally) =>
   tally.share === null
     ? '<span class="duel duel-none" aria-hidden="true"></span>'
-    : `<span class="duel" role="img" aria-label="${esc(`${names[0]} ${tally.mine}, ${names[1]} ${tally.theirs}`)}"><i style="--share: ${tally.share}"></i><i></i></span>`
+    : `<span class="duel" aria-hidden="true"><i style="--share: ${tally.share}"></i><i></i></span>`
 const faceBlock = (block) => {
   const { className, vars } = faceColours(block.colour)
   const style = Object.entries(vars)
@@ -1977,7 +1977,7 @@ const faceBlock = (block) => {
   const tallies = block.tallies
     .map(
       (t) =>
-        `<div class="face-tally"><p class="face-label">${esc(t.label)}</p><div class="face-row"><span class="${faceFigure(t, 'mine', 'face-figure')}">${esc(t.mine)}</span>${duel(t, block.names)}<span class="${faceFigure(t, 'theirs', 'face-figure face-figure-mate')}">${esc(t.theirs)}</span></div></div>`,
+        `<div class="face-tally"><p class="face-label">${esc(t.label)}</p><div class="face-row"><span class="${faceFigure(t, 'mine', 'face-figure')}"><span class="sr-only">${esc(a)} </span>${esc(t.mine)}</span>${duel(t)}<span class="${faceFigure(t, 'theirs', 'face-figure face-figure-mate')}"><span class="sr-only">, ${esc(b)} </span>${esc(t.theirs)}</span></div></div>`,
     )
     .join('')
   const seasons = block.seasons
@@ -1986,7 +1986,7 @@ const faceBlock = (block) => {
         `<div class="face-season"><b>${season.year}</b>${season.tallies
           .map(
             (t) =>
-              `<span class="face-mini"><span class="${faceFigure(t, 'mine', 'face-mini-figure')}">${esc(t.mine)}</span>${duel(t, block.names)}<span class="${faceFigure(t, 'theirs', 'face-mini-figure face-figure-mate')}">${esc(t.theirs)}</span></span>`,
+              `<span class="face-mini"><span class="${faceFigure(t, 'mine', 'face-mini-figure')}">${esc(t.mine)}</span>${duel(t)}<span class="${faceFigure(t, 'theirs', 'face-mini-figure face-figure-mate')}">${esc(t.theirs)}</span></span>`,
           )
           .join('')}</div>`,
     )
@@ -1995,7 +1995,7 @@ const faceBlock = (block) => {
     `<div class="${className}"${style ? ` style="${esc(style)}"` : ''}>` +
     `<div class="face-names"><span class="face-name">${esc(a)}</span><span class="face-verdict"><b>${esc(block.verdict)}</b>${esc(block.when)}</span><span class="face-name face-name-mate">${esc(b)}</span></div>` +
     `<div class="face-tallies">${tallies}</div>` +
-    `<div class="face-seasons"><div class="face-season face-season-head"><span>Season</span><span>Qualifying</span><span>Race</span><span>Points</span></div>${seasons}</div>` +
+    `<div class="face-seasons" aria-hidden="true"><div class="face-season face-season-head"><span>Season</span><span>Qualifying</span><span>Race</span><span>Points</span></div>${seasons}</div>` +
     '</div>'
   )
 }

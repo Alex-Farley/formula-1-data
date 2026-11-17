@@ -695,8 +695,11 @@ page's `faceOffHtml()` writes the same markup.
 - **Colour:** `[D-65]` above, the block's last season's team, as
   `charts/own.js` `faceColours()` writes it. No accent anywhere (`[D-61]`).
 - **Second cue:** both figures are printed beside every bar and the names
-  beside every rule, so colour is never the only cue (1.4.1); each bar is
-  an image named with both figures.
+  beside every rule, so colour is never the only cue (1.4.1). The bars are
+  hidden from assistive technology, each printed figure following its
+  driver's name in sr-only text; the per-season splits are hidden too, the
+  table under them holding every season's figures under its own headers.
+  A pairing at two teams in one season is one split, summed.
 - **Phone:** the line between the names drops to a row under them, the
   tallies stack, and each season's small split sets its figures over its
   bar.

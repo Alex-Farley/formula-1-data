@@ -8,7 +8,10 @@ import { faceColours } from './own.js'
  * what; three split tallies with the leading figure large; then each season
  * as a small split. The figures are printed beside every bar, so the colour
  * is never the only cue (1.4.1), and the table under the blocks holds every
- * pairing.
+ * pairing. The bars are hidden from assistive technology, the printed
+ * figures saying what they draw, each after its driver's name in sr-only
+ * text; the per-season splits are hidden too, as the table under them holds
+ * every season's figures under its own headers.
  */
 export default function FaceOffs({ faceOff }) {
   if (!faceOff) return null
@@ -29,10 +32,10 @@ export default function FaceOffs({ faceOff }) {
 
 const figureClass = (tally, side, base) => `${base}${tally.ahead === side ? ' face-win' : ''}`
 
-function Duel({ tally, names }) {
+function Duel({ tally }) {
   if (tally.share === null) return <span className="duel duel-none" aria-hidden="true" />
   return (
-    <span className="duel" role="img" aria-label={`${names[0]} ${tally.mine}, ${names[1]} ${tally.theirs}`}>
+    <span className="duel" aria-hidden="true">
       <i style={{ '--share': tally.share }} />
       <i />
     </span>
@@ -57,14 +60,20 @@ function Block({ block }) {
           <div className="face-tally" key={tally.key}>
             <p className="face-label">{tally.label}</p>
             <div className="face-row">
-              <span className={figureClass(tally, 'mine', 'face-figure')}>{tally.mine}</span>
-              <Duel tally={tally} names={block.names} />
-              <span className={figureClass(tally, 'theirs', 'face-figure face-figure-mate')}>{tally.theirs}</span>
+              <span className={figureClass(tally, 'mine', 'face-figure')}>
+                <span className="sr-only">{`${a} `}</span>
+                {tally.mine}
+              </span>
+              <Duel tally={tally} />
+              <span className={figureClass(tally, 'theirs', 'face-figure face-figure-mate')}>
+                <span className="sr-only">{`, ${b} `}</span>
+                {tally.theirs}
+              </span>
             </div>
           </div>
         ))}
       </div>
-      <div className="face-seasons">
+      <div className="face-seasons" aria-hidden="true">
         <div className="face-season face-season-head">
           <span>Season</span>
           <span>Qualifying</span>
@@ -77,7 +86,7 @@ function Block({ block }) {
             {season.tallies.map((tally) => (
               <span className="face-mini" key={tally.key}>
                 <span className={figureClass(tally, 'mine', 'face-mini-figure')}>{tally.mine}</span>
-                <Duel tally={tally} names={block.names} />
+                <Duel tally={tally} />
                 <span className={figureClass(tally, 'theirs', 'face-mini-figure face-figure-mate')}>{tally.theirs}</span>
               </span>
             ))}
