@@ -119,17 +119,17 @@ export const slotColour = (i, count) => (count === 1 ? INK : seriesColour(i))
  * The second channel: every series its own stroke, solid, dashed, dotted
  * (AX-16).
  *
- * A line chart's direct end labels carry the value, and one that would
- * collide with its neighbour is dropped, which leaves the legend as the only
- * key to that line. A key that differs only in hue is a key that 1.4.1 says
- * may not be the only one, and it is the one a reader with a colour-vision
- * deficiency, or anyone on a washed-out screen, cannot use - and the chart
- * wearing liveries (AF-04) makes that likelier rather than rarer, because two
- * teams' colours are not chosen to be told apart. So the dash follows the
- * series slot, livery or not, and the legend and the tooltip draw a stroke
- * sample in it rather than a square: the pattern on the line is the pattern
- * in the key. It also does the work the old teammate-dash did, since two
- * drivers of one team sit in two slots.
+ * A key that differs only in hue is a key that 1.4.1 says may not be the
+ * only one, and it is the one a reader with a colour-vision deficiency, or
+ * anyone on a washed-out screen, cannot use - and the chart wearing liveries
+ * (AF-04) makes that likelier rather than rarer, because two teams' colours
+ * are not chosen to be told apart. A line chart names each line at its end
+ * (VD-121), and where two lines end close together the dash is what still
+ * tells them apart along their length. So the dash follows the series slot,
+ * livery or not, and the tooltip draws a stroke sample in it rather than a
+ * square: the pattern on the line is the pattern in the key. It also does
+ * the work the old teammate-dash did, since two drivers of one team sit in
+ * two slots.
  *
  * Measured at the chart's 2px width with round caps, which add a pixel at
  * each end of every dash: 7-on 5-off reads as 9 and 3, and 1-on 4.5-off as

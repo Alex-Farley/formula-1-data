@@ -11,7 +11,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { LABELS } from '../lib/site.js'
-import { longDate, number, percent, span } from '../lib/format.js'
+import { inWords, longDate, number, percent, span } from '../lib/format.js'
 import { OUTLINE_BY, roundShortName } from '../lib/outline.js'
 
 // A race holder is stored by races.id; the page needs year and round to
@@ -656,8 +656,6 @@ export const LONGEST_RUNS = 'The longest runs'
 export const DERIVATION_ID = 'how-it-is-derived'
 export const recordRacesNote = `Outlines: ${OUTLINE_BY}. Each links to its race.`
 
-const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
-const inWords = (n) => WORDS[n] ?? number(n)
 
 // 'May', or 'September 2023' where the run spans seasons; null for a race
 // with no whole day, and the sentence then names the race alone.

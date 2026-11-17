@@ -15,7 +15,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, missing, number, points, raceDates, roundResult, text } from '../lib/format.js'
+import { EMPTY, inWords, missing, number, ordinal, points, raceDates, roundResult, text } from '../lib/format.js'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { carName } from './race.js'
@@ -715,6 +715,311 @@ export const TITLE_RACE_COLUMNS = [
   { key: 'points', label: 'Points', align: 'num' },
 ]
 
+/** What the title race plots, over the figure under its finding (VD-121). */
+export const TITLE_RACE_KICKER = 'Points after each round'
+
+/**
+ * Every entry of the season's top three, round by round, for the notes the
+ * title race's markers point to (VD-121): which rounds a contender missed,
+ * and how their race ended where it matters. A position shared at third
+ * brings in every driver holding it; titleRaceFigure() reads only the three
+ * it draws. Read with the year by Season.jsx and scripts/prerender.js.
+ */
+export const CONTENDER_ENTRIES = `
+  SELECT r.round, e.driver_id, e.finish_position, e.position_text, e.status, e.laps_completed
+    FROM race_entries e
+    JOIN races r ON r.id = e.race_id
+   WHERE r.year = ?1
+     AND e.driver_id IN (SELECT driver_id FROM v_standings_final
+                          WHERE year = ?1 AND table_type = 'drivers'
+                            AND driver_id IS NOT NULL AND position <= 3)
+   ORDER BY r.round, e.driver_id, e.id
+`
+
+/**
+ * A driver as a chart's line end and its notes name them: the surname, with
+ * a lower-case particle before it ("von Trips", "de Angelis") or a suffix
+ * after it ("Piquet Jr.") kept. Where two of `names` would come out the
+ * same, both keep their full names, since a label that names neither line
+ * is no label.
+ */
+export function shortNames(names) {
+  const surname = (name) => {
+    const words = String(name).trim().split(/\s+/)
+    let k = words.length - 1
+    if (k > 0 && /^(?:Jr\.?|Sr\.?|II|III)$/.test(words[k])) k -= 1
+    while (k > 0 && /^[a-z]/.test(words[k - 1])) k -= 1
+    return words.slice(k).join(' ')
+  }
+  const short = names.map(surname)
+  return short.map((s, i) => (short.filter((t) => t === s).length > 1 ? names[i] : s))
+}
+
+/**
+ * Who led the drivers' table after each round, from STANDINGS' rows: one
+ * entry per round the table is held for, in order, each with the driver
+ * alone on the most points (`id`, `name`), or a null `id` where two or more
+ * share it or a source gives one driver two totals - a lead nobody held
+ * outright. `level` is everyone on the most points.
+ */
+export function leadersByRound(standings) {
+  const tables = new Map()
+  for (const r of standings) {
+    if (r.table_type !== 'drivers' || missing(r.points) || missing(r.driver_id) || missing(r.after_round)) continue
+    if (!tables.has(r.after_round)) tables.set(r.after_round, new Map())
+    const table = tables.get(r.after_round)
+    const held = table.get(r.driver_id)
+    table.set(r.driver_id, { name: r.entity, points: held && held.points !== r.points ? NaN : r.points })
+  }
+  return [...tables]
+    .sort((a, b) => a[0] - b[0])
+    .map(([round, table]) => {
+      const rows = [...table]
+      if (rows.some(([, v]) => Number.isNaN(v.points))) return { round, id: null, name: null, level: [] }
+      const most = Math.max(...rows.map(([, v]) => v.points))
+      const level = rows.filter(([, v]) => v.points === most)
+      return level.length === 1
+        ? { round, id: level[0][0], name: level[0][1].name, level: [level[0][0]] }
+        : { round, id: null, name: null, level: level.map(([id]) => id) }
+    })
+}
+
+/**
+ * The title race's finding (VD-121): one sentence, over the chart, of who
+ * led and for how long, from leadersByRound(). `nameOf` gives a driver's
+ * short name from their id and full name. Null where the table is not held
+ * after every round from the first - a gap would make "every round" a
+ * guess - or nobody leads outright after the last.
+ *
+ *     Hunt led after every round
+ *     Lauda led after fifteen rounds. Hunt led after one: the last
+ *     Farina led after four of the seven rounds, including the last
+ *     Prost led after eleven of the sixteen rounds, and every one from round 9
+ *     Antonelli has led after every round since round 4
+ */
+export function titleFinding(leaders, live, nameOf) {
+  if (leaders.length < 2 || leaders.some((l, i) => l.round !== i + 1)) return null
+  const last = leaders[leaders.length - 1]
+  if (!last.id) return null
+  const n = leaders.length
+  // Counts in words to twenty, as a sentence spells them; past it, digits
+  // for both, so "14 of the 22 rounds" is not half of each.
+  const count = (k) => (n > 20 ? number(k) : inWords(k))
+  const who = nameOf(last.id, last.name)
+  const led = leaders.filter((l) => l.id === last.id).length
+  let from = n - 1
+  while (from > 0 && leaders[from - 1].id === last.id) from -= 1
+  const since = leaders[from].round
+  if (led === n) return live ? `${who} has led after every round so far` : `${who} led after every round`
+  if (from === n - 1) {
+    if (live) return `${who} took the lead after round ${number(last.round)}`
+    if (led > 1) return `${who} led after ${count(led)} of the ${count(n)} rounds, including the last`
+    const before = leaders[n - 2]
+    if (!before.id) return `${who} led after one round: the last`
+    const times = leaders.filter((l) => l.id === before.id).length
+    return `${nameOf(before.id, before.name)} led after ${count(times)} round${times === 1 ? '' : 's'}. ${who} led after one: the last`
+  }
+  if (led === n - from)
+    return live ? `${who} has led after every round since round ${number(since)}` : `${who} led after every round from round ${number(since)}`
+  return live
+    ? `${who} has led after ${count(led)} of the ${count(n)} rounds, and every one since round ${number(since)}`
+    : `${who} led after ${count(led)} of the ${count(n)} rounds, and every one from round ${number(since)}`
+}
+
+// "Fuel system" as it reads inside a sentence.
+const lowered = (status) => status.charAt(0).toLowerCase() + status.slice(1)
+const FATAL = /^Fatal/
+
+/**
+ * How one contender's race ended, as a note says it, from their entries in
+ * that round: "wins", "finishes 3rd", "crashes out", "withdraws after two
+ * laps", "retires (engine)", "does not start (accident in practice)". Null
+ * where they had more than one entry - a shared drive, whose car's result
+ * is not theirs alone - or none, or the record says nothing a sentence can.
+ */
+export function raceEnded(entries) {
+  if (entries.length !== 1) return null
+  const [e] = entries
+  if (!missing(e.finish_position)) return e.finish_position === 1 ? 'wins' : `finishes ${ordinal(e.finish_position)}`
+  // A status that only says the result again ("Retired") adds nothing.
+  const why = !missing(e.status) && e.status !== e.position_text && !/^retire/i.test(e.status) ? ` (${lowered(e.status)})` : ''
+  switch (e.position_text) {
+    case 'DNF':
+      if (e.status === 'Accident') return 'crashes out'
+      if (e.status === 'Withdrew')
+        return e.laps_completed > 0 ? `withdraws after ${inWords(e.laps_completed)} lap${e.laps_completed === 1 ? '' : 's'}` : 'withdraws'
+      return `retires${why}`
+    case 'DNS':
+      return `does not start${why}`
+    case 'DSQ':
+      return 'is disqualified'
+    case 'EX':
+      return 'is excluded'
+    case 'NC':
+      return 'is not classified'
+    case 'DNQ':
+      return 'does not qualify'
+    case 'DNPQ':
+      return 'does not pre-qualify'
+    default:
+      return null
+  }
+}
+
+// "R11 and R12", "R13 to R16", "R4, R6 and R9".
+const roundList = (rounds) => {
+  const r = rounds.map((n) => `R${number(n)}`)
+  if (rounds.length >= 3 && rounds.every((n, i) => i === 0 || n === rounds[i - 1] + 1)) return `${r[0]} to ${r[r.length - 1]}`
+  return r.length < 2 ? r.join('') : `${r.slice(0, -1).join(', ')} and ${r[r.length - 1]}`
+}
+
+/**
+ * The notes on the title race (VD-121): at most one of each kind, in round
+ * order, each `{ series, x, lead, text, band }` - the line and round its
+ * marker sits on, the bold lead and the line under it in the key, and the
+ * span it shades, if any. Every one is a fact the rows below state:
+ *
+ * - A contender's longest run of rounds without an entry, after their first
+ *   (one after a fatal accident before any other, then the longest, the
+ *   earliest, the higher placed): marked at the last round they entered
+ *   before it, which is shaded to the last missed. A round none of the
+ *   three entered - the Indianapolis 500, which the championship counted to
+ *   1960 and most of its regulars did not run - is no absence. Where the
+ *   entry before it ended in a fatal accident the note says that, in the
+ *   record's words, and nothing of rounds "missed"; where it ended in a
+ *   disqualification the note does not say so, since "disqualified, then
+ *   misses" would read as the cause.
+ * - The round the champion settled the title with rounds still to run,
+ *   where clinchRound() establishes it: never in a season that dropped
+ *   scores, whose arithmetic declines.
+ * - A title decided at the last round: the champion did not lead outright
+ *   after the round before it, and does after it. How the rival who led, or
+ *   who was level, finished there, then the champion, and the final margin.
+ *
+ * `series` are the drawn contenders, `{ id, name, short, points }`.
+ */
+export function titleRaceNotes({ live, series, drivers, standings, rounds, entries, champion, remaining }) {
+  const notes = []
+  const index = new Map(series.map((s, i) => [s.id, i]))
+  const plotted = (i, round) => series[i].points.some((p) => p.x === round)
+  const raceName = (round) => rounds.find((r) => r.round === round)?.name_used ?? null
+  const lead = (round) => (raceName(round) ? `R${number(round)}, ${raceName(round)}` : `R${number(round)}`)
+  const entriesOf = (id, round) => entries.filter((e) => e.driver_id === id && e.round === round)
+
+  // The longest absence.
+  const run = rounds.filter((r) => r.status === 'completed').map((r) => r.round)
+  const anyone = new Set(entries.filter((e) => index.has(e.driver_id)).map((e) => e.round))
+  const counted = run.filter((round) => anyone.has(round))
+  // A fatal ending outranks any absence: the absence after it is the
+  // driver's death, which the note must say (1961: von Trips at Monza, not
+  // Hill's missing the round Ferrari withdrew from). Then the longest, the
+  // earliest, the higher placed.
+  const fatalAt = (i, round) => {
+    const ended = entriesOf(series[i].id, round)
+    return ended.length === 1 && !missing(ended[0].status) && FATAL.test(ended[0].status)
+  }
+  const outranks = (a, b) => {
+    const fa = fatalAt(a.i, a.after)
+    const fb = fatalAt(b.i, b.after)
+    if (fa !== fb) return fa
+    if (a.missed.length !== b.missed.length) return a.missed.length > b.missed.length
+    return a.after < b.after
+  }
+  let away = null
+  series.forEach((s, i) => {
+    const entered = new Set(entries.filter((e) => e.driver_id === s.id).map((e) => e.round))
+    if (entered.size === 0) return
+    const first = Math.min(...entered)
+    let after = null
+    let missed = []
+    const close = () => {
+      if (missed.length && after !== null) {
+        const candidate = { i, after, missed }
+        if (!away || outranks(candidate, away)) away = candidate
+      }
+      missed = []
+    }
+    for (const round of counted) {
+      if (round < first) continue
+      if (entered.has(round)) {
+        close()
+        after = round
+      } else missed.push(round)
+    }
+    close()
+  })
+  if (away && plotted(away.i, away.after)) {
+    const s = series[away.i]
+    const ended = entriesOf(s.id, away.after)
+    if (fatalAt(away.i, away.after)) {
+      notes.push({ series: away.i, x: away.after, lead: lead(away.after), text: `${s.short}: ${lowered(ended[0].status)}.`, band: null })
+    } else {
+      // A disqualification is not said before an absence: "disqualified,
+      // then misses" reads as the cause, and need not be (1994: Schumacher's
+      // ban was for Silverstone, not Spa).
+      const how = /^(?:DSQ|EX)$/.test(ended.length === 1 ? ended[0].position_text : '') ? null : raceEnded(ended)
+      notes.push({
+        series: away.i,
+        x: away.after,
+        lead: lead(away.after),
+        text: `${s.short} ${how ? `${how}, then misses` : 'misses'} ${roundList(away.missed)} (shaded).`,
+        band: { from: away.after, to: away.missed[away.missed.length - 1] },
+      })
+    }
+  }
+
+  const leaders = leadersByRound(standings)
+  const lastRound = leaders.length ? leaders[leaders.length - 1].round : null
+  const calendarEnd = rounds.length ? Math.max(...rounds.map((r) => r.round)) : null
+  const champ = !missing(champion) && index.has(champion) ? index.get(champion) : null
+
+  // Settled with rounds to run.
+  if (champ !== null && lastRound !== null && remaining?.dropped_scores === EVERY_RESULT_COUNTS) {
+    const at = clinchRound({ most: mostPerRound(remaining), rounds, standings, afterRound: lastRound }, 'drivers', champion)
+    const left = at === null ? 0 : rounds.filter((r) => r.round > at).length
+    if (at !== null && left > 0 && plotted(champ, at))
+      notes.push({
+        series: champ,
+        x: at,
+        lead: lead(at),
+        text: `${series[champ].short} settles the title with ${inWords(left)} round${left === 1 ? '' : 's'} to run.`,
+        band: null,
+      })
+  }
+
+  // Decided at the last round.
+  const [first, second] = drivers
+  const margin = first && second && !missing(first.points) && !missing(second.points) ? first.points - second.points : null
+  if (
+    !live &&
+    champ !== null &&
+    leaders.length >= 2 &&
+    lastRound === calendarEnd &&
+    first?.driver_id === champion &&
+    margin > 0 &&
+    plotted(champ, lastRound)
+  ) {
+    const [before, after] = leaders.slice(-2)
+    const rival = before.id ?? before.level.find((id) => id !== champion && index.has(id)) ?? null
+    if (after.id === champion && before.id !== champion && rival !== null && index.has(rival)) {
+      const them = series[index.get(rival)].short
+      const us = series[champ].short
+      const level = before.id === null && before.level.includes(champion) ? `${us} and ${them} arrive level on points. ` : ''
+      const theirs = raceEnded(entriesOf(rival, lastRound))
+      const ours = raceEnded(entriesOf(champion, lastRound))
+      const by = margin === 1 ? 'a point' : `${points(margin)} points`
+      notes.push({
+        series: champ,
+        x: lastRound,
+        lead: lead(lastRound),
+        text: `${level}${theirs ? `${them} ${theirs}. ` : ''}${us} ${ours ? `${ours} and takes` : 'takes'} the title by ${by}.`,
+        band: null,
+      })
+    }
+  }
+  return notes.sort((a, b) => a.x - b.x).map((note, k) => ({ ...note, n: k + 1 }))
+}
+
 /**
  * The title race, as it actually ran (VD-73): everything LineChart and its
  * Figure are given, worked out once for both renderers - Season.jsx draws it
@@ -735,16 +1040,26 @@ export const TITLE_RACE_COLUMNS = [
  * one: a mix of one papaya line and two neutral blues would read as a claim
  * about the blues.
  *
+ * Each line is named at its end by its driver's short name, and the
+ * annotation pattern (VD-121) adds the finding over the chart and the notes
+ * titleRaceNotes() works out, each a marker on a line and an entry in the
+ * key under it. A season still being run draws its whole calendar on the x
+ * axis, so the lines stop where the season has got to.
+ *
  * `drivers` is FINAL's drivers' rows, `standings` STANDINGS's, `teams`
  * teamsByDriver() of DRIVER_TEAMS's, `live` stillRunning() of the calendar,
- * and `dropped` REMAINING's `dropped_scores`.
+ * `remaining` REMAINING's row, `rounds` the calendar, `entries`
+ * CONTENDER_ENTRIES' rows and `champion` the season's recorded champion's id.
  */
-export function titleRaceFigure({ year, live, drivers, standings, teams, dropped }) {
+export function titleRaceFigure({ year, live, drivers, standings, teams, remaining, rounds = [], entries = [], champion = null }) {
   const contenders = drivers.slice(0, 3).filter((d) => d.driver_id)
-  const progression = contenders.map((driver) => {
+  const shorts = shortNames(contenders.map((d) => d.entity))
+  const progression = contenders.map((driver, k) => {
     const last = (teams.get(driver.driver_id) ?? [])[0]
     return {
+      id: driver.driver_id,
       name: driver.entity,
+      short: shorts[k],
       colour: last ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor }) : null,
       // STANDINGS holds the running table only; the season's end is FINAL,
       // and drawing it here would put the final classification beside the
@@ -757,11 +1072,28 @@ export function titleRaceFigure({ year, live, drivers, standings, teams, dropped
   })
   if (progression.length <= 1) return null
   const inColour = progression.every((s) => s.colour)
-  const series = progression.map((s) => ({ name: s.name, points: s.points, colour: inColour ? s.colour : null }))
+  const series = progression.map((s) => ({ name: s.name, label: s.short, points: s.points, colour: inColour ? s.colour : null }))
+  const notes = titleRaceNotes({
+    live,
+    series: progression.map((s) => ({ id: s.id, name: s.name, short: s.short, points: s.points.map((p) => ({ x: p.x })) })),
+    drivers,
+    standings,
+    rounds,
+    entries,
+    champion,
+    remaining,
+  })
+  const named = new Map(progression.map((s) => [s.id, s.short]))
+  const nameOf = (id, name) => named.get(id) ?? shortNames([name])[0]
   return {
     heading: titleHeading(live),
-    note: progressionNote(live, dropped),
-    legend: series.map((s) => ({ name: s.name, colour: s.colour })),
+    note: progressionNote(live, remaining?.dropped_scores),
+    finding: titleFinding(leadersByRound(standings), live, nameOf),
+    kicker: TITLE_RACE_KICKER,
+    annotations: notes.map(({ n, lead, text }) => ({ n, lead, text })),
+    marks: notes.map(({ n, series: i, x }) => ({ n, series: i, x })),
+    bands: notes.flatMap((note) => (note.band ? [note.band] : [])),
+    xMax: live && rounds.length ? Math.max(...rounds.map((r) => r.round)) : null,
     rows: series.flatMap((s) => s.points.map((p) => ({ driver: s.name, round: p.x, points: p.y }))),
     series,
     format: (v) => points(v),
