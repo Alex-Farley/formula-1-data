@@ -200,8 +200,10 @@ export function cardFigure(row) {
   if (counts) {
     // A value that already names its unit ('1,234 points'), or says in its
     // own word what it counts ('6 starters', '0.002 s each'), is not given
-    // the unit too; a value whose rest opens on 'each', 'of' or 'in' is.
-    const own = /^[^\W\d_]/u.test(rest) && !OPENERS.test(rest)
+    // the unit too; a value whose rest opens on 'each', 'of' or 'in' is, and
+    // so is one whose rest follows a comma ('84, with Mercedes'), which is a
+    // phrase about the figure rather than a word for it.
+    const own = !tail.startsWith(',') && /^[^\W\d_]/u.test(rest) && !OPENERS.test(rest)
     const unit = row.unit && !rest.startsWith(row.unit) && !own ? row.unit : ''
     // '10, 2023 Miami Grand Prix to ...' keeps its comma after the unit.
     const qualifier = !tail ? row.unit ?? '' : !unit ? rest : tail.startsWith(',') ? `${unit}${tail}` : `${unit} ${rest}`

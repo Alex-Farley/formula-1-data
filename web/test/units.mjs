@@ -2217,6 +2217,14 @@ describe('the queries a page and the prerenderer share', () => {
     assert.deepEqual(card('6 starters', 6, 'cars'), { figure: '6', qualifier: 'starters', counts: true })
     assert.deepEqual(card('0.002 s each', 0.002, 'seconds'), { figure: '0.002', qualifier: 's each', counts: true })
     assert.deepEqual(card('5 each', 5, 'races'), { figure: '5', qualifier: 'races each', counts: true })
+    // A phrase after a comma is about the figure, which keeps its unit.
+    assert.deepEqual(card('84, with Mercedes', 84, 'wins'), { figure: '84', qualifier: 'wins, with Mercedes', counts: true })
+    assert.deepEqual(card('9, British Grand Prix', 9, 'wins'), { figure: '9', qualifier: 'wins, British Grand Prix', counts: true })
+    assert.deepEqual(card('191, before the 2020 Sakhir Grand Prix', 191, 'entries'), {
+      figure: '191',
+      qualifier: 'entries, before the 2020 Sakhir Grand Prix',
+      counts: true,
+    })
     // An age is held in days and written in years: the figure is the
     // value's, and its own words say what it counts, not value_num's unit.
     assert.deepEqual(card('18 years, 228 days, 2016 Spanish Grand Prix', 6802, 'days'), {
