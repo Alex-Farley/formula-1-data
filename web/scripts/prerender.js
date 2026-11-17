@@ -3230,8 +3230,9 @@ const seasonsTable = (rows) =>
     const grid = one(GRID, year)
     const currentGrid = all(CURRENT_GRID, year)
     // The next round, on the page of the season being run only (PD-49): the
-    // same row, sessions and past winners Season.jsx draws. No trace - f1.db
-    // carries none, and only the browser merges f1-geometry.db in.
+    // same row, sessions and past winners Season.jsx draws. No trace yet: the
+    // circuit pages state it from f1-geometry.db (CR-33), and this section is
+    // CR-126 (#1384).
     const next = one(NEXT_ROUND, year)
     const nextSessions = next ? all(SEASON_SESSIONS, year).filter((row) => row.round === next.round) : []
     const wonHere = next ? all(WON_HERE, year) : []

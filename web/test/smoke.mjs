@@ -11390,8 +11390,9 @@ try {
     const PROSE = {
       '/seasons/2026': [
         { half: 'app', section: '', drop: 'The grid: ', why: PROSE_DRIFT },
-        // While a round is next, and where its circuit has a trace.
-        { half: 'app', section: NEXT_HEADING, drop: 'Traced from OpenStreetMap', why: TRACE, optional: true },
+        // While a round is next, and where its circuit has a trace: the
+        // static circuit pages state it (CR-33), this section not yet.
+        { half: 'app', section: NEXT_HEADING, drop: 'Traced from OpenStreetMap', why: '#1384', optional: true },
       ],
       '/seasons/1976': [{ half: 'app', section: '', drop: 'The grid: ', why: PROSE_DRIFT }],
       '/races': [{ half: 'static', section: '', drop: /^[\d,]+ championship Grands Prix\. The \d+ most recently run/, why: SLICE }],
