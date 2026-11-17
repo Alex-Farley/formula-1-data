@@ -2358,7 +2358,8 @@ try {
       const appHead = await page.$eval('#root main .face-headline', (node) => node.textContent)
       const appClass = await page.$eval('#root main .face-off', (node) => `${node.className} ${node.getAttribute('style') ?? ''}`)
       const html = (await (await fetch(`${BASE}/drivers/${id}`)).text()).split('<div id="prerendered">')[1] ?? ''
-      const flat = (fragment) => squash(unescaped(fragment.replace(/<[^>]+>/g, '')))
+      // The text between the tags, as textOf() reads it below (no tag-stripping replace: CodeQL).
+      const flat = (fragment) => squash(unescaped([...fragment.matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')))
       const staticBlocks = html.split('<div class="face-off').slice(1).map((chunk) => chunk.slice(0, chunk.indexOf('<p class="faint face-key">') >= 0 ? chunk.indexOf('<p class="faint face-key">') : undefined))
       const staticHead = flat(html.match(/<p class="face-headline">[\s\S]*?<\/p>/)?.[0] ?? '')
       is(app.length, Math.min(3, mates), `${id}: a block for each team-mate shown, at most three of ${mates}`)
