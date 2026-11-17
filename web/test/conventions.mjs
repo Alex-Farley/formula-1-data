@@ -2623,7 +2623,9 @@ describe('one vocabulary: tile labels and provenance headings come from one list
       }
     }
     assert.deepEqual(offenders, [], 'a tile label off the one vocabulary')
-    assert.ok(strips.length >= 13, `the scan found the strips it is guarding, ${strips.length} of them`)
+    // 12 since VD-112, which opened a record's page on its figure and took
+    // its recordStrip away.
+    assert.ok(strips.length >= 12, `the scan found the strips it is guarding, ${strips.length} of them`)
     assert.ok(
       strips.some(({ file, name }) => rel(file).endsWith('queries/driver.js') && name === 'strip'),
       "and the driver's, which is a function",

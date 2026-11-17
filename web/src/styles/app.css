@@ -1808,6 +1808,168 @@ tbody th.record-derivation {
 }
 
 /*
+ * A record's page opens on its record (VD-112; docs/design-system.md section
+ * 4, *Lookup pages*): the number the value opens with at --size-record, and
+ * beside it the words that give it meaning - the rest of the value and the
+ * holder, or, for a run of races, the sentence the run is read as. They sit
+ * on the number's foot and wrap under it on a narrow screen.
+ */
+.record-lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4) var(--space-8);
+  margin: var(--space-6) 0 0;
+}
+
+.record-lead-figure {
+  font-family: var(--disp);
+  font-size: var(--size-record);
+  font-weight: var(--weight-bold);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A value that opens with no number is set whole, at the tile's figure size. */
+.record-lead-whole {
+  min-width: 0;
+  font-size: var(--size-8);
+  font-weight: var(--weight-bold);
+  line-height: 1.12;
+  overflow-wrap: break-word;
+}
+
+.record-lead-words {
+  flex: 1 1 16rem;
+  max-width: var(--measure);
+  min-width: 0;
+  font-size: var(--size-6);
+  line-height: 1.35;
+}
+
+.record-lead-words p {
+  margin: 0;
+}
+
+.record-lead-words p + p {
+  margin-top: var(--space-3);
+}
+
+/* The races of the run, as the season strip draws a round (§3, *Outline
+   card*, the race thumbnail): ten to a row, five on a phone. */
+.outline-strip.record-races {
+  grid-template-columns: repeat(10, minmax(0, 1fr)); /* a card grid: ten races to the row */
+  margin-top: var(--space-9);
+}
+
+@media (width < 768px) {
+  .outline-strip.record-races {
+    grid-template-columns: repeat(5, minmax(0, 1fr)); /* a card grid: five races to the row on a phone */
+  }
+}
+
+/* Five to a row leaves some 45 px of a 320 px phone to each race, and ten
+   some 50 px of a 768 px tablet, which a 'Hungarian' set at the strip's
+   step does not fit: below the desktop the box gives up most of its inset
+   and the name drops a step, and a name longer still breaks, hyphenated
+   where the browser can, rather than running into the next. */
+@media (width < 1180px) {
+  .outline-strip.record-races li a {
+    padding: var(--space-1);
+  }
+
+  .outline-strip.record-races span {
+    font-size: var(--size-2);
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
+}
+
+.outline-strip.record-races + .outline-strip.record-races {
+  margin-top: var(--space-6);
+}
+
+/*
+ * The longest runs, as bars: the name and its years, then the bar, its
+ * length printed at its end with the run's two ends beside it. The record's
+ * runs take --series-mark and the rest --series-ink (D-61); every figure is
+ * printed, so the bar is never the only cue and stays out of the reading.
+ */
+.record-runs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: var(--span-8);
+}
+
+.record-runs li {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr); /* the name column, then the bar */
+  gap: var(--space-2) var(--space-6);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--size-4);
+  line-height: 1.3;
+}
+
+.record-runs li.is-holder {
+  font-weight: var(--weight-semibold);
+}
+
+.record-runs small {
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink-faint);
+}
+
+.record-run-who a {
+  color: inherit;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+
+.record-run-who a:hover,
+.record-run-who a:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+.record-run-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Each bar its share of the longest, which leaves room at its end for the
+   figure and the run's ends. */
+.record-run-bar > i {
+  display: block;
+  flex: none;
+  width: calc(var(--share) * 60%); /* a run's bar: its share of the longest */
+  height: var(--space-5);
+  background: var(--series-ink);
+}
+
+.record-runs li.is-holder .record-run-bar > i {
+  background: var(--series-mark);
+}
+
+.record-runs-note {
+  margin: var(--space-4) 0 0;
+  font-size: var(--size-3);
+}
+
+@media (width < 768px) {
+  .record-runs li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
  * Links inside a table and inside a stat tile.
  *
  * A classification is forty links in a row. Painting all of them accent turns

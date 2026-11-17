@@ -11,7 +11,8 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { LABELS } from '../lib/site.js'
-import { number, percent } from '../lib/format.js'
+import { longDate, number, percent, span } from '../lib/format.js'
+import { OUTLINE_BY, roundShortName } from '../lib/outline.js'
 
 // A race holder is stored by races.id; the page needs year and round to
 // link it, so they ride along (NULL for every other holder).
@@ -546,12 +547,211 @@ export const RECORDS_LEDE =
 export const RECORDS_STANDFIRST =
   'Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The records at the top are derived from the same tables as the leaderboards below on every build; the leaderboards are counted from the race records as this page loads.'
 
-/**
- * A record's tile strip, as data (VD-71, after VD-49): read by
- * pages/Record.jsx and drawn by scripts/prerender.js's tiles(). The holder
- * links to their page where holderPath() finds one.
+/*
+ * A record's page is built around its record (VD-112; docs/design-system.md
+ * section 4, *Lookup pages*). It opened on a tile strip whose value was the
+ * whole stored phrase - '10, 2023 Miami Grand Prix to 2023 Italian Grand
+ * Prix' - with the holder in a tile beside it, so nothing on the page made
+ * ten in a row look like ten in a row. Now it opens on the number, large,
+ * with the words that give it meaning; and a record that is a run of races
+ * draws the races and the longest runs there have been, each counted in the
+ * page under the record's own rule.
+ *
+ * Everything here is data for both renderers: pages/Record.jsx draws it and
+ * scripts/prerender.js writes the same markup from the same functions.
  */
-export const recordStrip = (record) => [
-  { label: LABELS.value, value: record.value, lead: true },
-  { label: LABELS.heldBy, value: record.holder, href: holderPath(record) },
-]
+
+/**
+ * The records whose page draws the runs behind them, by key: a run of
+ * consecutive completed championship races, counted as build.py's streak()
+ * counts the record - every completed race in date order (date_iso, then
+ * year and round), the Indianapolis 500 of 1950-60 among them, a run
+ * carrying over a winter and ending at the first race the holder does not
+ * meet `where` in, entered or not. `where` is a condition on race_entries
+ * `e`, the one streak() is given for the record; `verb` is what the holder
+ * did in each race of a run. A record not named here keeps the lead figure
+ * alone.
+ */
+export const STREAKS = {
+  'most-consecutive-wins': { where: 'e.finish_position = 1', verb: 'won' },
+}
+
+// The runs, one row per maximal run of a driver meeting `where` in
+// consecutive completed races: the islands of a driver's race numbers, where
+// a race's number less its rank among that driver's races is constant along
+// a run. DISTINCT, because a driver can hold two entries at one race, as in
+// the early years, and a run is counted in races, as streak()'s set is.
+const runsWith = (where) => `
+  WITH ordered AS (
+    SELECT id, year, round, name_used, date_iso, f1db_layout_id,
+           ROW_NUMBER() OVER (ORDER BY date_iso, year, round) AS n
+      FROM races
+     WHERE status = 'completed'
+  ),
+  hits AS (
+    SELECT DISTINCT e.driver_id AS holder_id, o.n
+      FROM race_entries e
+      JOIN ordered o ON o.id = e.race_id
+     WHERE ${where} AND e.driver_id IS NOT NULL
+  ),
+  runs AS (
+    SELECT holder_id, MIN(n) AS first_n, MAX(n) AS last_n, COUNT(*) AS length
+      FROM (SELECT holder_id, n, n - ROW_NUMBER() OVER (PARTITION BY holder_id ORDER BY n) AS island FROM hits)
+     GROUP BY holder_id, island
+  )`
+
+/**
+ * The longest runs, longest first and a tie by the date it began, then the
+ * name: enough rows for longestRuns() to cut through a tie at its last.
+ * `ongoing` is 1 for a run that reaches the latest completed race.
+ */
+export const streakRuns = (key) =>
+  STREAKS[key]
+    ? `${runsWith(STREAKS[key].where)}
+  SELECT runs.holder_id, d.full_name AS holder, runs.length, runs.first_n,
+         f.year AS from_year, f.name_used AS from_name, f.date_iso AS from_date,
+         l.year AS to_year, l.name_used AS to_name, l.date_iso AS to_date,
+         runs.last_n = (SELECT MAX(n) FROM ordered) AS ongoing
+    FROM runs
+    JOIN drivers d ON d.id = runs.holder_id
+    JOIN ordered f ON f.n = runs.first_n
+    JOIN ordered l ON l.n = runs.last_n
+   ORDER BY runs.length DESC, runs.first_n, d.full_name
+   LIMIT 40`
+    : null
+
+/**
+ * Every race of every run as long as the longest, in order, each with its
+ * F1DB outline where the race names a layout F1DB draws (NULL otherwise, and
+ * the strip keeps the race's place with an empty box).
+ */
+export const streakRaces = (key) =>
+  STREAKS[key]
+    ? `${runsWith(STREAKS[key].where)}
+  SELECT runs.holder_id, runs.first_n, o.year, o.round, o.name_used, co.path AS outline
+    FROM runs
+    JOIN ordered o ON o.n BETWEEN runs.first_n AND runs.last_n
+    LEFT JOIN circuit_outlines co ON co.f1db_layout_id = o.f1db_layout_id
+   WHERE runs.length = (SELECT MAX(length) FROM runs)
+   ORDER BY runs.first_n, o.n`
+    : null
+
+/** How many runs 'The longest runs' draws, before a tie at the last is kept whole. */
+export const RUNS_SHOWN = 5
+export const LONGEST_RUNS = 'The longest runs'
+export const RUNS_RULE = 'Every run here is counted as the record is: '
+/** The derivation's section, which the runs' rule links to. */
+export const DERIVATION_ID = 'how-it-is-derived'
+export const recordRacesNote = `Outlines: ${OUTLINE_BY}. Each links to its race.`
+
+const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
+const inWords = (n) => WORDS[n] ?? number(n)
+
+// 'May', or 'September 2023' where the run spans seasons; null for a race
+// with no whole day, and the sentence then names the race alone.
+const monthOf = (iso, withYear) => {
+  const long = longDate(iso)
+  if (!long) return null
+  const month = long.replace(/^\d+ /, '')
+  return withYear ? month : month.replace(/ \d{4}$/, '')
+}
+const theRace = (name, iso, withYear) => {
+  const month = monthOf(iso, withYear)
+  return `the ${name}${month ? ` in ${month}` : ''}`
+}
+
+/**
+ * The sentence a run is read as, after its holder's name: ' won ten Grands
+ * Prix in a row in 2023, from the Miami Grand Prix in May to the Italian
+ * Grand Prix in September.' A run over a winter names each end's year instead
+ * of the season's; a run with a race in it that is not a Grand Prix - the
+ * Indianapolis 500 - is a run of championship races; and a run that reaches
+ * the latest completed race says so, since the next one may extend it.
+ */
+export function runSentence(run, verb) {
+  const one = run.from_year === run.to_year
+  const noun = [run.from_name, run.to_name, ...(run.names ?? [])].every((name) => /Grand Prix/.test(name ?? ''))
+    ? 'Grands Prix'
+    : 'championship races'
+  const season = one ? ` in ${run.from_year}` : ''
+  const ends = `from ${theRace(run.from_name, run.from_date, !one)} to ${theRace(run.to_name, run.to_date, !one)}`
+  const tail = run.ongoing ? ', the latest race the database holds' : ''
+  return `${run.ongoing ? ` has ${verb}` : ` ${verb}`} ${inWords(run.length)} ${noun} in a row${season}, ${ends}${tail}.`
+}
+
+/** 'Miami to Italian': a run's ends as the strip names a race. */
+export const runEnds = (run) =>
+  run.length === 1 ? roundShortName(run.from_name) : `${roundShortName(run.from_name)} to ${roundShortName(run.to_name)}`
+
+/** A strip's accessible name: 'The 10 races of Max Verstappen’s run, 2023'. */
+export const runRacesLabel = (run) => `The ${run.length} races of ${run.holder}’s run, ${span(run.from_year, run.to_year)}`
+
+/**
+ * What a record's page opens on (VD-112): the number the value opens with,
+ * as a record card sets it (cardFigure), and the words that give it meaning,
+ * as `lines` of parts - { text } or { text, href } - for both renderers.
+ *
+ * For most records the words are the rest of the value and the holder. For
+ * a record STREAKS names whose runs, counted in the page, bear out its figure,
+ * they are a sentence per record-length run, and `runs` carries the races of
+ * each and the longest runs; where the count in the page does not agree with
+ * the record's own figure, the page draws neither, rather than two figures
+ * for one record. A value that opens with no number is set `whole`.
+ *
+ * `runRows` and `raceRows` are streakRuns()' and streakRaces()' rows, or
+ * undefined for a record with none.
+ */
+export function recordLead(record, runRows, raceRows) {
+  const figure = cardFigure(record)
+  const holder = { text: record.holder ?? '', href: holderPath(record) }
+  const runs = figure?.counts ? recordRuns(record, runRows, raceRows) : null
+  if (runs) {
+    return {
+      figure: figure.figure,
+      whole: null,
+      lines: runs.top.map((run) => [{ text: run.holder, href: `drivers/${run.holder_id}` }, { text: runSentence(run, STREAKS[record.key].verb) }]),
+      runs,
+    }
+  }
+  const held = [{ text: `${LABELS.heldBy} ` }, holder]
+  if (!figure) return { figure: null, whole: record.value, lines: [held], runs: null }
+  return { figure: figure.figure, whole: null, lines: [...(figure.qualifier ? [[{ text: figure.qualifier }]] : []), held], runs: null }
+}
+
+/**
+ * The runs behind a streak record, or null. `top` is every run as long as
+ * the record, each with its races; `longest` is the first RUNS_SHOWN runs and
+ * on through a tie at the last, each with `share`, its length against the
+ * longest, and `mark` where it is as long as the record (D-61: the value the
+ * page states takes the accent, every holder of it alike).
+ */
+export function recordRuns(record, runRows, raceRows) {
+  if (!STREAKS[record.key] || !runRows?.length || !raceRows) return null
+  const best = runRows[0].length
+  if (best !== record.value_num) return null
+  const races = (run) => raceRows.filter((r) => r.holder_id === run.holder_id && r.first_n === run.first_n)
+  const top = runRows
+    .filter((run) => run.length === best)
+    .map((run) => {
+      const its = races(run)
+      return { ...run, ongoing: Boolean(run.ongoing), names: its.map((r) => r.name_used), races: its, label: runRacesLabel(run) }
+    })
+  if (top.some((run) => run.races.length !== run.length)) return null
+  const longest = throughTies(
+    runRows.map((run) => ({ ...run, value: run.length })),
+    RUNS_SHOWN,
+  ).map((run) => ({
+    key: `${run.holder_id}-${run.first_n}`,
+    holder: run.holder,
+    href: `drivers/${run.holder_id}`,
+    years: `${span(run.from_year, run.to_year)}${run.ongoing ? ' (ongoing)' : ''}`,
+    figure: number(run.length),
+    ends: runEnds(run),
+    share: Math.round((run.length / best) * 1e4) / 1e4,
+    mark: run.length === best,
+  }))
+  return { top, longest, spansSeasons: top.map((run) => run.from_year !== run.to_year) }
+}
+
+/** A race in a run's strip: 'R5', or '2023 R18' in a run over a winter. */
+export const stripRound = (race, overWinter) => (overWinter ? `${race.year} R${race.round}` : `R${race.round}`)

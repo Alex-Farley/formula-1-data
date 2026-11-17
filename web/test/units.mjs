@@ -259,6 +259,8 @@ import {
   cardFigure,
   familyAnchor,
   headlineRecords,
+  recordLead,
+  runSentence,
   leadersDrawn,
   leadersDrawnLine,
   markLeaders,
@@ -2132,6 +2134,69 @@ describe('the queries a page and the prerenderer share', () => {
     // The headline cards carry the same two, on the same condition (VD-68).
     assert.deepEqual(cardExtras(shared), [])
     assert.deepEqual(cardExtras([{ ...apart[0], confidence: 'high' }, apart[1]]).map((c) => c.key), ['as_of', 'confidence'])
+  })
+
+  it("opens a record's page on its number, and a run of races on its sentence and its runs (VD-112)", () => {
+    const wins = { key: 'most-wins', value: '106', value_num: 106, unit: 'wins', holder: 'Sir Lewis Hamilton', holder_table: 'drivers', holder_id: 'hamilton' }
+    assert.deepEqual(recordLead(wins), {
+      figure: '106',
+      whole: null,
+      lines: [[{ text: 'wins' }], [{ text: 'Held by ' }, { text: 'Sir Lewis Hamilton', href: 'drivers/hamilton' }]],
+      runs: null,
+    })
+    // A value with no number to lead with is set whole; a shared holder is text.
+    const whole = recordLead({ ...wins, value: 'Monaco', value_num: null, holder_id: null })
+    assert.equal(whole.figure, null)
+    assert.equal(whole.whole, 'Monaco')
+    assert.deepEqual(whole.lines, [[{ text: 'Held by ' }, { text: 'Sir Lewis Hamilton', href: null }]])
+
+    const run = (holder_id, length, first_n, from, to, ongoing = 0) => ({
+      holder_id, holder: holder_id.toUpperCase(), length, first_n, ongoing,
+      from_year: Number(from[0].slice(0, 4)), from_date: from[0], from_name: from[1],
+      to_year: Number(to[0].slice(0, 4)), to_date: to[0], to_name: to[1],
+    })
+    const races = (r) => Array.from({ length: r.length }, (_, i) => ({ holder_id: r.holder_id, first_n: r.first_n, year: r.from_year, round: i + 1, name_used: 'X Grand Prix', outline: null }))
+    const streak = { ...wins, key: 'most-consecutive-wins', value: '3, 2023 A Grand Prix to 2023 B Grand Prix', value_num: 3 }
+    const rows = [
+      run('a', 3, 10, ['2023-05-07', 'A Grand Prix'], ['2023-09-03', 'B Grand Prix']),
+      run('b', 2, 1, ['2012-11-01', 'C Grand Prix'], ['2013-03-01', 'D Grand Prix']),
+      run('c', 2, 5, ['2014-01-01', 'E Grand Prix'], ['2014-02-01', 'F Grand Prix']),
+      run('d', 1, 7, ['2015-01-01', 'G Grand Prix'], ['2015-01-01', 'G Grand Prix']),
+    ]
+    const lead = recordLead(streak, rows, rows.flatMap(races))
+    assert.equal(lead.figure, '3')
+    assert.deepEqual(lead.lines, [[{ text: 'A', href: 'drivers/a' }, { text: ' won three Grands Prix in a row in 2023, from the A Grand Prix in May to the B Grand Prix in September.' }]])
+    assert.equal(lead.runs.top.length, 1)
+    assert.equal(lead.runs.top[0].races.length, 3)
+    // Five runs and on through a tie at the fifth: four rows here, all drawn,
+    // the record's alone marked, each its share of the longest.
+    assert.deepEqual(lead.runs.longest.map((r) => [r.figure, r.mark, r.share, r.years, r.ends]), [
+      ['3', true, 1, '2023', 'A to B'],
+      ['2', false, 0.6667, '2012–2013', 'C to D'],
+      ['2', false, 0.6667, '2014', 'E to F'],
+      ['1', false, 0.3333, '2015', 'G'],
+    ])
+    // The page's count not bearing out the record's figure draws no run.
+    assert.equal(recordLead({ ...streak, value_num: 4 }, rows, rows.flatMap(races)).runs, null)
+    assert.deepEqual(recordLead({ ...streak, value_num: 4 }, rows, rows.flatMap(races)).lines.at(-1)[0], { text: 'Held by ' })
+    // Nor does a record STREAKS does not name, or one whose races are short.
+    assert.equal(recordLead({ ...streak, key: 'most-wins' }, rows, rows.flatMap(races)).runs, null)
+    assert.equal(recordLead(streak, rows, races(rows[0]).slice(1)).runs, null)
+
+    // Over a winter each end names its year; an Indianapolis 500 in the run
+    // makes it championship races; a run to the latest race says so.
+    assert.equal(
+      runSentence(rows[1], 'won'),
+      ' won two Grands Prix in a row, from the C Grand Prix in November 2012 to the D Grand Prix in March 2013.',
+    )
+    assert.equal(
+      runSentence({ ...rows[2], to_name: 'Indianapolis 500' }, 'won'),
+      ' won two championship races in a row in 2014, from the E Grand Prix in January to the Indianapolis 500 in February.',
+    )
+    assert.equal(
+      runSentence({ ...rows[0], ongoing: true }, 'won'),
+      ' has won three Grands Prix in a row in 2023, from the A Grand Prix in May to the B Grand Prix in September, the latest race the database holds.',
+    )
   })
 
   it("sets a record card's number apart from the rest of its value (VD-111)", () => {
