@@ -343,12 +343,11 @@ ENGINES = [
 # team constructors.drivers_titles credits too, so Fangio's 1954, scored in
 # a Maserati and then a Mercedes, is Mercedes's, as it is the Mercedes
 # team's. A season whose title was recorded before its last round counts,
-# as it does there (CR-115). Every row is named, an empty tuple being a
-# maker F1DB has no id for; an id is one maker's only. F1DB badges the
-# Red Bull teams' engines rbpt in 2022, honda-rbpt in 2023-25 and
-# red-bull-ford in 2026, all three this register's rbpt, and Honda's own
-# row counts what raced as Honda. bwt-mercedes is Racing Point's 2019-20
-# badge for its Mercedes engine.
+# as it does there (CR-115). Every row is named, and an id is one maker's
+# only. F1DB badges the Red Bull teams' engines rbpt in 2022, honda-rbpt
+# in 2023-25 and red-bull-ford in 2026, all three this register's rbpt,
+# and Honda's own row counts what raced as Honda. bwt-mercedes is Racing
+# Point's 2019-20 badge for its Mercedes engine.
 ENGINE_F1DB_IDS = {
     "ferrari-eng": ("ferrari",),
     "cosworth": ("ford", "cosworth"),
