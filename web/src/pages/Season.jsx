@@ -28,6 +28,7 @@ import {
   winningCar,
   CALENDAR_FOOTER,
   CONSTRUCTORS_FINAL_COLUMNS,
+  CONTENDER_ENTRIES,
   DRIVERS_FINAL_COLUMNS,
   DRIVERS_FINAL_FOOTER,
   DRIVER_TEAMS,
@@ -323,6 +324,7 @@ export default function Season() {
     season: [SEASON, [Number(year)]],
     calendar: [CALENDAR, [Number(year)]],
     standings: [STANDINGS, [Number(year)]],
+    contenderEntries: [CONTENDER_ENTRIES, [Number(year)]],
     final: [FINAL, [Number(year)]],
     entrants: [ENTRANTS, [Number(year)]],
     entrantChassis: [ENTRANT_CHASSIS, [Number(year)]],
@@ -395,11 +397,21 @@ function SeasonBody({ year, season, data }) {
   const teamLead = constructorsFinal[0] ?? null
 
   // The title race, worked out in queries/season.js so the static page
-  // draws the same lines (VD-73).
+  // draws the same lines (VD-73), and the same finding and notes (VD-121).
   const race = useMemo(
     () =>
-      titleRaceFigure({ year, live, drivers: driversFinal, standings, teams, dropped: data.remaining.rows[0]?.dropped_scores }),
-    [year, live, driversFinal, standings, teams, data],
+      titleRaceFigure({
+        year,
+        live,
+        drivers: driversFinal,
+        standings,
+        teams,
+        remaining: data.remaining.rows[0] ?? null,
+        rounds: calendar,
+        entries: rows(data, 'contenderEntries'),
+        champion: season.drivers_champion,
+      }),
+    [year, live, driversFinal, standings, teams, data, calendar, season],
   )
 
   const run = calendar.filter((r) => r.status === 'completed').length
@@ -576,8 +588,24 @@ function SeasonBody({ year, season, data }) {
 
       {race && (
         <Section lead title={race.heading}>
-          <Figure lead note={race.note} legend={race.legend} marks="line" table={{ rows: race.rows, columns: TITLE_RACE_COLUMNS }}>
-            <LineChart series={race.series} format={race.format} formatX={race.formatX} height={race.height} label={race.label} />
+          <Figure
+            lead
+            note={race.note}
+            finding={race.finding}
+            kicker={race.kicker}
+            annotations={race.annotations}
+            table={{ rows: race.rows, columns: TITLE_RACE_COLUMNS }}
+          >
+            <LineChart
+              series={race.series}
+              format={race.format}
+              formatX={race.formatX}
+              height={race.height}
+              label={race.label}
+              xMax={race.xMax}
+              marks={race.marks}
+              bands={race.bands}
+            />
           </Figure>
         </Section>
       )}

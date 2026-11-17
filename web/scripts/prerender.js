@@ -273,6 +273,7 @@ import {
   mergeSources,
   reachFigures,
   seasonAnswer,
+  CONTENDER_ENTRIES,
   titleRaceFigure,
   titleSettled,
   titleStrip,
@@ -765,6 +766,7 @@ import {
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
 import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
+import { MARKER } from '../src/charts/annotate.js'
 import { reachLayout } from '../src/charts/reachChart.js'
 import { dotStrip, drawnColours, gridDiagram } from '../src/charts/gridStarts.js'
 import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
@@ -1591,11 +1593,32 @@ const columnSvg = (chart, colour, width) => {
   return `<div${holder}>${plotSvg(layout, chart.label, `${yAxis(layout)}${columns}`)}</div>`
 }
 
-/* LineChart.jsx at rest: each line in its slot's dash, its end marked, and
-   the end's value where it does not collide with another's. */
+/* LineChart.jsx at rest: the shaded bands under everything, each line in
+   its slot's dash with its end marked, each end's name and value in the
+   gutter on its hairline, and the numbered markers over the lines (VD-121). */
 const lineSvg = (chart, width) => {
   const layout = lineLayout({ ...chart, width })
   if (!layout) return ''
+  const bands = layout.bands
+    .map((b) => `<rect class="plot-band" x="${px(b.x)}" y="${px(b.y)}" width="${px(b.width)}" height="${px(b.height)}"/>`)
+    .join('')
+  const labels = layout.lines
+    .filter(({ end }) => end)
+    .map(({ end: { label } }) => {
+      const words = label.name ? `<tspan class="end-name">${esc(label.name)}</tspan> ${esc(label.value)}` : esc(label.value)
+      return `<g class="end-label"><polyline points="${label.leader.map(([x, y]) => `${px(x)},${px(y)}`).join(' ')}" fill="none"/><text${
+        label.name ? '' : ' class="alone"'
+      } x="${px(label.x)}" y="${px(label.y)}" dominant-baseline="middle">${words}</text></g>`
+    })
+    .join('')
+  const markers = layout.markers
+    .map(
+      (m) =>
+        `<g class="anno-marker"><line x1="${px(m.leader.x1)}" y1="${px(m.leader.y1)}" x2="${px(m.leader.x2)}" y2="${px(m.leader.y2)}"/><circle cx="${px(
+          m.cx,
+        )}" cy="${px(m.cy)}" r="${MARKER.r}"/><text x="${px(m.cx)}" y="${px(m.cy)}" text-anchor="middle" dominant-baseline="central">${m.n}</text></g>`,
+    )
+    .join('')
   const lines = layout.lines
     .map(({ s, i, path, end }) => {
       const stroke = s.colour ? 'var(--livery)' : slotColour(i, layout.lines.length)
@@ -1603,16 +1626,26 @@ const lineSvg = (chart, width) => {
       return `<g${s.colour ? ownAttrs(s.colour) : ''}><path d="${path}" fill="none" stroke="${stroke}" stroke-width="2"${
         dash ? ` stroke-dasharray="${dash}"` : ''
       } stroke-linejoin="round" stroke-linecap="round"/>${
-        end
-          ? `<circle class="mark-ring" cx="${px(end.x)}" cy="${px(end.y)}" r="4" fill="${stroke}"/>${
-              end.text !== null ? `<text class="value-text" x="${px(end.x + 9)}" y="${px(end.y)}" dominant-baseline="middle">${esc(end.text)}</text>` : ''
-            }`
-          : ''
+        end ? `<circle class="mark-ring" cx="${px(end.x)}" cy="${px(end.y)}" r="4" fill="${stroke}"/>` : ''
       }</g>`
     })
     .join('')
-  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${lines}`)}</div>`
+  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${bands}${yAxis(layout)}${xAxis(layout)}${lines}${labels}${markers}`)}</div>`
 }
+
+/* Figure.jsx's AnnotationKey (VD-121): the notes the markers point to,
+   under the plot, every word of each. */
+const annotationKey = (notes) =>
+  notes.length
+    ? `<ol class="figure-key">${notes
+        .map(
+          (note) =>
+            `<li><span class="figure-key-n" aria-hidden="true">${note.n}</span><p><span class="sr-only">Note ${note.n}: </span><b>${esc(
+              note.lead,
+            )}<span class="sr-only">.</span></b> ${esc(note.text)}</p></li>`,
+        )
+        .join('')}</ol>`
+    : ''
 
 /* ReachChart.jsx at rest (AF-132): each contender's name, the solid bar and
    its outlined extension in the bar's colour or in ink, the two figures
@@ -1722,23 +1755,16 @@ const startsBlock = (races, everywhere, layouts, winners, teams) => {
   return `${heading(STARTS_HEADING)}<p class="note">${esc(startsLine(races, layouts))}</p>${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
 }
 
-/* Figure.jsx's legend: a stroke in the series' dash for a line chart, as
-   its LineKey draws one, and only where there is more than one entry. */
-const legendHtml = (legend, marks) =>
+/* Figure.jsx's legend: a swatch per entry, in its livery or its slot's
+   colour, and only where there is more than one entry. A line chart takes
+   none: its lines are named at their ends (VD-121). */
+const legendHtml = (legend) =>
   legend && legend.length > 1
     ? `<div class="legend">${legend
         .map((entry, i) => {
-          const dash = seriesDash(i)
-          const key =
-            marks === 'line'
-              ? `<svg class="${entry.colour ? 'line-key livery-series' : 'line-key'}"${
-                  entry.colour ? ` style="${pairStyle(entry.colour)}"` : ''
-                } width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" focusable="false"><line x1="2" x2="18" y1="4" y2="4" stroke="${
-                  entry.colour ? 'var(--livery)' : slotColour(i, legend.length)
-                }" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/></svg>`
-              : entry.colour
-                ? `<i class="livery-series" style="${pairStyle(entry.colour)}; background: var(--livery)" aria-hidden="true"></i>`
-                : `<i style="background: ${slotColour(i, legend.length)}" aria-hidden="true"></i>`
+          const key = entry.colour
+            ? `<i class="livery-series" style="${pairStyle(entry.colour)}; background: var(--livery)" aria-hidden="true"></i>`
+            : `<i style="background: ${slotColour(i, legend.length)}" aria-hidden="true"></i>`
           return `<span>${key}${esc(entry.name)}</span>`
         })
         .join('')}</div>`
@@ -1759,10 +1785,12 @@ const legendHtml = (legend, marks) =>
 // stands rather than wrapping the tiles for it.
 const opened = (head, lead) => (lead ? `<section class="section">${head}</section>${lead}` : head)
 
-const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = null, marks = 'swatch', plot, table }) =>
-  `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2><figure class="figure figure-lead" aria-label="${esc(
+const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = null, finding = null, kicker = null, annotations = [], plot, table }) =>
+  `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2>${
+    finding ? `<p class="figure-finding">${esc(finding)}</p>${kicker ? `<p class="figure-kicker">${esc(kicker)}</p>` : ''}` : ''
+  }<figure class="figure figure-lead" aria-label="${esc(
     name,
-  )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}</div>${legendHtml(legend, marks)}<p class="figure-note" id="lead-figure-note"><span>${esc(
+  )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}${annotationKey(annotations)}</div>${legendHtml(legend)}<p class="figure-note" id="lead-figure-note"><span>${esc(
     figureNote,
   )}</span></p><details><summary>The numbers behind this chart<span class="sr-only">, ${esc(name)}</span></summary>${table}</details></figure></section>`
 
@@ -3240,14 +3268,18 @@ const seasonsTable = (rows) =>
       drivers: driversFinal,
       standings,
       teams: teamsByDriver(all(DRIVER_TEAMS, year)),
-      dropped: one(REMAINING, year)?.dropped_scores,
+      remaining: one(REMAINING, year) ?? null,
+      rounds: calendar,
+      entries: all(CONTENDER_ENTRIES, year),
+      champion: s.drivers_champion,
     })
     const raceChart = race
       ? leadFigure({
           heading: race.heading,
           note: race.note,
-          legend: race.legend,
-          marks: 'line',
+          finding: race.finding,
+          kicker: race.kicker,
+          annotations: race.annotations,
           plot: lineSvg(race, LEAD_WIDTH),
           table: fromColumns(TITLE_RACE_COLUMNS, race.rows, {}, { unfolded: UNFOLDED.figure }),
         })

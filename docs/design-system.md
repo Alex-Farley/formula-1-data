@@ -146,7 +146,8 @@ team's or a car's wins, the rounds run on the home page;
 the season, race and circuit strips rank nothing and have none), at
 `--size-9` on a phone,
 `--size-10` from `--bp-tablet` and `--size-11` from `--bp-desktop`, beside
-the opening band. A second lead keeps `--size-8`, so a page has one hero and
+the opening band. A concluded season's is the margin on its plate (VD-104,
+§3 *Season cycle*). A second lead keeps `--size-8`, so a page has one hero and
 not two, and a name is never one. `conventions.mjs` now declares no token
 unused.
 
@@ -543,9 +544,9 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); pending: annotation (VD-121 #1345)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
 
-**Annotation — pending (VD-121 #1345).** Decided on the 2026-11-13 visual
+**Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
 for every chart that names its story, built once and shared.
 
@@ -567,8 +568,37 @@ for every chart that names its story, built once and shared.
 - **One to three notes per chart.** Every note is text in the key, so
   nothing lives only in the drawing.
 
-VD-123 (#1347, home's *shape of the championship*), VD-124 (#1348, a
-driver's career) and VD-125 (#1349, a constructor's wins) apply it.
+**Built (VD-121), on the season's title race.** `charts/annotate.js` holds
+the geometry both renderers share: the gutter as wide as the widest label,
+the labels pushed `LABEL_GAP` (16 px) apart about where they wanted to be,
+the hairline from each line's end bending only where its label moved, and
+a marker's disc (`MARKER`, r 8 with a 3 px `--panel` ring) above its point,
+below it where above leaves the drawing or sits on another line, and
+further out where it would touch another marker. `charts/lineChart.js`
+lays the line chart out with them; `Figure` takes `finding`, `kicker` and
+`annotations` and draws the finding and kicker over the frame and the key
+(`AnnotationKey`) inside it under the plot, at every width; the static
+page's `leadFigure()` writes the same. The finding is set at `--size-6`
+semibold and the kicker in the label register at `--size-3`, both in ink
+and faint ink; a line-end label is `--size-3`, its name semibold in ink and
+its value in `--ink-soft`; a band is `--panel-sunk`. A line chart with
+named ends takes no legend.
+`titleRaceNotes()` in `queries/season.js` works out the title race's notes
+from `standings` and `race_entries`, at most one of each kind: a
+contender's longest run of rounds without an entry (a round none of the
+three entered, the Indianapolis 500 to 1960, is none), a title settled with
+rounds to run where the season counted every result, and a title decided
+at the last round; `titleFinding()` writes who led and for how long.
+`units.mjs` holds the layout and the notes on rows written out;
+`smoke.mjs` holds every line named at its end on `/seasons/1976`, each
+marker a note in the key, and the finding, labels, markers and key the same
+in both halves.
+
+The key beside a full-width chart from 1180 and in two columns from 768
+lands with its first full-width chart, VD-123 (#1347, home's *shape of the
+championship*); a tied peak's one marker with VD-125 (#1349, a
+constructor's wins); VD-124 (#1348, a driver's career) applies the pattern
+to the dot plot.
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold

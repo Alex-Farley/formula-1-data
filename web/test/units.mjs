@@ -5391,3 +5391,242 @@ describe('the leader in the row and a bar in the points (VD-105, VD-110)', () =>
     assert.equal(pointsShare([])(10), null)
   })
 })
+
+import { LABEL_GAP, MARKER, gutterWidth, nudge, placeMarker } from '../src/charts/annotate.js'
+import { lineLayout } from '../src/charts/lineChart.js'
+import {
+  EVERY_RESULT_COUNTS,
+  leadersByRound,
+  raceEnded,
+  shortNames,
+  titleFinding,
+  titleRaceFigure,
+} from '../src/queries/season.js'
+
+describe('the annotation pattern (VD-121)', () => {
+  it('nudges colliding labels apart by the gap, in their order, and leaves separate ones where they are', () => {
+    const placed = nudge([40, 43, 100])
+    assert.equal(placed[2], 100, 'a label clear of the rest stays level with its line')
+    assert.ok(placed[1] - placed[0] >= LABEL_GAP - 1e-9, `${placed[0]} and ${placed[1]} are ${LABEL_GAP} apart at least`)
+    assert.ok(placed[0] < 40 && placed[1] > 43, 'each moved away from the other, about where they were')
+    assert.ok(Math.abs((placed[0] + placed[1]) / 2 - 41.5) < 1e-9, 'centred on where they wanted to be')
+    // Level lines keep the caller's order, the first above.
+    const level = nudge([50, 50])
+    assert.ok(level[0] < level[1], 'two ends level: the first listed is placed above')
+    // A group pushed into the next merges with it, so no two end up closer.
+    const three = nudge([10, 20, 30, 34])
+    for (let k = 1; k < three.length; k += 1) assert.ok(three[k] - three[k - 1] >= LABEL_GAP - 1e-9, `${three.join(', ')}`)
+    // Held inside the bounds where the stack fits.
+    const held = nudge([0, 2], { min: 6, max: 200 })
+    assert.equal(held[0], 6)
+    assert.equal(held[1], 6 + LABEL_GAP)
+    assert.deepEqual(nudge([]), [])
+  })
+
+  it('makes the gutter as wide as the widest label, and none where nothing is labelled', () => {
+    assert.equal(gutterWidth([]), 0)
+    const short = gutterWidth([{ name: 'Hunt', value: '69' }])
+    const long = gutterWidth([{ name: 'Hunt', value: '69' }, { name: 'Verstappen', value: '279' }])
+    assert.ok(long > short, `${long} for Verstappen 279 against ${short} for Hunt 69`)
+    assert.ok(gutterWidth([{ name: null, value: '33%' }]) < short, 'a value alone needs less than a name and a value')
+  })
+
+  it('puts a marker above its point, below where above leaves the drawing or sits on a line, and clear of another marker', () => {
+    const up = placeMarker(100, 100, [])
+    assert.equal(up.cy, 100 - MARKER.offset)
+    assert.ok(up.leader.y1 < 100 && up.leader.y2 > up.cy, 'the hairline runs from the point up to the disc')
+    assert.equal(placeMarker(100, 12, [], { top: 0 }).cy, 12 + MARKER.offset, 'no room above the top edge')
+    assert.equal(placeMarker(100, 100, [100 - MARKER.offset + 2]).cy, 100 + MARKER.offset, 'another line where the disc would go')
+    const first = placeMarker(100, 100, [])
+    const second = placeMarker(104, 100, [], { taken: [first] })
+    const reach = MARKER.r + MARKER.ring / 2
+    assert.ok(Math.hypot(second.cx - first.cx, second.cy - first.cy) >= 2 * reach, 'two markers a round apart do not overlap')
+  })
+
+  // Two lines ending a point apart, as 1976 did: before VD-121 the second
+  // end's label was dropped.
+  const converging = [
+    { name: 'James Hunt', label: 'Hunt', points: [{ x: 1, y: 0 }, { x: 2, y: 30 }, { x: 3, y: 69 }] },
+    { name: 'Niki Lauda', label: 'Lauda', points: [{ x: 1, y: 9 }, { x: 2, y: 61 }, { x: 3, y: 68 }] },
+    { name: 'Jody Scheckter', label: 'Scheckter', points: [{ x: 1, y: 2 }, { x: 2, y: 36 }, { x: 3, y: 49 }] },
+  ]
+
+  it('labels every line end in the gutter, converging or not, at least the gap apart, each on a hairline from its own end', () => {
+    const layout = lineLayout({ series: converging, width: 480, height: 250 })
+    const labels = layout.lines.map((l) => l.end.label)
+    assert.deepEqual(
+      labels.map((l) => `${l.name} ${l.value}`),
+      ['Hunt 69', 'Lauda 68', 'Scheckter 49'],
+    )
+    const ys = labels.map((l) => l.y).sort((a, b) => a - b)
+    for (let k = 1; k < ys.length; k += 1) assert.ok(ys[k] - ys[k - 1] >= LABEL_GAP - 1e-9, `labels at ${ys.join(', ')}`)
+    for (const [i, l] of labels.entries()) {
+      const { end } = layout.lines[i]
+      assert.ok(l.x > layout.right, 'the label is in the gutter, right of the plot')
+      assert.deepEqual(l.leader[0], [end.x + MARKER.gap + 1, end.y], 'the hairline starts at its own line end')
+      assert.equal(l.leader[l.leader.length - 1][1], l.y, 'and ends level with its label')
+    }
+    assert.ok(labels[0].y < labels[1].y, 'Hunt, a point ahead, is labelled above Lauda')
+  })
+
+  it('names a lone series by its value alone, runs the axis to xMax, and lays out marks and bands', () => {
+    const alone = lineLayout({ series: [converging[0]], width: 480 })
+    assert.equal(alone.lines[0].end.label.name, null)
+    const longer = lineLayout({ series: converging, width: 480, xMax: 6 })
+    assert.equal(longer.x.domain[1], 6, 'the axis runs on to the calendar')
+    assert.ok(longer.lines[0].end.x < longer.right, 'and the lines stop short of its end')
+    const marked = lineLayout({ series: converging, width: 480, marks: [{ n: 1, series: 1, x: 2 }, { n: 2, series: 0, x: 9 }], bands: [{ from: 2, to: 3 }] })
+    assert.deepEqual(marked.markers.map((m) => m.n), [1], 'a mark on a round its line does not reach is not drawn')
+    assert.equal(marked.markers[0].cx, marked.x(2))
+    assert.equal(marked.bands.length, 1)
+    assert.equal(marked.bands[0].x, marked.x(2))
+    assert.equal(marked.bands[0].width, marked.x(3) - marked.x(2))
+  })
+
+  it('shortens a name to the surname, keeping a particle or a suffix, and keeps both full names where two would match', () => {
+    assert.deepEqual(shortNames(['James Hunt', 'Wolfgang von Trips', 'Elio de Angelis', 'Nelson Piquet Jr.', 'Andrea Kimi Antonelli']), [
+      'Hunt',
+      'von Trips',
+      'de Angelis',
+      'Piquet Jr.',
+      'Antonelli',
+    ])
+    assert.deepEqual(shortNames(['Graham Hill', 'Phil Hill', 'Jim Clark']), ['Graham Hill', 'Phil Hill', 'Clark'])
+  })
+
+  it('says how a race ended from the entry, and nothing for a shared drive', () => {
+    const e = (fields) => ({ finish_position: null, position_text: null, status: null, laps_completed: null, ...fields })
+    assert.equal(raceEnded([e({ finish_position: 1, position_text: '1' })]), 'wins')
+    assert.equal(raceEnded([e({ finish_position: 3, position_text: '3' })]), 'finishes 3rd')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Accident' })]), 'crashes out')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Withdrew', laps_completed: 2 })]), 'withdraws after two laps')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Withdrew', laps_completed: 0 })]), 'withdraws')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Fuel system' })]), 'retires (fuel system)')
+    assert.equal(raceEnded([e({ position_text: 'DNF' })]), 'retires')
+    assert.equal(raceEnded([e({ position_text: 'DNS', status: 'Accident in practice' })]), 'does not start (accident in practice)')
+    assert.equal(raceEnded([e({ position_text: 'DNS', status: 'DNS' })]), 'does not start')
+    assert.equal(raceEnded([e({ position_text: 'DSQ', status: 'Underweight' })]), 'is disqualified')
+    assert.equal(raceEnded([e({ position_text: 'DNP' })]), null)
+    assert.equal(raceEnded([e({ finish_position: 2 }), e({ finish_position: 5 })]), null)
+    assert.equal(raceEnded([]), null)
+  })
+
+  // A season of four rounds, written out: A leads three, B takes the last.
+  const row = (round, id, name, pts) => ({ table_type: 'drivers', after_round: round, driver_id: id, entity: name, points: pts, position: 1 })
+  const table = (round, totals) => Object.entries(totals).map(([id, pts]) => row(round, id, `Driver ${id.toUpperCase()}`, pts))
+  const short = (_id, name) => name.split(' ').pop()
+
+  it('finds who led, and declines a lead that was shared or a table with a gap', () => {
+    const standings = [...table(1, { a: 9, b: 6 }), ...table(2, { a: 15, b: 15 }), ...table(3, { a: 24, b: 21 }), ...table(4, { a: 24, b: 30 })]
+    const leaders = leadersByRound(standings)
+    assert.deepEqual(leaders.map((l) => l.id), ['a', null, 'a', 'b'], 'level after round 2 is nobody leading')
+    assert.deepEqual(leaders[1].level, ['a', 'b'])
+    assert.equal(titleFinding(leaders, false, short), 'A led after two rounds. B led after one: the last')
+    assert.equal(titleFinding(leaders, true, short), 'B took the lead after round 4')
+    const always = leadersByRound([...table(1, { a: 9, b: 6 }), ...table(2, { a: 18, b: 12 })])
+    assert.equal(titleFinding(always, false, short), 'A led after every round')
+    assert.equal(titleFinding(always, true, short), 'A has led after every round so far')
+    const from = leadersByRound([...table(1, { a: 9, b: 6 }), ...table(2, { a: 9, b: 15 }), ...table(3, { a: 9, b: 24 })])
+    assert.equal(titleFinding(from, false, short), 'B led after every round from round 2')
+    const back = leadersByRound([...table(1, { a: 6, b: 9 }), ...table(2, { a: 15, b: 9 }), ...table(3, { a: 15, b: 18 }), ...table(4, { a: 24, b: 18 })])
+    assert.equal(titleFinding(back, false, short), 'A led after two of the four rounds, including the last')
+    assert.equal(titleFinding(leadersByRound([...table(1, { a: 9, b: 6 }), ...table(3, { a: 18, b: 6 })]), false, short), null, 'round 2 missing')
+    assert.equal(titleFinding(leaders.slice(0, 2), false, short), null, 'level after the last round')
+    // A source giving one driver two totals for one round: no leader there.
+    assert.equal(leadersByRound([row(1, 'a', 'Driver A', 9), row(1, 'a', 'Driver A', 6), row(1, 'b', 'Driver B', 3)])[0].id, null)
+  })
+
+  // The whole figure, from rows written out: a five-round season with an
+  // absence, decided at the last round. No f1.db, so it holds wherever it runs.
+  const rounds = [1, 2, 3, 4, 5].map((round) => ({ round, name_used: `Grand Prix ${round}`, status: 'completed', sprint: 0 }))
+  const drivers = [
+    { driver_id: 'b', entity: 'Driver B', points: 25 },
+    { driver_id: 'a', entity: 'Driver A', points: 24 },
+    { driver_id: 'c', entity: 'Driver C', points: 10 },
+  ]
+  const standings = [
+    ...table(1, { a: 9, b: 6, c: 2 }),
+    ...table(2, { a: 18, b: 12, c: 4 }),
+    ...table(3, { a: 18, b: 18, c: 6 }),
+    ...table(4, { a: 24, b: 21, c: 8 }),
+    ...table(5, { a: 24, b: 25, c: 10 }),
+  ]
+  const entry = (round, id, fields) => ({ round, driver_id: id, finish_position: null, position_text: null, status: null, laps_completed: null, ...fields })
+  const entries = [
+    ...[1, 2, 3, 4, 5].flatMap((r) => [entry(r, 'b', { finish_position: 2, position_text: '2' }), entry(r, 'c', { finish_position: 4, position_text: '4' })]),
+    entry(1, 'a', { finish_position: 1, position_text: '1' }),
+    entry(2, 'a', { position_text: 'DNF', status: 'Accident' }),
+    entry(5, 'a', { position_text: 'DNF', status: 'Withdrew', laps_completed: 2 }),
+  ]
+  const figure = (over = {}) =>
+    titleRaceFigure({
+      year: 1976,
+      live: false,
+      drivers,
+      standings,
+      teams: new Map(),
+      remaining: { dropped_scores: 'Best 7 results', races: 0 },
+      rounds,
+      entries,
+      champion: 'b',
+      ...over,
+    })
+
+  it('marks the longest absence and a title decided at the last round, with every word in the key', () => {
+    const race = figure()
+    assert.equal(race.finding, 'A led after three rounds. B led after one: the last')
+    assert.equal(race.kicker, 'Points after each round')
+    assert.deepEqual(race.series.map((s) => s.label), ['B', 'A', 'C'])
+    assert.deepEqual(race.annotations, [
+      { n: 1, lead: 'R2, Grand Prix 2', text: 'A crashes out, then misses R3 and R4 (shaded).' },
+      { n: 2, lead: 'R5, Grand Prix 5', text: 'A withdraws after two laps. B finishes 2nd and takes the title by a point.' },
+    ])
+    assert.deepEqual(race.marks, [{ n: 1, series: 1, x: 2 }, { n: 2, series: 0, x: 5 }], 'each on its own line, at its round')
+    assert.deepEqual(race.bands, [{ from: 2, to: 4 }])
+    assert.equal(race.xMax, null, 'a concluded season draws the rounds it ran')
+  })
+
+  it('says nothing of a round none of the three entered, and nothing it cannot establish', () => {
+    // Round 3 entered by nobody drawn - the Indianapolis 500 to 1960 - is no absence.
+    const noIndy = entries.filter((e) => e.round !== 3).concat(entry(4, 'a', { finish_position: 1, position_text: '1' }))
+    assert.deepEqual(
+      figure({ entries: noIndy }).annotations.map((a) => a.text),
+      ['A withdraws after two laps. B finishes 2nd and takes the title by a point.'],
+    )
+    // The champion on the record is not the one who leads the final table: no decider.
+    assert.deepEqual(figure({ champion: 'a' }).marks.map((m) => m.x), [2])
+    // A fatal accident is said in the record's words, and nothing is shaded.
+    const fatal = entries.map((e) => (e.round === 2 && e.driver_id === 'a' ? { ...e, status: 'Fatal accident' } : e))
+    const race = figure({ entries: fatal })
+    assert.equal(race.annotations[0].text, 'A: fatal accident.')
+    assert.deepEqual(race.bands, [])
+  })
+
+  it('marks the round a title was settled with rounds to run, where the season counted every result', () => {
+    // Ten-point wins and no fastest-lap point; after round 3 of 5, B is 21
+    // clear with 20 left.
+    const settled = [
+      ...table(1, { a: 0, b: 10, c: 6 }),
+      ...table(2, { a: 6, b: 20, c: 6 }),
+      ...table(3, { a: 6, b: 30, c: 9 }),
+    ]
+    const live = titleRaceFigure({
+      year: 2030,
+      live: true,
+      drivers: [
+        { driver_id: 'b', entity: 'Driver B', points: 30 },
+        { driver_id: 'c', entity: 'Driver C', points: 9 },
+        { driver_id: 'a', entity: 'Driver A', points: 6 },
+      ],
+      standings: settled,
+      teams: new Map(),
+      remaining: { dropped_scores: EVERY_RESULT_COUNTS, races: 2, win_points: 10, fastest_lap_points: 0, scale: '[10,6,4,3,2,1]', sprint_scale: null },
+      rounds: rounds.map((r) => (r.round > 3 ? { ...r, status: 'scheduled' } : r)),
+      entries: [1, 2, 3].flatMap((r) => ['a', 'b', 'c'].map((id) => entry(r, id, { finish_position: 1, position_text: '1' }))),
+      champion: 'b',
+    })
+    assert.deepEqual(live.annotations, [{ n: 1, lead: 'R3, Grand Prix 3', text: 'B settles the title with two rounds to run.' }])
+    assert.equal(live.finding, 'B has led after every round so far')
+    assert.equal(live.xMax, 5, 'a season being run draws its whole calendar')
+  })
+})

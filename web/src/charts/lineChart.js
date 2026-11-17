@@ -1,18 +1,28 @@
 /**
  * The line chart's geometry (VD-73): the axes, each series' path and end
- * point, and which ends carry a direct label, as plain numbers and strings,
- * so that both renderers draw the one picture - charts/LineChart.jsx in the
- * app, and scripts/prerender.js on the static page, which has no React to
- * run. What the chart is for is LineChart.jsx's to say; this is only where
- * things go.
+ * point, each end's label in the gutter, and the annotation's markers and
+ * bands (VD-121), as plain numbers and strings, so that both renderers draw
+ * the one picture - charts/LineChart.jsx in the app, and
+ * scripts/prerender.js on the static page, which has no React to run. What
+ * the chart is for is LineChart.jsx's to say; this is only where things go.
  */
+import { LEADER, gutterWidth, leaderPoints, nudge, placeMarker } from './annotate.js'
 import { linear, niceDomain, ticks } from './scales.js'
 
-export const LINE_MARGIN = { top: 14, right: 58, bottom: 26, left: 44 }
+export const LINE_MARGIN = { top: 14, right: 12, bottom: 26, left: 44 }
+/** The top margin of a chart with markers: room for a disc above its highest point. */
+export const MARKED_TOP = 28
 
 /**
- * `series` as LineChart takes it. Null where no series has a point. Each
+ * `series` as LineChart takes it, each with an optional `label`, the short
+ * name its end is labelled with. Null where no series has a point. Each
  * series keeps its index, which is its slot in the palette and its dash.
+ *
+ * `xMax` runs the x axis on past the last point - a season's calendar past
+ * the rounds run - so the lines stop where the season has got to. `marks`
+ * are the annotation's markers, each `{ n, series, x }`: the number in its
+ * disc, the index of the series it marks and the x of the point. `bands`
+ * are `{ from, to }` spans of x, shaded under the lines.
  */
 export function lineLayout({
   series,
@@ -21,40 +31,65 @@ export function lineLayout({
   format = (v) => v.toLocaleString('en-GB'),
   formatX = (v) => String(v),
   zero = true,
+  xMax = null,
+  marks = [],
+  bands = [],
 }) {
-  const M = LINE_MARGIN
   const all = series.flatMap((s) => s.points)
   if (all.length === 0) return null
-  const xs = all.map((p) => p.x)
-  const x = linear([Math.min(...xs), Math.max(...xs)], [M.left, width - M.right])
-  const y = linear(niceDomain(all.map((p) => p.y), { zero }), [height - M.bottom, M.top])
+  const sorted = series.map((s) => [...s.points].sort((a, b) => a.x - b.x))
 
   /*
-   * Which endpoints may carry a direct label.
-   *
-   * Lines converge at the right-hand edge far more often than they separate
-   * - a two-point championship is the whole reason to draw one of these -
-   * and two labels on top of each other are worse than none. Nudging them
-   * apart would detach a number from its line, so a label that would collide
-   * is simply dropped: the legend names the series and the crosshair gives
-   * every value on demand.
+   * Every line's end is labelled, in a gutter at the plot's right: its
+   * name and its value, or the value alone where one series is the whole
+   * chart. Lines converge at the right-hand edge far more often than they
+   * separate - a one-point championship is the whole reason to draw one of
+   * these - so labels that would collide are pushed apart rather than
+   * dropped, and a hairline that bends where one moved keeps each with its
+   * line (VD-121; Lauda's 68 in 1976 and Russell's 262 in 2026 were dropped
+   * before it). The gutter is as wide as the widest label.
    */
-  const labelled = new Set()
-  const ends = series
-    .map((s, i) => {
-      const sorted = [...s.points].sort((a, b) => a.x - b.x)
-      const last = sorted[sorted.length - 1]
-      return last ? { i, y: y(last.y) } : null
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.y - b.y)
-  let previous = -Infinity
-  for (const end of ends) {
-    if (end.y - previous >= 15) {
-      labelled.add(end.i)
-      previous = end.y
-    }
+  const words = sorted.map((points, i) => {
+    const last = points[points.length - 1]
+    return last ? { name: series.length > 1 ? (series[i].label ?? series[i].name) : null, value: format(last.y) } : null
+  })
+  const M = {
+    ...LINE_MARGIN,
+    top: marks.length ? MARKED_TOP : LINE_MARGIN.top,
+    right: Math.max(LINE_MARGIN.right, gutterWidth(words.filter(Boolean))),
   }
+  const xs = all.map((p) => p.x)
+  const x = linear([Math.min(...xs), Math.max(...xs, xMax ?? -Infinity)], [M.left, width - M.right])
+  const y = linear(niceDomain(all.map((p) => p.y), { zero }), [height - M.bottom, M.top])
+
+  const right = width - M.right
+  const labelX = right + LEADER
+  const ends = sorted.map((points) => points[points.length - 1] ?? null)
+  const endY = ends.map((last) => (last ? y(last.y) : null))
+  const drawn = endY.flatMap((value, i) => (value === null ? [] : [i]))
+  const placed = nudge(
+    drawn.map((i) => endY[i]),
+    { min: 6, max: height - 6 },
+  )
+  const labelY = new Map(drawn.map((i, k) => [i, placed[k]]))
+
+  // The y of each line at one x, for where a marker may sit clear of them.
+  const yAt = (i, value) => {
+    const point = sorted[i].find((p) => p.x === value)
+    return point ? y(point.y) : null
+  }
+  const markers = []
+  for (const mark of marks) {
+    const at = yAt(mark.series, mark.x)
+    if (at === null) continue
+    const others = sorted.flatMap((_, j) => (j === mark.series || yAt(j, mark.x) === null ? [] : [yAt(j, mark.x)]))
+    markers.push({ n: mark.n, ...placeMarker(x(mark.x), at, others, { top: 0, bottom: height - M.bottom, taken: markers }) })
+  }
+  const [x0, x1] = x.domain
+  const shaded = bands
+    .map((b) => ({ from: Math.max(b.from, x0), to: Math.min(b.to, x1) }))
+    .filter((b) => b.to > b.from)
+    .map((b) => ({ x: x(b.from), width: x(b.to) - x(b.from), y: M.top, height: height - M.bottom - M.top }))
 
   return {
     width,
@@ -62,7 +97,7 @@ export function lineLayout({
     x,
     y,
     left: M.left,
-    right: width - M.right,
+    right,
     top: M.top,
     bottom: height - M.bottom,
     labelX: M.left - 8,
@@ -78,15 +113,27 @@ export function lineLayout({
     // union is what the pointer snaps to.
     columns: [...new Set(all.map((p) => p.x))].sort((a, b) => a - b),
     lines: series.map((s, i) => {
-      const points = [...s.points].sort((a, b) => a.x - b.x)
-      const last = points[points.length - 1]
+      const points = sorted[i]
+      const last = ends[i]
+      const end = last ? { x: x(last.x), y: endY[i] } : null
       return {
         s,
         i,
         points,
         path: points.map((p, j) => `${j === 0 ? 'M' : 'L'}${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' '),
-        end: last ? { x: x(last.x), y: y(last.y), text: labelled.has(i) ? format(last.y) : null } : null,
+        end: end && {
+          ...end,
+          label: {
+            x: labelX,
+            y: labelY.get(i),
+            name: words[i].name,
+            value: words[i].value,
+            leader: leaderPoints(end.x, end.y, labelX, labelY.get(i)),
+          },
+        },
       }
     }),
+    markers,
+    bands: shaded,
   }
 }

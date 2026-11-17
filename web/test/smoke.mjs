@@ -91,6 +91,7 @@ import {
   seasonAnswer,
   seasonPlate,
   seasonSources,
+  shortNames,
   standingsHeading,
   titleHeading,
 } from '../src/queries/season.js'
@@ -2745,15 +2746,43 @@ try {
       2,
       'the championship chart drew its lines',
     )
-    // AX-16: each line has its own dash, and the legend's key to it is the
-    // same stroke, in the same order - a key in hue alone is what 1.4.1
-    // forbids once an end label is dropped.
-    const dashes = await page.$eval('#root main .figure:has(.legend)', (figure) => ({
+    // AX-16: each line has its own dash. VD-121: and each is named at its
+    // end, with its value, in the gutter - Lauda's 68 a point under Hunt's 69
+    // was the label the chart used to drop - no two labels closer than the
+    // gap, and every marker on the plot is a note in the key under it.
+    const race = await page.$eval('#root main figure.figure-lead', (figure) => ({
       lines: [...figure.querySelectorAll('.figure-body svg path')].map((p) => p.getAttribute('stroke-dasharray') ?? 'solid'),
-      keys: [...figure.querySelectorAll('.legend svg.line-key line')].map((l) => l.getAttribute('stroke-dasharray') ?? 'solid'),
+      labels: [...figure.querySelectorAll('.figure-body svg .end-label text')].map((t) => {
+        const box = t.getBoundingClientRect()
+        return { text: t.textContent.replace(/\s+/g, ' ').trim(), y: box.top + box.height / 2 }
+      }),
+      markers: [...figure.querySelectorAll('.figure-body svg .anno-marker text')].map((t) => t.textContent.trim()),
+      key: [...figure.querySelectorAll('.figure-key li .figure-key-n')].map((n) => n.textContent.trim()),
+      legend: figure.querySelectorAll('.legend').length,
     }))
-    is(dashes.keys.join(' | '), dashes.lines.join(' | '), 'the legend keys each line with its own dash')
-    is(new Set(dashes.lines).size, dashes.lines.length, 'no two lines of the title race share a dash')
+    is(new Set(race.lines).size, race.lines.length, 'no two lines of the title race share a dash')
+    const top = db
+      .prepare(SEASON_FINAL)
+      .all(1976)
+      .filter((r) => r.table_type === 'drivers')
+      .slice(0, 3)
+    const running = db.prepare(SEASON_STANDINGS).all(1976).filter((r) => r.table_type === 'drivers')
+    const lastOf = (id) => running.filter((r) => r.driver_id === id).sort((a, b) => b.after_round - a.after_round)[0].points
+    const names = shortNames(top.map((r) => r.entity))
+    is(
+      race.labels.map((l) => l.text).join(' | '),
+      top.map((r, i) => `${names[i]} ${lastOf(r.driver_id)}`).join(' | '),
+      'every line is named at its end with its last total, the converging two included',
+    )
+    is(race.labels.length, race.lines.length, 'one label to a line')
+    const ys = race.labels.map((l) => l.y).sort((a, b) => a - b)
+    truthy(
+      ys.every((y, k) => k === 0 || y - ys[k - 1] >= 15),
+      `no two end labels overlap (${ys.map((y) => Math.round(y)).join(', ')})`,
+    )
+    atLeast(race.key.length, 1, 'the title race carries a note')
+    is(race.markers.join(' '), race.key.join(' '), 'each marker on the plot is a note in the key, by number')
+    is(race.legend, 0, 'and no legend: the lines carry their names')
   })
 
   // A calendar that has been announced and not raced. Its blanks are not
@@ -3693,6 +3722,12 @@ try {
           (paint, i) => `${paint} ${svg.querySelectorAll('path[stroke]')[i].getAttribute('stroke-dasharray') ?? 'solid'}`,
         ),
         legend: [...figure.querySelectorAll(':scope > .legend > span')].map(clean),
+        // The annotation pattern (VD-121): the finding over the figure, the
+        // end labels, the markers and the key under the plot.
+        finding: [...(h2.closest('section')?.querySelectorAll(':scope > p.figure-finding, :scope > p.figure-kicker') ?? [])].map(clean),
+        labels: [...svg.querySelectorAll('.end-label text')].map(clean),
+        markers: [...svg.querySelectorAll('.anno-marker text')].map(clean),
+        key: [...figure.querySelectorAll('.figure-key li')].map(clean),
         rows: [...figure.querySelectorAll('details table tbody tr')].map((tr) => [...tr.children].map(clean).join(' | ')),
         open: figure.querySelector('details')?.open ?? null,
       }
@@ -3731,6 +3766,10 @@ try {
         is(served.columns.join(', '), app.columns.join(', '), `${at}: the same columns in the same colour (${app.columns.length})`)
         is(served.lines.join(', '), app.lines.join(', '), `${at}: the same lines in the same colours and dashes (${app.lines.length})`)
         is(served.legend.join(' · '), app.legend.join(' · '), `${at}: the same legend`)
+        is(served.finding.join(' · '), app.finding.join(' · '), `${at}: the same finding over the figure`)
+        is(served.labels.join(' · '), app.labels.join(' · '), `${at}: the same line ends named (${app.labels.length})`)
+        is(served.markers.join(' · '), app.markers.join(' · '), `${at}: the same markers (${app.markers.length})`)
+        is(served.key.join(' · '), app.key.join(' · '), `${at}: the same notes in the key (${app.key.length})`)
         truthy(app.rows.length > 1, `${at}: the app's figure holds its numbers (${app.rows.length} rows)`)
         is(served.rows.join(' / '), app.rows.join(' / '), `${at}: the static numbers behind the chart are the app's, row for row`)
         is(served.open, false, `${at}: and behind the app's disclosure, closed`)
@@ -5642,7 +5681,7 @@ try {
     is(team.arrived.join(' | '), String(seasons[0].year), 'and a Tab arrival reads the first season')
 
     await go('/seasons/2024', '2024')
-    const lines = page.locator('#root main figure.figure:has(.legend) .plot-holder svg[role="img"]').first()
+    const lines = page.locator('#root main figure.figure-lead .plot-holder svg[role="img"]').first()
     await lines.locator('path').first().waitFor({ timeout: 30000 })
     is(await lines.getAttribute('tabindex'), '0', "2024's title race chart is a tab stop")
     const rounds = [
