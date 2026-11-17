@@ -371,6 +371,79 @@ def cross_tabulation_title_counts_vs_season_records():
     check("constructor drivers'-title counts agree with seasons.champion_team",
           not dmis, "; ".join(dmis))
 
+    # An engine maker's two title columns, counted from the race records
+    # rather than typed (CR-114): Mercedes once read 10 drivers' titles where
+    # the seasons make 15, and Matra held the 1969 titles, which F1DB
+    # credits to a Ford engine. A constructors' title is the engine of the champion's
+    # last standings row at the top, since the title is a chassis-engine
+    # combination's; a drivers' title is the engine of the champion's race
+    # entries for seasons.champion_team, the team the check above credits.
+    # The F1DB ids each maker counts under, and the titles of engines the
+    # register does not hold, are declared in data/teams.py.
+    from data import teams as _TM
+    makers = {r["id"]: r for r in con.execute(
+        "SELECT id, name, constructors_titles, drivers_titles FROM engine_manufacturers")}
+    owner = {}
+    for eid, ids in _TM.ENGINE_F1DB_IDS.items():
+        for f in ids:
+            owner.setdefault(f, []).append(eid)
+    raced = {r[0] for r in con.execute("SELECT f1db_manufacturer_id FROM engines")}
+    unmapped = (sorted(set(makers) ^ set(_TM.ENGINE_F1DB_IDS))
+                + [f"{f} ({', '.join(o)})" for f, o in owner.items() if len(o) > 1]
+                + [f"{f} (not an F1DB engine id)" for f in owner if f not in raced])
+    check("every engine maker counts its titles under F1DB ids no other maker holds",
+          not unmapped, "; ".join(unmapped))
+
+    unfound = []
+    by_cons = Counter()
+    for year, champ in con.execute("""SELECT year, constructors_champion FROM seasons
+            WHERE constructors_champion IS NOT NULL"""):
+        top = """FROM standings WHERE table_type = 'constructors' AND year = ?
+                   AND constructor_id = ? AND position = 1 AND engine_id IS NOT NULL"""
+        engs = {r[0] for r in con.execute(
+            f"SELECT engine_id {top} AND after_round = (SELECT MAX(after_round) {top})",
+            (year, champ, year, champ))}
+        if len(engs) == 1:
+            by_cons[engs.pop()] += 1
+        else:
+            unfound.append(f"{year} constructors' {champ}: {sorted(engs)}")
+    harvest = harvest_module()
+    f1db_drivers, _ = harvest.resolve_f1db_drivers(
+        {r[0]: r[1] for r in con.execute("SELECT id, full_name FROM drivers")})
+    champs = {y: (d, t) for y, d, t in con.execute("""SELECT year, drivers_champion,
+            champion_team FROM seasons WHERE drivers_champion IS NOT NULL""")}
+    driven = {}
+    for r in harvest.load_race_results():
+        y = int(r["year"])
+        if (y in champs and f1db_drivers.get(r["driver_id"]) == champs[y][0]
+                and harvest.constructor_for_f1db(r["constructor_id"], y) == champs[y][1]):
+            driven.setdefault(y, set()).add(r["engine_manufacturer_id"])
+    by_drv = Counter()
+    for y, (did, team) in sorted(champs.items()):
+        engs = driven.get(y, set())
+        if len(engs) == 1:
+            by_drv[next(iter(engs))] += 1
+        else:
+            unfound.append(f"{y} drivers' {did} for {team}: {sorted(engs)}")
+    check("every title's engine is found in the race records, and only one",
+          not unfound and bool(by_cons) and bool(by_drv),
+          "; ".join(unfound) if unfound else
+          f"{sum(by_cons.values())} constructors' and {sum(by_drv.values())} drivers' titles")
+
+    emis = []
+    for eid, r in makers.items():
+        ids = _TM.ENGINE_F1DB_IDS.get(eid, ())
+        got = (sum(by_cons[f] for f in ids), sum(by_drv[f] for f in ids))
+        if (r["constructors_titles"], r["drivers_titles"]) != got:
+            emis.append(f"{r['name']}: race records say {got[0]} constructors' and "
+                        f"{got[1]} drivers', row says {r['constructors_titles']} and "
+                        f"{r['drivers_titles']}")
+    check("engine maker title counts agree with the race records", not emis, "; ".join(emis))
+    stray = {f: (by_cons[f], by_drv[f]) for f in set(by_cons) | set(by_drv) if f not in owner}
+    check("the titles of engines the register does not hold are the ones declared",
+          stray == _TM.ENGINE_TITLES_UNREGISTERED,
+          f"{stray} against {_TM.ENGINE_TITLES_UNREGISTERED} declared")
+
 
 @section('TITLE-YEAR STRINGS')
 def title_year_strings():

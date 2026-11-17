@@ -299,7 +299,7 @@ ENGINES = [
      "The only manufacturer present for every season. Supplies Haas and Cadillac as well as the works team in 2026.", "medium"),
     ("cosworth", "Ford Cosworth", "United Kingdom/United States", 1967, 2013, 176, 10, 13,
      "The DFV, funded by Ford for £100,000, won on debut at Zandvoort in 1967 and 155 Grands Prix in all. It made the customer-chassis garagiste team viable and defined F1 for two decades.", "medium"),
-    ("mercedes-eng", "Mercedes", "Germany", 1954, None, None, 9, 10,
+    ("mercedes-eng", "Mercedes", "Germany", 1954, None, None, 13, 15,
      "Dominated the first turbo-hybrid years with a split-turbo layout that rivals took three seasons to match. Supplies McLaren, Williams and Alpine in 2026.", "medium"),
     ("renault-eng", "Renault", "France", 1977, 2024, 168, 12, 11,
      "Introduced the turbo to F1 in 1977 and powered Williams, Benetton and Red Bull to titles as a supplier. Withdrew from power-unit supply after 2024.", "medium"),
@@ -311,11 +311,11 @@ ENGINES = [
      "Built the 1.5 L V8 that won the 1962 title and the notoriously complex H16.", "medium"),
     ("tag-porsche", "TAG (Porsche)", "Germany", 1983, 1987, 25, 2, 3,
      "Porsche-built, TAG-funded turbo V6 that powered McLaren to three drivers' and two constructors' titles.", "high"),
-    ("bmw-eng", "BMW", "Germany", 1982, 2009, 20, 1, 1,
+    ("bmw-eng", "BMW", "Germany", 1982, 2009, 20, 0, 1,
      "The M12/13 four-cylinder turbo, derived from a production block, is credited with over 1,400 bhp in qualifying trim in 1986 — the highest figure ever run in F1.", "medium"),
     ("repco", "Repco", "Australia", 1966, 1969, 8, 2, 2,
      "An Australian parts company whose lightweight V8 won two titles for Brabham in the first years of the 3.0 L formula.", "high"),
-    ("matra-eng", "Matra", "France", 1968, 1982, None, 1, 1,
+    ("matra-eng", "Matra", "France", 1968, 1982, None, 0, 0,
      "The V12 was slow but its sound is among the most celebrated in the sport.", "medium"),
     ("alfa-eng", "Alfa Romeo", "Italy", 1950, 1988, None, 0, 2,
      "The supercharged 158/159 straight-eight won the first two titles.", "medium"),
@@ -334,6 +334,53 @@ ENGINES = [
     ("audi-eng", "Audi", "Germany", 2026, None, 0, 0, 0,
      "Designed and built at Neuburg an der Donau — the first all-new works manufacturer power unit of the 2026 formula.", "verified"),
 ]
+
+# The F1DB engine-manufacturer ids each row above is counted under, for
+# verify.py, which counts both title columns from the race records (CR-114):
+# a constructors' title for the engine of the champion's final standings row
+# (the title is a chassis-engine combination's), and a drivers' title for
+# the engine of the champion's race entries for seasons.champion_team - the
+# team constructors.drivers_titles credits too, so Fangio's 1954, scored in
+# a Maserati and then a Mercedes, is Mercedes's, as it is the Mercedes
+# team's. A season whose title was recorded before its last round counts,
+# as it does there (CR-115). Every row is named, an empty tuple being a
+# maker F1DB has no id for; an id is one maker's only. F1DB badges the
+# Red Bull teams' engines rbpt in 2022, honda-rbpt in 2023-25 and
+# red-bull-ford in 2026, all three this register's rbpt, and Honda's own
+# row counts what raced as Honda. bwt-mercedes is Racing Point's 2019-20
+# badge for its Mercedes engine.
+ENGINE_F1DB_IDS = {
+    "ferrari-eng": ("ferrari",),
+    "cosworth": ("ford", "cosworth"),
+    "mercedes-eng": ("mercedes", "bwt-mercedes"),
+    "renault-eng": ("renault",),
+    "honda-eng": ("honda",),
+    "climax": ("climax",),
+    "brm-eng": ("brm",),
+    "tag-porsche": ("tag",),
+    "bmw-eng": ("bmw",),
+    "repco": ("repco",),
+    "matra-eng": ("matra",),
+    "alfa-eng": ("alfa-romeo",),
+    "maserati-eng": ("maserati",),
+    "weslake": ("weslake",),
+    "judd": ("judd",),
+    "hart": ("hart",),
+    "yamaha": ("yamaha",),
+    "peugeot": ("peugeot",),
+    "mugen": ("mugen-honda",),
+    "toyota-eng": ("toyota",),
+    "rbpt": ("rbpt", "honda-rbpt", "red-bull-ford"),
+    "audi-eng": ("audi",),
+}
+
+# Titles whose engine has no row in ENGINES: F1DB id -> (constructors',
+# drivers'). The register is a selection of makers, and a title it does not
+# hold is declared here rather than counted onto a row it is not (CR-114).
+# F1DB names the engine of Vanwall's 1958 constructors' title Vanwall.
+ENGINE_TITLES_UNREGISTERED = {
+    "vanwall": (1, 0),
+}
 
 # id, from_year, to_year, era_name, formula, aspiration, config, power, revs, notes
 ENGINE_ERAS = [
