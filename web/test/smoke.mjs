@@ -2333,6 +2333,44 @@ try {
    * yet in the standings, say) is held to having no answer in its lede,
    * rather than failing the build.
    */
+  await section('/drivers/norris /drivers/prost  (the team-mates face-off, both renderers: VD-122)', async () => {
+    const squash = (value) => value.replace(/\s+/g, ' ').trim()
+    for (const [id, name, owned] of [['norris', 'Lando Norris', true], ['prost', 'Alain Prost', false]]) {
+      const pairs = `FROM race_entries e JOIN race_entries o ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id AND o.driver_id <> e.driver_id WHERE e.driver_id = '${id}'`
+      const mates = count(`SELECT COUNT(DISTINCT o.driver_id) ${pairs}`)
+      // The latest team-mate, read from the entries rather than the query
+      // the page runs, and the qualifying the headline leads with.
+      const latest = one(`SELECT o.driver_id ${pairs.replace('WHERE', 'JOIN races r ON r.id = e.race_id WHERE')} ORDER BY r.year DESC, r.round DESC, o.driver_id LIMIT 1`)
+      const [qa, qb] = Object.values(
+        db
+          .prepare(
+            `SELECT SUM(qa.position < qb.position), SUM(qa.position > qb.position)
+               FROM race_entries e JOIN race_entries o ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id AND o.driver_id = ?2
+               JOIN qualifying qa ON qa.race_id = e.race_id AND qa.driver_id = e.driver_id
+               JOIN qualifying qb ON qb.race_id = e.race_id AND qb.driver_id = o.driver_id
+              WHERE e.driver_id = ?1`,
+          )
+          .get(id, latest),
+      )
+      await go(`/drivers/${id}`, name)
+      await page.waitForSelector('#root main .face-off', { timeout: 20000 })
+      const app = await page.$$eval('#root main .face-off', (nodes) => nodes.map((node) => node.textContent))
+      const appHead = await page.$eval('#root main .face-headline', (node) => node.textContent)
+      const appClass = await page.$eval('#root main .face-off', (node) => `${node.className} ${node.getAttribute('style') ?? ''}`)
+      const html = (await (await fetch(`${BASE}/drivers/${id}`)).text()).split('<div id="prerendered">')[1] ?? ''
+      const flat = (fragment) => squash(unescaped(fragment.replace(/<[^>]+>/g, '')))
+      const staticBlocks = html.split('<div class="face-off').slice(1).map((chunk) => chunk.slice(0, chunk.indexOf('<p class="faint face-key">') >= 0 ? chunk.indexOf('<p class="faint face-key">') : undefined))
+      const staticHead = flat(html.match(/<p class="face-headline">[\s\S]*?<\/p>/)?.[0] ?? '')
+      is(app.length, Math.min(3, mates), `${id}: a block for each team-mate shown, at most three of ${mates}`)
+      is(staticBlocks.length, app.length, `${id}: the static page draws the same blocks`)
+      is(staticBlocks.map((chunk) => flat(`<div class="face-off${chunk}`)).join(' | '), app.map(squash).join(' | '), `${id}: and says the same in them`)
+      is(staticHead, squash(appHead), `${id}: both halves set the same headline`)
+      truthy(squash(appHead).endsWith(`${Math.max(qa, qb)}–${Math.min(qa, qb)}`), `${id}: the headline's figure is the qualifying with ${latest}, ${qa}–${qb}, the leader's first — “${squash(appHead)}”`)
+      if (owned) truthy(/face-off-owned/.test(appClass) && /--face-b-light/.test(appClass), `${id}: a team with a second colour draws the team-mate in it — ${appClass}`)
+      else truthy(!/face-off-owned/.test(appClass) && /--face-a: var\(--series-1\)/.test(appClass), `${id}: a pairing with no colour on record takes the chart slots — ${appClass}`)
+    }
+  })
+
   await section('/seasons/2026  (who can still win, in the lede)', async () => {
     const year = inProgress()
     const champion = one('SELECT drivers_champion FROM seasons WHERE year = ?', year)

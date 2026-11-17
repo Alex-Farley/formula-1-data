@@ -5661,3 +5661,60 @@ describe('the annotation pattern (VD-121)', () => {
     assert.equal(live.xMax, 5, 'a season being run draws its whole calendar')
   })
 })
+
+describe("the team-mates face-off (VD-122), on rows written out", async () => {
+  const { faceOffs, FACE_OFFS } = await import('../src/queries/driver.js')
+  const { faceColours } = await import('../src/charts/own.js')
+  // One TEAM_MATES row: a season with one team-mate, the driver's figure first.
+  const row = (year, mate, [qa, qb, bq], [fa, fb, bc], [p, mp], { races = 10, team = 'mclaren', name = 'McLaren', country = 'United Kingdom' } = {}) => ({
+    year, constructor_id: team, constructor: name, constructor_country: country, mate_id: mate.toLowerCase(), mate: `Some ${mate}`,
+    races, both_qualified: bq, qualified_ahead: qa, qualified_behind: qb, both_classified: bc, finished_ahead: fa, finished_behind: fb, points: p, mate_points: mp,
+  })
+  // Newest first, as the query orders them.
+  const rows = [
+    row(2024, 'Late', [3, 7, 10], [2, 4, 6], [20, 40], { races: 10 }),
+    row(2022, 'Long', [12, 8, 20], [9, 9, 18], [100, 90.5], { races: 20 }),
+    row(2021, 'Long', [10, 10, 20], [7, 9, 16], [80, 60], { races: 20 }),
+    row(2019, 'Mid', [6, 4, 10], [5, 3, 8], [30, 10], { races: 15 }),
+    row(2018, 'Short', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1 }),
+  ]
+  const face = faceOffs('A Driver', rows)
+
+  it('shows the latest team-mate and the others with the most Grands Prix together, latest first', () => {
+    assert.equal(FACE_OFFS, 3)
+    assert.deepEqual(face.blocks.map((b) => b.mate_id), ['late', 'long', 'mid'])
+    assert.match(face.note, /Shown: the latest team-mate and the two others with the most Grands Prix together, of 4 team-mates; the table has every pairing\./)
+  })
+  it('sums the table\'s own columns, and says who led with the leader\'s figure first', () => {
+    const long = face.blocks[1]
+    assert.deepEqual(long.tallies.map((t) => [t.mine, t.theirs, t.ahead]), [['22', '18', 'mine'], ['16', '18', 'theirs'], ['180', '150.5', 'mine']])
+    assert.equal(long.when, '2021–22 · 2 seasons')
+    assert.equal(long.verdict, 'Driver ahead in qualifying and on points; Long ahead on finishes.')
+    assert.deepEqual(face.headline, { text: 'Late out-qualified Driver', figure: '7–3' })
+    assert.equal(face.standfirst, 'One season together at McLaren. Across 4 team-mates, Driver was ahead in qualifying in 3 of 5 team-mate seasons, level in 1, behind in 1.')
+  })
+  it('says every season only where every season went one way', () => {
+    assert.equal(face.blocks[0].verdict, 'Late ahead on all three counts.')
+    const two = faceOffs('A Driver', [row(2020, 'Mate', [6, 4, 10], [5, 3, 8], [30, 10]), row(2019, 'Mate', [6, 4, 10], [5, 3, 8], [30, 10])])
+    assert.equal(two.blocks[0].verdict, 'Driver ahead on all three counts, every season.')
+  })
+  it('reads an unestablished count as not established, never 0–0, and draws no bar for it', () => {
+    const none = faceOffs('A Driver', [row(1955, 'Mate', [0, 0, 0], [0, 0, 0], [0, 0], { team: 'maserati', name: 'Maserati', country: 'Italy' })])
+    const [q, race, pts] = none.blocks[0].tallies
+    assert.deepEqual([q.mine, q.theirs, q.share, q.ahead], ['—', '—', null, null])
+    assert.deepEqual([race.mine, race.share, race.ahead], ['none', null, null])
+    assert.deepEqual([pts.mine, pts.theirs, pts.ahead, pts.share], ['0', '0', 'level', null], 'points are each driver\'s own, so 0–0 is a real level, with no bar to split')
+    assert.deepEqual(none.headline, { text: 'Driver and Mate level on points', figure: '0–0' })
+    assert.equal(none.standfirst, 'One season together at Maserati.', 'no qualifying sentence where no season has one')
+  })
+  it('draws the team-mate in the livery\'s second colour, in ink where there is none, and in the chart slots with no colour (D-65)', () => {
+    const papaya = faceColours(face.blocks[0].colour)
+    assert.equal(papaya.className, 'face-off face-off-owned')
+    assert.deepEqual(papaya.vars, { '--face-a-light': '#d66c00', '--face-a-dark': '#ff8000', '--face-b-light': '#2e3033', '--face-b-dark': '#64696f' })
+    const national = faceColours(faceOffs('A Driver', [row(1955, 'Mate', [1, 0, 1], [1, 0, 1], [1, 0], { team: 'maserati', name: 'Maserati', country: 'Italy' })]).blocks[0].colour)
+    assert.deepEqual(Object.keys(national.vars), ['--face-a-light', '--face-a-dark'], 'a national colour has no second, so the team-mate takes the ink fallback')
+    const none = faceColours(faceOffs('A Driver', [row(1990, 'Mate', [1, 0, 1], [1, 0, 1], [1, 0])]).blocks[0].colour)
+    assert.deepEqual(none, { className: 'face-off', vars: { '--face-a': 'var(--series-1)', '--face-b': 'var(--series-2)' } })
+  })
+  it('has nothing to say with no team-mate', () => assert.equal(faceOffs('A Driver', []), null))
+})
