@@ -1,15 +1,16 @@
 Data licence — CC BY-SA 4.0, except the project's own writing named below (CC BY 4.0)
 
 This licence covers the data in this repository and every file it is
-published as: data/, harvest/ (less the three files of OpenStreetMap data
-named under *Circuit geometry* below), f1.db, f1.db.gz (f1.db compressed, as
+published as: data/ (less the photograph placings' transforms named under
+*Circuit geometry* below), harvest/ (less the three files of OpenStreetMap
+data named there), f1.db, f1.db.gz (f1.db compressed, as
 lapledger.org serves it), f1-parquet.zip (every table of f1.db as Parquet),
 f1_database.json (released compressed, as f1_database.json.gz),
 f1_compat.json, and the JSON files lapledger.org serves under /api/v1/
 (the rows of f1.db, one file per driver, constructor, circuit, season and
 race). The published files are copies of f1.db in other formats and
-carry its terms. It does not cover the code (see LICENSE), nor f1-geometry.db
-and those three harvest/ files, whose terms are under *Circuit geometry*
+carry its terms. It does not cover the code (see LICENSE), nor f1-geometry.db,
+those three harvest/ files and those transforms, whose terms are under *Circuit geometry*
 below, nor f1-facts.db, which is
 CC BY 4.0 whole, under *The facts artefact* below. The views.sql in
 f1-parquet.zip is the views' SQL as schema.sql writes it, and like schema.sql
@@ -218,6 +219,13 @@ licence, which covers the rest of harvest/:
 
 The Wikidata item ids in circuit_wikidata.txt's wikidata_id column stay
 CC0, as its header says.
+
+One thing in data/ is fitted to the same coordinates: each `transform` in
+`PHOTO_TRACE` in `data/harvest.py`, the origin and six coefficients that
+place a circuit's centreline on its aerial photograph. They are **ODbL 1.0,
+(c) OpenStreetMap contributors**, with the centrelines they were fitted to,
+and are not covered by this licence. The marked `points` beside them are
+pixels of the photograph, read by this project, and stay under it.
 
 ## Live timing data
 

@@ -768,7 +768,7 @@ CREATE TABLE circuit_geometry (
     photo_points    TEXT,                      -- JSON [[x, y], ...], pixels of its stored width x height
     photo_transform TEXT,                      -- JSON {"origin": [lon, lat], "x": [a, b, c], "y": [d, e, f]}
     photo_error_px  REAL,                      -- the worst point's distance from the drawn line
-    photo_source_id INTEGER,                   -- 18: written for this project
+    photo_source_id INTEGER REFERENCES source_registry(id), -- 18: written for this project
     photo_confidence TEXT REFERENCES provenance(confidence),
     UNIQUE (circuit_id, layout_key)
 );

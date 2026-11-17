@@ -3120,6 +3120,14 @@ figure.photo[data-state='failed'] .photo-trace {
   display: none;
 }
 
+/* Nor over the empty box while the photograph is still on its way: a line
+   on its own there would read as a second drawing of the circuit. Keyed to
+   loading, not to "not ready", because the static figure has no data-state
+   and its picture is there from the first paint. */
+figure.photo[data-state='loading'] .photo-trace {
+  visibility: hidden;
+}
+
 .photo-failed {
   margin: 0;
   padding: var(--space-7) var(--space-6);

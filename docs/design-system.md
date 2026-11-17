@@ -835,7 +835,9 @@ the layout on the ground it runs over.
   build holds each placing to (`PHOTO_TRACE_TOLERANCE_PX` in
   `data/harvest.py`), and nothing about the photograph: the placing is this
   project's own, at no more than *medium*.
-- **States:** a failed photograph hides the line with it.
+- **States:** the line is drawn only over a photograph that has arrived:
+  hidden while it loads, so it never stands alone in the empty box, and
+  gone with it when it fails.
 
 ### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), column groups and a picture in a row at the reference density (VD-106 #1248), and a value bar and the leader in the row (VD-110 #1332, VD-105 #1247); pending: the season calendar fitting its box (VD-116 #1338)
 

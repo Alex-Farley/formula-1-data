@@ -1425,17 +1425,22 @@ def _place_traces_on_photographs(cur):
     tools/photo_trace.py fitted onto them. Nothing here fits anything: the
     fit is a search, and the build stores only what passes arithmetic. A
     transform is stored when the circuit's photograph is still the file it
-    was fitted on, and when every point lies within the tolerance of the line
-    it draws, with no stretch of the lap far from a point. Otherwise the
-    photograph is shown plain - a new photograph or a re-traced centreline is
-    an ordinary refresh, not a broken build - and verify.py says which entry
-    is not drawn.
+    was fitted on, at the size its points were marked in, and when every
+    point lies within the tolerance of the line it draws, with no stretch of
+    the lap far from a point. Otherwise the photograph is shown plain - a new
+    photograph, a new stored size, a dropped or re-traced centreline is an
+    ordinary refresh, not a broken build - and verify.py says which entry is
+    not drawn.
     """
     placed = []
     for cid, entry in sorted(HV.PHOTO_TRACE.items()):
         traces = cur.execute(
             "SELECT layout_key, centreline FROM circuit_geometry "
             "WHERE circuit_id = ?", (cid,)).fetchall()
+        if not traces:
+            print(f"    not drawn over its photograph: {cid}, which has no "
+                  f"centreline")
+            continue
         if len(traces) != 1:
             raise SystemExit(
                 f"PHOTO_TRACE: {cid} has {len(traces)} centrelines; a "
@@ -1449,9 +1454,11 @@ def _place_traces_on_photographs(cur):
                   f"photograph is no longer the file it was placed on")
             continue
         _, width, height = photo
-        if not (width and height):
-            raise SystemExit(f"PHOTO_TRACE: {cid}'s photograph has no "
-                             f"stored size to place points in.")
+        if (width, height) != tuple(entry["frame"]):
+            print(f"    not drawn over its photograph: {cid}, stored at "
+                  f"{width} x {height}, not the {entry['frame'][0]} x "
+                  f"{entry['frame'][1]} its points were marked in")
+            continue
         points = [tuple(p) for p in entry["points"]]
         if len(points) < HV.PHOTO_TRACE_MIN_POINTS:
             raise SystemExit(

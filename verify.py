@@ -7384,7 +7384,7 @@ def illustration_and_geometry():
                 continue
             placed[cid] = r
             photo = con.execute(
-                "SELECT file_name, width FROM article_images "
+                "SELECT file_name, width, height FROM article_images "
                 "WHERE route = 'circuit' AND circuit_id = ?",
                 (cid,)).fetchone()
             if photo is None or photo["file_name"] != r["photo_file"]:
@@ -7399,6 +7399,14 @@ def illustration_and_geometry():
                     or points != [tuple(p) for p in entry["points"]]
                     or transform != _json.loads(_json.dumps(entry["transform"]))):
                 bad_photo.append(f"{cid}'s placing is not PHOTO_TRACE's")
+            elif (photo["width"], photo["height"]) != tuple(entry["frame"]):
+                bad_photo.append(f"{cid} is placed in a {entry['frame']} "
+                                 f"frame on a photograph stored at "
+                                 f"{photo['width']} x {photo['height']}")
+            if not all(0 <= x <= photo["width"] and 0 <= y <= photo["height"]
+                       for x, y in points):
+                bad_photo.append(f"{cid} marks a point outside its "
+                                 f"photograph")
             errors = H.photo_trace_errors(transform, points, lines)
             if len(points) < H.PHOTO_TRACE_MIN_POINTS:
                 bad_photo.append(f"{cid} marks {len(points)} points")

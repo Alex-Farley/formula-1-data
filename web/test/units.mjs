@@ -5786,6 +5786,10 @@ describe('the lap over a photograph (AF-96), on rows written out', () => {
     assert.equal(photoTrace([], photo), null)
     assert.equal(photoTrace([row], { ...photo, width: null }), null)
   })
+  it('credits the licence the row names, and ODbL where it names none', () => {
+    assert.equal(photoTrace([row], photo)?.licence, 'ODbL-1.0')
+    assert.equal(photoTrace([{ ...row, licence: null }], photo)?.licence, 'ODbL 1.0')
+  })
   it('takes the placed row where a circuit has two', () => {
     const other = { ...row, photo_file: null, photo_transform: null, centreline: '{"coordinates":[[[0,0],[1,1]]]}' }
     assert.equal(photoTrace([other, row], photo)?.d, 'M40 30L90 10M90 10L65 40')

@@ -10,8 +10,9 @@
  * the words it is stated in, shared by the register and the circuit page —
  * the app's and the one scripts/prerender.js writes (CR-33), so the two halves
  * of a circuit page cannot state the trace differently. The one place it is
- * drawn is over a circuit's aerial photograph, where it shows where the lap
- * runs on the ground (AF-96, photoTrace below).
+ * drawn is over a circuit's aerial photograph, once the photograph has
+ * arrived, where it shows where the lap runs on the ground (AF-96,
+ * photoTrace below).
  *
  * The ODbL credit travels with the figures exactly as it travelled with the
  * line: a measurement taken from an ODbL database is as much that database's
@@ -54,7 +55,7 @@ export const photoTrace = (traces, photograph) => {
   const d = JSON.parse(row.centreline)
     .coordinates.map((line) => `M${line.map(at).join('L')}`)
     .join('')
-  return { d, width: photograph.width, height: photograph.height, licence: row.licence }
+  return { d, width: photograph.width, height: photograph.height, licence: row.licence || 'ODbL 1.0' }
 }
 
 const tenth = (n) => Math.round(n * 10) / 10

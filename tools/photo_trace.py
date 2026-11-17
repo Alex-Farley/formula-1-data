@@ -8,10 +8,12 @@ WHAT THIS IS
     often rotated image with no corner coordinates. So each one is placed by
     hand, as this project's own derivation (source 18):
 
-    1.  A person marks points on the photograph that lie on the middle of the
+    1.  Points are marked on the photograph that lie on the middle of the
         track, spread round the whole lap - pixels in the frame article_images
-        stores (`width` x `height`), never a coordinate. They go into
-        PHOTO_TRACE in data/harvest.py.
+        stores (`width` x `height`), never a coordinate - by eye, or as the
+        middle of the asphalt across the track at stations round it (the
+        comment over PHOTO_TRACE in data/harvest.py says which, and how).
+        They go into PHOTO_TRACE with that frame.
     2.  This script fits the affine transform that carries the centreline's
         longitudes and latitudes onto those pixels - iterative closest point,
         a similarity first from a sweep of rotations, then a full affine - and

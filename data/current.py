@@ -633,19 +633,26 @@ SOURCE_REGISTRY = [
      "lineage chains, the points-system table, the tyre-supplier list, the "
      "grand prix register, the personnel notes and the engine-manufacturer "
      "notes. Twelve tables; the records list left it in v2.23, derived from "
-     "the race records instead of written.",
+     "the race records instead of written. It also stands for the placing of "
+     "a circuit's centreline on its aerial photograph (circuit_geometry's "
+     "photo_ columns, in f1-geometry.db, AF-96): points this project marked "
+     "on the photograph, and the transform fitted onto them.",
      "authored",
      "Original to this repository, with no upstream to owe anything to. The "
      "prose of ten of its twelve tables is offered under CC BY 4.0 "
      "(meta.project_prose_columns, PM-49). The glossary and "
      "technical_innovations stay under the release's CC BY-SA 4.0: one "
      "technical_innovations description follows a Wikipedia article's "
-     "wording, and the glossary's grant is an open question.",
+     "wording, and the glossary's grant is an open question. The photograph "
+     "placings are the exception to having no upstream: each transform is "
+     "fitted to OpenStreetMap's coordinates, so it is ODbL 1.0 with them and "
+     "ships only in f1-geometry.db.",
      "Whenever somebody edits it. There is no upstream to track and no "
      "version to pin.",
      "NOTHING, and that is the entire point of giving it a name. It has no "
      "external source to be compared against and no check in verify.py that "
-     "constrains a value - what "
+     "constrains a value, the photograph placings aside, which verify.py "
+     "re-measures against the points they were fitted to - what "
      "constrains grands_prix, constructor_lineage and personnel is "
      "referential and temporal only: ids resolve, years run forwards, and "
      "a lineage period holds its constructor's race entries. Those prove the "
