@@ -5398,7 +5398,7 @@ describe('the leader in the row and a bar in the points (VD-105, VD-110)', () =>
   })
 })
 
-import { LABEL_GAP, MARKER, gutterWidth, nudge, placeMarker } from '../src/charts/annotate.js'
+import { LABEL_GAP, MARKER, STACKED_GAP, gutterWidth, nudge, placeMarker } from '../src/charts/annotate.js'
 import { lineLayout } from '../src/charts/lineChart.js'
 
 describe('the annotation pattern (VD-121)', () => {
@@ -5448,6 +5448,22 @@ describe('the annotation pattern (VD-121)', () => {
     { name: 'Niki Lauda', label: 'Lauda', points: [{ x: 1, y: 9 }, { x: 2, y: 61 }, { x: 3, y: 68 }] },
     { name: 'Jody Scheckter', label: 'Scheckter', points: [{ x: 1, y: 2 }, { x: 2, y: 36 }, { x: 3, y: 49 }] },
   ]
+
+  it('sets each label name over value where one line would take more than its share of a narrow chart', () => {
+    const long = converging.map((s, i) => ({ ...s, label: ['Verstappen', 'Hamilton', 'Bottas'][i], points: s.points.map((p) => ({ ...p, y: p.y + 0.5 })) }))
+    const wide = lineLayout({ series: long, width: 480, height: 250 })
+    assert.ok(wide.lines.every((l) => !l.end.label.stacked), 'at 480 each label is one line')
+    const narrow = lineLayout({ series: long, width: 250, height: 250 })
+    const labels = narrow.lines.map((l) => l.end.label)
+    assert.ok(labels.every((l) => l.stacked), 'at 250 each is name over value')
+    assert.ok(narrow.right - narrow.left > 250 * 0.45, `the plot keeps its room (${Math.round(narrow.right - narrow.left)} px)`)
+    assert.ok(250 - narrow.right < gutterWidth(labels), 'a narrower gutter than one line would need')
+    const ys = labels.map((l) => l.y).sort((a, b) => a - b)
+    for (let k = 1; k < ys.length; k += 1) assert.ok(ys[k] - ys[k - 1] >= STACKED_GAP - 1e-9, `stacked labels at ${ys.join(', ')}`)
+    assert.ok(labels.every((l) => l.nameY < l.y && l.valueY > l.y && l.nameY - 10 >= 0 && l.valueY + 10 <= 250), 'each line inside the drawing')
+    const alone = lineLayout({ series: [long[0]], width: 250, height: 250 })
+    assert.ok(!alone.lines[0].end.label.stacked, 'a value alone is never stacked')
+  })
 
   it('labels every line end in the gutter, converging or not, at least the gap apart, each on a hairline from its own end', () => {
     const layout = lineLayout({ series: converging, width: 480, height: 250 })
@@ -5598,6 +5614,23 @@ describe('the annotation pattern (VD-121)', () => {
     const race = figure({ entries: fatal })
     assert.equal(race.annotations[0].text, 'A: fatal accident.')
     assert.deepEqual(race.bands, [])
+    // A fatal ending outranks a longer absence (1961: von Trips, not Hill):
+    // C is killed at round 4 and misses one round, A misses two.
+    const killed = entries
+      .filter((e) => !(e.driver_id === 'c' && e.round === 5))
+      .map((e) => (e.driver_id === 'c' && e.round === 4 ? { ...e, finish_position: null, position_text: 'DNF', status: 'Fatal accident' } : e))
+    const first = figure({ entries: killed }).annotations[0]
+    assert.deepEqual([first.lead, first.text], ['R4, Grand Prix 4', 'C: fatal accident.'])
+    // A disqualification is not set before an absence as if it caused it.
+    const dsq = entries.map((e) => (e.round === 2 && e.driver_id === 'a' ? { ...e, position_text: 'DSQ', status: 'Disqualified' } : e))
+    assert.equal(figure({ entries: dsq }).annotations[0].text, 'A misses R3 and R4 (shaded).')
+  })
+
+  it("says how a race ended without repeating the result as its reason", () => {
+    const one = (fields) => [{ finish_position: null, position_text: null, status: null, laps_completed: null, ...fields }]
+    assert.equal(raceEnded(one({ position_text: 'DNF', status: 'Retired' })), 'retires')
+    assert.equal(raceEnded(one({ position_text: 'DNF', status: 'Engine' })), 'retires (engine)')
+    assert.equal(raceEnded(one({ position_text: 'DNF', status: null })), 'retires')
   })
 
   it('marks the round a title was settled with rounds to run, where the season counted every result', () => {

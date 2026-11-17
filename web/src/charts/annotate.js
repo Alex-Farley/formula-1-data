@@ -21,6 +21,22 @@ import { textWidth } from './gridFlag.js'
 
 /** The least distance between two line-end labels' centres, in px. */
 export const LABEL_GAP = 16
+/**
+ * The same for a label set on two lines, the name over the value: the two
+ * lines' boxes of --size-3, STACK_HALF apart either side of the centre, and
+ * a pixel of air.
+ */
+export const STACKED_GAP = 34
+/** From a stacked label's centre to either line's centre. */
+export const STACK_HALF = 7
+/** From a label's centre to the edge of its text's box: half a line box of --size-3 (about 19 px) and a pixel, and its other line where stacked. */
+export const labelReach = (stacked) => (stacked ? STACK_HALF + 12 : 10)
+/**
+ * The most of a chart's width the gutter may take with each label on one
+ * line: past it - a phone, a long name and a decimal value - the value goes
+ * under the name, so the plot keeps the room it needs (VD-121).
+ */
+export const GUTTER_SHARE = 0.3
 /** From a line's end to its label's text: the hairline and the space either side. */
 export const LEADER = 14
 /** A marker's disc, and the hairline from the point to it. */
@@ -32,25 +48,34 @@ export const MARKER = { r: 8, ring: 3, offset: 18, gap: 4 }
 const CLEAR = MARKER.r + 3
 
 /*
- * textWidth() is measured at the axis face's 11 px; a line-end label is set
- * at --size-3, 12 px, its name semibold. Generous rather than tight, as
- * textWidth is: a gutter set too wide costs a few pixels of plot, one too
- * narrow runs a name off the figure.
+ * textWidth() is measured for the axis face's 11 px and is already generous
+ * (charts/gridFlag.js); a line-end label is set at --size-3, 12 px, its name
+ * semibold, and comes out narrower than textWidth says ("Verstappen 395.5"
+ * is estimated at 112 px and measures about 100). So it is taken as it is:
+ * a gutter a little wide costs a few pixels of plot.
  */
-const LABEL_SCALE = 1.2
-export const labelWidth = (value) => textWidth(value) * LABEL_SCALE
+export const labelWidth = (value) => textWidth(value)
 
 /**
  * The gutter the line-end labels need: the hairline to them, the widest
  * label, and a few pixels before the figure's edge. `labels` are
  * { name, value }, the name null where a chart has one series and its
- * title already names it.
+ * title already names it. `stacked` sets a named label on two lines, the
+ * name over the value, so the widest line is what counts.
  */
-export function gutterWidth(labels) {
+export function gutterWidth(labels, { stacked = false } = {}) {
   if (labels.length === 0) return 0
-  const widest = Math.max(...labels.map((l) => labelWidth(l.name ? `${l.name} ${l.value}` : l.value)))
-  return Math.ceil(LEADER + widest + 4)
+  const width = (l) =>
+    !l.name ? labelWidth(l.value) : stacked ? Math.max(labelWidth(l.name), labelWidth(l.value)) : labelWidth(`${l.name} ${l.value}`)
+  return Math.ceil(LEADER + Math.max(...labels.map(width)) + 4)
 }
+
+/**
+ * Whether a chart `width` wide sets its named labels on two lines: where on
+ * one they would take more than GUTTER_SHARE of it, and two would take less.
+ */
+export const stackLabels = (labels, width) =>
+  labels.some((l) => l.name) && gutterWidth(labels) > width * GUTTER_SHARE && gutterWidth(labels, { stacked: true }) < gutterWidth(labels)
 
 /**
  * Where each label goes, given where each wants to be: the same order top

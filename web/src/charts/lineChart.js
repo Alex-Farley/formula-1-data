@@ -6,7 +6,7 @@
  * scripts/prerender.js on the static page, which has no React to run. What
  * the chart is for is LineChart.jsx's to say; this is only where things go.
  */
-import { LEADER, gutterWidth, leaderPoints, nudge, placeMarker } from './annotate.js'
+import { LEADER, STACKED_GAP, STACK_HALF, gutterWidth, labelReach, leaderPoints, nudge, placeMarker, stackLabels } from './annotate.js'
 import { linear, niceDomain, ticks } from './scales.js'
 
 export const LINE_MARGIN = { top: 14, right: 12, bottom: 26, left: 44 }
@@ -47,16 +47,20 @@ export function lineLayout({
    * these - so labels that would collide are pushed apart rather than
    * dropped, and a hairline that bends where one moved keeps each with its
    * line (VD-121; Lauda's 68 in 1976 and Russell's 262 in 2026 were dropped
-   * before it). The gutter is as wide as the widest label.
+   * before it). The gutter is as wide as the widest label; where that
+   * would take more than GUTTER_SHARE of the chart - a phone - each named
+   * label is set on two lines, the name over the value, pushed apart
+   * STACKED_GAP rather than LABEL_GAP.
    */
   const words = sorted.map((points, i) => {
     const last = points[points.length - 1]
     return last ? { name: series.length > 1 ? (series[i].label ?? series[i].name) : null, value: format(last.y) } : null
   })
+  const stacked = stackLabels(words.filter(Boolean), width)
   const M = {
     ...LINE_MARGIN,
     top: marks.length ? MARKED_TOP : LINE_MARGIN.top,
-    right: Math.max(LINE_MARGIN.right, gutterWidth(words.filter(Boolean))),
+    right: Math.max(LINE_MARGIN.right, gutterWidth(words.filter(Boolean), { stacked })),
   }
   const xs = all.map((p) => p.x)
   const x = linear([Math.min(...xs), Math.max(...xs, xMax ?? -Infinity)], [M.left, width - M.right])
@@ -67,9 +71,11 @@ export function lineLayout({
   const ends = sorted.map((points) => points[points.length - 1] ?? null)
   const endY = ends.map((last) => (last ? y(last.y) : null))
   const drawn = endY.flatMap((value, i) => (value === null ? [] : [i]))
+  // Every label's box inside the drawing.
+  const edge = labelReach(stacked)
   const placed = nudge(
     drawn.map((i) => endY[i]),
-    { min: 6, max: height - 6 },
+    stacked ? { gap: STACKED_GAP, min: edge, max: height - edge } : { min: edge, max: height - edge },
   )
   const labelY = new Map(drawn.map((i, k) => [i, placed[k]]))
 
@@ -128,6 +134,11 @@ export function lineLayout({
             y: labelY.get(i),
             name: words[i].name,
             value: words[i].value,
+            // Set on two lines where `stacked`: the name over the value,
+            // each line's centre STACK_HALF from the label's.
+            stacked: stacked && words[i].name !== null,
+            nameY: labelY.get(i) - STACK_HALF,
+            valueY: labelY.get(i) + STACK_HALF,
             leader: leaderPoints(end.x, end.y, labelX, labelY.get(i)),
           },
         },

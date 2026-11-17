@@ -841,7 +841,8 @@ export function raceEnded(entries) {
   if (entries.length !== 1) return null
   const [e] = entries
   if (!missing(e.finish_position)) return e.finish_position === 1 ? 'wins' : `finishes ${ordinal(e.finish_position)}`
-  const why = !missing(e.status) && e.status !== e.position_text ? ` (${lowered(e.status)})` : ''
+  // A status that only says the result again ("Retired") adds nothing.
+  const why = !missing(e.status) && e.status !== e.position_text && !/^retire/i.test(e.status) ? ` (${lowered(e.status)})` : ''
   switch (e.position_text) {
     case 'DNF':
       if (e.status === 'Accident') return 'crashes out'
@@ -879,12 +880,15 @@ const roundList = (rounds) => {
  * span it shades, if any. Every one is a fact the rows below state:
  *
  * - A contender's longest run of rounds without an entry, after their first
- *   (the earliest of the longest, then the higher placed): marked at the
- *   last round they entered before it, which is shaded to the last missed.
- *   A round none of the three entered - the Indianapolis 500, which the
- *   championship counted to 1960 and most of its regulars did not run - is
- *   no absence. Where the entry before it ended in a fatal accident the note
- *   says that, in the record's words, and nothing of rounds "missed".
+ *   (one after a fatal accident before any other, then the longest, the
+ *   earliest, the higher placed): marked at the last round they entered
+ *   before it, which is shaded to the last missed. A round none of the
+ *   three entered - the Indianapolis 500, which the championship counted to
+ *   1960 and most of its regulars did not run - is no absence. Where the
+ *   entry before it ended in a fatal accident the note says that, in the
+ *   record's words, and nothing of rounds "missed"; where it ended in a
+ *   disqualification the note does not say so, since "disqualified, then
+ *   misses" would read as the cause.
  * - The round the champion settled the title with rounds still to run,
  *   where clinchRound() establishes it: never in a season that dropped
  *   scores, whose arithmetic declines.
@@ -906,6 +910,21 @@ export function titleRaceNotes({ live, series, drivers, standings, rounds, entri
   const run = rounds.filter((r) => r.status === 'completed').map((r) => r.round)
   const anyone = new Set(entries.filter((e) => index.has(e.driver_id)).map((e) => e.round))
   const counted = run.filter((round) => anyone.has(round))
+  // A fatal ending outranks any absence: the absence after it is the
+  // driver's death, which the note must say (1961: von Trips at Monza, not
+  // Hill's missing the round Ferrari withdrew from). Then the longest, the
+  // earliest, the higher placed.
+  const fatalAt = (i, round) => {
+    const ended = entriesOf(series[i].id, round)
+    return ended.length === 1 && !missing(ended[0].status) && FATAL.test(ended[0].status)
+  }
+  const outranks = (a, b) => {
+    const fa = fatalAt(a.i, a.after)
+    const fb = fatalAt(b.i, b.after)
+    if (fa !== fb) return fa
+    if (a.missed.length !== b.missed.length) return a.missed.length > b.missed.length
+    return a.after < b.after
+  }
   let away = null
   series.forEach((s, i) => {
     const entered = new Set(entries.filter((e) => e.driver_id === s.id).map((e) => e.round))
@@ -915,8 +934,8 @@ export function titleRaceNotes({ live, series, drivers, standings, rounds, entri
     let missed = []
     const close = () => {
       if (missed.length && after !== null) {
-        const better = !away || missed.length > away.missed.length || (missed.length === away.missed.length && after < away.after)
-        if (better) away = { i, after, missed }
+        const candidate = { i, after, missed }
+        if (!away || outranks(candidate, away)) away = candidate
       }
       missed = []
     }
@@ -932,11 +951,13 @@ export function titleRaceNotes({ live, series, drivers, standings, rounds, entri
   if (away && plotted(away.i, away.after)) {
     const s = series[away.i]
     const ended = entriesOf(s.id, away.after)
-    const fatal = ended.length === 1 && !missing(ended[0].status) && FATAL.test(ended[0].status)
-    if (fatal) {
+    if (fatalAt(away.i, away.after)) {
       notes.push({ series: away.i, x: away.after, lead: lead(away.after), text: `${s.short}: ${lowered(ended[0].status)}.`, band: null })
     } else {
-      const how = raceEnded(ended)
+      // A disqualification is not said before an absence: "disqualified,
+      // then misses" reads as the cause, and need not be (1994: Schumacher's
+      // ban was for Silverstone, not Spa).
+      const how = /^(?:DSQ|EX)$/.test(ended.length === 1 ? ended[0].position_text : '') ? null : raceEnded(ended)
       notes.push({
         series: away.i,
         x: away.after,

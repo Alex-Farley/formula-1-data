@@ -2783,6 +2783,33 @@ try {
     atLeast(race.key.length, 1, 'the title race carries a note')
     is(race.markers.join(' '), race.key.join(' '), 'each marker on the plot is a note in the key, by number')
     is(race.legend, 0, 'and no legend: the lines carry their names')
+
+    // On a phone the gutter may not take the plot (VD-121 review): each
+    // label goes name over value, the plot keeps most of the drawing, and
+    // no two labels' boxes touch or leave it.
+    await page.setViewportSize({ width: 320, height: 800 })
+    const phone = await page.waitForFunction(() => {
+      const svg = document.querySelector('#root main figure.figure-lead .figure-body svg')
+      const grid = svg?.querySelector('.grid-line')
+      if (!svg || !grid) return null
+      const frame = svg.getBoundingClientRect()
+      // Laid out again at the phone's width, not the desktop's drawing scaled down.
+      if (frame.width > 320 || Math.abs(svg.viewBox.baseVal.width - frame.width) > 1) return null
+      const plot = grid.getBoundingClientRect()
+      const boxes = [...svg.querySelectorAll('.end-label text')].map((t) => t.getBoundingClientRect())
+      return {
+        svg: Math.round(frame.width),
+        plot: Math.round(plot.width),
+        stacked: [...svg.querySelectorAll('.end-label text')].every((t) => t.querySelectorAll('tspan').length === 2),
+        inside: boxes.every((b) => b.left >= frame.left - 0.5 && b.right <= frame.right + 0.5 && b.top >= frame.top - 0.5 && b.bottom <= frame.bottom + 0.5),
+        apart: boxes.every((a, i) => boxes.every((b, j) => i === j || a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5)),
+      }
+    }, null, { timeout: 30000 }).then((h) => h.jsonValue())
+    truthy(phone.stacked, 'at 320 each end label is set name over value')
+    truthy(phone.plot >= phone.svg * 0.45, `at 320 the plot keeps most of the drawing (${phone.plot} of ${phone.svg} px)`)
+    truthy(phone.inside, 'at 320 every end label is inside the drawing')
+    truthy(phone.apart, 'at 320 no two end labels overlap')
+    await page.setViewportSize({ width: 1280, height: 900 })
   })
 
   // A calendar that has been announced and not raced. Its blanks are not

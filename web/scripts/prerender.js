@@ -1605,7 +1605,12 @@ const lineSvg = (chart, width) => {
   const labels = layout.lines
     .filter(({ end }) => end)
     .map(({ end: { label } }) => {
-      const words = label.name ? `<tspan class="end-name">${esc(label.name)}</tspan> ${esc(label.value)}` : esc(label.value)
+      const at = (y) => `x="${px(label.x)}" y="${px(y)}"`
+      const words = label.stacked
+        ? `<tspan class="end-name" ${at(label.nameY)}>${esc(label.name)} </tspan><tspan ${at(label.valueY)}>${esc(label.value)}</tspan>`
+        : label.name
+          ? `<tspan class="end-name">${esc(label.name)}</tspan> ${esc(label.value)}`
+          : esc(label.value)
       return `<g class="end-label"><polyline points="${label.leader.map(([x, y]) => `${px(x)},${px(y)}`).join(' ')}" fill="none"/><text${
         label.name ? '' : ' class="alone"'
       } x="${px(label.x)}" y="${px(label.y)}" dominant-baseline="middle">${words}</text></g>`

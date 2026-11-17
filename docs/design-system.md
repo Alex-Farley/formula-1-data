@@ -570,7 +570,10 @@ for every chart that names its story, built once and shared.
 
 **Built (VD-121), on the season's title race.** `charts/annotate.js` holds
 the geometry both renderers share: the gutter as wide as the widest label,
-the labels pushed `LABEL_GAP` (16 px) apart about where they wanted to be,
+the labels pushed `LABEL_GAP` (16 px) apart about where they wanted to be
+(where one line of labels would take more than `GUTTER_SHARE`, three-tenths,
+of the chart's width - a phone - each is set name over value and pushed
+`STACKED_GAP` (34 px) apart, so the plot keeps its room),
 the hairline from each line's end bending only where its label moved, and
 a marker's disc (`MARKER`, r 8 with a 3 px `--panel` ring) above its point,
 below it where above leaves the drawing or sits on another line, and
@@ -586,7 +589,8 @@ named ends takes no legend.
 `titleRaceNotes()` in `queries/season.js` works out the title race's notes
 from `standings` and `race_entries`, at most one of each kind: a
 contender's longest run of rounds without an entry (a round none of the
-three entered, the Indianapolis 500 to 1960, is none), a title settled with
+three entered, the Indianapolis 500 to 1960, is none; one after a fatal
+accident comes first, and says so), a title settled with
 rounds to run where the season counted every result, and a title decided
 at the last round; `titleFinding()` writes who led and for how long.
 `units.mjs` holds the layout and the notes on rows written out;

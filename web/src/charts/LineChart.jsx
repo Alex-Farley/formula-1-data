@@ -158,10 +158,22 @@ export default function LineChart({
             end && (
               <g key={`label-${s.name}`} className="end-label">
                 <polyline points={end.label.leader.map((p) => p.join(',')).join(' ')} fill="none" />
-                <text className={end.label.name ? undefined : 'alone'} x={end.label.x} y={end.label.y} dominantBaseline="middle">
-                  {end.label.name && <tspan className="end-name">{end.label.name}</tspan>}
-                  {end.label.name ? ` ${end.label.value}` : end.label.value}
-                </text>
+                {end.label.stacked ? (
+                  // A phone: the name over the value (charts/annotate.js, GUTTER_SHARE).
+                  <text x={end.label.x} y={end.label.y} dominantBaseline="middle">
+                    <tspan className="end-name" x={end.label.x} y={end.label.nameY}>
+                      {`${end.label.name} `}
+                    </tspan>
+                    <tspan x={end.label.x} y={end.label.valueY}>
+                      {end.label.value}
+                    </tspan>
+                  </text>
+                ) : (
+                  <text className={end.label.name ? undefined : 'alone'} x={end.label.x} y={end.label.y} dominantBaseline="middle">
+                    {end.label.name && <tspan className="end-name">{end.label.name}</tspan>}
+                    {end.label.name ? ` ${end.label.value}` : end.label.value}
+                  </text>
+                )}
               </g>
             ),
         )}
