@@ -139,6 +139,12 @@ import {
   championPill,
   pointsShare,
   standingsLeader,
+  EVERY_RESULT_COUNTS,
+  leadersByRound,
+  raceEnded,
+  shortNames,
+  titleFinding,
+  titleRaceFigure,
 } from '../src/queries/season.js'
 import { reachLayout, reachText } from '../src/charts/reachChart.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
@@ -5394,14 +5400,6 @@ describe('the leader in the row and a bar in the points (VD-105, VD-110)', () =>
 
 import { LABEL_GAP, MARKER, gutterWidth, nudge, placeMarker } from '../src/charts/annotate.js'
 import { lineLayout } from '../src/charts/lineChart.js'
-import {
-  EVERY_RESULT_COUNTS,
-  leadersByRound,
-  raceEnded,
-  shortNames,
-  titleFinding,
-  titleRaceFigure,
-} from '../src/queries/season.js'
 
 describe('the annotation pattern (VD-121)', () => {
   it('nudges colliding labels apart by the gap, in their order, and leaves separate ones where they are', () => {
