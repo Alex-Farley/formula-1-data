@@ -111,6 +111,12 @@
   --accent-ink: #a20d20;
   --accent-wash: #fdeef0;
 
+  /* The lap drawn over a circuit's aerial photograph (AF-96): the light
+     accent on a white casing. Set here once and in neither dark block, since
+     the photograph under it is the same picture in both themes. */
+  --photo-trace: #c81028;
+  --photo-trace-casing: #ffffff;
+
   /* The result rail: podium, scored, classified, retired. Four states are
      only four states if all four can be seen — the first draft put points at
      1.95:1 and classified at 1.44:1 against the panel, which left the rail

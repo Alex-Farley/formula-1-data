@@ -3081,6 +3081,45 @@ figure.photo[data-state='failed'] img {
   display: none;
 }
 
+/* The lap over a circuit's aerial photograph (AF-96). The frame is the
+   picture's own box, and the line's viewBox is the photograph's stored frame
+   fitted the way object-fit: contain fits the pixels, so the two agree at any
+   width and inside the header's capped height. A casing under the line keeps
+   it visible on the pale concrete and the dark woods of one photograph, and
+   the stroke stays the same width whatever size the picture is drawn at. */
+.photo-frame {
+  position: relative;
+}
+
+.photo-trace {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.photo-trace path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.photo-trace-casing {
+  stroke: var(--photo-trace-casing);
+  stroke-width: 4;
+}
+
+.photo-trace-line {
+  stroke: var(--photo-trace);
+  stroke-width: 2;
+}
+
+figure.photo[data-state='failed'] .photo-trace {
+  display: none;
+}
+
 .photo-failed {
   margin: 0;
   padding: var(--space-7) var(--space-6);

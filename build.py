@@ -1414,6 +1414,77 @@ def _stage_12_circuit_centrelines_re_measured_before_they(b):
             # cannot be walked round as a lap, and the page says so.
             print(f"    does not close: {line}")
 
+    _place_traces_on_photographs(cur)
+
+
+def _place_traces_on_photographs(cur):
+    """The track over the photograph (AF-96), checked before it is stored.
+
+    PHOTO_TRACE in data/harvest.py holds, per circuit, points marked on the
+    middle of the track in its aerial photograph and the transform
+    tools/photo_trace.py fitted onto them. Nothing here fits anything: the
+    fit is a search, and the build stores only what passes arithmetic. A
+    transform is stored when the circuit's photograph is still the file it
+    was fitted on, and when every point lies within the tolerance of the line
+    it draws, with no stretch of the lap far from a point. Otherwise the
+    photograph is shown plain - a new photograph or a re-traced centreline is
+    an ordinary refresh, not a broken build - and verify.py says which entry
+    is not drawn.
+    """
+    placed = []
+    for cid, entry in sorted(HV.PHOTO_TRACE.items()):
+        traces = cur.execute(
+            "SELECT layout_key, centreline FROM circuit_geometry "
+            "WHERE circuit_id = ?", (cid,)).fetchall()
+        if len(traces) != 1:
+            raise SystemExit(
+                f"PHOTO_TRACE: {cid} has {len(traces)} centrelines; a "
+                f"placing is fitted to exactly one.")
+        key, line = traces[0]
+        photo = cur.execute(
+            "SELECT file_name, width, height FROM article_images "
+            "WHERE route = 'circuit' AND circuit_id = ?", (cid,)).fetchone()
+        if photo is None or photo[0] != entry["file"]:
+            print(f"    not drawn over its photograph: {cid}, whose "
+                  f"photograph is no longer the file it was placed on")
+            continue
+        _, width, height = photo
+        if not (width and height):
+            raise SystemExit(f"PHOTO_TRACE: {cid}'s photograph has no "
+                             f"stored size to place points in.")
+        points = [tuple(p) for p in entry["points"]]
+        if len(points) < HV.PHOTO_TRACE_MIN_POINTS:
+            raise SystemExit(
+                f"PHOTO_TRACE: {cid} marks {len(points)} points; a lap "
+                f"needs {HV.PHOTO_TRACE_MIN_POINTS}.")
+        if not all(0 <= x <= width and 0 <= y <= height for x, y in points):
+            raise SystemExit(f"PHOTO_TRACE: {cid} marks a point outside "
+                             f"its {width} x {height} photograph.")
+        lines = json.loads(line)["coordinates"]
+        transform = entry["transform"]
+        errors = HV.photo_trace_errors(transform, points, lines)
+        gap = HV.photo_trace_gap(transform, points, lines)
+        if max(errors) > HV.PHOTO_TRACE_TOLERANCE_PX:
+            print(f"    not drawn over its photograph: {cid}, a point "
+                  f"{max(errors):.1f} px from the line, beyond "
+                  f"{HV.PHOTO_TRACE_TOLERANCE_PX} px")
+            continue
+        if gap > HV.PHOTO_TRACE_MAX_GAP * width:
+            print(f"    not drawn over its photograph: {cid}, a stretch of "
+                  f"the lap {gap:.0f} px from any point")
+            continue
+        cur.execute(
+            """UPDATE circuit_geometry SET photo_file = ?, photo_points = ?,
+               photo_transform = ?, photo_error_px = ?, photo_source_id = 18,
+               photo_confidence = 'medium'
+               WHERE circuit_id = ? AND layout_key IS ?""",
+            (entry["file"], json.dumps([list(p) for p in points]),
+             json.dumps(transform, sort_keys=True),
+             round(max(errors), 2), cid, key))
+        placed.append(f"{cid} ({max(errors):.1f} px)")
+    if placed:
+        print(f"    drawn over the photograph: {', '.join(placed)}")
+
 
 def _stage_13_a_regulation_figure_is_not_a(b):
     """a regulation figure is not a measurement, part one"""

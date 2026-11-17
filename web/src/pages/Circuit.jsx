@@ -29,7 +29,15 @@ import {
   timelineStripName,
   timelineYears,
 } from '../lib/outline.js'
-import { TRACE_HEADING, TRACE_NOT_LOADED, TRACE_RULE, noTrace, odblCredit, traceFields } from '../lib/trace.js'
+import {
+  TRACE_HEADING,
+  TRACE_NOT_LOADED,
+  TRACE_RULE,
+  noTrace,
+  odblCredit,
+  photoTrace,
+  traceFields,
+} from '../lib/trace.js'
 
 import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import {
@@ -180,6 +188,8 @@ function CircuitBody({ circuit, data }) {
   // beside the header (VD-74, VD-84). canShow() before anything
   // is drawn, so a row with nobody to credit leaves the page as it was.
   const photograph = rows(data, 'photograph').find(canShow) ?? null
+  // AF-96: the lap over it, where a placing was fitted on this very file.
+  const trace = photograph ? photoTrace(geometry, photograph) : null
   // VD-83: what sits beside the lead in *Every layout raced here* - the
   // timeline's rows with their cards behind a disclosure, or, with no
   // timeline, the other drawings behind the same one.
@@ -268,7 +278,12 @@ function CircuitBody({ circuit, data }) {
       aside={
         photograph && (
           <div className="page-photo">
-            <CommonsImage image={photograph} width={PHOTOGRAPH_WIDTH} alt={photographAlt(circuit.name)} />
+            <CommonsImage
+              image={photograph}
+              width={PHOTOGRAPH_WIDTH}
+              alt={photographAlt(circuit.name, Boolean(trace))}
+              trace={trace}
+            />
           </div>
         )
       }

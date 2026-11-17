@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { THUMB_WIDTH, attribution, canShow, fileLinkName, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
+import { OSM_COPYRIGHT } from '../lib/trace.js'
 import { Confidence } from './Page.jsx'
 
 /**
@@ -54,8 +55,13 @@ export function useThumbSrc(image, width) {
  * `alt` is for a figure that names its subject without a visible caption - the
  * circuit page's photograph, beside a heading that already names the place
  * (VD-62). Where a caption is given and no alt, the caption is the alt.
+ *
+ * `trace` is the circuit's lap drawn over its aerial photograph (AF-96), as
+ * photoTrace() in lib/trace.js returns it. The line is OpenStreetMap's, so
+ * the caption credits it beside the photograph's own credit, and the line
+ * is decoration to the alt, which says it is there.
  */
-export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt, showCheck = true }) {
+export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt, showCheck = true, trace = null }) {
   // Loading, arrived, or failed: three states that used to look the same -
   // a sunk grey box - for the seconds a Commons thumbnail takes to arrive,
   // and for ever when it does not. The box now says which it is.
@@ -73,19 +79,39 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt,
   // the rung vouches for it less strongly than for an article's choice.
   const catalogued = image.route === 'category'
 
+  const picture = (
+    <img
+      src={src}
+      alt={photoAlt(image, alt ?? caption)}
+      width={image.width || undefined}
+      height={image.height || undefined}
+      loading="lazy"
+      decoding="async"
+      onLoad={() => setState('ready')}
+      onError={() => retry() || setState('failed')}
+      style={image.width && image.height ? { aspectRatio: `${image.width} / ${image.height}` } : undefined}
+    />
+  )
+
   return (
     <figure className="photo" data-state={state}>
-      <img
-        src={src}
-        alt={photoAlt(image, alt ?? caption)}
-        width={image.width || undefined}
-        height={image.height || undefined}
-        loading="lazy"
-        decoding="async"
-        onLoad={() => setState('ready')}
-        onError={() => retry() || setState('failed')}
-        style={image.width && image.height ? { aspectRatio: `${image.width} / ${image.height}` } : undefined}
-      />
+      {trace ? (
+        <div className="photo-frame">
+          {picture}
+          <svg
+            className="photo-trace"
+            viewBox={`0 0 ${trace.width} ${trace.height}`}
+            preserveAspectRatio="xMidYMid meet"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path className="photo-trace-casing" d={trace.d} />
+            <path className="photo-trace-line" d={trace.d} />
+          </svg>
+        </div>
+      ) : (
+        picture
+      )}
       {state === 'failed' && (
         <p className="photo-failed" role="status">
           The photograph did not arrive from Wikimedia Commons. It is still there:{' '}
@@ -112,6 +138,16 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt,
           </a>
         ) : (
           licence
+        )}
+        {trace && (
+          <>
+            {' · '}
+            Track{' '}
+            <a href={OSM_COPYRIGHT} target="_blank" rel="noreferrer noopener">
+              © OpenStreetMap contributors
+            </a>
+            , {trace.licence}
+          </>
         )}
         {unchecked && (
           <>

@@ -2679,6 +2679,106 @@ def circuit_file_names(file_name, forms):
 
 
 # =====================================================================
+# The track over the photograph (AF-96)
+#
+# The circuit page draws the OpenStreetMap centreline over the circuit's
+# aerial photograph. The photographs are not georeferenced - a SkySat file on
+# Commons is cropped and often rotated, with no corner coordinates - so each
+# is placed by hand: points marked on the middle of the track in the
+# photograph, spread round the lap, and the affine transform that
+# tools/photo_trace.py fits from the centreline's coordinates onto them. The
+# placing is this project's own derivation (source 18), held at no more than
+# 'medium'; nothing here is a fact about the photograph.
+#
+# Keyed to the file. A transform belongs to the pixels it was fitted on, so
+# build.py stores one only while the circuit's photograph is still `file`; a
+# new photograph drops it, and the page shows the new one plain until it is
+# placed again.
+#
+# `points` are pixels in the frame article_images stores for the file -
+# `width` by `height`, y downwards - and never a coordinate. The transform
+# maps (lon, lat) onto that frame:
+#     x = x[0] * (lon - origin[0]) + x[1] * (lat - origin[1]) + x[2]
+#     y = y[0] * (lon - origin[0]) + y[1] * (lat - origin[1]) + y[2]
+# Being fitted from OpenStreetMap's coordinates, it is ODbL's too: build.py
+# writes it into circuit_geometry, which ships as f1-geometry.db, never into
+# f1.db.
+# =====================================================================
+
+# How far, in pixels of that frame, a marked point may lie from the drawn
+# line before the line is not drawn at all. Six in an 800-pixel frame comes to
+# two or three pixels at the size the circuit page shows the photograph, less
+# than the line drawn over it with its casing.
+PHOTO_TRACE_TOLERANCE_PX = 6.0
+
+# Fewer marked points than this cannot speak for a whole lap: an affine
+# transform has six unknowns, and every point past them is a check.
+PHOTO_TRACE_MIN_POINTS = 10
+
+# No vertex of the drawn lap may lie further than this share of the
+# photograph's width from a marked point, so that no stretch of it goes
+# unchecked.
+PHOTO_TRACE_MAX_GAP = 0.2
+
+PHOTO_TRACE = {
+    # Rung one of AF-96. Seventeen points round the lap, at the Lesmos,
+    # through the Ascari chicane and at the Parabolica among them; the oval's
+    # banking, which the photograph shows and this lap does not run, carries
+    # none.
+    "monza": {
+        "file": "File:Autodromo Nazionale Monza, April 22, 2018 SkySat (cropped).jpg",
+        "points": (
+            (83.3, 54.6), (50.0, 60.4), (18.3, 76.7), (16.7, 104.2),
+            (31.7, 129.2), (151.7, 98.3), (333.3, 283.3), (721.7, 341.7),
+            (633.3, 390.0), (541.7, 309.2), (74.2, 216.7), (77.5, 258.3),
+            (94.2, 333.3), (126.7, 375.0), (183.3, 396.7), (366.7, 290.8),
+            (391.7, 297.5),
+        ),
+        "transform": {"origin": (9.287213, 45.623132),
+                      "x": (-2415.216, -34812.955, 322.024),
+                      "y": (-24021.625, 3566.603, 261.746)},
+    },
+}
+
+
+def photo_trace_point(transform, lon, lat):
+    """Where (lon, lat) falls on the photograph: pixels in its stored frame."""
+    lon0, lat0 = transform["origin"]
+    ax, bx, cx = transform["x"]
+    ay, by, cy = transform["y"]
+    return (ax * (lon - lon0) + bx * (lat - lat0) + cx,
+            ay * (lon - lon0) + by * (lat - lat0) + cy)
+
+
+def _segment_distance(p, a, b):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    length = dx * dx + dy * dy
+    t = 0.0 if length == 0 else max(0.0, min(1.0, (
+        (p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / length))
+    return ((p[0] - a[0] - t * dx) ** 2 + (p[1] - a[1] - t * dy) ** 2) ** 0.5
+
+
+def photo_trace_errors(transform, points, lines):
+    """Each marked point's distance, in pixels, from the drawn line: the
+    centreline's `lines` of (lon, lat) carried onto the photograph."""
+    drawn = [[photo_trace_point(transform, lon, lat) for lon, lat in line]
+             for line in lines]
+    segments = [(a, b) for line in drawn for a, b in zip(line, line[1:])]
+    return [min(_segment_distance(p, a, b) for a, b in segments)
+            for p in points]
+
+
+def photo_trace_gap(transform, points, lines):
+    """The furthest any vertex of the drawn lap lies from a marked point,
+    in pixels."""
+    return max(min(((x - px) ** 2 + (y - py) ** 2) ** 0.5
+                   for px, py in points)
+               for line in lines
+               for x, y in (photo_trace_point(transform, lon, lat)
+                            for lon, lat in line))
+
+
+# =====================================================================
 # Race photographs (harvest/race_images.txt, PD-64)
 #
 # The race page showed the lead photograph of each car that entered, which

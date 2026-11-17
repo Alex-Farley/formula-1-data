@@ -756,6 +756,20 @@ CREATE TABLE circuit_geometry (
     osm_timestamp   TEXT,                      -- the relation version measured
     licence         TEXT NOT NULL DEFAULT 'ODbL-1.0',
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    -- Where this centreline falls on the circuit's aerial photograph (AF-96):
+    -- all six NULL where it is not drawn over one. The photograph is not
+    -- georeferenced, so the placing is this project's own derivation, never
+    -- a fact about the photograph: points marked on the middle of the track
+    -- and the affine transform fitted onto them (PHOTO_TRACE in
+    -- data/harvest.py, tools/photo_trace.py), held to source 18 and to no
+    -- more than 'medium'. Fitted from this row's coordinates, it is ODbL's
+    -- with them, and ships where they do.
+    photo_file      TEXT,                      -- the file it was fitted on: article_images.file_name
+    photo_points    TEXT,                      -- JSON [[x, y], ...], pixels of its stored width x height
+    photo_transform TEXT,                      -- JSON {"origin": [lon, lat], "x": [a, b, c], "y": [d, e, f]}
+    photo_error_px  REAL,                      -- the worst point's distance from the drawn line
+    photo_source_id INTEGER,                   -- 18: written for this project
+    photo_confidence TEXT REFERENCES provenance(confidence),
     UNIQUE (circuit_id, layout_key)
 );
 
