@@ -7,13 +7,17 @@
  * outline has no scale, no position and no direction; the trace is measured,
  * geo-referenced, and checked against the length this register publishes. So
  * the trace is stated rather than drawn, and these are the words it is stated
- * in, shared by the register and the circuit page.
+ * in, shared by the register and the circuit page — the app's and the one
+ * scripts/prerender.js writes (CR-33), so the two halves of a circuit page
+ * cannot state the trace differently.
  *
  * The ODbL credit travels with the figures exactly as it travelled with the
  * line: a measurement taken from an ODbL database is as much that database's
  * as a drawing of it was, which is the same reading that keeps the
  * centrelines in f1-geometry.db rather than in f1.db.
  */
+
+import { number } from './format.js'
 
 /** © OpenStreetMap contributors, and the licence the row itself states. */
 export const odblCredit = (licence) => `\u00a9 OpenStreetMap contributors, ${licence || 'ODbL 1.0'}.`
@@ -35,11 +39,63 @@ export const measured = (geometry) => {
   }`
 }
 
-/** Under the trace's figures on a circuit's own page. */
+/** The heading of the trace's section on a circuit's own page. */
+export const TRACE_HEADING = 'Traced and measured'
+
+/**
+ * Under the trace's figures on a circuit's own page. True of both halves:
+ * the browser reads the figures from the file once it has merged it in, and
+ * the static page was written from the same file (CR-33).
+ */
 export const TRACE_RULE =
   'Traced from OpenStreetMap and measured against the length this register publishes. The ' +
-  'centrelines ship as a separate file under ODbL, which your browser merged in to read these ' +
-  'figures. F1DB\u2019s outlines are the drawing of this circuit; the trace is what they cannot carry.'
+  'centrelines ship as a separate file under ODbL, and these figures are read from it. ' +
+  'F1DB\u2019s outlines are the drawing of this circuit; the trace is what they cannot carry.'
+
+/**
+ * What the trace measures, as the label and words of each field: the
+ * circuit page's <Fields> in the app and fields() in scripts/prerender.js
+ * both print this list, so neither can carry a figure the other lacks. A
+ * field with an `href` is a link to it. `value` is null where the figure is
+ * not established, which both halves print as the em dash.
+ *
+ * AF-23 demoted the trace from a drawing to these facts: the outlines are
+ * the picture of a circuit, and the trace is the thing they cannot be — a
+ * length taken off the map and checked against the one this register
+ * publishes, which is the only independent check the traced circuits have on
+ * their own stated length. `closes` is the build's verdict on the walk, not
+ * a fresh stitch at render time: build.py decides it when the row is admitted
+ * and verify.py re-derives it on every build.
+ */
+export const traceFields = (geometry, direction) =>
+  [
+    {
+      label: 'OpenStreetMap relation',
+      value: String(geometry.osm_relation),
+      href: `https://www.openstreetmap.org/relation/${geometry.osm_relation}`,
+    },
+    geometry.layout_key ? { label: 'Layout traced', value: geometry.layout_key } : null,
+    { label: 'Measured', value: measured(geometry) },
+    { label: 'Points', value: number(geometry.node_count) },
+    {
+      // build.py sums every way in the relation, whether or not they walk
+      // into a ring, so a trace with a hole still has an honest length — it
+      // is just not a lap. Las Vegas measures within 2 % of its published
+      // length and is still missing a way.
+      label: 'The walk',
+      // build.py writes 0 or 1 and the column is not NOT NULL, so the
+      // absence of a verdict is a third state and reads as one.
+      value:
+        geometry.closes === null || geometry.closes === undefined
+          ? null
+          : geometry.closes
+            ? 'closes into one lap'
+            : `does not close \u2014 ${number(geometry.loose_ends)} loose way ${
+                geometry.loose_ends === 1 ? 'end' : 'ends'
+              }, so the length above is the ways added up rather than a lap walked round`,
+    },
+    direction ? { label: 'Raced', value: direction } : null,
+  ].filter(Boolean)
 
 /**
  * Above the traced circuits on the register. The licence comes from the rows

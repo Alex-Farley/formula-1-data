@@ -430,6 +430,7 @@ import {
 import {
   CIRCUIT as CIRCUIT_ROW,
   CIRCUIT_SOURCES,
+  GEOMETRY,
   GRANDS_PRIX as CIRCUIT_GRANDS_PRIX,
   LAYOUTS as CIRCUIT_LAYOUTS,
   RACES as CIRCUIT_RACES,
@@ -669,6 +670,7 @@ import {
   teamsBySeason,
 } from '../src/queries/driver.js'
 import { faceColours } from '../src/charts/own.js'
+import { TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, traceFields } from '../src/lib/trace.js'
 import {
   COMPARE_DESCRIPTION,
   COMPARE_LEDE,
@@ -4280,11 +4282,18 @@ page({
   const register = all(CIRCUITS)
   const geoPath = join(repo, 'f1-geometry.db')
   if (!existsSync(geoPath)) {
-    die(`${geoPath} is missing. The circuits register's Traced column is answered from it, and\nanything that publishes f1.db must publish f1-geometry.db beside it.`)
+    die(`${geoPath} is missing. The circuits register's Traced column and each circuit's trace are answered from it, and\nanything that publishes f1.db must publish f1-geometry.db beside it.`)
   }
   const geo = new DatabaseSync(geoPath, { readOnly: true })
   const traced = new Set(geo.prepare('SELECT DISTINCT circuit_id FROM circuit_geometry').all().map((r) => r.circuit_id))
-  geo.close()
+  // CR-33: each circuit page states its trace as Circuit.jsx does - the
+  // figures, never the centreline - read with the app's own queries from the
+  // same file, so the static page and the app say the same about it. The
+  // query runs against f1-geometry.db because the overlay is not in f1.db,
+  // and the coverage is TRACE_COVERAGE's two counts: the circuits traced
+  // there and the circuits in the register.
+  const geometryOf = geo.prepare(GEOMETRY)
+  const coverage = { traced: traced.size, circuits: circuits.length }
   for (const row of register) row.traced = traced.has(row.id) ? 1 : 0
 
   // VD-50: one outline per venue, the app's own query, so the static register
@@ -4356,6 +4365,28 @@ page({
     const heldLine = held.length
       ? `<p class="measure">${held.map((segment) => (segment.id ? link(`grands-prix/${segment.id}`, segment.name) : esc(segment.text))).join('')}</p>`
       : ''
+    // The trace, last, as Circuit.jsx puts it (PD-60): lib/trace.js's fields
+    // with the ODbL credit under them, or the line a circuit without one
+    // shows. The app's third state - the file did not load - cannot happen
+    // here, since a build without f1-geometry.db has stopped above.
+    const tracesHere = geometryOf.all(c.id)
+    const traceSection = tracesHere.length
+      ? `${heading(TRACE_HEADING)}<p class="note">${esc(TRACE_RULE)}</p>${tracesHere
+          .map(
+            (g) =>
+              `${fields(
+                traceFields(g, c.direction).map(({ label, value, href: url }) => [
+                  label,
+                  value === null
+                    ? `<span class="empty">${EMPTY}</span>`
+                    : url
+                      ? `<a href="${esc(url)}" target="_blank" rel="noreferrer noopener">${esc(value)}</a>`
+                      : esc(value),
+                ]),
+              )}<p class="faint">${esc(odblCredit(g.licence))}</p>`,
+          )
+          .join('')}`
+      : `<p class="note">${esc(noTrace(coverage.traced, coverage.circuits))}</p>`
     page({
       path: `circuits/${c.id}`,
       lastmod: LAST_RUN.circuit.get(c.id),
@@ -4440,6 +4471,7 @@ page({
               }, { fold: FOLD_NOUN.races })}`
             : EMPTY_STATE
         }
+        ${traceSection}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
@@ -4453,6 +4485,7 @@ page({
         ])}`,
     })
   }
+  geo.close()
 }
 
 // ------------------------------------------------------------ grands prix

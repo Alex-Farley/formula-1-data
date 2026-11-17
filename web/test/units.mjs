@@ -154,6 +154,7 @@ import { eraCell } from '../src/queries/eras.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
 import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
+import { traceFields } from '../src/lib/trace.js'
 import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
@@ -1745,6 +1746,28 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(chassisName('158', { landmark: 'Alfa Romeo 158' }), '158 landmark')
     assert.equal(chassisName('125', { landmark: null }), '125')
     assert.equal(chassisName(null, { landmark: null }), EMPTY)
+  })
+
+  // CR-33: one list of the trace's fields, which the app's <Fields> and the
+  // static page's fields() both print.
+  it('states a trace in one list of fields for both renderers', () => {
+    const row = { osm_relation: 148194, layout_key: null, measured_km: 3.3885, published_km: 3.337, delta_pct: 1.54, node_count: 464, closes: 0, loose_ends: 1 }
+    const fields = (geometry, direction) => traceFields(geometry, direction).map(({ label, value, href }) => [label, value, href ?? null])
+    assert.deepEqual(fields(row, 'clockwise'), [
+      ['OpenStreetMap relation', '148194', 'https://www.openstreetmap.org/relation/148194'],
+      ['Measured', '3.389 km against 3.337 km published here (+1.54%)', null],
+      ['Points', '464', null],
+      ['The walk', 'does not close \u2014 1 loose way end, so the length above is the ways added up rather than a lap walked round', null],
+      ['Raced', 'clockwise', null],
+    ])
+    // A layout named is a field; no direction is no field; no verdict on the
+    // walk, and no node count, are not established rather than a lap or 0.
+    const unsettled = fields({ ...row, layout_key: 'current', closes: null, node_count: null }, null)
+    assert.deepEqual(unsettled.map(([label]) => label), ['OpenStreetMap relation', 'Layout traced', 'Measured', 'Points', 'The walk'])
+    assert.equal(unsettled[1][1], 'current')
+    assert.equal(unsettled[3][1], EMPTY)
+    assert.equal(unsettled[4][1], null)
+    assert.equal(fields({ ...row, closes: 1 }, null)[3][1], 'closes into one lap')
   })
 
   it('prints a classification cell the same string in both renderers, and in the same order', () => {

@@ -151,6 +151,7 @@ import {
 } from '../src/queries/records.js'
 import { LAYOUT_RACED, NO_DRAWING, NO_LAYOUT_RECORDED, NO_TIMELINE_ROW, OUTLINE_RULE, RACE_LAYOUT_NOTE } from '../src/lib/outline.js'
 import { lapLayout } from '../src/lib/lap.js'
+import { TRACE_HEADING } from '../src/lib/trace.js'
 import { until } from '../src/queries/sessions.js'
 import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
@@ -7093,6 +7094,72 @@ try {
       const led = !!(await page.$('#root main .page > .slot .outline-card svg.outline'))
       truthy(led && racesAt > outlineAt && traceAt > racesAt, 'the outlines and the races lead and the trace follows them')
       pass(`the overlay merged in the browser — ${traced} read its figures from f1-geometry.db`)
+
+      // CR-33: the static page states the trace the app states, in the same
+      // place, and says what the app says where a circuit has none. What
+      // follows the heading up to the next one - the app's <section>, the
+      // static page's run of siblings - is read the same way in both halves.
+      const readTrace = ({ root, heading }) => {
+        const main = document.querySelector(root)
+        const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+        const h2s = [...main.querySelectorAll('h2')]
+        const after = []
+        const at = h2s.find((node) => clean(node) === heading)
+        for (let node = at?.nextElementSibling; node && node.tagName !== 'H2'; node = node.nextElementSibling) after.push(node)
+        const dls = after.filter((node) => node.matches('dl.fields'))
+        return {
+          headings: h2s.map(clean),
+          note: after.filter((node) => node.matches('p.note')).map(clean),
+          fields: dls.flatMap((dl) => [...dl.querySelectorAll('dt')].map((dt) => `${clean(dt)}: ${clean(dt.nextElementSibling)}`)),
+          links: dls.flatMap((dl) => [...dl.querySelectorAll('a')].map((a) => a.getAttribute('href'))),
+          credit: after.filter((node) => node.matches('p.faint')).map(clean),
+          untraced: [...main.querySelectorAll('p.note')].map(clean).filter((t) => t.startsWith('No traced centreline')),
+        }
+      }
+      const untraced = one(
+        `SELECT c.id FROM circuits c
+          WHERE NOT EXISTS (SELECT 1 FROM geo.circuit_geometry g WHERE g.circuit_id = c.id)
+          ORDER BY c.gp_count DESC, c.id LIMIT 1`,
+      )
+      const staticContext = await browser.newContext({ javaScriptEnabled: false })
+      const staticPage = await staticContext.newPage()
+      for (const id of [traced, untraced]) {
+        const route = `/circuits/${id}`
+        await go(route)
+        await page.waitForFunction(
+          (heading) =>
+            [...document.querySelectorAll('#root main h2')].some((h) => h.textContent.trim() === heading) ||
+            [...document.querySelectorAll('#root main p.note')].some((p) => p.textContent.startsWith('No traced centreline')),
+          TRACE_HEADING,
+          { timeout: 20000 },
+        )
+        const app = await page.evaluate(readTrace, { root: '#root main', heading: TRACE_HEADING })
+        await staticPage.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        const served = await staticPage.evaluate(readTrace, { root: '#prerendered', heading: TRACE_HEADING })
+        if (id === traced) {
+          const relation = one('SELECT osm_relation FROM geo.circuit_geometry WHERE circuit_id = ?', id)
+          truthy(
+            served.links.includes(`https://www.openstreetmap.org/relation/${relation}`),
+            `${route}, the static page: the relation is named and linked — ${served.links.join(' ')}`,
+          )
+          truthy(
+            served.fields.length > 0 && served.credit.some((c) => c.includes('OpenStreetMap contributors')),
+            `${route}, the static page: the figures carry the ODbL credit — ${served.credit.join(' · ')}`,
+          )
+          const races = served.headings.findIndex((h) => h.startsWith('Every race here'))
+          const trace = served.headings.indexOf(TRACE_HEADING)
+          truthy(races >= 0 && trace > races, `${route}, the static page: the trace follows the races — ${served.headings.join(' · ')}`)
+          is(JSON.stringify(served.fields), JSON.stringify(app.fields), `${route}: the static trace's fields are the app's, in its words`)
+          is(JSON.stringify(served.links), JSON.stringify(app.links), `${route}: and link where the app's do`)
+          is(JSON.stringify(served.note), JSON.stringify(app.note), `${route}: under the app's rule`)
+          is(JSON.stringify(served.credit), JSON.stringify(app.credit), `${route}: with the app's credit`)
+        } else {
+          truthy(served.untraced.length === 1, `${route}, the static page: a circuit without a trace says so — ${served.untraced.join(' · ')}`)
+          truthy(!served.headings.includes(TRACE_HEADING), `${route}, the static page: and has no trace section`)
+          is(JSON.stringify(served.untraced), JSON.stringify(app.untraced), `${route}: in the app's words`)
+        }
+      }
+      await staticContext.close()
     }
 
   })
@@ -10969,16 +11036,16 @@ try {
     // static season page carries no such tile (Season.jsx).
     const APP_TILES = new Set(['Next session'])
     // The section headings each half has that the other does not, or has
-    // elsewhere (`moved`), by route. The trace sections are drawn by the
-    // browser from f1-geometry.db, which the static half never reads
-    // ([D-07]); and the console's static page is not the console. VD-87
-    // (#886) brought the rest into line, and VD-73 the lead charts.
+    // elsewhere (`moved`), by route. The register's traced centrelines are
+    // drawn by the browser from f1-geometry.db, which the static register
+    // reads only for its Traced column ([D-07]) - a circuit's own trace the
+    // static page states too (CR-33); and the console's static page is not
+    // the console. VD-87 (#886) brought the rest into line, and VD-73 the
+    // lead charts.
     const TRACE = '[D-07]'
     const CONSOLE = 'the console'
     const SECTIONS = {
       '/circuits': { app: [['The traced centrelines', TRACE]] },
-      '/circuits/monza': { app: [['Traced and measured', TRACE]] },
-      '/circuits/monaco': { app: [['Traced and measured', TRACE]] },
       '/data/sql': {
         app: [
           ['Try one of these', CONSOLE],
