@@ -142,7 +142,7 @@ The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
 nowhere** (visual V7). DP-10 kept them for the one hero figure per page,
 which VD-84 set: the first lead figure of a ranked tile strip (a driver's, a
-team's or a car's wins, a record's value, the rounds run on the home page;
+team's or a car's wins, the rounds run on the home page;
 the season, race and circuit strips rank nothing and have none), at
 `--size-9` on a phone,
 `--size-10` from `--bp-tablet` and `--size-11` from `--bp-desktop`, beside
@@ -161,6 +161,7 @@ unused.
 | A tile figure | `--size-8` 25 |
 | One hero figure per page | `--size-9`–`--size-11`, by width (VD-84) |
 | A record card's figure, on `/records`, whose numbers are the page | `--size-10` at every width (provisional, VD-111) |
+| A record's figure, on its own page, which the page is built around | `--size-record`: twice `--size-11`, down to `--size-11` on a phone (provisional, VD-112) |
 | Page title | `--size-display` |
 
 **The label register (VD-91, `[D-62]`).** A label, a column head, a count,
@@ -470,13 +471,13 @@ inside it is scaled, until the app redraws it at the width it occupies.
   through `subgrid`, so a two-line label moves every figure in its row
   together rather than its own alone.
 - **One strip drawn by both renderers:** every strip is data in its page's
-  `queries/*.js` module (VD-49, and VD-71 #819 for the Grand Prix and record
-  pages), drawn by `Stats` and by `prerender.js`'s `tiles()`. The one tile
+  `queries/*.js` module (VD-49, and VD-71 #819 for the Grand Prix pages, and
+  the record pages until VD-112 opened them on their figure), drawn by `Stats` and by `prerender.js`'s `tiles()`. The one tile
   only the app draws is the season's *Next session*, because only a browser
   knows how long until it starts; §8's test 5 declares it.
 - **Labels from one vocabulary:** *Seasons* for every year span, and
-  *Entries* everywhere (CD-12 #258); a record's strip is *Value* and
-  *Held by*, as /records' tables are. The words are `LABELS` in
+  *Entries* everywhere (CD-12 #258); a record's are *Value* and
+  *Held by*, as /records' tables say them. The words are `LABELS` in
   `lib/site.js`, which every strip reads (VD-81); §8's test 7 refuses a
   synonym.
 - **States:** a value not established is an em dash (**floor**: the NULL
@@ -1353,16 +1354,36 @@ record family listed by its own address.
   does not move its neighbours (I8).
 - **A record card sets its number large** (provisional, VD-111 #1333): §3,
   *Record card*.
+- **A record's page is built around its record** (provisional, VD-112
+  #1334; approved as the mockup
+  `docs/critiques/2026-11-13-visual-design/P12-record-page-streak.html`). It
+  opens on the number the value opens with (`cardFigure`, as the record card
+  reads it) at `--size-record`, with the words that give it meaning beside
+  it at `--size-6`: the rest of the value and *Held by* the holder, or, for a
+  value that opens with no number, the value whole at `--size-8`. It
+  replaces the *Value* and *Held by* tile strip. A record that is a run of
+  races (`STREAKS` in `queries/records.js`; *Most consecutive wins* so far)
+  is read as a sentence instead — *Max Verstappen won ten Grands Prix in a
+  row in 2023, from the Miami Grand Prix in May to the Italian Grand Prix in
+  September* — with the count in words because it is the figure's own
+  sentence, not a lede beside a tile; then a strip of the run's races as
+  race thumbnails (§3, *Outline card*), each a link to its race, ten a row
+  and five on a phone, credited once under it; then *The longest runs*, the
+  first five and on through a tie, as bars, the record's runs in
+  `--series-mark` and the rest in `--series-ink` (`[D-61]`), every length
+  printed, with one line under them stating the record's rule and linking
+  the derivation. The runs are counted in
+  the page under the record's own rule (`streakRuns`), and where that count
+  does not bear out the record's figure, the page draws neither the
+  sentence nor the runs, rather than two figures for one record. A run that
+  reaches the latest completed race says so. `recordLead` lays the page out
+  for both renderers; `smoke.mjs` (*/records/:key*) reads the lead, the
+  strip and the runs in both halves and against the race records.
 - Registers keep their address contract.
 - `/data` keeps its sub-navigation.
 
 **Pending, records (decided on the 2026-11-13 visual critique):**
 
-- **A record's page is built around its record** (VD-112 #1334, with PD-61
-  #796 and VD-104 (a)): the number at twice `--size-11` with the sentence
-  that gives it meaning, a strip of the races' outlines that link to them
-  (five a row on a phone), and *The longest runs* as bars under the
-  record's own stated rule.
 - **A leaderboard on a phone** (VD-114 #1336): below 768 px each row is the
   name on its own line with the bar at full width under it and the value at
   its end, as the reach chart already does below 480 px; from 768 nothing

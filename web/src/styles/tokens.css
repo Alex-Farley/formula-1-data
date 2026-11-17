@@ -231,6 +231,10 @@
   --size-11: 50px;
   --size-display: clamp(34px, 5.2vw, 62px);
   --size-hero: clamp(38px, 7vw, 56px);
+  /* A record's own page opens on its number at twice --size-11 (VD-112),
+     falling to --size-11 at 250 px of viewport, so a six-character figure
+     such as '25.579' still fits a 320 px phone. */
+  --size-record: clamp(var(--size-11), 20vw, calc(var(--size-11) * 2));
 
   /* Weights. Six were in use, and 600, 620 and 640 sat within 40 units -
      at 13px Saira's 600 and 640 cannot be told apart - so they are one, and

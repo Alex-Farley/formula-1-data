@@ -729,7 +729,13 @@ import {
   tierBefore,
   tiersOf,
   RECORDS_STANDFIRST,
-  recordStrip,
+  DERIVATION_ID,
+  LONGEST_RUNS,
+  recordLead,
+  recordRacesNote,
+  streakRaces,
+  streakRuns,
+  stripRound,
 } from '../src/queries/records.js'
 // Where a page sits and where it leads, from the module the app reads (IA-03,
 // IA-22). The trails were written out here and the onward bands existed only
@@ -4915,6 +4921,39 @@ page({
     if (!KEY_SHAPE.test(key)) die(`prerender: records.key "${key}" is not a slug, so it cannot be an address`)
     const record = one(RECORD, key)
     const holder = holderPath(record)
+    // Record.jsx's lead, strip and runs, from the same queries/records.js
+    // functions (VD-112).
+    const runsSql = streakRuns(key)
+    const lead = recordLead(record, runsSql ? all(runsSql) : undefined, runsSql ? all(streakRaces(key)) : undefined)
+    const parts = (line) => line.map((part) => (part.href ? link(part.href, part.text) : esc(part.text))).join('')
+    const strips = (lead.runs?.top ?? [])
+      .map(
+        (run, i) =>
+          `<ol class="outline-strip record-races" aria-label="${esc(run.label)}">${run.races
+            .map(
+              (race) =>
+                `<li><a href="${esc(href(`races/${race.year}/${race.round}`))}">${
+                  race.outline ? outlineSvg(race.outline, null) : '<span class="outline outline-none" aria-hidden="true"></span>'
+                }<b>${esc(stripRound(race, lead.runs.spansSeasons[i]))}</b><span>${esc(roundShortName(race.name_used))}</span></a></li>`,
+            )
+            .join('')}</ol>`,
+      )
+      .join('')
+    const stripNote = lead.runs?.top.some((run) => run.races.some((race) => race.outline))
+      ? `<p class="faint outline-strip-note">${esc(recordRacesNote)}</p>`
+      : ''
+    const longest = lead.runs
+      ? `${heading(LONGEST_RUNS)}<ol class="record-runs">${lead.runs.longest
+          .map(
+            (run) =>
+              `<li${run.mark ? ' class="is-holder"' : ''}><span class="record-run-who">${link(run.href, run.holder)} <small>${esc(
+                run.years,
+              )}</small></span><span class="record-run-bar"><i style="--share: ${run.share}" aria-hidden="true"></i>${esc(run.figure)} <small>${esc(
+                run.ends,
+              )}</small></span></li>`,
+          )
+          .join('')}</ol><p class="faint record-runs-note">${esc(lead.runs.rule)} <a href="#${DERIVATION_ID}">${esc(DERIVATION)}</a>.</p>`
+      : ''
     page({
       path: recordPath(record),
       title: NAMES.record(record.record).title,
@@ -4923,8 +4962,12 @@ page({
       onward: ONWARD.record({ record, holder }),
       body: `
         <h1>${esc(NAMES.record(record.record).headline)}</h1>
-        ${tiles(recordStrip(record))}
-        <h2>${esc(DERIVATION)}</h2>
+        <div class="record-lead">${
+          lead.figure ? `<b class="record-lead-figure">${esc(lead.figure)}</b>` : `<b class="record-lead-whole">${esc(lead.whole)}</b>`
+        }<div class="record-lead-words">${lead.lines.map((line) => `<p>${parts(line)}</p>`).join('')}</div></div>
+        ${strips}${stripNote}
+        ${longest}
+        ${heading(DERIVATION, null, DERIVATION_ID)}
         ${datedProse(record.detail)}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([

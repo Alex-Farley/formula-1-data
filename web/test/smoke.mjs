@@ -273,6 +273,32 @@ const unescaped = (text) =>
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
 
+// Served HTML as the reader reads it: its tags taken out until none is
+// left, so that a tag the first pass leaves behind is not kept, then
+// unescaped, with its white space as the browser collapses it (VD-112).
+const servedText = (html) => {
+  let out = html
+  let before
+  do {
+    before = out
+    out = out.replace(/<[^>]+>/g, '')
+  } while (out !== before)
+  return unescaped(out).replace(/\s+/g, ' ').trim()
+}
+
+// A record page's lead and fields as the static half writes them (VD-112):
+// the figure, each line of words beside it, then each field's value.
+const staticLead = (html) => {
+  const article = html.split('</article>')[0]
+  const text = servedText
+  const lead = article.match(/<div class="record-lead">([\s\S]*?)<\/div><\/div>/)?.[1] ?? ''
+  return [
+    ...[...lead.matchAll(/<b class="record-lead-(?:figure|whole)">([\s\S]*?)<\/b>/g)].map((m) => text(m[1])),
+    ...[...lead.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((m) => text(m[1])),
+    ...[...article.matchAll(/<dd>([\s\S]*?)<\/dd>/g)].map((m) => text(m[1])),
+  ]
+}
+
 /* A sentence holding ISO days, as a reader in the house locale is shown it
    (CD-57): each day in the long house format, the way <Dated> and the static
    page's dated() draw it. And the check date as both footers write it. */
@@ -7590,11 +7616,21 @@ try {
         continue
       }
       await go(`/records/${rec.key}`, rec.record)
+      // VD-112: the page opens on the value, its number large and the rest
+      // of it beside it with the holder, then the provenance fields.
       const app = await page.$eval('#root main', (main) =>
-        [...main.querySelectorAll('dl.stats dd, dl.fields dd')].map((dd) => dd.textContent.trim()),
+        [...main.querySelectorAll('.record-lead > b, .record-lead-words p, dl.fields dd')].map((el) => el.textContent.replace(/\s+/g, ' ').trim()),
       )
-      truthy(app.includes(rec.value) && app.includes(rec.key), `/records/${rec.key} (${what}): the value and the key`)
-      const holderHref = await page.$$eval('#root main dl.stats a', (nodes) => nodes.map((a) => a.getAttribute('href')))
+      const figure = rec.value.match(/^(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?=$|[\s,])/)?.[0]
+      const rest = figure ? rec.value.slice(figure.length).replace(/^,?\s*/, '') : ''
+      const words = app.slice(1, app.indexOf(`Held by ${rec.holder}`) + 1)
+      truthy(
+        (figure ? app[0] === figure && (rest ? words[0].endsWith(rest) : words.length === 1 || words[0] === rec.unit) : app[0] === rec.value) &&
+          words.at(-1) === `Held by ${rec.holder}` &&
+          app.includes(rec.key),
+        `/records/${rec.key} (${what}): the value's number leads, the rest of it and the holder beside it, and the key is in the fields (${app.slice(0, 3).join(' | ')})`,
+      )
+      const holderHref = await page.$$eval('#root main .record-lead a', (nodes) => nodes.map((a) => a.getAttribute('href')))
       if (rec.holder_id === null) is(holderHref.length, 0, 'and a shared holder is text, not a link')
       else if (rec.holder_table === 'races') {
         const race = db.prepare('SELECT year, round FROM races WHERE id = ?').get(Number(rec.holder_id))
@@ -7603,10 +7639,76 @@ try {
 
       // The static page carries the same figures in the same order.
       const html = (await (await fetch(`${BASE}/records/${rec.key}`)).text()).split('<article class="page">')[1] ?? ''
-      const served = [...html.split('</article>')[0].matchAll(/<dd>([\s\S]*?)<\/dd>/g)].map((m) =>
-        unescaped(m[1].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim(),
+      is(staticLead(html).join(' | '), app.join(' | '), 'and the static page states the same figures, in order')
+    }
+
+    // VD-112: a record that is a run of races draws the run's races and the
+    // longest runs, counted in the page. Held here against the record the
+    // build derived - its value names the run's two ends - and against the
+    // race records, which say the holder won each race in the strip.
+    const streak = db.prepare("SELECT * FROM records WHERE key = 'most-consecutive-wins'").get()
+    if (!streak || streak.holder_id === null) pass('no single holder of the most consecutive wins to draw a run for')
+    else {
+      await go(`/records/${streak.key}`, streak.record)
+      const lead = await page.$$eval('#root main .record-lead > b, #root main .record-lead-words p', (els) =>
+        els.map((el) => el.textContent.replace(/\s+/g, ' ').trim()),
       )
-      is(served.join(' | '), app.join(' | '), 'and the static page states the same figures, in order')
+      truthy(
+        lead.length === 2 && lead[0] === String(streak.value_num) && lead[1].startsWith(`${streak.holder} won `) && / in a row\b/.test(lead[1]),
+        `/records/${streak.key}: the figure and the run's sentence lead (${lead.join(' | ')})`,
+      )
+      is(
+        await page.$eval('#root main .record-lead-words a', (a) => a.getAttribute('href')),
+        `/drivers/${streak.holder_id}`,
+        'and the sentence links its holder',
+      )
+      const strip = await page.$$eval('#root main ol.record-races a', (nodes) => nodes.map((a) => a.getAttribute('href')))
+      is(strip.length, streak.value_num, 'the strip draws one race for each in the run')
+      const races = strip.map((href) => {
+        const [, year, round] = href.match(/^\/races\/(\d+)\/(\d+)$/) ?? []
+        return db.prepare('SELECT id, year, name_used FROM races WHERE year = ? AND round = ?').get(Number(year), Number(round))
+      })
+      truthy(races.every(Boolean), 'and each links a race the database holds')
+      truthy(
+        races.every((r) => db.prepare('SELECT 1 FROM race_entries WHERE race_id = ? AND driver_id = ? AND finish_position = 1').get(r.id, streak.holder_id)),
+        `and the race records have ${streak.holder} winning every one of them`,
+      )
+      is(
+        `${races[0].year} ${races[0].name_used} to ${races.at(-1).year} ${races.at(-1).name_used}`,
+        streak.value.replace(/^[^,]*, /, ''),
+        'and its first and last are the ends the record names',
+      )
+      const runs = await page.$$eval('#root main ol.record-runs li', (rows) =>
+        rows.map((li) => ({
+          holder: li.classList.contains('is-holder'),
+          text: li.textContent.replace(/\s+/g, ' ').trim(),
+          length: Number(li.querySelector('.record-run-bar').childNodes[1]?.textContent),
+        })),
+      )
+      const lengths = runs.map((r) => r.length)
+      truthy(runs.length >= 5 && runs[0].holder && runs[0].text.startsWith(streak.holder), `the longest runs: at least five, the record's first and marked (${runs.length})`)
+      truthy(lengths.every((n, i) => n > 0 && (i === 0 || n <= lengths[i - 1])), `and longest first (${lengths.join(', ')})`)
+      is(lengths[0], streak.value_num, "and the first is the record's figure")
+      truthy(runs.every((r, i) => r.holder === (lengths[i] === streak.value_num)), 'and only a run as long as the record is marked')
+      const html = (await (await fetch(`${BASE}/records/${streak.key}`)).text()).split('<article class="page">')[1] ?? ''
+      const served = html.split('</article>')[0]
+      is(
+        [...served.matchAll(/<ol class="outline-strip record-races"[\s\S]*?<\/ol>/g)].flatMap((m) => [...m[0].matchAll(/href="([^"]+)"/g)].map((h) => h[1])).join(' '),
+        strip.join(' '),
+        'the static page draws the same races, in order',
+      )
+      const servedRuns = [...(served.match(/<ol class="record-runs">([\s\S]*?)<\/ol>/)?.[1] ?? '').matchAll(/<li( class="is-holder")?>([\s\S]*?)<\/li>/g)].map((m) => ({
+        holder: Boolean(m[1]),
+        text: servedText(m[2]),
+      }))
+      is(JSON.stringify(servedRuns), JSON.stringify(runs.map(({ holder, text }) => ({ holder, text }))), 'and the same longest runs')
+      is(staticLead(html).slice(0, 2).join(' | '), lead.join(' | '), 'and the same lead')
+      // The rule the runs are counted under is stated under them, in both
+      // halves, and links the derivation (PR #1367 review).
+      const note = await page.$eval('#root main .record-runs-note', (p) => p.textContent.replace(/\s+/g, ' ').trim())
+      truthy(/ends at the first race the driver did not win/.test(note), `the runs' rule is stated under them (${note})`)
+      const servedNote = served.match(/<p class="faint record-runs-note">([\s\S]*?)<\/p>/)?.[1] ?? ''
+      is(servedText(servedNote), note, 'and the static page states it the same')
     }
 
     await go('/records/no-such-record', 'No such record')
