@@ -2213,6 +2213,10 @@ describe('the queries a page and the prerenderer share', () => {
     assert.deepEqual(card('3,723.5', 3723.5, 'points'), { figure: '3,723.5', qualifier: 'points', counts: true })
     // A value that names its own unit is not given it twice.
     assert.deepEqual(card('1,234 points', 1234, 'points'), { figure: '1,234', qualifier: 'points', counts: true })
+    // Nor is one whose own word says what it counts (PR #1367 review).
+    assert.deepEqual(card('6 starters', 6, 'cars'), { figure: '6', qualifier: 'starters', counts: true })
+    assert.deepEqual(card('0.002 s each', 0.002, 'seconds'), { figure: '0.002', qualifier: 's each', counts: true })
+    assert.deepEqual(card('5 each', 5, 'races'), { figure: '5', qualifier: 'races each', counts: true })
     // An age is held in days and written in years: the figure is the
     // value's, and its own words say what it counts, not value_num's unit.
     assert.deepEqual(card('18 years, 228 days, 2016 Spanish Grand Prix', 6802, 'days'), {

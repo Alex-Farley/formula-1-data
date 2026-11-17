@@ -7690,6 +7690,12 @@ try {
       }))
       is(JSON.stringify(servedRuns), JSON.stringify(runs.map(({ holder, text }) => ({ holder, text }))), 'and the same longest runs')
       is(staticLead(html).slice(0, 2).join(' | '), lead.join(' | '), 'and the same lead')
+      // The rule the runs are counted under is stated under them, in both
+      // halves, and links the derivation (PR #1367 review).
+      const note = await page.$eval('#root main .record-runs-note', (p) => p.textContent.replace(/\s+/g, ' ').trim())
+      truthy(/ends at the first race the driver did not win/.test(note), `the runs' rule is stated under them (${note})`)
+      const servedNote = served.match(/<p class="faint record-runs-note">([\s\S]*?)<\/p>/)?.[1] ?? ''
+      is(unescaped(servedNote.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim(), note, 'and the static page states it the same')
     }
 
     await go('/records/no-such-record', 'No such record')

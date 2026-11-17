@@ -187,6 +187,10 @@ const asNumber = (figure) => Number(figure.replace(/,/g, ''))
  * each. Where it is not - an age, held in days and written in years - the
  * value's own words say what the figure is, and the unit is not borrowed.
  */
+// The words a value's rest can open on that leave the figure to its unit:
+// '7 each' is 7 titles each, '19 of the 22 races' 19 wins of them.
+const OPENERS = /^(?:each|of|in)\b/
+
 export function cardFigure(row) {
   const m = LEADING.exec(row.value ?? '')
   if (!m) return null
@@ -194,9 +198,11 @@ export function cardFigure(row) {
   const counts = asNumber(m[1]) === row.value_num
   const rest = tail.replace(/^,?\s*/, '')
   if (counts) {
-    // A value that already names its unit ('1,234 points') is not given it
-    // twice.
-    const unit = row.unit && !rest.startsWith(row.unit) ? row.unit : ''
+    // A value that already names its unit ('1,234 points'), or says in its
+    // own word what it counts ('6 starters', '0.002 s each'), is not given
+    // the unit too; a value whose rest opens on 'each', 'of' or 'in' is.
+    const own = /^[^\W\d_]/u.test(rest) && !OPENERS.test(rest)
+    const unit = row.unit && !rest.startsWith(row.unit) && !own ? row.unit : ''
     // '10, 2023 Miami Grand Prix to ...' keeps its comma after the unit.
     const qualifier = !tail ? row.unit ?? '' : !unit ? rest : tail.startsWith(',') ? `${unit}${tail}` : `${unit} ${rest}`
     return { figure: m[1], qualifier, counts }
@@ -569,11 +575,16 @@ export const RECORDS_STANDFIRST =
  * carrying over a winter and ending at the first race the holder does not
  * meet `where` in, entered or not. `where` is a condition on race_entries
  * `e`, the one streak() is given for the record; `verb` is what the holder
- * did in each race of a run. A record not named here keeps the lead figure
- * alone.
+ * did in each race of a run; `rule` is that rule as the page states it under
+ * the runs, the words of the approved mockup (P12). A record not named here
+ * keeps the lead figure alone.
  */
 export const STREAKS = {
-  'most-consecutive-wins': { where: 'e.finish_position = 1', verb: 'won' },
+  'most-consecutive-wins': {
+    where: 'e.finish_position = 1',
+    verb: 'won',
+    rule: 'A streak carries over a winter and ends at the first race the driver did not win, entered or not; the Indianapolis 500 of 1950–60 counts.',
+  },
 }
 
 // The runs, one row per maximal run of a driver meeting `where` in
@@ -639,7 +650,6 @@ export const streakRaces = (key) =>
 /** How many runs 'The longest runs' draws, before a tie at the last is kept whole. */
 export const RUNS_SHOWN = 5
 export const LONGEST_RUNS = 'The longest runs'
-export const RUNS_RULE = 'Every run here is counted as the record is: '
 /** The derivation's section, which the runs' rule links to. */
 export const DERIVATION_ID = 'how-it-is-derived'
 export const recordRacesNote = `Outlines: ${OUTLINE_BY}. Each links to its race.`
@@ -750,7 +760,7 @@ export function recordRuns(record, runRows, raceRows) {
     share: Math.round((run.length / best) * 1e4) / 1e4,
     mark: run.length === best,
   }))
-  return { top, longest, spansSeasons: top.map((run) => run.from_year !== run.to_year) }
+  return { top, longest, rule: STREAKS[record.key].rule, spansSeasons: top.map((run) => run.from_year !== run.to_year) }
 }
 
 /** A race in a run's strip: 'R5', or '2023 R18' in a run over a winter. */

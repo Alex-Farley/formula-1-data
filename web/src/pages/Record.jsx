@@ -12,7 +12,6 @@ import {
   DERIVATION_ID,
   LONGEST_RUNS,
   RECORD,
-  RUNS_RULE,
   holderPath,
   recordLead,
   recordRacesNote,
@@ -134,7 +133,7 @@ function RecordBody({ record, lead }) {
             ))}
           </ol>
           <p className="faint record-runs-note">
-            {RUNS_RULE}
+            {lead.runs.rule}{' '}
             <a href={`#${DERIVATION_ID}`}>{DERIVATION}</a>.
           </p>
         </Section>

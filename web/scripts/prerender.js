@@ -731,7 +731,6 @@ import {
   RECORDS_STANDFIRST,
   DERIVATION_ID,
   LONGEST_RUNS,
-  RUNS_RULE,
   recordLead,
   recordRacesNote,
   streakRaces,
@@ -4953,7 +4952,7 @@ page({
                 run.ends,
               )}</small></span></li>`,
           )
-          .join('')}</ol><p class="faint record-runs-note">${esc(RUNS_RULE)}<a href="#${DERIVATION_ID}">${esc(DERIVATION)}</a>.</p>`
+          .join('')}</ol><p class="faint record-runs-note">${esc(lead.runs.rule)} <a href="#${DERIVATION_ID}">${esc(DERIVATION)}</a>.</p>`
       : ''
     page({
       path: recordPath(record),

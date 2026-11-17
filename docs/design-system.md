@@ -1371,7 +1371,8 @@ record family listed by its own address.
   and five on a phone, credited once under it; then *The longest runs*, the
   first five and on through a tie, as bars, the record's runs in
   `--series-mark` and the rest in `--series-ink` (`[D-61]`), every length
-  printed, with one line linking the derivation. The runs are counted in
+  printed, with one line under them stating the record's rule and linking
+  the derivation. The runs are counted in
   the page under the record's own rule (`streakRuns`), and where that count
   does not bear out the record's figure, the page draws neither the
   sentence nor the runs, rather than two figures for one record. A run that
