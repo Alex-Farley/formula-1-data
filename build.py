@@ -3557,9 +3557,10 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
             pit_skipped += 1
             continue
         stored.append((r, rid, did))
-    # Repeats are counted over the rows that reach the table, so a round
-    # not yet on the calendar, or a driver F1DB has and the register does
-    # not, is skipped whole rather than refused (review of #1374).
+    # Repeats are counted over the rows that reach the table, so an
+    # undeclared repeat in a round not yet on the calendar, or for a driver
+    # F1DB has and the register does not, is skipped with its rows rather
+    # than refused (review of #1374).
     repeats = _pit_stop_repeats([r for r, _, _ in stored], HV.F1DB_PIT_STOP_REPEATS)
     ignored = {}
     for r, rid, did in stored:
