@@ -1025,15 +1025,14 @@ KNOWN_GAPS = [
      "Closes when the Sporting Regulations for the seasons before 2009 are "
      "read and each span of them is written as a row."),
     (23, "pit-stop-not-listed", "pit_stops.stop_number",
-     "a pit stop numbered in the official pit stop summary but not listed in it",
+     "the first pit stops of a race where F1DB holds no stop numbered 1",
      "open",
-     "The pit stops shown are F1DB's, and at the 2026 Dutch and Italian "
-     "Grands Prix they match Formula 1's own pit stop summary, which numbers "
-     "a stop it does not list. Both races were red-flagged in their opening "
-     "laps, and neither lists any driver's first stop, so each race's stops "
-     "begin at stop 2. In some other races a driver's stops skip a number in "
-     "the same way. A stop that is not listed is not held here, and none is "
-     "filled in from a source that may not be passed on.",
+     "The pit stops shown are F1DB's. At the 2026 Dutch and Italian Grands "
+     "Prix, both red-flagged in their opening laps according to Wikipedia, "
+     "F1DB lists no driver's first stop, and neither does Formula 1's own "
+     "pit stop summary, whose numbering F1DB follows: each race's stops "
+     "begin at stop 2. A stop that is not listed is not held here, and none "
+     "is filled in from a source that may not be passed on.",
      "LV-18 (#1376). F1DB v2026.20.0's pit-stops.yml for 2026 round 12 "
      "(12-netherlands) and round 13 (13-italy) holds no stop 1 for any "
      "driver: every driver's first row is numbered 2 or later, and F1DB's "
@@ -1052,11 +1051,13 @@ KNOWN_GAPS = [
      "the cars entering the pit lane under the red flag. F1DB's rows for the "
      "2024 Japanese and Monaco Grands Prix, both red-flagged on lap 1, do "
      "hold each car's red-flag entry to the pit lane as stop 1, with the "
-     "wait in its time, so leaving one out is not a rule of F1DB's. The "
-     "other races this gap counts each have a driver whose F1DB stops skip a "
-     "number; nobody here has read the official table for them.",
-     "Closes when F1DB, or the official pit stop summary it matches, lists "
-     "the stops it numbers - a refresh then takes them, this gap's measure "
+     "wait in its time, so leaving one out is not a rule of F1DB's. Only "
+     "the numbering was compared with the official table, not each stop's "
+     "lap and time. A race where one driver's F1DB stops skip a number, and "
+     "the rest begin at 1, is not counted here: the official table was not "
+     "read for those, and LV-19 (#1402) follows them up.",
+     "Closes when F1DB, or the official pit stop summary it follows, lists "
+     "these first stops - a refresh then takes them, this gap's measure "
      "falls to none and verify.py requires the row closed - or when a source "
      "that may be passed on holds them. Never by typing in Jolpica's rows."),
 ]
@@ -1111,12 +1112,13 @@ GAP_RACES = {
               AND (v.figures <> 'as raced' OR v.length_km IS NULL
                    OR o.length_km IS NULL OR x.length_km IS NULL
                    OR ABS(x.length_km - v.length_km) <= 0.15))""",
-    # a race where a driver's F1DB stops skip a number: a stop numbered and
-    # not listed, which is every driver's stop 1 at 2026 rounds 12 and 13
-    "pit-stop-not-listed": """SELECT COUNT(*) FROM races r WHERE EXISTS (
-        SELECT 1 FROM pit_stops p WHERE p.race_id = r.id AND p.source = 'f1db'
-        GROUP BY p.driver_key
-        HAVING MAX(p.stop_number) <> COUNT(DISTINCT p.stop_number))""",
+    # a race with F1DB stops and none numbered 1: every driver's first stop
+    # numbered and not listed, as at 2026 rounds 12 and 13
+    "pit-stop-not-listed": """SELECT COUNT(*) FROM races r
+        WHERE EXISTS (SELECT 1 FROM pit_stops p
+                      WHERE p.race_id = r.id AND p.source = 'f1db')
+          AND NOT EXISTS (SELECT 1 FROM pit_stops p WHERE p.race_id = r.id
+                          AND p.source = 'f1db' AND p.stop_number = 1)""",
     # a weekend whose timetable rests on formula1.com's page alone
     "session-timetable": """SELECT COUNT(*) FROM races r
         WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = r.id)
