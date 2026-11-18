@@ -49,6 +49,7 @@ import {
   NEXT_ROUND,
   NEXT_TRACE,
   NOT_RUN_STANDINGS,
+  PLACES,
   REMAINING,
   SEASON,
   SEASON_SOURCES,
@@ -336,11 +337,12 @@ export default function Season() {
     teams: [DRIVER_TEAMS, [Number(year)]],
     images: [SEASON_IMAGES, [Number(year)]],
     remaining: [REMAINING, [Number(year)]],
+    places: [PLACES, [Number(year)]],
     next: [NEXT_ROUND, [Number(year)]],
     wonHere: [WON_HERE, [Number(year)]],
     nextTrace: [NEXT_TRACE, [Number(year)]],
     sources: [SEASON_SOURCES, [Number(year)]],
-    titleSources: [TITLE_SOURCES],
+    titleSources: [TITLE_SOURCES, [Number(year)]],
   })
 
   return (
@@ -439,6 +441,7 @@ function SeasonBody({ year, season, data }) {
         afterRound: after,
         built: currentProgress().manifest?.built,
         year,
+        places: rows(data, 'places'),
       })
     : null
   // The same answer drawn (AF-132): each title's contenders against the

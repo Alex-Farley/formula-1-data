@@ -247,6 +247,7 @@ import {
   STANDINGS as SEASON_STANDINGS,
   TITLE_RACE_COLUMNS,
   TITLE_SOURCES,
+  PLACES,
   WON_HERE,
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
@@ -3307,6 +3308,7 @@ const seasonsTable = (rows) =>
           afterRound: after,
           built: META.built,
           year,
+          places: all(PLACES, year),
         })
       : null
     // The reach charts (AF-132), Season.jsx's, each in a figure part of its
@@ -3407,7 +3409,7 @@ const seasonsTable = (rows) =>
     page({
       path: `seasons/${year}`,
       lastmod: LAST_RUN.season.get(String(year)),
-      sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES), { answer, remaining: one(REMAINING, year) ?? null }),
+      sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES, year), { answer, remaining: one(REMAINING, year) ?? null }),
       title: NAMES.season(year).title,
       description: s.champion && running
         ? `${s.champion} is the ${year} Formula One World Champion, with ${run} of ${s.rounds ?? '?'} rounds run. Every race, winner, pole and fastest lap.`

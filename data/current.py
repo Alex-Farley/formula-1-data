@@ -1175,6 +1175,7 @@ ID_STABILITY = {
     "stints":                ("unstable", None),
     "team_radio":            ("unstable", None),
     "technical_innovations": ("unstable", None),
+    "tie_breaks":            ("unstable", None),
     "tyre_suppliers":        ("unstable", None),
 }
 

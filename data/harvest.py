@@ -1012,6 +1012,18 @@ KNOWN_GAPS = [
      "races under the length check; a figure that tells layouts of nearly "
      "one length apart - the turns, or the years each layout was raced, read from a "
      "source other than F1DB - would close the rest."),
+    (22, "tie-break-before-2009", "tie_breaks",
+     "how a tie on points was settled before 2009",
+     "open",
+     "How a tie on points at the end of a season was settled before 2009 is "
+     "not recorded here, so where a title before then could have finished "
+     "level, the season page does not say who the tie would have favoured.",
+     "AF-137 (#1143). tie_breaks is read only from the FIA's Sporting "
+     "Regulations, and the earliest issue read is 2009's, whose Article 7.2 "
+     "counts first places, then second places, and so on. No issue before "
+     "2009 was read, so no row covers the seasons before it.",
+     "Closes when the Sporting Regulations for the seasons before 2009 are "
+     "read and each span of them is written as a row."),
 ]
 
 # known_gaps.races_affected, measured rather than typed (DA-16, #210).

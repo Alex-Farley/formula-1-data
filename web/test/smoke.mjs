@@ -71,6 +71,7 @@ import {
   FINAL as SEASON_FINAL,
   NEXT_HEADING,
   NEXT_ROUND,
+  PLACES,
   REMAINING,
   SEASON_SOURCES,
   CALENDAR as SEASON_CALENDAR,
@@ -236,6 +237,7 @@ const pageAnswer = (year) => {
     remaining: db.prepare(REMAINING).get(year) ?? null,
     afterRound: latestRound(standings),
     year,
+    places: db.prepare(PLACES).all(year),
   })
 }
 // The season being run where a round is still to come, whoever has won what.
@@ -8870,7 +8872,7 @@ try {
             const [year] = args
             const remaining = db.prepare(REMAINING).get(year) ?? null
             const answer = pageAnswer(year)
-            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining })
+            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(year), { answer, remaining })
           })()
         : // A team or driver in the title fight being run adds the fight's
           // sources, where its page prints the line (AF-132).
@@ -8892,7 +8894,7 @@ try {
     // note says, so the points system's entry is behind that page whatever
     // seasonSources() makes of it.
     {
-      const [{ source }] = db.prepare(TITLE_SOURCES).all()
+      const [{ source }] = db.prepare(TITLE_SOURCES).all(1988)
       await go('/seasons/1988', '1988')
       const cite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
       truthy(cite.includes(`${source} (`), `the citation on /seasons/1988 names ${source}, the dropped-scores rule's source`)

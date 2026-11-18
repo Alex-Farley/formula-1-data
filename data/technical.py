@@ -634,6 +634,49 @@ QUALIFYING_FORMATS = [
      "B2.2.2).", _SPORT[2026]),
 ]
 
+# How a tie on points at the end of a season is settled (AF-137), period by
+# period, as the FIA's own text sets it. The season page reads it to settle
+# a title a rival could at best draw level for, and declines a season no
+# row covers.
+#
+# `countback` is what is counted, as one of the spellings schema.sql allows:
+# 'race places' is the holder of the most first places, then of the most
+# second places, and so on down the order. The issues from 2021 count places
+# "in a race", the wording that came in with the first sprint weekends; this
+# database reads that as the Grand Prix alone, which is what race_entries
+# holds, and a sprint's places as not counted. Before 2021 the count is of
+# first places with no such words, in seasons that had no sprint. `rule` says
+# the rest of the article in this database's words: what follows when the
+# count settles nothing. `to_year` is the last season whose issue was read,
+# never a guess at the next change.
+#
+# Sources: every season's Sporting Regulations from 2009 to 2025, the issues
+# `_SPORT_EARLIER` and `_SPORT` name, a span being a run of issues that
+# agree, and the row citing the first. In 2026 the championship articles
+# moved out of the sporting section into Section A, the General Regulatory
+# Provisions, which is `_GENERAL_2026`. Nothing before 2009: known_gaps #22
+# holds that span.
+_GENERAL_2026 = ("https://www.fia.com/system/files/documents/"
+                 "fia_2026_f1_regulations_-_section_a_general_provisions_-_iss_03_-_2026-06-25.pdf")
+
+# from_year, to_year, countback, article, rule, source
+TIE_BREAKS = [
+    (2009, 2020, "race places", "7.2",
+     "Drivers or constructors level on points at the end of the season are "
+     "placed by who has more first places, then more second places, and so "
+     "on until one is ahead. If that settles nothing, the FIA nominates the "
+     "higher place by criteria of its own choosing.", _SPORT_EARLIER[2009]),
+    (2021, 2025, "race places", "7.2",
+     "The same count, now of first places in a race, then of second places "
+     "in a race, and so on. If that settles nothing, the FIA still nominates "
+     "the higher place by criteria of its own choosing.", _SPORT[2021]),
+    (2026, 2026, "race places", "A2.1.4(c)",
+     "The same count of places in a race, for drivers and teams alike. If "
+     "that settles nothing, the same count is made of the drivers' "
+     "qualifying results over the season, where the earlier issues left it "
+     "to the FIA.", _GENERAL_2026),
+]
+
 # from_year, to_year, era_name, summary, dominant_teams, defining_features
 ERAS = [
     (1950, 1957, "The front-engined era", "Grand Prix racing resumed with pre-war machinery and pre-war attitudes to risk. Fangio won five titles in eight seasons.", "Alfa Romeo, Ferrari, Mercedes, Maserati", "Front engines, drum brakes, no seatbelts, treaded road-style tyres, races of 500 km"),

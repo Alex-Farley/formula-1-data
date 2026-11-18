@@ -256,6 +256,8 @@ UNGRANTED = {
     "drivers.external_source": "names where the external totals came from, two of "
                                "which are Wikipedia's and left out",
     "records.detail": "build.py's sentence about each record",
+    "tie_breaks.rule": "an article of the FIA's regulations in this project's words, "
+                       "which the prose pass has not read",
 }
 
 # The screen verify.py runs over every other text column the artefact

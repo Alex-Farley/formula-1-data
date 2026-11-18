@@ -139,6 +139,14 @@ export const FINAL = `
  * one-two is the first two places added, read from the season's own scale
  * and never written here. `sprint_scale` is NULL in a season with no sprint
  * system.
+ *
+ * `countback` is how the season's own regulations settle a tie on points,
+ * from `tie_breaks` (AF-137): RACE_PLACES, or NULL where no period read
+ * covers the season, which titleAnswer() declines to work out. `results` is
+ * how many of the rounds run have a winner in race_entries, because the
+ * countback is counted from those and the classification is harvested apart
+ * from the calendar: a round run with no result yet would be counted as
+ * nobody's places.
  */
 /** What `points_systems.dropped_scores` says of a system that dropped no result. */
 export const EVERY_RESULT_COUNTS = 'Every result counts'
@@ -166,8 +174,38 @@ export const REMAINING = `
          g.scale, (SELECT scale FROM sp) AS sprint_scale,
          COALESCE((SELECT win_points FROM sp), 0) AS sprint_points,
          t.races * (g.win_points + g.fastest_lap_points)
-           + t.sprints * COALESCE((SELECT win_points FROM sp), 0) AS available
+           + t.sprints * COALESCE((SELECT win_points FROM sp), 0) AS available,
+         (SELECT countback FROM tie_breaks
+           WHERE from_year <= ?1 AND to_year >= ?1) AS countback,
+         (SELECT COUNT(DISTINCT e.race_id)
+            FROM race_entries e JOIN races r ON r.id = e.race_id
+           WHERE r.year = ?1 AND r.status = 'completed' AND e.finish_position = 1) AS results
     FROM to_run t, gp g
+`
+
+/** What `tie_breaks.countback` says of a count of Grand Prix places, first places first (AF-137). */
+export const RACE_PLACES = 'race places'
+
+/**
+ * Every driver's and every team's Grand Prix places in the season so far,
+ * one row a place (AF-137): `kind` is the table, `id` the driver or
+ * constructor id the standings match on, `n` how many times they finished
+ * there. A team's are both its cars', as the countback counts them. Only
+ * rounds run are read, and only classified finishes; a sprint's places are
+ * not, because the regulations count places in a race (tie_breaks).
+ */
+export const PLACES = `
+  SELECT 'drivers' AS kind, e.driver_id AS id, e.finish_position AS place, COUNT(*) AS n
+    FROM race_entries e JOIN races r ON r.id = e.race_id
+   WHERE r.year = ?1 AND r.status = 'completed'
+     AND e.finish_position IS NOT NULL AND e.driver_id IS NOT NULL
+   GROUP BY e.driver_id, e.finish_position
+  UNION ALL
+  SELECT 'constructors', e.constructor_id, e.finish_position, COUNT(*)
+    FROM race_entries e JOIN races r ON r.id = e.race_id
+   WHERE r.year = ?1 AND r.status = 'completed'
+     AND e.finish_position IS NOT NULL AND e.constructor_id IS NOT NULL
+   GROUP BY e.constructor_id, e.finish_position
 `
 
 /**
@@ -567,11 +605,17 @@ export const SEASON_SOURCES = `
    ORDER BY s.priority, s.id
 `
 
-/** The points-system rows REMAINING reads: a table with no `source_id`, so its `table_provenance` entry. */
+/**
+ * What REMAINING reads beyond the calendar and the results: the points-system
+ * rows, a table with no `source_id`, so its `table_provenance` entry; and the
+ * season's tie-break period (AF-137), by its own row.
+ */
 export const TITLE_SOURCES = `
   SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
-   WHERE s.id IN (SELECT source_id FROM table_provenance WHERE tbl = 'points_systems')
+   WHERE s.id IN (
+           SELECT source_id FROM table_provenance WHERE tbl = 'points_systems'
+     UNION SELECT source_id FROM tie_breaks WHERE from_year <= ?1 AND to_year >= ?1)
    ORDER BY s.priority, s.id
 `
 
@@ -1179,18 +1223,88 @@ export const teamAvailable = (remaining) => {
   return remaining.races * most.race + (remaining.sprints ? remaining.sprints * most.sprint : 0)
 }
 
+/** A points scale's length - how far down the order it pays - or null where the JSON does not hold numbers. */
+const scaleLength = (scale) => {
+  try {
+    const places = JSON.parse(scale)
+    return Array.isArray(places) && places.length >= 2 && places.every(Number.isFinite) ? places.length : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * What the countback can be counted from for one title (AF-137), or null
+ * where the season's rule is not held - REMAINING's `countback` is not
+ * RACE_PLACES - which leaves the tie unsettled and says so in the old words.
+ * With the rule held, `counts` is null where the places cannot be counted:
+ * no PLACES rows, a scale that does not say how far down it pays, or a round
+ * run with no result yet.
+ *
+ * A rival who can at best draw level does it only one way: by scoring the
+ * most there is in every round left - a win, or for a team a one-two, and
+ * every sprint - while the leader scores nothing. That fixes both sides'
+ * places as far down as the scale pays: the rival's `gained` are a win a
+ * round, and for a team a second place too; the leader's places that score
+ * stay what they are, because a result that scores nothing is one below
+ * them. A sprint's places are not counted, so a sprint adds nothing here.
+ */
+function tieBreak(kind, remaining, places) {
+  if (remaining.countback !== RACE_PLACES) return null
+  const depth = scaleLength(remaining.scale)
+  if (depth === null || !Array.isArray(places) || remaining.results !== remaining.run) return { counts: null }
+  const counts = new Map()
+  for (const p of places) {
+    if (p.kind !== kind || missing(p.id) || !Number.isInteger(p.place) || p.place < 1 || p.place > depth) continue
+    if (!counts.has(p.id)) counts.set(p.id, new Map())
+    counts.get(p.id).set(p.place, (counts.get(p.id).get(p.place) ?? 0) + p.n)
+  }
+  const gained = (place) => (place === 1 || (kind === 'constructors' && place === 2) ? remaining.races : 0)
+  return { counts, depth, gained }
+}
+
+/**
+ * How the countback falls for a rival who can at best draw level with
+ * `leaders` (AF-137): `{ wins, place, mine, theirs }`, the first place at
+ * which the two counts differ and each side's count there, or null where it
+ * cannot be said. With more than one leader the rival has to beat each: a
+ * loss to any is a loss, and `place` is that leader's. Level on every place
+ * that scores is null, because below those the leader's finishes are not
+ * fixed - the regulations go on down the order, and in 2026 on to
+ * qualifying, and neither is worked out here.
+ */
+function settle(tie, rival, leaders) {
+  if (!tie?.counts || missing(rival.id) || !leaders.length || leaders.some((l) => missing(l.id))) return null
+  const at = (id, place) => tie.counts.get(id)?.get(place) ?? 0
+  const outcomes = leaders.map((leader) => {
+    for (let place = 1; place <= tie.depth; place += 1) {
+      const mine = at(rival.id, place) + tie.gained(place)
+      const theirs = at(leader.id, place)
+      if (mine !== theirs) return { wins: mine > theirs, place, mine, theirs }
+    }
+    return null
+  })
+  const lost = outcomes.find((o) => o && !o.wins)
+  if (lost) return lost
+  return outcomes.every(Boolean) ? outcomes[0] : null
+}
+
 /**
  * One championship's table, measured against what is still to be won: the
  * elimination test both titles share. `table` is FINAL's rows for the one
- * championship; `idOf` reads the driver or constructor id a page matches on.
- * Null with fewer than two classified, or nothing to measure against.
+ * championship; `idOf` reads the driver or constructor id a page matches on;
+ * `tie` is tieBreak()'s. Null with fewer than two classified, or nothing to
+ * measure against.
  *
  * Each row comes back with `behind` the leader, the most it can still
  * `reach`, and whether it is still `alive`: behind by no more than what is
- * left. A row that can only draw level is counted in, because the countback
- * that would settle the tie is not worked out here.
+ * left. A row behind by exactly that is `level`: it can at best draw level,
+ * and its `countback` is settle()'s. It is out where the countback goes
+ * against it, and counted in otherwise - where it would win the tie, and
+ * where nobody can say, which is the reading that puts nobody out wrongly.
+ * A table with one id twice is not counted back at all.
  */
-function standingFight(kind, table, available, idOf) {
+function standingFight(kind, table, available, idOf, tie = null) {
   // A row with points and no position was excluded from the classification,
   // which is the same table's footer: neither the leader nor someone to catch.
   const scored = (table ?? []).filter((d) => !missing(d.points) && !missing(d.position))
@@ -1206,9 +1320,61 @@ function standingFight(kind, table, available, idOf) {
       behind: lead - d.points,
       reach: d.points + available,
       alive: lead - d.points <= available,
+      level: false,
+      countback: null,
       row: d,
     }))
-  return { kind, available, lead, rows, alive: rows.filter((d) => d.alive), scored: rows.length }
+  const leaders = rows.filter((d) => d.behind === 0)
+  const ids = rows.map((d) => d.id)
+  const once = new Set(ids).size === ids.length
+  for (const d of rows) {
+    if (d.behind === 0 || d.behind !== available) continue
+    d.level = true
+    d.countback = once ? settle(tie, d, leaders) : null
+    if (d.countback && !d.countback.wins) d.alive = false
+  }
+  return { kind, available, lead, rows, leaders, tie, alive: rows.filter((d) => d.alive), scored: rows.length }
+}
+
+/** Whether a row is out of a fight on the countback alone: it can draw level and would lose the tie. */
+const lostTie = (d) => Boolean(d.level && d.countback && !d.countback.wins)
+
+const PLACE_WORDS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth']
+
+/** "7 wins to 6", or "level on wins, then 4 second places to 3": where settle() found the counts apart. */
+const countbackFigures = ({ place, mine, theirs }) => {
+  if (place === 1) return `${plural(mine, 'win')} to ${number(theirs)}`
+  const word = PLACE_WORDS[place - 1] ?? ordinal(place)
+  const before = place === 2 ? 'wins' : `wins and every place to ${PLACE_WORDS[place - 2] ?? ordinal(place - 1)}`
+  return `level on ${before}, then ${number(mine)} ${word} place${mine === 1 ? '' : 's'} to ${number(theirs)}`
+}
+
+/**
+ * The sentence for one rival who can at best draw level (AF-137): how, and
+ * who the countback would then favour, with the figures where there is one
+ * leader to compare against.
+ */
+const levelLine = (fight, d, sprints) => {
+  const left = `every round${sprints ? ' and sprint' : ''} left`
+  const how = fight.kind === 'drivers' ? `by winning ${left}` : `with a one-two in ${left}`
+  const start = `${d.entity} can at best draw level with ${listed(fight.leaders.map((l) => l.entity))}, ${how},`
+  const c = d.countback
+  if (!c) return `${start} and who the countback would then favour is not worked out here.`
+  const figures = fight.leaders.length === 1 ? `: ${countbackFigures(c)}` : ''
+  return c.wins
+    ? `${start} and would then take the title on the countback${figures}.`
+    : `${start} and would then lose it on the countback${figures}.`
+}
+
+/**
+ * The basis's last sentence: how a tie at the top is settled. Where the
+ * season's rule is not held, the words VD-90 printed; where it is, the rule,
+ * then a sentence for each rival who can at best draw level.
+ */
+const tieLines = (fights, sprints) => {
+  if (!fights.some((f) => f.tie)) return 'Points only: a tie at the top is settled on wins, which this does not work out.'
+  const level = fights.flatMap((f) => f.rows.filter((d) => d.level).map((d) => levelLine(f, d, sprints)))
+  return ['A tie on points goes to whoever has more wins, then more second places, and so on.', ...level].join(' ')
 }
 
 /** The sentence for one title: who can still win it. */
@@ -1217,8 +1383,16 @@ const whoLine = (fight) => {
   const other = fight.kind === 'drivers' ? 'driver' : 'team'
   const many = fight.kind === 'drivers' ? 'drivers' : 'teams'
   const alive = fight.alive
-  if (alive.length === 1) return `Only ${alive[0].entity} can still win ${title}: no other ${other} can now reach the leader's total.`
+  // One who can reach the leader's total and is out all the same - level at
+  // best, and losing the countback (AF-137) - is why the reason changes.
+  const tied = fight.rows.some(lostTie)
+  if (alive.length === 1) {
+    return tied
+      ? `Only ${alive[0].entity} can still win ${title}: no other ${other} can now beat the leader's total, or match it and win the countback.`
+      : `Only ${alive[0].entity} can still win ${title}: no other ${other} can now reach the leader's total.`
+  }
   if (alive.length <= TITLE_LIST_LIMIT) return `Who can still win ${title}: ${listed(alive.map((d) => d.entity))}.`
+  if (tied) return `${number(alive.length)} of the ${number(fight.scored)} ${many} who have scored can still win ${title}.`
   // The drivers' wording is the one VD-90 printed; a team's says which title.
   const of = fight.kind === 'drivers' ? '' : ` in ${title}`
   if (alive.length === fight.scored) return `Every ${other} who has scored can still reach the leader's total${of}.`
@@ -1259,12 +1433,16 @@ export const TITLE_LIST_LIMIT = 10
  * nobody is out - the count is the answer and the list of names is not, and
  * where nobody at all is out it says that rather than counting to itself.
  *
- * What it does not claim is in its own last sentence: a tie on points is
- * settled on wins, so "can still reach the leader's total" is not the same as
- * "can still be champion", and one who can only equal is counted in. The
- * round it was counted after and the date the database was built are printed
- * with it, because the answer changes with the harvest and not with the code
- * (SD-14).
+ * A tie at the top is settled on the countback (AF-137), where the season's
+ * own rule is held (`tie_breaks`, through REMAINING's `countback`) and
+ * `places` - PLACES' rows - can count it: a rival who can at best draw level
+ * is out where the tie would go against them, and its last sentence says who
+ * the tie would favour, and on what. Where the rule is not held its last
+ * sentence is the one VD-90 printed, that a tie is not worked out, and one
+ * who can only equal is counted in; so is one whose tie cannot be counted.
+ * The round it was counted after and the date the database was built are
+ * printed with it, because the answer changes with the harvest and not with
+ * the code (SD-14).
  *
  * It comes in two parts (VD-90): `who`, the answer, which a season being run
  * prints in its lede (seasonLede below), and `basis`, what it was worked out
@@ -1278,7 +1456,7 @@ export const TITLE_LIST_LIMIT = 10
  * once there is a champion, a sentence working out who could have won is
  * noise at best and a contradiction at worst. seasonAnswer() below passes it.
  */
-export function titleAnswer({ drivers, constructors, remaining, afterRound, built, year, settled = {} }) {
+export function titleAnswer({ drivers, constructors, remaining, afterRound, built, year, places, settled = {} }) {
   if (!remaining || !remaining.races) return null
   // Anything but the one spelling - a rule, or a blank - declines, so a
   // reworded row fails closed rather than into a wrong elimination.
@@ -1291,9 +1469,11 @@ export function titleAnswer({ drivers, constructors, remaining, afterRound, buil
   const unpriced = remaining.sprints > 0 && missing(remaining.sprint_scale)
   const forDrivers = settled.drivers
     ? null
-    : standingFight('drivers', drivers, unpriced ? null : remaining.available, (d) => d.driver_id)
+    : standingFight('drivers', drivers, unpriced ? null : remaining.available, (d) => d.driver_id, tieBreak('drivers', remaining, places))
   const teams = !settled.constructors && Number.isInteger(year) && year >= CONSTRUCTORS_FROM && year >= EVERY_CAR_COUNTS_FROM
-  const forTeams = teams ? standingFight('constructors', constructors, teamAvailable(remaining), (d) => d.constructor_id) : null
+  const forTeams = teams
+    ? standingFight('constructors', constructors, teamAvailable(remaining), (d) => d.constructor_id, tieBreak('constructors', remaining, places))
+    : null
   if (!forDrivers && !forTeams) return null
 
   const left = [plural(remaining.races, 'round'), remaining.sprints ? plural(remaining.sprints, 'sprint') : null]
@@ -1309,7 +1489,7 @@ export function titleAnswer({ drivers, constructors, remaining, afterRound, buil
   const basis = [
     still,
     afterRound ? `Counted after round ${number(afterRound)}${built ? `, from the database built ${built}` : ''}.` : null,
-    'Points only: a tie at the top is settled on wins, which this does not work out.',
+    tieLines([forDrivers, forTeams].filter(Boolean), remaining.sprints),
   ]
     .filter(Boolean)
     .join(' ')
@@ -1390,7 +1570,8 @@ const current = (sql) => sql.replaceAll('?1', CURRENT_SEASON_SQL)
  * (AF-132), for the citation of a page that prints it and is not that
  * season's: the points system's, the calendar's, and the standings' - both
  * tables as FINAL reads them, by SEASON_SOURCES' rule, and the running rows
- * STANDINGS chooses. A page adds them with mergeSources() only where it
+ * STANDINGS chooses - and the countback's (AF-137): the season's tie-break
+ * period and the results PLACES counts. A page adds them with mergeSources() only where it
  * prints the answer.
  */
 const FIGHT_SOURCES = `
@@ -1398,7 +1579,10 @@ const FIGHT_SOURCES = `
     FROM source_registry s
    WHERE s.id IN (
            SELECT source_id FROM table_provenance WHERE tbl = 'points_systems'
+     UNION SELECT source_id FROM tie_breaks WHERE from_year <= ?1 AND to_year >= ?1
      UNION SELECT source_id FROM races WHERE year = ?1
+     UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.year = ?1 AND r.status = 'completed' AND e.finish_position IS NOT NULL
      UNION SELECT t.source_id FROM standings t
             WHERE t.year = ?1
               AND (t.basis = 'final'
@@ -1439,6 +1623,7 @@ export const FIGHT_QUERIES = {
   fightStandings: [current(STANDINGS)],
   fightRemaining: [current(REMAINING)],
   fightRounds: [current(TITLE_ROUNDS)],
+  fightPlaces: [current(PLACES)],
   fightSources: [current(FIGHT_SOURCES)],
   crownedSources: [current(CROWNED_SOURCES)],
 }
@@ -1480,6 +1665,7 @@ export function currentTitle(get, built) {
     afterRound: latestRound(standings),
     built,
     year: season.year,
+    places: get('fightPlaces'),
   })
   if (!answer) return null
   return { ...answer, standings, rounds, most: mostPerRound(remaining), next: nextRoundOf(rounds) }
@@ -1554,7 +1740,7 @@ export function outSince(title, kind, id) {
  *
  * It is strict, as verify.py's arithmetic is. A round after which a rival
  * could at best have drawn level may have settled it on the countback, which
- * this does not work out (AF-137), so it declines rather than name the next
+ * this does not work out (AF-176), so it declines rather than name the next
  * round; so does a gap in the tables or a contender twice in one.
  */
 export function clinchRound(title, kind, id) {
@@ -1591,6 +1777,7 @@ export function clinchRound(title, kind, id) {
  *     Level on points at the top of the title fight with 125 left.
  *     The only one left in the title fight: 133 clear with 125 left.
  *     Out of the title fight since round 15.
+ *     Out of the title fight: can at best draw level, and would lose the countback.
  *
  * "Since round N" only where outSince() establishes N; otherwise only that
  * they are out.
@@ -1604,6 +1791,7 @@ export function fightLine(title, kind, id) {
   if (mine.length !== 1) return null
   const [me] = mine
   const left = points(fight.available)
+  if (lostTie(me)) return 'Out of the title fight: can at best draw level, and would lose the countback.'
   if (!me.alive) {
     const since = outSince(title, kind, id)
     return since === null ? 'Out of the title fight.' : `Out of the title fight since round ${number(since)}.`
@@ -1642,14 +1830,17 @@ export const reachTitle = (kind) => (kind === 'drivers' ? "The drivers' title" :
 
 /**
  * The reach chart's note, at most 50 words (VD-80): what the two parts of a
- * bar are and what the line is, which is what stops a misreading.
+ * bar are and what the line is, which is what stops a misreading. `tied` is
+ * a bar drawn that meets the line and is out on the countback (AF-137),
+ * which the note says only where the list is not cut: the two together run
+ * past 50 words, and the basis under the tiles names that rival either way.
  */
-export const reachNote = (kind, cut) =>
+export const reachNote = (kind, cut, tied = false) =>
   `Each solid bar is the points scored so far, and the outlined part the most still to be won: ${
     kind === 'drivers' ? 'a win' : 'a one-two'
-  } in every round left. The line is the leader's total; a bar that stops short of it is out.${
-    cut ? ` The ${TITLE_LIST_LIMIT} highest of those still in are drawn.` : ''
-  }`
+  } in every round left. The line is the leader's total; ${
+    tied && !cut ? 'a bar short of it is out, as is one that meets it and loses the countback' : 'a bar that stops short of it is out'
+  }.${cut ? ` The ${TITLE_LIST_LIMIT} highest of those still in are drawn.` : ''}`
 
 export const reachColumns = (kind) => [
   { key: 'entity', rowHeader: true, label: kind === 'drivers' ? 'Driver' : 'Constructor' },
@@ -1675,12 +1866,13 @@ export function reachFigure(fight, year, colourOf = () => null) {
   const still = fight.alive.slice(0, TITLE_LIST_LIMIT)
   const justOut = fight.rows.find((d) => !d.alive)
   const drawn = justOut ? [...still, justOut] : still
+  const cut = fight.alive.length > TITLE_LIST_LIMIT
   const coloured = drawn.map((d) => colourOf(d))
   const inColour = coloured.every(Boolean)
   return {
     kind: fight.kind,
     title: reachTitle(fight.kind),
-    note: reachNote(fight.kind, fight.alive.length > TITLE_LIST_LIMIT),
+    note: reachNote(fight.kind, cut, drawn.some(lostTie)),
     lead: fight.lead,
     data: drawn.map((d, i) => ({
       key: String(d.id ?? d.entity),
