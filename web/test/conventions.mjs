@@ -232,6 +232,11 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // race entries, where a team none of whose cars won has no win.
     ['src/queries/constructor.js', [6, "derived wins and poles in a constructor's record; the strip's derived career counts"]],
     ['scripts/prerender.js', [4, "sources in a licence class, the static copy of Data.jsx; a constructor's derived wins"]],
+    // AF-137: the countback's places, each a COUNT over race_entries in
+    // PLACES, read only once every round run has its result. A place no row
+    // holds is one nobody finished in, and none IS the zero; a running count
+    // starts there too. Neither reads a stored column as a figure.
+    ['src/queries/season.js', [2, 'Grand Prix places counted for the countback']],
   ])
 
   it('every zero fallback is a declared count or weight', () => {
@@ -2515,6 +2520,9 @@ describe('one figure grammar: the heading names the figure, and the note goes un
       // AF-132: a team's wording, and the sentence a cut list adds.
       'reach, a team, cut': reachNote('constructors', true),
       'reach, a driver, cut': reachNote('drivers', true),
+      // AF-137: the clause a bar out on the countback adds, which a cut list does not carry.
+      'reach, a team, countback': reachNote('constructors', false, true),
+      'reach, a team, cut and countback': reachNote('constructors', true, true),
       'races per season, two calendars': chartNote([
         { year: 1950, rounds: 7, run: true },
         { year: 2026, rounds: 24, run: true },

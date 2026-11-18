@@ -295,7 +295,8 @@ def titles_decided_before_the_last_round():
                 continue
             # Strict by design: a champion a rival could only draw level with
             # and lose the countback to is refused here, at the commit naming
-            # them, until AF-137 works the countback out.
+            # them. The season page counts that tie back from tie_breaks
+            # (AF-137); this arithmetic does not yet (AF-176, #1390).
             if held is not None and answer[kind] != held:
                 wrong.append(f"{year} {kind}: {held} recorded, "
                              f"the arithmetic has {answer[kind] or 'nobody'}")
@@ -3216,6 +3217,83 @@ def qualifying_formats_periods():
     check("known_gaps declares the unread 107% column exactly while a period holds NULL",
           con.execute("""SELECT COUNT(*) FROM known_gaps WHERE field = 'qualifying_formats.rule_107'
               AND key = 'qualifying-107-before-2009' AND state = 'open'""").fetchone()[0] == int(unread))
+
+
+@section('TIE BREAKS: THE RULE AGAINST THE FINAL TABLES')
+def tie_breaks_against_the_final_tables():
+    """`tie_breaks` says how a tie on points at the end of a season is
+    settled (AF-137), and the season page reads it to say who a rival who can
+    at best draw level would lose or win the title to. The periods are only
+    useful if they tile, and the reading the page relies on - a count of
+    Grand Prix places, first places before second places, with a sprint's
+    places left out - is held to every finished season a period covers:
+    where two drivers or two constructors finished level on points, the one
+    placed higher must have the more first places, or as many and more
+    second places, and so on down the order. Counting a sprint's places as
+    well puts five of the ties from 2023 to 2025 in the wrong order, so the
+    check tells the two readings apart."""
+    rows = con.execute("""SELECT id, from_year, to_year, countback, source
+        FROM tie_breaks ORDER BY from_year""").fetchall()
+    bad = [f"#{a['id']} to {a['to_year']} then #{b['id']} from {b['from_year']}"
+           for a, b in zip(rows, rows[1:]) if b["from_year"] != a["to_year"] + 1]
+    check("the tie-break periods tile from the first with no hole or overlap",
+          bool(rows) and not bad, "; ".join(bad) if rows else "no rows")
+    fia = re.compile(r"https://(www|argent)\.fia\.com/")
+    bad = [f"#{r['id']}" for r in rows if not fia.match(r["source"])]
+    check("every tie-break period cites the FIA's own text", not bad, ", ".join(bad))
+    # A warning: a new season's issue has to be read before its row can be
+    # written, and the page declines the countback until it is.
+    run = season_in_progress()
+    warn("the season being run has a tie-break period",
+         any(r["from_year"] <= run <= r["to_year"] for r in rows), str(run))
+    check("known_gaps declares the tie-break before the first period read",
+          con.execute("""SELECT COUNT(*) FROM known_gaps WHERE field = 'tie_breaks'
+              AND key = 'tie-break-before-2009' AND state = 'open'""").fetchone()[0]
+          == int(bool(rows) and rows[0]["from_year"] > 1950))
+
+    def places(year, column, ident):
+        return dict(con.execute(f"""SELECT e.finish_position, COUNT(*)
+            FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.year = ? AND e.{column} = ? AND e.finish_position IS NOT NULL
+            GROUP BY e.finish_position""", (year, ident)).fetchall())
+
+    held, level, wrong, by_period = 0, 0, [], {}
+    for r in rows:
+        before = held
+        if r["countback"] != "race places":
+            wrong.append(f"#{r['id']}: {r['countback']!r} is not a count this check knows")
+            continue
+        for year in range(r["from_year"], r["to_year"] + 1):
+            for kind, column in (("drivers", "driver_id"), ("constructors", "constructor_id")):
+                table = con.execute(f"""SELECT position, entity, points, {column} AS who
+                    FROM v_standings_final
+                    WHERE year = ? AND table_type = ? AND basis = 'final'
+                      AND position IS NOT NULL AND points IS NOT NULL
+                    ORDER BY position""", (year, kind)).fetchall()
+                for a, b in zip(table, table[1:]):
+                    if a["points"] != b["points"] or a["who"] is None or b["who"] is None:
+                        continue
+                    pa, pb = places(year, column, a["who"]), places(year, column, b["who"])
+                    deepest = max([*pa, *pb], default=0)
+                    va = [pa.get(p, 0) for p in range(1, deepest + 1)]
+                    vb = [pb.get(p, 0) for p in range(1, deepest + 1)]
+                    if va == vb:
+                        level += 1
+                    elif va > vb:
+                        held += 1
+                    else:
+                        wrong.append(f"{year} {kind}: {a['entity']} placed above "
+                                     f"{b['entity']} on {a['points']:g}")
+        by_period[r["id"]] = held - before
+    check("every tie on points in a finished season a tie-break period covers is "
+          "placed by its count of Grand Prix places", held > 0 and not wrong,
+          "; ".join(wrong[:4]) if wrong or held else "no tie to hold it to")
+    print(f"  [info] {held} ties on points placed by the count; {level} level on "
+          f"every place, which the count does not settle")
+    # A period no finished tie has tested stands on the reading of its text
+    # alone, which is worth seeing: the season being run's, until it ends.
+    print("  [info] ties held by period: " + ", ".join(
+        f"#{r['id']} {r['from_year']}-{r['to_year']} {by_period.get(r['id'], 0)}" for r in rows))
 
 
 @section('FINISHING ORDER AND PODIUMS')

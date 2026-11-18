@@ -71,11 +71,13 @@ import {
   FINAL as SEASON_FINAL,
   NEXT_HEADING,
   NEXT_ROUND,
+  PLACES,
   REMAINING,
   SEASON_SOURCES,
   CALENDAR as SEASON_CALENDAR,
   SEASON,
   STANDINGS as SEASON_STANDINGS,
+  TIE_SOURCES,
   TITLE_SOURCES,
   WON_HERE,
   WON_HERE_HEADING,
@@ -236,6 +238,7 @@ const pageAnswer = (year) => {
     remaining: db.prepare(REMAINING).get(year) ?? null,
     afterRound: latestRound(standings),
     year,
+    places: db.prepare(PLACES).all(year),
   })
 }
 // The season being run where a round is still to come, whoever has won what.
@@ -8870,7 +8873,7 @@ try {
             const [year] = args
             const remaining = db.prepare(REMAINING).get(year) ?? null
             const answer = pageAnswer(year)
-            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining })
+            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining, tie: db.prepare(TIE_SOURCES).all(year) })
           })()
         : // A team or driver in the title fight being run adds the fight's
           // sources, where its page prints the line (AF-132).

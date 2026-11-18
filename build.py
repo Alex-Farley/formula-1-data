@@ -1704,6 +1704,13 @@ def _stage_15_rules_tech_safety(b):
             from_round, to_year, format, sessions, rule_107, note, confidence, source)
             VALUES (?,?,?,?,?,?,?,?,?,'reference',?)""", (i,) + r)
 
+    # Read from the FIA's own text, and 'reference' for the reason the
+    # qualifying formats are: an official document, read by this project.
+    for i, r in enumerate(X.TIE_BREAKS, 1):
+        cur.execute("""INSERT INTO tie_breaks (id, from_year, to_year, countback,
+            article, rule, confidence, source)
+            VALUES (?,?,?,?,?,?,'reference',?)""", (i,) + r)
+
     # `records` is no longer loaded here: it is DERIVED in stage 31, after the
     # career figures it is computed from exist. See derive_records().
 

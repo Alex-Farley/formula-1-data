@@ -135,6 +135,7 @@ import {
   isUpcoming,
   outSince,
   reachFigures,
+  RACE_PLACES,
   teamAvailable,
   championPill,
   pointsShare,
@@ -1355,6 +1356,144 @@ describe('the queries a page and the prerenderer share', () => {
     )
   })
 
+  // AF-137: a rival who can at best draw level is settled on the countback
+  // the season's own rule sets, counted from the Grand Prix places so far
+  // with the rival's best case added - every round left won, or for a team
+  // a one-two - and the leader's scoring places as they stand.
+  describe('a tie a rival can at best draw level for, settled on the countback', () => {
+    // The issue's example: before Austin 2026, Antonelli wins it and Russell
+    // is 9th. Antonelli 365 with 9 wins, Russell 240 with 3, five rounds and
+    // 125 points left. Russell's best case is level on 365 with 8 wins.
+    const live = {
+      races: 5, sprints: 0, run: 18, results: 18, dropped_scores: 'Every result counts', available: 125,
+      win_points: 25, fastest_lap_points: 0, scale: '[25,18,15,12,10,8,6,4,2,1]', sprint_scale: '[8,7,6,5,4,3,2,1]', sprint_points: 8,
+      countback: RACE_PLACES,
+    }
+    const drivers = [
+      { entity: 'Andrea Kimi Antonelli', driver_id: 'antonelli', position: 1, points: 365 },
+      { entity: 'George Russell', driver_id: 'russell', position: 2, points: 240 },
+      { entity: 'Sir Lewis Hamilton', driver_id: 'hamilton', position: 3, points: 229 },
+    ]
+    const place = (kind, id, at, n) => ({ kind, id, place: at, n })
+    const austin = [
+      place('drivers', 'antonelli', 1, 9), place('drivers', 'antonelli', 2, 3), place('drivers', 'antonelli', 3, 3),
+      place('drivers', 'russell', 1, 3), place('drivers', 'russell', 2, 4), place('drivers', 'russell', 3, 1),
+    ]
+    const answer = (args) => titleAnswer({ drivers, remaining: live, afterRound: 18, year: 2026, places: austin, ...args })
+
+    it('puts out a rival who would lose the tie, and says on what', () => {
+      const said = answer({})
+      assert.equal(
+        said.who,
+        "Only Andrea Kimi Antonelli can still win the drivers' title: no other driver can now beat the leader's total, or match it and win the countback.",
+      )
+      assert.match(said.basis, /A tie on points goes to whoever has more wins, then more second places, and so on\./)
+      assert.match(
+        said.basis,
+        /George Russell can at best draw level with Andrea Kimi Antonelli, by winning every round left, and would then lose it on the countback: 8 wins to 9\.$/,
+      )
+      assert.ok(!said.basis.includes('Points only'), 'the old sentence goes where the answer is given')
+      assert.equal(said.drivers.rows.find((d) => d.id === 'russell').alive, false)
+      assert.equal(fightLine(said, 'drivers', 'russell'), 'Out of the title fight: can at best draw level, and would lose the countback.')
+      assert.equal(fightLine(said, 'drivers', 'antonelli'), 'The only one left in the title fight: 125 clear with 125 left.')
+      // The bar meets the line and is out, so the note says why.
+      const [figure] = reachFigures(said, 2026)
+      assert.equal(figure.rows.find((d) => d.id === 'russell').alive, false)
+      assert.match(figure.note, /a bar short of it is out, as is one that meets it and loses the countback\./)
+    })
+
+    it('keeps in a rival who would win the tie, the other way round', () => {
+      const fewer = austin.map((p) => (p.id === 'antonelli' && p.place === 1 ? { ...p, n: 7 } : p))
+      const said = answer({ places: fewer })
+      assert.equal(said.who, "Who can still win the drivers' title: Andrea Kimi Antonelli and George Russell.")
+      assert.match(said.basis, /and would then take the title on the countback: 8 wins to 7\.$/)
+      assert.equal(fightLine(said, 'drivers', 'russell'), 'Still in the title fight: 125 behind with 125 left.')
+      assert.ok(!reachFigures(said, 2026)[0].note.includes('countback'))
+    })
+
+    it('goes down the order where the wins are level, and only as far as the places that score', () => {
+      // 8 wins each; then second places, Russell's 4 to Antonelli's 3.
+      const level = austin.map((p) => (p.id === 'antonelli' && p.place === 1 ? { ...p, n: 8 } : p))
+      assert.match(answer({ places: level }).basis, /take the title on the countback: level on wins, then 4 second places to 3\.$/)
+      // Seconds level too: third places, 3 to 1, against him.
+      const deeper = level.map((p) => (p.id === 'russell' && p.place === 2 ? { ...p, n: 3 } : p))
+      assert.match(answer({ places: deeper }).basis, /lose it on the countback: level on wins and every place to second, then 1 third place to 3\.$/)
+      // Level on every place that scores: below them the leader's finishes are
+      // not fixed, so nobody can say, and the rival stays in. A place below the
+      // scale and a team's place are not a driver's countback at all.
+      const same = [
+        place('drivers', 'antonelli', 1, 8), place('drivers', 'russell', 1, 3),
+        place('drivers', 'antonelli', 11, 4), place('constructors', 'russell', 2, 9),
+      ]
+      const unsaid = answer({ places: same })
+      assert.match(unsaid.who, /Andrea Kimi Antonelli and George Russell\./)
+      assert.match(unsaid.basis, /by winning every round left, and who the countback would then favour is not worked out here\.$/)
+    })
+
+    it('counts a sprint left as nothing, because a sprint place is not a race place', () => {
+      const said = answer({ remaining: { ...live, sprints: 1, available: 133 } , drivers: [drivers[0], { ...drivers[1], points: 232 }] })
+      assert.match(said.basis, /by winning every round and sprint left, and would then lose it on the countback: 8 wins to 9\.$/)
+    })
+
+    it('declines where the rule is not held, and where the results are behind the calendar', () => {
+      // A season no tie_breaks period covers: the words VD-90 printed, and the
+      // rival counted in, as before AF-137.
+      const unruled = answer({ remaining: { ...live, countback: null } })
+      assert.match(unruled.who, /Andrea Kimi Antonelli and George Russell\./)
+      assert.match(unruled.basis, /Points only: a tie at the top is settled on wins, which this does not work out\.$/)
+      assert.ok(!unruled.basis.includes('countback'))
+      // A spelling the page does not know is not the rule.
+      assert.match(answer({ remaining: { ...live, countback: 'race and sprint places' } }).basis, /Points only/)
+      // A round run with no result yet would be counted as nobody's places.
+      const behind = answer({ remaining: { ...live, results: 17 } })
+      assert.match(behind.who, /Andrea Kimi Antonelli and George Russell\./)
+      assert.match(behind.basis, /goes to whoever has more wins.*who the countback would then favour is not worked out here\.$/)
+      // And without the places at all.
+      assert.match(answer({ places: undefined }).basis, /not worked out here\.$/)
+    })
+
+    it("settles the constructors' title on both cars' places, with a one-two a round", () => {
+      const teams = [
+        { entity: 'Mercedes', constructor_id: 'mercedes', position: 1, points: 500 },
+        { entity: 'Ferrari', constructor_id: 'ferrari', position: 2, points: 414 },
+      ]
+      // Two rounds at 43 a team: Ferrari 86 behind, level at best. Its best case
+      // adds two wins and two second places: 5 and 3 against Mercedes' 5 and 4.
+      const two = { ...live, races: 2, available: 50 }
+      const places = [
+        place('constructors', 'mercedes', 1, 5), place('constructors', 'mercedes', 2, 4),
+        place('constructors', 'ferrari', 1, 3), place('constructors', 'ferrari', 2, 1),
+      ]
+      const said = titleAnswer({ drivers: [], constructors: teams, remaining: two, afterRound: 18, year: 2026, places })
+      assert.match(said.who, /^Only Mercedes can still win the constructors' title: no other team can now beat the leader's total, or match it and win the countback\./)
+      assert.match(said.basis, /Ferrari can at best draw level with Mercedes, with a one-two in every round left, and would then lose it on the countback: level on wins, then 3 second places to 4\.$/)
+      // Two more second places and it is Ferrari's.
+      const more = places.map((p) => (p.id === 'ferrari' && p.place === 2 ? { ...p, n: 3 } : p))
+      const won = titleAnswer({ drivers: [], constructors: teams, remaining: two, afterRound: 18, year: 2026, places: more })
+      assert.match(won.who, /Mercedes and Ferrari\./)
+      assert.match(won.basis, /would then take the title on the countback: level on wins, then 5 second places to 4\.$/)
+    })
+
+    it('has to beat every leader, and names no figures against two', () => {
+      const shared = [
+        { entity: 'A', driver_id: 'a', position: 1, points: 365 },
+        { entity: 'B', driver_id: 'b', position: 2, points: 365 },
+        { entity: 'C', driver_id: 'c', position: 3, points: 240 },
+      ]
+      const places = [place('drivers', 'a', 1, 6), place('drivers', 'b', 1, 9), place('drivers', 'c', 1, 3)]
+      // 8 wins beats A's 6 and loses to B's 9: out.
+      const said = titleAnswer({ drivers: shared, remaining: live, afterRound: 18, year: 2026, places })
+      assert.equal(said.who, "Who can still win the drivers' title: A and B.")
+      assert.match(said.basis, /C can at best draw level with A and B, by winning every round left, and would then lose it on the countback\.$/)
+      // Beating both keeps C in.
+      const both = places.map((p) => (p.id === 'b' ? { ...p, n: 7 } : p))
+      assert.match(titleAnswer({ drivers: shared, remaining: live, afterRound: 18, year: 2026, places: both }).who, /A, B and C\./)
+      // One id twice on a table is not counted back.
+      const twice = [...shared, { entity: 'C again', driver_id: 'c', position: 4, points: 1 }]
+      assert.match(titleAnswer({ drivers: twice, remaining: live, afterRound: 18, year: 2026, places }).basis, /not worked out here\.$/)
+    })
+  })
+
   // LV-15. Five rounds and three run, 100, 75 and 50 left after rounds 1 to
   // 3 at 25 a driver and 43 a team. A is 80 clear after round 2 and stays so.
   describe('a title decided before the last round', () => {
@@ -1486,6 +1625,26 @@ describe('the queries a page and the prerenderer share', () => {
       assert.deepEqual(ids(fightCitation(get, title, 'constructors', 'x')), [5, 7])
       assert.deepEqual(ids(fightCitation(get, title)), [2, 5, 7], 'the whole answer, on the upcoming race')
       assert.deepEqual(ids(fightCitation(get, { crowned: undefined })), [5, 7])
+    })
+
+    // AF-137: the countback's entries are behind a line only where it counted
+    // a tie back - a crowned title, or a fight with no rule held, does not.
+    it('cites the countback only where the answer counted a tie back', () => {
+      const entry = (id) => ({ id, priority: id })
+      const held = { fightSources: [entry(5), entry(7)], fightTieSources: [entry(1), entry(7)], crownedSources: [entry(2)] }
+      const get = (key) => held[key]
+      const ids = (rows) => rows.map((s) => s.id)
+      const rule = { counts: new Map(), depth: 10 }
+      const level = { tie: rule, rows: [{ id: 'a', level: false }, { id: 'b', level: true }] }
+      const none = { tie: rule, rows: [{ id: 'a', level: false }] }
+      assert.deepEqual(ids(fightCitation(get, { drivers: level }, 'drivers', 'b')), [1, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, { drivers: level })), [1, 5, 7], 'the basis states the rule')
+      assert.deepEqual(ids(fightCitation(get, { drivers: none }, 'drivers', 'a')), [5, 7], 'nobody level: the line does not reach it')
+      assert.deepEqual(ids(fightCitation(get, { drivers: none })), [1, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, { drivers: { ...level, tie: null } })), [5, 7], 'no rule held')
+      assert.deepEqual(ids(fightCitation(get, { drivers: null, crowned: { drivers: { id: 'a' } } }, 'drivers', 'a')), [2, 5, 7])
+      assert.deepEqual(ids(seasonSources([entry(7)], [entry(18)], { answer: { drivers: level }, remaining: null, tie: [entry(1)] })), [1, 7, 18])
+      assert.deepEqual(ids(seasonSources([entry(7)], [entry(18)], { answer: { who: 'crowned', drivers: null }, remaining: null, tie: [entry(1)] })), [7, 18])
     })
 
     it("names the champion on the strip while the gap stays a gap", () => {

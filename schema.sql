@@ -1648,6 +1648,29 @@ CREATE TABLE qualifying_formats (
     UNIQUE (session, from_year, from_round)
 );
 
+-- How a tie on points at the end of a season is settled (AF-137), period by
+-- period, as the FIA's own text sets it: the season page reads it to say who
+-- a rival who can at best draw level would lose or win the title to. A row
+-- covers from_year..to_year, the seasons whose issues were read and agree;
+-- a season no row covers is not established, and the page declines it.
+-- `countback` is what is counted, in the one spelling the page knows: 'race
+-- places' is the most first places in a race, then the most second places,
+-- and so on down the order, for a driver and, from both its cars, for a
+-- constructor. `article` is where that season's text says it and `rule`
+-- the article in this database's words, including what follows where the
+-- count settles nothing. Nothing before 2009: known_gaps #22.
+CREATE TABLE tie_breaks (
+    id              INTEGER PRIMARY KEY,
+    from_year       INTEGER NOT NULL,
+    to_year         INTEGER NOT NULL CHECK (to_year >= from_year),
+    countback       TEXT NOT NULL CHECK (countback IN ('race places')),
+    article         TEXT NOT NULL,
+    rule            TEXT NOT NULL,
+    confidence      TEXT NOT NULL REFERENCES provenance(confidence),
+    source          TEXT NOT NULL,
+    UNIQUE (from_year)
+);
+
 -- DERIVED, not authored. Until v2.23 this held thirty rows typed from general
 -- knowledge, with twenty-four spellings of `as_of` and a Hamilton win count
 -- one behind the `drivers.wins` the same database computed. Every row is now

@@ -637,7 +637,7 @@ class Figures:
     # cover an unread table would assert that on nobody's behalf.
     ITEMISED = ("drivers", "circuits", "seasons", "standings", "constructors",
                 "races", "race_entries", "regulation_changes", "regulation_limits",
-                "qualifying_formats", "sessions", "claims")
+                "qualifying_formats", "tie_breaks", "sessions", "claims")
 
     def facts_only_tables(self):
         held = {t for t, _ in self._licence_tally()[2]}
@@ -1225,6 +1225,7 @@ class Figures:
     def fo_regulation_changes(self): return self._fo("regulation_changes")
     def fo_regulation_limits(self):  return self._fo("regulation_limits")
     def fo_qualifying_formats(self): return self._fo("qualifying_formats")
+    def fo_tie_breaks(self):         return self._fo("tie_breaks")
     def fo_sessions(self):           return self._fo("sessions")
     def fo_claims(self):             return self._fo("claims")
 
