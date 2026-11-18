@@ -6,17 +6,19 @@ WHAT THIS IS
     The circuit page draws the track over the circuit's aerial photograph.
     The photographs are not georeferenced: a Commons SkySat file is a cropped,
     often rotated image with no corner coordinates. So each one is placed by
-    hand, as this project's own derivation (source 18):
+    this project, as its own derivation (source 18):
 
     1.  Points are marked on the photograph that lie on the middle of the
         track, spread round the whole lap - pixels in the frame article_images
         stores (`width` x `height`), never a coordinate - by eye, or as the
-        middle of the asphalt across the track at stations round it (the
-        comment over PHOTO_TRACE in data/harvest.py says which, and how).
+        middle of the asphalt across the track at stations round it, found
+        by a script outside the build (the comment over PHOTO_TRACE in
+        data/harvest.py says which, and how). No point is given twice.
         They go into PHOTO_TRACE with that frame.
     2.  This script fits the affine transform that carries the centreline's
         longitudes and latitudes onto those pixels - iterative closest point,
-        a similarity first from a sweep of rotations, then a full affine - and
+        a similarity first from a sweep of rotations, then a full affine, with
+        the stored transform as one more start where there is one - and
         prints it, with each point's distance from the fitted line.
     3.  The transform is pasted into PHOTO_TRACE beside its points. build.py
         measures every point's distance from the drawn line again, and drops
@@ -161,8 +163,12 @@ def _icp(points, local, t, fit, rounds):
     return t, rms
 
 
-def fit(points, lines):
+def fit(points, lines, seed=None):
     """The affine transform carrying (lon, lat) onto the points' pixels.
+
+    `seed`, a transform in the stored form, is one more start for the search
+    beside the sweep of rotations, so a re-run after the points change keeps
+    the stored placing where it still fits best.
 
     Returned in the stored form: {"origin": [lon0, lat0], "x": [a, b, c],
     "y": [d, e, f]}, meaning x = a (lon - lon0) + b (lat - lat0) + c, and y
@@ -191,8 +197,12 @@ def fit(points, lines):
         t, rms = _icp(points, local, t0, _similarity, 12)
         tries.append((rms, deg, t))
     tries.sort()
+    starts = [t for _, _, t in tries[:4]]
+    if seed and tuple(seed["origin"]) == (lon0, lat0):
+        (sa, sb, sc), (sd, se, sf) = seed["x"], seed["y"]
+        starts.append((sa / kx, -sb / ky, sc, sd / kx, -se / ky, sf))
     best = None
-    for rms, deg, t in tries[:4]:
+    for t in starts:
         t, rms = _icp(points, local, t, _similarity, 60)
         t, rms = _icp(points, local, t, _affine, 200)
         if best is None or rms < best[0]:
@@ -225,7 +235,7 @@ def main(argv):
     if not entry:
         raise SystemExit(f"{cid}: no points in data/harvest.py PHOTO_TRACE.")
     lines = centreline(cid)
-    t = fit([tuple(p) for p in entry["points"]], lines)
+    t = fit([tuple(p) for p in entry["points"]], lines, entry.get("transform"))
     print(json.dumps(t))
     report(cid, {**entry, "transform": t}, lines)
     return 0

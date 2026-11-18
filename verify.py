@@ -7408,6 +7408,8 @@ def illustration_and_geometry():
                 bad_photo.append(f"{cid} marks a point outside its "
                                  f"photograph")
             errors = H.photo_trace_errors(transform, points, lines)
+            if len(set(points)) != len(points):
+                bad_photo.append(f"{cid} marks a point twice")
             if len(points) < H.PHOTO_TRACE_MIN_POINTS:
                 bad_photo.append(f"{cid} marks {len(points)} points")
             if max(errors) > H.PHOTO_TRACE_TOLERANCE_PX:

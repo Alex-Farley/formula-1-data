@@ -224,8 +224,10 @@ One thing in data/ is fitted to the same coordinates: each `transform` in
 `PHOTO_TRACE` in `data/harvest.py`, the origin and six coefficients that
 place a circuit's centreline on its aerial photograph. They are **ODbL 1.0,
 (c) OpenStreetMap contributors**, with the centrelines they were fitted to,
-and are not covered by this licence. The marked `points` beside them are
-pixels of the photograph, read by this project, and stay under it.
+and are not covered by this licence. Nor are the marked `points` of every
+placing but Monza's, whose stations round the lap were spaced along the
+centreline: they are ODbL 1.0 with it. Monza's points, marked by eye, are
+pixels of the photograph read by this project, and stay under this licence.
 
 ## Live timing data
 

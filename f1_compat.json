@@ -979,7 +979,7 @@
       "url": "https://www.openstreetmap.org/",
       "use": "Circuit centrelines: the shape of each track as currently mapped, stored as GeoJSON on circuit_geometry. Loaded by tools/osm_geometry.py. Relation ids come from Wikidata (P402), which is CC0 and brokers the identifier without constraining anything.",
       "authority": "reference",
-      "licence": "ODbL 1.0 - share-alike AND a database right. That is a different obligation from every other source here, and it is confined to one table on purpose; see ATTRIBUTION.md. Nothing else derives from it.",
+      "licence": "ODbL 1.0 - share-alike AND a database right. That is a different obligation from every other source here, and it is confined to one table on purpose; see ATTRIBUTION.md. Nothing else in the published databases derives from it.",
       "cadence": "Continuous, by anyone, and it maps only what is on the ground NOW. There is no historic geometry to be had: Spa's 14.1 km road course and Monza's banking are unmapped and unmappable, and Wikidata's own layout entities carry length and dates but no coordinates.",
       "checkability": "Strong, and it fired immediately. A circuit relation is not an ordered ring - its members include the pit lane - so a naive sum puts Monaco at 3.745 km against a published 3.337, twelve per cent long, and nothing about that number looks wrong on its own. What rejects it is length_km, held here before OSM was consulted. Excluding the pit lane by member role gives 3.388 km, and anything outside two per cent is refused rather than stored with a caveat. The measurement is then re-run in build.py from the stored coordinates, with its own copy of the arithmetic, because sharing the tool's would check nothing.",
       "redistributable": "yes",

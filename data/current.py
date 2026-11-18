@@ -593,7 +593,8 @@ SOURCE_REGISTRY = [
      "reference",
      "ODbL 1.0 - share-alike AND a database right. That is a different "
      "obligation from every other source here, and it is confined to one "
-     "table on purpose; see ATTRIBUTION.md. Nothing else derives from it.",
+     "table on purpose; see ATTRIBUTION.md. Nothing else in the published "
+     "databases derives from it.",
      "Continuous, by anyone, and it maps only what is on the ground NOW. "
      "There is no historic geometry to be had: Spa's 14.1 km road course and "
      "Monza's banking are unmapped and unmappable, and Wikidata's own "

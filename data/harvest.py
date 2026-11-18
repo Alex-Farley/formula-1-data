@@ -2690,18 +2690,22 @@ def circuit_file_names(file_name, forms):
 # placing is this project's own derivation (source 18), held at no more than
 # 'medium'; nothing here is a fact about the photograph.
 #
-# Monza's points were marked by eye. The other six were marked at stations
-# spaced evenly round the lap, each point the middle of the band of
-# asphalt-coloured pixels across the track there, once the line had been
-# laid on the photograph by eye from three or more corners and moved onto
-# the asphalt under it; a station where that band was missing, off to one
-# side or unlike the track's usual width marks nothing. Every placing was
-# then checked by eye over its photograph. Five circuits with both a
-# photograph and a centreline have no placing yet: baku and monaco, street
-# circuits where a band of asphalt is not the track's alone, so a point found
-# that way could lie on the next street; and gilles-villeneuve, spa and
-# suzuka, where that method did not put the line on the track within the
-# tolerance below. Their photographs are shown plain (#1385).
+# Monza's points were marked by eye. The other six were found by a script
+# that is not part of the build: the line was laid on the photograph by eye
+# from three or more corners, then moved onto the asphalt by a search over
+# affine transforms for the one with the most asphalt-coloured pixels under
+# it; stations were spaced evenly along that line, and each point is the
+# middle of the band of asphalt-coloured pixels across the track at a
+# station. A station where that band was missing, off to one side or unlike
+# the track's usual width gave no point, and no point is given twice. The
+# transform beside the points is what tools/photo_trace.py fits onto them.
+# Every placing was then checked by eye over its photograph.
+#
+# Five circuits with both a photograph and a centreline have no placing yet:
+# baku and monaco, street circuits where a band of asphalt is not the
+# track's alone, so a point found that way could lie on the next street; and
+# gilles-villeneuve, spa and suzuka, where that method did not put the line
+# on the track within the tolerance below. Their photographs are shown plain (#1385).
 #
 # Keyed to the file. A transform belongs to the pixels it was fitted on, so
 # build.py stores one only while the circuit's photograph is still `file`; a
@@ -2711,13 +2715,14 @@ def circuit_file_names(file_name, forms):
 # while article_images holds that size.
 #
 # `points` are pixels in that frame, y downwards, and never a coordinate.
-# The transform
-# maps (lon, lat) onto that frame:
+# The transform maps (lon, lat) onto that frame:
 #     x = x[0] * (lon - origin[0]) + x[1] * (lat - origin[1]) + x[2]
 #     y = y[0] * (lon - origin[0]) + y[1] * (lat - origin[1]) + y[2]
 # Being fitted from OpenStreetMap's coordinates, it is ODbL's too: build.py
 # writes it into circuit_geometry, which ships as f1-geometry.db, never into
-# f1.db.
+# f1.db. So, in this file, is every transform below and every placing's
+# points but Monza's, whose stations were spaced along the centreline
+# (LICENSE-DATA, ATTRIBUTION.md; AF-174 #1387 asks whether they need to be).
 # =====================================================================
 
 # How far, in pixels of that frame, a marked point may lie from the drawn
@@ -2770,8 +2775,8 @@ PHOTO_TRACE = {
             (456.0, 161.6),
         ),
         "transform": {"origin": (50.514203, 26.032077),
-                      "x": (-2170.922, -61465.387, 353.544),
-                      "y": (-56323.701, 2405.987, 313.296)},
+                      "x": (-2170.477, -61465.76, 353.547),
+                      "y": (-56330.671, 2406.769, 313.272)},
     },
     "buddh": {
         "file": "File:Buddh International Circuit aerial.jpg",
@@ -2782,12 +2787,12 @@ PHOTO_TRACE = {
             (276.3, 274.6), (198.6, 132.9), (139.6, 120.9), (204.1, 106.0),
             (246.2, 151.0), (305.8, 135.2), (361.8, 157.0), (371.3, 198.2),
             (332.6, 244.2), (370.8, 281.2), (430.1, 275.8), (490.1, 272.0),
-            (549.8, 268.4), (598.8, 345.8), (562.4, 291.4), (562.4, 291.4),
-            (591.3, 336.4), (562.4, 275.0),
+            (549.8, 268.4), (598.8, 345.8), (562.4, 291.4), (591.3, 336.4),
+            (562.4, 275.0),
         ),
         "transform": {"origin": (77.533905, 28.348066),
-                      "x": (-7880.233, 37983.629, 332.565),
-                      "y": (33681.5, 10148.818, 219.231)},
+                      "x": (-7875.452, 37968.123, 332.518),
+                      "y": (33681.988, 10146.58, 219.225)},
     },
     "cota": {
         "file": "File:Circuit of the Americas, April 22, 2018 SkySat (cropped2).jpg",
@@ -2799,8 +2804,8 @@ PHOTO_TRACE = {
             (311.6, 197.3), (280.2, 154.9), (255.8, 173.8), (45.7, 236.9),
         ),
         "transform": {"origin": (-97.634955, 30.135286),
-                      "x": (37668.005, -226.757, 354.172),
-                      "y": (-271.818, -43549.504, 205.122)},
+                      "x": (37667.855, -221.389, 354.173),
+                      "y": (-271.644, -43545.141, 205.113)},
     },
     "paul-ricard": {
         "file": "File:Circuit Paul Ricard, April 22, 2018 SkySat (cropped).jpg",
@@ -2808,13 +2813,13 @@ PHOTO_TRACE = {
         "points": (
             (658.6, 364.2), (709.8, 373.9), (709.6, 360.4), (701.3, 283.3),
             (686.9, 265.8), (400.4, 169.3), (517.3, 207.8), (633.7, 246.5),
-            (320.8, 142.5), (77.2, 30.4), (77.2, 30.4), (52.0, 50.2),
-            (82.5, 91.2), (177.9, 141.9), (202.4, 160.7), (296.8, 176.6),
-            (500.2, 321.9), (500.2, 321.9), (485.8, 311.4), (659.8, 301.8),
+            (320.8, 142.5), (77.2, 30.4), (52.0, 50.2), (82.5, 91.2),
+            (177.9, 141.9), (202.4, 160.7), (296.8, 176.6), (500.2, 321.9),
+            (485.8, 311.4), (659.8, 301.8),
         ),
         "transform": {"origin": (5.792312, 43.252582),
-                      "x": (26328.052, -854.271, 405.729),
-                      "y": (-821.765, -35695.78, 219.936)},
+                      "x": (26322.543, -873.96, 405.744),
+                      "y": (-813.872, -35663.274, 219.92)},
     },
     "rodriguez": {
         "file": "File:Autódromo Hermanos Rodríguez, June 4, 2018 SkySat (cropped).jpg",
@@ -2829,8 +2834,8 @@ PHOTO_TRACE = {
             (582.0, 418.8), (540.8, 364.1), (310.6, 211.6), (163.1, 190.1),
         ),
         "transform": {"origin": (-99.089748, 19.402639),
-                      "x": (54671.05, 67.409, 405.723),
-                      "y": (-103.856, -57886.336, 247.102)},
+                      "x": (54669.573, 66.32, 405.719),
+                      "y": (-100.524, -57887.321, 247.101)},
     },
     "shanghai": {
         "file": "File:Shanghai International Circuit, April 7, 2018 SkySat (rotated).jpg",
@@ -2844,8 +2849,8 @@ PHOTO_TRACE = {
             (190.3, 404.4), (234.6, 379.3), (270.3, 372.8),
         ),
         "transform": {"origin": (121.219571, 31.340191),
-                      "x": (-20717.512, 34913.567, 455.107),
-                      "y": (30953.029, 24450.808, 249.586)},
+                      "x": (-20723.728, 34917.688, 455.106),
+                      "y": (30953.298, 24450.598, 249.581)},
     },
 }
 

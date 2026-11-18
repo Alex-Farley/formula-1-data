@@ -341,8 +341,11 @@ One thing outside `harvest/` is fitted to the same coordinates: each
 `transform` in `PHOTO_TRACE` in `data/harvest.py` (`AF-96`), the six
 coefficients and the origin that place a centreline on a photograph. They are
 ODbL 1.0, © OpenStreetMap contributors, with the centrelines they were fitted
-to. The marked `points` beside them are pixels of the photograph, read by this
-project, and hold nothing of OpenStreetMap's.
+to. So are the marked `points` of every placing but Monza's: they are pixels
+of the photograph, but their stations round the lap were spaced along the
+centreline once it was laid on the photograph. Monza's points, marked by eye,
+are pixels of the photograph read by this project. Whether the station-marked
+points needed to be ODbL is part of `AF-174` (#1387).
 
 The Wikidata item ids in `circuit_wikidata.txt`'s `wikidata_id` column stay
 CC0, as its header says.

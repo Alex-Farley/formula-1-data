@@ -1464,6 +1464,9 @@ def _place_traces_on_photographs(cur):
             raise SystemExit(
                 f"PHOTO_TRACE: {cid} marks {len(points)} points; a lap "
                 f"needs {HV.PHOTO_TRACE_MIN_POINTS}.")
+        if len(set(points)) != len(points):
+            raise SystemExit(f"PHOTO_TRACE: {cid} marks a point twice; "
+                             f"each point counts once.")
         if not all(0 <= x <= width and 0 <= y <= height for x, y in points):
             raise SystemExit(f"PHOTO_TRACE: {cid} marks a point outside "
                              f"its {width} x {height} photograph.")
