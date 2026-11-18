@@ -713,7 +713,21 @@ CREATE TABLE circuit_outlines (
     turns           INTEGER,
     path            TEXT NOT NULL,             -- SVG path data; viewBox 0 0 500 500
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
-    source          TEXT
+    source          TEXT,
+    -- Where this outline is drawn over the circuit's aerial photograph
+    -- (AF-177): all six NULL where it is not. Neither the drawing nor the
+    -- photograph has coordinates, so the placing is this project's own,
+    -- never a fact about either: points marked by eye on the middle of the
+    -- track, each paired with the outline's nearest point, and the affine
+    -- fitted to the pairs (PHOTO_OUTLINE in data/harvest.py), held to
+    -- source 18 and to no more than 'medium'. No OpenStreetMap input, so it
+    -- lives here, beside the CC BY 4.0 path it places.
+    photo_file      TEXT,                      -- the file it was placed on: article_images.file_name
+    photo_points    TEXT,                      -- JSON [[[x, y], [x, y]], ...]: box point, frame pixel
+    photo_transform TEXT,                      -- JSON [a, b, c, d, e, f]: SVG matrix(), box to frame
+    photo_error_px  REAL,                      -- the worst pair's distance once placed
+    photo_source_id INTEGER REFERENCES source_registry(id), -- 18: written for this project
+    photo_confidence TEXT REFERENCES provenance(confidence)
 );
 
 -- The centreline of a circuit as OpenStreetMap maps it, checked against the

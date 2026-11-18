@@ -1420,6 +1420,10 @@ def _stage_12_circuit_centrelines_re_measured_before_they(b):
 def _place_traces_on_photographs(cur):
     """The track over the photograph (AF-96), checked before it is stored.
 
+    No longer drawn: since AF-177 the site draws F1DB's outline over the
+    photograph (_place_outlines_on_photographs), and these placings stay in
+    f1-geometry.db until AF-179 removes them with OpenStreetMap.
+
     PHOTO_TRACE in data/harvest.py holds, per circuit, points on the middle
     of the track in its aerial photograph and the transform
     tools/photo_trace.py fitted onto them. Nothing here fits anything: the
@@ -5436,6 +5440,79 @@ def _stage_34_circuit_outlines_from_f1db(b):
           + (f", {len(split)} span several ({', '.join(split)})" if split else "")
           + (f"; {len(unplaced)} outlines no race here ran, skipped: "
              f"{', '.join(unplaced)}" if unplaced else ""))
+
+    _place_outlines_on_photographs(cur)
+
+
+def _place_outlines_on_photographs(cur):
+    """F1DB's outline over the photograph (AF-177), checked before it is stored.
+
+    PHOTO_OUTLINE in data/harvest.py holds, per circuit, pairs of a point on
+    the outline and the point marked by eye on the middle of the track in
+    the photograph. The transform is the least-squares affine of the pairs,
+    which is arithmetic, so the build fits it here rather than reading one.
+    A placing is stored when the circuit's photograph is still the file it
+    was placed on, at the size its points were marked in, when the outline
+    it names is this circuit's, and when every marked point lies within the
+    tolerance of its pair once placed. Otherwise the photograph is shown
+    plain - a new photograph or a new stored size is an ordinary refresh,
+    not a broken build - and verify.py says which entry is not drawn.
+    """
+    placed = []
+    for cid, entry in sorted(HV.PHOTO_OUTLINE.items()):
+        # The entry's own shape is refused whether or not it is drawn.
+        pairs = [(tuple(o), tuple(p)) for o, p in entry["pairs"]]
+        marks = [p for _, p in pairs]
+        if len(pairs) < HV.PHOTO_OUTLINE_MIN_POINTS:
+            raise SystemExit(
+                f"PHOTO_OUTLINE: {cid} pairs {len(pairs)} points; a lap "
+                f"needs {HV.PHOTO_OUTLINE_MIN_POINTS}.")
+        if len(set(marks)) != len(marks):
+            raise SystemExit(f"PHOTO_OUTLINE: {cid} marks a point twice; "
+                             f"each point counts once.")
+        if not all(0 <= x <= 500 and 0 <= y <= 500 for (x, y), _ in pairs):
+            raise SystemExit(f"PHOTO_OUTLINE: {cid} pairs a point outside "
+                             f"the outline's 500 x 500 box.")
+        owner = cur.execute(
+            "SELECT circuit_id FROM circuit_outlines WHERE f1db_layout_id = ?",
+            (entry["layout"],)).fetchone()
+        if owner is None or owner[0] != cid:
+            raise SystemExit(
+                f"PHOTO_OUTLINE: {cid} names outline {entry['layout']}, "
+                f"which is not one of its own.")
+        photo = cur.execute(
+            "SELECT file_name, width, height FROM article_images "
+            "WHERE route = 'circuit' AND circuit_id = ?", (cid,)).fetchone()
+        if photo is None or photo[0] != entry["file"]:
+            print(f"    outline not drawn over its photograph: {cid}, whose "
+                  f"photograph is no longer the file it was placed on")
+            continue
+        _, width, height = photo
+        if (width, height) != tuple(entry["frame"]):
+            print(f"    outline not drawn over its photograph: {cid}, stored "
+                  f"at {width} x {height}, not the {entry['frame'][0]} x "
+                  f"{entry['frame'][1]} its points were marked in")
+            continue
+        if not all(0 <= x <= width and 0 <= y <= height for x, y in marks):
+            raise SystemExit(f"PHOTO_OUTLINE: {cid} marks a point outside "
+                             f"its {width} x {height} photograph.")
+        matrix = HV.photo_outline_transform(pairs)
+        worst = max(HV.photo_outline_errors(matrix, pairs))
+        if worst > HV.PHOTO_OUTLINE_TOLERANCE_PX:
+            print(f"    outline not drawn over its photograph: {cid}, a point "
+                  f"{worst:.1f} px from the outline, beyond "
+                  f"{HV.PHOTO_OUTLINE_TOLERANCE_PX:g} px")
+            continue
+        cur.execute(
+            """UPDATE circuit_outlines SET photo_file = ?, photo_points = ?,
+               photo_transform = ?, photo_error_px = ?, photo_source_id = 18,
+               photo_confidence = 'medium'
+               WHERE f1db_layout_id = ?""",
+            (entry["file"], json.dumps([[list(o), list(p)] for o, p in pairs]),
+             json.dumps(matrix), round(worst, 2), entry["layout"]))
+        placed.append(f"{cid} ({worst:.1f} px)")
+    if placed:
+        print(f"    outline drawn over the photograph: {', '.join(placed)}")
 
 
 def _stage_36b_the_photographs_filed_under_each_race(b):

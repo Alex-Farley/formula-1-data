@@ -2753,6 +2753,10 @@ def circuit_file_names(file_name, forms):
 # =====================================================================
 # The track over the photograph (AF-96)
 #
+# Since AF-177 the site draws F1DB's outline over the photograph instead
+# (PHOTO_OUTLINE, below). These placings are still built and checked, and no
+# longer drawn, until AF-179 (#1395) removes them with OpenStreetMap.
+#
 # The circuit page draws the OpenStreetMap centreline over the circuit's
 # aerial photograph. The photographs are not georeferenced - a SkySat file on
 # Commons is cropped and often rotated, with no corner coordinates - so each
@@ -2970,6 +2974,253 @@ def photo_trace_gap(transform, points, lines):
     return max(min(((x - px) ** 2 + (y - py) ** 2) ** 0.5
                    for px, py in points)
                for x, y in samples)
+
+
+# =====================================================================
+# F1DB's outline over the photograph (AF-177)
+#
+# Ruled on AF-174 (#1387) and approved on its mockup (AF-177, #1393): the
+# line drawn over a circuit's aerial photograph is F1DB's outline of the
+# layout, not the OpenStreetMap centreline, so that the drawing owes nothing
+# under ODbL and survives OpenStreetMap's removal (AF-179, #1395). The outline
+# is a schematic drawing in a 500 x 500 box with no scale or position, and
+# the photograph is not georeferenced, so each placing is this project's own
+# (source 18), held at no more than 'medium', and no fact about either.
+#
+# Each placing was made from the photograph alone, with no OpenStreetMap
+# input: points were marked by eye on the middle of the track, spread round
+# the lap, and the outline was fitted onto them by least squares, each mark
+# paired with the point of the drawn outline nearest it. `pairs` are those
+# pairs, ((x, y) in the outline's box, (x, y) in the photograph's frame),
+# and the build fits the transform from them again, which is arithmetic:
+# the affine that carries the outline's box onto the frame with the least
+# squared distance over the pairs (photo_outline_transform). The fit is a
+# drawing laid over a photograph, not a survey: the outline is a drawing of
+# the layout and not of the tarmac, which is why its tolerance below is
+# wider than the trace's, and why the caption says it was placed by eye.
+#
+# Keyed to the file and the frame, as PHOTO_TRACE is: a new photograph, or
+# a new stored size for the same file, drops the placing and the page shows
+# the photograph plain until it is placed again. `layout` is F1DB's id of
+# the outline placed, the one the circuit's latest race ran when it was.
+#
+# The other circuits with both an outline and an aerial photograph have no
+# placing yet, and their photographs are shown plain.
+# =====================================================================
+
+# How far, in pixels of the frame, a marked point may lie from its paired
+# point of the placed outline before the outline is not drawn at all.
+# Twenty-four in an 800-pixel frame is three per cent of its width.
+PHOTO_OUTLINE_TOLERANCE_PX = 24.0
+
+# Fewer pairs than this cannot speak for a whole lap: the affine has six
+# unknowns, and every pair past them is a check.
+PHOTO_OUTLINE_MIN_POINTS = 15
+
+PHOTO_OUTLINE = {
+    "monza": {
+        "file": "File:Autodromo Nazionale Monza, April 22, 2018 SkySat (cropped).jpg",
+        "frame": (800, 450),
+        "layout": "monza-7",
+        "pairs": (
+            ((376.0, 21.0), (20.0, 72.0)), ((381.3, 31.2), (33.0, 60.0)),
+            ((383.3, 54.4), (67.0, 55.0)), ((385.5, 84.3), (110.0, 51.0)),
+            ((361.1, 100.9), (140.0, 80.0)), ((347.9, 108.1), (153.0, 98.0)),
+            ((328.9, 119.2), (173.0, 123.0)), ((307.5, 133.0), (193.0, 155.0)),
+            ((283.1, 153.1), (227.0, 187.0)), ((259.9, 173.4), (260.0, 217.0)),
+            ((230.7, 198.9), (300.0, 257.0)), ((201.6, 228.6), (350.0, 292.0)),
+            ((201.4, 245.5), (372.0, 300.0)), ((186.1, 275.5), (420.0, 305.0)),
+            ((176.6, 364.1), (550.0, 306.0)), ((167.0, 452.8), (680.0, 307.0)),
+            ((162.7, 476.8), (715.0, 312.0)), ((149.2, 484.6), (727.0, 330.0)),
+            ((132.9, 479.2), (725.0, 355.0)), ((121.8, 466.9), (710.0, 375.0)),
+            ((114.3, 432.7), (660.0, 388.0)), ((121.6, 336.7), (520.0, 390.0)),
+            ((129.8, 240.4), (380.0, 393.0)), ((138.6, 151.5), (250.0, 396.0)),
+            ((141.0, 110.4), (190.0, 397.0)), ((150.2, 83.0), (150.0, 388.0)),
+            ((165.4, 67.3), (123.0, 370.0)), ((186.5, 56.5), (105.0, 340.0)),
+            ((215.1, 50.8), (93.0, 300.0)), ((242.9, 48.6), (85.0, 260.0)),
+            ((264.1, 46.8), (77.0, 230.0)), ((296.3, 39.9), (60.0, 190.0)),
+            ((311.8, 33.6), (50.0, 163.0)), ((330.5, 27.7), (37.0, 137.0)),
+            ((345.0, 22.5), (27.0, 117.0)), ((359.2, 16.6), (17.0, 97.0)),
+        ),
+    },
+    "bahrain": {
+        "file": "File:Bahrain International Circuit, November 2, 2017 SkySat (cropped).jpg",
+        "frame": (800, 600),
+        "layout": "bahrain-1",
+        "pairs": (
+            ((91.0, 401.1), (150.0, 522.0)), ((184.9, 401.1), (300.0, 522.0)),
+            ((278.8, 401.1), (450.0, 522.0)), ((373.3, 401.1), (600.0, 522.0)),
+            ((448.4, 340.5), (715.0, 440.0)), ((410.5, 273.9), (660.0, 340.0)),
+            ((386.6, 232.0), (620.0, 280.0)), ((185.3, 314.6), (300.0, 405.0)),
+            ((110.1, 311.4), (180.0, 405.0)), ((121.0, 291.6), (200.0, 372.0)),
+            ((185.4, 297.0), (300.0, 375.0)), ((71.9, 111.5), (110.0, 100.0)),
+            ((61.5, 177.4), (100.0, 200.0)), ((51.4, 244.8), (95.0, 300.0)),
+            ((43.6, 315.5), (80.0, 400.0)), ((44.0, 373.8), (70.0, 480.0)),
+            ((101.2, 103.1), (165.0, 95.0)), ((124.3, 129.4), (205.0, 130.0)),
+            ((147.6, 156.5), (240.0, 170.0)), ((175.8, 173.2), (285.0, 195.0)),
+            ((186.0, 190.6), (300.0, 220.0)), ((87.7, 99.0), (145.0, 88.0)),
+            ((289.3, 135.8), (465.0, 140.0)), ((310.3, 120.1), (500.0, 117.0)),
+            ((328.2, 129.8), (530.0, 130.0)), ((342.7, 155.0), (555.0, 165.0)),
+            ((362.0, 188.9), (585.0, 215.0)), ((382.6, 225.1), (615.0, 270.0)),
+            ((272.6, 170.3), (440.0, 190.0)), ((264.4, 197.4), (430.0, 230.0)),
+            ((277.1, 231.4), (445.0, 280.0)),
+        ),
+    },
+    "buddh": {
+        "file": "File:Buddh International Circuit aerial.jpg",
+        "frame": (800, 496),
+        "layout": "buddh-1",
+        "pairs": (
+            ((90.7, 370.8), (200.0, 375.0)), ((212.6, 405.2), (350.0, 375.0)),
+            ((334.5, 439.7), (500.0, 377.0)), ((441.9, 434.7), (620.0, 378.0)),
+            ((464.2, 455.8), (655.0, 380.0)), ((50.1, 359.3), (150.0, 370.0)),
+            ((54.7, 45.8), (105.0, 75.0)), ((92.8, 27.4), (150.0, 52.0)),
+            ((111.0, 36.4), (175.0, 53.0)), ((123.2, 58.8), (195.0, 70.0)),
+            ((134.8, 82.2), (205.0, 97.0)), ((152.3, 117.4), (233.0, 125.0)),
+            ((175.3, 137.9), (265.0, 140.0)), ((232.4, 154.1), (333.0, 147.0)),
+            ((275.7, 184.5), (392.0, 161.0)), ((421.6, 360.8), (595.0, 300.0)),
+            ((433.4, 427.2), (620.0, 350.0)),
+        ),
+    },
+    "cota": {
+        "file": "File:Circuit of the Americas, April 22, 2018 SkySat (cropped2).jpg",
+        "frame": (800, 450),
+        "layout": "austin-1",
+        "pairs": (
+            ((270.7, 173.6), (450.0, 80.0)), ((331.1, 134.0), (550.0, 62.0)),
+            ((360.3, 113.1), (600.0, 52.0)), ((416.8, 69.0), (700.0, 34.0)),
+            ((461.9, 59.9), (747.0, 22.0)), ((457.4, 75.3), (740.0, 45.0)),
+            ((449.3, 103.1), (720.0, 80.0)), ((442.1, 127.7), (700.0, 110.0)),
+            ((435.6, 149.8), (680.0, 135.0)), ((287.1, 237.1), (440.0, 180.0)),
+            ((278.9, 259.3), (415.0, 195.0)), ((265.6, 313.6), (360.0, 254.0)),
+            ((263.4, 332.5), (350.0, 277.0)), ((252.8, 347.2), (330.0, 294.0)),
+            ((239.6, 364.8), (301.0, 306.0)), ((228.6, 381.2), (273.0, 317.0)),
+            ((226.7, 394.3), (257.0, 334.0)), ((233.0, 408.9), (261.0, 360.0)),
+            ((249.0, 427.6), (276.0, 389.0)), ((63.1, 406.0), (65.0, 270.0)),
+            ((144.9, 429.5), (150.0, 340.0)), ((203.0, 446.2), (210.0, 390.0)),
+            ((248.3, 459.2), (260.0, 425.0)), ((264.6, 456.0), (285.0, 435.0)),
+            ((198.5, 319.7), (291.7, 236.7)), ((199.6, 333.5), (283.3, 261.7)),
+            ((190.2, 346.9), (258.3, 280.4)), ((169.8, 358.0), (216.7, 280.4)),
+            ((149.5, 355.4), (183.3, 263.8)), ((125.2, 340.8), (162.5, 236.7)),
+            ((104.1, 328.1), (145.8, 209.6)), ((81.3, 335.6), (120.8, 203.3)),
+            ((65.6, 352.5), (87.5, 207.5)), ((47.8, 371.7), (54.2, 224.2)),
+            ((35.9, 385.4), (33.3, 242.9)), ((205.9, 212.2), (350.0, 113.8)),
+            ((173.2, 232.9), (297.5, 118.8)), ((188.8, 252.1), (307.5, 145.0)),
+            ((204.2, 261.8), (322.5, 162.5)), ((216.5, 270.3), (335.0, 177.5)),
+            ((434.4, 153.9), (667.5, 132.5)), ((425.1, 165.7), (650.0, 142.5)),
+            ((406.2, 178.9), (620.0, 156.0)), ((394.9, 186.9), (600.0, 158.0)),
+            ((386.9, 192.3), (587.0, 157.0)), ((374.9, 190.2), (575.0, 150.0)),
+            ((364.1, 186.1), (562.0, 140.0)), ((357.3, 189.0), (550.0, 137.0)),
+            ((354.3, 193.4), (540.0, 142.0)), ((350.0, 205.5), (528.0, 155.0)),
+            ((346.0, 216.6), (515.0, 165.0)), ((334.5, 228.5), (500.0, 173.0)),
+            ((322.9, 229.7), (485.0, 178.0)),
+        ),
+    },
+    "paul-ricard": {
+        "file": "File:Circuit Paul Ricard, April 22, 2018 SkySat (cropped).jpg",
+        "frame": (800, 450),
+        "layout": "paul-ricard-3",
+        "pairs": (
+            ((480.9, 308.3), (725.0, 300.0)), ((485.0, 344.8), (735.0, 350.0)),
+            ((484.0, 381.0), (725.0, 400.0)), ((460.9, 398.6), (690.0, 425.0)),
+            ((470.5, 295.9), (715.0, 275.0)), ((396.6, 266.6), (600.0, 240.0)),
+            ((333.4, 239.5), (500.0, 210.0)), ((266.3, 217.1), (400.0, 180.0)),
+            ((25.9, 102.1), (36.0, 14.0)), ((44.4, 107.5), (64.0, 26.0)),
+            ((57.5, 127.2), (90.0, 49.0)), ((83.3, 147.4), (124.0, 75.0)),
+            ((113.0, 158.8), (169.0, 92.0)), ((151.0, 173.2), (226.0, 113.0)),
+            ((199.0, 191.5), (297.0, 145.0)), ((213.9, 234.6), (320.0, 198.0)),
+            ((235.2, 251.2), (350.0, 223.0)), ((258.6, 269.4), (384.0, 249.0)),
+            ((279.9, 285.9), (418.0, 270.0)),
+        ),
+    },
+    "rodriguez": {
+        "file": "File:Autódromo Hermanos Rodríguez, June 4, 2018 SkySat (cropped).jpg",
+        "frame": (800, 600),
+        "layout": "mexico-city-3",
+        "pairs": (
+            ((84.0, 76.9), (100.0, 37.0)), ((143.2, 85.6), (200.0, 47.0)),
+            ((202.3, 94.3), (300.0, 57.0)), ((262.5, 103.2), (400.0, 75.0)),
+            ((321.1, 111.9), (500.0, 85.0)), ((380.3, 120.7), (600.0, 95.0)),
+            ((439.9, 129.6), (700.0, 105.0)), ((471.7, 145.8), (750.0, 130.0)),
+            ((479.2, 174.8), (770.0, 165.0)), ((480.2, 199.3), (765.0, 210.0)),
+            ((463.8, 227.5), (750.0, 260.0)), ((447.7, 254.7), (720.0, 300.0)),
+            ((418.9, 303.1), (680.0, 380.0)), ((389.6, 351.3), (640.0, 460.0)),
+            ((388.6, 407.6), (625.0, 535.0)), ((367.8, 420.2), (600.0, 570.0)),
+            ((352.3, 424.3), (565.0, 570.0)), ((351.7, 398.1), (560.0, 525.0)),
+            ((360.7, 349.9), (570.0, 450.0)), ((366.1, 322.2), (575.0, 405.0)),
+            ((334.2, 282.0), (530.0, 345.0)), ((323.3, 262.2), (510.0, 315.0)),
+            ((139.8, 181.6), (200.0, 187.0)), ((97.9, 175.7), (130.0, 185.0)),
+            ((168.7, 185.7), (250.0, 190.0)), ((211.2, 195.4), (325.0, 200.0)),
+            ((250.7, 211.7), (395.0, 225.0)), ((287.1, 253.7), (450.0, 290.0)),
+        ),
+    },
+    "shanghai": {
+        "file": "File:Shanghai International Circuit, April 7, 2018 SkySat (rotated).jpg",
+        "frame": (800, 512),
+        "layout": "shanghai-1",
+        "pairs": (
+            ((83.2, 434.2), (150.0, 404.0)), ((194.1, 385.7), (300.0, 404.0)),
+            ((305.1, 337.2), (450.0, 404.0)), ((409.2, 205.5), (640.0, 300.0)),
+            ((463.0, 223.1), (685.0, 350.0)), ((451.1, 269.8), (650.0, 395.0)),
+            ((131.4, 249.2), (318.0, 250.0)), ((128.9, 213.1), (333.0, 210.0)),
+            ((126.5, 177.0), (347.0, 170.0)), ((124.9, 154.0), (357.0, 145.0)),
+            ((48.4, 418.8), (120.0, 382.0)), ((105.0, 389.8), (200.0, 380.0)),
+            ((139.3, 366.7), (260.0, 372.0)), ((254.7, 295.3), (400.0, 348.0)),
+            ((319.4, 279.1), (500.0, 349.0)), ((394.2, 248.3), (600.0, 350.0)),
+            ((35.1, 442.2), (72.0, 398.0)), ((121.7, 106.1), (380.0, 95.0)),
+            ((121.9, 87.1), (390.0, 72.5)), ((129.9, 72.2), (410.0, 59.0)),
+            ((144.5, 61.1), (435.0, 57.5)), ((161.7, 57.6), (455.0, 67.5)),
+            ((281.4, 60.2), (583.0, 128.0)), ((218.7, 94.2), (498.0, 129.0)),
+            ((365.2, 56.6), (690.0, 145.0)), ((334.3, 92.0), (625.0, 161.0)),
+            ((270.1, 117.5), (540.0, 162.0)), ((134.2, 291.2), (300.0, 295.0)),
+            ((136.5, 324.7), (285.0, 330.0)), ((138.4, 352.9), (273.0, 360.0)),
+        ),
+    },
+}
+
+
+def photo_outline_transform(pairs):
+    """The least-squares affine carrying the outline's box onto the frame,
+    over `pairs` of ((x, y) in the box, (x, y) in the frame): SVG's
+    matrix(a b c d e f), so that x' = a x + c y + e and y' = b x + d y + f.
+    Solved from the normal equations, which is arithmetic: the same pairs
+    give the same six numbers on every machine."""
+    sums = [[0.0] * 3 for _ in range(3)]
+    to_x, to_y = [0.0] * 3, [0.0] * 3
+    for (ox, oy), (px, py) in pairs:
+        v = (ox, oy, 1.0)
+        for i in range(3):
+            for j in range(3):
+                sums[i][j] += v[i] * v[j]
+            to_x[i] += v[i] * px
+            to_y[i] += v[i] * py
+
+    def solve(rhs):
+        m = [row[:] + [r] for row, r in zip(sums, rhs)]
+        for i in range(3):
+            pivot = max(range(i, 3), key=lambda r: abs(m[r][i]))
+            m[i], m[pivot] = m[pivot], m[i]
+            if abs(m[i][i]) < 1e-9:
+                raise ValueError("the pairs do not fix an affine: "
+                                 "they lie on one line")
+            for r in range(3):
+                if r != i:
+                    f = m[r][i] / m[i][i]
+                    m[r] = [a - f * b for a, b in zip(m[r], m[i])]
+        return [m[i][3] / m[i][i] for i in range(3)]
+
+    a, c, e = solve(to_x)
+    b, d, f = solve(to_y)
+    return [round(v, 4) for v in (a, b, c, d, e, f)]
+
+
+def photo_outline_errors(matrix, pairs):
+    """Each marked point's distance, in pixels of the frame, from its paired
+    point of the outline once `matrix` has placed it."""
+    a, b, c, d, e, f = matrix
+    return [((a * ox + c * oy + e - px) ** 2
+             + (b * ox + d * oy + f - py) ** 2) ** 0.5
+            for (ox, oy), (px, py) in pairs]
 
 
 # =====================================================================

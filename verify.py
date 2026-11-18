@@ -5069,6 +5069,79 @@ def circuits_and_venues():
     print(f"  [info] {outlines} F1DB outlines; {drawn} of this register's {drawn + split} "
           f"layouts are drawn by one, {split} span several F1DB layouts")
 
+    # F1DB's outline over the photograph (AF-177). The build stores a placing
+    # only when it passes; this fits the transform again from the stored
+    # pairs, re-measures every pair, and holds the placing to PHOTO_OUTLINE,
+    # to the file and frame it was marked on, to the source it is (18,
+    # written for this project) and to the ceiling that source carries.
+    H = harvest_module()
+    bad_photo, placed = [], {}
+    for (lid, cid, pfile, ppoints, ptransform, perror, psource,
+         pconf) in con.execute("""SELECT f1db_layout_id, circuit_id,
+            photo_file, photo_points, photo_transform, photo_error_px,
+            photo_source_id, photo_confidence FROM circuit_outlines"""):
+        held = [v is not None for v in (pfile, ppoints, ptransform, perror,
+                                        psource, pconf)]
+        if not any(held):
+            continue
+        if not all(held):
+            bad_photo.append(f"{lid} holds some photo_ columns and not others")
+            continue
+        if cid in placed:
+            bad_photo.append(f"{cid} is placed twice")
+        placed[cid] = lid
+        pairs = [(tuple(o), tuple(p)) for o, p in json.loads(ppoints)]
+        entry = H.PHOTO_OUTLINE.get(cid)
+        if (entry is None or entry["file"] != pfile or entry["layout"] != lid
+                or pairs != [(tuple(o), tuple(p)) for o, p in entry["pairs"]]):
+            bad_photo.append(f"{cid}'s placing is not PHOTO_OUTLINE's")
+            continue
+        photo = con.execute(
+            "SELECT file_name, width, height FROM article_images "
+            "WHERE route = 'circuit' AND circuit_id = ?", (cid,)).fetchone()
+        if photo is None or photo[0] != pfile:
+            bad_photo.append(f"{cid} is placed on {pfile}, which is not its "
+                             f"photograph")
+            continue
+        if (photo[1], photo[2]) != tuple(entry["frame"]):
+            bad_photo.append(f"{cid} is placed in a {entry['frame']} frame on a "
+                             f"photograph stored at {photo[1]} x {photo[2]}")
+        marks = [p for _, p in pairs]
+        if not all(0 <= x <= photo[1] and 0 <= y <= photo[2] for x, y in marks):
+            bad_photo.append(f"{cid} marks a point outside its photograph")
+        if len(set(marks)) != len(marks):
+            bad_photo.append(f"{cid} marks a point twice")
+        if len(pairs) < H.PHOTO_OUTLINE_MIN_POINTS:
+            bad_photo.append(f"{cid} pairs {len(pairs)} points")
+        matrix = H.photo_outline_transform(pairs)
+        if json.loads(ptransform) != matrix:
+            bad_photo.append(f"{cid} stores a transform its pairs do not fit")
+        errors = H.photo_outline_errors(matrix, pairs)
+        if max(errors) > H.PHOTO_OUTLINE_TOLERANCE_PX:
+            bad_photo.append(f"{cid} has a point {max(errors):.1f} px from its "
+                             f"outline")
+        if round(max(errors), 2) != perror:
+            bad_photo.append(f"{cid} stores {perror} px, re-measures "
+                             f"{max(errors):.2f}")
+        if psource != 18:
+            bad_photo.append(f"{cid} cites source {psource}")
+        rank = con.execute("SELECT rank FROM provenance WHERE confidence = ?",
+                           (pconf,)).fetchone()
+        if rank is None or rank[0] < 4:
+            bad_photo.append(f"{cid} is placed at {pconf!r}, above medium")
+    check("every outline drawn over a photograph is placed within "
+          f"{H.PHOTO_OUTLINE_TOLERANCE_PX:g} px of its marked points, on the "
+          "file it was marked on",
+          not bad_photo,
+          "; ".join(bad_photo[:3]) if bad_photo else
+          f"{len(placed)} of {len(H.PHOTO_OUTLINE)} placings drawn")
+    # A placing the build declined - a new photograph, a new stored size -
+    # leaves the photograph plain. That is the right page, and a placing to
+    # redo.
+    undrawn = sorted(set(H.PHOTO_OUTLINE) - set(placed))
+    warn("every outline placed on a photograph is drawn", not undrawn,
+         ", ".join(undrawn))
+
     # A Grand Prix that has only ever run at one circuit must not have picked up
     # a second one; the register in data/events.py depends on that staying true.
     bad = con.execute("""SELECT gp_id, COUNT(DISTINCT circuit_id) n,
@@ -7443,7 +7516,8 @@ def illustration_and_geometry():
             WHERE l.to_year IS NOT NULL""").fetchone()[0]
         check("no centreline claims to be a historic layout", historic == 0)
 
-        # The track over the photograph (AF-96). The build stores a placing
+        # The track over the photograph (AF-96), no longer drawn since AF-177
+        # and kept until AF-179 removes it. The build stores a placing
         # only when it passes; this re-measures each one from the stored
         # points and transform and the stored centreline, and holds it to the
         # file it was fitted on, the source it is (18, written for this

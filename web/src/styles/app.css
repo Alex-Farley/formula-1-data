@@ -3081,7 +3081,8 @@ figure.photo[data-state='failed'] img {
   display: none;
 }
 
-/* The lap over a circuit's aerial photograph (AF-96). The frame is the
+/* F1DB's outline over a circuit's aerial photograph (AF-177; the
+   OpenStreetMap lap until then, AF-96). The frame is the
    picture's own box, and the line's viewBox is the photograph's stored frame
    fitted the way object-fit: contain fits the pixels, so the two agree at any
    width and inside the header's capped height. A casing under the line keeps

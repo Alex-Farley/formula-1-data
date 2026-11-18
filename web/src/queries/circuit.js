@@ -45,12 +45,13 @@ export const PHOTOGRAPH = `
  * Luftaufnahme (CIRCUIT_PHOTOGRAPH in data/harvest.py), so every one of them
  * looks down on the circuit. The figure carries no subject line - it sits
  * beside the heading that already names the place - so the alt is the one
- * place this is said, and both renderers say it from here. Where the lap is
- * drawn over it (AF-96) the alt says so, since the line is only decoration
- * to a reader who cannot see it.
+ * place this is said, and both renderers say it from here. Where F1DB's
+ * outline is drawn over it (AF-177) the alt says so, since the line is only
+ * decoration to a reader who cannot see it, and saying so states that the
+ * photograph has been drawn on.
  */
-export const photographAlt = (name, traced = false) =>
-  traced ? `${name} from above, with the lap drawn over it from OpenStreetMap` : `${name} from above`
+export const photographAlt = (name, drawn = false) =>
+  drawn ? `${name} from above, with the layout drawn over it from F1DB\u2019s outline` : `${name} from above`
 
 /** The centreline is a few hundred kilobytes of coordinates; only ever fetched for the one circuit being looked at. */
 export const GEOMETRY = `SELECT * FROM circuit_geometry WHERE circuit_id = ?`
@@ -79,10 +80,12 @@ export const LAYOUTS = `
  *
  * `latest` is the last race that names the layout, run or to come, as one
  * sortable year-and-round (202609): leadOutline draws that layout large
- * (VD-37). The grid keeps the chronological order below.
+ * (VD-37). The grid keeps the chronological order below. `photo_file` and
+ * `photo_transform` place an outline over the circuit's photograph, where
+ * one is placed (AF-177, photoOutline in lib/outline.js).
  */
 export const OUTLINES = `
-  SELECT o.f1db_layout_id, o.length_km, o.turns, o.path,
+  SELECT o.f1db_layout_id, o.length_km, o.turns, o.path, o.photo_file, o.photo_transform,
          MIN(CASE WHEN r.status = 'completed' THEN r.year END) AS first_year,
          MAX(CASE WHEN r.status = 'completed' THEN r.year END) AS last_year,
          COUNT(CASE WHEN r.status = 'completed' THEN 1 END) AS rounds,

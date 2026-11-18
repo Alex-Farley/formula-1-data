@@ -151,9 +151,9 @@ import {
   leadersDrawn,
   recordFamilies,
 } from '../src/queries/records.js'
-import { LAYOUT_RACED, NO_DRAWING, NO_LAYOUT_RECORDED, NO_TIMELINE_ROW, OUTLINE_RULE, RACE_LAYOUT_NOTE } from '../src/lib/outline.js'
+import { LAYOUT_RACED, NO_DRAWING, NO_LAYOUT_RECORDED, NO_TIMELINE_ROW, OUTLINE_RULE, PHOTO_OUTLINE_BY, RACE_LAYOUT_NOTE, photoOutline } from '../src/lib/outline.js'
 import { lapLayout } from '../src/lib/lap.js'
-import { TRACE_HEADING, photoTrace } from '../src/lib/trace.js'
+import { TRACE_HEADING } from '../src/lib/trace.js'
 import { until } from '../src/queries/sessions.js'
 import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
@@ -174,6 +174,7 @@ import {
   STARTS_SEASONS,
   TEAMS as CIRCUIT_TEAMS,
   WINNERS as CIRCUIT_WINNERS,
+  OUTLINES as CIRCUIT_OUTLINES,
   historyBlock,
   photographAlt as circuitPhotographAlt,
   winnerStarts,
@@ -7070,26 +7071,28 @@ try {
     {
       const monzaStatic = await (await fetch(`${BASE}/circuits/monza`)).text()
       await go('/circuits/monza', 'Monza')
-      // AF-96: Monza's lap over its photograph, in the app as the static page
-      // draws it, and over the picture's own box, which is what keeps the
-      // line on the track at every width.
-      if (hasGeometry) {
-        const placed = photoTrace(
-          db.prepare("SELECT * FROM geo.circuit_geometry WHERE circuit_id = 'monza'").all(),
-          db.prepare(CIRCUIT_PHOTOGRAPH).get('monza'),
-        )
+      // AF-177: F1DB's outline of Monza over its photograph, in the app as
+      // the static page draws it, and over the picture's own box, which is
+      // what keeps the line on the track at every width. It is f1.db's, so
+      // it is drawn whether or not the geometry file arrived.
+      {
+        const placed = photoOutline(db.prepare(CIRCUIT_OUTLINES).all('monza'), db.prepare(CIRCUIT_PHOTOGRAPH).get('monza'))
         truthy(placed, 'Monza is placed on its photograph')
         const over = await page.$eval('#root main .page > header figure.photo', (figure) => {
           const box = (n) => n && JSON.stringify(['x', 'y', 'width', 'height'].map((k) => Math.round(n.getBoundingClientRect()[k])))
           return {
-            paths: [...figure.querySelectorAll('svg.photo-trace path')].map((p) => p.getAttribute('d')),
+            paths: [...figure.querySelectorAll('svg.photo-trace path')].map((p) => [p.getAttribute('d'), p.getAttribute('transform')]),
             svg: box(figure.querySelector('svg.photo-trace')),
             img: box(figure.querySelector('img')),
           }
         })
-        is(JSON.stringify(over.paths), JSON.stringify([placed?.d, placed?.d]), 'the app draws its lap, casing and line, from the stored placing')
+        const drawn = [placed?.d, placed?.transform]
+        is(JSON.stringify(over.paths), JSON.stringify([drawn, drawn]), 'the app draws the outline, casing and line, under the stored placing')
         is(over.svg, over.img, 'over the picture, box for box')
-        truthy(monzaStatic.includes(`<path class="photo-trace-line" d="${placed?.d}">`), 'and the static page draws the same line')
+        truthy(
+          monzaStatic.includes(`<path class="photo-trace-line" d="${placed?.d}" transform="${placed?.transform}">`),
+          'and the static page draws the same line',
+        )
       }
       // Attached, not visible: PD-60 puts the rows behind a closed disclosure.
       await page.waitForSelector('#root main .layout-timeline > article', { state: 'attached', timeout: 20000 })
@@ -10901,13 +10904,14 @@ try {
     const circuitName = db.prepare('SELECT name FROM circuits WHERE id = ?')
     const circuitPages = dirsIn('circuits')
     atLeast(circuitPages.length, 70, 'circuit pages read from dist')
-    // AF-96: where a placing was fitted on the photograph, the lap is drawn
-    // over it, the caption credits OpenStreetMap and the alt says so.
-    const placedOn = hasGeometry ? db.prepare('SELECT * FROM geo.circuit_geometry WHERE circuit_id = ?') : null
+    // AF-177: where an outline was placed on the photograph, it is drawn over
+    // it, the caption credits F1DB and says it was placed by eye, and the alt
+    // says so.
+    const placedOn = db.prepare(CIRCUIT_OUTLINES)
     for (const id of circuitPages) {
       const name = circuitName.get(id)?.name
       if (name === undefined) continue
-      const trace = (row) => (placedOn ? photoTrace(placedOn.all(id), row) : null)
+      const trace = (row) => photoOutline(placedOn.all(id), row)
       surfaces.push({
         at: `circuits/${id}`,
         query: CIRCUIT_PHOTOGRAPH,
@@ -10981,9 +10985,11 @@ try {
           const placed = traceFor(row)
           if (placed) {
             traced += 1
-            if (!figure.includes(`<path class="photo-trace-line" d="${placed.d}">`)) broken.push(`/${at}: the lap is not drawn over ${row.file_name}`)
-            else if (!caption.includes(`Track \u00a9 OpenStreetMap contributors, ${placed.licence}`)) broken.push(`/${at}: the lap over ${row.file_name} is not credited to OpenStreetMap`)
-          } else if (figure.includes('photo-trace')) broken.push(`/${at}: a lap is drawn over ${row.file_name}, which nothing places it on`)
+            if (!figure.includes(`<path class="photo-trace-line" d="${placed.d}" transform="${placed.transform}">`))
+              broken.push(`/${at}: the outline is not drawn over ${row.file_name}`)
+            else if (!caption.includes(PHOTO_OUTLINE_BY)) broken.push(`/${at}: the outline over ${row.file_name} is not credited to F1DB`)
+            else if (figure.includes('OpenStreetMap')) broken.push(`/${at}: the photograph ${row.file_name} still credits OpenStreetMap`)
+          } else if (figure.includes('photo-trace')) broken.push(`/${at}: an outline is drawn over ${row.file_name}, which nothing places it on`)
         }
       })
     }
@@ -11002,11 +11008,9 @@ try {
       .filter((row) => canShow(row) && circuitPages.includes(row.circuit_id))
     atLeast(circuitRows.length, 1, 'circuit photographs to check')
     is(circuitsReached, circuitRows.length, 'every circuit photograph was reached on its static page')
-    if (hasGeometry) {
-      const placings = one('SELECT COUNT(*) FROM geo.circuit_geometry WHERE photo_file IS NOT NULL')
-      atLeast(placings, 1, 'a circuit photograph with the lap placed on it (AF-96)')
-      is(traced, placings, 'every placed lap was checked on its static page')
-    }
+    const placings = one('SELECT COUNT(*) FROM circuit_outlines WHERE photo_file IS NOT NULL')
+    atLeast(placings, 1, 'a circuit photograph with an outline placed on it (AF-177)')
+    is(traced, placings, 'every placed outline was checked on its static page')
   })
 
   /*
