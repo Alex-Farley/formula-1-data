@@ -63,6 +63,13 @@ def setUpModule():
     patcher = mock.patch.object(lu, "read_log", return_value=[])
     patcher.start()
     unittest.addModuleCleanup(patcher.stop)
+    # settings() and check() read LOOP_USAGE_* from the environment, which a
+    # loop session sets for its driver; a test reads the thresholds it is
+    # given, never the session's (AF-166). A case that sets one patches it in.
+    clean = {k: v for k, v in os.environ.items() if not k.startswith("LOOP_USAGE_")}
+    env = mock.patch.dict(os.environ, clean, clear=True)
+    env.start()
+    unittest.addModuleCleanup(env.stop)
 
 
 class ReadsOnlyWhatItCanReadWhole(unittest.TestCase):
