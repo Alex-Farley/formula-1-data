@@ -605,19 +605,44 @@ export const SEASON_SOURCES = `
    ORDER BY s.priority, s.id
 `
 
-/**
- * What REMAINING reads beyond the calendar and the results: the points-system
- * rows, a table with no `source_id`, so its `table_provenance` entry; and the
- * season's tie-break period (AF-137), by its own row.
- */
+/** The points-system rows REMAINING reads: a table with no `source_id`, so its `table_provenance` entry. */
 export const TITLE_SOURCES = `
   SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
-   WHERE s.id IN (
-           SELECT source_id FROM table_provenance WHERE tbl = 'points_systems'
-     UNION SELECT source_id FROM tie_breaks WHERE from_year <= ?1 AND to_year >= ?1)
+   WHERE s.id IN (SELECT source_id FROM table_provenance WHERE tbl = 'points_systems')
    ORDER BY s.priority, s.id
 `
+
+/**
+ * What the countback is counted from (AF-137): the season's tie-break
+ * period, by its own row, and the Grand Prix results PLACES counts. A page
+ * cites them only where it printed an answer that counted a tie back
+ * (countedTie), never because a season has a rule.
+ */
+export const TIE_SOURCES = `
+  SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT source_id FROM tie_breaks WHERE from_year <= ?1 AND to_year >= ?1
+     UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.year = ?1 AND r.status = 'completed' AND e.finish_position IS NOT NULL)
+   ORDER BY s.priority, s.id
+`
+
+/**
+ * Whether a printed answer counted a tie back (AF-137), so that TIE_SOURCES
+ * is behind it. Without `kind`, the whole answer, whose basis states the
+ * rule wherever a fight in it has the rule held; with it, one contender's
+ * line, which the countback reaches only where its fight has a rival who
+ * can at best draw level.
+ */
+export const countedTie = (answer, kind) => {
+  if (kind) {
+    const fight = answer?.[kind]
+    return Boolean(fight?.tie && fight.rows.some((d) => d.level))
+  }
+  return Boolean(answer?.drivers?.tie || answer?.constructors?.tie)
+}
 
 /**
  * SEASON_SOURCES, with TITLE_SOURCES joined in where the page prints what
@@ -629,10 +654,11 @@ export const TITLE_SOURCES = `
  * draws the chart, so the sentence is one sentence. One entry per source, in
  * the registry's order.
  */
-export const seasonSources = (sources, title, { answer, remaining }) => {
+export const seasonSources = (sources, title, { answer, remaining, tie = [] }) => {
   const dropped = remaining?.dropped_scores
   if (!answer && (missing(dropped) || dropped === EVERY_RESULT_COUNTS)) return sources
-  return mergeSources(sources, title)
+  const cited = mergeSources(sources, title)
+  return countedTie(answer) ? mergeSources(cited, tie) : cited
 }
 
 /** Two lists of registry entries as one, one entry per source, in the registry's order. */
@@ -1570,19 +1596,16 @@ const current = (sql) => sql.replaceAll('?1', CURRENT_SEASON_SQL)
  * (AF-132), for the citation of a page that prints it and is not that
  * season's: the points system's, the calendar's, and the standings' - both
  * tables as FINAL reads them, by SEASON_SOURCES' rule, and the running rows
- * STANDINGS chooses - and the countback's (AF-137): the season's tie-break
- * period and the results PLACES counts. A page adds them with mergeSources() only where it
- * prints the answer.
+ * STANDINGS chooses. A page adds them with mergeSources() only where it
+ * prints the answer, and the countback's, TIE_SOURCES, only where that
+ * answer counted a tie back (fightCitation).
  */
 const FIGHT_SOURCES = `
   SELECT s.id, s.priority, s.source, s.redistributable, s.share_alike, s.attribution_required
     FROM source_registry s
    WHERE s.id IN (
            SELECT source_id FROM table_provenance WHERE tbl = 'points_systems'
-     UNION SELECT source_id FROM tie_breaks WHERE from_year <= ?1 AND to_year >= ?1
      UNION SELECT source_id FROM races WHERE year = ?1
-     UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id
-            WHERE r.year = ?1 AND r.status = 'completed' AND e.finish_position IS NOT NULL
      UNION SELECT t.source_id FROM standings t
             WHERE t.year = ?1
               AND (t.basis = 'final'
@@ -1625,18 +1648,22 @@ export const FIGHT_QUERIES = {
   fightRounds: [current(TITLE_ROUNDS)],
   fightPlaces: [current(PLACES)],
   fightSources: [current(FIGHT_SOURCES)],
+  fightTieSources: [current(TIE_SOURCES)],
   crownedSources: [current(CROWNED_SOURCES)],
 }
 
 /**
  * The registry entries behind what a page prints from currentTitle(): the
- * fight's, and the season row's only where the crowned sentence is printed.
+ * fight's, the countback's only where countedTie() says the line or answer
+ * counted a tie back (AF-137), and the season row's only where the crowned
+ * sentence is printed.
  * `kind` and `id` ask that of one contender's page; without them it is asked
  * of the whole answer, which the upcoming race prints. `get(key)` as there.
  */
 export function fightCitation(get, title, kind, id) {
   const crowned = kind ? title?.crowned?.[kind]?.id === id : Boolean(title?.crowned)
-  return crowned ? mergeSources(get('fightSources'), get('crownedSources')) : get('fightSources')
+  const fight = countedTie(title, kind) ? mergeSources(get('fightSources'), get('fightTieSources')) : get('fightSources')
+  return crowned ? mergeSources(fight, get('crownedSources')) : fight
 }
 
 /**

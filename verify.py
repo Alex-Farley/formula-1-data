@@ -3257,8 +3257,9 @@ def tie_breaks_against_the_final_tables():
             WHERE r.year = ? AND e.{column} = ? AND e.finish_position IS NOT NULL
             GROUP BY e.finish_position""", (year, ident)).fetchall())
 
-    held, level, wrong = 0, 0, []
+    held, level, wrong, by_period = 0, 0, [], {}
     for r in rows:
+        before = held
         if r["countback"] != "race places":
             wrong.append(f"#{r['id']}: {r['countback']!r} is not a count this check knows")
             continue
@@ -3283,11 +3284,16 @@ def tie_breaks_against_the_final_tables():
                     else:
                         wrong.append(f"{year} {kind}: {a['entity']} placed above "
                                      f"{b['entity']} on {a['points']:g}")
+        by_period[r["id"]] = held - before
     check("every tie on points in a finished season a tie-break period covers is "
           "placed by its count of Grand Prix places", held > 0 and not wrong,
           "; ".join(wrong[:4]) if wrong or held else "no tie to hold it to")
     print(f"  [info] {held} ties on points placed by the count; {level} level on "
           f"every place, which the count does not settle")
+    # A period no finished tie has tested stands on the reading of its text
+    # alone, which is worth seeing: the season being run's, until it ends.
+    print("  [info] ties held by period: " + ", ".join(
+        f"#{r['id']} {r['from_year']}-{r['to_year']} {by_period.get(r['id'], 0)}" for r in rows))
 
 
 @section('FINISHING ORDER AND PODIUMS')

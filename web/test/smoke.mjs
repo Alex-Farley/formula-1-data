@@ -77,6 +77,7 @@ import {
   CALENDAR as SEASON_CALENDAR,
   SEASON,
   STANDINGS as SEASON_STANDINGS,
+  TIE_SOURCES,
   TITLE_SOURCES,
   WON_HERE,
   WON_HERE_HEADING,
@@ -8872,7 +8873,7 @@ try {
             const [year] = args
             const remaining = db.prepare(REMAINING).get(year) ?? null
             const answer = pageAnswer(year)
-            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(year), { answer, remaining })
+            return seasonSources(db.prepare(sources).all(...args), db.prepare(TITLE_SOURCES).all(), { answer, remaining, tie: db.prepare(TIE_SOURCES).all(year) })
           })()
         : // A team or driver in the title fight being run adds the fight's
           // sources, where its page prints the line (AF-132).
@@ -8894,7 +8895,7 @@ try {
     // note says, so the points system's entry is behind that page whatever
     // seasonSources() makes of it.
     {
-      const [{ source }] = db.prepare(TITLE_SOURCES).all(1988)
+      const [{ source }] = db.prepare(TITLE_SOURCES).all()
       await go('/seasons/1988', '1988')
       const cite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
       truthy(cite.includes(`${source} (`), `the citation on /seasons/1988 names ${source}, the dropped-scores rule's source`)

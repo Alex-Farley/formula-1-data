@@ -55,6 +55,7 @@ import {
   SEASON_SOURCES,
   STANDINGS,
   TITLE_RACE_COLUMNS,
+  TIE_SOURCES,
   TITLE_SOURCES,
   WON_HERE,
   WON_HERE_COLUMNS,
@@ -342,7 +343,8 @@ export default function Season() {
     wonHere: [WON_HERE, [Number(year)]],
     nextTrace: [NEXT_TRACE, [Number(year)]],
     sources: [SEASON_SOURCES, [Number(year)]],
-    titleSources: [TITLE_SOURCES, [Number(year)]],
+    titleSources: [TITLE_SOURCES],
+    tieSources: [TIE_SOURCES, [Number(year)]],
   })
 
   return (
@@ -561,6 +563,7 @@ function SeasonBody({ year, season, data }) {
       sources={seasonSources(rows(data, 'sources'), rows(data, 'titleSources'), {
         answer,
         remaining: data.remaining.rows[0] ?? null,
+        tie: rows(data, 'tieSources'),
       })}
       aside={
         <Stepper {...seasonSteps(neighbours)} />

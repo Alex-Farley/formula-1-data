@@ -1627,6 +1627,26 @@ describe('the queries a page and the prerenderer share', () => {
       assert.deepEqual(ids(fightCitation(get, { crowned: undefined })), [5, 7])
     })
 
+    // AF-137: the countback's entries are behind a line only where it counted
+    // a tie back - a crowned title, or a fight with no rule held, does not.
+    it('cites the countback only where the answer counted a tie back', () => {
+      const entry = (id) => ({ id, priority: id })
+      const held = { fightSources: [entry(5), entry(7)], fightTieSources: [entry(1), entry(7)], crownedSources: [entry(2)] }
+      const get = (key) => held[key]
+      const ids = (rows) => rows.map((s) => s.id)
+      const rule = { counts: new Map(), depth: 10 }
+      const level = { tie: rule, rows: [{ id: 'a', level: false }, { id: 'b', level: true }] }
+      const none = { tie: rule, rows: [{ id: 'a', level: false }] }
+      assert.deepEqual(ids(fightCitation(get, { drivers: level }, 'drivers', 'b')), [1, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, { drivers: level })), [1, 5, 7], 'the basis states the rule')
+      assert.deepEqual(ids(fightCitation(get, { drivers: none }, 'drivers', 'a')), [5, 7], 'nobody level: the line does not reach it')
+      assert.deepEqual(ids(fightCitation(get, { drivers: none })), [1, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, { drivers: { ...level, tie: null } })), [5, 7], 'no rule held')
+      assert.deepEqual(ids(fightCitation(get, { drivers: null, crowned: { drivers: { id: 'a' } } }, 'drivers', 'a')), [2, 5, 7])
+      assert.deepEqual(ids(seasonSources([entry(7)], [entry(18)], { answer: { drivers: level }, remaining: null, tie: [entry(1)] })), [1, 7, 18])
+      assert.deepEqual(ids(seasonSources([entry(7)], [entry(18)], { answer: { who: 'crowned', drivers: null }, remaining: null, tie: [entry(1)] })), [7, 18])
+    })
+
     it("names the champion on the strip while the gap stays a gap", () => {
       const strip = (held) =>
         titleStrip({

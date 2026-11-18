@@ -664,12 +664,12 @@ TIE_BREAKS = [
     (2009, 2020, "race places", "7.2",
      "Drivers or constructors level on points at the end of the season are "
      "placed by who has more first places, then more second places, and so "
-     "on until one is ahead. If that settles nothing, the FIA nominates the "
-     "higher place by criteria of its own choosing.", _SPORT_EARLIER[2009]),
+     "on down the order. If that settles nothing, the FIA decides the higher "
+     "place itself.", _SPORT_EARLIER[2009]),
     (2021, 2025, "race places", "7.2",
      "The same count, now of first places in a race, then of second places "
-     "in a race, and so on. If that settles nothing, the FIA still nominates "
-     "the higher place by criteria of its own choosing.", _SPORT[2021]),
+     "in a race, and so on. If that settles nothing, the FIA still decides "
+     "it.", _SPORT[2021]),
     (2026, 2026, "race places", "A2.1.4(c)",
      "The same count of places in a race, for drivers and teams alike. If "
      "that settles nothing, the same count is made of the drivers' "
