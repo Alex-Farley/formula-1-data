@@ -136,6 +136,11 @@ import {
   outSince,
   reachFigures,
   RACE_PLACES,
+  CLINCH_CHAMPION,
+  CLINCH_LEVEL,
+  CLINCH_ON,
+  CLINCH_TAKEN,
+  clinchStrips,
   teamAvailable,
   championPill,
   pointsShare,
@@ -148,6 +153,7 @@ import {
   titleRaceFigure,
 } from '../src/queries/season.js'
 import { reachLayout, reachText } from '../src/charts/reachChart.js'
+import { clinchLayout } from '../src/charts/clinchStrip.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { entryColumns, entryOut, entryResult } from '../src/queries/car.js'
 import { disagrees, safeToQuote } from '../src/queries/quality.js'
@@ -1494,6 +1500,180 @@ describe('the queries a page and the prerenderer share', () => {
     })
   })
 
+  // AF-138: which finishes at the next round settle the drivers' title. The
+  // issue's example, before Austin 2026, from the database after round 17:
+  // Antonelli 340 with 8 wins, six rounds and 150 points left, then 125.
+  describe('the clinch strip for the next round', () => {
+    const live = {
+      races: 6, sprints: 0, run: 17, results: 17, dropped_scores: 'Every result counts', available: 150,
+      win_points: 25, fastest_lap_points: 0, scale: '[25,18,15,12,10,8,6,4,2,1]', sprint_scale: '[8,7,6,5,4,3,2,1]', sprint_points: 8,
+      countback: RACE_PLACES,
+    }
+    const drivers = [
+      { entity: 'Andrea Kimi Antonelli', driver_id: 'antonelli', position: 1, points: 340 },
+      { entity: 'George Russell', driver_id: 'russell', position: 2, points: 238 },
+      { entity: 'Sir Lewis Hamilton', driver_id: 'hamilton', position: 3, points: 229 },
+      { entity: 'Max Verstappen', driver_id: 'verstappen', position: 4, points: 221 },
+      { entity: 'Charles Leclerc', driver_id: 'leclerc', position: 5, points: 215 },
+      { entity: 'Lando Norris', driver_id: 'norris', position: 6, points: 201 },
+      { entity: 'Oscar Piastri', driver_id: 'piastri', position: 7, points: 138 },
+    ]
+    const counts = {
+      antonelli: { 1: 8, 2: 3, 3: 3, 5: 1 },
+      russell: { 1: 3, 2: 4, 3: 1, 4: 2, 5: 1, 7: 1, 9: 1 },
+      hamilton: { 1: 1, 2: 2, 3: 3, 4: 3, 5: 2, 6: 5 },
+    }
+    const placesOf = (table) =>
+      Object.entries(table).flatMap(([id, by]) => Object.entries(by).map(([at, n]) => ({ kind: 'drivers', id, place: Number(at), n })))
+    const places = placesOf(counts)
+    const names = ['Australian', 'Chinese', 'Japanese', 'Miami', 'Canadian', 'Monaco', 'Barcelona-Catalunya', 'Austrian', 'British', 'Belgian',
+      'Hungarian', 'Dutch', 'Italian', 'Spanish', 'Azerbaijan', 'Bahrain', 'Singapore', 'United States', 'Mexico City', 'Sao Paulo',
+      'Las Vegas', 'Qatar', 'Abu Dhabi']
+    const rounds = names.map((name, i) => ({
+      round: i + 1,
+      name_used: `${name} Grand Prix`,
+      sprint: [2, 4, 5, 9, 12, 17].includes(i + 1) ? 1 : 0,
+      status: i < 17 ? 'completed' : 'scheduled',
+    }))
+    const strips = ({ remaining = live, table = drivers, at = places, calendar = rounds } = {}) =>
+      clinchStrips(titleAnswer({ drivers: table, remaining, afterRound: remaining.run, year: 2026, places: at }), remaining, calendar)
+    const marks = (strip, label) => strip.data.find((d) => d.label === label).cells.map((c) => c.mark)
+    const [T, C, L, O] = [CLINCH_TAKEN, CLINCH_CHAMPION, CLINCH_LEVEL, CLINCH_ON]
+
+    it("pins Austin's strip: he wins, Russell 10th or lower, Hamilton 5th or lower", () => {
+      const clinch = strips()
+      assert.equal(clinch.race, 'United States Grand Prix')
+      assert.equal(clinch.round, 18)
+      // No other finish of his settles it: second, and Russell scoring nothing
+      // is 120 behind with 125 left.
+      assert.equal(clinch.strips.length, 1)
+      const [wins] = clinch.strips
+      assert.equal(wins.title, 'If Andrea Kimi Antonelli wins the United States Grand Prix')
+      assert.equal(wins.place, 1)
+      // Every rival still in has a row, Piastri, out, none.
+      assert.deepEqual(wins.data.map((d) => d.label), ['Russell', 'Hamilton', 'Verstappen', 'Leclerc', 'Norris'])
+      assert.deepEqual(marks(wins, 'Russell'), [T, O, O, O, O, O, O, O, L, C, C])
+      assert.deepEqual(marks(wins, 'Hamilton'), [T, O, O, O, C, C, C, C, C, C, C])
+      for (const rival of ['Verstappen', 'Leclerc', 'Norris']) assert.deepEqual(marks(wins, rival), [T, ...Array(10).fill(C)], rival)
+      // Russell 9th is level on 365, and the countback is Antonelli's: Russell
+      // wins the five rounds after for 8 wins, to his 9.
+      const ninth = wins.data[0].cells[8]
+      assert.deepEqual(ninth.countback, { wins: false, place: 1, mine: 8, theirs: 9 })
+      const russell = wins.rows.find((r) => r.id === 'russell')
+      assert.equal(russell.p1, "Antonelli's place")
+      assert.equal(russell.p8, 'Title goes on')
+      assert.equal(russell.p9, 'Level: Antonelli champion on the countback')
+      assert.equal(russell.p10, 'Antonelli champion')
+      assert.equal(russell.none, 'Antonelli champion')
+      assert.equal(russell.entity, 'George Russell')
+      // The table has a column for every place the scale pays, and none.
+      assert.deepEqual(wins.columns.map((c) => c.label), ['Rival', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', 'No points'])
+      assert.deepEqual(Object.keys(russell).sort(), ['entity', 'id', 'none', ...wins.columns.slice(1, 11).map((c) => c.key)].sort())
+      assert.match(wins.note, /A tick is Antonelli champion;.*a dash, Antonelli's own place\.$/)
+    })
+
+    it('is what seasonAnswer() and so the upcoming race carry, and nothing once the title is on the record', () => {
+      const args = { rounds, standings: [], drivers, remaining: live, afterRound: 17, year: 2026, places }
+      const open = seasonAnswer({ ...args, season: { year: 2026, drivers_champion: null } })
+      assert.deepEqual(open.clinch, strips())
+      const crowned = seasonAnswer({ ...args, season: { year: 2026, drivers_champion: 'antonelli', champion: 'Andrea Kimi Antonelli' } })
+      assert.equal(crowned.clinch, null)
+    })
+
+    it('says who the countback favours, and where it cannot', () => {
+      // Two wins fewer for Antonelli: 7 after Austin, to Russell's 8.
+      const fewer = placesOf({ ...counts, antonelli: { ...counts.antonelli, 1: 6 } })
+      const [wins] = strips({ at: fewer }).strips
+      assert.equal(wins.rows[0].p9, 'Level: Russell takes the countback')
+      assert.equal(wins.data[0].cells[8].mark, CLINCH_LEVEL)
+      // No rule held for the season: level, and not worked out.
+      const [unruled] = strips({ remaining: { ...live, countback: null } }).strips
+      assert.equal(unruled.rows[0].p9, 'Level: the countback is not worked out')
+      assert.equal(unruled.data[0].cells[8].countback, null)
+    })
+
+    it('draws a strip whose row lands only on level where the countback is the leader’s, and not where it is not', () => {
+      // Russell on 240: scoring nothing at Austin he is 125 behind with 125 left.
+      const level = [drivers[0], { ...drivers[1], points: 240 }, ...drivers.slice(2)]
+      const [wins] = strips({ table: level }).strips
+      assert.deepEqual(marks(wins, 'Russell'), [T, ...Array(9).fill(O), L])
+      assert.equal(wins.rows[0].none, 'Level: Antonelli champion on the countback')
+      // With the countback Russell's, no finish of Antonelli's settles it.
+      assert.equal(strips({ table: level, at: placesOf({ ...counts, antonelli: { 1: 6 } }) }), null)
+    })
+
+    it('draws a strip for every finish of the leader that settles it, best first', () => {
+      // After Austin: Antonelli 365, Russell 242, Hamilton 241, five rounds
+      // and 125 left, then 100. Nothing at Mexico still settles it, so long
+      // as neither of them wins.
+      const after = [
+        { ...drivers[0], points: 365 }, { ...drivers[1], points: 242 }, { ...drivers[2], points: 241 },
+        { ...drivers[3], points: 236 }, { ...drivers[4], points: 233 }, { ...drivers[5], points: 211 },
+      ]
+      const calendar = rounds.map((r) => (r.round === 18 ? { ...r, status: 'completed' } : r))
+      const clinch = strips({ table: after, remaining: { ...live, races: 5, run: 18, results: 18, available: 125 }, calendar })
+      assert.equal(clinch.race, 'Mexico City Grand Prix')
+      assert.deepEqual(clinch.strips.map((s) => s.place), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, null])
+      const none = clinch.strips.at(-1)
+      assert.equal(none.title, 'If Andrea Kimi Antonelli scores no points in the Mexico City Grand Prix')
+      assert.equal(clinch.strips[1].title, 'If Andrea Kimi Antonelli finishes second in the Mexico City Grand Prix')
+      // Scoring nothing, the leader's place is no column: no cell is taken.
+      assert.ok(none.data.every((d) => !d.cells.some((c) => c.mark === CLINCH_TAKEN)))
+      assert.deepEqual(marks(none, 'Russell'), [O, C, C, C, C, C, C, C, C, C, C])
+    })
+
+    it('draws nothing where the next round cannot settle it, or the arithmetic cannot say', () => {
+      // A round earlier, 175 left: nothing at Austin settles it.
+      assert.equal(strips({ remaining: { ...live, races: 7, run: 16, results: 16, available: 175 }, calendar: rounds.map((r) => (r.round === 17 ? { ...r, status: 'scheduled' } : r)) }), null)
+      // Two level at the top; nobody still in; a calendar a round out.
+      assert.equal(strips({ table: [drivers[0], { ...drivers[1], points: 340 }, ...drivers.slice(2)] }), null)
+      assert.equal(strips({ table: [drivers[0], drivers[6]] }), null)
+      assert.equal(strips({ calendar: rounds.map((r) => (r.round === 18 ? { ...r, status: 'completed' } : r)) }), null)
+      // A scale that is not numbers, and no answer at all.
+      assert.equal(strips({ remaining: { ...live, scale: 'not json' } }), null)
+      assert.equal(clinchStrips(null, live, rounds), null)
+    })
+
+    it('says so, rather than drawing, at a sprint weekend or where the fastest lap pays', () => {
+      const sprint = rounds.map((r) => (r.round === 18 ? { ...r, sprint: 1 } : r))
+      const atSprint = strips({ remaining: { ...live, sprints: 1, available: 158 }, calendar: sprint })
+      assert.equal(atSprint.strips, undefined)
+      assert.equal(
+        atSprint.declined,
+        'The United States Grand Prix could settle the drivers\' title, but it has a sprint as well, and which finishes in the two would settle it is not drawn here.',
+      )
+      // A point for the fastest lap: 26 a round, 130 left after Austin, and
+      // Russell on 230 out of reach of 366 if he scores nothing.
+      const lap = strips({ remaining: { ...live, fastest_lap_points: 1, available: 156 }, table: [drivers[0], { ...drivers[1], points: 230 }, ...drivers.slice(2)] })
+      assert.match(lap.declined, /^The United States Grand Prix could settle the drivers' title, but the fastest lap pays a point/)
+      // A sprint weekend that cannot settle it says nothing.
+      assert.equal(strips({ remaining: { ...live, sprints: 1, available: 158 }, calendar: sprint, table: [drivers[0], { ...drivers[1], points: 300 }] }), null)
+    })
+
+    it('lays each strip out inside its width, a cell a place with its symbol, and no cell at the leader’s own place', () => {
+      const [wins] = strips().strips
+      for (const width of [280, 320, 400, 479, 480, 640, 1200]) {
+        const layout = clinchLayout({ data: wins.data, width })
+        assert.equal(layout.rows.length, 5)
+        assert.equal(layout.columns.length, 11)
+        assert.equal(layout.columns.at(-1).text, width < 480 ? '0' : '0 pts')
+        for (const row of layout.rows) {
+          assert.equal(row.cells.length, 11)
+          assert.equal(row.cells[0].rect, null, `the leader's place has no cell at ${width}`)
+          assert.equal(row.cells[0].className, 'clinch-taken')
+          for (const cell of row.cells.slice(1)) {
+            assert.ok(cell.rect.x >= row.labelX && cell.rect.x + cell.rect.width <= width, `a cell outside ${width}`)
+            assert.match(cell.symbol, /^M/)
+          }
+          assert.ok(row.labelX > 0)
+        }
+        // The marks reach the classes app.css colours.
+        assert.deepEqual([...new Set(layout.rows[0].cells.map((c) => c.className))], ['clinch-taken', 'clinch-on', 'clinch-level', 'clinch-champion'])
+      }
+      assert.equal(clinchLayout({ data: [], width: 640 }), null)
+    })
+  })
+
   // LV-15. Five rounds and three run, 100, 75 and 50 left after rounds 1 to
   // 3 at 25 a driver and 43 a team. A is 80 clear after round 2 and stays so.
   describe('a title decided before the last round', () => {
@@ -1593,7 +1773,8 @@ describe('the queries a page and the prerenderer share', () => {
 
     it('is exactly titleAnswer() with no title on the record, and says nothing of a season over', () => {
       const open = { ...season, drivers_champion: null, champion: null }
-      assert.deepEqual(seasonAnswer({ ...args, season: open }), titleAnswer({ ...args }))
+      const fought = titleAnswer({ ...args })
+      assert.deepEqual(seasonAnswer({ ...args, season: open }), { ...fought, clinch: clinchStrips(fought, args.remaining, args.rounds) })
       assert.equal(seasonAnswer({ ...args, remaining: { ...remaining, races: 0, available: 0, run: 5 } }), null)
     })
 

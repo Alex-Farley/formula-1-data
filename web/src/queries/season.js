@@ -1565,9 +1565,12 @@ export function seasonAnswer({ season, rounds, standings, ...args }) {
   const { remaining, afterRound, year } = args
   const crowned = crownedTitles({ season, year, remaining, standings, rounds, afterRound })
   const answer = titleAnswer({ ...args, settled: { drivers: crowned?.drivers, constructors: crowned?.constructors } })
-  if (!crowned) return answer
+  // The finishes at the next round that would settle the drivers' title
+  // (AF-138), for the season page and the upcoming race's.
+  const clinch = clinchStrips(answer, remaining, rounds)
+  if (!crowned) return answer && { ...answer, clinch }
   const said = [crowned.drivers?.line, crowned.constructors?.line, answer?.who].filter(Boolean).join(' ')
-  return { basis: null, drivers: null, constructors: null, afterRound, year, ...answer, who: said, crowned }
+  return { basis: null, drivers: null, constructors: null, afterRound, year, ...answer, who: said, crowned, clinch }
 }
 
 /**
@@ -1936,6 +1939,179 @@ export const reachFigures = (answer, year, teams) =>
         .filter(Boolean)
         .map((fight) => reachFigure(fight, year, contenderColour(fight.kind, teams, year)))
     : []
+
+/* ----------------------------------------------------------- clinch strip */
+
+/** What a cell of the clinch strip says (AF-138): the title settled, level on points, going on, or the leader's own place. */
+export const CLINCH_CHAMPION = 'champion'
+export const CLINCH_LEVEL = 'level'
+export const CLINCH_ON = 'on'
+export const CLINCH_TAKEN = 'taken'
+
+/** A points scale's places, best first, or null where the JSON does not hold numbers. */
+const scalePlaces = (scale) => {
+  try {
+    const places = JSON.parse(scale)
+    return Array.isArray(places) && places.length >= 2 && places.every(Number.isFinite) ? places : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The countback for a rival who, after the next round, can at best draw
+ * level with the leader (AF-138): tieBreak()'s count, with the next round's
+ * two places added - `rivalPlace` and `leaderPlace`, each counted only where
+ * it scores - and every round after it won by the rival, which is the one
+ * way to draw level. settle()'s answer, from the rival's side: null
+ * where the places cannot be counted, or are level on every place that
+ * scores.
+ */
+function nextCountback(tie, rival, leader, rivalPlace, leaderPlace, racesAfter) {
+  if (!tie?.counts) return null
+  const at = (id, place) => tie.counts.get(id)?.get(place) ?? 0
+  for (let place = 1; place <= tie.depth; place += 1) {
+    const ours = at(rival.id, place) + (place === rivalPlace ? 1 : 0) + (place === 1 ? racesAfter : 0)
+    const its = at(leader.id, place) + (place === leaderPlace ? 1 : 0)
+    if (ours !== its) return { wins: ours > its, place, mine: ours, theirs: its }
+  }
+  return null
+}
+
+/** Whether a cell settles the title: outright, or level and the countback going to the leader. */
+const settles = (cell) => cell.mark === CLINCH_CHAMPION || (cell.mark === CLINCH_LEVEL && Boolean(cell.countback) && !cell.countback.wins)
+
+/** "wins the United States Grand Prix", "finishes second in the ...", "scores no points in the ...": the leader's finish in a strip's title. */
+const finishWords = (place, depth, race) => {
+  if (place === 1) return `wins the ${race}`
+  if (place > depth) return `scores no points in the ${race}`
+  return `finishes ${PLACE_WORDS[place - 1] ?? ordinal(place)} in the ${race}`
+}
+
+/** One cell's words in the strip's table, which are the numbers behind the figure. */
+const cellText = (cell, leader, rival) => {
+  if (cell.mark === CLINCH_TAKEN) return `${leader}'s place`
+  if (cell.mark === CLINCH_CHAMPION) return `${leader} champion`
+  if (cell.mark === CLINCH_ON) return 'Title goes on'
+  if (!cell.countback) return 'Level: the countback is not worked out'
+  return cell.countback.wins ? `Level: ${rival} takes the countback` : `Level: ${leader} champion on the countback`
+}
+
+/**
+ * The clinch strip's table columns (AF-138): the rival, then one column a
+ * place that scores and one for none. `depth` is how far down the scale pays.
+ */
+export const clinchColumns = (depth) => [
+  { key: 'entity', rowHeader: true, label: 'Rival' },
+  ...Array.from({ length: depth }, (_, i) => ({ key: `p${i + 1}`, label: ordinal(i + 1) })),
+  { key: 'none', label: 'No points' },
+]
+
+/**
+ * The strip's note, at most 50 words (VD-80): what each mark is, which is
+ * what stops a misreading. `leader` is the name the strip's rows use.
+ */
+export const clinchNote = (leader) =>
+  `Each row is a rival still in, each column where they finish. A tick is ${leader} champion; an equals sign, level on points, the countback deciding as the table says; an arrow, the title going on; a dash, ${leader}'s own place.`
+
+/**
+ * Which finishes at the next round would settle the drivers' title (AF-138),
+ * worked out once for both renderers: one strip for each place the leader
+ * could take that can settle it, best first, each with a row for every rival
+ * still in and a cell for each place that rival could take - every place the
+ * scale pays, then none. A cell is the title settled there as far as that
+ * rival goes (`champion`), the rival level on points and the countback
+ * deciding (`level`, with nextCountback()'s answer), the title going on, or
+ * the leader's own place, which the rival cannot take.
+ *
+ * The test is titleAnswer()'s, a round on: after the next round the rival
+ * is out behind by more than is left to win, and level behind by exactly
+ * that. What is left is what titleAnswer() measured, less the most one round
+ * pays. A strip is drawn only where every row can land on the title settled -
+ * a cell that is champion, or level with the countback the leader's - and a
+ * rival who scores nothing is the leader's best case, so that cell is the
+ * one asked. Each rival is measured alone, because whether they are out
+ * turns on their own finish and the leader's and nobody else's: the title
+ * is settled where every row is. Two rivals cannot take one place, which a
+ * row each leaves to the reader.
+ *
+ * `answer` is titleAnswer()'s, `remaining` REMAINING's row, `rounds` the
+ * calendar. Only the drivers' title, where a rival's finish is one place:
+ * a team's is two cars'. Null - nothing drawn and nothing said - where the
+ * title cannot be settled at the next round: no drivers' fight, no rival
+ * still in, two or more level at the top, a next round that is not the one
+ * after the round counted, a scale that does not say what each place pays,
+ * or no finish of the leader's that settles it. A round the arithmetic here
+ * cannot draw and that could settle it - a sprint weekend, two results, or
+ * a season paying the fastest lap a point, which turns on more than a place
+ * - comes back as `{ race, round, declined }`, the sentence saying so.
+ */
+export function clinchStrips(answer, remaining, rounds) {
+  const fight = answer?.drivers
+  if (!fight || !remaining || fight.leaders.length !== 1) return null
+  const [leader] = fight.leaders
+  const rivals = fight.alive.filter((d) => d !== leader)
+  if (!rivals.length || missing(leader.id) || rivals.some((d) => missing(d.id))) return null
+  const next = (rounds ?? []).find((r) => r.status !== 'completed')
+  if (!next || missing(answer.afterRound) || next.round !== answer.afterRound + 1) return null
+  const scale = scalePlaces(remaining.scale)
+  const most = mostPerRound(remaining)?.drivers
+  if (!scale || !most || most.race === null || (next.sprint && most.sprint === null)) return null
+  const round = most.race + (next.sprint ? most.sprint : 0)
+  const left = fight.available - round
+  const race = text(next.name_used)
+
+  // The leader's best case: the most the round pays, and every rival nothing.
+  // Level at best may settle it on the countback, which is worked out below
+  // only where a finish is a place.
+  if (!rivals.every((d) => leader.points + round - d.points >= left)) return null
+  const declined = (why) => ({ race, round: next.round, declined: `The ${race} could settle the drivers' title, but ${why}.` })
+  if (next.sprint) return declined('it has a sprint as well, and which finishes in the two would settle it is not drawn here')
+  if (!missing(remaining.fastest_lap_points) && remaining.fastest_lap_points > 0) {
+    return declined("the fastest lap pays a point, and which finishes would settle it then turns on more than a place, so it is not drawn here")
+  }
+
+  const depth = scale.length
+  const names = shortNames([leader, ...rivals].map((d) => d.entity))
+  const short = new Map([leader, ...rivals].map((d, i) => [d, names[i]]))
+  const racesAfter = remaining.races - 1
+  // What a place pays: the scale's figure, and nothing below the places it pays.
+  const pays = (place) => (place <= depth ? scale[place - 1] : 0)
+  const strips = []
+  for (let place = 1; place <= depth + 1; place += 1) {
+    const total = leader.points + pays(place)
+    const rows = rivals.map((rival) => {
+      const cells = Array.from({ length: depth + 1 }, (_, i) => {
+        const at = i + 1
+        if (at === place && place <= depth) return { place: at, mark: CLINCH_TAKEN, countback: null }
+        const gap = total - (rival.points + pays(at))
+        if (gap > left) return { place: at, mark: CLINCH_CHAMPION, countback: null }
+        if (gap < left) return { place: at, mark: CLINCH_ON, countback: null }
+        return { place: at, mark: CLINCH_LEVEL, countback: nextCountback(fight.tie, rival, leader, at, place, racesAfter) }
+      })
+      return { rival, cells }
+    })
+    if (!rows.every((r) => settles(r.cells[depth]))) continue
+    const title = `If ${leader.entity} ${finishWords(place, depth, race)}`
+    strips.push({
+      key: `p${place}`,
+      place: place <= depth ? place : null,
+      title,
+      note: clinchNote(short.get(leader)),
+      columns: clinchColumns(depth),
+      data: rows.map(({ rival, cells }) => ({ key: String(rival.id), label: short.get(rival), cells })),
+      rows: rows.map(({ rival, cells }) =>
+        Object.fromEntries([
+          ['entity', rival.entity],
+          ['id', rival.id],
+          ...cells.map((cell) => [cell.place > depth ? 'none' : `p${cell.place}`, cellText(cell, short.get(leader), short.get(rival))]),
+        ]),
+      ),
+      label: `${title}: for each rival still in and each place they could finish, whether ${leader.entity} is champion, level on points or not yet champion`,
+    })
+  }
+  return strips.length ? { race, round: next.round, strips } : null
+}
 
 /**
  * A season's lede: who can still win, then the season's own note (VD-90).

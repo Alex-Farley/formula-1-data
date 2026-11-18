@@ -2438,7 +2438,8 @@ try {
    * charts on the season page, the line under the home page's next race,
    * what's at stake on the upcoming race's page, and a contender's line on
    * their driver and team pages, the leader's and one already out where
-   * there is one. With no answer, none of them is anywhere.
+   * there is one. With no answer, none of them is anywhere. AF-138's clinch
+   * strips ride with the first and the third.
    */
   await section('/seasons/2026 / /races /drivers /constructors  (who can still win, in five places: AF-132)', async () => {
     const title = currentFight()
@@ -2456,6 +2457,17 @@ try {
       ]
     }
     const nextRound = one(`SELECT MIN(round) FROM races WHERE year = ? AND status <> 'completed'`, year)
+    // AF-138: a clinch strip for each finish of the leader's at the next
+    // round that settles the drivers' title, or the sentence saying why that
+    // round is not drawn, on the season page and the upcoming race's; and
+    // none where the round cannot settle it.
+    const clinchDrawn = (half, route, body) => {
+      for (const strip of title.clinch?.strips ?? []) truthy(body.includes(strip.title), `the ${half} of ${route} draws "${strip.title}"`)
+      if (title.clinch?.declined) truthy(body.includes(title.clinch.declined), `the ${half} of ${route} says why the next round is not drawn`)
+      if (!title.clinch) {
+        truthy(!/\bIf [^.<]*? (?:wins|finishes [a-z]+ in|scores no points in) the /.test(body), `the ${half} of ${route} draws no clinch strip, the next round unable to settle it`)
+      }
+    }
     if (!title) {
       note(`\n/seasons/${year}  (no answer to who can still win: no placement prints one)`)
       for (const [half, body] of await both(`/seasons/${year}`, String(year))) {
@@ -2476,6 +2488,7 @@ try {
       for (const kind of ['drivers', 'constructors']) {
         if (title[kind]) truthy(body.includes(reachTitle(kind)), `with ${reachTitle(kind).toLowerCase()} drawn`)
       }
+      clinchDrawn(half, `/seasons/${year}`, body)
     }
     const ahead = fightAhead(title, { year: one(`SELECT year FROM races WHERE year = ? AND status = 'scheduled' ORDER BY round LIMIT 1`, year) })
     for (const [half, body] of await both('/')) {
@@ -2485,6 +2498,7 @@ try {
     for (const [half, body] of await both(`/races/${year}/${title.next}`)) {
       truthy(body.includes(STAKE_HEADING), `the ${half} of the upcoming race says what is at stake`)
       is(body.split(title.who).length - 1, 1, `and who can still win, once`)
+      clinchDrawn(half, `/races/${year}/${title.next}`, body)
     }
     // A round run is not the upcoming race.
     if (title.next > 1) {
