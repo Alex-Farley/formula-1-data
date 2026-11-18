@@ -1025,14 +1025,18 @@ KNOWN_GAPS = [
      "Closes when the Sporting Regulations for the seasons before 2009 are "
      "read and each span of them is written as a row."),
     (23, "pit-stop-not-listed", "pit_stops.stop_number",
-     "the first pit stops of a race where F1DB holds no stop numbered 1",
+     "a pit stop numbered in Formula 1's own pit stop summary but not listed in it",
      "open",
-     "The pit stops shown are F1DB's. At the 2026 Dutch and Italian Grands "
-     "Prix, both red-flagged in their opening laps according to Wikipedia, "
-     "F1DB lists no driver's first stop, and neither does Formula 1's own "
-     "pit stop summary, whose numbering F1DB follows: each race's stops "
-     "begin at stop 2. A stop that is not listed is not held here, and none "
-     "is filled in from a source that may not be passed on.",
+     "The pit stops shown are F1DB's. Formula 1's own pit stop summary "
+     "numbers some stops it does not list, and at the races below F1DB holds "
+     "the same rows as that summary, numbering included. At the 2026 Dutch "
+     "and Italian Grands Prix, both red-flagged in their opening laps "
+     "according to Wikipedia, no driver's first stop is listed, so each "
+     "race's stops begin at stop 2. At the 2025 Monaco Grand Prix and the "
+     "2026 Australian, Monaco, Barcelona-Catalunya, British, Bahrain and "
+     "Mexico City Grands Prix, one or more drivers' stops skip a number in "
+     "the same way. A stop that is not listed is not held here, and none is "
+     "filled in from a source that may not be passed on.",
      "LV-18 (#1376). F1DB v2026.20.0's pit-stops.yml for 2026 round 12 "
      "(12-netherlands) and round 13 (13-italy) holds no stop 1 for any "
      "driver: every driver's first row is numbered 2 or later, and F1DB's "
@@ -1051,13 +1055,26 @@ KNOWN_GAPS = [
      "the cars entering the pit lane under the red flag. F1DB's rows for the "
      "2024 Japanese and Monaco Grands Prix, both red-flagged on lap 1, do "
      "hold each car's red-flag entry to the pit lane as stop 1, with the "
-     "wait in its time, so leaving one out is not a rule of F1DB's. Only "
-     "the numbering was compared with the official table, not each stop's "
-     "lap and time. A race where one driver's F1DB stops skip a number, and "
-     "the rest begin at 1, is not counted here: the official table was not "
-     "read for those, and LV-19 (#1402) follows them up.",
+     "wait in its time, so leaving one out is not a rule of F1DB's. "
+     "LV-19 (#1402) read formula1.com's pit stop summary on 2026-11-18 for "
+     "the seven other races where a driver's F1DB stops skip a number - 2025 "
+     "round 8 (results/2025/races/1261/monaco) and 2026 rounds 1, 6, 7, 9, "
+     "16 and 19 (races/1279/australia, 1286/monaco, 1287/barcelona-"
+     "catalunya, 1289/great-britain, 1308/bahrain and 1298/mexico) - and "
+     "compared all nine races with F1DB row by row. Each official table "
+     "holds the same rows as F1DB, with the same stop numbers, laps and "
+     "times, and skips the same numbers: Russell's stop 1 at Monaco in 2025; "
+     "in 2026 Stroll's stop 3 in Australia, Bortoleto's 3 and Perez's 2 at "
+     "Monaco, Albon's 3 at Barcelona-Catalunya, Hadjar's 2 at the British "
+     "Grand Prix, Perez's 2 in Bahrain, and Hulkenberg's 2, Perez's 3 and 4 "
+     "and Hirakawa's 3 and 4 in Mexico City. At each of those seven, the "
+     "official Total column at the next listed stop exceeds the listed "
+     "stops' times, by between 19.5 seconds and 38 minutes, so the summary "
+     "counts in its total a stop it does not list. Why each was left out "
+     "was not read. A race this gap's measure comes to count after "
+     "2026-11-18 has not been read against the official table.",
      "Closes when F1DB, or the official pit stop summary it follows, lists "
-     "these first stops - a refresh then takes them, this gap's measure "
+     "the stops it numbers - a refresh then takes them, this gap's measure "
      "falls to none and verify.py requires the row closed - or when a source "
      "that may be passed on holds them. Never by typing in Jolpica's rows."),
 ]
@@ -1112,13 +1129,13 @@ GAP_RACES = {
               AND (v.figures <> 'as raced' OR v.length_km IS NULL
                    OR o.length_km IS NULL OR x.length_km IS NULL
                    OR ABS(x.length_km - v.length_km) <= 0.15))""",
-    # a race with F1DB stops and none numbered 1: every driver's first stop
-    # numbered and not listed, as at 2026 rounds 12 and 13
-    "pit-stop-not-listed": """SELECT COUNT(*) FROM races r
-        WHERE EXISTS (SELECT 1 FROM pit_stops p
-                      WHERE p.race_id = r.id AND p.source = 'f1db')
-          AND NOT EXISTS (SELECT 1 FROM pit_stops p WHERE p.race_id = r.id
-                          AND p.source = 'f1db' AND p.stop_number = 1)""",
+    # a race where a driver's F1DB stops skip a number: a stop the official
+    # summary numbers and does not list - every driver's stop 1 at 2026
+    # rounds 12 and 13, one or more drivers' at seven other races (LV-19)
+    "pit-stop-not-listed": """SELECT COUNT(*) FROM races r WHERE EXISTS (
+        SELECT 1 FROM pit_stops p WHERE p.race_id = r.id AND p.source = 'f1db'
+        GROUP BY p.driver_key
+        HAVING MAX(p.stop_number) <> COUNT(DISTINCT p.stop_number))""",
     # a weekend whose timetable rests on formula1.com's page alone
     "session-timetable": """SELECT COUNT(*) FROM races r
         WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = r.id)
