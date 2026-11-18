@@ -4987,6 +4987,11 @@ try {
       }),
       label: document.querySelector(`${root} article.page > header > .race-podium > .eyebrow`)?.textContent ?? null,
       tiles: [...document.querySelectorAll(`${root} dl.stats > div > dt`)].map((dt) => dt.textContent),
+      // Each step's block as the two halves colour it: its classes and its
+      // livery pair, which the header's text parity does not read.
+      blocks: [...document.querySelectorAll(`${root} article.page > header > .race-podium .podium-block`)].map(
+        (b) => `${[...b.classList].sort().join('.')} ${(b.getAttribute('style') ?? '').replace(/\s+/g, '')}`,
+      ),
     })
     const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
     const still = await quiet.newPage()
@@ -4999,10 +5004,13 @@ try {
       ) !== 3
       await go(route)
       await still.goto(`${BASE}${route}`, { waitUntil: 'load' })
-      for (const [half, got] of [
+      const halves = [
         ['the app', await page.evaluate(read, '#root main')],
         ['the static page', await still.evaluate(read, '#prerendered')],
-      ]) {
+      ]
+      is(halves[0][1].blocks.length, shared ? 0 : 3, `${route}: the app draws a block for each podium step`)
+      is(halves[1][1].blocks.join(' | '), halves[0][1].blocks.join(' | '), `${route}: both halves colour each podium step alike`)
+      for (const [half, got] of halves) {
         if (shared) {
           is(got.steps.length, 0, `${route}, ${half}: a podium place held by two entries draws no podium`)
           truthy(got.tiles.includes('Winner'), `${route}, ${half}: and the strip keeps its Winner tile`)
