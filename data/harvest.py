@@ -1028,8 +1028,8 @@ KNOWN_GAPS = [
      "a pit stop numbered in Formula 1's own pit stop summary but not listed in it",
      "open",
      "The pit stops shown are F1DB's. Formula 1's own pit stop summary "
-     "numbers some stops it does not list, and at the races below F1DB holds "
-     "the same rows as that summary, numbering included. At the 2026 Dutch "
+     "numbers some stops it does not list, and at each race named here F1DB "
+     "holds the same rows as that summary, numbering included. At the 2026 Dutch "
      "and Italian Grands Prix, both red-flagged in their opening laps "
      "according to Wikipedia, no driver's first stop is listed, so each "
      "race's stops begin at stop 2. At the 2025 Monaco Grand Prix and the "
