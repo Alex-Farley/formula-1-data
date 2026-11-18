@@ -734,7 +734,9 @@ the reach chart cannot answer: which finishes at the next round would settle
 the drivers' title. One strip for each place the leader could take that can
 settle it, best first, each a `FigurePart` named for that finish (*If Andrea
 Kimi Antonelli wins the United States Grand Prix*). In a strip, one row per
-rival still in, named in a 120 px column (76 px below 480 px), and one
+rival still in, named in a 120 px column (76 px below 480 px), wider where
+a name needs it but never so wide a cell drops below 14 px, past which the
+name is cut with an ellipsis and the table has it whole, and one
 cell per place that rival could take: every place the season's scale pays,
 numbered over its column, then *0 pts* (*0* below 480 px, where the axis
 title says what it is), set 8 px apart so that *10* and *0* never read as

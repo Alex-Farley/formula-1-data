@@ -28,7 +28,7 @@ export default function ClinchStrip({ data, label }) {
         {layout.rows.map((row) => (
           <g key={row.d.key}>
             <text className="axis-text bar-label" x={row.labelX} y={row.labelY} textAnchor="end" dominantBaseline="middle" fill="var(--ink)">
-              {row.d.label}
+              {row.label}
             </text>
             {row.cells.map((cell) => (
               <g key={cell.place} className={cell.className}>

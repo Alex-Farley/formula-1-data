@@ -1696,7 +1696,7 @@ const clinchSvg = (strip, width) => {
     .map(
       (row) =>
         `<g><text class="axis-text bar-label" x="${px(row.labelX)}" y="${px(row.labelY)}" text-anchor="end" dominant-baseline="middle" fill="var(--ink)">${esc(
-          row.d.label,
+          row.label,
         )}</text>${row.cells
           .map(
             (cell) =>

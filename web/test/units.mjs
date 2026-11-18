@@ -1648,6 +1648,14 @@ describe('the queries a page and the prerenderer share', () => {
       assert.match(lap.declined, /^The United States Grand Prix could settle the drivers' title, but the fastest lap pays a point/)
       // A sprint weekend that cannot settle it says nothing.
       assert.equal(strips({ remaining: { ...live, sprints: 1, available: 158 }, calendar: sprint, table: [drivers[0], { ...drivers[1], points: 300 }] }), null)
+      // Russell on 248 can at best draw level (373 to 248 with 125 left):
+      // the sentence is said where the countback is Antonelli's, 9 wins to 8,
+      // and not where it is Russell's, 10 to 9, or cannot be counted.
+      const level = [drivers[0], { ...drivers[1], points: 248 }, ...drivers.slice(2)]
+      const atLevel = (at) => strips({ remaining: { ...live, sprints: 1, available: 158 }, calendar: sprint, table: level, at })
+      assert.match(atLevel(places).declined, /it has a sprint as well/)
+      assert.equal(atLevel(placesOf({ ...counts, russell: { ...counts.russell, 1: 5 } })), null)
+      assert.equal(strips({ remaining: { ...live, sprints: 1, available: 158, results: 16 }, calendar: sprint, table: level }), null)
     })
 
     it('lays each strip out inside its width, a cell a place with its symbol, and no cell at the leader’s own place', () => {
@@ -1671,6 +1679,25 @@ describe('the queries a page and the prerenderer share', () => {
         assert.deepEqual([...new Set(layout.rows[0].cells.map((c) => c.className))], ['clinch-taken', 'clinch-on', 'clinch-level', 'clinch-champion'])
       }
       assert.equal(clinchLayout({ data: [], width: 640 }), null)
+    })
+
+    it('widens the names to fit, as far as the cells allow, and cuts a name past that', () => {
+      const [wins] = strips().strips
+      const full = wins.data.map((d, i) => (i === 0 ? { ...d, label: 'Andrea Kimi Antonelli' } : d))
+      for (const width of [400, 640]) {
+        const layout = clinchLayout({ data: full, width })
+        assert.equal(layout.rows[0].label, 'Andrea Kimi Antonelli', `the full name at ${width}`)
+        assert.ok(layout.rows[0].labelX >= 8 + 21 * 6, `the names' column wide enough at ${width}`)
+        assert.ok(layout.rows[0].cells.at(-1).rect.x + layout.rows[0].cells.at(-1).rect.width <= width)
+      }
+      const long = wins.data.map((d, i) => (i === 0 ? { ...d, label: 'A Name Far Too Long To Fit Beside Eleven Cells' } : d))
+      const cut = clinchLayout({ data: long, width: 320 })
+      assert.match(cut.rows[0].label, /…$/)
+      assert.ok(cut.rows[0].cells.every((c) => !c.rect || c.rect.width >= 12))
+      assert.ok(cut.rows[0].cells.at(-1).rect.x + cut.rows[0].cells.at(-1).rect.width <= 320)
+      // Names that fit keep the usual column; one a little wider widens it.
+      assert.equal(clinchLayout({ data: wins.data.map((d) => ({ ...d, label: 'Ace' })), width: 320 }).rows[0].labelX, 68)
+      assert.equal(clinchLayout({ data: wins.data.map((d) => ({ ...d, label: 'Ace' })), width: 640 }).rows[0].labelX, 112)
     })
   })
 

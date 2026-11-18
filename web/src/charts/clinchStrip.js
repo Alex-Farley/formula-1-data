@@ -12,11 +12,26 @@
  * figure says each cell in words, the countback's outcome included.
  */
 import { CLINCH_CHAMPION, CLINCH_LEVEL, CLINCH_ON, CLINCH_TAKEN } from '../queries/season.js'
+import { textWidth } from './gridFlag.js'
 
 /** Below this the names and the column heads take their narrow forms. */
 export const CLINCH_NARROW_BELOW = 480
 const LABEL_WIDE = 120
 const LABEL_NARROW = 76
+/** A cell's narrowest. */
+const CELL_MIN = 14
+/** The space between a name and its row's first cell. */
+const LABEL_GAP = 8
+/** textWidth() measures the axis face's 11 px; a row's name is set at 12. */
+const LABEL_SCALE = 12 / 11
+const labelWidthOf = (label) => Math.ceil(textWidth(label) * LABEL_SCALE)
+/** A name cut to `room`, with an ellipsis, where it would not fit whole; the table under the figure has it whole. */
+const fitLabel = (label, room) => {
+  if (labelWidthOf(label) <= room) return label
+  let cut = String(label)
+  while (cut.length > 1 && labelWidthOf(`${cut}…`) > room) cut = cut.slice(0, -1)
+  return `${cut.trimEnd()}…`
+}
 /** The widest a cell is drawn: wider, a strip of eleven reads as a band rather than a row of places. */
 export const CLINCH_CELL_MAX = 36
 export const CLINCH_ROW = 28
@@ -47,7 +62,9 @@ const symbol = (mark, cx, cy, s) => {
  * `data` as clinchStrips() in queries/season.js gives a strip's, at `width`.
  * Null where there is nothing to draw.
  *
- * The names sit in a column of their own, end-aligned; the places are
+ * The names sit in a column of their own, end-aligned, widened where a name
+ * needs it as far as the cells' narrowest allows and cut with an ellipsis
+ * past that, the table under the figure having it whole; the places are
  * numbered over their columns, the last "0 pts", or "0" below
  * CLINCH_NARROW_BELOW, where the axis title says what it is, and set a
  * little apart from the places so "10" and "0" never run together. The cells
@@ -57,9 +74,14 @@ const symbol = (mark, cx, cy, s) => {
 export function clinchLayout({ data, width }) {
   if (!data || data.length === 0 || !data[0].cells?.length) return null
   const narrow = width < CLINCH_NARROW_BELOW
-  const labelWidth = narrow ? LABEL_NARROW : LABEL_WIDE
   const count = data[0].cells.length
-  const cell = Math.max(14, Math.min(CLINCH_CELL_MAX, Math.floor((width - labelWidth - APART) / count)))
+  // The names' column: its usual width, wider where a name needs it (two
+  // rivals sharing a surname are named in full), but never so wide the cells
+  // drop below their narrowest.
+  const need = Math.max(...data.map((d) => labelWidthOf(d.label))) + LABEL_GAP
+  const room = width - APART - count * CELL_MIN
+  const labelWidth = Math.max(narrow ? LABEL_NARROW : LABEL_WIDE, Math.min(need, room))
+  const cell = Math.max(CELL_MIN, Math.min(CLINCH_CELL_MAX, Math.floor((width - labelWidth - APART) / count)))
   // A column's left edge: the last, no points, set APART from the rest.
   const left = (i) => labelWidth + i * cell + (i === count - 1 ? APART : 0)
   const box = cell - GAP
@@ -74,7 +96,8 @@ export function clinchLayout({ data, width }) {
     const cy = y + (CLINCH_ROW - GAP) / 2
     return {
       d,
-      labelX: labelWidth - 8,
+      labelX: labelWidth - LABEL_GAP,
+      label: fitLabel(d.label, labelWidth - LABEL_GAP),
       labelY: r1(cy),
       cells: d.cells.map((c, i) => {
         const x = left(i)

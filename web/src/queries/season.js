@@ -2061,20 +2061,28 @@ export function clinchStrips(answer, remaining, rounds) {
   const left = fight.available - round
   const race = text(next.name_used)
 
+  const depth = scale.length
+  const racesAfter = remaining.races - 1
   // The leader's best case: the most the round pays, and every rival nothing.
-  // Level at best may settle it on the countback, which is worked out below
-  // only where a finish is a place.
-  if (!rivals.every((d) => leader.points + round - d.points >= left)) return null
+  // A rival who can then at best draw level leaves it settled only where the
+  // countback is the leader's - the leader winning, the rival scoring
+  // nothing - so a round whose countback is the rival's, or cannot be
+  // counted, could not settle it, and nothing is drawn or said.
+  const outAtBest = (d) => {
+    const gap = leader.points + round - d.points
+    if (gap !== left) return gap > left
+    const countback = nextCountback(fight.tie, d, leader, depth + 1, 1, racesAfter)
+    return Boolean(countback) && !countback.wins
+  }
+  if (!rivals.every(outAtBest)) return null
   const declined = (why) => ({ race, round: next.round, declined: `The ${race} could settle the drivers' title, but ${why}.` })
   if (next.sprint) return declined('it has a sprint as well, and which finishes in the two would settle it is not drawn here')
   if (!missing(remaining.fastest_lap_points) && remaining.fastest_lap_points > 0) {
     return declined("the fastest lap pays a point, and which finishes would settle it then turns on more than a place, so it is not drawn here")
   }
 
-  const depth = scale.length
   const names = shortNames([leader, ...rivals].map((d) => d.entity))
   const short = new Map([leader, ...rivals].map((d, i) => [d, names[i]]))
-  const racesAfter = remaining.races - 1
   // What a place pays: the scale's figure, and nothing below the places it pays.
   const pays = (place) => (place <= depth ? scale[place - 1] : 0)
   const strips = []
