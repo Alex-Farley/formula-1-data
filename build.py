@@ -1414,6 +1414,88 @@ def _stage_12_circuit_centrelines_re_measured_before_they(b):
             # cannot be walked round as a lap, and the page says so.
             print(f"    does not close: {line}")
 
+    _place_traces_on_photographs(cur)
+
+
+def _place_traces_on_photographs(cur):
+    """The track over the photograph (AF-96), checked before it is stored.
+
+    PHOTO_TRACE in data/harvest.py holds, per circuit, points on the middle
+    of the track in its aerial photograph and the transform
+    tools/photo_trace.py fitted onto them. Nothing here fits anything: the
+    fit is a search, and the build stores only what passes arithmetic. A
+    transform is stored when the circuit's photograph is still the file it
+    was fitted on, at the size its points were marked in, and when every
+    point lies within the tolerance of the line it draws, with no stretch of
+    the lap far from a point. Otherwise the photograph is shown plain - a new
+    photograph, a new stored size, a dropped or re-traced centreline is an
+    ordinary refresh, not a broken build - and verify.py says which entry is
+    not drawn.
+    """
+    placed = []
+    for cid, entry in sorted(HV.PHOTO_TRACE.items()):
+        # The entry's own shape is refused whether or not it is drawn.
+        points = [tuple(p) for p in entry["points"]]
+        if len(points) < HV.PHOTO_TRACE_MIN_POINTS:
+            raise SystemExit(
+                f"PHOTO_TRACE: {cid} marks {len(points)} points; a lap "
+                f"needs {HV.PHOTO_TRACE_MIN_POINTS}.")
+        if len(set(points)) != len(points):
+            raise SystemExit(f"PHOTO_TRACE: {cid} marks a point twice; "
+                             f"each point counts once.")
+        traces = cur.execute(
+            "SELECT layout_key, centreline FROM circuit_geometry "
+            "WHERE circuit_id = ?", (cid,)).fetchall()
+        if not traces:
+            print(f"    not drawn over its photograph: {cid}, which has no "
+                  f"centreline")
+            continue
+        if len(traces) != 1:
+            raise SystemExit(
+                f"PHOTO_TRACE: {cid} has {len(traces)} centrelines; a "
+                f"placing is fitted to exactly one.")
+        key, line = traces[0]
+        photo = cur.execute(
+            "SELECT file_name, width, height FROM article_images "
+            "WHERE route = 'circuit' AND circuit_id = ?", (cid,)).fetchone()
+        if photo is None or photo[0] != entry["file"]:
+            print(f"    not drawn over its photograph: {cid}, whose "
+                  f"photograph is no longer the file it was placed on")
+            continue
+        _, width, height = photo
+        if (width, height) != tuple(entry["frame"]):
+            print(f"    not drawn over its photograph: {cid}, stored at "
+                  f"{width} x {height}, not the {entry['frame'][0]} x "
+                  f"{entry['frame'][1]} its points were marked in")
+            continue
+        if not all(0 <= x <= width and 0 <= y <= height for x, y in points):
+            raise SystemExit(f"PHOTO_TRACE: {cid} marks a point outside "
+                             f"its {width} x {height} photograph.")
+        lines = json.loads(line)["coordinates"]
+        transform = entry["transform"]
+        errors = HV.photo_trace_errors(transform, points, lines)
+        gap = HV.photo_trace_gap(transform, points, lines)
+        if max(errors) > HV.PHOTO_TRACE_TOLERANCE_PX:
+            print(f"    not drawn over its photograph: {cid}, a point "
+                  f"{max(errors):.1f} px from the line, beyond "
+                  f"{HV.PHOTO_TRACE_TOLERANCE_PX} px")
+            continue
+        if gap > HV.PHOTO_TRACE_MAX_GAP * width:
+            print(f"    not drawn over its photograph: {cid}, a stretch of "
+                  f"the lap {gap:.0f} px from any point")
+            continue
+        cur.execute(
+            """UPDATE circuit_geometry SET photo_file = ?, photo_points = ?,
+               photo_transform = ?, photo_error_px = ?, photo_source_id = 18,
+               photo_confidence = 'medium'
+               WHERE circuit_id = ? AND layout_key IS ?""",
+            (entry["file"], json.dumps([list(p) for p in points]),
+             json.dumps(transform, sort_keys=True),
+             round(max(errors), 2), cid, key))
+        placed.append(f"{cid} ({max(errors):.1f} px)")
+    if placed:
+        print(f"    drawn over the photograph: {', '.join(placed)}")
+
 
 def _stage_13_a_regulation_figure_is_not_a(b):
     """a regulation figure is not a measurement, part one"""
@@ -3549,12 +3631,21 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
     # compared, rather than the last loader to run winning.
     pit_rows = pit_skipped = 0
     timed = 0
+    stored = []
     for r in HV.load_f1db_pit_stops():
         rid = b.race_for(r["year"], r["round"], "pit stops")
         did = f1db_drivers.get(r["driver_id"])
         if rid is None or not did:
             pit_skipped += 1
             continue
+        stored.append((r, rid, did))
+    # Repeats are counted over the rows that reach the table, so an
+    # undeclared repeat in a round not yet on the calendar, or for a driver
+    # F1DB has and the register does not, is skipped with its rows rather
+    # than refused (review of #1374).
+    repeats = _pit_stop_repeats([r for r, _, _ in stored], HV.F1DB_PIT_STOP_REPEATS)
+    ignored = {}
+    for r, rid, did in stored:
         millis = _pit_millis(r)
         cur.execute("""INSERT OR IGNORE INTO pit_stops (race_id, driver_id,
                 driver_key, stop_number, lap_number, pit_lane_seconds, source)
@@ -3564,9 +3655,65 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
              millis / 1000 if millis is not None else None))
         pit_rows += cur.rowcount
         timed += cur.rowcount if millis is not None else 0
+        if not cur.rowcount:
+            race = (int(r["year"]), int(r["round"]))
+            ignored[race] = ignored.get(race, 0) + 1
+    # Every row the key turned away is a declared repeat, race by race, and
+    # no other: a row lost to the key for any other reason - two F1DB
+    # drivers read as one, say - is lost without a word, which is what
+    # LV-13 found.
+    if ignored != repeats:
+        raise SystemExit(
+            "pit stops: the F1DB rows the key turned away are not the "
+            "declared repeats: "
+            + "; ".join(f"{y} round {n} turned away {ignored.get((y, n), 0)}, "
+                        f"repeats {repeats.get((y, n), 0)}"
+                        for y, n in sorted(set(ignored) | set(repeats))
+                        if ignored.get((y, n), 0) != repeats.get((y, n), 0)))
     if pit_rows:
         print(f"  pit stops: {pit_rows} rows from F1DB, {timed} with a "
-              f"pit-lane time ({pit_skipped} skipped)")
+              f"pit-lane time ({pit_skipped} skipped, "
+              f"{sum(repeats.values())} declared repeats dropped)")
+
+
+def _pit_stop_repeats(rows, declared):
+    """{(year, round): rows repeating a stop already read}, for F1DB's pit
+    stops, once it agrees with data/harvest.py F1DB_PIT_STOP_REPEATS
+    (LV-13, #1159).
+
+    A repeat is a row with a race, driver and stop already read, which the
+    table's key keeps out. The build stops on a race whose count differs from
+    the declaration - an undeclared repeat, a declaration no longer borne out,
+    or a different number - and on a repeat that differs from the row it
+    repeats, which is two readings of one stop rather than one read twice. A
+    row with no stop number is not a repeat: the key holds each such row."""
+    first, found, clashes = {}, {}, []
+    for r in rows:
+        if not r["stop"]:
+            continue
+        key = (int(r["year"]), int(r["round"]), r["driver_id"], int(r["stop"]))
+        if key not in first:
+            first[key] = r
+        elif first[key] != r:
+            clashes.append(key)
+        else:
+            found[key[:2]] = found.get(key[:2], 0) + 1
+    if clashes:
+        raise SystemExit(
+            "pit stops: F1DB gives one stop two readings: "
+            + "; ".join(f"{y} round {n} {d} stop {s}" for y, n, d, s in clashes)
+            + ". Which is right is a choice for a second source, not the key.")
+    wrong = [k for k in sorted(set(found) | set(declared))
+             if found.get(k, 0) != declared.get(k, 0)]
+    if wrong:
+        raise SystemExit(
+            "pit stops: F1DB's repeated stops differ from data/harvest.py "
+            "F1DB_PIT_STOP_REPEATS: "
+            + "; ".join(f"{y} round {n} repeats {found.get((y, n), 0)}, "
+                        f"declared {declared.get((y, n), 0)}" for y, n in wrong)
+            + ". Declare a repeat with what F1DB's file holds, or remove a "
+              "declaration F1DB has corrected.")
+    return found
 
 
 def _pit_millis(r):

@@ -60,6 +60,7 @@ import {
   houseTime,
   missing,
   number,
+  points,
   raceDates,
   result,
   span,
@@ -71,6 +72,7 @@ import { podiumTeam } from '../src/lib/podium.js'
 import {
   FOLD_LESS,
   FOLD_NOUN,
+  LEADER,
   UNFOLDED,
   WIDE_ONLY,
   defaultColumns,
@@ -198,6 +200,7 @@ import {
   LIVERY_LICENCE,
   bandWords,
   colourForEntry,
+  inColourEra,
   constructorBandNote,
   driverBandNote,
   liveryFor,
@@ -249,6 +252,10 @@ import {
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
   constructorsFooter,
+  championPill,
+  pointsShare,
+  standingsColour,
+  standingsLeader,
   entrantNames,
   latestRound,
   nextLine,
@@ -267,6 +274,7 @@ import {
   mergeSources,
   reachFigures,
   seasonAnswer,
+  CONTENDER_ENTRIES,
   titleRaceFigure,
   titleSettled,
   titleStrip,
@@ -425,6 +433,7 @@ import {
 import {
   CIRCUIT as CIRCUIT_ROW,
   CIRCUIT_SOURCES,
+  GEOMETRY,
   GRANDS_PRIX as CIRCUIT_GRANDS_PRIX,
   LAYOUTS as CIRCUIT_LAYOUTS,
   RACES as CIRCUIT_RACES,
@@ -660,8 +669,11 @@ import {
   thisSeasonHeading,
   thisSeasonLine,
   teamMatesFooter,
+  faceOffs,
   teamsBySeason,
 } from '../src/queries/driver.js'
+import { faceColours } from '../src/charts/own.js'
+import { OSM_COPYRIGHT, TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, photoTrace, traceFields } from '../src/lib/trace.js'
 import {
   COMPARE_DESCRIPTION,
   COMPARE_LEDE,
@@ -705,7 +717,9 @@ import {
   TITLES,
   asOfLine,
   asOfOf,
+  cardComparator,
   cardExtras,
+  cardFigure,
   decadeCount,
   decadeFigureTitle,
   decadeLeaders,
@@ -723,7 +737,13 @@ import {
   tierBefore,
   tiersOf,
   RECORDS_STANDFIRST,
-  recordStrip,
+  DERIVATION_ID,
+  LONGEST_RUNS,
+  recordLead,
+  recordRacesNote,
+  streakRaces,
+  streakRuns,
+  stripRound,
 } from '../src/queries/records.js'
 // Where a page sits and where it leads, from the module the app reads (IA-03,
 // IA-22). The trails were written out here and the onward bands existed only
@@ -753,6 +773,7 @@ import {
 import { dotPlotLayout } from '../src/charts/dotPlot.js'
 import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
+import { MARKER } from '../src/charts/annotate.js'
 import { reachLayout } from '../src/charts/reachChart.js'
 import { dotStrip, drawnColours, gridDiagram } from '../src/charts/gridStarts.js'
 import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
@@ -1005,12 +1026,16 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // `<colgroup>` for each run and a row of heads above the column heads, a
 // `<th scope="colgroup">` over a run with a label and an empty cell over one
 // without, as DataTable writes them.
+//
+// `leaders` is one flag a row, true where the row is its table's leader: the
+// row takes lib/table.js's LEADER class, as DataTable's `leader` writes it
+// from the same predicate (VD-105).
 const FOLD_NAME = '<span class="sr-only fold-name"></span>'
 const foldFaults = []
 let unplacedFaults = []
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { aligns = [], hidden = [], rowHeaders = [], fold = false, unfolded = null, footer = null, groups = null } = options
+  const { aligns = [], hidden = [], rowHeaders = [], fold = false, unfolded = null, footer = null, groups = null, leaders = [] } = options
   const fault = foldFault(rows.length, fold, unfolded)
   if (fault) {
     const heads = headers.map((h) => (typeof h === 'string' ? h : (h.label ?? h.html))).join(' | ')
@@ -1044,7 +1069,7 @@ const table = (headers, rows, options = {}) => {
       })
       .join('')}</tr></thead>`,
     '<tbody>',
-    rows.map((cells) => `<tr>${cells.map(cell).join('')}</tr>`).join(''),
+    rows.map((cells, r) => `<tr${leaders[r] ? ` class="${LEADER}"` : ''}>${cells.map(cell).join('')}</tr>`).join(''),
     '</tbody></table></div>',
     folded
       ? `<details class="table-fold"><summary><span class="fold-more">${esc(foldMore(rows.length, fold))}</span><span class="fold-less">${esc(FOLD_LESS)}</span>${FOLD_NAME}</summary></details>`
@@ -1065,7 +1090,7 @@ const table = (headers, rows, options = {}) => {
 // A column with a React-only `render` and no `text` falls back to the
 // formatted raw value here; a render that changes the text must come with a
 // matching `text`, or the two renderers part.
-const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null, footer = null } = {}) => {
+const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null, footer = null, leader = null } = {}) => {
   // The default set, never the full one: a column declared `optional` waits
   // for a reader to ask for it, in the app, through `?cols=` (IA-23). The
   // phone default is the same table with the columns it leaves out marked
@@ -1129,6 +1154,7 @@ const fromColumns = (declared, rows, links = {}, { fold = false, unfolded = null
         unfolded,
         footer,
         groups: groupRuns(kept),
+        leaders: leader ? rows.map((row) => leader(row)) : [],
       },
     )
   )
@@ -1588,11 +1614,37 @@ const columnSvg = (chart, colour, width) => {
   return `<div${holder}>${plotSvg(layout, chart.label, `${yAxis(layout)}${columns}`)}</div>`
 }
 
-/* LineChart.jsx at rest: each line in its slot's dash, its end marked, and
-   the end's value where it does not collide with another's. */
+/* LineChart.jsx at rest: the shaded bands under everything, each line in
+   its slot's dash with its end marked, each end's name and value in the
+   gutter on its hairline, and the numbered markers over the lines (VD-121). */
 const lineSvg = (chart, width) => {
   const layout = lineLayout({ ...chart, width })
   if (!layout) return ''
+  const bands = layout.bands
+    .map((b) => `<rect class="plot-band" x="${px(b.x)}" y="${px(b.y)}" width="${px(b.width)}" height="${px(b.height)}"/>`)
+    .join('')
+  const labels = layout.lines
+    .filter(({ end }) => end)
+    .map(({ end: { label } }) => {
+      const at = (y) => `x="${px(label.x)}" y="${px(y)}"`
+      const words = label.stacked
+        ? `<tspan class="end-name" ${at(label.nameY)}>${esc(label.name)} </tspan><tspan ${at(label.valueY)}>${esc(label.value)}</tspan>`
+        : label.name
+          ? `<tspan class="end-name">${esc(label.name)}</tspan> ${esc(label.value)}`
+          : esc(label.value)
+      return `<g class="end-label"><polyline points="${label.leader.map(([x, y]) => `${px(x)},${px(y)}`).join(' ')}" fill="none"/><text${
+        label.name ? '' : ' class="alone"'
+      } x="${px(label.x)}" y="${px(label.y)}" dominant-baseline="middle">${words}</text></g>`
+    })
+    .join('')
+  const markers = layout.markers
+    .map(
+      (m) =>
+        `<g class="anno-marker"><line x1="${px(m.leader.x1)}" y1="${px(m.leader.y1)}" x2="${px(m.leader.x2)}" y2="${px(m.leader.y2)}"/><circle cx="${px(
+          m.cx,
+        )}" cy="${px(m.cy)}" r="${MARKER.r}"/><text x="${px(m.cx)}" y="${px(m.cy)}" text-anchor="middle" dominant-baseline="central">${m.n}</text></g>`,
+    )
+    .join('')
   const lines = layout.lines
     .map(({ s, i, path, end }) => {
       const stroke = s.colour ? 'var(--livery)' : slotColour(i, layout.lines.length)
@@ -1600,16 +1652,26 @@ const lineSvg = (chart, width) => {
       return `<g${s.colour ? ownAttrs(s.colour) : ''}><path d="${path}" fill="none" stroke="${stroke}" stroke-width="2"${
         dash ? ` stroke-dasharray="${dash}"` : ''
       } stroke-linejoin="round" stroke-linecap="round"/>${
-        end
-          ? `<circle class="mark-ring" cx="${px(end.x)}" cy="${px(end.y)}" r="4" fill="${stroke}"/>${
-              end.text !== null ? `<text class="value-text" x="${px(end.x + 9)}" y="${px(end.y)}" dominant-baseline="middle">${esc(end.text)}</text>` : ''
-            }`
-          : ''
+        end ? `<circle class="mark-ring" cx="${px(end.x)}" cy="${px(end.y)}" r="4" fill="${stroke}"/>` : ''
       }</g>`
     })
     .join('')
-  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${lines}`)}</div>`
+  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${bands}${yAxis(layout)}${xAxis(layout)}${lines}${labels}${markers}`)}</div>`
 }
+
+/* Figure.jsx's AnnotationKey (VD-121): the notes the markers point to,
+   under the plot, every word of each. */
+const annotationKey = (notes) =>
+  notes.length
+    ? `<ol class="figure-key">${notes
+        .map(
+          (note) =>
+            `<li><span class="figure-key-n" aria-hidden="true">${note.n}</span><p><span class="sr-only">Note ${note.n}: </span><b>${esc(
+              note.lead,
+            )}<span class="sr-only">.</span></b> ${esc(note.text)}</p></li>`,
+        )
+        .join('')}</ol>`
+    : ''
 
 /* ReachChart.jsx at rest (AF-132): each contender's name, the solid bar and
    its outlined extension in the bar's colour or in ink, the two figures
@@ -1719,23 +1781,16 @@ const startsBlock = (races, everywhere, layouts, winners, teams) => {
   return `${heading(STARTS_HEADING)}<p class="note">${esc(startsLine(races, layouts))}</p>${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
 }
 
-/* Figure.jsx's legend: a stroke in the series' dash for a line chart, as
-   its LineKey draws one, and only where there is more than one entry. */
-const legendHtml = (legend, marks) =>
+/* Figure.jsx's legend: a swatch per entry, in its livery or its slot's
+   colour, and only where there is more than one entry. A line chart takes
+   none: its lines are named at their ends (VD-121). */
+const legendHtml = (legend) =>
   legend && legend.length > 1
     ? `<div class="legend">${legend
         .map((entry, i) => {
-          const dash = seriesDash(i)
-          const key =
-            marks === 'line'
-              ? `<svg class="${entry.colour ? 'line-key livery-series' : 'line-key'}"${
-                  entry.colour ? ` style="${pairStyle(entry.colour)}"` : ''
-                } width="20" height="8" viewBox="0 0 20 8" aria-hidden="true" focusable="false"><line x1="2" x2="18" y1="4" y2="4" stroke="${
-                  entry.colour ? 'var(--livery)' : slotColour(i, legend.length)
-                }" stroke-width="2"${dash ? ` stroke-dasharray="${dash}"` : ''} stroke-linecap="round"/></svg>`
-              : entry.colour
-                ? `<i class="livery-series" style="${pairStyle(entry.colour)}; background: var(--livery)" aria-hidden="true"></i>`
-                : `<i style="background: ${slotColour(i, legend.length)}" aria-hidden="true"></i>`
+          const key = entry.colour
+            ? `<i class="livery-series" style="${pairStyle(entry.colour)}; background: var(--livery)" aria-hidden="true"></i>`
+            : `<i style="background: ${slotColour(i, legend.length)}" aria-hidden="true"></i>`
           return `<span>${key}${esc(entry.name)}</span>`
         })
         .join('')}</div>`
@@ -1756,10 +1811,12 @@ const legendHtml = (legend, marks) =>
 // stands rather than wrapping the tiles for it.
 const opened = (head, lead) => (lead ? `<section class="section">${head}</section>${lead}` : head)
 
-const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = null, marks = 'swatch', plot, table }) =>
-  `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2><figure class="figure figure-lead" aria-label="${esc(
+const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = null, finding = null, kicker = null, annotations = [], plot, table }) =>
+  `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2>${
+    finding ? `<p class="figure-finding">${esc(finding)}</p>${kicker ? `<p class="figure-kicker">${esc(kicker)}</p>` : ''}` : ''
+  }<figure class="figure figure-lead" aria-label="${esc(
     name,
-  )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}</div>${legendHtml(legend, marks)}<p class="figure-note" id="lead-figure-note"><span>${esc(
+  )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}${annotationKey(annotations)}</div>${legendHtml(legend)}<p class="figure-note" id="lead-figure-note"><span>${esc(
     figureNote,
   )}</span></p><details><summary>The numbers behind this chart<span class="sr-only">, ${esc(name)}</span></summary>${table}</details></figure></section>`
 
@@ -1912,6 +1969,85 @@ const liveryMark = (colour, prose = false) =>
       ? `<i class="livery livery-prose" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
       : `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
 const winnerMark = (round, year) => liveryMark(winnerColour(round, year))
+
+// components/LiveryMark.jsx in a table column: the mark with a tooltip of
+// the caller's, and, where the season is one a colour could be on record for
+// and this row has none, the transparent spacer that keeps the names aligned.
+const columnMark = (colour, title, year) =>
+  colour
+    ? `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(title ?? colour.title)}" aria-hidden="true"></i>`
+    : inColourEra(year)
+      ? '<i class="livery livery-none" aria-hidden="true"></i>'
+      : ''
+
+// charts/FaceOff.jsx: the team-mates face-off (VD-122), the same markup
+// from the same faceOffs() result, so nothing moves at the handover.
+const faceFigure = (tally, side, base) => `${base}${tally.ahead === side ? ' face-win' : ''}`
+const duel = (tally) =>
+  tally.share === null
+    ? '<span class="duel duel-none" aria-hidden="true"></span>'
+    : `<span class="duel" aria-hidden="true"><i style="--share: ${tally.share}"></i><i></i></span>`
+const faceBlock = (block) => {
+  const { className, vars } = faceColours(block.colour)
+  const style = Object.entries(vars)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join('; ')
+  const [a, b] = block.names
+  const tallies = block.tallies
+    .map(
+      (t) =>
+        `<div class="face-tally"><p class="face-label">${esc(t.label)}</p><div class="face-row"><span class="${faceFigure(t, 'mine', 'face-figure')}"><span class="sr-only">${esc(a)} </span>${esc(t.mine)}</span>${duel(t)}<span class="${faceFigure(t, 'theirs', 'face-figure face-figure-mate')}"><span class="sr-only">, ${esc(b)} </span>${esc(t.theirs)}</span></div></div>`,
+    )
+    .join('')
+  const seasons = block.seasons
+    .map(
+      (season) =>
+        `<div class="face-season"><b>${season.year}</b>${season.tallies
+          .map(
+            (t) =>
+              `<span class="face-mini"><span class="${faceFigure(t, 'mine', 'face-mini-figure')}">${esc(t.mine)}</span>${duel(t)}<span class="${faceFigure(t, 'theirs', 'face-mini-figure face-figure-mate')}">${esc(t.theirs)}</span></span>`,
+          )
+          .join('')}</div>`,
+    )
+    .join('')
+  return (
+    `<div class="${className}"${style ? ` style="${esc(style)}"` : ''}>` +
+    `<div class="face-names"><span class="face-name">${esc(a)}</span><span class="face-verdict"><b>${esc(block.verdict)}</b>${esc(block.when)}</span><span class="face-name face-name-mate">${esc(b)}</span></div>` +
+    `<div class="face-tallies">${tallies}</div>` +
+    `<div class="face-seasons" aria-hidden="true"><div class="face-season face-season-head"><span>Season</span><span>Qualifying</span><span>Race</span><span>Points</span></div>${seasons}</div>` +
+    '</div>'
+  )
+}
+const faceOffHtml = (faceOff) =>
+  faceOff
+    ? `<p class="face-headline">${esc(faceOff.headline.text)} <em>${esc(faceOff.headline.figure)}</em></p><p class="note">${esc(faceOff.standfirst)}</p>${faceOff.blocks.map(faceBlock).join('')}<p class="faint face-key">${esc(faceOff.note)}</p>`
+    : ''
+
+// components/ValueBar.jsx: a figure and its bar, `share` of the leader's, in
+// the row's pair as a series wears it or in ink, the figure the cell's text.
+const valueBar = (figure, share, colour) => {
+  const shown = figure === EMPTY ? `<span class="empty">${EMPTY}</span>` : esc(figure)
+  if (share === null) return shown
+  const style = `${colour ? `${pairStyle(colour)}; ` : ''}--share: ${share}`
+  return `<span class="value-bar"><span>${shown}</span><i${colour ? ' class="livery-series"' : ''} style="${style}" aria-hidden="true"></i></span>`
+}
+
+// Season.jsx's standingsRenders(), as the cells the static standings print.
+const standingsLinks = (kind, rows, { year, teams, season, crowned }) => {
+  const share = pointsShare(rows)
+  return {
+    entity: (name, row) => {
+      const { colour, title } = standingsColour(kind, row, year, teams)
+      const id = kind === 'drivers' ? row.driver_id : row.constructor_id
+      const engine = kind === 'constructors' ? row.engine_id : null
+      const pill = championPill(kind, row, season, crowned)
+      return `${columnMark(colour, title, year)}${id ? link(`${kind}/${id}`, name) : text(name)}${engine ? ` ${idTag(engine)}` : ''}${
+        pill ? ` <span class="pill pill-champion">${esc(pill)}</span>` : ''
+      }`
+    },
+    points: (value, row) => valueBar(points(value), share(value), standingsColour(kind, row, year, teams).colour),
+  }
+}
 
 // components/SeasonPlate.jsx (VD-104 (c)): a concluded season's champion in
 // the pair of the team they won with, or in ink where none is on record.
@@ -2334,16 +2470,25 @@ const outbound = (url, label, name = null) =>
  * absent here on purpose — there is no React to move it through loading,
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
+ *
+ * `trace` is the lap over a circuit's photograph (AF-96), photoTrace()'s, as
+ * CommonsImage draws it: the same frame, the same two paths, and the same
+ * OpenStreetMap credit after the photograph's own.
  */
-const photograph = (image, width, caption = null, alt = caption, checks = true) => {
+const photograph = (image, width, caption = null, alt = caption, checks = true, trace = null) => {
   const title = fileTitle(image.file_name)
   const licence = (image.licence ?? '').trim()
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
+  const picture = `<img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />`
   return `<figure class="photo">
-        <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />
+        ${
+          trace
+            ? `<div class="photo-frame">${picture}<svg class="photo-trace" viewBox="0 0 ${esc(trace.width)} ${esc(trace.height)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path class="photo-trace-casing" d="${esc(trace.d)}"></path><path class="photo-trace-line" d="${esc(trace.d)}"></path></svg></div>`
+            : picture
+        }
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title, fileLinkName(image))} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
-        }${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
+        }${trace ? ` · Track ${outbound(OSM_COPYRIGHT, '\u00a9 OpenStreetMap contributors')}, ${esc(trace.licence)}` : ''}${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
           image.route === 'category' ? ` · ${confidencePill(image.confidence)}` : ''
         }</figcaption>
       </figure>`
@@ -3100,8 +3245,9 @@ const seasonsTable = (rows) =>
     const grid = one(GRID, year)
     const currentGrid = all(CURRENT_GRID, year)
     // The next round, on the page of the season being run only (PD-49): the
-    // same row, sessions and past winners Season.jsx draws. No trace - f1.db
-    // carries none, and only the browser merges f1-geometry.db in.
+    // same row, sessions and past winners Season.jsx draws. No trace yet: the
+    // circuit pages state it from f1-geometry.db (CR-33), and this section is
+    // CR-126 (#1384).
     const next = one(NEXT_ROUND, year)
     const nextSessions = next ? all(SEASON_SESSIONS, year).filter((row) => row.round === next.round) : []
     const wonHere = next ? all(WON_HERE, year) : []
@@ -3190,14 +3336,18 @@ const seasonsTable = (rows) =>
       drivers: driversFinal,
       standings,
       teams: teamsByDriver(all(DRIVER_TEAMS, year)),
-      dropped: one(REMAINING, year)?.dropped_scores,
+      remaining: one(REMAINING, year) ?? null,
+      rounds: calendar,
+      entries: all(CONTENDER_ENTRIES, year),
+      champion: s.drivers_champion,
     })
     const raceChart = race
       ? leadFigure({
           heading: race.heading,
           note: race.note,
-          legend: race.legend,
-          marks: 'line',
+          finding: race.finding,
+          kicker: race.kicker,
+          annotations: race.annotations,
           plot: lineSvg(race, LEAD_WIDTH),
           table: fromColumns(TITLE_RACE_COLUMNS, race.rows, {}, { unfolded: UNFOLDED.figure }),
         })
@@ -3232,13 +3382,20 @@ const seasonsTable = (rows) =>
     winning_team: (name, row) =>
       row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(winningCar(row)),
   }, { unfolded: UNFOLDED.subject, footer: CALENDAR_FOOTER })}`
+    // Season.jsx's standingsRenders(): the mark beside each name, the
+    // champion's pill, and each total with its bar against the leader's
+    // (VD-110), all from queries/season.js, on the rows it marks as the
+    // leader's (VD-105).
+    const marking = { year, teams: teamsByDriver(all(DRIVER_TEAMS, year)), season: s, crowned: answer?.crowned }
     const seasonStandings = `
   <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
   ${
     driversFinal.length
-      ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
-          entity: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
-        }, { unfolded: UNFOLDED.subject, footer: DRIVERS_FINAL_FOOTER })
+      ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, standingsLinks('drivers', driversFinal, marking), {
+          unfolded: UNFOLDED.subject,
+          footer: DRIVERS_FINAL_FOOTER,
+          leader: standingsLeader,
+        })
       : notRun
         ? `<p class="state is-empty">${esc(NOT_RUN_STANDINGS)}</p>`
         : EMPTY_STATE
@@ -3246,10 +3403,11 @@ const seasonsTable = (rows) =>
   <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
   ${
     constructorsFinal.length
-      ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
-          entity: (name, row) =>
-            `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${idTag(row.engine_id)}` : ''}`,
-        }, { unfolded: UNFOLDED.subject, footer: constructorsFooter(constructorsFinal.some((r) => r.engine_id)) })
+      ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, standingsLinks('constructors', constructorsFinal, marking), {
+          unfolded: UNFOLDED.subject,
+          footer: constructorsFooter(constructorsFinal.some((r) => r.engine_id)),
+          leader: standingsLeader,
+        })
       : noteBox(noConstructors.head, noConstructors.body)
   }`
     page({
@@ -3900,7 +4058,7 @@ const seasonsTable = (rows) =>
         }
         ${
           teamMates.length
-            ? `<h2>Team-mates</h2>${fromColumns(TEAM_MATE_COLUMNS, teamMates, {
+            ? `<h2>Team-mates</h2>${faceOffHtml(faceOffs(d.full_name, teamMates))}${fromColumns(TEAM_MATE_COLUMNS, teamMates, {
                 year: (year) => link(`seasons/${year}`, year),
                 mate: (name, row) => link(`drivers/${row.mate_id}`, name),
                 constructor: (name, row) => link(`constructors/${row.constructor_id}`, name),
@@ -4144,11 +4302,18 @@ page({
   const register = all(CIRCUITS)
   const geoPath = join(repo, 'f1-geometry.db')
   if (!existsSync(geoPath)) {
-    die(`${geoPath} is missing. The circuits register's Traced column is answered from it, and\nanything that publishes f1.db must publish f1-geometry.db beside it.`)
+    die(`${geoPath} is missing. The circuits register's Traced column and each circuit's trace are answered from it, and\nanything that publishes f1.db must publish f1-geometry.db beside it.`)
   }
   const geo = new DatabaseSync(geoPath, { readOnly: true })
   const traced = new Set(geo.prepare('SELECT DISTINCT circuit_id FROM circuit_geometry').all().map((r) => r.circuit_id))
-  geo.close()
+  // CR-33: each circuit page states its trace as Circuit.jsx does - the
+  // figures, never the centreline - read with the app's own queries from the
+  // same file, so the static page and the app say the same about it. The
+  // query runs against f1-geometry.db because the overlay is not in f1.db,
+  // and the coverage is TRACE_COVERAGE's two counts: the circuits traced
+  // there and the circuits in the register.
+  const geometryOf = geo.prepare(GEOMETRY)
+  const coverage = { traced: traced.size, circuits: circuits.length }
   for (const row of register) row.traced = traced.has(row.id) ? 1 : 0
 
   // VD-50: one outline per venue, the app's own query, so the static register
@@ -4204,6 +4369,9 @@ page({
     // The photograph beside the heading, as Circuit.jsx draws it (VD-62):
     // the same query, through canShow() first, and nothing where there is none.
     const pictured = all(CIRCUIT_PHOTOGRAPH, c.id).find(canShow) ?? null
+    // AF-96: the lap over it, where a placing was fitted on this file.
+    const tracesHere = geometryOf.all(c.id)
+    const pictureTrace = pictured ? photoTrace(tracesHere, pictured) : null
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     // VD-83 (SD-41), as Circuit.jsx: what *Every layout raced here* holds -
     // the timeline's rows, or the other drawings, behind one disclosure. The
@@ -4220,6 +4388,27 @@ page({
     const heldLine = held.length
       ? `<p class="measure">${held.map((segment) => (segment.id ? link(`grands-prix/${segment.id}`, segment.name) : esc(segment.text))).join('')}</p>`
       : ''
+    // The trace, last, as Circuit.jsx puts it (PD-60): lib/trace.js's fields
+    // with the ODbL credit under them, or the line a circuit without one
+    // shows. The app's third state - the file did not load - cannot happen
+    // here, since a build without f1-geometry.db has stopped above.
+    const traceSection = tracesHere.length
+      ? `${heading(TRACE_HEADING)}<p class="note">${esc(TRACE_RULE)}</p>${tracesHere
+          .map(
+            (g) =>
+              `${fields(
+                traceFields(g, c.direction).map(({ label, value, href: url }) => [
+                  label,
+                  value === null
+                    ? `<span class="empty">${EMPTY}</span>`
+                    : url
+                      ? `<a href="${esc(url)}" target="_blank" rel="noreferrer noopener">${esc(value)}</a>`
+                      : esc(value),
+                ]),
+              )}<p class="faint">${esc(odblCredit(g.licence))}</p>`,
+          )
+          .join('')}`
+      : `<p class="note">${esc(noTrace(coverage.traced, coverage.circuits))}</p>`
     page({
       path: `circuits/${c.id}`,
       lastmod: LAST_RUN.circuit.get(c.id),
@@ -4251,7 +4440,7 @@ page({
       },
       body: `
         ${opening({ eyebrow: EYEBROWS.circuit(c.locality, c.country), title: NAMES.circuit(c.name).headline, lede: c.notes })}
-        ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
+        ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name, Boolean(pictureTrace)), true, pictureTrace)}</div>` : ''}
         <section class="section">${tiles(circuitStrip(cv))}</section>
         ${
           // The opening slot (VD-84), as Circuit.jsx: the current layout
@@ -4304,6 +4493,7 @@ page({
               }, { fold: FOLD_NOUN.races })}`
             : EMPTY_STATE
         }
+        ${traceSection}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([
           // What the old opening list said that the strip above does not
@@ -4317,6 +4507,7 @@ page({
         ])}`,
     })
   }
+  geo.close()
 }
 
 // ------------------------------------------------------------ grands prix
@@ -4723,14 +4914,30 @@ page({
   const headline = headlineRecords(records)
   const families = recordFamilies(records)
   const extras = cardExtras(records)
-  // The cards, as Records.jsx's RecordCards draws them.
+  // The cards, as Records.jsx's RecordCards draws them: the figure large with
+  // its qualifier, and the holder's bar and the next two with the margin
+  // under them (VD-111), from the same two functions.
   const recordCards = (rows) =>
     `<ul class="record-cards">${rows
       .map((row) => {
         const path = holderPath(row)
-        return `<li class="record-card"><h3 class="record-card-name">${link(recordPath(row), row.record)}</h3><p class="record-card-value">${esc(
-          row.value,
-        )}</p><p class="record-card-holder">${path ? link(path, row.holder) : esc(row.holder)}</p>${extras
+        const figure = cardFigure(row)
+        const compared = cardComparator(row)
+        const value = figure ? `<b>${esc(figure.figure)}</b> <span>${esc(figure.qualifier)}</span>` : `<b class="record-card-whole">${esc(row.value)}</b>`
+        const bars = compared
+          ? `<div class="record-card-bars" role="img" aria-label="${esc(compared.label)}">${compared.bars
+              .map(
+                (bar) =>
+                  `<span${bar.holder ? ' class="is-holder"' : ''}>${esc(bar.label)}</span><span class="record-card-bar${
+                    bar.holder ? ' is-holder' : ''
+                  }"><i style="--share: ${bar.share}"></i>${esc(bar.figure)}</span>`,
+              )
+              .join('')}</div>`
+          : ''
+        const margin = compared?.margin ? `<p class="record-card-margin">${esc(compared.margin)}</p>` : ''
+        return `<li class="record-card"><h3 class="record-card-name">${link(recordPath(row), row.record)}</h3><p class="record-card-value">${value}</p><p class="record-card-holder">${
+          path ? link(path, row.holder) : esc(row.holder)
+        }</p>${bars}${margin}${extras
           .map(
             (c) =>
               `<p class="record-card-extra">${esc(c.label)}: ${c.key === 'confidence' ? confidencePill(row.confidence) : esc(row[c.key])}</p>`,
@@ -4851,6 +5058,39 @@ page({
     if (!KEY_SHAPE.test(key)) die(`prerender: records.key "${key}" is not a slug, so it cannot be an address`)
     const record = one(RECORD, key)
     const holder = holderPath(record)
+    // Record.jsx's lead, strip and runs, from the same queries/records.js
+    // functions (VD-112).
+    const runsSql = streakRuns(key)
+    const lead = recordLead(record, runsSql ? all(runsSql) : undefined, runsSql ? all(streakRaces(key)) : undefined)
+    const parts = (line) => line.map((part) => (part.href ? link(part.href, part.text) : esc(part.text))).join('')
+    const strips = (lead.runs?.top ?? [])
+      .map(
+        (run, i) =>
+          `<ol class="outline-strip record-races" aria-label="${esc(run.label)}">${run.races
+            .map(
+              (race) =>
+                `<li><a href="${esc(href(`races/${race.year}/${race.round}`))}">${
+                  race.outline ? outlineSvg(race.outline, null) : '<span class="outline outline-none" aria-hidden="true"></span>'
+                }<b>${esc(stripRound(race, lead.runs.spansSeasons[i]))}</b><span>${esc(roundShortName(race.name_used))}</span></a></li>`,
+            )
+            .join('')}</ol>`,
+      )
+      .join('')
+    const stripNote = lead.runs?.top.some((run) => run.races.some((race) => race.outline))
+      ? `<p class="faint outline-strip-note">${esc(recordRacesNote)}</p>`
+      : ''
+    const longest = lead.runs
+      ? `${heading(LONGEST_RUNS)}<ol class="record-runs">${lead.runs.longest
+          .map(
+            (run) =>
+              `<li${run.mark ? ' class="is-holder"' : ''}><span class="record-run-who">${link(run.href, run.holder)} <small>${esc(
+                run.years,
+              )}</small></span><span class="record-run-bar"><i style="--share: ${run.share}" aria-hidden="true"></i>${esc(run.figure)} <small>${esc(
+                run.ends,
+              )}</small></span></li>`,
+          )
+          .join('')}</ol><p class="faint record-runs-note">${esc(lead.runs.rule)} <a href="#${DERIVATION_ID}">${esc(DERIVATION)}</a>.</p>`
+      : ''
     page({
       path: recordPath(record),
       title: NAMES.record(record.record).title,
@@ -4859,8 +5099,12 @@ page({
       onward: ONWARD.record({ record, holder }),
       body: `
         <h1>${esc(NAMES.record(record.record).headline)}</h1>
-        ${tiles(recordStrip(record))}
-        <h2>${esc(DERIVATION)}</h2>
+        <div class="record-lead">${
+          lead.figure ? `<b class="record-lead-figure">${esc(lead.figure)}</b>` : `<b class="record-lead-whole">${esc(lead.whole)}</b>`
+        }<div class="record-lead-words">${lead.lines.map((line) => `<p>${parts(line)}</p>`).join('')}</div></div>
+        ${strips}${stripNote}
+        ${longest}
+        ${heading(DERIVATION, null, DERIVATION_ID)}
         ${datedProse(record.detail)}
         <h2>${esc(LABELS.provenance)}</h2>
         ${fields([

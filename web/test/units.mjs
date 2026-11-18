@@ -136,6 +136,15 @@ import {
   outSince,
   reachFigures,
   teamAvailable,
+  championPill,
+  pointsShare,
+  standingsLeader,
+  EVERY_RESULT_COUNTS,
+  leadersByRound,
+  raceEnded,
+  shortNames,
+  titleFinding,
+  titleRaceFigure,
 } from '../src/queries/season.js'
 import { reachLayout, reachText } from '../src/charts/reachChart.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
@@ -145,6 +154,7 @@ import { eraCell } from '../src/queries/eras.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
 import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
+import { photoTrace, traceFields } from '../src/lib/trace.js'
 import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
@@ -254,9 +264,13 @@ import { UNRESULTED } from '../src/queries/changes.js'
 import {
   LEADERS_DRAWN,
   asOfOf,
+  cardComparator,
   cardExtras,
+  cardFigure,
   familyAnchor,
   headlineRecords,
+  recordLead,
+  runSentence,
   leadersDrawn,
   leadersDrawnLine,
   markLeaders,
@@ -1737,6 +1751,28 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(chassisName(null, { landmark: null }), EMPTY)
   })
 
+  // CR-33: one list of the trace's fields, which the app's <Fields> and the
+  // static page's fields() both print.
+  it('states a trace in one list of fields for both renderers', () => {
+    const row = { osm_relation: 148194, layout_key: null, measured_km: 3.3885, published_km: 3.337, delta_pct: 1.54, node_count: 464, closes: 0, loose_ends: 1 }
+    const fields = (geometry, direction) => traceFields(geometry, direction).map(({ label, value, href }) => [label, value, href ?? null])
+    assert.deepEqual(fields(row, 'clockwise'), [
+      ['OpenStreetMap relation', '148194', 'https://www.openstreetmap.org/relation/148194'],
+      ['Measured', '3.389 km against 3.337 km published here (+1.54%)', null],
+      ['Points', '464', null],
+      ['The walk', 'does not close \u2014 1 loose way end, so the length above is the ways added up rather than a lap walked round', null],
+      ['Raced', 'clockwise', null],
+    ])
+    // A layout named is a field; no direction is no field; no verdict on the
+    // walk, and no node count, are not established rather than a lap or 0.
+    const unsettled = fields({ ...row, layout_key: 'current', closes: null, node_count: null }, null)
+    assert.deepEqual(unsettled.map(([label]) => label), ['OpenStreetMap relation', 'Layout traced', 'Measured', 'Points', 'The walk'])
+    assert.equal(unsettled[1][1], 'current')
+    assert.equal(unsettled[3][1], EMPTY)
+    assert.equal(unsettled[4][1], null)
+    assert.equal(fields({ ...row, closes: 1 }, null)[3][1], 'closes into one lap')
+  })
+
   it('prints a classification cell the same string in both renderers, and in the same order', () => {
     assert.equal(position(null, { position_text: 'NC', finish_position: null }), 'NC')
     assert.equal(position(null, { position_text: null, finish_position: 4 }), '4')
@@ -2130,6 +2166,191 @@ describe('the queries a page and the prerenderer share', () => {
     // The headline cards carry the same two, on the same condition (VD-68).
     assert.deepEqual(cardExtras(shared), [])
     assert.deepEqual(cardExtras([{ ...apart[0], confidence: 'high' }, apart[1]]).map((c) => c.key), ['as_of', 'confidence'])
+  })
+
+  it("opens a record's page on its number, and a run of races on its sentence and its runs (VD-112)", () => {
+    const wins = { key: 'most-wins', value: '106', value_num: 106, unit: 'wins', holder: 'Sir Lewis Hamilton', holder_table: 'drivers', holder_id: 'hamilton' }
+    assert.deepEqual(recordLead(wins), {
+      figure: '106',
+      whole: null,
+      lines: [[{ text: 'wins' }], [{ text: 'Held by ' }, { text: 'Sir Lewis Hamilton', href: 'drivers/hamilton' }]],
+      runs: null,
+    })
+    // A value with no number to lead with is set whole; a shared holder is text.
+    const whole = recordLead({ ...wins, value: 'Monaco', value_num: null, holder_id: null })
+    assert.equal(whole.figure, null)
+    assert.equal(whole.whole, 'Monaco')
+    assert.deepEqual(whole.lines, [[{ text: 'Held by ' }, { text: 'Sir Lewis Hamilton', href: null }]])
+
+    const run = (holder_id, length, first_n, from, to, ongoing = 0) => ({
+      holder_id, holder: holder_id.toUpperCase(), length, first_n, ongoing,
+      from_year: Number(from[0].slice(0, 4)), from_date: from[0], from_name: from[1],
+      to_year: Number(to[0].slice(0, 4)), to_date: to[0], to_name: to[1],
+    })
+    const races = (r) => Array.from({ length: r.length }, (_, i) => ({ holder_id: r.holder_id, first_n: r.first_n, year: r.from_year, round: i + 1, name_used: 'X Grand Prix', outline: null }))
+    const streak = { ...wins, key: 'most-consecutive-wins', value: '3, 2023 A Grand Prix to 2023 B Grand Prix', value_num: 3 }
+    const rows = [
+      run('a', 3, 10, ['2023-05-07', 'A Grand Prix'], ['2023-09-03', 'B Grand Prix']),
+      run('b', 2, 1, ['2012-11-01', 'C Grand Prix'], ['2013-03-01', 'D Grand Prix']),
+      run('c', 2, 5, ['2014-01-01', 'E Grand Prix'], ['2014-02-01', 'F Grand Prix']),
+      run('d', 1, 7, ['2015-01-01', 'G Grand Prix'], ['2015-01-01', 'G Grand Prix']),
+    ]
+    const lead = recordLead(streak, rows, rows.flatMap(races))
+    assert.equal(lead.figure, '3')
+    assert.deepEqual(lead.lines, [[{ text: 'A', href: 'drivers/a' }, { text: ' won three Grands Prix in a row in 2023, from the A Grand Prix in May to the B Grand Prix in September.' }]])
+    assert.equal(lead.runs.top.length, 1)
+    assert.equal(lead.runs.top[0].races.length, 3)
+    // Five runs and on through a tie at the fifth: four rows here, all drawn,
+    // the record's alone marked, each its share of the longest.
+    assert.deepEqual(lead.runs.longest.map((r) => [r.figure, r.mark, r.share, r.years, r.ends]), [
+      ['3', true, 1, '2023', 'A to B'],
+      ['2', false, 0.6667, '2012–2013', 'C to D'],
+      ['2', false, 0.6667, '2014', 'E to F'],
+      ['1', false, 0.3333, '2015', 'G'],
+    ])
+    // The page's count not bearing out the record's figure draws no run.
+    assert.equal(recordLead({ ...streak, value_num: 4 }, rows, rows.flatMap(races)).runs, null)
+    assert.deepEqual(recordLead({ ...streak, value_num: 4 }, rows, rows.flatMap(races)).lines.at(-1)[0], { text: 'Held by ' })
+    // Nor does a record STREAKS does not name, or one whose races are short.
+    assert.equal(recordLead({ ...streak, key: 'most-wins' }, rows, rows.flatMap(races)).runs, null)
+    assert.equal(recordLead(streak, rows, races(rows[0]).slice(1)).runs, null)
+
+    // Over a winter each end names its year; an Indianapolis 500 in the run
+    // makes it championship races; a run to the latest race says so.
+    assert.equal(
+      runSentence(rows[1], 'won'),
+      ' won two Grands Prix in a row, from the C Grand Prix in November 2012 to the D Grand Prix in March 2013.',
+    )
+    assert.equal(
+      runSentence({ ...rows[2], to_name: 'Indianapolis 500' }, 'won'),
+      ' won two championship races in a row in 2014, from the E Grand Prix in January to the Indianapolis 500 in February.',
+    )
+    assert.equal(
+      runSentence({ ...rows[0], ongoing: true }, 'won'),
+      ' has won three Grands Prix in a row in 2023, from the A Grand Prix in May to the B Grand Prix in September, the latest race the database holds.',
+    )
+  })
+
+  it("sets a record card's number apart from the rest of its value (VD-111)", () => {
+    const card = (value, value_num, unit) => cardFigure({ value, value_num, unit })
+    assert.deepEqual(card('106', 106, 'wins'), { figure: '106', qualifier: 'wins', counts: true })
+    assert.deepEqual(card('7 each', 7, 'titles'), { figure: '7', qualifier: 'titles each', counts: true })
+    assert.deepEqual(card('19 of the 22 races in 2023', 19, 'wins'), { figure: '19', qualifier: 'wins of the 22 races in 2023', counts: true })
+    // A comma after the figure is the sentence's, not a thousands separator.
+    assert.deepEqual(card('10, 2023 Miami Grand Prix to 2023 Italian Grand Prix', 10, 'wins'), {
+      figure: '10',
+      qualifier: 'wins, 2023 Miami Grand Prix to 2023 Italian Grand Prix',
+      counts: true,
+    })
+    assert.deepEqual(card('3,723.5', 3723.5, 'points'), { figure: '3,723.5', qualifier: 'points', counts: true })
+    // A value that names its own unit is not given it twice.
+    assert.deepEqual(card('1,234 points', 1234, 'points'), { figure: '1,234', qualifier: 'points', counts: true })
+    // Nor is one whose own word says what it counts (PR #1367 review).
+    assert.deepEqual(card('6 starters', 6, 'cars'), { figure: '6', qualifier: 'starters', counts: true })
+    assert.deepEqual(card('0.002 s each', 0.002, 'seconds'), { figure: '0.002', qualifier: 's each', counts: true })
+    assert.deepEqual(card('5 each', 5, 'races'), { figure: '5', qualifier: 'races each', counts: true })
+    // A phrase after a comma is about the figure, which keeps its unit.
+    assert.deepEqual(card('84, with Mercedes', 84, 'wins'), { figure: '84', qualifier: 'wins, with Mercedes', counts: true })
+    assert.deepEqual(card('9, British Grand Prix', 9, 'wins'), { figure: '9', qualifier: 'wins, British Grand Prix', counts: true })
+    assert.deepEqual(card('191, before the 2020 Sakhir Grand Prix', 191, 'entries'), {
+      figure: '191',
+      qualifier: 'entries, before the 2020 Sakhir Grand Prix',
+      counts: true,
+    })
+    // An age is held in days and written in years: the figure is the
+    // value's, and its own words say what it counts, not value_num's unit.
+    assert.deepEqual(card('18 years, 228 days, 2016 Spanish Grand Prix', 6802, 'days'), {
+      figure: '18',
+      qualifier: 'years, 228 days, 2016 Spanish Grand Prix',
+      counts: false,
+    })
+    // No number to lead with, or nothing beside one that is not value_num.
+    assert.equal(card('Ferrari', 1, 'titles'), null)
+    assert.equal(card('1958', 1, 'points'), null)
+    assert.equal(card('40.63%', 40.63, 'per cent'), null)
+  })
+
+  it("draws a record card's holder and the next two from its derivation, with the margin (VD-111)", () => {
+    const record = (over) => ({
+      record: 'Most Grand Prix wins',
+      holder: 'Sir Lewis Hamilton',
+      holder_id: 'hamilton',
+      value: '106',
+      value_num: 106,
+      unit: 'wins',
+      detail: 'drivers.wins. Next: Michael Schumacher on 91, Max Verstappen on 74, Sebastian Vettel on 53.',
+      ...over,
+    })
+    const read = (c) => c.bars.map((b) => `${b.label} ${b.figure}${b.holder ? '*' : ''}`)
+    const wins = cardComparator(record())
+    assert.deepEqual(read(wins), ['Sir Lewis Hamilton 106*', 'Michael Schumacher 91', 'Max Verstappen 74'])
+    assert.deepEqual(wins.bars.map((b) => b.share), [1, 0.8585, 0.6981])
+    assert.equal(wins.margin, '15 clear of Michael Schumacher')
+    assert.equal(wins.label, 'Most Grand Prix wins: Sir Lewis Hamilton 106, Michael Schumacher 91, Max Verstappen 74')
+
+    // A shared record draws a bar for each holder, both marked, and says who
+    // is next; a suffixed name is one name.
+    const shared = cardComparator(
+      record({
+        holder: 'Michael Schumacher, Kurt Ahrens, Jr.',
+        holder_id: null,
+        value: '7 each',
+        value_num: 7,
+        detail: 'Next: Juan Manuel Fangio on 5, Alain Prost on 4, Max Verstappen on 4.',
+      }),
+    )
+    assert.deepEqual(read(shared), ['Michael Schumacher 7*', 'Kurt Ahrens, Jr. 7*', 'Juan Manuel Fangio 5'])
+    assert.equal(shared.margin, 'Shared; Juan Manuel Fangio next on 5')
+
+    // A season's form: the holder's bar carries its season as the runners'
+    // do, from the derivation, and a tie at the third bar is drawn whole.
+    const seasons = {
+      value: '19 of the 22 races in 2023',
+      value_num: 19,
+      holder: 'Max Verstappen',
+      detail: 'Per season. Max Verstappen, 2023: 19 of 22. Next: Max Verstappen 15 (2022), Michael Schumacher 13 (2004), Sebastian Vettel 13 (2013).',
+    }
+    const season = cardComparator(record(seasons))
+    assert.deepEqual(read(season), ['Max Verstappen 2023 19*', 'Max Verstappen 2022 15', 'Michael Schumacher 2004 13', 'Sebastian Vettel 2013 13'])
+    assert.equal(season.margin, '4 clear of Max Verstappen 2022')
+    // Or from the one year the value gives, where the derivation does not
+    // say; a shared record held twice by one driver draws both seasons.
+    assert.deepEqual(read(cardComparator(record({ ...seasons, value: '575, 2023', value_num: 575, detail: 'Nominal. Next: Max Verstappen 454 (2022).' }))), [
+      'Max Verstappen 2023 575*',
+      'Max Verstappen 2022 454',
+    ])
+    assert.deepEqual(
+      read(
+        cardComparator(
+          record({
+            holder: 'Michael Schumacher, Kimi Raikkonen',
+            holder_id: null,
+            value: '10 each',
+            value_num: 10,
+            detail: 'Michael Schumacher, 2004: 10 of 18; Kimi Raikkonen, 2005: 10 of 19; Kimi Raikkonen, 2008: 10 of 18. Next: Mika Hakkinen 9 (2000).',
+          }),
+        ),
+      ),
+      // Three holdings fill the three bars; the margin still names the next.
+      ['Michael Schumacher 2004 10*', 'Kimi Raikkonen 2005 10*', 'Kimi Raikkonen 2008 10*'],
+    )
+    // A holder whose season cannot be found draws no bars, not a driver
+    // among seasons.
+    assert.equal(cardComparator(record({ ...seasons, value: '19', detail: 'Per season. Next: Max Verstappen 15 (2022).' })), null)
+    // A margin to two level runners names both.
+    assert.equal(cardComparator(record({ detail: 'Next: A on 91, B on 91, C on 74.' })).margin, '15 clear of A and B')
+    assert.equal(cardComparator(record({ value: '3,723.5', value_num: 3723.5, detail: 'Next: A on 3098.' })).margin, '625.5 clear of A')
+
+    // No comparator rather than a guessed one: no list, a list in another
+    // form or with an item that fits neither, an age, or nothing to scale.
+    assert.equal(cardComparator(record({ detail: 'Every completed championship race in date order.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: Michael Schumacher 21 years, 92 days, Kimi Raikkonen 20 years, 283 days.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: A on 91, B with Ferrari 72.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: A on 91. And a sentence after it.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: A on 5. B on 3.' })), null)
+    assert.equal(cardComparator(record({ detail: 'Next: A 15 (2022). B 13 (2004).' })), null)
+    assert.equal(cardComparator(record({ value: '18 years, 228 days', value_num: 6802, unit: 'days', detail: 'Next: A on 6900.' })), null)
+    assert.equal(cardComparator(record({ value: '0', value_num: 0, detail: 'Next: A on 0.' })), null)
   })
 
   it('draws a leaderboard to fifteen, and keeps a tie at the cut whole (VD-68)', () => {
@@ -5209,5 +5430,421 @@ describe('the outline as a thumbnail, the circuits won at and the season plate (
     assert.equal(next({ next: '2021/6', next_outline: null }).outline, null)
     const circuit = ONWARD.circuit({ races: [{ year: 2021, round: 5, name_used: 'Monaco GP', status: 'completed', outline: 'M9' }], winners: [] })
     assert.equal(circuit.items.filter(Boolean)[0].outline, 'M9')
+  })
+})
+
+describe('the leader in the row and a bar in the points (VD-105, VD-110)', () => {
+  it('marks every row at P1, so a shared place at the top marks both and a countback the one placed first', () => {
+    const rows = [
+      { position: 1, points: 30 },
+      { position: 1, points: 30 },
+      { position: 3, points: 30 },
+      { position: null, points: 40 },
+    ]
+    assert.deepEqual(rows.map(standingsLeader), [true, true, false, false])
+  })
+
+  it('names the champion on their own row, with the round only where it was worked out', () => {
+    const season = { drivers_champion: 'antonelli', constructors_champion: 'mercedes' }
+    const row = { position: 1, driver_id: 'antonelli', constructor_id: 'mercedes' }
+    const crowned = { drivers: { id: 'antonelli', round: 19 }, constructors: { id: 'mercedes', round: null } }
+    assert.equal(championPill('drivers', row, season, crowned), 'champion · settled R19')
+    assert.equal(championPill('constructors', row, season, crowned), 'champion', 'no round worked out, no round named')
+    assert.equal(championPill('drivers', row, season, undefined), 'champion', 'a concluded season')
+    assert.equal(championPill('drivers', { ...row, position: 2 }, season, crowned), null, 'only the leader')
+    assert.equal(championPill('drivers', row, { drivers_champion: null }, crowned), null, 'a leader who is not yet champion')
+    assert.equal(championPill('drivers', { ...row, driver_id: null }, { drivers_champion: null }, crowned), null, 'no id is nobody')
+    assert.equal(championPill('drivers', row, season, { drivers: { id: 'russell', round: 19 } }), 'champion', "another's round is not theirs")
+  })
+
+  it("measures each total against the highest a classified row holds, from 0 to 1", () => {
+    const share = pointsShare([
+      { position: 1, points: 390 },
+      { position: 2, points: 279 },
+      { position: null, points: 400 },
+      { position: 3, points: null },
+    ])
+    assert.equal(share(390), 1)
+    assert.equal(share(279), 0.7154)
+    assert.equal(share(400), 1, 'an excluded total never draws past the leader')
+    assert.equal(share(0), 0)
+    assert.equal(share(null), null, 'a total not held draws no bar')
+    assert.equal(pointsShare([{ position: 1, points: 0 }])(0), null, 'nothing to measure against')
+    assert.equal(pointsShare([])(10), null)
+  })
+})
+
+import { LABEL_GAP, MARKER, STACKED_GAP, gutterWidth, nudge, placeMarker } from '../src/charts/annotate.js'
+import { lineLayout } from '../src/charts/lineChart.js'
+
+describe('the annotation pattern (VD-121)', () => {
+  it('nudges colliding labels apart by the gap, in their order, and leaves separate ones where they are', () => {
+    const placed = nudge([40, 43, 100])
+    assert.equal(placed[2], 100, 'a label clear of the rest stays level with its line')
+    assert.ok(placed[1] - placed[0] >= LABEL_GAP - 1e-9, `${placed[0]} and ${placed[1]} are ${LABEL_GAP} apart at least`)
+    assert.ok(placed[0] < 40 && placed[1] > 43, 'each moved away from the other, about where they were')
+    assert.ok(Math.abs((placed[0] + placed[1]) / 2 - 41.5) < 1e-9, 'centred on where they wanted to be')
+    // Level lines keep the caller's order, the first above.
+    const level = nudge([50, 50])
+    assert.ok(level[0] < level[1], 'two ends level: the first listed is placed above')
+    // A group pushed into the next merges with it, so no two end up closer.
+    const three = nudge([10, 20, 30, 34])
+    for (let k = 1; k < three.length; k += 1) assert.ok(three[k] - three[k - 1] >= LABEL_GAP - 1e-9, `${three.join(', ')}`)
+    // Held inside the bounds where the stack fits.
+    const held = nudge([0, 2], { min: 6, max: 200 })
+    assert.equal(held[0], 6)
+    assert.equal(held[1], 6 + LABEL_GAP)
+    assert.deepEqual(nudge([]), [])
+  })
+
+  it('makes the gutter as wide as the widest label, and none where nothing is labelled', () => {
+    assert.equal(gutterWidth([]), 0)
+    const short = gutterWidth([{ name: 'Hunt', value: '69' }])
+    const long = gutterWidth([{ name: 'Hunt', value: '69' }, { name: 'Verstappen', value: '279' }])
+    assert.ok(long > short, `${long} for Verstappen 279 against ${short} for Hunt 69`)
+    assert.ok(gutterWidth([{ name: null, value: '33%' }]) < short, 'a value alone needs less than a name and a value')
+  })
+
+  it('puts a marker above its point, below where above leaves the drawing or sits on a line, and clear of another marker', () => {
+    const up = placeMarker(100, 100, [])
+    assert.equal(up.cy, 100 - MARKER.offset)
+    assert.ok(up.leader.y1 < 100 && up.leader.y2 > up.cy, 'the hairline runs from the point up to the disc')
+    assert.equal(placeMarker(100, 12, [], { top: 0 }).cy, 12 + MARKER.offset, 'no room above the top edge')
+    assert.equal(placeMarker(100, 100, [100 - MARKER.offset + 2]).cy, 100 + MARKER.offset, 'another line where the disc would go')
+    const first = placeMarker(100, 100, [])
+    const second = placeMarker(104, 100, [], { taken: [first] })
+    const reach = MARKER.r + MARKER.ring / 2
+    assert.ok(Math.hypot(second.cx - first.cx, second.cy - first.cy) >= 2 * reach, 'two markers a round apart do not overlap')
+  })
+
+  // Two lines ending a point apart, as 1976 did: before VD-121 the second
+  // end's label was dropped.
+  const converging = [
+    { name: 'James Hunt', label: 'Hunt', points: [{ x: 1, y: 0 }, { x: 2, y: 30 }, { x: 3, y: 69 }] },
+    { name: 'Niki Lauda', label: 'Lauda', points: [{ x: 1, y: 9 }, { x: 2, y: 61 }, { x: 3, y: 68 }] },
+    { name: 'Jody Scheckter', label: 'Scheckter', points: [{ x: 1, y: 2 }, { x: 2, y: 36 }, { x: 3, y: 49 }] },
+  ]
+
+  it('sets each label name over value where one line would take more than its share of a narrow chart', () => {
+    const long = converging.map((s, i) => ({ ...s, label: ['Verstappen', 'Hamilton', 'Bottas'][i], points: s.points.map((p) => ({ ...p, y: p.y + 0.5 })) }))
+    const wide = lineLayout({ series: long, width: 480, height: 250 })
+    assert.ok(wide.lines.every((l) => !l.end.label.stacked), 'at 480 each label is one line')
+    const narrow = lineLayout({ series: long, width: 250, height: 250 })
+    const labels = narrow.lines.map((l) => l.end.label)
+    assert.ok(labels.every((l) => l.stacked), 'at 250 each is name over value')
+    assert.ok(narrow.right - narrow.left > 250 * 0.45, `the plot keeps its room (${Math.round(narrow.right - narrow.left)} px)`)
+    assert.ok(250 - narrow.right < gutterWidth(labels), 'a narrower gutter than one line would need')
+    const ys = labels.map((l) => l.y).sort((a, b) => a - b)
+    for (let k = 1; k < ys.length; k += 1) assert.ok(ys[k] - ys[k - 1] >= STACKED_GAP - 1e-9, `stacked labels at ${ys.join(', ')}`)
+    assert.ok(labels.every((l) => l.nameY < l.y && l.valueY > l.y && l.nameY - 10 >= 0 && l.valueY + 10 <= 250), 'each line inside the drawing')
+    const alone = lineLayout({ series: [long[0]], width: 250, height: 250 })
+    assert.ok(!alone.lines[0].end.label.stacked, 'a value alone is never stacked')
+  })
+
+  it('labels every line end in the gutter, converging or not, at least the gap apart, each on a hairline from its own end', () => {
+    const layout = lineLayout({ series: converging, width: 480, height: 250 })
+    const labels = layout.lines.map((l) => l.end.label)
+    assert.deepEqual(
+      labels.map((l) => `${l.name} ${l.value}`),
+      ['Hunt 69', 'Lauda 68', 'Scheckter 49'],
+    )
+    const ys = labels.map((l) => l.y).sort((a, b) => a - b)
+    for (let k = 1; k < ys.length; k += 1) assert.ok(ys[k] - ys[k - 1] >= LABEL_GAP - 1e-9, `labels at ${ys.join(', ')}`)
+    for (const [i, l] of labels.entries()) {
+      const { end } = layout.lines[i]
+      assert.ok(l.x > layout.right, 'the label is in the gutter, right of the plot')
+      assert.deepEqual(l.leader[0], [end.x + MARKER.gap + 1, end.y], 'the hairline starts at its own line end')
+      assert.equal(l.leader[l.leader.length - 1][1], l.y, 'and ends level with its label')
+    }
+    assert.ok(labels[0].y < labels[1].y, 'Hunt, a point ahead, is labelled above Lauda')
+  })
+
+  it('names a lone series by its value alone, runs the axis to xMax, and lays out marks and bands', () => {
+    const alone = lineLayout({ series: [converging[0]], width: 480 })
+    assert.equal(alone.lines[0].end.label.name, null)
+    const longer = lineLayout({ series: converging, width: 480, xMax: 6 })
+    assert.equal(longer.x.domain[1], 6, 'the axis runs on to the calendar')
+    assert.ok(longer.lines[0].end.x < longer.right, 'and the lines stop short of its end')
+    const marked = lineLayout({ series: converging, width: 480, marks: [{ n: 1, series: 1, x: 2 }, { n: 2, series: 0, x: 9 }], bands: [{ from: 2, to: 3 }] })
+    assert.deepEqual(marked.markers.map((m) => m.n), [1], 'a mark on a round its line does not reach is not drawn')
+    assert.equal(marked.markers[0].cx, marked.x(2))
+    assert.equal(marked.bands.length, 1)
+    assert.equal(marked.bands[0].x, marked.x(2))
+    assert.equal(marked.bands[0].width, marked.x(3) - marked.x(2))
+  })
+
+  it('shortens a name to the surname, keeping a particle or a suffix, and keeps both full names where two would match', () => {
+    assert.deepEqual(shortNames(['James Hunt', 'Wolfgang von Trips', 'Elio de Angelis', 'Nelson Piquet Jr.', 'Andrea Kimi Antonelli']), [
+      'Hunt',
+      'von Trips',
+      'de Angelis',
+      'Piquet Jr.',
+      'Antonelli',
+    ])
+    assert.deepEqual(shortNames(['Graham Hill', 'Phil Hill', 'Jim Clark']), ['Graham Hill', 'Phil Hill', 'Clark'])
+  })
+
+  it('says how a race ended from the entry, and nothing for a shared drive', () => {
+    const e = (fields) => ({ finish_position: null, position_text: null, status: null, laps_completed: null, ...fields })
+    assert.equal(raceEnded([e({ finish_position: 1, position_text: '1' })]), 'wins')
+    assert.equal(raceEnded([e({ finish_position: 3, position_text: '3' })]), 'finishes 3rd')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Accident' })]), 'crashes out')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Withdrew', laps_completed: 2 })]), 'withdraws after two laps')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Withdrew', laps_completed: 0 })]), 'withdraws')
+    assert.equal(raceEnded([e({ position_text: 'DNF', status: 'Fuel system' })]), 'retires (fuel system)')
+    assert.equal(raceEnded([e({ position_text: 'DNF' })]), 'retires')
+    assert.equal(raceEnded([e({ position_text: 'DNS', status: 'Accident in practice' })]), 'does not start (accident in practice)')
+    assert.equal(raceEnded([e({ position_text: 'DNS', status: 'DNS' })]), 'does not start')
+    assert.equal(raceEnded([e({ position_text: 'DSQ', status: 'Underweight' })]), 'is disqualified')
+    assert.equal(raceEnded([e({ position_text: 'DNP' })]), null)
+    assert.equal(raceEnded([e({ finish_position: 2 }), e({ finish_position: 5 })]), null)
+    assert.equal(raceEnded([]), null)
+  })
+
+  // A season of four rounds, written out: A leads three, B takes the last.
+  const row = (round, id, name, pts) => ({ table_type: 'drivers', after_round: round, driver_id: id, entity: name, points: pts, position: 1 })
+  const table = (round, totals) => Object.entries(totals).map(([id, pts]) => row(round, id, `Driver ${id.toUpperCase()}`, pts))
+  const short = (_id, name) => name.split(' ').pop()
+
+  it('finds who led, and declines a lead that was shared or a table with a gap', () => {
+    const standings = [...table(1, { a: 9, b: 6 }), ...table(2, { a: 15, b: 15 }), ...table(3, { a: 24, b: 21 }), ...table(4, { a: 24, b: 30 })]
+    const leaders = leadersByRound(standings)
+    assert.deepEqual(leaders.map((l) => l.id), ['a', null, 'a', 'b'], 'level after round 2 is nobody leading')
+    assert.deepEqual(leaders[1].level, ['a', 'b'])
+    assert.equal(titleFinding(leaders, false, short), 'A led after two rounds. B led after one: the last')
+    assert.equal(titleFinding(leaders, true, short), 'B took the lead after round 4')
+    const always = leadersByRound([...table(1, { a: 9, b: 6 }), ...table(2, { a: 18, b: 12 })])
+    assert.equal(titleFinding(always, false, short), 'A led after every round')
+    assert.equal(titleFinding(always, true, short), 'A has led after every round so far')
+    const from = leadersByRound([...table(1, { a: 9, b: 6 }), ...table(2, { a: 9, b: 15 }), ...table(3, { a: 9, b: 24 })])
+    assert.equal(titleFinding(from, false, short), 'B led after every round from round 2')
+    const back = leadersByRound([...table(1, { a: 6, b: 9 }), ...table(2, { a: 15, b: 9 }), ...table(3, { a: 15, b: 18 }), ...table(4, { a: 24, b: 18 })])
+    assert.equal(titleFinding(back, false, short), 'A led after two of the four rounds, including the last')
+    assert.equal(titleFinding(leadersByRound([...table(1, { a: 9, b: 6 }), ...table(3, { a: 18, b: 6 })]), false, short), null, 'round 2 missing')
+    assert.equal(titleFinding(leaders.slice(0, 2), false, short), null, 'level after the last round')
+    // A source giving one driver two totals for one round: no leader there.
+    assert.equal(leadersByRound([row(1, 'a', 'Driver A', 9), row(1, 'a', 'Driver A', 6), row(1, 'b', 'Driver B', 3)])[0].id, null)
+  })
+
+  // The whole figure, from rows written out: a five-round season with an
+  // absence, decided at the last round. No f1.db, so it holds wherever it runs.
+  const rounds = [1, 2, 3, 4, 5].map((round) => ({ round, name_used: `Grand Prix ${round}`, status: 'completed', sprint: 0 }))
+  const drivers = [
+    { driver_id: 'b', entity: 'Driver B', points: 25 },
+    { driver_id: 'a', entity: 'Driver A', points: 24 },
+    { driver_id: 'c', entity: 'Driver C', points: 10 },
+  ]
+  const standings = [
+    ...table(1, { a: 9, b: 6, c: 2 }),
+    ...table(2, { a: 18, b: 12, c: 4 }),
+    ...table(3, { a: 18, b: 18, c: 6 }),
+    ...table(4, { a: 24, b: 21, c: 8 }),
+    ...table(5, { a: 24, b: 25, c: 10 }),
+  ]
+  const entry = (round, id, fields) => ({ round, driver_id: id, finish_position: null, position_text: null, status: null, laps_completed: null, ...fields })
+  const entries = [
+    ...[1, 2, 3, 4, 5].flatMap((r) => [entry(r, 'b', { finish_position: 2, position_text: '2' }), entry(r, 'c', { finish_position: 4, position_text: '4' })]),
+    entry(1, 'a', { finish_position: 1, position_text: '1' }),
+    entry(2, 'a', { position_text: 'DNF', status: 'Accident' }),
+    entry(5, 'a', { position_text: 'DNF', status: 'Withdrew', laps_completed: 2 }),
+  ]
+  const figure = (over = {}) =>
+    titleRaceFigure({
+      year: 1976,
+      live: false,
+      drivers,
+      standings,
+      teams: new Map(),
+      remaining: { dropped_scores: 'Best 7 results', races: 0 },
+      rounds,
+      entries,
+      champion: 'b',
+      ...over,
+    })
+
+  it('marks the longest absence and a title decided at the last round, with every word in the key', () => {
+    const race = figure()
+    assert.equal(race.finding, 'A led after three rounds. B led after one: the last')
+    assert.equal(race.kicker, 'Points after each round')
+    assert.deepEqual(race.series.map((s) => s.label), ['B', 'A', 'C'])
+    assert.deepEqual(race.annotations, [
+      { n: 1, lead: 'R2, Grand Prix 2', text: 'A crashes out, then misses R3 and R4 (shaded).' },
+      { n: 2, lead: 'R5, Grand Prix 5', text: 'A withdraws after two laps. B finishes 2nd and takes the title by a point.' },
+    ])
+    assert.deepEqual(race.marks, [{ n: 1, series: 1, x: 2 }, { n: 2, series: 0, x: 5 }], 'each on its own line, at its round')
+    assert.deepEqual(race.bands, [{ from: 2, to: 4 }])
+    assert.equal(race.xMax, null, 'a concluded season draws the rounds it ran')
+  })
+
+  it('says nothing of a round none of the three entered, and nothing it cannot establish', () => {
+    // Round 3 entered by nobody drawn - the Indianapolis 500 to 1960 - is no absence.
+    const noIndy = entries.filter((e) => e.round !== 3).concat(entry(4, 'a', { finish_position: 1, position_text: '1' }))
+    assert.deepEqual(
+      figure({ entries: noIndy }).annotations.map((a) => a.text),
+      ['A withdraws after two laps. B finishes 2nd and takes the title by a point.'],
+    )
+    // The champion on the record is not the one who leads the final table: no decider.
+    assert.deepEqual(figure({ champion: 'a' }).marks.map((m) => m.x), [2])
+    // A fatal accident is said in the record's words, and nothing is shaded.
+    const fatal = entries.map((e) => (e.round === 2 && e.driver_id === 'a' ? { ...e, status: 'Fatal accident' } : e))
+    const race = figure({ entries: fatal })
+    assert.equal(race.annotations[0].text, 'A: fatal accident.')
+    assert.deepEqual(race.bands, [])
+    // A fatal ending outranks a longer absence (1961: von Trips, not Hill):
+    // C is killed at round 4 and misses one round, A misses two.
+    const killed = entries
+      .filter((e) => !(e.driver_id === 'c' && e.round === 5))
+      .map((e) => (e.driver_id === 'c' && e.round === 4 ? { ...e, finish_position: null, position_text: 'DNF', status: 'Fatal accident' } : e))
+    const first = figure({ entries: killed }).annotations[0]
+    assert.deepEqual([first.lead, first.text], ['R4, Grand Prix 4', 'C: fatal accident.'])
+    // A disqualification is not set before an absence as if it caused it.
+    const dsq = entries.map((e) => (e.round === 2 && e.driver_id === 'a' ? { ...e, position_text: 'DSQ', status: 'Disqualified' } : e))
+    assert.equal(figure({ entries: dsq }).annotations[0].text, 'A misses R3 and R4 (shaded).')
+  })
+
+  it("says how a race ended without repeating the result as its reason", () => {
+    const one = (fields) => [{ finish_position: null, position_text: null, status: null, laps_completed: null, ...fields }]
+    assert.equal(raceEnded(one({ position_text: 'DNF', status: 'Retired' })), 'retires')
+    assert.equal(raceEnded(one({ position_text: 'DNF', status: 'Engine' })), 'retires (engine)')
+    assert.equal(raceEnded(one({ position_text: 'DNF', status: null })), 'retires')
+  })
+
+  it('marks the round a title was settled with rounds to run, where the season counted every result', () => {
+    // Ten-point wins and no fastest-lap point; after round 3 of 5, B is 21
+    // clear with 20 left.
+    const settled = [
+      ...table(1, { a: 0, b: 10, c: 6 }),
+      ...table(2, { a: 6, b: 20, c: 6 }),
+      ...table(3, { a: 6, b: 30, c: 9 }),
+    ]
+    const live = titleRaceFigure({
+      year: 2030,
+      live: true,
+      drivers: [
+        { driver_id: 'b', entity: 'Driver B', points: 30 },
+        { driver_id: 'c', entity: 'Driver C', points: 9 },
+        { driver_id: 'a', entity: 'Driver A', points: 6 },
+      ],
+      standings: settled,
+      teams: new Map(),
+      remaining: { dropped_scores: EVERY_RESULT_COUNTS, races: 2, win_points: 10, fastest_lap_points: 0, scale: '[10,6,4,3,2,1]', sprint_scale: null },
+      rounds: rounds.map((r) => (r.round > 3 ? { ...r, status: 'scheduled' } : r)),
+      entries: [1, 2, 3].flatMap((r) => ['a', 'b', 'c'].map((id) => entry(r, id, { finish_position: 1, position_text: '1' }))),
+      champion: 'b',
+    })
+    assert.deepEqual(live.annotations, [{ n: 1, lead: 'R3, Grand Prix 3', text: 'B settles the title with two rounds to run.' }])
+    assert.equal(live.finding, 'B has led after every round so far')
+    assert.equal(live.xMax, 5, 'a season being run draws its whole calendar')
+  })
+})
+
+describe("the team-mates face-off (VD-122), on rows written out", async () => {
+  const { faceOffs, FACE_OFFS } = await import('../src/queries/driver.js')
+  const { faceColours } = await import('../src/charts/own.js')
+  // One TEAM_MATES row: a season with one team-mate, the driver's figure first.
+  const row = (year, mate, [qa, qb, bq], [fa, fb, bc], [p, mp], { races = 10, round = 10, team = 'mclaren', name = 'McLaren', country = 'United Kingdom' } = {}) => ({
+    year, constructor_id: team, constructor: name, constructor_country: country, mate_id: mate.toLowerCase(), mate: `Some ${mate}`, last_round: year * 100 + round,
+    races, both_qualified: bq, qualified_ahead: qa, qualified_behind: qb, both_classified: bc, finished_ahead: fa, finished_behind: fb, points: p, mate_points: mp,
+  })
+  // Newest first, as the query orders them.
+  const rows = [
+    row(2024, 'Late', [3, 7, 10], [2, 4, 6], [20, 40], { races: 10 }),
+    row(2022, 'Long', [12, 8, 20], [9, 9, 18], [100, 90.5], { races: 20 }),
+    row(2021, 'Long', [10, 10, 20], [7, 9, 16], [80, 60], { races: 20 }),
+    row(2019, 'Mid', [6, 4, 10], [5, 3, 8], [30, 10], { races: 15 }),
+    row(2018, 'Short', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1 }),
+  ]
+  const face = faceOffs('A Driver', rows)
+
+  it('shows the latest team-mate and the others with the most Grands Prix together, latest first', () => {
+    assert.equal(FACE_OFFS, 3)
+    assert.deepEqual(face.blocks.map((b) => b.mate_id), ['late', 'long', 'mid'])
+    assert.match(face.note, /Shown: the latest team-mate and the two others with the most Grands Prix together, of 4 team-mates; the table has every pairing\./)
+  })
+  it('sums the table\'s own columns, and says who led with the leader\'s figure first', () => {
+    const long = face.blocks[1]
+    assert.deepEqual(long.tallies.map((t) => [t.mine, t.theirs, t.ahead]), [['22', '18', 'mine'], ['16', '18', 'theirs'], ['180', '150.5', 'mine']])
+    assert.equal(long.when, '2021–22 · 2 seasons')
+    assert.equal(long.verdict, 'Driver ahead in qualifying and on points; Long ahead on finishes.')
+    assert.deepEqual(face.headline, { text: 'Late out-qualified Driver', figure: '7–3' })
+    assert.equal(face.standfirst, 'One season together at McLaren. Across 4 team-mates, Driver was ahead in qualifying in 3 of 5 team-mate seasons, level in 1, behind in 1.')
+  })
+  it('says every season only where every season went one way', () => {
+    assert.equal(face.blocks[0].verdict, 'Late ahead on all three counts.')
+    const two = faceOffs('A Driver', [row(2020, 'Mate', [6, 4, 10], [5, 3, 8], [30, 10]), row(2019, 'Mate', [6, 4, 10], [5, 3, 8], [30, 10])])
+    assert.equal(two.blocks[0].verdict, 'Driver ahead on all three counts, every season.')
+  })
+  it('reads an unestablished count as not established, never 0–0, and draws no bar for it', () => {
+    const none = faceOffs('A Driver', [row(1955, 'Mate', [0, 0, 0], [0, 0, 0], [0, 0], { team: 'maserati', name: 'Maserati', country: 'Italy' })])
+    const [q, race, pts] = none.blocks[0].tallies
+    assert.deepEqual([q.mine, q.theirs, q.share, q.ahead], ['—', '—', null, null])
+    assert.deepEqual([race.mine, race.share, race.ahead], ['none', null, null])
+    assert.deepEqual([pts.mine, pts.theirs, pts.ahead, pts.share], ['0', '0', 'level', null], 'points are each driver\'s own, so 0–0 is a real level, with no bar to split')
+    assert.deepEqual(none.headline, { text: 'Driver and Mate level on points', figure: '0–0' })
+    assert.equal(none.standfirst, 'One season together at Maserati.', 'no qualifying sentence where no season has one')
+  })
+  it('draws the team-mate in the livery\'s second colour, in ink where there is none, and in the chart slots with no colour (D-65)', () => {
+    const papaya = faceColours(face.blocks[0].colour)
+    assert.equal(papaya.className, 'face-off face-off-owned')
+    assert.deepEqual(papaya.vars, { '--face-a-light': '#d66c00', '--face-a-dark': '#ff8000', '--face-b-light': '#2e3033', '--face-b-dark': '#64696f' })
+    const national = faceColours(faceOffs('A Driver', [row(1955, 'Mate', [1, 0, 1], [1, 0, 1], [1, 0], { team: 'maserati', name: 'Maserati', country: 'Italy' })]).blocks[0].colour)
+    assert.deepEqual(Object.keys(national.vars), ['--face-a-light', '--face-a-dark'], 'a national colour has no second, so the team-mate takes the ink fallback')
+    const none = faceColours(faceOffs('A Driver', [row(1990, 'Mate', [1, 0, 1], [1, 0, 1], [1, 0])]).blocks[0].colour)
+    assert.deepEqual(none, { className: 'face-off', vars: { '--face-a': 'var(--series-1)', '--face-b': 'var(--series-2)' } })
+  })
+  it('takes the latest team-mate by round, not by the team name a year is ordered by', () => {
+    // As the query orders them: 1955 at Ferrari (rounds to 3) before 1955 at Lancia (to 7).
+    const late = faceOffs('A Driver', [
+      row(1955, 'Early', [1, 0, 1], [1, 0, 1], [1, 0], { round: 3, team: 'ferrari', name: 'Ferrari', country: 'Italy' }),
+      row(1955, 'Later', [0, 1, 1], [0, 1, 1], [0, 1], { round: 7, team: 'lancia', name: 'Lancia', country: 'Italy' }),
+    ])
+    assert.deepEqual(late.blocks.map((b) => b.mate_id), ['later', 'early'])
+    assert.deepEqual(late.headline, { text: 'Later out-qualified Driver', figure: '1–0' })
+  })
+  it('keeps a name\'s own case at the start of the verdict, and capitalises only "level"', () => {
+    const particle = faceOffs('Alain de Changy', [row(1959, 'Mate', [2, 1, 3], [0, 1, 1], [0, 0])])
+    assert.equal(particle.blocks[0].verdict, 'de Changy ahead in qualifying; Mate ahead on finishes; level on points.')
+    const level = faceOffs('A Driver', [row(1959, 'Mate', [1, 1, 2], [0, 0, 0], [0, 0])])
+    assert.equal(level.blocks[0].verdict, 'Level in qualifying and on points.')
+  })
+  it('draws a season shared at two teams as one split, summed', () => {
+    const two = faceOffs('A Driver', [
+      row(1954, 'Mate', [1, 0, 1], [1, 0, 1], [3, 0], { team: 'ferrari', name: 'Ferrari', country: 'Italy' }),
+      row(1954, 'Mate', [0, 2, 2], [0, 1, 1], [0, 4], { team: 'maserati', name: 'Maserati', country: 'Italy' }),
+    ])
+    assert.deepEqual(two.blocks[0].seasons.map((s) => [s.year, ...s.tallies.map((t) => `${t.mine}–${t.theirs}`)]), [[1954, '1–2', '1–1', '3–4']])
+  })
+  it('has nothing to say with no team-mate', () => assert.equal(faceOffs('A Driver', []), null))
+})
+
+describe('the lap over a photograph (AF-96), on rows written out', () => {
+  // A transform that moves one degree of longitude to 100 px right and one of
+  // latitude to 200 px up, about an origin at (10, 50) drawn at (40, 30).
+  const transform = JSON.stringify({ origin: [10, 50], x: [100, 0, 40], y: [0, -200, 30] })
+  const photo = { file_name: 'File:A.jpg', width: 800, height: 450 }
+  const row = {
+    centreline: JSON.stringify({ type: 'MultiLineString', coordinates: [[[10, 50], [10.5, 50.1]], [[10.5, 50.1], [10.25, 49.95]]] }),
+    photo_file: 'File:A.jpg',
+    photo_transform: transform,
+    licence: 'ODbL-1.0',
+  }
+  it('carries every line of the centreline onto the frame, in order', () => {
+    assert.deepEqual(photoTrace([row], photo), { d: 'M40 30L90 10M90 10L65 40', width: 800, height: 450, licence: 'ODbL-1.0' })
+  })
+  it('draws nothing on a photograph it was not placed on', () => {
+    assert.equal(photoTrace([row], { ...photo, file_name: 'File:B.jpg' }), null)
+  })
+  it('draws nothing where no row is placed, or the photograph has no size', () => {
+    assert.equal(photoTrace([{ ...row, photo_file: null, photo_transform: null }], photo), null)
+    assert.equal(photoTrace([], photo), null)
+    assert.equal(photoTrace([row], { ...photo, width: null }), null)
+  })
+  it('credits the licence the row names, and ODbL where it names none', () => {
+    assert.equal(photoTrace([row], photo)?.licence, 'ODbL-1.0')
+    assert.equal(photoTrace([{ ...row, licence: null }], photo)?.licence, 'ODbL 1.0')
+  })
+  it('takes the placed row where a circuit has two', () => {
+    const other = { ...row, photo_file: null, photo_transform: null, centreline: '{"coordinates":[[[0,0],[1,1]]]}' }
+    assert.equal(photoTrace([other, row], photo)?.d, 'M40 30L90 10M90 10L65 40')
   })
 })

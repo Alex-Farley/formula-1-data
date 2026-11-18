@@ -593,7 +593,8 @@ SOURCE_REGISTRY = [
      "reference",
      "ODbL 1.0 - share-alike AND a database right. That is a different "
      "obligation from every other source here, and it is confined to one "
-     "table on purpose; see ATTRIBUTION.md. Nothing else derives from it.",
+     "table on purpose; see ATTRIBUTION.md. Nothing else in the published "
+     "databases derives from it.",
      "Continuous, by anyone, and it maps only what is on the ground NOW. "
      "There is no historic geometry to be had: Spa's 14.1 km road course and "
      "Monza's banking are unmapped and unmappable, and Wikidata's own "
@@ -633,19 +634,30 @@ SOURCE_REGISTRY = [
      "lineage chains, the points-system table, the tyre-supplier list, the "
      "grand prix register, the personnel notes and the engine-manufacturer "
      "notes. Twelve tables; the records list left it in v2.23, derived from "
-     "the race records instead of written.",
+     "the race records instead of written. It also stands for the placing of "
+     "a circuit's centreline on its aerial photograph (circuit_geometry's "
+     "photo_ columns, in f1-geometry.db, AF-96): points on the middle of the "
+     "track in the photograph - marked by eye for Monza, found by a script "
+     "at stations spaced along the centreline for the other six - and the "
+     "transform fitted onto them.",
      "authored",
      "Original to this repository, with no upstream to owe anything to. The "
      "prose of ten of its twelve tables is offered under CC BY 4.0 "
      "(meta.project_prose_columns, PM-49). The glossary and "
      "technical_innovations stay under the release's CC BY-SA 4.0: one "
      "technical_innovations description follows a Wikipedia article's "
-     "wording, and the glossary's grant is an open question.",
+     "wording, and the glossary's grant is an open question. The photograph "
+     "placings are the exception to having no upstream: each transform is "
+     "fitted to OpenStreetMap's coordinates, and every placing's points but "
+     "Monza's were spaced along them, so both are held under ODbL 1.0 with "
+     "them (pending AF-174's reading of the points) and ship only in "
+     "f1-geometry.db.",
      "Whenever somebody edits it. There is no upstream to track and no "
      "version to pin.",
      "NOTHING, and that is the entire point of giving it a name. It has no "
      "external source to be compared against and no check in verify.py that "
-     "constrains a value - what "
+     "constrains a value, the photograph placings aside, which verify.py "
+     "re-measures against the points they were fitted to - what "
      "constrains grands_prix, constructor_lineage and personnel is "
      "referential and temporal only: ids resolve, years run forwards, and "
      "a lineage period holds its constructor's race entries. Those prove the "

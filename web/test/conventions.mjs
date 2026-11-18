@@ -894,6 +894,50 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     assert.deepEqual(failing, [])
   })
 
+  it('the second colour a team-mate wears is the mark\'s accent, cleared to 3:1 on the same surfaces and kept apart from the lead (VD-122, D-65)', () => {
+    // The pair above renders the lead; `second` renders the accent the mark
+    // draws beside it, for the team-mate on a driver's face-off. A second
+    // that is some other colour, under 3:1, or so near the lead's pair that
+    // the two bars read as one fails here. Where the accent cannot be kept
+    // apart the entry says null, and every such entry is named below with
+    // why, so a second cannot be dropped to get past this.
+    const NO_SECOND = {
+      'mclaren 2015': 'graphite grey and black, 1.3 apart in dark once the black is lifted to 3:1',
+      'sauber 2013': 'dark grey and white, 9.6 apart in light once the white is darkened to 3:1',
+    }
+    const light = tokens(blocks.light)
+    const dark = tokens(blocks.stampedDark)
+    const failing = []
+    const nulls = []
+    for (const l of LIVERIES) {
+      const where = `${l.constructor} ${l.from}`
+      assert.ok('second' in l, `${where}: no second - a pair, or null and named in NO_SECOND`)
+      if (l.second === null) {
+        nulls.push(where)
+        continue
+      }
+      for (const key of ['light', 'dark']) assert.match(l.second[key], HEX, `${where}: second.${key}`)
+      const { accent } = liveryPair(l)
+      assert.ok(accent, `${where}: a second with no accent to render`)
+      if (l.second.light !== accent.base && l.second.dark !== accent.base)
+        failing.push(`${where}: neither half of ${l.second.light}/${l.second.dark} is the accent ${accent.base} (${accent.name})`)
+      for (const surface of ['panel', 'panel-sunk']) {
+        const ratio = contrast(l.second.light, light[surface])
+        if (ratio < 3) failing.push(`${where} second light ${l.second.light} on --${surface}: ${ratio.toFixed(2)}:1`)
+      }
+      for (const surface of ['panel', 'panel-raised']) {
+        const ratio = contrast(l.second.dark, dark[surface])
+        if (ratio < 3) failing.push(`${where} second dark ${l.second.dark} on --${surface}: ${ratio.toFixed(2)}:1`)
+      }
+      for (const theme of ['light', 'dark']) {
+        const apart = deltaE(l.second[theme], l[theme])
+        if (apart < ACCENT_APART) failing.push(`${where}: second ${theme} ${l.second[theme]} is ${apart.toFixed(1)} from the lead's ${l[theme]}`)
+      }
+    }
+    assert.deepEqual(failing, [])
+    assert.deepEqual(nulls, Object.keys(NO_SECOND), 'the entries with no second are exactly the ones named')
+  })
+
   it('a mark after a word in a sentence takes .livery-prose, in the app and the static page alike (VD-45)', () => {
     // In a table cell nothing precedes the mark and .livery's right margin is
     // the gap to its name. In the home page's "Won by ... for <mark>Team"
@@ -2623,7 +2667,9 @@ describe('one vocabulary: tile labels and provenance headings come from one list
       }
     }
     assert.deepEqual(offenders, [], 'a tile label off the one vocabulary')
-    assert.ok(strips.length >= 13, `the scan found the strips it is guarding, ${strips.length} of them`)
+    // 12 since VD-112, which opened a record's page on its figure and took
+    // its recordStrip away.
+    assert.ok(strips.length >= 12, `the scan found the strips it is guarding, ${strips.length} of them`)
     assert.ok(
       strips.some(({ file, name }) => rel(file).endsWith('queries/driver.js') && name === 'strip'),
       "and the driver's, which is a function",

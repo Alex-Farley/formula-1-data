@@ -2679,6 +2679,228 @@ def circuit_file_names(file_name, forms):
 
 
 # =====================================================================
+# The track over the photograph (AF-96)
+#
+# The circuit page draws the OpenStreetMap centreline over the circuit's
+# aerial photograph. The photographs are not georeferenced - a SkySat file on
+# Commons is cropped and often rotated, with no corner coordinates - so each
+# is placed by this project: points on the middle of the track in the
+# photograph, spread round the lap, and the affine transform that
+# tools/photo_trace.py fits from the centreline's coordinates onto them. The
+# placing is this project's own derivation (source 18), held at no more than
+# 'medium'; nothing here is a fact about the photograph.
+#
+# Monza's points were marked by eye. The other six were found by a script
+# that is not part of the build: the line was laid on the photograph by eye
+# from three or more corners, then moved onto the asphalt by a search over
+# affine transforms for the one with the most asphalt-coloured pixels under
+# it; stations were spaced evenly along that line, and each point is the
+# middle of the band of asphalt-coloured pixels across the track at a
+# station. A station where that band was missing, off to one side or unlike
+# the track's usual width gave no point, and no point is given twice. The
+# transform beside the points is what tools/photo_trace.py fits onto them.
+# Every placing was then checked by eye over its photograph.
+#
+# Five circuits with both a photograph and a centreline have no placing yet:
+# baku and monaco, street circuits where a band of asphalt is not the
+# track's alone, so a point found that way could lie on the next street; and
+# gilles-villeneuve, spa and suzuka, where that method did not put the line
+# on the track within the tolerance below. Their photographs are shown plain (#1385).
+#
+# Keyed to the file. A transform belongs to the pixels it was fitted on, so
+# build.py stores one only while the circuit's photograph is still `file`; a
+# new photograph drops it, and the page shows the new one plain until it is
+# placed again. So does a new stored size for the same file: `frame` is the
+# `width` by `height` the points were marked in, and a placing is stored only
+# while article_images holds that size.
+#
+# `points` are pixels in that frame, y downwards, and never a coordinate.
+# The transform maps (lon, lat) onto that frame:
+#     x = x[0] * (lon - origin[0]) + x[1] * (lat - origin[1]) + x[2]
+#     y = y[0] * (lon - origin[0]) + y[1] * (lat - origin[1]) + y[2]
+# Being fitted from OpenStreetMap's coordinates, it is ODbL's too: build.py
+# writes it into circuit_geometry, which ships as f1-geometry.db, never into
+# f1.db. So, in this file, is every transform below and every placing's
+# points but Monza's, whose stations were spaced along the centreline
+# (LICENSE-DATA, ATTRIBUTION.md; AF-174 #1387 asks whether they need to be).
+# =====================================================================
+
+# How far, in pixels of that frame, a marked point may lie from the drawn
+# line before the line is not drawn at all. Six in an 800-pixel frame comes to
+# two or three pixels at the size the circuit page shows the photograph, less
+# than the line drawn over it with its casing.
+PHOTO_TRACE_TOLERANCE_PX = 6.0
+
+# Fewer marked points than this cannot speak for a whole lap: an affine
+# transform has six unknowns, and every point past them is a check.
+PHOTO_TRACE_MIN_POINTS = 10
+
+# No point of the drawn lap - its vertices and the line between them,
+# sampled every few pixels - may lie further than this share of the
+# photograph's width from a marked point, so that no stretch of it goes
+# unchecked.
+PHOTO_TRACE_MAX_GAP = 0.2
+
+# How far apart photo_trace_gap samples the drawn line, in pixels of the frame.
+PHOTO_TRACE_GAP_STEP = 4.0
+
+PHOTO_TRACE = {
+    # Rung one of AF-96. Seventeen points round the lap, at the Lesmos,
+    # through the Ascari chicane and at the Parabolica among them; the oval's
+    # banking, which the photograph shows and this lap does not run, carries
+    # none.
+    "monza": {
+        "file": "File:Autodromo Nazionale Monza, April 22, 2018 SkySat (cropped).jpg",
+        "frame": (800, 450),
+        "points": (
+            (83.3, 54.6), (50.0, 60.4), (18.3, 76.7), (16.7, 104.2),
+            (31.7, 129.2), (151.7, 98.3), (333.3, 283.3), (721.7, 341.7),
+            (633.3, 390.0), (541.7, 309.2), (74.2, 216.7), (77.5, 258.3),
+            (94.2, 333.3), (126.7, 375.0), (183.3, 396.7), (366.7, 290.8),
+            (391.7, 297.5),
+        ),
+        "transform": {"origin": (9.287213, 45.623132),
+                      "x": (-2415.216, -34812.955, 322.024),
+                      "y": (-24021.625, 3566.603, 261.746)},
+    },
+    "bahrain": {
+        "file": "File:Bahrain International Circuit, November 2, 2017 SkySat (cropped).jpg",
+        "frame": (800, 600),
+        "points": (
+            (539.2, 175.5), (604.9, 282.5), (669.5, 389.8), (729.0, 498.1),
+            (484.0, 525.4), (358.8, 524.1), (233.0, 524.2), (107.8, 522.2),
+            (89.5, 326.5), (107.2, 202.7), (229.5, 176.2), (287.8, 267.5),
+            (380.2, 348.3), (294.4, 367.2), (174.4, 374.0), (247.3, 411.8),
+            (373.1, 411.1), (498.3, 411.3), (551.0, 342.8), (446.6, 278.2),
+            (456.0, 161.6),
+        ),
+        "transform": {"origin": (50.514203, 26.032077),
+                      "x": (-2170.477, -61465.76, 353.547),
+                      "y": (-56330.671, 2406.769, 313.272)},
+    },
+    "buddh": {
+        "file": "File:Buddh International Circuit aerial.jpg",
+        "frame": (800, 496),
+        "points": (
+            (540.7, 370.6), (481.1, 372.4), (421.1, 373.4), (361.3, 373.5),
+            (301.4, 378.2), (241.8, 372.3), (194.3, 360.7), (232.1, 315.1),
+            (276.3, 274.6), (198.6, 132.9), (139.6, 120.9), (204.1, 106.0),
+            (246.2, 151.0), (305.8, 135.2), (361.8, 157.0), (371.3, 198.2),
+            (332.6, 244.2), (370.8, 281.2), (430.1, 275.8), (490.1, 272.0),
+            (549.8, 268.4), (598.8, 345.8), (562.4, 291.4), (591.3, 336.4),
+            (562.4, 275.0),
+        ),
+        "transform": {"origin": (77.533905, 28.348066),
+                      "x": (-7875.452, 37968.123, 332.518),
+                      "y": (33681.988, 10146.58, 219.225)},
+    },
+    "cota": {
+        "file": "File:Circuit of the Americas, April 22, 2018 SkySat (cropped2).jpg",
+        "frame": (800, 450),
+        "points": (
+            (65.3, 273.5), (236.7, 403.5), (281.8, 433.8), (276.5, 388.7),
+            (265.3, 333.0), (644.6, 153.8), (684.6, 117.2), (745.7, 29.8),
+            (704.2, 30.5), (443.2, 93.4), (390.2, 102.1), (295.5, 125.6),
+            (311.6, 197.3), (280.2, 154.9), (255.8, 173.8), (45.7, 236.9),
+        ),
+        "transform": {"origin": (-97.634955, 30.135286),
+                      "x": (37667.855, -221.389, 354.173),
+                      "y": (-271.644, -43545.141, 205.113)},
+    },
+    "paul-ricard": {
+        "file": "File:Circuit Paul Ricard, April 22, 2018 SkySat (cropped).jpg",
+        "frame": (800, 450),
+        "points": (
+            (658.6, 364.2), (709.8, 373.9), (709.6, 360.4), (701.3, 283.3),
+            (686.9, 265.8), (400.4, 169.3), (517.3, 207.8), (633.7, 246.5),
+            (320.8, 142.5), (77.2, 30.4), (52.0, 50.2), (82.5, 91.2),
+            (177.9, 141.9), (202.4, 160.7), (296.8, 176.6), (500.2, 321.9),
+            (485.8, 311.4), (659.8, 301.8),
+        ),
+        "transform": {"origin": (5.792312, 43.252582),
+                      "x": (26322.543, -873.96, 405.744),
+                      "y": (-813.872, -35663.274, 219.92)},
+    },
+    "rodriguez": {
+        "file": "File:Autódromo Hermanos Rodríguez, June 4, 2018 SkySat (cropped).jpg",
+        "frame": (800, 600),
+        "points": (
+            (22.6, 69.8), (42.4, 39.4), (188.7, 46.8), (411.6, 70.1),
+            (448.1, 78.3), (485.1, 82.0), (522.0, 89.4), (633.2, 103.0),
+            (669.9, 108.0), (707.1, 113.7), (743.9, 120.2), (750.3, 155.9),
+            (766.1, 179.8), (766.8, 216.2), (752.3, 251.2), (714.3, 315.2),
+            (694.5, 347.2), (676.1, 379.4), (655.9, 410.8), (629.6, 529.8),
+            (601.2, 554.7), (565.4, 568.9), (566.8, 529.6), (571.6, 492.7),
+            (582.0, 418.8), (540.8, 364.1), (310.6, 211.6), (163.1, 190.1),
+        ),
+        "transform": {"origin": (-99.089748, 19.402639),
+                      "x": (54669.573, 66.32, 405.719),
+                      "y": (-100.524, -57887.321, 247.101)},
+    },
+    "shanghai": {
+        "file": "File:Shanghai International Circuit, April 7, 2018 SkySat (rotated).jpg",
+        "frame": (800, 512),
+        "points": (
+            (318.8, 254.3), (334.1, 214.4), (348.8, 174.7), (378.3, 94.7),
+            (415.6, 117.3), (391.0, 116.7), (461.2, 137.7), (503.4, 131.9),
+            (546.5, 129.0), (585.9, 146.3), (587.9, 175.0), (545.2, 173.6),
+            (465.5, 367.5), (599.9, 335.2), (616.8, 405.1), (531.7, 407.5),
+            (488.8, 406.5), (446.2, 407.5), (403.6, 407.8), (233.2, 404.3),
+            (190.3, 404.4), (234.6, 379.3), (270.3, 372.8),
+        ),
+        "transform": {"origin": (121.219571, 31.340191),
+                      "x": (-20723.728, 34917.688, 455.106),
+                      "y": (30953.298, 24450.598, 249.581)},
+    },
+}
+
+
+def photo_trace_point(transform, lon, lat):
+    """Where (lon, lat) falls on the photograph: pixels in its stored frame."""
+    lon0, lat0 = transform["origin"]
+    ax, bx, cx = transform["x"]
+    ay, by, cy = transform["y"]
+    return (ax * (lon - lon0) + bx * (lat - lat0) + cx,
+            ay * (lon - lon0) + by * (lat - lat0) + cy)
+
+
+def _segment_distance(p, a, b):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    length = dx * dx + dy * dy
+    t = 0.0 if length == 0 else max(0.0, min(1.0, (
+        (p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / length))
+    return ((p[0] - a[0] - t * dx) ** 2 + (p[1] - a[1] - t * dy) ** 2) ** 0.5
+
+
+def photo_trace_errors(transform, points, lines):
+    """Each marked point's distance, in pixels, from the drawn line: the
+    centreline's `lines` of (lon, lat) carried onto the photograph."""
+    drawn = [[photo_trace_point(transform, lon, lat) for lon, lat in line]
+             for line in lines]
+    segments = [(a, b) for line in drawn for a, b in zip(line, line[1:])]
+    return [min(_segment_distance(p, a, b) for a, b in segments)
+            for p in points]
+
+
+def photo_trace_gap(transform, points, lines):
+    """The furthest any point of the drawn lap lies from a marked point, in
+    pixels: its vertices, and the line between them every
+    PHOTO_TRACE_GAP_STEP pixels."""
+    samples = []
+    for line in lines:
+        drawn = [photo_trace_point(transform, lon, lat) for lon, lat in line]
+        samples.append(drawn[0])
+        for (ax, ay), (bx, by) in zip(drawn, drawn[1:]):
+            n = max(1, int(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
+                           // PHOTO_TRACE_GAP_STEP) + 1)
+            samples.extend((ax + (bx - ax) * i / n, ay + (by - ay) * i / n)
+                           for i in range(1, n + 1))
+    return max(min(((x - px) ** 2 + (y - py) ** 2) ** 0.5
+                   for px, py in points)
+               for x, y in samples)
+
+
+# =====================================================================
 # Race photographs (harvest/race_images.txt, PD-64)
 #
 # The race page showed the lead photograph of each car that entered, which
@@ -2979,6 +3201,30 @@ def load_f1db_pit_stops():
     write the same table under their own `source`, so the three can be
     compared rather than overwriting one another."""
     return _read_named(F1DB_PITS_FILE, "tools/f1db_fetch.py")
+
+
+# Where F1DB's pit stops list one stop more than once (LV-13, #1159).
+# pit_stops is keyed on (race, source, driver, stop), so INSERT OR IGNORE
+# used to keep the first row and drop the rest without a word. build.py now
+# counts, race by race, the rows that repeat a stop already read among those
+# that reach the table, and stops on a count that differs from the one
+# declared here - an undeclared repeat, or a declaration the rows no longer
+# bear out, which is how this one comes out when F1DB corrects its file -
+# and on a repeat that differs from the row it repeats in lap or time, which
+# is two readings of one stop and a choice, not a repeat. A correction to a
+# race already committed cannot be held back, so it fails each refresh whole
+# until the declaration is removed (#1375).
+#   (year, round): rows that repeat a stop, and are dropped
+#
+# 2026 round 13, the Italian Grand Prix. F1DB v2026.20.0's pit-stops.yml
+# (src/data/seasons/2026/races/13-italy) holds 18 rows, positions 1 to 18:
+# nine drivers' stop 2, each twice, the two rows alike but for the position.
+# F1DB's main branch read the same on 2026-11-17. One of each is kept.
+# Jolpica, which this database may not redistribute, holds the same nine
+# stop 2 rows once each, at the same lap and time. Worth reporting upstream.
+F1DB_PIT_STOP_REPEATS = {
+    (2026, 13): 9,
+}
 
 
 def load_race_dates():

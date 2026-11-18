@@ -1616,12 +1616,15 @@ tbody th.record-derivation {
  * wrapped to six lines and set every row 94-132 px tall at 1440 and 151-228
  * px at 400, so the page a reader quotes from showed two of its twelve
  * records on the first screen at 1440 and none at 400. A card leads with the
- * name, as a tile leads with its label, then the value at the tile's display
- * size and the holder; the derivation is folded away under its heading and
- * printed in full on the record's own page.
+ * name, as a tile leads with its label, then the value's number large with
+ * the rest of the value beside it, the holder and the comparator (VD-111);
+ * the derivation is folded away under its heading and printed in full on the
+ * record's own page.
  *
- * Four to a row at 1440 and two at a phone's width, never one: one card to a
- * row at 400 put the second value below the first screen.
+ * Four to a row from --bp-desktop, two from --bp-tablet and one below
+ * (VD-111), on column multiples as the photo strip is. Two to a row on a
+ * phone held a card to half its width, too narrow for the names and bars of
+ * the comparator the card now carries.
  *
  * Each card keeps its own height (IX-47). The cards of a row used to share
  * it, which lined the closed summaries up, and opening one derivation then
@@ -1632,16 +1635,22 @@ tbody th.record-derivation {
 .record-cards {
   display: grid;
   align-items: start;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
   margin: 0 0 var(--space-7);
   padding: 0;
   list-style: none;
 }
 
-@media (width < 768px) {
+@media (width >= 768px) {
   .record-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1180px) {
+  .record-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* a card grid: four records to the row, the box spanning its column */
   }
 }
 
@@ -1676,19 +1685,96 @@ tbody th.record-derivation {
   text-underline-offset: 3px;
 }
 
+/* The number the value opens with, large, and the rest of it beside it as
+   its qualifier (VD-111). A value with no number to lead with is set whole
+   (.record-card-whole), at the tile's figure size, as every value was. */
 .record-card-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-4);
+}
+
+.record-card-value > b {
   font-family: var(--disp);
-  font-size: var(--size-8);
+  font-size: var(--size-10);
   font-weight: var(--weight-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-card-value > b.record-card-whole {
+  min-width: 0;
+  font-size: var(--size-8);
   line-height: 1.12;
   letter-spacing: -0.005em;
   overflow-wrap: break-word;
 }
 
-.record-card-holder {
-  margin-top: var(--space-2);
+.record-card-value > span {
+  min-width: 0;
   font-size: var(--size-4);
+  line-height: 1.3;
   color: var(--ink-soft);
+}
+
+.record-card-holder {
+  margin-top: var(--space-3);
+  font-size: var(--size-4);
+}
+
+/*
+ * The comparator (VD-111; docs/design-system.md section 3, *Record card*,
+ * provisional): the holder's bar and the next two, each name beside its bar
+ * and each figure printed at the bar's end, the holder's in --series-mark and
+ * the rest in --series-ink (D-61: the one value the card states takes the
+ * accent). One image to a screen reader, its name carrying every figure.
+ */
+.record-card-bars {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr); /* the names as wide as the longest, the bars the rest */
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  margin-top: var(--space-5);
+  font-size: var(--size-3);
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+.record-card-bars .is-holder {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.record-card-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The longest bar leaves room at its end for a four-figure value and the gap
+   before it, so a figure never runs out of the card: the width is the
+   bar's share of that, not a span. */
+.record-card-bar > i {
+  display: block;
+  flex: none;
+  width: calc(var(--share) * (100% - 3.5em)); /* a comparator bar: its share of the longest */
+  height: var(--space-3);
+  background: var(--series-ink);
+}
+
+.record-card-bar.is-holder > i {
+  background: var(--series-mark);
+}
+
+/* The margin to the next, in the label register and in ink. */
+.record-card-margin {
+  margin-top: var(--space-4);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+  color: var(--ink);
 }
 
 .record-card-name a:hover,
@@ -1728,9 +1814,167 @@ tbody th.record-derivation {
   .record-card {
     padding: var(--space-4) 0 0;
   }
+}
 
-  .record-card-value {
-    font-size: var(--size-7);
+/*
+ * A record's page opens on its record (VD-112; docs/design-system.md section
+ * 4, *Lookup pages*): the number the value opens with at --size-record, and
+ * beside it the words that give it meaning - the rest of the value and the
+ * holder, or, for a run of races, the sentence the run is read as. They sit
+ * on the number's foot and wrap under it on a narrow screen.
+ */
+.record-lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4) var(--space-8);
+  margin: var(--space-6) 0 0;
+}
+
+.record-lead-figure {
+  font-family: var(--disp);
+  font-size: var(--size-record);
+  font-weight: var(--weight-bold);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A value that opens with no number is set whole, at the tile's figure size. */
+.record-lead-whole {
+  min-width: 0;
+  font-size: var(--size-8);
+  font-weight: var(--weight-bold);
+  line-height: 1.12;
+  overflow-wrap: break-word;
+}
+
+.record-lead-words {
+  flex: 1 1 16rem;
+  max-width: var(--measure);
+  min-width: 0;
+  font-size: var(--size-6);
+  line-height: 1.35;
+}
+
+.record-lead-words p {
+  margin: 0;
+}
+
+.record-lead-words p + p {
+  margin-top: var(--space-3);
+}
+
+/* The races of the run, as the season strip draws a round (§3, *Outline
+   card*, the race thumbnail): ten to a row, five on a phone. */
+.outline-strip.record-races {
+  grid-template-columns: repeat(10, minmax(0, 1fr)); /* a card grid: ten races to the row */
+  margin-top: var(--space-9);
+}
+
+@media (width < 768px) {
+  .outline-strip.record-races {
+    grid-template-columns: repeat(5, minmax(0, 1fr)); /* a card grid: five races to the row on a phone */
+  }
+}
+
+/* Five to a row leaves some 45 px of a 320 px phone to each race, and ten
+   some 50 px of a 768 px tablet, which a 'Hungarian' set at the strip's
+   step does not fit: below the desktop the box gives up most of its inset
+   and the name drops a step, and a name longer still breaks, hyphenated
+   where the browser can, rather than running into the next. */
+@media (width < 1180px) {
+  .outline-strip.record-races li a {
+    padding: var(--space-1);
+  }
+
+  .outline-strip.record-races span {
+    font-size: var(--size-2);
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
+}
+
+.outline-strip.record-races + .outline-strip.record-races {
+  margin-top: var(--space-6);
+}
+
+/*
+ * The longest runs, as bars: the name and its years, then the bar, its
+ * length printed at its end with the run's two ends beside it. The record's
+ * runs take --series-mark and the rest --series-ink (D-61); every figure is
+ * printed, so the bar is never the only cue and stays out of the reading.
+ */
+.record-runs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: var(--span-8);
+}
+
+.record-runs li {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr); /* the name column, then the bar */
+  gap: var(--space-2) var(--space-6);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--size-4);
+  line-height: 1.3;
+}
+
+.record-runs li.is-holder {
+  font-weight: var(--weight-semibold);
+}
+
+.record-runs small {
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink-faint);
+}
+
+.record-run-who a {
+  color: inherit;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+
+.record-run-who a:hover,
+.record-run-who a:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+.record-run-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Each bar its share of the longest, which leaves room at its end for the
+   figure and the run's ends. */
+.record-run-bar > i {
+  display: block;
+  flex: none;
+  width: calc(var(--share) * 60%); /* a run's bar: its share of the longest */
+  height: var(--space-5);
+  background: var(--series-ink);
+}
+
+.record-runs li.is-holder .record-run-bar > i {
+  background: var(--series-mark);
+}
+
+.record-runs-note {
+  margin: var(--space-4) 0 0;
+  font-size: var(--size-3);
+}
+
+@media (width < 768px) {
+  .record-runs li {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1766,6 +2010,107 @@ tbody th a:focus-visible,
 tbody tr.is-highlight td,
 tbody tr.is-highlight th {
   background: var(--accent-wash);
+}
+
+/*
+ * The leader in the row (VD-105, VD-110; docs/design-system.md section 3,
+ * *Table*, provisional). A standings table's P1 is marked where it is read,
+ * not in a card above the table: an ink rule above the row and below it,
+ * and the row's words semibold in ink. Both rules are inset shadows, not
+ * borders: the one below is drawn whether or not a row follows, as on a
+ * table sorted with the leader last, and the one above survives a table
+ * that fits its box, which clears its first row's top border once the app
+ * has measured it (.table-wrap[data-fits] above), so the leader's row,
+ * first in the default sort, keeps its rule at the handover. Both renderers
+ * write the class from one predicate (lib/table.js LEADER).
+ */
+tbody tr.is-leader td,
+tbody tr.is-leader th {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 0 var(--ink),
+    inset 0 -1px 0 var(--ink);
+}
+
+/* The champion's pill beside the name on that row: the hairline pill, its
+   line and its words in ink, as the row is. Below 768 px it takes a line of
+   its own under the name. Two classes, as .pill is declared further down
+   and would otherwise draw its own hairline over this one. */
+.pill.pill-champion {
+  margin-left: var(--space-2);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/*
+ * A figure with a bar beside it (VD-110; section 3, *Table*, provisional):
+ * a standings total and its share of the leader's, the bar in the row's
+ * pair as a chart series wears it (.livery-series) or in ink where there is
+ * none (D-61). The figure is the cell's text and always printed, so the bar
+ * is never the only cue. The head sits over the figures, at the cell's left,
+ * not at its right edge, where the bars run.
+ */
+tbody td.has-bar,
+tbody th.has-bar,
+thead th.has-bar {
+  text-align: left;
+}
+
+th.num.sortable.has-bar button {
+  justify-content: flex-start;
+}
+
+/* The column a bar needs to run in: without a width of its own the cell is
+   as wide as its figure, and a bar sized in a share of the cell has nothing
+   to be a share of. Two fifths of the table, the approved mockup's. */
+thead th.has-bar {
+  width: 40%; /* the column a value bar runs in */
+}
+
+.value-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* The figures right-aligned over each other in a box of one width, about a
+   four-figure total's - a width in the figure's own em, not a span. */
+.value-bar > span {
+  min-width: 2.6em; /* a four-figure total, so the figures align */
+  text-align: right;
+}
+
+/* The leader's bar is four fifths of the cell, so the longest leaves room
+   beside its figure: the width is the share of that, not a span. */
+.value-bar > i {
+  display: block;
+  flex: none;
+  width: calc(var(--share) * 80%); /* a value bar: its share of the leader's */
+  height: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--series-ink);
+}
+
+.value-bar > i.livery-series {
+  background: var(--livery);
+}
+
+@media (width < 768px) {
+  .value-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .value-bar > span {
+    text-align: left;
+  }
+
+  .pill.pill-champion {
+    display: table;
+    margin: var(--space-2) 0 0;
+  }
 }
 
 /*
@@ -2745,6 +3090,53 @@ figure.photo[data-state='failed'] img {
   display: none;
 }
 
+/* The lap over a circuit's aerial photograph (AF-96). The frame is the
+   picture's own box, and the line's viewBox is the photograph's stored frame
+   fitted the way object-fit: contain fits the pixels, so the two agree at any
+   width and inside the header's capped height. A casing under the line keeps
+   it visible on the pale concrete and the dark woods of one photograph, and
+   the stroke stays the same width whatever size the picture is drawn at. */
+.photo-frame {
+  position: relative;
+}
+
+.photo-trace {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.photo-trace path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.photo-trace-casing {
+  stroke: var(--photo-trace-casing);
+  stroke-width: 4;
+}
+
+.photo-trace-line {
+  stroke: var(--photo-trace);
+  stroke-width: 2;
+}
+
+figure.photo[data-state='failed'] .photo-trace {
+  display: none;
+}
+
+/* Nor over the empty box while the photograph is still on its way: a line
+   on its own there would read as a second drawing of the circuit. Keyed to
+   loading, not to "not ready", because the static figure has no data-state
+   and its picture is there from the first paint. */
+figure.photo[data-state='loading'] .photo-trace {
+  visibility: hidden;
+}
+
 .photo-failed {
   margin: 0;
   padding: var(--space-7) var(--space-6);
@@ -3490,6 +3882,119 @@ figure.figure > .figure-note:first-child {
 .figure .mark-ring {
   stroke: var(--panel);
   stroke-width: 2;
+}
+
+/* THE ANNOTATION PATTERN (VD-121; docs/design-system.md section 3,
+   *Annotation*). The finding is a sentence the data states, set over the
+   figure in the label face a step under the h2, so the heading stays the
+   figure's name; the kicker under it says what is plotted, in the label
+   register. Neither is a caption: both sit outside the frame. */
+.figure-finding {
+  margin: 0 0 var(--space-2);
+  font-size: var(--size-6);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.figure-kicker {
+  margin: 0 0 var(--space-6);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  line-height: 1.3;
+  color: var(--ink-faint);
+}
+
+/* A span the key explains, shaded under the grid and the lines. */
+.figure .plot-band {
+  fill: var(--panel-sunk);
+}
+
+/* A line's end named in the gutter: the hairline from the end, the name
+   semibold in ink, the value quieter; a lone series' value in ink, since
+   nothing beside it names the line. */
+.figure .end-label polyline {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
+.figure .end-label text {
+  fill: var(--ink-soft);
+  font-size: var(--size-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.figure .end-label .end-name,
+.figure .end-label text.alone {
+  fill: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* A numbered marker: a disc in ink, ringed in the panel's colour so it
+   reads over a gridline or a line, on a hairline to its point. */
+.figure .anno-marker line {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+
+.figure .anno-marker circle {
+  fill: var(--ink);
+  stroke: var(--panel);
+  stroke-width: 3;
+}
+
+.figure .anno-marker text {
+  fill: var(--ink-invert);
+  font-size: var(--size-2);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The key the markers point to, under the plot at every width: each note
+   its number in the marker's disc, a bold lead and one quieter line, the
+   text reflowing rather than shrinking on a phone. */
+.figure-key {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-6) var(--space-5) 0;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: var(--space-6);
+}
+
+.figure-key li {
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+}
+
+.figure-key-n {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--space-7); /* the marker's disc, as the plot draws it */
+  height: var(--space-7);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--ink-invert);
+  font-size: var(--size-2);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(2px);
+}
+
+.figure-key p {
+  margin: 0;
+  font-size: var(--size-4);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.figure-key b {
+  display: block;
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
 }
 
 /* The ring round a dot the caller flagged - a season finished first, on a
@@ -4286,6 +4791,266 @@ figure.figure > .figure-note:first-child {
   --livery: var(--livery-dark);
 }
 
+/* The team-mates face-off (VD-122, D-65): the driver in the pairing's last
+   team's pair and the team-mate in the livery's second colour, or in ink
+   where it has none (.face-off-owned, from charts/own.js faceColours); with
+   no colour on record, the first two chart slots, which faceColours sets on
+   the block itself (D-61 rule 3). The names
+   in the display face at a stat figure's size - a name is not a figure - in
+   sentence case (D-66), over 4 px rules; the leading figure of each tally
+   large in ink, the other smaller and faint. No accent anywhere (D-61). */
+.face-off {
+  border-top: 1px solid var(--rule-strong);
+  padding: var(--space-7) 0 var(--space-9);
+}
+
+.face-off-owned {
+  --face-a: var(--face-a-light);
+  --face-b: var(--face-b-light, var(--ink));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) .face-off-owned {
+    --face-a: var(--face-a-dark);
+    --face-b: var(--face-b-dark, var(--ink));
+  }
+}
+
+:root[data-theme='dark'] .face-off-owned {
+  --face-a: var(--face-a-dark);
+  --face-b: var(--face-b-dark, var(--ink));
+}
+
+.face-headline {
+  margin: var(--space-4) 0 var(--space-3);
+  font-family: var(--disp);
+  font-size: var(--size-8);
+  font-weight: var(--weight-bold);
+  line-height: 1.05;
+}
+
+.face-headline em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.face-names {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--space-4) var(--space-6);
+}
+
+.face-name {
+  padding-bottom: var(--space-3);
+  border-bottom: var(--space-2) solid var(--face-a);
+  font-family: var(--disp);
+  font-size: var(--size-8);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.face-name-mate {
+  text-align: right;
+  border-bottom-color: var(--face-b);
+}
+
+/* On a phone the line between the names is a row of its own under them, so
+   neither name is squeezed by it; from 768 it sits between them. */
+.face-verdict {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  line-height: 1.3;
+  color: var(--ink-faint);
+}
+
+.face-verdict b {
+  display: block;
+  font-size: var(--size-4);
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.face-tallies {
+  display: grid;
+  gap: var(--space-7) var(--space-9);
+  margin-top: var(--space-7);
+}
+
+.face-label {
+  margin: 0 0 var(--space-3);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.face-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto; /* a figure at either end of the bar, each at its own width */
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.face-figure {
+  min-width: 2ch; /* a one-digit figure keeps the bar where a two-digit one puts it */
+  font-family: var(--disp);
+  font-size: var(--size-7);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.face-figure.face-win {
+  font-size: var(--size-9);
+  color: var(--ink);
+}
+
+.face-figure-mate {
+  text-align: right;
+}
+
+/* The split bar: the driver's share from the left in --face-a, the rest in
+   --face-b, and a tick in ink at the middle, where level would meet. */
+.duel {
+  position: relative;
+  display: flex;
+  height: var(--space-6);
+}
+
+.duel > i {
+  display: block;
+  background: var(--face-b);
+}
+
+.duel > i:first-child {
+  flex: none;
+  width: calc(var(--share) * 100%); /* the driver's share of the two figures */
+  background: var(--face-a);
+}
+
+.duel > i + i {
+  flex: 1 1 0;
+}
+
+.duel::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(-1 * var(--space-3));
+  bottom: calc(-1 * var(--space-3));
+  border-left: 1px solid var(--ink);
+}
+
+.duel-none::after {
+  border-left-color: var(--rule);
+}
+
+.face-seasons {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-7);
+}
+
+.face-season {
+  display: grid;
+  grid-template-columns: 2.6rem repeat(3, minmax(0, 1fr)); /* the year at four digits, then the three counts */
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--size-3);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
+.face-season > b {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.face-season-head {
+  font-size: var(--size-2);
+  font-weight: var(--weight-medium);
+  color: var(--ink-faint);
+}
+
+.face-mini {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.face-mini > .duel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: var(--space-3);
+}
+
+.face-mini > .duel::after {
+  top: calc(-1 * var(--space-2));
+  bottom: calc(-1 * var(--space-2));
+}
+
+.face-mini-figure.face-win {
+  font-weight: var(--weight-semibold);
+  color: var(--ink);
+}
+
+.face-key {
+  margin-top: var(--space-2);
+}
+
+@media (width >= 768px) {
+  .face-headline {
+    font-size: var(--size-9);
+  }
+
+  .face-names {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); /* two names at either end, the verdict between at its own width */
+  }
+
+  .face-name {
+    font-size: var(--size-10);
+  }
+
+  .face-verdict {
+    grid-column: auto;
+    grid-row: auto;
+    max-width: var(--span-4);
+    padding-bottom: var(--space-4);
+    text-align: center;
+  }
+
+  .face-season {
+    grid-template-columns: 3.5rem repeat(3, minmax(0, 1fr)); /* the year with room, then the three counts */
+    gap: var(--space-5);
+  }
+
+  .face-mini {
+    grid-template-columns: 3.2em minmax(0, 1fr) 3.2em; /* a figure at either end of the small bar, up to a season's 413.5 */
+  }
+
+  .face-mini > .duel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+@media (width >= 1180px) {
+  .face-tallies {
+    grid-template-columns: repeat(3, minmax(0, 1fr)); /* the three counts side by side, as wide as each other */
+  }
+
+  .face-season {
+    gap: var(--space-9);
+  }
+}
+
 /* The season plate (VD-104 (c)): a 4 px rule in the champion's team pair -
    .livery-series picks the light or the dark value, held to 3:1 like any
    series - or in ink where no colour is on record; the label, the name in
@@ -4360,7 +5125,7 @@ figure.figure > .figure-note:first-child {
 }
 
 /* The key to a line (charts/Figure.jsx LineKey): a stroke in the series'
-   dash, in the legend and the tooltip alike (AX-16). The round caps reach a
+   dash, in the tooltip (AX-16). The round caps reach a
    pixel past the box. `.figure svg` sizes the plot to its column, so the key
    has to out-rank it to keep its own 20 by 8. */
 .figure svg.line-key {

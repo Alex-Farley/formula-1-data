@@ -73,7 +73,21 @@
  * dark, and the two ratios in the comment after each pair are the measured
  * minimums; test/conventions.mjs still measures every one of them. Nothing
  * but a chart series may wear the pair - a mark takes the base, through
- * liveryStyle() - and the accents never had a pair and never get one.
+ * liveryStyle() - and the accents have no pair but the one below.
+ *
+ * THE SECOND COLOUR (VD-122, [D-65]). `second` is the one exception: a
+ * light and dark rendering of the mark's accent (liveryPair's `accent`, the
+ * second colour a mark draws), for the one surface where two drivers of one
+ * team are drawn side by side - the team-mates face-off on a driver's page,
+ * the driver in the pair above and the team-mate in this one. It is the
+ * accent's base moved in HSL lightness, darker in light and lighter in dark,
+ * only as far as it takes to clear 3:1 on the same surfaces the pair above
+ * clears, so one half is the base wherever the base already does; the two
+ * ratios in the comment are the measured minimums, and test/conventions.mjs
+ * measures them again. It is null where the accent, so moved, would stand
+ * under ACCENT_APART from the lead's pair in either theme - two bars a
+ * reader cannot tell apart - and a null second draws the team-mate in ink,
+ * as a livery with no accent does.
  *
  * A SCHEME PER SEASON (AF-15). Until 2026-09-14 an entry carried one
  * colour, and the file said so. A single principal colour cannot express
@@ -195,6 +209,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#d40000', dark: '#d40000', // 4.76 / 3.02
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://en.wikipedia.org/wiki/Rosso_corsa',
       'https://en.wikipedia.org/wiki/Ferrari_SF-25',
@@ -210,6 +225,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#e30016', dark: '#e30016', // 4.23 / 3.40
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://www.ferrari.com/en-EN/formula1/articles/ferrari-unveils-the-sf-26',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -224,6 +240,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#818993', dark: '#c0c4c9', // 3.05 / 9.52
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://en.wikipedia.org/wiki/McLaren_MP4-29',
       'https://www.formula1.com/en/latest/article/mclaren-liveries-through-the-years.3M1dkzZe78TyKvRN0ZAsht',
@@ -239,6 +256,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#3a3d42', dark: '#656a73', // 9.39 / 3.07
+    second: null, // Black at 3:1 is 1.3 from the lead's pair, too near to tell apart
     source: [
       'https://en.wikipedia.org/wiki/McLaren_MP4-30',
       'https://www.formula1.com/en/latest/article/mclaren-liveries-through-the-years.3M1dkzZe78TyKvRN0ZAsht',
@@ -254,6 +272,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#d95a13', dark: '#d95a13', // 3.33 / 4.31
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://www.mclaren.com/racing/latest-news/mclarenracing/article/colour-by-numbers-6122243/',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -268,6 +287,7 @@ export const LIVERIES = [
       { name: 'Blue', base: '#1f4fbf', named: false, sourced: true },
     ],
     light: '#d66c00', dark: '#ff8000', // 3.01 / 6.62
+    second: { light: '#2e3033', dark: '#64696f' }, // Anthracite: 11.47 / 3.02
     source: [
       'https://www.mclaren.com/racing/formula-1/2018/car-launch/mclaren-and-papaya-2174925/',
       'https://www.mclaren.com/racing/formula-1/2026/mclaren-racing-reveal-livery-for-the-mclaren-mastercard-formula-1-teams-2026-challenger/',
@@ -283,6 +303,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
+    second: { light: '#838992', dark: '#b5b9be' }, // Silver: 3.05 / 8.47
     source: [
       'https://en.wikipedia.org/wiki/Mercedes_MGP_W01',
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W11_EQ_Performance',
@@ -298,6 +319,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W11_EQ_Performance',
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W13_E_Performance',
@@ -313,6 +335,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
+    second: { light: '#838992', dark: '#b5b9be' }, // Silver: 3.05 / 8.47
     source: [
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W13_E_Performance',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -327,6 +350,7 @@ export const LIVERIES = [
       { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
     ],
     light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W14_E_Performance',
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W15_E_Performance',
@@ -343,6 +367,7 @@ export const LIVERIES = [
       { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
     ],
     light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://www.mercedesamgf1.com/news/mercedes-amg-f1-2026-challenger-w17-revealed',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -357,6 +382,7 @@ export const LIVERIES = [
       { name: 'Yellow', base: '#f5c400', named: false, sourced: true },
     ],
     light: '#1b2a5e', dark: '#4462c9', // 11.74 / 3.05
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.redbullracing.com/int-en/cars/rb9',
       'https://en.wikipedia.org/wiki/Red_Bull_RB12',
@@ -372,6 +398,7 @@ export const LIVERIES = [
       { name: 'Yellow', base: '#f5c400', named: false, sourced: true },
     ],
     light: '#1c2648', dark: '#4d66ba', // 12.73 / 3.12
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://en.wikipedia.org/wiki/Red_Bull_RB12',
       'https://www.redbullracing.com/int-en/races/season-launch-2026/season-launch-2026-recap',
@@ -387,6 +414,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#1b2a5e', dark: '#4462c9', // 11.74 / 3.05, dark blue
+    second: { light: '#898989', dark: '#f2f2f2' }, // Heritage white: 3.03 / 14.92
     source: [
       'https://www.redbullracing.com/int-en/races/season-launch-2026/season-launch-2026-recap',
       'https://www.formula1.com/en/latest/article/first-look-red-bull-unveil-striking-new-livery-for-2026-f1-season.61MNwo6zMoxUtOAjS8JH0S',
@@ -402,6 +430,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#a38300', dark: '#f5c400', // 3.11 / 10.15
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://en.wikipedia.org/wiki/Renault_R30',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -416,6 +445,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
+    second: { light: '#a58520', dark: '#c9a227' }, // Gold: 3.04 / 6.91
     source: [
       'https://en.wikipedia.org/wiki/Renault_in_Formula_One',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -430,6 +460,7 @@ export const LIVERIES = [
       { name: 'Grey', base: '#6f747b', named: false, sourced: true },
     ],
     light: '#a38300', dark: '#f5c400', // 3.11 / 10.15
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://www.formula1.com/en/latest/article/renault-reveal-yellow-race-livery-for-2016.N7ReUJmKHRk2u4kQHjKo1',
       'https://www.formula1.com/en/latest/article/renault-launch-livery-ahead-of-australian-grand-prix-2020.5td91wEl8K76nvJBd7HdwM',
@@ -445,6 +476,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
+    second: { light: '#a58520', dark: '#c9a227' }, // Gold: 3.04 / 6.91
     source: [
       'https://en.wikipedia.org/wiki/Lotus_F1_Team',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -459,6 +491,7 @@ export const LIVERIES = [
       { name: 'Yellow', base: '#f5c400', named: false, sourced: true },
     ],
     light: '#0b5a3a', dark: '#0f7a4f', // 7.12 / 3.11
+    second: { light: '#a58520', dark: '#c9a227' }, // Gold: 3.04 / 6.91
     source: [
       'https://en.wikipedia.org/wiki/Lotus_T127',
       'https://www.formula1.com/en/latest/article/caterham-roll-out-striking-new-ct05-in-jerez.2FGEMkqR1yVSsgPyfmA83w',
@@ -474,6 +507,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#4b4e54', dark: '#656a72', // 7.18 / 3.06
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://en.wikipedia.org/wiki/Hispania_F110',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -488,6 +522,7 @@ export const LIVERIES = [
       { name: 'Grey', base: '#6f747b', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://en.wikipedia.org/wiki/Hispania_F111',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -502,6 +537,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#a58520', dark: '#c9a227' }, // Gold: 3.04 / 6.91
     source: [
       'https://en.wikipedia.org/wiki/HRT_F112',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -516,6 +552,7 @@ export const LIVERIES = [
       { name: 'Green', base: '#0f8a45', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#ef570e', dark: '#f26522' }, // Orange: 3.01 / 5.30
     source: [
       'https://en.wikipedia.org/wiki/Force_India_VJM02',
       'https://en.wikipedia.org/wiki/Force_India_VJM03',
@@ -531,6 +568,7 @@ export const LIVERIES = [
       { name: 'Green', base: '#0f8a45', named: false, sourced: true },
     ],
     light: '#818891', dark: '#b5b9be', // 3.08 / 8.46
+    second: { light: '#ef570e', dark: '#f26522' }, // Orange: 3.01 / 5.30
     source: [
       'https://www.formula1.com/en/latest/headlines/2015/1/force-india-unveil-sleek-new-team-livery.html',
       'https://en.wikipedia.org/wiki/Force_India_VJM08',
@@ -550,6 +588,7 @@ export const LIVERIES = [
       { name: 'Orange', base: '#f26522', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
+    second: { light: '#838992', dark: '#b5b9be' }, // Silver: 3.05 / 8.47
     source: [
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
@@ -563,6 +602,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#ef439f', dark: '#f7a1cf', // 3.03 / 8.70
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://en.wikipedia.org/wiki/Force_India_VJM10',
       'https://en.wikipedia.org/wiki/Force_India_VJM11',
@@ -578,6 +618,7 @@ export const LIVERIES = [
       { name: 'Blue', base: '#1f4fbf', named: false, sourced: true },
     ],
     light: '#ef439f', dark: '#f7a1cf', // 3.03 / 8.70
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://www.formula1.com/en/latest/article/racing-point-reveal-their-2019-identity.6qr236jVQ3VJ3p2OzMkB4q',
       'https://www.formula1.com/en/latest/article/racing-point-reveal-2020-f1-car-and-title-sponsor-change.2YWK5q19JTEbR2sAOmNIsj',
@@ -593,6 +634,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#00665e', dark: '#007a71', // 5.90 / 3.19
+    second: { light: '#749400', dark: '#b4e600' }, // Lime green: 3.04 / 11.34
     source: [
       'https://www.astonmartinf1.com/en-GB/news/feature/aston-martin-racing-green-more-than-just-a-colour',
       'https://www.astonmartinf1.com/en-GB/news/announcement/revealed-2022-f1-car-in-aston-martin-racing-green',
@@ -609,6 +651,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#4b4e54', dark: '#656a72' }, // Dark grey: 7.23 / 3.07
     source: [
       'https://en.wikipedia.org/wiki/Sauber_C32',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -623,6 +666,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#6f747b', dark: '#6f747b', // 4.05 / 3.54
+    second: null, // White at 3:1 is 9.6 from the lead's pair, too near to tell apart
     source: [
       'https://en.wikipedia.org/wiki/Sauber_C32',
       'https://en.wikipedia.org/wiki/Sauber_Motorsport',
@@ -638,6 +682,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#1f4fbf', dark: '#2a60dc', // 6.17 / 3.02
+    second: { light: '#a68500', dark: '#f5c400' }, // Yellow: 3.04 / 10.17
     source: [
       'https://www.formula1.com/en/latest/article/sauber-unveil-newly-liveried-c34.3zK6sncNj3fJGgFOHhsKCC',
       'https://en.wikipedia.org/wiki/Sauber_C35',
@@ -653,6 +698,7 @@ export const LIVERIES = [
       { name: 'Gold', base: '#c9a227', named: false, sourced: true },
     ],
     light: '#1f4fbf', dark: '#2a60dc', // 6.17 / 3.02
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://www.formula1.com/en/latest/article/sauber-reveal-new-car-in-anniversary-livery.2VFkeUUfp6ssswIcqI0iqs',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -667,6 +713,7 @@ export const LIVERIES = [
       { name: 'Blue', base: '#1f4fbf', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.formula1.com/en/latest/article/new-look-sauber-unveil-c37.1Vhc37qyZi24OM0UIuEO8m',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -681,6 +728,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#9a1a1f', dark: '#ce232a', // 7.11 / 3.10
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://www.formula1.com/en/latest/article/alfa-romeo-reveal-2019-livery-in-barcelona.7a5rOZkmrT3k20lrNBCHYn',
       'https://www.formula1.com/en/latest/article/alfa-romeo-unveil-bold-new-livery-for-2022.3sCyQeW5SPD20W9AeIFD2D',
@@ -696,6 +744,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#009a01', dark: '#00e701', // 3.22 / 9.87
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://www.formula1.com/en/latest/article/first-look-kick-sauber-show-off-dazzling-livery-with-a-slew-of-changes-to.7tUcB0jd4VIdbGNbDmP1Pv',
       'https://en.wikipedia.org/wiki/Kick_Sauber_C45',
@@ -711,6 +760,7 @@ export const LIVERIES = [
       { name: 'Silver', base: '#b5b9be', named: false, sourced: false },
     ],
     light: '#0e1f4d', dark: '#3460da', // 13.68 / 3.04
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.redbull.com/int-en/toro-rosso-2017-launch',
       'https://www.formula1.com/en/latest/article/new-look-toro-rosso-completes-17-launches-in-spain.3hVuD9kCoEUMOoyKWG4Yck',
@@ -725,6 +775,7 @@ export const LIVERIES = [
       { name: 'Silver', base: '#b5b9be', named: false, sourced: true },
     ],
     light: '#1f4fd0', dark: '#2e5ee0', // 5.86 / 3.01
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.redbull.com/int-en/toro-rosso-2017-launch',
       'https://www.formula1.com/en/latest/article/new-look-toro-rosso-completes-17-launches-in-spain.3hVuD9kCoEUMOoyKWG4Yck',
@@ -739,6 +790,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#1c2c4c', dark: '#4268b4', // 11.94 / 3.07
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://www.formula1.com/en/latest/article/alphatauri-reveal-striking-2020-livery-after-toro-rosso-rebrand.3zbnWCzu4AyTSLrBYOoReL',
       'https://www.formula1.com/en/latest/article/first-look-alphatauri-reveal-livery-for-2023-at04-at-glitzy-new-york-f1.lnlL0m6mx00T5YtQT3Eyf',
@@ -753,6 +805,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#2b4bd8', dark: '#415ddc', // 5.83 / 3.04
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://en.wikipedia.org/wiki/RB_VCARB_01',
     ],
@@ -766,6 +819,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#2b4bd8', dark: '#415ddc', // 5.83 / 3.04, blue
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://www.visacashapprb.com/int-en/2026-car-reveal',
       'https://www.formula1.com/en/latest/article/first-look-racing-bulls-showcase-2026-livery-at-launch-event-in-detroit.ObKtbPEmmdtrnfMHw34pd',
@@ -781,6 +835,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
@@ -794,6 +849,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#d1262f', dark: '#d1262f', // 4.49 / 3.20
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
@@ -807,6 +863,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#d1262f', dark: '#d1262f', // 4.49 / 3.20
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
@@ -820,6 +877,7 @@ export const LIVERIES = [
       { name: 'Blue', base: '#1f4fbf', named: false, sourced: true },
     ],
     light: '#d1262f', dark: '#d1262f', // 4.49 / 3.20
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://en.wikipedia.org/wiki/Manor_MRT05',
       'https://www.formula1.com/en/latest/article/manor-mrt05-breaks-cover-in-barcelona.51AN2McfVTb6Rl38ceHEPm',
@@ -834,6 +892,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#0a1f5c', dark: '#2b5ce8', // 13.26 / 3.02
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://en.wikipedia.org/wiki/Williams_FW33',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -848,6 +907,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#0a1f5c', dark: '#2b5ce8' }, // Dark blue: 13.34 / 3.02
     source: [
       'https://en.wikipedia.org/wiki/Williams_FW36',
       'https://en.wikipedia.org/wiki/Williams_FW41',
@@ -862,6 +922,7 @@ export const LIVERIES = [
       { name: 'Light blue', base: '#4aa8e0', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#0a1f5c', dark: '#2b5ce8' }, // Dark blue: 13.34 / 3.02
     source: [
       'https://www.formula1.com/en/latest/article/williams-show-off-dramatic-new-look-for-2019.pTkktRq2kBUsICx7MHr6v',
       'https://www.formula1.com/en/latest/article.first-look-williams-reveal-striking-new-livery-ahead-of-2020-season-opener.4EiLjnHqlMgA4VCbteqVDx.html',
@@ -876,6 +937,7 @@ export const LIVERIES = [
       { name: 'Yellow', base: '#f5c400', named: false, sourced: true },
     ],
     light: '#0f3fa8', dark: '#1e5eeb', // 7.87 / 3.06
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://www.williamsf1.com/articles/d655080b-9ab9-405d-9e7c-0d6a34aae4d0/williams-racing-unveils-livery-for-the-2021-season',
       'https://www.williamsf1.com/articles/23331a30-bbce-4e5f-b372-1a46f250fe2a/williams-racing-unveils-all-new-fw44',
@@ -891,6 +953,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#1350e0', dark: '#205dec', // 5.56 / 3.05
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://www.williamsf1.com/articles/5363520c-1e22-4d62-a568-7f1c7b6ff529/atlassian-williams-f1-team-reveals-bold-new-racing-livery-for-2026',
     ],
@@ -904,6 +967,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#85898f', dark: '#8a8e94', // 3.03 / 5.07
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.haasf1team.com/news/introducing-vf-16',
       'https://www.formula1.com/en/latest/article/gallery-how-the-haas-liveries-have-evolved-since-2016.USOtK89bvI2Ofk1QicYfR',
@@ -918,6 +982,7 @@ export const LIVERIES = [
       { name: 'Gold', base: '#c9a227', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
+    second: { light: '#a58520', dark: '#c9a227' }, // Gold: 3.04 / 6.91
     source: [
       'https://www.formula1.com/en/latest/article/haas-unveil-new-black-and-gold-f1-livery-for-2019.3fIfnfT5NoMoLcuitzNJrt',
     ],
@@ -931,6 +996,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#85898f', dark: '#8a8e94', // 3.03 / 5.07
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.formula1.com/en/latest/article/haas-first-to-reveal-2020-f1-car-with-return-to-familiar-livery.DAWhMU78RpQP9tj0kZWAv',
     ],
@@ -944,6 +1010,7 @@ export const LIVERIES = [
       { name: 'Blue', base: '#1f4fbf', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.formula1.com/en/latest/article/first-look-haas-reveal-fresh-new-livery-for-schumacher-and-mazepins-f1.18aYd0xdt2TInJj1pdrJcV',
       'https://en.wikipedia.org/wiki/Haas_VF-22',
@@ -958,6 +1025,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17, white
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://en.wikipedia.org/wiki/Haas_VF-23',
       'https://en.wikipedia.org/wiki/Haas_VF-25',
@@ -973,6 +1041,7 @@ export const LIVERIES = [
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#111214', dark: '#636974' }, // Black: 16.24 / 3.03
     source: [
       'https://en.wikipedia.org/wiki/Haas_VF-25',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -987,6 +1056,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    second: { light: '#d1262f', dark: '#d1262f' }, // Red: 4.52 / 3.21
     source: [
       'https://www.haasf1team.com/news/tgr-haas-f1-team-reveals-vf-26-design-livery',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -1001,6 +1071,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#2060e0', dark: '#2060e0', // 4.74 / 3.03
+    second: { light: '#ef45a0', dark: '#f7a1cf' }, // BWT pink: 3.02 / 8.71
     source: [
       'https://media.alpinecars.com/alpine-f1-team-launches-2021-campaign/',
       'https://media.alpinecars.com/bwt-alpine-f1-team-reveals-striking-a522-to-the-world-as-new-chapter-begins-in-formula-1/',
@@ -1016,6 +1087,7 @@ export const LIVERIES = [
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#84878b', dark: '#a9abae', // 3.11 / 7.25
+    second: { light: '#cc0033', dark: '#d40035' }, // Audi Red: 5.03 / 3.06
     source: [
       'https://www.audi-mediacenter.com/en/press-releases/premiere-in-berlin-audi-revolut-f1-team-officially-unveiled-16997',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -1029,6 +1101,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
+    second: { light: '#898989', dark: '#f4f4f4' }, // White: 3.03 / 15.19
     source: [
       'https://www.cadillacf1team.com/news/cadillac-formula-1-r-team-reveals-historic-first-livery',
       'https://www.formula1.com/en/latest/article/cadillac-explain-why-they-decided-on-a-split-black-and-white-livery-for.1ZLWVrXOK1BQCoxNaw12iW',
@@ -1322,6 +1395,9 @@ export const markStyleAttr = (colour) =>
  *           (AF-57): a chart and a mark are the same team on the same page,
  *           so they lead with the same colour. A mark takes `mark`, never
  *           these - it draws the lead's base unmoved
+ *   second  { light, dark }, the mark's accent moved the same way, for a
+ *           team-mate drawn beside the driver (VD-122, [D-65]); null where
+ *           the livery has none to give, and always for a national colour
  *   scheme  the primary and its accents, each { name, base, named, sourced };
  *           a national colour is a scheme of one
  *   style   the custom properties the band draws: the primary itself, and
@@ -1352,6 +1428,7 @@ export function colourForEntry({ constructorId, country, year, team }) {
     base: liveryPrimary(livery).base,
     light: livery.light,
     dark: livery.dark,
+    second: livery.second,
     source: livery.source,
     style: liveryStyle(livery),
     pair,
@@ -1431,6 +1508,7 @@ export function nationalEntry(country) {
     base: css,
     light: css,
     dark: css,
+    second: null,
     source: null,
     style: { '--livery': css },
     pair: { lead: scheme[0], accent: null, recognised: false },

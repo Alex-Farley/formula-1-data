@@ -1,3 +1,5 @@
+import { slotColour } from './palette.js'
+
 /**
  * The colour a chart belonging to ONE entity wears (VD-34).
  *
@@ -35,4 +37,28 @@ export function ownColour(colour) {
     style: { '--livery-light': colour.light, '--livery-dark': colour.dark },
     paint: 'var(--livery)',
   }
+}
+
+/**
+ * The two colours a team-mates face-off draws (VD-122, [D-65]), from the
+ * colourForEntry() result of the pairing's last season's team, or null.
+ *
+ *   a team colour     the driver in its pair, as ownColour() writes it, and
+ *                     the team-mate in the livery's `second` pair, or in
+ *                     --ink where the livery has none (a national colour
+ *                     never does) - the full ink, not the chart's softer
+ *                     --series-ink, which sits too near the German silver
+ *                     and the greys a lead can be;
+ *   no colour         rule 3 of [D-61]: two series with no sourced colour,
+ *                     so palette.js's first two slots, through slotColour()
+ *                     as every chart reaches them.
+ *
+ * `vars` are the custom properties, in the order both renderers write them,
+ * so the static page's style attribute is the app's.
+ */
+export function faceColours(colour) {
+  if (!colour) return { className: 'face-off', vars: { '--face-a': slotColour(0, 2), '--face-b': slotColour(1, 2) } }
+  const vars = { '--face-a-light': colour.light, '--face-a-dark': colour.dark }
+  if (colour.second) Object.assign(vars, { '--face-b-light': colour.second.light, '--face-b-dark': colour.second.dark })
+  return { className: 'face-off face-off-owned', vars }
 }

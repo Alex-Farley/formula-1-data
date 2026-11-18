@@ -61,6 +61,11 @@ export const ordinal = (n) => {
   return `${n}${tail}`
 }
 
+const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
+
+/** "fifteen" for a count in a sentence, to twenty; digits beyond. */
+export const inWords = (n) => WORDS[n] ?? number(n)
+
 /** Championship points: 24, 25.5, 0.5 — never 25.000. */
 export function points(value) {
   if (missing(value) || typeof value !== 'number') return EMPTY

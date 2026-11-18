@@ -10,7 +10,7 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
-import { EMPTY, number } from '../lib/format.js'
+import { EMPTY } from '../lib/format.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { canShow } from '../lib/commons.js'
@@ -29,7 +29,15 @@ import {
   timelineStripName,
   timelineYears,
 } from '../lib/outline.js'
-import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
+import {
+  TRACE_HEADING,
+  TRACE_NOT_LOADED,
+  TRACE_RULE,
+  noTrace,
+  odblCredit,
+  photoTrace,
+  traceFields,
+} from '../lib/trace.js'
 
 import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import {
@@ -180,6 +188,8 @@ function CircuitBody({ circuit, data }) {
   // beside the header (VD-74, VD-84). canShow() before anything
   // is drawn, so a row with nobody to credit leaves the page as it was.
   const photograph = rows(data, 'photograph').find(canShow) ?? null
+  // AF-96: the lap over it, where a placing was fitted on this very file.
+  const trace = photograph ? photoTrace(geometry, photograph) : null
   // VD-83: what sits beside the lead in *Every layout raced here* - the
   // timeline's rows with their cards behind a disclosure, or, with no
   // timeline, the other drawings behind the same one.
@@ -268,7 +278,12 @@ function CircuitBody({ circuit, data }) {
       aside={
         photograph && (
           <div className="page-photo">
-            <CommonsImage image={photograph} width={PHOTOGRAPH_WIDTH} alt={photographAlt(circuit.name)} />
+            <CommonsImage
+              image={photograph}
+              width={PHOTOGRAPH_WIDTH}
+              alt={photographAlt(circuit.name, Boolean(trace))}
+              trace={trace}
+            />
           </div>
         )
       }
@@ -407,7 +422,7 @@ function CircuitBody({ circuit, data }) {
 
       {/* PD-60: the trace is method rather than content, so it comes last. */}
       {geometry.length > 0 ? (
-        <Section title="Traced and measured" note={TRACE_RULE}>
+        <Section title={TRACE_HEADING} note={TRACE_RULE}>
           {geometry.map((row) => (
             <CircuitTrace key={`${row.circuit_id}-${row.layout_key}`} geometry={row} circuit={circuit} />
           ))}
@@ -491,15 +506,8 @@ function WinnerStarts({ races, everywhere, layouts, winners, teams }) {
 }
 
 /**
- * What the trace measures, on the circuit's own page.
- *
- * AF-23 demoted it from a drawing to its facts: the outlines above are the
- * picture of this circuit, and the trace is the thing they cannot be — a
- * length taken off the map and checked against the one this register
- * publishes, which is the only independent check the 25 traced circuits have
- * on their own stated length. `closes` is the build's verdict on the walk,
- * not a fresh stitch in the browser: build.py decides it when the row is
- * admitted and verify.py re-derives it on every build.
+ * What the trace measures, on the circuit's own page: lib/trace.js's fields,
+ * which scripts/prerender.js prints too (CR-33).
  *
  * The attribution stays attached to the figures because a measurement taken
  * from an ODbL database is as much that database's as a drawing of it was.
@@ -508,41 +516,16 @@ function CircuitTrace({ geometry, circuit }) {
   return (
     <>
       <Fields
-        items={[
-          {
-            label: 'OpenStreetMap relation',
-            value: (
-              <a
-                href={`https://www.openstreetmap.org/relation/${geometry.osm_relation}`}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                {geometry.osm_relation}
-              </a>
-            ),
-          },
-          geometry.layout_key ? { label: 'Layout traced', value: geometry.layout_key } : null,
-          { label: 'Measured', value: measured(geometry) },
-          { label: 'Points', value: number(geometry.node_count) },
-          {
-            // build.py sums every way in the relation, whether or not they
-            // walk into a ring, so a trace with a hole still has an honest
-            // length — it is just not a lap. Las Vegas measures within 2 %
-            // of its published length and is still missing a way.
-            label: 'The walk',
-            // build.py writes 0 or 1 and the column is not NOT NULL, so the
-            // absence of a verdict is a third state and reads as one.
-            value:
-              geometry.closes === null || geometry.closes === undefined
-                ? null
-                : geometry.closes
-                  ? 'closes into one lap'
-                  : `does not close — ${number(geometry.loose_ends)} loose way ${
-                      geometry.loose_ends === 1 ? 'end' : 'ends'
-                    }, so the length above is the ways added up rather than a lap walked round`,
-          },
-          circuit.direction ? { label: 'Raced', value: circuit.direction } : null,
-        ]}
+        items={traceFields(geometry, circuit.direction).map(({ label, value, href }) => ({
+          label,
+          value: href ? (
+            <a href={href} target="_blank" rel="noreferrer noopener">
+              {value}
+            </a>
+          ) : (
+            value
+          ),
+        }))}
       />
       <p className="faint">{odblCredit(geometry.licence)}</p>
     </>

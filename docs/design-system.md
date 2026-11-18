@@ -142,11 +142,12 @@ The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
 nowhere** (visual V7). DP-10 kept them for the one hero figure per page,
 which VD-84 set: the first lead figure of a ranked tile strip (a driver's, a
-team's or a car's wins, a record's value, the rounds run on the home page;
+team's or a car's wins, the rounds run on the home page;
 the season, race and circuit strips rank nothing and have none), at
 `--size-9` on a phone,
 `--size-10` from `--bp-tablet` and `--size-11` from `--bp-desktop`, beside
-the opening band. A second lead keeps `--size-8`, so a page has one hero and
+the opening band. A concluded season's is the margin on its plate (VD-104,
+§3 *Season cycle*). A second lead keeps `--size-8`, so a page has one hero and
 not two, and a name is never one. `conventions.mjs` now declares no token
 unused.
 
@@ -160,6 +161,8 @@ unused.
 | Section head (h2) | `--size-7` 20 |
 | A tile figure | `--size-8` 25 |
 | One hero figure per page | `--size-9`–`--size-11`, by width (VD-84) |
+| A record card's figure, on `/records`, whose numbers are the page | `--size-10` at every width (provisional, VD-111) |
+| A record's figure, on its own page, which the page is built around | `--size-record`: twice `--size-11`, down to `--size-11` on a phone (provisional, VD-112) |
 | Page title | `--size-display` |
 
 **The label register (VD-91, `[D-62]`).** A label, a column head, a count,
@@ -228,6 +231,7 @@ capped in rem, and below 768 everything runs the full column.
 | Result rail | `--rail-podium`, `--rail-points`, `--rail-classified` | state on a result row |
 | Chart | `--series-ink`, `--series-mark`, `--series-1..3`, `--grid` | a chart with no owner in ink, its one stated value in the accent (VD-94, `[D-61]`); several series with no sourced colour in the three slots. Never text |
 | Identity | `--racing-*` (1950–1967, a pair per theme); `--livery` (2010 on, per element) | a constructor's colour, beside a name it never replaces |
+| Photograph | `--photo-trace`, `--photo-trace-casing` (provisional, AF-96) | the lap drawn over an aerial photograph, and the casing under it; one value in both themes, since the photograph does not change with the theme |
 
 Both themes keep their measured contrast (the figures are in the
 `tokens.css` header). Dark stays a second instrument, not an inversion.
@@ -241,16 +245,23 @@ luminance of the grey it replaced, because the livery pairs were stepped
 against it. `conventions.mjs` refuses a surface, ink or rule that is
 neutral or cool, and the gray-100 and white pair (§8, test 17).
 
-**A team-mate's colour — pending (VD-122 #1346), `[D-65]`.** Where two
+**A team-mate's colour — built (VD-122 #1346), `[D-65]`.** Where two
 drivers compared side by side drove for one team, the first takes the
 team's colour and the second the second colour of the same livery as
 `lib/liveries.js` holds it (Norris in McLaren's papaya, his team-mate in its
-anthracite). `lib/liveries.js` holds a light and dark pair only for a
-livery's lead colour, and `conventions.mjs` holds each pair to 3:1, so
-VD-122 adds a dark-theme value for the second colour and extends that check
-to it. A name always sits beside the mark, and such a chart
-takes no accent (`[D-61]`). Where the livery holds no second colour, the
-second driver is drawn in ink.
+anthracite). The second colour is the mark's accent (`liveryPair`), and each
+livery entry carries it as `second`, a light and dark pair moved in
+lightness only as far as 3:1 on the surfaces the lead's pair clears - the
+dark value lifted, and the light one darkened where the accent is pale, as
+a white accent is. `conventions.mjs` holds every `second` to 3:1, to the
+accent, and at least `ACCENT_APART` from the lead's pair in each theme; the
+two entries where that cannot hold (McLaren 2015-16, Sauber 2013-14) say
+null and are named in the test. A name always sits beside the mark, and
+such a chart takes no accent (`[D-61]`). Where the livery holds no second
+colour, a national colour included, the second driver is drawn in
+`--ink`, the full ink rather than `--series-ink`, which sits too near the
+German silver; with no colour on record, the two take the first two chart
+slots, rule 3 of the Figure's colour rules.
 
 **Close team colours in one chart — pending (VD-120 #1342).** Where two
 liveries in one chart are hard to tell apart (Red Bull's navy beside
@@ -470,13 +481,13 @@ inside it is scaled, until the app redraws it at the width it occupies.
   through `subgrid`, so a two-line label moves every figure in its row
   together rather than its own alone.
 - **One strip drawn by both renderers:** every strip is data in its page's
-  `queries/*.js` module (VD-49, and VD-71 #819 for the Grand Prix and record
-  pages), drawn by `Stats` and by `prerender.js`'s `tiles()`. The one tile
+  `queries/*.js` module (VD-49, and VD-71 #819 for the Grand Prix pages, and
+  the record pages until VD-112 opened them on their figure), drawn by `Stats` and by `prerender.js`'s `tiles()`. The one tile
   only the app draws is the season's *Next session*, because only a browser
   knows how long until it starts; §8's test 5 declares it.
 - **Labels from one vocabulary:** *Seasons* for every year span, and
-  *Entries* everywhere (CD-12 #258); a record's strip is *Value* and
-  *Held by*, as /records' tables are. The words are `LABELS` in
+  *Entries* everywhere (CD-12 #258); a record's are *Value* and
+  *Held by*, as /records' tables say them. The words are `LABELS` in
   `lib/site.js`, which every strip reads (VD-81); §8's test 7 refuses a
   synonym.
 - **States:** a value not established is an em dash (**floor**: the NULL
@@ -496,9 +507,55 @@ inside it is scaled, until the app redraws it at the width it occupies.
   `TILE_STRIP_NAME` in `lib/tiles.js`, and §8's test 5 reads it on every
   strip in both halves (VD-88).
 
-### Figure, and its `lead` variant (core) — built (VD-80); pending: annotation (VD-121 #1345)
+### Record card (A) — provisional (VD-111 #1333)
 
-**Annotation — pending (VD-121 #1345).** Decided on the 2026-11-13 visual
+Decided on the 2026-11-13 visual critique
+(`docs/critiques/2026-11-13-visual-design/P11-records-cards-margin.html`).
+`/records`'s headline records, one card each, under a rule (VD-93), never
+a frame.
+
+- **Job:** a record, and how far its holder is clear of the next.
+- **Parts:** the record's name (`--size-4`, semibold, a link to its page);
+  the number the value opens with at `--size-10` in the display face, with
+  the rest of the value beside it as its qualifier at `--size-4`
+  (`cardFigure`: where the number is `value_num`, the unit leads the
+  qualifier, *<n> wins*; where it is not, as an age held in days and
+  written in years, the value's own words do); the holder, a link where
+  there is one; the comparator; the margin; and the derivation folded
+  under *How it is derived*. A value that opens with no number is set
+  whole at the tile's `--size-8`.
+- **The comparator:** the holder's bar and the next two (`COMPARED`), read
+  from the record's own derivation, the *Next:* list that closes it
+  (`cardComparator`), so the card and the derivation it folds cannot
+  disagree. Each name beside its bar and each figure printed at its end;
+  the holder's bar in `--series-mark` and its name semibold in ink, the
+  rest in `--series-ink` (`[D-61]`: the one value the card states). Each
+  bar is its share of the longest; the longest leaves room at its end for
+  a four-figure value. A shared record draws a bar for each holder, all
+  marked; where the runners are seasons (*Max Verstappen 2022*), the
+  holder's bar names its season too, or the card draws no bars; a tie at
+  the third bar is drawn whole. A derivation with no
+  *Next:* list, or one in neither of the build's two forms, draws no
+  comparator rather than a guessed one, and the card keeps its figure and
+  holder.
+- **The margin:** one line in the label register, in ink: *<gap> clear
+  of <the next>*, every runner level at the next figure named, or
+  *Shared; <the next> next on <figure>* for a shared record; none where
+  the holder and the next are level.
+- **Widths:** four to a row from `--bp-desktop`, two from `--bp-tablet`,
+  one below, a `--space-6` apart. Each card keeps its own height (IX-47).
+- **Accessibility:** the bars are one `role="img"` whose name carries every
+  name and figure; the printed figures make the bar never the only cue.
+- **One card drawn by both renderers:** `Records.jsx`'s `RecordCards` and
+  `prerender.js`'s `recordCards`, from the two functions in
+  `queries/records.js`. `smoke.mjs` (*/records*) reads every card's name,
+  figure, qualifier, holder, bars and margin in both halves, and the wins
+  card against the race records; */records (the record cards)* reads the columns, the
+  bars inside their cards from 1440 to 320, and the two fills.
+
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the team-mates face-off (VD-122 #1346), the lap over a photograph (AF-96 #977); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
+
+**Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
 for every chart that names its story, built once and shared.
 
@@ -520,8 +577,41 @@ for every chart that names its story, built once and shared.
 - **One to three notes per chart.** Every note is text in the key, so
   nothing lives only in the drawing.
 
-VD-123 (#1347, home's *shape of the championship*), VD-124 (#1348, a
-driver's career) and VD-125 (#1349, a constructor's wins) apply it.
+**Built (VD-121), on the season's title race.** `charts/annotate.js` holds
+the geometry both renderers share: the gutter as wide as the widest label,
+the labels pushed `LABEL_GAP` (16 px) apart about where they wanted to be
+(where one line of labels would take more than `GUTTER_SHARE`, three-tenths,
+of the chart's width - a phone - each is set name over value and pushed
+`STACKED_GAP` (34 px) apart, so the plot keeps its room),
+the hairline from each line's end bending only where its label moved, and
+a marker's disc (`MARKER`, r 8 with a 3 px `--panel` ring) above its point,
+below it where above leaves the drawing or sits on another line, and
+further out where it would touch another marker. `charts/lineChart.js`
+lays the line chart out with them; `Figure` takes `finding`, `kicker` and
+`annotations` and draws the finding and kicker over the frame and the key
+(`AnnotationKey`) inside it under the plot, at every width; the static
+page's `leadFigure()` writes the same. The finding is set at `--size-6`
+semibold and the kicker in the label register at `--size-3`, both in ink
+and faint ink; a line-end label is `--size-3`, its name semibold in ink and
+its value in `--ink-soft`; a band is `--panel-sunk`. A line chart with
+named ends takes no legend.
+`titleRaceNotes()` in `queries/season.js` works out the title race's notes
+from `standings` and `race_entries`, at most one of each kind: a
+contender's longest run of rounds without an entry (a round none of the
+three entered, the Indianapolis 500 to 1960, is none; one after a fatal
+accident comes first, and says so), a title settled with
+rounds to run where the season counted every result, and a title decided
+at the last round; `titleFinding()` writes who led and for how long.
+`units.mjs` holds the layout and the notes on rows written out;
+`smoke.mjs` holds every line named at its end on `/seasons/1976`, each
+marker a note in the key, and the finding, labels, markers and key the same
+in both halves.
+
+The key beside a full-width chart from 1180 and in two columns from 768
+lands with its first full-width chart, VD-123 (#1347, home's *shape of the
+championship*); a tied peak's one marker with VD-125 (#1349, a
+constructor's wins); VD-124 (#1348, a driver's career) applies the pattern
+to the dot plot.
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold
@@ -572,6 +662,49 @@ driver's career) and VD-125 (#1349, a constructor's wins) apply it.
     containment half.
   - A hover target is at least 6 px wide at every width (**aim**; the 1180
     switch and §7's minimum mark width hold it).
+
+**The team-mates face-off** (provisional, VD-122 #1346). Decided on the
+2026-11-13 visual critique (`docs/critiques/2026-11-13-visual-design/P06v2.html`,
+approved 2026-11-14): a driver's Team-mates section opens with who was
+ahead of whom, before the table that holds every pairing.
+`faceOffs()` in `queries/driver.js` sums the table's own `TEAM_MATES` rows
+and writes every sentence; `charts/FaceOff.jsx` draws it and the static
+page's `faceOffHtml()` writes the same markup.
+
+- **Parts:** a headline in the display face, generated, about the latest
+  team-mate (*Norris out-qualified Piastri 61–29*: who led in qualifying,
+  or on finishes where qualifying is not established, or on points), the
+  figure in tabular ink; a standfirst in the section-intro voice; then one
+  block per team-mate shown, each the two surnames at either end over 4 px
+  rules in their colours with a generated line between them saying who was
+  ahead on what, three split tallies (qualifying, race when both
+  classified, points) and each season as a small split; last, a key in
+  faint prose saying what the colours and the figures are.
+- **How many:** at most three blocks (`FACE_OFFS`): the latest team-mate,
+  and the two others with the most Grands Prix together, set latest first.
+  A career of 106 team-mates is not 106 blocks; the key says how many are
+  shown of how many, and the table under it has every pairing.
+- **A tally:** a bar split at the driver's share of the two figures, the
+  driver from the left, with a tick in ink at the middle where level would
+  meet. The leading figure is `--size-9` in ink and the other `--size-7` in
+  `--ink-faint`; level, neither leads. Qualifying with no race both have a
+  position in is an em dash and draws no bar, a race count with no race both
+  were classified in reads *none*, as the table's cells do, and a 0–0 in
+  points is a level with no bar to split.
+- **Type:** names in the display face at `--size-8`, `--size-10` from 768,
+  in sentence case (`[D-66]`: capitals for the page title alone, so the
+  mockup's capitals are not built).
+- **Colour:** `[D-65]` above, the block's last season's team, as
+  `charts/own.js` `faceColours()` writes it. No accent anywhere (`[D-61]`).
+- **Second cue:** both figures are printed beside every bar and the names
+  beside every rule, so colour is never the only cue (1.4.1). The bars are
+  hidden from assistive technology, each printed figure following its
+  driver's name in sr-only text; the per-season splits are hidden too, the
+  table under them holding every season's figures under its own headers.
+  A pairing at two teams in one season is one split, summed.
+- **Phone:** the line between the names drops to a row under them, the
+  tallies stack, and each season's small split sets its figures over its
+  bar.
 
 **The reach chart** (provisional, AF-132). A figure for one question: who
 can still catch the leader. One row per contender: a solid bar from nought
@@ -676,7 +809,38 @@ PD-56's). One question asked of a race: when the field stopped.
 - **Placement:** its own section, *Pit stops*, below the classification and
   qualifying; who stopped first between neighbours follows under an h3.
 
-### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), and column groups and a picture in a row at the reference density (VD-106 #1248); pending: a value bar and the leader in the row (VD-110 #1332), and the season calendar fitting its box (VD-116 #1338)
+**The lap over a photograph — provisional (AF-96 #977).** A circuit's
+OpenStreetMap centreline drawn over its aerial photograph, so a reader sees
+the layout on the ground it runs over.
+
+- **Where:** inside the photograph's own figure, in the header's slot for it
+  (VD-62). It displaces nothing: the outline still leads the opening slot
+  (VD-74, VD-84), and a photograph with no placing is drawn exactly as
+  before.
+- **Parts:** `CommonsImage`'s `trace`, from `photoTrace()` in
+  `lib/trace.js`, which `photograph()` in `scripts/prerender.js` draws too:
+  `.photo-frame` round the picture, and an `aria-hidden` `svg.photo-trace`
+  over it whose viewBox is the photograph's stored frame, fitted as
+  `object-fit: contain` fits the pixels, so the line holds at any width and
+  inside the header's capped height.
+- **Ink:** `--photo-trace` at 2 px over `--photo-trace-casing` at 4 px, both
+  at a constant stroke, so the line reads on the pale concrete and the dark
+  woods of one picture.
+- **Credit:** the line is ODbL, a Produced Work of OpenStreetMap, so the
+  caption names *Track © OpenStreetMap contributors* and the row's licence
+  after the photograph's own credit. The one attribution rule still decides
+  whether the figure is drawn at all.
+- **Second cue:** the alt says the lap is drawn over the picture
+  (`photographAlt` in `queries/circuit.js`); the line is decoration to it.
+- **What it may claim:** that the lap runs there, to within the tolerance the
+  build holds each placing to (`PHOTO_TRACE_TOLERANCE_PX` in
+  `data/harvest.py`), and nothing about the photograph: the placing is this
+  project's own, at no more than *medium*.
+- **States:** the line is drawn only over a photograph that has arrived:
+  hidden while it loads, so it never stands alone in the empty box, and
+  gone with it when it fails.
+
+### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), column groups and a picture in a row at the reference density (VD-106 #1248), and a value bar and the leader in the row (VD-110 #1332, VD-105 #1247); pending: the season calendar fitting its box (VD-116 #1338)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -760,8 +924,8 @@ PD-56's). One question asked of a race: when the field stopped.
 
   `smoke.mjs` (*Dense rows from 1180 px*) reads a register, a
   classification, a driver's seasons and a season's standings at 1440 and
-  1,024 in both halves. Not yet built of DR-07: the leader marked inside
-  the table (VD-105 #1247).
+  1,024 in both halves. DR-07's other half, the leader marked inside the
+  table, is *a value bar, and the leader in the row* below (VD-105 #1247).
 - **Column groups** (provisional, VD-106 #1248, DR-07). A wide reference
   table names which of its figures belong together in a row of heads above
   the column heads: a label over each run of neighbouring columns that share
@@ -828,16 +992,48 @@ PD-56's). One question asked of a race: when the field stopped.
   in both halves, their classification and qualifying sheets (*the
   classification and the qualifying sheets fit their box*).
 
-**A value bar, and the leader in the row — pending (VD-110 #1332, with
-VD-105 #1247 and VD-106 #1248).** Decided on the 2026-11-13 visual critique
-(`docs/critiques/2026-11-13-visual-design/P10-season-standings-designed.html`).
-A table's subject column (a season's Points) carries its figure and an
-inline bar in the row's team colour, scaled to the leader's total; the team
-mark stays beside the name. The leader's row is marked in the row itself:
-an ink rule above and below, semibold type and a hairline pill, never a
-card above the table. Below 768 px a secondary column hides and the bar
-stacks under its figure. The figure is always printed, so the bar is never
-the only cue.
+- **A value bar, and the leader in the row** (provisional, VD-110 #1332
+  and VD-105 #1247). Decided on the 2026-11-13 visual critique
+  (`docs/critiques/2026-11-13-visual-design/P10-season-standings-designed.html`).
+  A season's two standings tables are the first users, each at the full
+  width, one above the other, as the static page always drew them: the
+  bars need the room, and side by side the drivers' Points column had
+  room for little more than its figures.
+  - **The leader in the row.** A table marks its leader in the row itself,
+    never in a card above it: an ink rule above the row and below it, and
+    the row's words semibold in ink (`tr.is-leader`, lib/table.js's
+    `LEADER`). A column list's page passes a predicate from its queries
+    module - DataTable's `leader`, prerender's option of the same name - so
+    both halves mark the same rows. A standings table ranks by position, so
+    its leader is every row at P1: a place shared at the top marks both
+    rows, never the first one sorted, and a level total split on countback
+    marks the row the source placed first. It belongs to the row, not to
+    where the row sorts to.
+  - **The champion's pill.** The leader whose id is the season's recorded
+    champion carries a hairline pill in ink beside the name, *champion*,
+    and, in a season still running, *champion · settled R19* where the
+    title was clinched with rounds to run and the arithmetic names the
+    round (`championPill`); a season that has ended reads *champion*. A leader
+    not yet champion has the row's mark and no pill. Below 768 px it takes
+    a line of its own under the name.
+  - **The value bar.** The subject column (a season's Points, `has-bar`)
+    carries its figure and a bar beside it, the figure's share of the
+    leader's total, the highest a classified row holds, held to 0 to 1
+    (`pointsShare`), the leader's bar four fifths of the cell. The bar is
+    in the row's colour worn as a chart series wears it (`.livery-series`,
+    the pair held to 3:1), or in ink where none is on record (D-61: a table
+    in liveries takes no accent). The mark stays beside the name. The figure
+    is the cell's whole text and always printed, so the bar is never the
+    only cue and the table still copies as data; the table's source line
+    says how to read the bar. Below 768 px Wins goes (the phone set) and the
+    bar stacks under its figure; the table still scrolls there, as every
+    table does.
+
+  `smoke.mjs` (*the leader in the row and a bar in the points, in both
+  halves*) reads 2026, 1997 and 1958 at 1440 and 375 in both halves: the
+  rows marked against the database's P1, a bar for each total held with
+  the same shares, the pill on the champion's row, the colours or ink, and
+  Wins and the stacking on a phone.
 
 **The season calendar fits its box — pending (VD-116 #1338).** At 1440 the
 2026 calendar overflows by 55 px and clips *Fastest lap*. It takes *a table
@@ -1217,10 +1413,11 @@ citation, is already one system and is kept.
   opens on who holds it and the round it was clinched at, and the answer and
   the reach chart cover the title left (LV-15: `seasonAnswer`) ·
   lead chart · *Who can still win*, the reach chart for each title the
-  answer covers (provisional, AF-132) · standings · calendar · Who entered · photographs.
+  answer covers (provisional, AF-132) · standings, each table at the full
+  width with its leader in the row and a bar beside each total (provisional,
+  VD-110) · calendar · Who entered · photographs.
   **Pending:** the title-race chart annotated, the pattern's first use
-  (VD-121 #1345); the standings with value bars and the leader in the row
-  (VD-110 #1332); the stray OpenStreetMap sentence in *The next round* moved
+  (VD-121 #1345); the stray OpenStreetMap sentence in *The next round* moved
   into its outline card (VD-116 #1338). The
   photographs follow *Who entered* so that they sit where the photo strip
   puts them on every type (§3), which this line had the other way round.
@@ -1279,22 +1476,38 @@ record family listed by its own address.
 
 - Records cards align to the top of their row, so opening one derivation
   does not move its neighbours (I8).
+- **A record card sets its number large** (provisional, VD-111 #1333): §3,
+  *Record card*.
+- **A record's page is built around its record** (provisional, VD-112
+  #1334; approved as the mockup
+  `docs/critiques/2026-11-13-visual-design/P12-record-page-streak.html`). It
+  opens on the number the value opens with (`cardFigure`, as the record card
+  reads it) at `--size-record`, with the words that give it meaning beside
+  it at `--size-6`: the rest of the value and *Held by* the holder, or, for a
+  value that opens with no number, the value whole at `--size-8`. It
+  replaces the *Value* and *Held by* tile strip. A record that is a run of
+  races (`STREAKS` in `queries/records.js`; *Most consecutive wins* so far)
+  is read as a sentence instead — *Max Verstappen won ten Grands Prix in a
+  row in 2023, from the Miami Grand Prix in May to the Italian Grand Prix in
+  September* — with the count in words because it is the figure's own
+  sentence, not a lede beside a tile; then a strip of the run's races as
+  race thumbnails (§3, *Outline card*), each a link to its race, ten a row
+  and five on a phone, credited once under it; then *The longest runs*, the
+  first five and on through a tie, as bars, the record's runs in
+  `--series-mark` and the rest in `--series-ink` (`[D-61]`), every length
+  printed, with one line under them stating the record's rule and linking
+  the derivation. The runs are counted in
+  the page under the record's own rule (`streakRuns`), and where that count
+  does not bear out the record's figure, the page draws neither the
+  sentence nor the runs, rather than two figures for one record. A run that
+  reaches the latest completed race says so. `recordLead` lays the page out
+  for both renderers; `smoke.mjs` (*/records/:key*) reads the lead, the
+  strip and the runs in both halves and against the race records.
 - Registers keep their address contract.
 - `/data` keeps its sub-navigation.
 
 **Pending, records (decided on the 2026-11-13 visual critique):**
 
-- **A record card sets its number large** (VD-111 #1333): the value at
-  `--size-10` in the display face, the rest of the string as a qualifier at
-  `--size-4`, the holder a link, then three bars (the holder in
-  `--series-mark`, the next two in `--series-ink`, values printed), a
-  one-line margin in the label register, and the existing disclosure. Four
-  cards a row from 1180, two from 768, one below.
-- **A record's page is built around its record** (VD-112 #1334, with PD-61
-  #796 and VD-104 (a)): the number at twice `--size-11` with the sentence
-  that gives it meaning, a strip of the races' outlines that link to them
-  (five a row on a phone), and *The longest runs* as bars under the
-  record's own stated rule.
 - **A leaderboard on a phone** (VD-114 #1336): below 768 px each row is the
   name on its own line with the bar at full width under it and the value at
   its end, as the reach chart already does below 480 px; from 768 nothing

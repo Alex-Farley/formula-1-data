@@ -6,7 +6,7 @@ import { seriesDash, slotColour } from './palette.js'
 
 /**
  * The key to one line: a short stroke in the series' colour and its dash
- * (AX-16), so the legend and the tooltip show the same pattern the line is
+ * (AX-16), so the tooltip shows the same pattern the line is
  * drawn in. `colour` is a {light, dark} livery pair or null; with one the
  * stroke reads --livery, which `.livery-series` resolves per theme; without
  * one it is the slot's colour among `count` series, ink where it is the only
@@ -61,9 +61,16 @@ export function LineKey({ index, count, colour }) {
  *
  * `legend` is a list of names, or of { name, colour } where a series wears a
  * livery (lib/liveries.js): the swatch then carries the {light, dark} pair and
- * `.livery-series` picks one per theme. `marks="line"` keys a line chart: each
- * entry is then a stroke in its slot's dash rather than a square, because on
- * a line chart the dash is the key that is not colour (AX-16).
+ * `.livery-series` picks one per theme. A line chart needs none: its lines
+ * are named at their ends (charts/lineChart.js).
+ *
+ * THE ANNOTATION PATTERN (VD-121; docs/design-system.md section 3,
+ * *Annotation*). `finding` is a sentence the data states, worked out by the
+ * page as a race's standfirst is, set over the figure with `kicker`, the
+ * short line saying what is plotted; the heading stays the figure's name.
+ * `annotations` are the notes the plot's numbered markers point to, each
+ * `{ n, lead, text }`, set as a key under the plot: every word of a note is
+ * here, so nothing lives only in the drawing.
  *
  * `table.caption` names the table where the heading above it would not;
  * left out, the table is named from the heading, as every other is (AX-28).
@@ -80,7 +87,7 @@ export function LineKey({ index, count, colour }) {
  * `lead` is the variant a figure takes where it leads a page (VD-53, VD-67):
  * the same parts in the same order, in the slot app.css gives it.
  */
-export default function Figure({ note, legend, marks = 'swatch', lead = false, table, children }) {
+export default function Figure({ note, legend, lead = false, table, finding = null, kicker = null, annotations = [], children }) {
   const name = useContext(SectionTitle)
   const noteId = useId()
   const key = legend && legend.length > 1 && (
@@ -89,9 +96,7 @@ export default function Figure({ note, legend, marks = 'swatch', lead = false, t
         const entry = typeof item === 'string' ? { name: item } : item
         return (
           <span key={entry.name}>
-            {marks === 'line' ? (
-              <LineKey index={i} count={legend.length} colour={entry.colour} />
-            ) : entry.colour ? (
+            {entry.colour ? (
               <i
                 className="livery-series"
                 style={{ '--livery-light': entry.colour.light, '--livery-dark': entry.colour.dark, background: 'var(--livery)' }}
@@ -128,13 +133,16 @@ export default function Figure({ note, legend, marks = 'swatch', lead = false, t
       />
     </details>
   )
-  return (
+  const figure = (
     <figure
       className={lead ? 'figure figure-lead' : 'figure'}
       aria-label={name ?? undefined}
       aria-describedby={note ? noteId : undefined}
     >
-      <div className="figure-body">{children}</div>
+      <div className="figure-body">
+        {children}
+        {annotations.length > 0 && <AnnotationKey notes={annotations} />}
+      </div>
       {key}
       {note && (
         <p className="figure-note" id={noteId}>
@@ -143,5 +151,41 @@ export default function Figure({ note, legend, marks = 'swatch', lead = false, t
       )}
       {numbers}
     </figure>
+  )
+  if (!finding) return figure
+  return (
+    <>
+      <p className="figure-finding">{finding}</p>
+      {kicker && <p className="figure-kicker">{kicker}</p>}
+      {figure}
+    </>
+  )
+}
+
+/**
+ * The key to a plot's numbered markers (VD-121): one entry per note, its
+ * number in the marker's disc, a bold short lead and one quieter line,
+ * under the plot at every width, where its text reflows rather than shrinks.
+ * The disc is the drawing's; a screen reader hears "Note 1:" instead.
+ */
+export function AnnotationKey({ notes }) {
+  return (
+    <ol className="figure-key">
+      {notes.map((note) => (
+        <li key={note.n}>
+          <span className="figure-key-n" aria-hidden="true">
+            {note.n}
+          </span>
+          <p>
+            <span className="sr-only">Note {note.n}: </span>
+            <b>
+              {note.lead}
+              <span className="sr-only">.</span>
+            </b>{' '}
+            {note.text}
+          </p>
+        </li>
+      ))}
+    </ol>
   )
 }

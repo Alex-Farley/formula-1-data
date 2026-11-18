@@ -1,4 +1,5 @@
 import { lineLayout } from './lineChart.js'
+import { MARKER } from './annotate.js'
 import { seriesDash, slotColour } from './palette.js'
 import { LineKey } from './Figure.jsx'
 import Tooltip from './Tooltip.jsx'
@@ -8,11 +9,17 @@ import { useMeasure } from './useMeasure.js'
 /**
  * One or more series over a continuous x — years, rounds, laps.
  *
- * Direct labels ride the end of each line, which is what makes a legend a
- * confirmation rather than a lookup table. When the lines converge at the
- * right edge the labels would collide, so past three series this chart is the
- * wrong picture and the caller should facet instead: three is the cap the
- * palette validates to anyway.
+ * Every line's end is labelled with its name and value in a gutter at the
+ * plot's right, pushed apart where lines converge and joined to the line by
+ * a hairline (VD-121, charts/annotate.js), so the lines carry their names
+ * and no legend is needed. Past three series this chart is the wrong
+ * picture and the caller should facet instead: three is the cap the palette
+ * validates to anyway.
+ *
+ * `marks` and `bands` are the annotation pattern's: numbered markers on the
+ * lines and shaded spans under them, whose words are the key Figure draws
+ * under the plot (`annotations`). `xMax` runs the axis on past the last
+ * point, as a season's calendar runs past the rounds raced.
  *
  * A series may carry `colour` - a {light, dark} pair from lib/liveries.js,
  * rendering the mark's lead so the line and the team's mark read as one
@@ -22,9 +29,8 @@ import { useMeasure } from './useMeasure.js'
  * slot in the neutral palette (VD-94; charts/palette.js).
  *
  * Every series also takes its slot's dash - solid, dashed, dotted - whatever
- * its colour (AX-16). A dropped end label leaves the legend as the key to
- * that line, and a key in hue alone is not one 1.4.1 allows; the caller's
- * Figure takes `marks="line"` so the legend draws the same strokes.
+ * its colour (AX-16), so two lines in one team's colour are still two, and
+ * the tooltip keys each in the same stroke.
  *
  * The chart is one tab stop, as DotPlot is (charts/useChartKeys.js, AX-32):
  * on keyboard focus it reads the first x any series has a point at - a
@@ -40,13 +46,16 @@ export default function LineChart({
   formatX = (v) => String(v),
   zero = true,
   label,
+  xMax = null,
+  marks = [],
+  bands = [],
 }) {
   const [ref, width] = useMeasure()
   const seriesPaint = (s, i) => (s.colour ? 'var(--livery)' : slotColour(i, series.length))
 
   // The geometry, the crosshair's columns and which line ends carry a label
   // are charts/lineChart.js's, which the static page draws from too (VD-73).
-  const layout = lineLayout({ series, width, height, format, formatX, zero })
+  const layout = lineLayout({ series, width, height, format, formatX, zero, xMax, marks, bands })
   // An index into the crosshair's columns, which run in x order.
   const { active, setActive, keys } = useChartKeys(layout ? layout.columns.length : 0)
 
@@ -75,7 +84,9 @@ export default function LineChart({
       const distance = Math.abs(x(value) - at)
       if (!best || distance < best.distance) best = { i, distance }
     })
-    setActive(best && best.distance < 60 ? best.i : null)
+    // The gutter is the line ends' own: a pointer over their labels reads
+    // the last x, however far the labels sit from it.
+    setActive(best && (best.distance < 60 || at > layout.right) ? best.i : null)
   }
 
   return (
@@ -90,6 +101,9 @@ export default function LineChart({
         tabIndex={0}
         {...keys}
       >
+        {layout.bands.map((b) => (
+          <rect key={`band-${b.x}`} className="plot-band" x={b.x} y={b.y} width={b.width} height={b.height} />
+        ))}
         {layout.yTicks.map((tick) => (
           <g key={tick.value}>
             <line className="grid-line" x1={layout.left} x2={layout.right} y1={tick.y} y2={tick.y} />
@@ -121,16 +135,7 @@ export default function LineChart({
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
-              {end && (
-                <>
-                  <circle className="mark-ring" cx={end.x} cy={end.y} r="4" fill={seriesPaint(s, i)} />
-                  {end.text !== null && (
-                    <text className="value-text" x={end.x + 9} y={end.y} dominantBaseline="middle">
-                      {end.text}
-                    </text>
-                  )}
-                </>
-              )}
+              {end && <circle className="mark-ring" cx={end.x} cy={end.y} r="4" fill={seriesPaint(s, i)} />}
               {hover !== null &&
                 points
                   .filter((p) => p.x === hover)
@@ -147,6 +152,41 @@ export default function LineChart({
             </g>
           )
         })}
+
+        {layout.lines.map(
+          ({ s, end }) =>
+            end && (
+              <g key={`label-${s.name}`} className="end-label">
+                <polyline points={end.label.leader.map((p) => p.join(',')).join(' ')} fill="none" />
+                {end.label.stacked ? (
+                  // A phone: the name over the value (charts/annotate.js, GUTTER_SHARE).
+                  <text x={end.label.x} y={end.label.y} dominantBaseline="middle">
+                    <tspan className="end-name" x={end.label.x} y={end.label.nameY}>
+                      {`${end.label.name} `}
+                    </tspan>
+                    <tspan x={end.label.x} y={end.label.valueY}>
+                      {end.label.value}
+                    </tspan>
+                  </text>
+                ) : (
+                  <text className={end.label.name ? undefined : 'alone'} x={end.label.x} y={end.label.y} dominantBaseline="middle">
+                    {end.label.name && <tspan className="end-name">{end.label.name}</tspan>}
+                    {end.label.name ? ` ${end.label.value}` : end.label.value}
+                  </text>
+                )}
+              </g>
+            ),
+        )}
+
+        {layout.markers.map((m) => (
+          <g key={`mark-${m.n}`} className="anno-marker">
+            <line x1={m.leader.x1} y1={m.leader.y1} x2={m.leader.x2} y2={m.leader.y2} />
+            <circle cx={m.cx} cy={m.cy} r={MARKER.r} />
+            <text x={m.cx} y={m.cy} textAnchor="middle" dominantBaseline="central">
+              {m.n}
+            </text>
+          </g>
+        ))}
       </svg>
 
       {/* Beside the hover line rather than over it, so it covers none of the
