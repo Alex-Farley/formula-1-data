@@ -231,6 +231,7 @@ capped in rem, and below 768 everything runs the full column.
 | Result rail | `--rail-podium`, `--rail-points`, `--rail-classified` | state on a result row |
 | Chart | `--series-ink`, `--series-mark`, `--series-1..3`, `--grid` | a chart with no owner in ink, its one stated value in the accent (VD-94, `[D-61]`); several series with no sourced colour in the three slots. Never text |
 | Identity | `--racing-*` (1950–1967, a pair per theme); `--livery` (2010 on, per element) | a constructor's colour, beside a name it never replaces |
+| Photograph | `--photo-trace`, `--photo-trace-casing` (provisional, AF-96) | the lap drawn over an aerial photograph, and the casing under it; one value in both themes, since the photograph does not change with the theme |
 
 Both themes keep their measured contrast (the figures are in the
 `tokens.css` header). Dark stays a second instrument, not an inversion.
@@ -551,7 +552,7 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the team-mates face-off (VD-122 #1346); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the team-mates face-off (VD-122 #1346), the lap over a photograph (AF-96 #977); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
 
 **Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
@@ -806,6 +807,37 @@ PD-56's). One question asked of a race: when the field stopped.
   the section's place (§3, Figure, *States*).
 - **Placement:** its own section, *Pit stops*, below the classification and
   qualifying; who stopped first between neighbours follows under an h3.
+
+**The lap over a photograph — provisional (AF-96 #977).** A circuit's
+OpenStreetMap centreline drawn over its aerial photograph, so a reader sees
+the layout on the ground it runs over.
+
+- **Where:** inside the photograph's own figure, in the header's slot for it
+  (VD-62). It displaces nothing: the outline still leads the opening slot
+  (VD-74, VD-84), and a photograph with no placing is drawn exactly as
+  before.
+- **Parts:** `CommonsImage`'s `trace`, from `photoTrace()` in
+  `lib/trace.js`, which `photograph()` in `scripts/prerender.js` draws too:
+  `.photo-frame` round the picture, and an `aria-hidden` `svg.photo-trace`
+  over it whose viewBox is the photograph's stored frame, fitted as
+  `object-fit: contain` fits the pixels, so the line holds at any width and
+  inside the header's capped height.
+- **Ink:** `--photo-trace` at 2 px over `--photo-trace-casing` at 4 px, both
+  at a constant stroke, so the line reads on the pale concrete and the dark
+  woods of one picture.
+- **Credit:** the line is ODbL, a Produced Work of OpenStreetMap, so the
+  caption names *Track © OpenStreetMap contributors* and the row's licence
+  after the photograph's own credit. The one attribution rule still decides
+  whether the figure is drawn at all.
+- **Second cue:** the alt says the lap is drawn over the picture
+  (`photographAlt` in `queries/circuit.js`); the line is decoration to it.
+- **What it may claim:** that the lap runs there, to within the tolerance the
+  build holds each placing to (`PHOTO_TRACE_TOLERANCE_PX` in
+  `data/harvest.py`), and nothing about the photograph: the placing is this
+  project's own, at no more than *medium*.
+- **States:** the line is drawn only over a photograph that has arrived:
+  hidden while it loads, so it never stands alone in the empty box, and
+  gone with it when it fails.
 
 ### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), column groups and a picture in a row at the reference density (VD-106 #1248), and a value bar and the leader in the row (VD-110 #1332, VD-105 #1247); pending: the season calendar fitting its box (VD-116 #1338)
 

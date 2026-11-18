@@ -287,7 +287,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->181,168<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->181,174<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -301,13 +301,23 @@ derivative, so the obligation follows the file it belongs to and no further.
   to hold, not the file to redistribute, and `verify.py` says so.
 - **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Of the
   database files published, nothing else derives from OpenStreetMap; in the
-  repository, the three `harvest/` files below do.
+  repository, the three `harvest/` files below do, and so do the photograph
+  placings' transforms in `data/harvest.py` and, pending `AF-174`, the
+  points of every placing there but Monza's.
 - The website merges the two **in your browser**, which is how a circuit's
   page states its trace without `f1.db` ever containing the data. The static
   copy of each circuit page, written when the site is built, carries the same
   figures — the relation, the length measured against the published one, the
   points, whether the walk closes — read from `f1-geometry.db`, with the
   credit under them on every page that carries them.
+- Where a placing is stored (`AF-96`), a circuit's page also draws the lap
+  over the circuit's aerial photograph. That drawing is a *Produced Work* of
+  the centreline, so the photograph's caption names **Track © OpenStreetMap
+  contributors** and the licence after the photograph's own credit. The
+  placing — the transform that carries the centreline onto the photograph —
+  was fitted to OpenStreetMap's coordinates, so it ships with them in
+  `f1-geometry.db`, in `circuit_geometry`'s `photo_` columns, never in
+  `f1.db`.
 
 The centrelines are still checked on every build — the re-measurement that
 catches Monaco's relation reading 12% long runs against the overlay.
@@ -327,6 +337,16 @@ the rest of `harvest/` is under (`CR-102`):
   was admitted on, and the length measured from its geometry;
 - `harvest/circuit_wikidata.txt` — the candidate relations for each circuit,
   and the length measured from each one's geometry.
+
+One thing outside `harvest/` is fitted to the same coordinates: each
+`transform` in `PHOTO_TRACE` in `data/harvest.py` (`AF-96`), the six
+coefficients and the origin that place a centreline on a photograph. They are
+ODbL 1.0, © OpenStreetMap contributors, with the centrelines they were fitted
+to. So, held under ODbL pending `AF-174`, are the `points` of every placing
+but Monza's: they are pixels of the photograph, but a script found them at
+stations spaced along the centreline once it was laid on the photograph. Monza's points, marked by eye,
+are pixels of the photograph read by this project. Whether the station-marked
+points needed to be ODbL is part of `AF-174` (#1387).
 
 The Wikidata item ids in `circuit_wikidata.txt`'s `wikidata_id` column stay
 CC0, as its header says.

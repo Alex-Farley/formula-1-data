@@ -7365,6 +7365,84 @@ def illustration_and_geometry():
             WHERE l.to_year IS NOT NULL""").fetchone()[0]
         check("no centreline claims to be a historic layout", historic == 0)
 
+        # The track over the photograph (AF-96). The build stores a placing
+        # only when it passes; this re-measures each one from the stored
+        # points and transform and the stored centreline, and holds it to the
+        # file it was fitted on, the source it is (18, written for this
+        # project) and the ceiling that source carries.
+        photo_cols = ("photo_file", "photo_points", "photo_transform",
+                      "photo_error_px", "photo_source_id", "photo_confidence")
+        bad_photo, placed = [], {}
+        for r in con.execute(f"SELECT * FROM {GEO}"):
+            cid = r["circuit_id"]
+            held = [r[c] is not None for c in photo_cols]
+            if not any(held):
+                continue
+            if not all(held):
+                bad_photo.append(f"{cid} holds some photo_ columns and not "
+                                 f"others")
+                continue
+            placed[cid] = r
+            photo = con.execute(
+                "SELECT file_name, width, height FROM article_images "
+                "WHERE route = 'circuit' AND circuit_id = ?",
+                (cid,)).fetchone()
+            if photo is None or photo["file_name"] != r["photo_file"]:
+                bad_photo.append(f"{cid} is placed on {r['photo_file']}, "
+                                 f"which is not its photograph")
+                continue
+            points = [tuple(p) for p in _json.loads(r["photo_points"])]
+            transform = _json.loads(r["photo_transform"])
+            lines = _json.loads(r["centreline"])["coordinates"]
+            entry = H.PHOTO_TRACE.get(cid)
+            if (entry is None or entry["file"] != r["photo_file"]
+                    or points != [tuple(p) for p in entry["points"]]
+                    or transform != _json.loads(_json.dumps(entry["transform"]))):
+                bad_photo.append(f"{cid}'s placing is not PHOTO_TRACE's")
+            elif (photo["width"], photo["height"]) != tuple(entry["frame"]):
+                bad_photo.append(f"{cid} is placed in a {entry['frame']} "
+                                 f"frame on a photograph stored at "
+                                 f"{photo['width']} x {photo['height']}")
+            if not all(0 <= x <= photo["width"] and 0 <= y <= photo["height"]
+                       for x, y in points):
+                bad_photo.append(f"{cid} marks a point outside its "
+                                 f"photograph")
+            errors = H.photo_trace_errors(transform, points, lines)
+            if len(set(points)) != len(points):
+                bad_photo.append(f"{cid} marks a point twice")
+            if len(points) < H.PHOTO_TRACE_MIN_POINTS:
+                bad_photo.append(f"{cid} marks {len(points)} points")
+            if max(errors) > H.PHOTO_TRACE_TOLERANCE_PX:
+                bad_photo.append(f"{cid} has a point {max(errors):.1f} px "
+                                 f"from its line")
+            if round(max(errors), 2) != r["photo_error_px"]:
+                bad_photo.append(f"{cid} stores {r['photo_error_px']} px, "
+                                 f"re-measures {max(errors):.2f}")
+            if (H.photo_trace_gap(transform, points, lines)
+                    > H.PHOTO_TRACE_MAX_GAP * photo["width"]):
+                bad_photo.append(f"{cid} leaves a stretch of its lap "
+                                 f"unchecked")
+            if r["photo_source_id"] != 18:
+                bad_photo.append(f"{cid} cites source {r['photo_source_id']}")
+            rank = con.execute("SELECT rank FROM provenance "
+                               "WHERE confidence = ?",
+                               (r["photo_confidence"],)).fetchone()
+            if rank is None or rank[0] < 4:
+                bad_photo.append(f"{cid} is placed at "
+                                 f"{r['photo_confidence']!r}, above medium")
+        check("every trace drawn over a photograph is placed within "
+              f"{H.PHOTO_TRACE_TOLERANCE_PX:g} px of its marked points, on "
+              "the file it was fitted on",
+              not bad_photo,
+              "; ".join(bad_photo[:3]) if bad_photo else
+              f"{len(placed)} of {len(H.PHOTO_TRACE)} placings drawn")
+        # A placing the build declined - a new photograph, a re-traced
+        # centreline that no longer passes - leaves the photograph plain.
+        # That is the right page, and a placing to redo.
+        undrawn = sorted(set(H.PHOTO_TRACE) - set(placed))
+        warn("every placing in PHOTO_TRACE is drawn", not undrawn,
+             ", ".join(undrawn))
+
 
 @section('VIEWS')
 def views():

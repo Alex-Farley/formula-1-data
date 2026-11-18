@@ -45,9 +45,12 @@ export const PHOTOGRAPH = `
  * Luftaufnahme (CIRCUIT_PHOTOGRAPH in data/harvest.py), so every one of them
  * looks down on the circuit. The figure carries no subject line - it sits
  * beside the heading that already names the place - so the alt is the one
- * place this is said, and both renderers say it from here.
+ * place this is said, and both renderers say it from here. Where the lap is
+ * drawn over it (AF-96) the alt says so, since the line is only decoration
+ * to a reader who cannot see it.
  */
-export const photographAlt = (name) => `${name} from above`
+export const photographAlt = (name, traced = false) =>
+  traced ? `${name} from above, with the lap drawn over it from OpenStreetMap` : `${name} from above`
 
 /** The centreline is a few hundred kilobytes of coordinates; only ever fetched for the one circuit being looked at. */
 export const GEOMETRY = `SELECT * FROM circuit_geometry WHERE circuit_id = ?`

@@ -670,7 +670,7 @@ import {
   teamsBySeason,
 } from '../src/queries/driver.js'
 import { faceColours } from '../src/charts/own.js'
-import { TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, traceFields } from '../src/lib/trace.js'
+import { OSM_COPYRIGHT, TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, photoTrace, traceFields } from '../src/lib/trace.js'
 import {
   COMPARE_DESCRIPTION,
   COMPARE_LEDE,
@@ -2453,16 +2453,25 @@ const outbound = (url, label, name = null) =>
  * absent here on purpose — there is no React to move it through loading,
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
+ *
+ * `trace` is the lap over a circuit's photograph (AF-96), photoTrace()'s, as
+ * CommonsImage draws it: the same frame, the same two paths, and the same
+ * OpenStreetMap credit after the photograph's own.
  */
-const photograph = (image, width, caption = null, alt = caption, checks = true) => {
+const photograph = (image, width, caption = null, alt = caption, checks = true, trace = null) => {
   const title = fileTitle(image.file_name)
   const licence = (image.licence ?? '').trim()
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
+  const picture = `<img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />`
   return `<figure class="photo">
-        <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />
+        ${
+          trace
+            ? `<div class="photo-frame">${picture}<svg class="photo-trace" viewBox="0 0 ${esc(trace.width)} ${esc(trace.height)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path class="photo-trace-casing" d="${esc(trace.d)}"></path><path class="photo-trace-line" d="${esc(trace.d)}"></path></svg></div>`
+            : picture
+        }
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title, fileLinkName(image))} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
-        }${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
+        }${trace ? ` · Track ${outbound(OSM_COPYRIGHT, '\u00a9 OpenStreetMap contributors')}, ${esc(trace.licence)}` : ''}${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
           image.route === 'category' ? ` · ${confidencePill(image.confidence)}` : ''
         }</figcaption>
       </figure>`
@@ -4350,6 +4359,9 @@ page({
     // The photograph beside the heading, as Circuit.jsx draws it (VD-62):
     // the same query, through canShow() first, and nothing where there is none.
     const pictured = all(CIRCUIT_PHOTOGRAPH, c.id).find(canShow) ?? null
+    // AF-96: the lap over it, where a placing was fitted on this file.
+    const tracesHere = geometryOf.all(c.id)
+    const pictureTrace = pictured ? photoTrace(tracesHere, pictured) : null
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     // VD-83 (SD-41), as Circuit.jsx: what *Every layout raced here* holds -
     // the timeline's rows, or the other drawings, behind one disclosure. The
@@ -4370,7 +4382,6 @@ page({
     // with the ODbL credit under them, or the line a circuit without one
     // shows. The app's third state - the file did not load - cannot happen
     // here, since a build without f1-geometry.db has stopped above.
-    const tracesHere = geometryOf.all(c.id)
     const traceSection = tracesHere.length
       ? `${heading(TRACE_HEADING)}<p class="note">${esc(TRACE_RULE)}</p>${tracesHere
           .map(
@@ -4419,7 +4430,7 @@ page({
       },
       body: `
         ${opening({ eyebrow: EYEBROWS.circuit(c.locality, c.country), title: NAMES.circuit(c.name).headline, lede: c.notes })}
-        ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
+        ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name, Boolean(pictureTrace)), true, pictureTrace)}</div>` : ''}
         <section class="section">${tiles(circuitStrip(cv))}</section>
         ${
           // The opening slot (VD-84), as Circuit.jsx: the current layout
