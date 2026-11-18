@@ -302,8 +302,8 @@ derivative, so the obligation follows the file it belongs to and no further.
 - **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Of the
   database files published, nothing else derives from OpenStreetMap; in the
   repository, the three `harvest/` files below do, and so do the photograph
-  placings' transforms in `data/harvest.py` and the points of every placing
-  there but Monza's.
+  placings' transforms in `data/harvest.py` and, pending `AF-174`, the
+  points of every placing there but Monza's.
 - The website merges the two **in your browser**, which is how a circuit's
   page states its trace without `f1.db` ever containing the data. The static
   copy of each circuit page, written when the site is built, carries the same
@@ -342,9 +342,9 @@ One thing outside `harvest/` is fitted to the same coordinates: each
 `transform` in `PHOTO_TRACE` in `data/harvest.py` (`AF-96`), the six
 coefficients and the origin that place a centreline on a photograph. They are
 ODbL 1.0, © OpenStreetMap contributors, with the centrelines they were fitted
-to. So are the marked `points` of every placing but Monza's: they are pixels
-of the photograph, but their stations round the lap were spaced along the
-centreline once it was laid on the photograph. Monza's points, marked by eye,
+to. So, held under ODbL pending `AF-174`, are the `points` of every placing
+but Monza's: they are pixels of the photograph, but a script found them at
+stations spaced along the centreline once it was laid on the photograph. Monza's points, marked by eye,
 are pixels of the photograph read by this project. Whether the station-marked
 points needed to be ODbL is part of `AF-174` (#1387).
 
