@@ -284,7 +284,8 @@ export const circuitStrip = (circuit) => [
  * the starting grid with a dot in each box for every race won from it, its
  * phone form as a strip of slots, and one chip per race by decade.
  * charts/gridStarts.js lays the first two out for both renderers; the rest
- * is here, read by Circuit.jsx and scripts/prerender.js alike.
+ * is here, read by components/WinnerStarts.jsx and scripts/prerender.js
+ * alike.
  *
  * A RACE IS THE UNIT, not a winning entry. A race with two drivers
  * classified first is a shared drive, and race_entries records each driver's
@@ -294,11 +295,21 @@ export const circuitStrip = (circuit) => [
  * who started from the pit lane (grid_text 'PL', grid NULL) and one whose
  * slot nobody recorded (grid NULL). None of the three is a slot, and none is
  * a zero.
+ *
+ * AF-139 reads the same block three more ways: over the one layout a race
+ * was run on, as well as every layout (a reader's switch, `?history=layout`);
+ * on the upcoming race's page, for the circuit it is held at; and on a Grand
+ * Prix's page, counted by the event across every venue it has used.
  */
 
-/** Every winning entry of every race run here, oldest first; `winners` is how many the race has. */
+/**
+ * Every winning entry of every race run here, oldest first; `winners` is how
+ * many the race has. `circuit_id` is what a Grand Prix's count needs, and
+ * `layout_key` the one-off a race names (Bahrain's outer circuit, 2020),
+ * which layoutOf() reads as LAYOUT_RACED_JOIN does.
+ */
 export const STARTS = `
-  SELECT r.year, r.round, r.name_used, e.grid, e.grid_text,
+  SELECT r.year, r.round, r.name_used, r.circuit_id, r.layout_key, e.grid, e.grid_text,
          e.driver_id, d.full_name AS driver,
          e.constructor_id, k.name AS constructor, k.country AS constructor_country,
          COUNT(*) OVER (PARTITION BY r.id) AS winners
@@ -311,27 +322,80 @@ export const STARTS = `
 `
 
 /**
- * The same count at every circuit over the seasons this one has run races
- * in, its first to its last, for the
- * comparison beside this one's: races whose one winner has a grid slot, and
- * how many of those were won from the first slot and from the first two.
- * The rule is startKind()'s - a shared drive and a winner with no slot are
- * left out of both halves of the comparison alike.
+ * The same count at every circuit, season by season, for the comparison
+ * beside the block's own: races whose one winner has a grid slot, and how
+ * many of those were won from the first slot and from the first two.
+ * seasonsOver() sums the seasons the block's races span, so one query
+ * serves a circuit, one of its layouts and a Grand Prix alike (AF-139). The
+ * rule is startKind()'s - a shared drive and a winner with no slot are left
+ * out of both halves of the comparison alike.
  */
-export const STARTS_EVERYWHERE = `
-  SELECT COUNT(*) AS placed,
+export const STARTS_SEASONS = `
+  SELECT w.year, COUNT(*) AS placed,
          COUNT(CASE WHEN w.grid = 1 THEN 1 END) AS first,
          COUNT(CASE WHEN w.grid <= 2 THEN 1 END) AS front
-    FROM (SELECT MAX(e.grid) AS grid, COUNT(*) AS winners
+    FROM (SELECT r.year, MAX(e.grid) AS grid, COUNT(*) AS winners
             FROM race_entries e JOIN races r ON r.id = e.race_id
            WHERE e.finish_position = 1 AND r.status = 'completed'
-             AND r.year BETWEEN (SELECT MIN(year) FROM races WHERE circuit_id = ?1 AND status = 'completed')
-                            AND (SELECT MAX(year) FROM races WHERE circuit_id = ?1 AND status = 'completed')
            GROUP BY e.race_id) w
    WHERE w.winners = 1 AND w.grid IS NOT NULL
+   GROUP BY w.year
+   ORDER BY w.year
+`
+
+/** STARTS_SEASONS's rows from `from` to `to`, summed: { placed, first, front }, or null with none. */
+export function seasonsOver(seasons, from, to) {
+  const held = (seasons ?? []).filter((row) => row.year >= from && row.year <= to)
+  if (!held.length) return null
+  const sum = (key) => held.reduce((total, row) => total + row[key], 0)
+  return { placed: sum('placed'), first: sum('first'), front: sum('front') }
+}
+
+/** One query's text with one fragment swapped, refusing a fragment that is not there exactly once. */
+function swapOnce(sql, from, to) {
+  const parts = sql.split(from)
+  if (parts.length !== 2) throw new Error(`circuit.js: expected one "${from}" in the query, found ${parts.length - 1}`)
+  return parts.join(to)
+}
+
+/** Every winning entry of every edition of a Grand Prix (?), the circuit's own query by the event (AF-139). */
+export const GRAND_PRIX_STARTS = swapOnce(STARTS, 'r.circuit_id = ?', 'r.gp_id = ?')
+
+/**
+ * Round ?2 of ?1 is the next to run: the first round of the calendar with
+ * no result yet (`status = 'scheduled'`, which build.py moves to
+ * 'completed' once a classification arrives). The upcoming race's page reads the
+ * history of its circuit until then (AF-139).
+ */
+const IS_NEXT = `EXISTS (SELECT 1 FROM races n
+                WHERE n.year = ?1 AND n.round = ?2 AND n.status = 'scheduled'
+                  AND NOT EXISTS (SELECT 1 FROM races p WHERE p.status = 'scheduled'
+                                     AND (p.year < n.year OR (p.year = n.year AND p.round < n.round))))`
+
+/** STARTS at the circuit round ?2 of ?1 is held at, and nothing unless that round is the next to run. */
+export const NEXT_RACE_STARTS = swapOnce(
+  STARTS,
+  'r.circuit_id = ?',
+  `r.circuit_id = (SELECT c.circuit_id FROM races c WHERE c.year = ?1 AND c.round = ?2) AND ${IS_NEXT}`,
+)
+
+/** STARTS_SEASONS, on the same condition. */
+export const NEXT_RACE_SEASONS = `SELECT * FROM (${STARTS_SEASONS}) WHERE ${IS_NEXT}`
+
+/** The layout timeline of the circuit round ?2 of ?1 is held at: LAYOUTS, by the race. */
+export const RACE_LAYOUTS = `
+  SELECT * FROM circuit_layouts
+   WHERE circuit_id = (SELECT circuit_id FROM races WHERE year = ? AND round = ?)
+   ORDER BY from_year
 `
 
 export const STARTS_HEADING = 'Where winners start here'
+
+/** The block's heading on the upcoming race's page (AF-139). */
+export const HISTORY_SAYS_HEADING = 'What history says'
+
+/** The block's heading on a Grand Prix's page, counted by the event (AF-139). */
+export const GRAND_PRIX_STARTS_HEADING = "Where this Grand Prix's winners start"
 
 /** What a race's start is: a slot, or one of the three things that are not one. */
 export const START_KINDS = {
@@ -357,7 +421,7 @@ const startKind = (entries) => {
 
 /**
  * STARTS's rows as one record per race, oldest first: { key, year, round,
- * name, kind, slot, winners, colour }. `slot` is the grid slot where `kind`
+ * name, circuit, layout, kind, slot, winners, colour }. `slot` is the grid slot where `kind`
  * is a slot and null otherwise. `colour` is the winning team's
  * (colourForEntry: its livery from 2010, its national colour before 1968,
  * null otherwise and for a shared drive whose drivers' teams differ).
@@ -379,6 +443,8 @@ export function winnerStarts(rows) {
     const [first] = entries
     return {
       ...race,
+      circuit: first.circuit_id ?? null,
+      layout: first.layout_key ?? null,
       kind,
       slot: kind === START_KINDS.slot ? first.grid : null,
       winners: entries.map((e) => ({ driver: e.driver, driver_id: e.driver_id, constructor: e.constructor, constructor_id: e.constructor_id })),
@@ -422,9 +488,35 @@ const prose = (names) => (names.length < 2 ? names.join('') : `${names.slice(0, 
 export const MOST_NAMED = 3
 
 /**
+ * The races' winners, counted as v_circuit_winners and v_circuit_constructors
+ * count a circuit's (AF-139): a race is a win for every driver classified
+ * first in it, and for every constructor of theirs, once each; an entry with
+ * no driver or no constructor on record counts for nobody. Rows are
+ * { id, name, wins }, most wins first and then by name, as the views order
+ * them - so over every race at a circuit they are its two tables, which
+ * smoke.mjs holds, and over one layout or a Grand Prix they are the same
+ * count of fewer or other races.
+ */
+export function winsBy(races, key, name) {
+  const tally = new Map()
+  for (const race of races) {
+    for (const winner of race.winners) {
+      const id = winner[key]
+      if (id === null || id === undefined) continue
+      const row = tally.get(id) ?? { id, name: winner[name], races: new Set() }
+      row.races.add(race.key)
+      tally.set(id, row)
+    }
+  }
+  return [...tally.values()]
+    .map(({ races: won, ...row }) => ({ ...row, wins: won.size }))
+    .sort((a, b) => b.wins - a.wins || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+}
+
+/**
  * "Sir Lewis Hamilton, 5", "Mercedes and Red Bull, 5 each", or, past
- * MOST_NAMED tied, "4 drivers, 1 each". `rows` are WINNERS's or TEAMS's,
- * most wins first; `name` reads a row's name and `noun` counts them.
+ * MOST_NAMED tied, "4 drivers, 1 each". `rows` are winsBy()'s, most wins
+ * first; `name` reads a row's name and `noun` counts them.
  */
 export function mostWins(rows, name, noun) {
   if (!rows.length) return null
@@ -437,10 +529,10 @@ export function mostWins(rows, name, noun) {
 
 /**
  * The few short figures under the heading, as { label, value } for Fields
- * in both renderers. `everywhere` is STARTS_EVERYWHERE's row over the same
- * seasons; `winners` and `teams` are the page's WINNERS and TEAMS rows, so
- * "most wins" is the first line of the two tables beside it, not a second
- * count of its own.
+ * in both renderers. `seasons` are STARTS_SEASONS's rows, summed over the
+ * seasons these races span for the comparison at every circuit; "most wins"
+ * is winsBy()'s count of these races, which over every race at a circuit is
+ * the first line of the two tables beside it.
  *
  * The first slot and the first two are counted out of the races that have
  * a slot - a pit-lane start, a slot not recorded and a shared drive are in
@@ -449,11 +541,12 @@ export function mostWins(rows, name, noun) {
  * always been two cars wide, and this database does not record how each
  * year's grid was formed.
  */
-export function startsFigures(races, everywhere, winners, teams) {
+export function startsFigures(races, seasons) {
   const slots = races.filter((race) => race.kind === START_KINDS.slot)
   const placed = slots.length
   const items = []
   if (placed) {
+    const everywhere = seasonsOver(seasons, races[0].year, races.at(-1).year)
     const first = slots.filter((race) => race.slot === 1).length
     const front = slots.filter((race) => race.slot <= 2).length
     const years = span(races[0].year, races.at(-1).year)
@@ -473,9 +566,9 @@ export function startsFigures(races, everywhere, winners, teams) {
     const more = from.length > MOST_NAMED ? ` and ${number(from.length - MOST_NAMED)} more` : ''
     items.push({ label: 'Lowest winning grid slot', value: `${ordinal(lowest)} — ${named.join('; ')}${more}` })
   }
-  const driver = mostWins(winners, (row) => row.driver, 'drivers')
+  const driver = mostWins(winsBy(races, 'driver_id', 'driver'), (row) => row.name, 'drivers')
   if (driver) items.push({ label: 'Most wins by a driver', value: driver })
-  const team = mostWins(teams, (row) => row.constructor, 'teams')
+  const team = mostWins(winsBy(races, 'constructor_id', 'constructor'), (row) => row.name, 'teams')
   if (team) items.push({ label: 'Most wins by a team', value: team })
   const apart = [START_KINDS.pit, START_KINDS.none, START_KINDS.shared]
     .map((kind) => [kind, races.filter((race) => race.kind === kind).length])
@@ -488,13 +581,122 @@ export function startsFigures(races, everywhere, winners, teams) {
 /**
  * The line under the heading: how many races, and across how many of the
  * layouts the register records for the circuit (`circuit_layouts`, the
- * thirteen circuits with a timeline; the rest record none).
+ * thirteen circuits with a timeline; the rest record none). `place` is where
+ * they were won, "here" on the circuit's own page and "at <circuit>" on a
+ * race's.
  */
-export function startsLine(races, layouts) {
-  const all = races.length === 1 ? 'The one race won here' : `All ${number(races.length)} races won here, counted together`
+export function startsLine(races, layouts, place = 'here') {
+  const all = races.length === 1 ? `The one race won ${place}` : `All ${number(races.length)} races won ${place}, counted together`
   if (layouts > 1) return `${all}, across the ${number(layouts)} layouts the register records.`
   if (layouts === 1) return `${all}, on the one layout the register records.`
   return `${all}. No layout timeline is recorded for this circuit.`
+}
+
+/*
+ * WHICH RACES THE BLOCK COUNTS (AF-139)
+ *
+ * Every race won at the circuit, or only those run on one layout of it: the
+ * reader chooses, and the choice is in the address as a table's sort is
+ * (`?history=layout`, absent for every layout), so Back restores it. The
+ * static page counts every layout and the switch arrives with the app, as
+ * /records' decade chips do. A Grand Prix's page counts by the event and has
+ * no switch: its races are at several venues, so no one layout is "this".
+ */
+
+export const SCOPE = { all: 'all', layout: 'layout' }
+
+/** The address's key and its default, for useUrlState. */
+export const SCOPE_DEFAULTS = { history: SCOPE.all }
+
+/** The switch: its group's name, and its two chips in order. */
+export const SCOPE_LABEL = 'Which races to count'
+export const SCOPE_OPTIONS = [
+  [SCOPE.all, 'All layouts'],
+  [SCOPE.layout, 'This layout'],
+]
+
+/**
+ * The row of the circuit's timeline (LAYOUTS) a race in `year` was run on:
+ * the one-off it names where it names one (`key`, races.layout_key, held
+ * only by Bahrain's endurance and outer circuits), and otherwise the by-year
+ * row whose seasons hold it - LAYOUT_RACED_JOIN in queries/race.js, which a
+ * race's own page reads its layout by, in JS. Null where there is no such
+ * row: a circuit with no timeline, or a season the timeline does not cover.
+ */
+export function layoutOf(layouts, year, key = null) {
+  if (key) return layouts.find((layout) => layout.layout_key === key) ?? null
+  return (
+    layouts.find(
+      (layout) =>
+        layout.by_year === 1 &&
+        year >= layout.from_year &&
+        (layout.to_year === null || layout.to_year === undefined || year <= layout.to_year),
+    ) ?? null
+  )
+}
+
+/**
+ * Which races the block counts: { offered, scope, layout, races }.
+ * `reference` is the race "this layout" means, as { year, layout } - the
+ * latest race won here on a circuit's page, the race itself on its own page
+ * - and `asked` is the address's `history`. The switch is offered only where
+ * it changes the count: where the reference's layout holds some of the
+ * races won here and not all of them. Anywhere else, and for any value of
+ * the address but `layout`, every race is counted.
+ */
+export function historyScope(races, layouts, reference, asked) {
+  const layout = reference ? layoutOf(layouts, reference.year, reference.layout) : null
+  const here = layout ? races.filter((race) => layoutOf(layouts, race.year, race.layout) === layout) : []
+  const offered = here.length > 0 && here.length < races.length
+  const scope = offered && asked === SCOPE.layout ? SCOPE.layout : SCOPE.all
+  return { offered, scope, layout: offered ? layout : null, races: scope === SCOPE.layout ? here : races }
+}
+
+/**
+ * The line under the heading over one layout: "The 16 races won here on
+ * this layout (Arena layout, 2010–), of the 76 on every layout." A layout
+ * with no name on record is given its years alone, never its key.
+ */
+export function layoutLine(races, layout, every, place = 'here') {
+  const these = races.length === 1 ? `The one race won ${place} on this layout` : `The ${number(races.length)} races won ${place} on this layout`
+  const years = span(layout.from_year, layout.to_year)
+  return `${these} (${layout.layout_name ? `${layout.layout_name}, ${years}` : years}), of the ${number(every)} on every layout.`
+}
+
+/**
+ * The line under a Grand Prix's heading, which says the count is the
+ * event's: the circuits are those of the races counted.
+ */
+export function grandPrixLine(races) {
+  const venues = new Set(races.map((race) => race.circuit).filter(Boolean)).size
+  if (races.length === 1) return 'The one race won at this Grand Prix.'
+  const all = `All ${number(races.length)} races won at this Grand Prix`
+  return venues > 1
+    ? `${all}, counted together across the ${number(venues)} circuits it has been held at, not circuit by circuit.`
+    : `${all}, all at one circuit.`
+}
+
+/**
+ * The block as both renderers draw it - { offered, scope, layout, races,
+ * line, figures, table, label } - or null where no race has been won;
+ * `label` is the drawing's accessible name. `races` are
+ * winnerStarts()'s, `layouts` LAYOUTS's rows, `seasons` STARTS_SEASONS's;
+ * `grandPrix` counts by the event, with its own line and no switch.
+ */
+export function historyBlock({ races, layouts = [], seasons = [], reference = null, asked = SCOPE.all, place = 'here', grandPrix = false }) {
+  if (!races.length) return null
+  const chosen = grandPrix
+    ? { offered: false, scope: SCOPE.all, layout: null, races }
+    : historyScope(races, layouts, reference, asked)
+  const counted = chosen.races
+  const line = grandPrix
+    ? grandPrixLine(counted)
+    : chosen.scope === SCOPE.layout
+      ? layoutLine(counted, chosen.layout, races.length, place)
+      : startsLine(races, layouts.length, place)
+  const table = startsTable(counted)
+  const label = startsLabel(table, grandPrix ? 'at this Grand Prix' : place)
+  return { ...chosen, line, figures: startsFigures(counted, seasons), table, label }
 }
 
 /**
@@ -537,8 +739,13 @@ export const STARTS_COLUMNS = [
   },
 ]
 
-/** The drawing's accessible name: what the table holds, in one line. "Wins here by grid slot: 1st 7, 2nd 5, 4th 1, 6th 1." */
-export const startsLabel = (rows) => `Wins here by grid slot: ${rows.map((row) => `${row.start} ${number(row.wins)}`).join(', ')}.`
+/**
+ * The drawing's accessible name: what the table holds, in one line. "Wins
+ * here by grid slot: 1st 7, 2nd 5, 4th 1, 6th 1." `place` is the block's,
+ * so a race's page and a Grand Prix's say where (AF-139).
+ */
+export const startsLabel = (rows, place = 'here') =>
+  `Wins ${place} by grid slot: ${rows.map((row) => `${row.start} ${number(row.wins)}`).join(', ')}.`
 
 /** The timeline's heading, under the figure. */
 export const TIMELINE_HEADING = 'Race by race'

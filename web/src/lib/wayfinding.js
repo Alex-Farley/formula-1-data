@@ -48,6 +48,7 @@ import {
   POLE_TO_WIN_TITLE,
 } from '../queries/records.js'
 import { STAKE_HEADING } from '../queries/season.js'
+import { HISTORY_SAYS_HEADING } from '../queries/circuit.js'
 import { LABELS, RACE_CARS_TITLE, RACE_PHOTOGRAPHS_TITLE } from './site.js'
 
 /* --------------------------------------------------------------- trails */
@@ -640,6 +641,7 @@ export const raceSections = (on) =>
   listed([
     on.scheduled && on.timetable && ['timetable', TIMETABLE_HEADING],
     on.stake && ['stake', STAKE_HEADING],
+    on.history && ['history', HISTORY_SAYS_HEADING],
     on.classification && ['classification', CLASSIFICATION_HEADING],
     on.gridFlag && ['grid-to-flag', GRID_FLAG_HEADING],
     on.qualifying && ['qualifying', QUALIFYING_HEADING],

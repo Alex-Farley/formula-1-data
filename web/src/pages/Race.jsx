@@ -8,6 +8,17 @@ import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
+import WinnerStarts from '../components/WinnerStarts.jsx'
+import { useUrlState } from '../lib/urlstate.js'
+import {
+  HISTORY_SAYS_HEADING,
+  NEXT_RACE_SEASONS,
+  NEXT_RACE_STARTS,
+  RACE_LAYOUTS,
+  SCOPE_DEFAULTS,
+  historyBlock,
+  winnerStarts,
+} from '../queries/circuit.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { lateDays, readerDay } from '../lib/refresh.js'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -306,6 +317,11 @@ export default function Race() {
     title: [TITLE_STANDINGS, args],
     // AF-132: who can still win, on the upcoming race's page.
     ...FIGHT_QUERIES,
+    // AF-139: what history says at its circuit, on the same page; the
+    // starts and seasons come back empty for any other round.
+    historyStarts: [NEXT_RACE_STARTS, args],
+    historySeasons: [NEXT_RACE_SEASONS, args],
+    historyLayouts: [RACE_LAYOUTS, args],
   })
 
   return (
@@ -371,6 +387,18 @@ function RaceBody({ race, data, year, round }) {
   // next round to run, until its results land.
   const fight = currentTitle((key) => rows(data, key), currentProgress().manifest?.built)
   const stake = isUpcoming(fight, race) ? fight : null
+  // What history says (AF-139): the circuit page's block for the circuit
+  // the next round to run is held at, until its results land - over every
+  // layout, or the one this race is run on, as the reader chooses.
+  const [{ history: asked }, setScope] = useUrlState(SCOPE_DEFAULTS)
+  const historyHere = historyBlock({
+    races: winnerStarts(rows(data, 'historyStarts')),
+    layouts: rows(data, 'historyLayouts'),
+    seasons: rows(data, 'historySeasons'),
+    reference: { year: race.year, layout: race.layout_key ?? null },
+    asked,
+    place: race.circuit ? `at ${race.circuit}` : 'at this circuit',
+  })
 
   const timetable = sessions.length > 0 && (
     <Section id="timetable" title={TIMETABLE_HEADING} count={`${sessions.length} sessions`}>
@@ -419,6 +447,7 @@ function RaceBody({ race, data, year, round }) {
           scheduled,
           timetable: sessions.length > 0,
           stake: Boolean(stake),
+          history: Boolean(historyHere),
           classification: classified.length > 0,
           gridFlag: gridFlagShown(flag),
           qualifying: qualifying.length > 0,
@@ -458,6 +487,8 @@ function RaceBody({ race, data, year, round }) {
           <ClinchStrips clinch={stake.clinch} />
         </Section>
       )}
+
+      <WinnerStarts id="history" title={HISTORY_SAYS_HEADING} block={historyHere} onScope={(scope) => setScope({ history: scope })} />
 
       <Disagreement rows={rows(data, 'disagreements')} what="this race" />
 

@@ -803,7 +803,32 @@ and word everything else.
 - **Placement:** a section of its own, *Where winners start here*, on every
   circuit page with a race run: a line saying how many races and layouts it
   counts, the figures as `Fields`, the figure, then *Race by race* (h3) and
-  the chips.
+  the chips. `components/WinnerStarts.jsx` draws it in the app and
+  `startsBlock()` in `prerender.js`, both from `historyBlock()`.
+- **Which races it counts** (provisional, AF-139): *All layouts* or *This
+  layout*, the reader's choice, as `Chips` in a `.filters` row between the line and the figures. *This layout* is
+  the timeline row (`circuit_layouts`) the reference race was run on, read
+  as `LAYOUT_RACED_JOIN` reads a race's: the one-off the race names, or else
+  the by-year row whose seasons hold it. On a circuit page the reference is
+  the latest race won there; on a race's page it is the race. The choice is
+  in the address, `?history=layout`, absent for *All layouts*, written by
+  replacing and not pushing (§6), so Back restores it. The switch is offered
+  only where it changes the count, so a circuit with no timeline, or whose
+  reference layout holds every race won there or none, has none. Over one
+  layout, the line names it and its years and how many races every layout
+  holds; the figures, the comparison at every circuit over the seasons
+  those races span, and *most wins* are all of those races. The static page
+  counts every layout and has no switch, which arrives with the app, as
+  `/records`' decade chips do.
+- **On the upcoming race's page** (provisional, AF-139): the same block for
+  the circuit the race is held at, headed *What history says*, after the
+  timetable and *What's at stake*, on the next round to run (the first still `scheduled`) until
+  its results land. Its line says *won at* the circuit rather than *here*.
+- **On a Grand Prix's page** (provisional, AF-139): the same block counted
+  by the event across every venue it has used, headed *Where this Grand
+  Prix's winners start*, after *Most wins*, its line saying how many
+  circuits the count spans and that it is not by circuit. It has no switch:
+  its races are at several venues, so no one layout is the event's.
 
 **The stint figure and its pit wave** (provisional, AF-134; the bars are
 PD-56's). One question asked of a race: when the field stopped.
@@ -1477,7 +1502,9 @@ photographs. The page of the next round to run, until its results land,
 carries *What's at stake* after the timetable: the season page's answer and
 its basis, from the same function (provisional, AF-132), then the clinch
 strips where the round can settle the drivers' title (provisional, AF-138),
-and with every title already on the record the sentence alone (LV-15). The classification
+and with every title already on the record the sentence alone (LV-15), then
+*What history says*, the circuit's *Where winners start* (provisional,
+AF-139, §3 *Figure*). The classification
 never shares its
 width with a side column (VD-84; beside the outline it lost Points and FL to
 a scroll from 768 to 1,110 px), and a scheduled race leads with its
@@ -1503,7 +1530,9 @@ suite holds the four.
 
 Single column. On these pages a table or a card grid leads. `/records`
 opens on *On this page* (§3, provisional, IA-30) under its header, each
-record family listed by its own address.
+record family listed by its own address. A Grand Prix's page carries *Where
+this Grand Prix's winners start* between *Most wins* and *Every edition*
+(provisional, AF-139, §3 *Figure*).
 
 - Records cards align to the top of their row, so opening one derivation
   does not move its neighbours (I8).
@@ -1677,7 +1706,7 @@ control (VD-82).
 - **Hover equals focus (aim):** anything that opens on hover opens on focus
   and on tap.
 - **State in the address (core):** register filters, entity-table sort and
-  fold.
+  fold, and (provisional, AF-139) which races *Where winners start* counts.
 - **Back** restores state and place.
 - **One reveal control:** the fold.
 - **Nothing moves under the reader:**

@@ -5387,17 +5387,18 @@ describe('where winners start at a circuit (AF-133)', async () => {
     [2024, 4, 'Charles Leclerc', 'Ferrari'],
     [2025, 1, 'Max Verstappen', 'Red Bull'],
   ].map(([year, grid, driver, team]) => won(year, grid, driver, team))
-  // WINNERS and TEAMS as the views give them, most wins first.
-  const tally = (key) =>
-    [...AUSTIN.reduce((m, r) => m.set(r[key], (m.get(r[key]) ?? 0) + 1), new Map())]
-      .map(([name, wins]) => ({ [key]: name, wins }))
-      .sort((a, b) => b.wins - a.wins || a[key].localeCompare(b[key]))
+  // STARTS_SEASONS's rows: the item's figures at every circuit, 2012-2025,
+  // in one season of the span, and a season outside it that must not count.
+  const SEASONS = [
+    { year: 1990, placed: 16, first: 9, front: 12 },
+    { year: 2015, placed: 308, first: 167, front: 250 },
+  ]
   const value = (items, label) => items.find((item) => item.label === label)?.value
 
   it("pins Austin's figures as the item worked them", () => {
     const races = winnerStarts(AUSTIN)
     assert.equal(races.length, 13)
-    const items = startsFigures(races, { placed: 308, first: 167, front: 250 }, tally('driver'), tally('constructor'))
+    const items = startsFigures(races, SEASONS)
     assert.equal(value(items, 'Won from first on the grid'), '6 of 13 (46%), against 167 of 308 (54%) at every circuit, 2012–2025')
     assert.equal(value(items, 'Won from the first two slots'), '11 of 13 (85%), against 250 of 308 (81%) at every circuit')
     assert.equal(value(items, 'Lowest winning grid slot'), '6th — Max Verstappen, 2023')
@@ -5462,7 +5463,7 @@ describe('where winners start at a circuit (AF-133)', async () => {
     assert.deepEqual(races.map((r) => [r.kind, r.slot]), [['slot', 1], ['pit', null], ['none', null], ['shared', null]])
     assert.deepEqual(races.map(chipStart), ['1st', 'pit lane', 'grid not recorded', 'shared drive'])
     // Only the one race with a slot is counted, and the rest are said.
-    const items = startsFigures(races, null, [], [])
+    const items = startsFigures(races, [])
     assert.equal(value(items, 'Won from first on the grid'), '1 of 1 (100%)')
     assert.equal(value(items, 'Not counted as a slot'), '1 pit lane · 1 grid not recorded · 1 shared drive')
     assert.deepEqual(startsTable(races).map((r) => r.start), ['1st', 'pit lane', 'grid not recorded', 'shared drive'])
@@ -5472,15 +5473,14 @@ describe('where winners start at a circuit (AF-133)', async () => {
     const unplaced = winnerStarts([rows[1]])
     assert.equal(gridDiagram(unplaced), null)
     assert.equal(dotStrip(unplaced), null)
-    assert.equal(value(startsFigures(unplaced, null, [], []), 'Won from first on the grid'), undefined)
+    assert.equal(value(startsFigures(unplaced, []), 'Won from first on the grid'), undefined)
   })
 
   it('names ties in full up to three, then counts them', () => {
     const races = winnerStarts([won(2000, 9, 'A', 'T'), won(2001, 9, 'B', 'T'), won(2002, 9, 'C', 'T'), won(2003, 9, 'D', 'T')])
-    assert.equal(value(startsFigures(races, null, [], []), 'Lowest winning grid slot'), '9th — A, 2000; B, 2001; C, 2002 and 1 more')
-    const four = ['A', 'B', 'C', 'D'].map((driver) => ({ driver, wins: 1 }))
-    assert.equal(value(startsFigures(races, null, four, []), 'Most wins by a driver'), '4 drivers, 1 each')
-    assert.equal(value(startsFigures(races, null, four.slice(0, 2), []), 'Most wins by a driver'), 'A and B, 1 each')
+    assert.equal(value(startsFigures(races, []), 'Lowest winning grid slot'), '9th — A, 2000; B, 2001; C, 2002 and 1 more')
+    assert.equal(value(startsFigures(races, []), 'Most wins by a driver'), '4 drivers, 1 each')
+    assert.equal(value(startsFigures(races.slice(0, 2), []), 'Most wins by a driver'), 'A and B, 1 each')
   })
 
   it('the note names only the colours of dots drawn, never of races folded into a count', async () => {
@@ -5518,6 +5518,150 @@ describe('where winners start at a circuit (AF-133)', async () => {
     assert.match(startsNote([null]), /every dot is hollow/)
     assert.doesNotMatch(startsNote([{ kind: 'livery' }]), /hollow/)
     assert.match(startsNote([{ kind: 'livery' }, null]), /A hollow dot has no colour on record\./)
+  })
+})
+
+describe('what history says: one layout or all, a race and a Grand Prix (AF-139)', async () => {
+  const { SCOPE, grandPrixLine, historyBlock, historyScope, layoutOf, seasonsOver, startsFigures, winnerStarts, winsBy } = await import(
+    '../src/queries/circuit.js'
+  )
+  const won = (year, grid, driver, constructor, extra = {}) => ({
+    year,
+    round: 1,
+    name_used: 'Grand Prix',
+    circuit_id: 'here',
+    layout_key: null,
+    grid,
+    grid_text: String(grid),
+    driver_id: driver.toLowerCase(),
+    driver,
+    constructor_id: constructor.toLowerCase(),
+    constructor,
+    constructor_country: null,
+    winners: 1,
+    ...extra,
+  })
+  // Bahrain's timeline as the register holds it: the Grand Prix circuit by
+  // year, and two one-offs reached only through the race's layout_key.
+  const BAHRAIN = [
+    { layout_key: 'gp', layout_name: 'Grand Prix circuit', from_year: 2004, to_year: null, by_year: 1 },
+    { layout_key: 'endurance', layout_name: 'Endurance circuit', from_year: 2010, to_year: 2010, by_year: 0 },
+    { layout_key: 'outer', layout_name: 'Outer circuit', from_year: 2020, to_year: 2020, by_year: 0 },
+  ]
+  // Silverstone's last three rows, by year, and nothing for 1949.
+  const SILVERSTONE = [
+    { layout_key: 'bridge-3', layout_name: 'Bridge circuit, revised', from_year: 1996, to_year: 1996, by_year: 1 },
+    { layout_key: 'bridge-4', layout_name: 'Bridge circuit, final form', from_year: 1997, to_year: 2009, by_year: 1 },
+    { layout_key: 'arena', layout_name: 'Arena layout', from_year: 2010, to_year: null, by_year: 1 },
+  ]
+
+  it('reads a race onto its layout as LAYOUT_RACED_JOIN does: a named one-off, else the by-year row', () => {
+    assert.equal(layoutOf(BAHRAIN, 2010, 'endurance').layout_key, 'endurance')
+    assert.equal(layoutOf(BAHRAIN, 2010).layout_key, 'gp', 'a race naming no one-off is on the by-year row')
+    assert.equal(layoutOf(BAHRAIN, 2020, 'outer').layout_key, 'outer')
+    assert.equal(layoutOf(BAHRAIN, 2003), null, 'before the timeline starts')
+    assert.equal(layoutOf(BAHRAIN, 2026, 'nowhere'), null, 'a key the timeline does not hold matches nothing')
+    assert.equal(layoutOf(SILVERSTONE, 2009).layout_key, 'bridge-4')
+    assert.equal(layoutOf(SILVERSTONE, 2010).layout_key, 'arena')
+    assert.equal(layoutOf([], 2025), null, 'no timeline, no layout')
+  })
+
+  it('counts one layout of a circuit with several, and every layout unless the reader asks', () => {
+    const races = winnerStarts([
+      won(1996, 3, 'Hill', 'Williams'),
+      won(2008, 4, 'Hamilton', 'McLaren'),
+      won(2009, 1, 'Vettel', 'Red Bull'),
+      won(2010, 2, 'Webber', 'Red Bull'),
+      won(2024, 1, 'Hamilton', 'Mercedes'),
+      won(2025, 1, 'Norris', 'McLaren'),
+    ])
+    const latest = races.at(-1)
+    const every = historyScope(races, SILVERSTONE, latest, SCOPE.all)
+    assert.deepEqual([every.offered, every.scope, every.races.length], [true, SCOPE.all, 6])
+    const one = historyScope(races, SILVERSTONE, latest, SCOPE.layout)
+    assert.deepEqual([one.scope, one.layout.layout_key, one.races.map((r) => r.year)], [SCOPE.layout, 'arena', [2010, 2024, 2025]])
+    // An address value that is not a scope counts every layout.
+    assert.equal(historyScope(races, SILVERSTONE, latest, 'bogus').races.length, 6)
+    // The block over one layout: its line says which, and its figures are of those races.
+    const block = historyBlock({ races, layouts: SILVERSTONE, seasons: [], reference: latest, asked: SCOPE.layout })
+    assert.equal(block.line, 'The 3 races won here on this layout (Arena layout, 2010–), of the 6 on every layout.')
+    assert.equal(block.figures.find((f) => f.label === 'Most wins by a team').value, 'McLaren, Mercedes and Red Bull, 1 each')
+    assert.equal(block.table.reduce((n, row) => n + row.wins, 0), 3)
+    assert.match(block.label, /^Wins here by grid slot: /)
+    // A layout with no name on record is given its years, never its key.
+    const unnamed = historyBlock({ races, layouts: SILVERSTONE.map((l) => ({ ...l, layout_name: null })), reference: latest, asked: SCOPE.layout })
+    assert.equal(unnamed.line, 'The 3 races won here on this layout (2010–), of the 6 on every layout.')
+    // On a race's own page the line names the circuit.
+    const there = historyBlock({ races, layouts: SILVERSTONE, reference: { year: 2026, layout: null }, asked: SCOPE.layout, place: 'at Silverstone' })
+    assert.match(there.line, /^The 3 races won at Silverstone on this layout/)
+    assert.match(there.label, /^Wins at Silverstone by grid slot: /)
+    const all = historyBlock({ races, layouts: SILVERSTONE, reference: { year: 2026, layout: null }, place: 'at Silverstone' })
+    assert.equal(all.line, 'All 6 races won at Silverstone, counted together, across the 3 layouts the register records.')
+  })
+
+  it('offers no switch where it would change nothing, and keeps a one-off off the layout it interrupts', () => {
+    const races = winnerStarts([
+      won(2004, 1, 'Schumacher', 'Ferrari'),
+      won(2010, 3, 'Alonso', 'Ferrari', { layout_key: 'endurance' }),
+      won(2020, 1, 'Perez', 'Racing Point', { round: 16, layout_key: 'outer' }),
+      won(2025, 1, 'Piastri', 'McLaren'),
+    ])
+    const gp = historyScope(races, BAHRAIN, races.at(-1), SCOPE.layout)
+    assert.deepEqual(gp.races.map((r) => r.year), [2004, 2025], 'the two one-offs are not the Grand Prix circuit')
+    // On the outer circuit's own race, "this layout" is the one-off.
+    assert.deepEqual(historyScope(races, BAHRAIN, { year: 2020, layout: 'outer' }, SCOPE.layout).races.map((r) => r.year), [2020])
+    // No timeline: no layout, no switch, every race.
+    const none = historyScope(races, [], races.at(-1), SCOPE.layout)
+    assert.deepEqual([none.offered, none.layout, none.races.length], [false, null, 4])
+    // One layout holding every race: the switch would change nothing.
+    const only = winnerStarts([won(2011, 1, 'A', 'T'), won(2012, 2, 'B', 'T')])
+    assert.equal(historyScope(only, SILVERSTONE, only.at(-1), SCOPE.layout).offered, false)
+    // A layout with no race won on it yet - an upcoming race on a new one.
+    assert.equal(historyScope(only, [{ layout_key: 'new', from_year: 2026, to_year: null, by_year: 1 }], { year: 2026, layout: null }, SCOPE.layout).offered, false)
+    // No race won: no block.
+    assert.equal(historyBlock({ races: [] }), null)
+  })
+
+  it('counts a Grand Prix held at several venues as one event, and says so', () => {
+    const races = winnerStarts([
+      won(1959, 1, 'McLaren', 'Cooper', { circuit_id: 'sebring' }),
+      won(1960, 1, 'Moss', 'Lotus', { circuit_id: 'riverside' }),
+      won(1961, 3, 'Ireland', 'Lotus', { circuit_id: 'watkins-glen' }),
+      won(1962, 1, 'Clark', 'Lotus', { circuit_id: 'watkins-glen' }),
+    ])
+    const block = historyBlock({ races, seasons: [], grandPrix: true })
+    assert.equal(block.offered, false, 'no layout is the event\'s')
+    assert.match(block.label, /^Wins at this Grand Prix by grid slot: /)
+    assert.equal(block.line, 'All 4 races won at this Grand Prix, counted together across the 3 circuits it has been held at, not circuit by circuit.')
+    assert.equal(block.figures.find((f) => f.label === 'Most wins by a team').value, 'Lotus, 3')
+    assert.equal(grandPrixLine(races.slice(2)), 'All 2 races won at this Grand Prix, all at one circuit.')
+    assert.equal(grandPrixLine(races.slice(0, 1)), 'The one race won at this Grand Prix.')
+  })
+
+  it('counts a shared win for each driver and each team once, and nobody for an entry with none', () => {
+    const races = winnerStarts([
+      won(1951, 1, 'Fangio', 'Alfa Romeo', { winners: 2 }),
+      won(1951, 7, 'Fagioli', 'Alfa Romeo', { winners: 2 }),
+      won(1952, 2, 'Fangio', 'Alfa Romeo'),
+      won(1953, 4, 'Nobody', 'X', { driver_id: null, constructor_id: null }),
+    ])
+    assert.deepEqual(winsBy(races, 'driver_id', 'driver').map((r) => [r.name, r.wins]), [['Fangio', 2], ['Fagioli', 1]])
+    assert.deepEqual(winsBy(races, 'constructor_id', 'constructor').map((r) => [r.name, r.wins]), [['Alfa Romeo', 2]])
+  })
+
+  it('compares with every circuit over the seasons the races span, and with nothing outside them', () => {
+    const seasons = [
+      { year: 2009, placed: 17, first: 9, front: 13 },
+      { year: 2010, placed: 19, first: 8, front: 14 },
+      { year: 2011, placed: 19, first: 12, front: 15 },
+    ]
+    assert.deepEqual(seasonsOver(seasons, 2010, 2011), { placed: 38, first: 20, front: 29 })
+    assert.equal(seasonsOver(seasons, 1950, 1951), null)
+    const races = winnerStarts([won(2010, 1, 'A', 'T'), won(2011, 2, 'B', 'T')])
+    assert.equal(
+      startsFigures(races, seasons).find((f) => f.label === 'Won from first on the grid').value,
+      '1 of 2 (50%), against 20 of 38 (53%) at every circuit, 2010–2011',
+    )
   })
 })
 
