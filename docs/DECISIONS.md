@@ -453,6 +453,33 @@ fourth face on the font request. What it does not change: the scale, the
 weights, the inks, the measure, any contrast floor, the label register, or
 the page title's capitals.
 
+### D-67 · A race's first screen shows the classification's heading, not its rows — 2026-11-17 (`VD-108`, #1330)
+§4 said that at 1440 × 900 a race page shows the classification's heading
+and its first four rows on the first screen, and `smoke.mjs`'s *the result
+leads* held the four. It was eight while PD-57 put the tiles in the column
+beside the outline, and four once version A put the tiles full width under
+the header and the outline (DP-11, VD-84). The visual critique of
+2026-11-13 then proposed the podium in the race header (P03), and the
+maintainer approved it as a mockup on 2026-11-13.
+
+Built to the mockup on 2026-11-16, the podium sat under the weather line,
+the header grew by 133 px, and no row of the classification was left on
+the first screen; its heading still was, at 842 px. Keeping the four rows
+was a floor check the feature could not meet, so it was §8's *Changing or
+reversing*, and it went on the item with three options: relax the check to
+the heading, keep the rows with a compact podium beside the outline (a new
+mockup), or something else, such as the podium under the tiles. The
+maintainer ruled on 2026-11-17 for the first, because the approved podium
+is the result and leads the page; the ruling is recorded on the item.
+
+The rule: at 1440 × 900, in the app and on the static page, the first
+screen shows the classification's heading, whole, under the tiles, and the
+table under it has rows. What it costs is the four rows a reader saw
+before scrolling; where the podium is drawn, the first three of them are
+its steps in the header. What it does not change: the order of the page's blocks, the
+classification at full width, the outline in the slot, or the rule holding
+the app and the static page to it alike.
+
 ---
 
 ## The queue

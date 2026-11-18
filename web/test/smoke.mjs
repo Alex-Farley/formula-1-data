@@ -3110,10 +3110,9 @@ try {
           .filter((n) => n.tagName === 'SUMMARY' || !n.closest('details.session-sheets'))
           .map(clean),
         heading: classification ? classification.getBoundingClientRect().top + window.scrollY : null,
+        headingEnd: classification ? classification.getBoundingClientRect().bottom + window.scrollY : null,
         tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
-        rows: table
-          ? [...table.querySelectorAll('tbody tr')].filter((tr) => tr.getBoundingClientRect().bottom <= window.innerHeight).length
-          : 0,
+        rows: table ? table.querySelectorAll('tbody tr').length : 0,
         sheetsOpen: sheets ? sheets.open : null,
         sheetTables: sheets ? sheets.querySelectorAll('table').length : 0,
         // The two halves' blocks are the same shape: the outline's slot a
@@ -3169,20 +3168,24 @@ try {
         inOrder(got.blocks, order),
         `${route}, ${half}: ${order.join(' → ')} — ${got.blocks.join(' · ')}`,
       )
+      // The first screen at 1440 × 900 shows the classification's heading,
+      // whole, under the tiles: the podium in the header is the result and
+      // leads the page, so the table's rows may start below it (VD-108,
+      // ruled on #1330, [D-67]).
       truthy(
-        got.heading !== null && got.tilesEnd !== null && got.heading > got.tilesEnd && got.heading < 900,
-        `${half}: the classification heading is under the tiles and inside the first 900 px at 1440 — at ${Math.round(got.heading)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+        got.heading !== null && got.tilesEnd !== null && got.heading > got.tilesEnd && got.headingEnd <= 900,
+        `${half}: the classification heading is under the tiles and wholly inside the first 900 px at 1440 — from ${Math.round(got.heading)} to ${Math.round(got.headingEnd)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
       )
+      truthy(got.rows > 0, `${half}: the classification under that heading has rows`)
       is(got.sheetsOpen, false, `${half}: the practice sheets are behind a closed disclosure`)
       is(got.sheetTables, run.sheets, `${half}: with all ${run.sheets} of their tables inside it`)
       is(got.shape.join(' '), 'true true', `${half}: the outline's slot is a block of the page, and the disclosure sits in a section of its own`)
     }
     // Eight rows while the tiles sat in the column beside the outline
-    // (PD-57). Version A puts the outline beside the header and the tiles
-    // full width under both (DP-11, VD-84), so the band is as tall as the
-    // drawing and the table starts lower: the heading and the podium, at
-    // least, are on the first screen.
-    atLeast(app.rows, 4, 'the app shows at least the first four rows of the classification on a 1440 × 900 screen')
+    // (PD-57), four once version A put the outline beside the header and
+    // the tiles full width under both (DP-11, VD-84). The podium in the
+    // header (VD-108) is the result, and the first screen keeps the
+    // classification's heading, held above, not its rows [D-67].
 
     // A round not yet run: the timetable is what there is to lead with.
     const unrun = db

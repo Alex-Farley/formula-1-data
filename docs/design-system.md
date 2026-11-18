@@ -1172,7 +1172,8 @@ carry it.
     the grid has two (§2). The strip is the form this section already named.
   - **Costs:** about 50 px of the first screen, the block after it taking
     `--space-8` above it rather than a section's `--space-9`; the race
-    page's classification still shows four rows at 1440 × 900 (§4).
+    page's classification heading is still on the first screen at 1440 ×
+    900 (§4).
   - **Held by:** `smoke.mjs` (*On this page*): in both halves, every link
     resolves to a section of that id under that heading, in document order,
     every top-level section heading is linked, and the two halves list the
@@ -1463,10 +1464,14 @@ naming its story, the biggest climb and fall drawn in full ink and labelled
 over a halo, the other lines in `--rule-strong`, with a title that states it
 (VD-113 #1335).
 
-What it costs: the band is as tall as the outline, so at 1440 × 900 the
-classification's heading and its first four rows are on the first screen,
-where PD-57's tiles in the column beside the outline showed eight. The smoke
-suite holds the four.
+What it costs: the band is as tall as the outline, and the podium under
+the weather line makes the header taller still, so at 1440 × 900 the
+classification's heading is on the first screen and its rows may not
+be. PD-57's tiles in the column beside the outline showed eight rows, and
+version A, before the podium, four. The podium is the result and leads the
+page, so the first screen holds the heading, not the rows (VD-108, ruled
+on #1330, `[D-67]`). The smoke suite holds the heading, whole, under the
+tiles and inside the first 900 px, in both halves.
 
 ### Lookup pages: records, Grand Prix, registers, `/data`
 
@@ -1944,3 +1949,9 @@ comparison in `docs/critiques/2026-11-14-serif-comparison/`: **Source Serif
 4 for prose**, chosen over Newsreader and over leaving prose in Saira, and
 **section heads in the words as written**, the page title staying in
 capitals `[D-66]`.
+
+The maintainer's ruling on VD-108 (#1330), 2026-11-17: **the race page's
+first screen holds the classification's heading, not its first four
+rows**, because the approved podium is the result and leads the page
+`[D-67]`. Keeping the four rows instead would have needed a compact podium
+beside the outline, and a new mockup.
