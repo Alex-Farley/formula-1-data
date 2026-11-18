@@ -1805,7 +1805,7 @@ const startsBlock = (block, title, id = null) => {
         title,
         startsNote(drawnColours(races)),
         fromColumns(STARTS_COLUMNS, table, {}, { unfolded: UNFOLDED.figure }),
-        { plot: gridStartsSvg(races, startsLabel(table)) },
+        { plot: gridStartsSvg(races, block.label) },
       )
     : ''
   const decades = byDecade(races)

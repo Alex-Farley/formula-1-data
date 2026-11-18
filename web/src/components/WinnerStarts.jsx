@@ -14,7 +14,6 @@ import {
   byDecade,
   chipRace,
   chipStart,
-  startsLabel,
   startsNote,
 } from '../queries/circuit.js'
 
@@ -40,7 +39,7 @@ export default function WinnerStarts({ title, id, block, onScope }) {
       <Fields items={block.figures} />
       {table.some((row) => row.key.startsWith('slot-')) && (
         <Figure note={startsNote(drawnColours(races))} table={{ rows: table, columns: STARTS_COLUMNS }}>
-          <GridStarts races={races} label={startsLabel(table)} />
+          <GridStarts races={races} label={block.label} />
         </Figure>
       )}
       <h3>{TIMELINE_HEADING}</h3>

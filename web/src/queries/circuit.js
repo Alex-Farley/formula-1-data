@@ -652,10 +652,15 @@ export function historyScope(races, layouts, reference, asked) {
   return { offered, scope, layout: offered ? layout : null, races: scope === SCOPE.layout ? here : races }
 }
 
-/** The line under the heading over one layout: "The 16 races won here on this layout (Arena layout, 2010–), of the 76 on every layout." */
+/**
+ * The line under the heading over one layout: "The 16 races won here on
+ * this layout (Arena layout, 2010–), of the 76 on every layout." A layout
+ * with no name on record is given its years alone, never its key.
+ */
 export function layoutLine(races, layout, every, place = 'here') {
   const these = races.length === 1 ? `The one race won ${place} on this layout` : `The ${number(races.length)} races won ${place} on this layout`
-  return `${these} (${layout.layout_name ?? layout.layout_key}, ${span(layout.from_year, layout.to_year)}), of the ${number(every)} on every layout.`
+  const years = span(layout.from_year, layout.to_year)
+  return `${these} (${layout.layout_name ? `${layout.layout_name}, ${years}` : years}), of the ${number(every)} on every layout.`
 }
 
 /**
@@ -673,7 +678,8 @@ export function grandPrixLine(races) {
 
 /**
  * The block as both renderers draw it - { offered, scope, layout, races,
- * line, figures, table } - or null where no race has been won. `races` are
+ * line, figures, table, label } - or null where no race has been won;
+ * `label` is the drawing's accessible name. `races` are
  * winnerStarts()'s, `layouts` LAYOUTS's rows, `seasons` STARTS_SEASONS's;
  * `grandPrix` counts by the event, with its own line and no switch.
  */
@@ -688,7 +694,9 @@ export function historyBlock({ races, layouts = [], seasons = [], reference = nu
     : chosen.scope === SCOPE.layout
       ? layoutLine(counted, chosen.layout, races.length, place)
       : startsLine(races, layouts.length, place)
-  return { ...chosen, line, figures: startsFigures(counted, seasons), table: startsTable(counted) }
+  const table = startsTable(counted)
+  const label = startsLabel(table, grandPrix ? 'at this Grand Prix' : place)
+  return { ...chosen, line, figures: startsFigures(counted, seasons), table, label }
 }
 
 /**
@@ -731,8 +739,13 @@ export const STARTS_COLUMNS = [
   },
 ]
 
-/** The drawing's accessible name: what the table holds, in one line. "Wins here by grid slot: 1st 7, 2nd 5, 4th 1, 6th 1." */
-export const startsLabel = (rows) => `Wins here by grid slot: ${rows.map((row) => `${row.start} ${number(row.wins)}`).join(', ')}.`
+/**
+ * The drawing's accessible name: what the table holds, in one line. "Wins
+ * here by grid slot: 1st 7, 2nd 5, 4th 1, 6th 1." `place` is the block's,
+ * so a race's page and a Grand Prix's say where (AF-139).
+ */
+export const startsLabel = (rows, place = 'here') =>
+  `Wins ${place} by grid slot: ${rows.map((row) => `${row.start} ${number(row.wins)}`).join(', ')}.`
 
 /** The timeline's heading, under the figure. */
 export const TIMELINE_HEADING = 'Race by race'
