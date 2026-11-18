@@ -235,8 +235,9 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // AF-137: the countback's places, each a COUNT over race_entries in
     // PLACES, read only once every round run has its result. A place no row
     // holds is one nobody finished in, and none IS the zero; a running count
-    // starts there too. Neither reads a stored column as a figure.
-    ['src/queries/season.js', [2, 'Grand Prix places counted for the countback']],
+    // starts there too. Neither reads a stored column as a figure. AF-138's
+    // clinch strip counts the same places, a round on.
+    ['src/queries/season.js', [3, 'Grand Prix places counted for the countback, the clinch strip\'s included (AF-138)']],
   ])
 
   it('every zero fallback is a declared count or weight', () => {
@@ -270,6 +271,7 @@ describe('every declared table names its rows (AX-21)', () => {
     recordColumns: [[]],
     careerColumns: ['Ayrton Senna', 'Alain Prost'],
     reachColumns: ['drivers'],
+    clinchColumns: [10],
   }
   const modules = [
     ...readdirSync(join(web, 'src/queries')).map((entry) => join(web, 'src/queries', entry)),
@@ -2492,7 +2494,7 @@ describe('one figure grammar: the heading names the figure, and the note goes un
     const { gridFlagNote, stintsNote } = await import('../src/queries/race.js')
     const { finishesFigureNote, thisSeasonFigureNote } = await import('../src/queries/driver.js')
     const records = await import('../src/queries/records.js')
-    const { progressionNote, reachNote } = await import('../src/queries/season.js')
+    const { clinchNote, progressionNote, reachNote } = await import('../src/queries/season.js')
     const { chartNote } = await import('../src/queries/home.js')
     const { CHASSIS_NOTE } = await import('../src/queries/quality.js')
     const { startsNote } = await import('../src/queries/circuit.js')
@@ -2523,6 +2525,8 @@ describe('one figure grammar: the heading names the figure, and the note goes un
       // AF-137: the clause a bar out on the countback adds, which a cut list does not carry.
       'reach, a team, countback': reachNote('constructors', false, true),
       'reach, a team, cut and countback': reachNote('constructors', true, true),
+      // AF-138: the longest leader's name the strip's rows can carry, twice.
+      'clinch strip': clinchNote('Andrea Kimi Antonelli'),
       'races per season, two calendars': chartNote([
         { year: 1950, rounds: 7, run: true },
         { year: 2026, rounds: 24, run: true },

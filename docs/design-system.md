@@ -729,6 +729,43 @@ the line never runs through one.
   `FigurePart` named for its title, side by side in `.split`; its numbers
   are a table, as every figure's are.
 
+**The clinch strip** (provisional, AF-138 #1144). A figure for the question
+the reach chart cannot answer: which finishes at the next round would settle
+the drivers' title. One strip for each place the leader could take that can
+settle it, best first, each a `FigurePart` named for that finish (*If Andrea
+Kimi Antonelli wins the United States Grand Prix*). In a strip, one row per
+rival still in, named in a 120 px column (76 px below 480 px), wider where
+a name needs it but never so wide a cell drops below 14 px, past which the
+name is cut with an ellipsis and the table has it whole, and one
+cell per place that rival could take: every place the season's scale pays,
+numbered over its column, then *0 pts* (*0* below 480 px, where the axis
+title says what it is), set 8 px apart so that *10* and *0* never read as
+one number. `clinchStrips()` in
+`queries/season.js` works out the strips and words the table;
+`charts/clinchStrip.js` lays them out for both renderers. A cell is at most
+36 px wide, so at 320 px eleven still fit beside the names, and a strip is
+drawn only where every row can land on the title settled.
+
+- **Marks:** each cell is one of three, and says so twice. *Champion*: a
+  `--good-wash` cell outlined in `--good`, with a tick. *Level on points*,
+  the countback deciding: `--warn-wash` outlined in `--warn`, with an
+  equals sign. *The title goes on*: `--panel-sunk` outlined in
+  `--series-ink`, with an arrow. The leader's own place has no cell, only a
+  dash in `--ink-faint`. The outline and the symbol carry the 3:1 (DP-33);
+  the wash carries nothing.
+- **Second cue:** the symbols, so colour is never the only one (1.4.1); and
+  the table under the figure, which says every cell in words, who the
+  countback goes to included.
+- **Not drawn:** a round at which the title cannot be settled; a sprint
+  weekend, which has two results, or a season paying a point for the
+  fastest lap, either of which turns on more than one place: there, where
+  the round could settle it, one sentence in a following note says so and
+  why it is not drawn. A team's
+  title is two cars' finishes, and is not drawn.
+- **Placement:** on a season being run, after the reach charts in *Who can
+  still win*; on the upcoming race's page, in *What's at stake* under the
+  answer and its basis. The static page draws the same SVG at 640 px.
+
 **The starting grid, the dot strip and the winners' chips** (provisional,
 AF-133). One question asked of a circuit: where its winners started.
 `charts/gridStarts.js` lays out both drawings for both renderers;
@@ -1406,7 +1443,8 @@ citation, is already one system and is kept.
   opens on who holds it and the round it was clinched at, and the answer and
   the reach chart cover the title left (LV-15: `seasonAnswer`) ·
   lead chart · *Who can still win*, the reach chart for each title the
-  answer covers (provisional, AF-132) · standings, each table at the full
+  answer covers (provisional, AF-132), then the clinch strips where the next
+  round can settle the drivers' title (provisional, AF-138) · standings, each table at the full
   width with its leader in the row and a bar beside each total (provisional,
   VD-110) · calendar · Who entered · photographs.
   **Pending:** the title-race chart annotated, the pattern's first use
@@ -1437,8 +1475,9 @@ line where one is held (§3, Page header), beside the outline slot; tiles;
 stops; practice (folded); the timetable, once a result is held;
 photographs. The page of the next round to run, until its results land,
 carries *What's at stake* after the timetable: the season page's answer and
-its basis, from the same function (provisional, AF-132), and with every title
-already on the record the sentence alone (LV-15). The classification
+its basis, from the same function (provisional, AF-132), then the clinch
+strips where the round can settle the drivers' title (provisional, AF-138),
+and with every title already on the record the sentence alone (LV-15). The classification
 never shares its
 width with a side column (VD-84; beside the outline it lost Points and FL to
 a scroll from 768 to 1,110 px), and a scheduled race leads with its

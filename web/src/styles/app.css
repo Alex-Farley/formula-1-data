@@ -4065,6 +4065,53 @@ figure.figure > .figure-note:first-child {
   stroke-dasharray: 4 3;
 }
 
+/* The clinch strip (AF-138): a cell per place a rival could finish, its
+   colour and its symbol both saying what that finish does to the title -
+   the status pairs for champion and level, the series ink for the title
+   going on. The outline and the symbol are what carry 3:1 against the
+   panel; the wash inside carries nothing. The leader's own place has no
+   cell, only a dash in faint ink. */
+.figure .clinch-symbol {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.figure .clinch-champion rect {
+  fill: var(--good-wash);
+  stroke: var(--good);
+  stroke-width: 1.5;
+}
+
+.figure .clinch-champion .clinch-symbol {
+  stroke: var(--good);
+}
+
+.figure .clinch-level rect {
+  fill: var(--warn-wash);
+  stroke: var(--warn);
+  stroke-width: 1.5;
+}
+
+.figure .clinch-level .clinch-symbol {
+  stroke: var(--warn);
+}
+
+.figure .clinch-on rect {
+  fill: var(--panel-sunk);
+  stroke: var(--series-ink);
+  stroke-width: 1;
+}
+
+.figure .clinch-on .clinch-symbol {
+  stroke: var(--series-ink);
+}
+
+.figure .clinch-taken .clinch-symbol {
+  stroke: var(--ink-faint);
+}
+
 /* Where winners start (AF-133): the starting grid and its phone form, the
    dot strip, both in the markup and one shown - the grid from 768 px, the
    strip below - so the static page is the app's at every width. Each keeps

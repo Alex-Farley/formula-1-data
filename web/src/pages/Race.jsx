@@ -94,6 +94,7 @@ import {
   stintsLabel,
   stintsNote,
 } from '../queries/race.js'
+import { ClinchStrips } from '../charts/ClinchStrip.jsx'
 import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, fightCitation, isUpcoming, mergeSources, titleSettled } from '../queries/season.js'
 import { currentProgress } from '../data/client.js'
 import { colourForEntry } from '../lib/liveries.js'
@@ -453,6 +454,8 @@ function RaceBody({ race, data, year, round }) {
               <Dated>{stake.basis}</Dated>
             </p>
           )}
+          {/* The finishes here that would settle the drivers' title (AF-138). */}
+          <ClinchStrips clinch={stake.clinch} />
         </Section>
       )}
 

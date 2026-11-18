@@ -12,6 +12,7 @@ import { measured, odblCredit } from '../lib/trace.js'
 import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import ReachChart from '../charts/ReachChart.jsx'
+import { ClinchStrips } from '../charts/ClinchStrip.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
 import { coverageYears, number, points } from '../lib/format.js'
@@ -629,6 +630,10 @@ function SeasonBody({ year, season, data }) {
               </FigurePart>
             ))}
           </div>
+          {/* Which finishes at the next round would settle the drivers'
+              title (AF-138), from queries/season.js, which the static page
+              draws too. */}
+          <ClinchStrips clinch={answer?.clinch} />
         </Section>
       )}
 

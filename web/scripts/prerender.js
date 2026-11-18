@@ -774,6 +774,7 @@ import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
 import { MARKER } from '../src/charts/annotate.js'
 import { reachLayout } from '../src/charts/reachChart.js'
+import { clinchLayout } from '../src/charts/clinchStrip.js'
 import { dotStrip, drawnColours, gridDiagram } from '../src/charts/gridStarts.js'
 import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
 import {
@@ -1680,6 +1681,54 @@ const reachSvg = (chart, width) => {
     .map(([y1, y2]) => `<line class="reach-leader" x1="${px(layout.lead.x)}" x2="${px(layout.lead.x)}" y1="${px(y1)}" y2="${px(y2)}"/>`)
     .join('')}<text class="axis-text" x="${px(layout.lead.textX)}" y="${px(layout.lead.textY)}" text-anchor="middle">${esc(layout.lead.text)}</text>`
   return `<div class="plot-holder">${plotSvg(layout, chart.label, `${bars}${lead}`)}</div>`
+}
+
+/* ClinchStrip.jsx at rest (AF-138): the axis title, each place numbered over
+   its column, and a row per rival - the name, then a cell per place with its
+   mark's class, which app.css colours, and its symbol. */
+const clinchSvg = (strip, width) => {
+  const layout = clinchLayout({ data: strip.data, width })
+  if (!layout) return ''
+  const heads = `<text class="axis-text" x="${px(layout.axis.x)}" y="${px(layout.axis.y)}">${esc(layout.axis.text)}</text>${layout.columns
+    .map((column) => `<text class="axis-text" x="${px(column.x)}" y="${px(layout.columnY)}" text-anchor="middle">${esc(column.text)}</text>`)
+    .join('')}`
+  const rows = layout.rows
+    .map(
+      (row) =>
+        `<g><text class="axis-text bar-label" x="${px(row.labelX)}" y="${px(row.labelY)}" text-anchor="end" dominant-baseline="middle" fill="var(--ink)">${esc(
+          row.label,
+        )}</text>${row.cells
+          .map(
+            (cell) =>
+              `<g class="${cell.className}">${
+                cell.rect
+                  ? `<rect x="${px(cell.rect.x)}" y="${px(cell.rect.y)}" width="${px(cell.rect.width)}" height="${px(cell.rect.height)}" rx="3"/>`
+                  : ''
+              }<path class="clinch-symbol" d="${tidy(cell.symbol)}"/></g>`,
+          )
+          .join('')}</g>`,
+    )
+    .join('')
+  return `<div class="plot-holder">${plotSvg(layout, strip.label, `${heads}${rows}`)}</div>`
+}
+
+/* clinchStrips()'s answer as ClinchStrips draws it (AF-138): a figure part
+   per strip, its table open beneath it, or the sentence saying why a round
+   that could settle the title is not drawn. */
+const clinchParts = (clinch) => {
+  if (!clinch) return ''
+  if (clinch.declined) return `<p class="note follows">${esc(clinch.declined)}</p>`
+  return clinch.strips
+    .map(
+      (strip) =>
+        `<div class="figure-part"><h3>${esc(strip.title)}</h3>${figure(
+          strip.title,
+          strip.note,
+          fromColumns(strip.columns, strip.rows, {}, { unfolded: UNFOLDED.figure }),
+          { plot: clinchSvg(strip, COLUMN_WIDTH) },
+        )}</div>`,
+    )
+    .join('')
 }
 
 /* GridStarts.jsx (AF-133): the starting grid and the dot strip, both, as the
@@ -3323,7 +3372,7 @@ const seasonsTable = (rows) =>
                 plot: reachSvg(f, COLUMN_WIDTH),
               })}</div>`,
           )
-          .join('')}</div>`
+          .join('')}</div>${clinchParts(answer?.clinch)}`
       : ''
     // The title race that leads the page (VD-73): Season.jsx's figure, from
     // queries/season.js, in the slot after the tiles.
@@ -3733,7 +3782,7 @@ const seasonsTable = (rows) =>
         )}
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
-        ${isUpcoming(TITLE, r) ? ownSection(`<h2 id="stake">${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}`) : ''}
+        ${isUpcoming(TITLE, r) ? ownSection(`<h2 id="stake">${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}${clinchParts(TITLE.clinch)}`) : ''}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)
