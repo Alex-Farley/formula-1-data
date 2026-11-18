@@ -4,6 +4,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { FOLD_NOUN } from '../lib/table.js'
 import SearchKey from '../components/SearchKey.jsx'
+import WinnerStarts from '../components/WinnerStarts.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
 import { EYEBROWS, LABELS, NAMES, NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
@@ -21,6 +22,7 @@ import {
   WINNER_COLUMNS,
   grandPrixStrip,
 } from '../queries/grandprix.js'
+import { GRAND_PRIX_STARTS, GRAND_PRIX_STARTS_HEADING, STARTS_SEASONS, historyBlock, winnerStarts } from '../queries/circuit.js'
 
 /*
  * The React renders for the columns queries/grandprix.js defines — the links,
@@ -94,6 +96,9 @@ export default function GrandPrix() {
     editions: [EDITIONS, [id]],
     winners: [WINNERS, [id]],
     sources: [GRAND_PRIX_SOURCES, [id]],
+    // Where its winners start (AF-139): the circuit page's block, by the event.
+    starts: [GRAND_PRIX_STARTS, [id]],
+    seasons: [STARTS_SEASONS],
   })
 
   return (
@@ -120,6 +125,7 @@ function GrandPrixBody({ gp, data }) {
   const circuits = rows(data, 'circuits')
   const editions = rows(data, 'editions')
   const winners = rows(data, 'winners')
+  const block = historyBlock({ races: winnerStarts(rows(data, 'starts')), seasons: rows(data, 'seasons'), grandPrix: true })
   return (
     <Page eyebrow={EYEBROWS.grandPrix(gp.country)} title={NAMES.grandPrix(gp.name).headline} trail={TRAIL.grandPrix(gp.id, gp.name)} lede={gp.notes} sources={rows(data, 'sources')}>
       <Section>
@@ -150,6 +156,11 @@ function GrandPrixBody({ gp, data }) {
           />
         </Section>
       )}
+
+      {/* AF-139: the circuit page's block, counted by the Grand Prix across
+          every venue it has used, as its line says; no layout switch, since
+          no one layout is this event's. */}
+      <WinnerStarts title={GRAND_PRIX_STARTS_HEADING} block={block} />
 
       <Section title="Every edition" count={`${editions.length}`}>
         <DataTable

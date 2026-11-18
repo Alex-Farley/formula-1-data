@@ -163,14 +163,21 @@ import { SEASONS } from '../src/queries/seasons.js'
 import {
   CIRCUIT_SOURCES,
   PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
+  GRAND_PRIX_STARTS,
+  GRAND_PRIX_STARTS_HEADING,
+  HISTORY_SAYS_HEADING,
+  LAYOUTS as CIRCUIT_LAYOUTS,
+  SCOPE,
+  SCOPE_OPTIONS,
   STARTS,
-  STARTS_EVERYWHERE,
   STARTS_HEADING,
+  STARTS_SEASONS,
   TEAMS as CIRCUIT_TEAMS,
   WINNERS as CIRCUIT_WINNERS,
+  historyBlock,
   photographAlt as circuitPhotographAlt,
-  startsFigures,
   winnerStarts,
+  winsBy,
 } from '../src/queries/circuit.js'
 import { BY_SEASON as CONSTRUCTOR_BY_SEASON, CONSTRUCTOR_SOURCES } from '../src/queries/constructor.js'
 import { GRAND_PRIX_SOURCES } from '../src/queries/grandprix.js'
@@ -6773,12 +6780,7 @@ try {
     for (const id of ['cota', 'monza']) {
       const route = `/circuits/${id}`
       const races = winnerStarts(db.prepare(STARTS).all(id))
-      const items = startsFigures(
-        races,
-        db.prepare(STARTS_EVERYWHERE).get(id) ?? null,
-        db.prepare(CIRCUIT_WINNERS).all(id),
-        db.prepare(CIRCUIT_TEAMS).all(id),
-      )
+      const items = historyBlock({ races, layouts: db.prepare(CIRCUIT_LAYOUTS).all(id), seasons: db.prepare(STARTS_SEASONS).all() }).figures
       truthy(items.length >= 4, `${route} has its figures to show`)
       await page.setViewportSize({ width: 1440, height: 900 })
       await go(route, db.prepare('SELECT name FROM circuits WHERE id = ?').get(id).name)
@@ -6806,6 +6808,116 @@ try {
       truthy(phone.strip && !phone.grid, `${route} at 375: the strip, not the grid`)
       await page.setViewportSize({ width: 1280, height: 900 })
     }
+  })
+
+  /*
+   * AF-139: the block read three more ways. Its "most wins" is its own count
+   * of the races it draws, and over every race at a circuit that count is the
+   * page's two tables, at all 80. Monza's switch holds in the address and Back
+   * restores it; the upcoming race's page carries the block for its circuit;
+   * and a Grand Prix's page counts every venue it has used.
+   */
+  await section('/circuits/monza /grands-prix/us /races  (what history says: AF-139)', async () => {
+    const pairs = (rows, id, name) => rows.map((row) => `${row[id]}:${row[name]}:${row.wins}`)
+    let circuits = 0
+    for (const { id } of db.prepare('SELECT id FROM circuits').all()) {
+      const races = winnerStarts(db.prepare(STARTS).all(id))
+      is(
+        pairs(winsBy(races, 'driver_id', 'driver'), 'id', 'name').join(' '),
+        pairs(db.prepare(CIRCUIT_WINNERS).all(id), 'driver_id', 'driver').join(' '),
+        `${id}: the block's driver wins are Most wins here`,
+      )
+      is(
+        pairs(winsBy(races, 'constructor_id', 'constructor'), 'id', 'name').join(' '),
+        pairs(db.prepare(CIRCUIT_TEAMS).all(id), 'constructor_id', 'constructor').join(' '),
+        `${id}: the block's team wins are Constructors here`,
+      )
+      circuits += 1
+    }
+    truthy(circuits >= 80, `every circuit compared (${circuits})`)
+
+    const chips = (root) => document.querySelectorAll(`${root} .win-chip`).length
+    const pressed = () =>
+      [...document.querySelectorAll('#root main .chips .chip[aria-pressed="true"]')].map((b) => b.textContent.trim())
+    const seasons = db.prepare(STARTS_SEASONS).all()
+
+    // Monza: nine layouts on the register; "this layout" is the latest race's.
+    const monza = winnerStarts(db.prepare(STARTS).all('monza'))
+    const layouts = db.prepare(CIRCUIT_LAYOUTS).all('monza')
+    const one = historyBlock({ races: monza, layouts, seasons, reference: monza.at(-1), asked: SCOPE.layout })
+    truthy(one.offered && one.races.length > 0 && one.races.length < monza.length, `Monza's latest layout holds ${one.races.length} of ${monza.length}`)
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await go('/circuits/monza?history=layout', 'Monza')
+    await page.waitForSelector('#root main .win-chip', { timeout: 20000 })
+    is(await page.evaluate(chips, '#root main'), one.races.length, '?history=layout: one chip per race on the latest layout')
+    is((await page.evaluate(pressed)).join(), SCOPE_OPTIONS[1][1], 'and the switch says so')
+    truthy(await page.evaluate((line) => [...document.querySelectorAll('#root main p.note')].some((p) => p.textContent === line), one.line), `the line: ${one.line}`)
+    await page.locator('#root main .chips .chip', { hasText: SCOPE_OPTIONS[0][1] }).click()
+    await page.waitForFunction((n) => document.querySelectorAll('#root main .win-chip').length === n, monza.length, { timeout: 10000 })
+    is(await page.evaluate(() => location.search), '', 'every layout is the default, so the address drops the key')
+    await page.locator('#root main .chips .chip', { hasText: SCOPE_OPTIONS[1][1] }).click()
+    await page.waitForFunction((n) => document.querySelectorAll('#root main .win-chip').length === n, one.races.length, { timeout: 10000 })
+    is(await page.evaluate(() => location.search), '?history=layout', 'and this layout writes it')
+    // Away by a chip and Back: the same address, the same count.
+    await page.locator('#root main .win-chip a').first().click()
+    await page.waitForFunction(() => location.pathname.startsWith('/races/'), null, { timeout: 10000 })
+    await settle()
+    await page.goBack()
+    await page.waitForFunction(() => location.pathname === '/circuits/monza', null, { timeout: 10000 })
+    await page.waitForSelector('#root main .win-chip', { timeout: 20000 })
+    is(await page.evaluate(() => location.search), '?history=layout', 'Back returns to the address')
+    is(await page.evaluate(chips, '#root main'), one.races.length, 'and to the one layout')
+    // The static page counts every layout and has no switch.
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+    const plain = await noJs.newPage()
+    await plain.goto(`${BASE}/circuits/monza?history=layout`, { waitUntil: 'load' })
+    is(await plain.evaluate(chips, '#prerendered'), monza.length, 'the static page counts every layout')
+    is(await plain.evaluate(() => document.querySelectorAll('#prerendered .chips').length), 0, 'and has no switch')
+
+    // A Grand Prix at several venues: every race won, by the event, in both halves.
+    const us = winnerStarts(db.prepare(GRAND_PRIX_STARTS).all('us'))
+    const venues = new Set(us.map((race) => race.circuit)).size
+    truthy(venues > 1, `the United States Grand Prix's wins are at ${venues} circuits`)
+    const gp = historyBlock({ races: us, seasons, grandPrix: true })
+    const block = ([root, title]) => {
+      const h2 = [...document.querySelectorAll(`${root} h2`)].find((h) => h.textContent.trim() === title)
+      const section = h2?.closest('section')
+      return section ? { line: section.querySelector('p.note')?.textContent ?? null, chips: section.querySelectorAll('.win-chip').length } : null
+    }
+    await go('/grands-prix/us', 'United States')
+    await page.waitForSelector('#root main .win-chip', { timeout: 20000 })
+    await plain.goto(`${BASE}/grands-prix/us`, { waitUntil: 'load' })
+    for (const [half, got] of [
+      ['app', await page.evaluate(block, ['#root main', GRAND_PRIX_STARTS_HEADING])],
+      ['static page', await plain.evaluate(block, ['#prerendered', GRAND_PRIX_STARTS_HEADING])],
+    ]) {
+      is(got?.chips, us.length, `/grands-prix/us, ${half}: one chip per race won at the event`)
+      is(got?.line, gp.line, `/grands-prix/us, ${half}: the line says it counts by the Grand Prix`)
+    }
+    is(await page.evaluate(() => document.querySelectorAll('#root main .chips').length), 0, 'a Grand Prix has no layout switch')
+
+    // The next round to run: its circuit's block, in both halves, and on no other round.
+    const next = db.prepare("SELECT year, round, circuit_id FROM races WHERE status = 'scheduled' ORDER BY year, round LIMIT 1").get()
+    if (next) {
+      const here = winnerStarts(db.prepare(STARTS).all(next.circuit_id))
+      const route = `/races/${next.year}/${next.round}`
+      await go(route, String(next.year))
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      if (here.length) await page.waitForSelector('#root main .win-chip', { timeout: 20000 })
+      else await settle()
+      for (const [half, got] of [
+        ['app', await page.evaluate(block, ['#root main', HISTORY_SAYS_HEADING])],
+        ['static page', await plain.evaluate(block, ['#prerendered', HISTORY_SAYS_HEADING])],
+      ]) {
+        is(got?.chips ?? 0, here.length, `${route}, ${half}: one chip per race won at ${next.circuit_id}`)
+      }
+      const after = db.prepare("SELECT year, round FROM races WHERE status = 'scheduled' AND (year > ? OR (year = ? AND round > ?)) ORDER BY year, round LIMIT 1").get(next.year, next.year, next.round)
+      if (after) {
+        await plain.goto(`${BASE}/races/${after.year}/${after.round}`, { waitUntil: 'load' })
+        is(await plain.evaluate(block, ['#prerendered', HISTORY_SAYS_HEADING]), null, 'the round after it carries none')
+      }
+    }
+    await noJs.close()
   })
 
   await section('/circuits/silverstone', async () => {

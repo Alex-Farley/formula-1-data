@@ -442,10 +442,15 @@ import {
   TEAM_COLUMNS,
   OUTLINES as CIRCUIT_OUTLINES,
   PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
+  GRAND_PRIX_STARTS,
+  GRAND_PRIX_STARTS_HEADING,
+  HISTORY_SAYS_HEADING,
+  NEXT_RACE_STARTS,
+  RACE_LAYOUTS,
   STARTS,
   STARTS_COLUMNS,
-  STARTS_EVERYWHERE,
   STARTS_HEADING,
+  STARTS_SEASONS,
   TIMELINE_HEADING,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
@@ -456,10 +461,9 @@ import {
   heldAs,
   photographAlt as circuitPhotographAlt,
   racesCount as circuitRacesCount,
+  historyBlock,
   startTitle,
-  startsFigures,
   startsLabel,
-  startsLine,
   startsNote,
   startsTable,
   winnerStarts,
@@ -834,6 +838,10 @@ const prepared = (sql) => {
 }
 const all = (sql, ...params) => prepared(sql).all(...params)
 const one = (sql, ...params) => prepared(sql).get(...params) ?? null
+
+/* Where winners start's comparison at every circuit (AF-133, AF-139),
+   season by season: one reading, for every page that draws the block. */
+const STARTS_BY_SEASON = all(STARTS_SEASONS)
 
 /* A driver's standings, from a copy of v_standings_final. The view is
    evaluated whole for every query that reads it - its windows and CTEs run
@@ -1781,16 +1789,20 @@ const gridStartsSvg = (races, label) => {
   )}</div>`
 }
 
-/* Circuit.jsx's WinnerStarts (AF-133): the heading and its line, the
+/* components/WinnerStarts.jsx (AF-133): the heading and its line, the
    figures, the figure with its numbers open beneath it, and the chips by
-   decade - nothing where no race here has been run. */
-const startsBlock = (races, everywhere, layouts, winners, teams) => {
-  if (!races.length) return ''
-  const table = startsTable(races)
-  const items = startsFigures(races, everywhere, winners, teams).map(({ label, value }) => [label, esc(value)])
+   decade - nothing where no race has been won. `block` is historyBlock()'s
+   over every layout: the reader's switch (AF-139) needs the app, which draws
+   it under the line, as /records' decade chips are the app's alone. `title`
+   is the page's heading for it, and `id` its address where *On this page*
+   links to it. */
+const startsBlock = (block, title, id = null) => {
+  if (!block) return ''
+  const { races, table } = block
+  const items = block.figures.map(({ label, value }) => [label, esc(value)])
   const drawn = table.some((row) => row.key.startsWith('slot-'))
     ? figure(
-        STARTS_HEADING,
+        title,
         startsNote(drawnColours(races)),
         fromColumns(STARTS_COLUMNS, table, {}, { unfolded: UNFOLDED.figure }),
         { plot: gridStartsSvg(races, startsLabel(table)) },
@@ -1812,7 +1824,7 @@ const startsBlock = (races, everywhere, layouts, winners, teams) => {
     )
     .join('')
   // The line under the heading is the section's note, as Section writes it in the app.
-  return `${heading(STARTS_HEADING)}<p class="note">${esc(startsLine(races, layouts))}</p>${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
+  return `${heading(title, null, id)}<p class="note">${esc(block.line)}</p>${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
 }
 
 /* Figure.jsx's legend: a swatch per entry, in its livery or its slot's
@@ -3551,7 +3563,7 @@ const seasonsTable = (rows) =>
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
-            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
+            r.f1db_layout_id, r.layout_key, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
             cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
             ${QUALIFYING_LAPS} AS qualifying_laps
        FROM races r
@@ -3653,6 +3665,20 @@ const seasonsTable = (rows) =>
   const pitsFrom = one(PITS_FROM)
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
+    // What history says (AF-139), Race.jsx's block from the same queries:
+    // the circuit's every layout, on the next round to run and no other.
+    // NEXT_RACE_SEASONS is STARTS_SEASONS on that round, which this half
+    // has read once already.
+    const nextStarts = winnerStarts(all(NEXT_RACE_STARTS, r.year, r.round))
+    const historyHere = nextStarts.length
+      ? historyBlock({
+          races: nextStarts,
+          layouts: all(RACE_LAYOUTS, r.year, r.round),
+          seasons: STARTS_BY_SEASON,
+          reference: { year: r.year, layout: r.layout_key ?? null },
+          place: r.circuit ? `at ${r.circuit}` : 'at this circuit',
+        })
+      : null
     // The rows as the query returns them, which is the order the strip lists
     // a shared pole or fastest lap in, as the app's does; the tables below
     // take the classification's order.
@@ -3769,6 +3795,7 @@ const seasonsTable = (rows) =>
             scheduled,
             timetable: sessions.length > 0,
             stake: isUpcoming(TITLE, r),
+            history: Boolean(historyHere),
             classification: entries.length > 0,
             gridFlag: gridFlagShown(flag),
             qualifying: qualifying.length > 0,
@@ -3783,6 +3810,7 @@ const seasonsTable = (rows) =>
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
         ${isUpcoming(TITLE, r) ? ownSection(`<h2 id="stake">${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}${clinchParts(TITLE.clinch)}`) : ''}
+        ${ownSection(startsBlock(historyHere, HISTORY_SAYS_HEADING, 'history'))}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)
@@ -4401,9 +4429,9 @@ page({
     const cv = one(CIRCUIT_ROW, c.id) ?? {}
     const winnersHere = all(WINNERS_HERE, c.id)
     const teamsHere = all(TEAMS_HERE, c.id)
-    // Where winners start here (AF-133), Circuit.jsx's block from the same
-    // functions: the figures, the grid and the strip with their numbers, and
-    // the chips by decade.
+    // Where winners start here (AF-133), components/WinnerStarts.jsx's
+    // block from the same functions: the figures, the grid and the strip
+    // with their numbers, and the chips by decade, over every layout.
     const startsHere = winnerStarts(all(STARTS, c.id))
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
     const layoutsHere = all(CIRCUIT_LAYOUTS, c.id)
@@ -4510,7 +4538,7 @@ page({
               }, { fold: FOLD_NOUN.constructors })}`
             : ''
         }
-        ${startsBlock(startsHere, one(STARTS_EVERYWHERE, c.id), layoutsHere.length, winnersHere, teamsHere)}
+        ${startsBlock(historyBlock({ races: startsHere, layouts: layoutsHere, seasons: STARTS_BY_SEASON }), STARTS_HEADING)}
         ${
           // VD-83 (SD-41), as Circuit.jsx: after the winners on all 80.
           layoutHistory
@@ -4585,6 +4613,8 @@ page({
     const circuitsHere = all(GP_CIRCUITS, id)
     const editions = all(GP_EDITIONS, id)
     const winners = all(GP_WINNERS, id)
+    // Where its winners start (AF-139), GrandPrix.jsx's block by the event.
+    const startsHere = historyBlock({ races: winnerStarts(all(GRAND_PRIX_STARTS, id)), seasons: STARTS_BY_SEASON, grandPrix: true })
     const venue = (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name))
     page({
       path: `grands-prix/${id}`,
@@ -4616,6 +4646,7 @@ page({
               )}`
             : ''
         }
+        ${startsBlock(startsHere, GRAND_PRIX_STARTS_HEADING)}
         <h2>Every edition</h2>
         ${fromColumns(GP_EDITION_COLUMNS, editions, {
           year: (year) => link(`seasons/${year}`, year),
