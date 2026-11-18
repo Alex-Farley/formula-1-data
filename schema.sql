@@ -759,11 +759,12 @@ CREATE TABLE circuit_geometry (
     -- Where this centreline falls on the circuit's aerial photograph (AF-96):
     -- all six NULL where it is not drawn over one. The photograph is not
     -- georeferenced, so the placing is this project's own derivation, never
-    -- a fact about the photograph: points marked on the middle of the track
-    -- and the affine transform fitted onto them (PHOTO_TRACE in
-    -- data/harvest.py, tools/photo_trace.py), held to source 18 and to no
-    -- more than 'medium'. Fitted from this row's coordinates, it is ODbL's
-    -- with them, and ships where they do.
+    -- a fact about the photograph: points on the middle of the track, marked
+    -- by eye or found at stations along this centreline, and the affine
+    -- transform fitted onto them (PHOTO_TRACE in data/harvest.py,
+    -- tools/photo_trace.py), held to source 18 and to no more than 'medium'.
+    -- Fitted from this row's coordinates, it is held under ODbL with them,
+    -- and ships where they do.
     photo_file      TEXT,                      -- the file it was fitted on: article_images.file_name
     photo_points    TEXT,                      -- JSON [[x, y], ...], pixels of its stored width x height
     photo_transform TEXT,                      -- JSON {"origin": [lon, lat], "x": [a, b, c], "y": [d, e, f]}

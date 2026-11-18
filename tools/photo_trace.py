@@ -8,7 +8,7 @@ WHAT THIS IS
     often rotated image with no corner coordinates. So each one is placed by
     this project, as its own derivation (source 18):
 
-    1.  Points are marked on the photograph that lie on the middle of the
+    1.  Points are given on the photograph that lie on the middle of the
         track, spread round the whole lap - pixels in the frame article_images
         stores (`width` x `height`), never a coordinate - by eye, or as the
         middle of the asphalt across the track at stations round it, found
@@ -168,7 +168,10 @@ def fit(points, lines, seed=None):
 
     `seed`, a transform in the stored form, is one more start for the search
     beside the sweep of rotations, so a re-run after the points change keeps
-    the stored placing where it still fits best.
+    the stored placing where it still fits best. A stored transform is then
+    a fixed point of this script - a re-run on its points prints it again -
+    and not always what the sweep alone would find: on Paul Ricard's points
+    the sweep alone lands in a worse fit (3.81 px worst, against 0.89 px).
 
     Returned in the stored form: {"origin": [lon0, lat0], "x": [a, b, c],
     "y": [d, e, f]}, meaning x = a (lon - lon0) + b (lat - lat0) + c, and y

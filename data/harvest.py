@@ -2684,7 +2684,7 @@ def circuit_file_names(file_name, forms):
 # The circuit page draws the OpenStreetMap centreline over the circuit's
 # aerial photograph. The photographs are not georeferenced - a SkySat file on
 # Commons is cropped and often rotated, with no corner coordinates - so each
-# is placed by this project: points marked on the middle of the track in the
+# is placed by this project: points on the middle of the track in the
 # photograph, spread round the lap, and the affine transform that
 # tools/photo_trace.py fits from the centreline's coordinates onto them. The
 # placing is this project's own derivation (source 18), held at no more than

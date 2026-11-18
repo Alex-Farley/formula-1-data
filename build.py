@@ -1420,8 +1420,8 @@ def _stage_12_circuit_centrelines_re_measured_before_they(b):
 def _place_traces_on_photographs(cur):
     """The track over the photograph (AF-96), checked before it is stored.
 
-    PHOTO_TRACE in data/harvest.py holds, per circuit, points marked on the
-    middle of the track in its aerial photograph and the transform
+    PHOTO_TRACE in data/harvest.py holds, per circuit, points on the middle
+    of the track in its aerial photograph and the transform
     tools/photo_trace.py fitted onto them. Nothing here fits anything: the
     fit is a search, and the build stores only what passes arithmetic. A
     transform is stored when the circuit's photograph is still the file it
@@ -1434,6 +1434,15 @@ def _place_traces_on_photographs(cur):
     """
     placed = []
     for cid, entry in sorted(HV.PHOTO_TRACE.items()):
+        # The entry's own shape is refused whether or not it is drawn.
+        points = [tuple(p) for p in entry["points"]]
+        if len(points) < HV.PHOTO_TRACE_MIN_POINTS:
+            raise SystemExit(
+                f"PHOTO_TRACE: {cid} marks {len(points)} points; a lap "
+                f"needs {HV.PHOTO_TRACE_MIN_POINTS}.")
+        if len(set(points)) != len(points):
+            raise SystemExit(f"PHOTO_TRACE: {cid} marks a point twice; "
+                             f"each point counts once.")
         traces = cur.execute(
             "SELECT layout_key, centreline FROM circuit_geometry "
             "WHERE circuit_id = ?", (cid,)).fetchall()
@@ -1459,14 +1468,6 @@ def _place_traces_on_photographs(cur):
                   f"{width} x {height}, not the {entry['frame'][0]} x "
                   f"{entry['frame'][1]} its points were marked in")
             continue
-        points = [tuple(p) for p in entry["points"]]
-        if len(points) < HV.PHOTO_TRACE_MIN_POINTS:
-            raise SystemExit(
-                f"PHOTO_TRACE: {cid} marks {len(points)} points; a lap "
-                f"needs {HV.PHOTO_TRACE_MIN_POINTS}.")
-        if len(set(points)) != len(points):
-            raise SystemExit(f"PHOTO_TRACE: {cid} marks a point twice; "
-                             f"each point counts once.")
         if not all(0 <= x <= width and 0 <= y <= height for x, y in points):
             raise SystemExit(f"PHOTO_TRACE: {cid} marks a point outside "
                              f"its {width} x {height} photograph.")

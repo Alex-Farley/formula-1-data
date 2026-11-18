@@ -302,7 +302,8 @@ derivative, so the obligation follows the file it belongs to and no further.
 - **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Of the
   database files published, nothing else derives from OpenStreetMap; in the
   repository, the three `harvest/` files below do, and so do the photograph
-  placings' transforms in `data/harvest.py`.
+  placings' transforms in `data/harvest.py` and the points of every placing
+  there but Monza's.
 - The website merges the two **in your browser**, which is how a circuit's
   page states its trace without `f1.db` ever containing the data. The static
   copy of each circuit page, written when the site is built, carries the same

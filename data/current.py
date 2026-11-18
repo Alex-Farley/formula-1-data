@@ -636,8 +636,10 @@ SOURCE_REGISTRY = [
      "notes. Twelve tables; the records list left it in v2.23, derived from "
      "the race records instead of written. It also stands for the placing of "
      "a circuit's centreline on its aerial photograph (circuit_geometry's "
-     "photo_ columns, in f1-geometry.db, AF-96): points this project marked "
-     "on the photograph, and the transform fitted onto them.",
+     "photo_ columns, in f1-geometry.db, AF-96): points on the middle of the "
+     "track in the photograph - marked by eye for Monza, found by a script "
+     "at stations spaced along the centreline for the other six - and the "
+     "transform fitted onto them.",
      "authored",
      "Original to this repository, with no upstream to owe anything to. The "
      "prose of ten of its twelve tables is offered under CC BY 4.0 "
@@ -646,8 +648,10 @@ SOURCE_REGISTRY = [
      "technical_innovations description follows a Wikipedia article's "
      "wording, and the glossary's grant is an open question. The photograph "
      "placings are the exception to having no upstream: each transform is "
-     "fitted to OpenStreetMap's coordinates, so it is ODbL 1.0 with them and "
-     "ships only in f1-geometry.db.",
+     "fitted to OpenStreetMap's coordinates, and every placing's points but "
+     "Monza's were spaced along them, so both are held under ODbL 1.0 with "
+     "them (pending AF-174's reading of the points) and ship only in "
+     "f1-geometry.db.",
      "Whenever somebody edits it. There is no upstream to track and no "
      "version to pin.",
      "NOTHING, and that is the entire point of giving it a name. It has no "
