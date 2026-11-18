@@ -3230,7 +3230,7 @@ def tie_breaks_against_the_final_tables():
     where two drivers or two constructors finished level on points, the one
     placed higher must have the more first places, or as many and more
     second places, and so on down the order. Counting a sprint's places as
-    well puts four of the ties from 2023 to 2025 in the wrong order, so the
+    well puts five of the ties from 2023 to 2025 in the wrong order, so the
     check tells the two readings apart."""
     rows = con.execute("""SELECT id, from_year, to_year, countback, source
         FROM tie_breaks ORDER BY from_year""").fetchall()
