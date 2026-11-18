@@ -5508,7 +5508,7 @@ def _place_outlines_on_photographs(cur):
         worst = max(HV.photo_outline_errors(matrix, pairs))
         if worst > HV.PHOTO_OUTLINE_TOLERANCE_PX:
             print(f"    outline not drawn over its photograph: {cid}, a point "
-                  f"{worst:.1f} px from the outline, beyond "
+                  f"{worst:.1f} px from its paired point of the outline, beyond "
                   f"{HV.PHOTO_OUTLINE_TOLERANCE_PX:g} px")
             continue
         cur.execute(
