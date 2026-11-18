@@ -18,6 +18,7 @@ Every row is validated on load:
     declared below as a deliberate non-mapping
 """
 import datetime
+import hashlib
 import os
 import re
 import unicodedata
@@ -3002,7 +3003,12 @@ def photo_trace_gap(transform, points, lines):
 # Keyed to the file and the frame, as PHOTO_TRACE is: a new photograph, or
 # a new stored size for the same file, drops the placing and the page shows
 # the photograph plain until it is placed again. `layout` is F1DB's id of
-# the outline placed, the one the circuit's latest race ran when it was.
+# the outline placed, the one the circuit's latest race ran when it was, and
+# `drawing` is the digest of the path the pairs were read from
+# (photo_outline_digest): the pairs' box points lie on that drawing and on
+# no other, so a refresh that redraws the layout, or an entry moved to
+# another layout, drops the placing the same way rather than laying an old
+# fit over a new drawing.
 #
 # The other circuits with both an outline and an aerial photograph have no
 # placing yet, and their photographs are shown plain.
@@ -3022,6 +3028,7 @@ PHOTO_OUTLINE = {
         "file": "File:Autodromo Nazionale Monza, April 22, 2018 SkySat (cropped).jpg",
         "frame": (800, 450),
         "layout": "monza-7",
+        "drawing": "2ee1a1d9659a0284",
         "pairs": (
             ((376.0, 21.0), (20.0, 72.0)), ((381.3, 31.2), (33.0, 60.0)),
             ((383.3, 54.4), (67.0, 55.0)), ((385.5, 84.3), (110.0, 51.0)),
@@ -3047,6 +3054,7 @@ PHOTO_OUTLINE = {
         "file": "File:Bahrain International Circuit, November 2, 2017 SkySat (cropped).jpg",
         "frame": (800, 600),
         "layout": "bahrain-1",
+        "drawing": "c7df121749a04dec",
         "pairs": (
             ((91.0, 401.1), (150.0, 522.0)), ((184.9, 401.1), (300.0, 522.0)),
             ((278.8, 401.1), (450.0, 522.0)), ((373.3, 401.1), (600.0, 522.0)),
@@ -3070,6 +3078,7 @@ PHOTO_OUTLINE = {
         "file": "File:Buddh International Circuit aerial.jpg",
         "frame": (800, 496),
         "layout": "buddh-1",
+        "drawing": "b83d1e733b66168c",
         "pairs": (
             ((90.7, 370.8), (200.0, 375.0)), ((212.6, 405.2), (350.0, 375.0)),
             ((334.5, 439.7), (500.0, 377.0)), ((441.9, 434.7), (620.0, 378.0)),
@@ -3086,6 +3095,7 @@ PHOTO_OUTLINE = {
         "file": "File:Circuit of the Americas, April 22, 2018 SkySat (cropped2).jpg",
         "frame": (800, 450),
         "layout": "austin-1",
+        "drawing": "9283522f8e44c20d",
         "pairs": (
             ((270.7, 173.6), (450.0, 80.0)), ((331.1, 134.0), (550.0, 62.0)),
             ((360.3, 113.1), (600.0, 52.0)), ((416.8, 69.0), (700.0, 34.0)),
@@ -3120,6 +3130,7 @@ PHOTO_OUTLINE = {
         "file": "File:Circuit Paul Ricard, April 22, 2018 SkySat (cropped).jpg",
         "frame": (800, 450),
         "layout": "paul-ricard-3",
+        "drawing": "1d8238ce2cec4748",
         "pairs": (
             ((480.9, 308.3), (725.0, 300.0)), ((485.0, 344.8), (735.0, 350.0)),
             ((484.0, 381.0), (725.0, 400.0)), ((460.9, 398.6), (690.0, 425.0)),
@@ -3137,6 +3148,7 @@ PHOTO_OUTLINE = {
         "file": "File:Autódromo Hermanos Rodríguez, June 4, 2018 SkySat (cropped).jpg",
         "frame": (800, 600),
         "layout": "mexico-city-3",
+        "drawing": "03089143e7aec8fe",
         "pairs": (
             ((84.0, 76.9), (100.0, 37.0)), ((143.2, 85.6), (200.0, 47.0)),
             ((202.3, 94.3), (300.0, 57.0)), ((262.5, 103.2), (400.0, 75.0)),
@@ -3158,6 +3170,7 @@ PHOTO_OUTLINE = {
         "file": "File:Shanghai International Circuit, April 7, 2018 SkySat (rotated).jpg",
         "frame": (800, 512),
         "layout": "shanghai-1",
+        "drawing": "6ff4dfd72004775f",
         "pairs": (
             ((83.2, 434.2), (150.0, 404.0)), ((194.1, 385.7), (300.0, 404.0)),
             ((305.1, 337.2), (450.0, 404.0)), ((409.2, 205.5), (640.0, 300.0)),
@@ -3212,6 +3225,12 @@ def photo_outline_transform(pairs):
     a, c, e = solve(to_x)
     b, d, f = solve(to_y)
     return [round(v, 4) for v in (a, b, c, d, e, f)]
+
+
+def photo_outline_digest(path):
+    """The first sixteen hex digits of the SHA-256 of an outline's path
+    data: what ties a placing to the drawing its pairs were read from."""
+    return hashlib.sha256(path.encode("utf-8")).hexdigest()[:16]
 
 
 def photo_outline_errors(matrix, pairs):

@@ -5072,12 +5072,13 @@ def circuits_and_venues():
     # F1DB's outline over the photograph (AF-177). The build stores a placing
     # only when it passes; this fits the transform again from the stored
     # pairs, re-measures every pair, and holds the placing to PHOTO_OUTLINE,
-    # to the file and frame it was marked on, to the source it is (18,
+    # to the drawing its pairs were read from (the path's digest), to the
+    # file and frame it was marked on, to the source it is (18,
     # written for this project) and to the ceiling that source carries.
     H = harvest_module()
     bad_photo, placed = [], {}
-    for (lid, cid, pfile, ppoints, ptransform, perror, psource,
-         pconf) in con.execute("""SELECT f1db_layout_id, circuit_id,
+    for (lid, cid, path, pfile, ppoints, ptransform, perror, psource,
+         pconf) in con.execute("""SELECT f1db_layout_id, circuit_id, path,
             photo_file, photo_points, photo_transform, photo_error_px,
             photo_source_id, photo_confidence FROM circuit_outlines"""):
         held = [v is not None for v in (pfile, ppoints, ptransform, perror,
@@ -5096,6 +5097,11 @@ def circuits_and_venues():
                 or pairs != [(tuple(o), tuple(p)) for o, p in entry["pairs"]]):
             bad_photo.append(f"{cid}'s placing is not PHOTO_OUTLINE's")
             continue
+        # The pairs' box points lie on the drawing they were read from; a
+        # placing over any other path would pass every distance below.
+        if H.photo_outline_digest(path) != entry["drawing"]:
+            bad_photo.append(f"{cid} is placed over a drawing of {lid} that "
+                             f"is not the one its pairs were read from")
         photo = con.execute(
             "SELECT file_name, width, height FROM article_images "
             "WHERE route = 'circuit' AND circuit_id = ?", (cid,)).fetchone()
@@ -5119,7 +5125,7 @@ def circuits_and_venues():
         errors = H.photo_outline_errors(matrix, pairs)
         if max(errors) > H.PHOTO_OUTLINE_TOLERANCE_PX:
             bad_photo.append(f"{cid} has a point {max(errors):.1f} px from its "
-                             f"outline")
+                             f"paired point of the outline")
         if round(max(errors), 2) != perror:
             bad_photo.append(f"{cid} stores {perror} px, re-measures "
                              f"{max(errors):.2f}")

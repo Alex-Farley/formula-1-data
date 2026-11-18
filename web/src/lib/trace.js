@@ -26,9 +26,6 @@ export const odblCredit = (licence) => `\u00a9 OpenStreetMap contributors, ${lic
 
 export const ODBL_CREDIT = odblCredit()
 
-/** Where the trace's credit links: OpenStreetMap's own page for the credit it asks. */
-export const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright'
-
 /**
  * "6.004 km against 6.003 km published here (+0.01%)": what a trace measured,
  * against the length this register publishes, or null where it has not got

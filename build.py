@@ -5453,7 +5453,8 @@ def _place_outlines_on_photographs(cur):
     which is arithmetic, so the build fits it here rather than reading one.
     A placing is stored when the circuit's photograph is still the file it
     was placed on, at the size its points were marked in, when the outline
-    it names is this circuit's, and when every marked point lies within the
+    it names is this circuit's and is still the drawing the pairs were read
+    from (its path's digest), and when every marked point lies within the
     tolerance of its pair once placed. Otherwise the photograph is shown
     plain - a new photograph or a new stored size is an ordinary refresh,
     not a broken build - and verify.py says which entry is not drawn.
@@ -5474,12 +5475,19 @@ def _place_outlines_on_photographs(cur):
             raise SystemExit(f"PHOTO_OUTLINE: {cid} pairs a point outside "
                              f"the outline's 500 x 500 box.")
         owner = cur.execute(
-            "SELECT circuit_id FROM circuit_outlines WHERE f1db_layout_id = ?",
-            (entry["layout"],)).fetchone()
+            "SELECT circuit_id, path FROM circuit_outlines "
+            "WHERE f1db_layout_id = ?", (entry["layout"],)).fetchone()
         if owner is None or owner[0] != cid:
             raise SystemExit(
                 f"PHOTO_OUTLINE: {cid} names outline {entry['layout']}, "
                 f"which is not one of its own.")
+        # The pairs' box points were read off one drawing. A redrawn
+        # outline, or an entry moved to another layout, is not it.
+        if HV.photo_outline_digest(owner[1]) != entry["drawing"]:
+            print(f"    outline not drawn over its photograph: {cid}, whose "
+                  f"outline {entry['layout']} is not the drawing it was "
+                  f"placed with")
+            continue
         photo = cur.execute(
             "SELECT file_name, width, height FROM article_images "
             "WHERE route = 'circuit' AND circuit_id = ?", (cid,)).fetchone()

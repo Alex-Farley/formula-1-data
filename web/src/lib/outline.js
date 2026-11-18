@@ -33,9 +33,10 @@ export const OUTLINE_BY = 'F1DB, CC BY 4.0 · drawn by Jules Roy'
  * nothing is placed on it.
  *
  * Neither the drawing nor the photograph has coordinates, so the placing is
- * this project's own: points marked by eye on the track, and the affine
- * build.py fits to them and stores only once every point lies within
- * PHOTO_OUTLINE_TOLERANCE_PX of the outline (data/harvest.py). It is keyed to
+ * this project's own: points marked by eye on the track, each paired with a
+ * point of this very drawing (its path's digest is checked), and the affine
+ * build.py fits to the pairs and stores only once every point lies within
+ * PHOTO_OUTLINE_TOLERANCE_PX of its pair (data/harvest.py). It is keyed to
  * the file it was marked on, and an outline placed on another file draws
  * nothing here — the photograph is shown plain. CommonsImage and
  * scripts/prerender.js's photograph() both draw what this returns, so the two
