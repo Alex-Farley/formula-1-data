@@ -2392,6 +2392,7 @@ try {
         truthy(appFold && !appFold.open && appFold.outside === 3, `${id}: the rest behind one closed disclosure under the first three — ${JSON.stringify(appFold)}`)
         is(appFold?.face, `Show all ${mates} team-mates`, `${id}: the disclosure names the whole count, as the heading counts it`)
         is(staticFace ? unescaped(staticFace) : null, appFold?.face, `${id}: the static page writes the same disclosure`)
+        is(html.split('<details class="face-fold">')[0].split('<div class="face-off').length - 1, 3, `${id}: and the static page's rest are inside it, three before it`)
         await page.click('#root main details.face-fold > summary')
         is(await visible(), mates, `${id}: opening it shows every block`)
       } else is(appFold, null, `${id}: three team-mates or fewer, no disclosure`)
