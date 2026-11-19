@@ -142,6 +142,8 @@ export function dotPlotLayout({
       boxes: yTicks.map((t) => ({ left: M.left - 8 - textWidth(t.text), right: M.left - 8, top: t.y - 6, bottom: t.y + 6 })),
       top: 0,
       bottom: tickY - 10,
+      left: 0,
+      right: width,
     },
   )
   return {

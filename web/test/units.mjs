@@ -5200,6 +5200,34 @@ describe('a driver’s career chart tells the career (VD-124), on rows written o
     assert.ok(m.cy < 95)
     assert.ok(m.leader.y1 < 95 && m.leader.y2 < m.leader.y1, 'the hairline runs up from the dot to the disc')
   })
+  it('steps a disc aside where nothing straight under or over a title is clear: Button at 300 to 400 px', () => {
+    const reach = MARKER.r + MARKER.ring / 2
+    const near = (s, px, py) => {
+      const l = (s.x2 - s.x1) ** 2 + (s.y2 - s.y1) ** 2
+      const t = Math.max(0, Math.min(1, ((px - s.x1) * (s.x2 - s.x1) + (py - s.y1) * (s.y2 - s.y1)) / l))
+      return Math.hypot(s.x1 + t * (s.x2 - s.x1) - px, s.y1 + t * (s.y2 - s.y1) - py)
+    }
+    // A ringed P1 between an 18th and a 5th: the climb under the title fills the space below it.
+    const places = [8, 17, 7, 9, 3, 9, 6, 15, 18, 1, 5, 2, 5, 9, 8, 16, 15]
+    const button = places.map((position, i) => final(2000 + i, position, 10))
+    const years = button.map((s) => s.year)
+    const chart = finishesFigure({ full_name: 'Jenson Button', first_season: 2000, last_season: 2016 }, button, new Map(), years.map((year) => ({ year })), {
+      wins: [{ year: 2006, round: 13, name_used: 'Hungarian Grand Prix' }],
+    })
+    for (const width of [300, 320, 360, 400]) {
+      const layout = dotPlotLayout({ ...chart, width })
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2], `${width}: a marker for each note`)
+      for (const m of layout.markers) {
+        for (const p of layout.points) assert.ok(Math.hypot(p.cx - m.cx, p.cy - m.cy) >= reach + (p.d.mark ? RING_R : DOT_R), `${width}: marker ${m.n} clear of ${p.d.x}`)
+        for (const s of layout.segments) assert.ok(near(s, m.cx, m.cy) >= reach, `${width}: marker ${m.n} clear of the line`)
+        assert.ok(m.cx - reach >= 0 && m.cx + reach <= width && m.cy - reach >= 0 && m.cy + reach <= layout.tickY - 10, `${width}: marker ${m.n} inside the drawing`)
+        // The hairline runs out from the dot towards the disc, never back on itself.
+        const dot = layout.points.find((p) => Math.hypot(p.cx - m.leader.x1, p.cy - m.leader.y1) <= (p.d.mark ? RING_R : DOT_R) + 1.01)
+        assert.ok(dot, `${width}: marker ${m.n}'s hairline starts at a dot's edge`)
+        assert.ok(Math.hypot(m.leader.x2 - dot.cx, m.leader.y2 - dot.cy) >= Math.hypot(m.leader.x1 - dot.cx, m.leader.y1 - dot.cy), `${width}: marker ${m.n}'s hairline runs outward`)
+      }
+    }
+  })
 })
 
 describe("/data's identifier policy reads meta as the file states it (DA-25)", () => {

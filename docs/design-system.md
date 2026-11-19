@@ -645,8 +645,10 @@ where neither does (IX-50). `charts/dotPlot.js` takes `line`,
 `yTickValues`, `everyX` and `marks`; a marker is placed by
 `placeDotMarkers()` in `charts/annotate.js` under its dot, in the space a
 career's line leaves below its best seasons, as near as it is clear of
-every dot, ring, stretch of line, axis label and other disc, and over the
-dot only where nothing under it is. `careerStory()` in `queries/driver.js`
+every dot, ring, stretch of line, axis label and other disc, over the dot
+only where nothing under it is, and aside on an angled hairline only where
+nothing straight under or over it is (a title between two low seasons on a
+phone). `careerStory()` in `queries/driver.js`
 writes the finding (a champion's climb, a count of titles, or the best
 final place), the kicker and at most two notes, the first win and the
 first title with its margin over the runner-up; a title is a final table's
