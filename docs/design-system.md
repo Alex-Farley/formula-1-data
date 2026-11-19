@@ -616,13 +616,17 @@ key under it at every width. `charts/columnChart.js` takes `marks` and
 `bands`: a band is shaded the plot's full height from its first column's
 step to its last's, and a marker stands over the middle of the columns it
 names - one, or a run of tied ones side by side, which share it - placed
-by `placeAbove()` in `charts/annotate.js`, which only ever raises a disc,
-past one already placed where they would touch (home's 2024-25 and 2026, a
-few pixels apart on a phone), while the layout lowers the plot until every
-disc is inside the drawing. A band's marker has no hairline: it marks the
-band, not a point in it. A column may carry `ahead`, what is still to come,
-outlined over it in its own colour: the season being run is its rounds run,
-solid, under the rest of its calendar. `chartNotes()` in `queries/home.js`
+by `placeColumnMarkers()` in `charts/annotate.js`: never below its point,
+and where two would touch (home's 2024-25 and 2026, a few pixels apart on a
+phone), the earlier steps aside, level, on an angled hairline, as the
+mockup sets it, so no hairline runs through another disc; only where it
+cannot is the later one raised over it. The layout lowers the plot until
+every disc is inside the drawing. A band's marker has no hairline: it marks
+the band, not a point in it. A column may carry `ahead`, what is still to
+come, dashed over it the column's width in its own colour: the season being
+run is its rounds run, solid, under the rest of its calendar. Dashed, not
+outlined as the mockup drew it: an outline on a phone's 2.3 px column is all
+stroke, and read as a solid 23. `chartNotes()` in `queries/home.js`
 works the finding and the notes out from the rows; `units.mjs` holds the
 working and the layout, and `smoke.mjs` the finding, the notes, the
 markers and where the key stands at 1440, 1024 and 400, in both halves.

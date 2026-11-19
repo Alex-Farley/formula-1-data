@@ -5311,7 +5311,7 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
     assert.deepEqual([0, 1, 2].map((i) => slotColour(i, 3)), ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'])
   })
 
-  it('the home chart marks the latest season raced, draws it as the rounds it has run with the rest outlined, and a calendar hollow', () => {
+  it('the home chart marks the latest season raced, draws it as the rounds it has run with the rest dashed, and a calendar hollow', () => {
     const seasons = [
       { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
       { year: 1960, rounds: 10, run: 10, indianapolis: 1 },
@@ -5331,7 +5331,8 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
     const layout = columnLayout({ data: columns, width: 600, height: 260, labelPeak: false })
     assert.equal(layout.columns.filter((c) => c.value !== null).length, 0)
     const drawn = layout.columns.find((c) => c.d.key === 2026)
-    assert.ok(drawn.ahead !== null && drawn.peak < drawn.top, 'what is still to run is outlined over the solid column')
+    assert.ok(drawn.ahead !== null && drawn.peak < drawn.top, 'what is still to run is dashed over the solid column')
+    assert.ok(drawn.ahead.y1 === drawn.peak && drawn.ahead.y2 < drawn.top, 'from the calendar’s top down to just above the rounds run')
     assert.ok(Math.abs(drawn.peak - layout.y(23)) < 1e-9, 'up to the calendar’s 23')
     assert.equal(layout.columns.find((c) => c.d.key === 2025).ahead, null)
     // The note says what is counted, and which column is not results.
@@ -6049,7 +6050,7 @@ describe('the annotation pattern (VD-121)', () => {
         '1. 1950: seven rounds: The first championship, the Indianapolis 500 included.',
         '2. 1984–1989: 16 or 17, every year: Six seasons in a row within a round of each other, shaded.',
         '3. 2024 and 2025: 24: The most in any completed season.',
-        '4. 2026: 20 of 23 run: In red; the three to come are outlined. 2027 is a calendar.',
+        '4. 2026: 20 of 23 run: In red; the three to come are dashed above. 2027 is a calendar.',
       ],
     )
     // One marker to a note, the tied peak's one over both its seasons; the
@@ -6085,13 +6086,28 @@ describe('the annotation pattern (VD-121)', () => {
     assert.deepEqual(most.marks.map((m) => m.n), [1, 2, 3])
     // Nothing raced: no finding and no notes.
     assert.deepEqual(chartNotes([{ year: 2027, rounds: 24, run: 0, indianapolis: 0 }]).notes, [])
+    // The first season holding the peak: the finding does not set it against itself.
+    const flat = [
+      { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+      { year: 1951, rounds: 7, run: 7, indianapolis: 1 },
+      { year: 1952, rounds: 6, run: 6, indianapolis: 1 },
+      { year: 1953, rounds: 7, run: 3, indianapolis: 0 },
+    ]
+    const held = chartNotes(flat)
+    assert.equal(held.finding, 'Seven races in 1950, never more.')
+    // and a peak it shares is marked over the season after it, and named with it.
+    assert.deepEqual(
+      held.notes.map((n) => n.lead),
+      ['1950: seven rounds', '1950 and 1951: 7', '1953: 3 of 7 run'],
+    )
+    assert.deepEqual(held.marks.map((m) => m.keys), [[1950], [1951], [1953]])
   })
 
   it('lays the home chart’s markers out inside the drawing at every width, none touching another (VD-123)', () => {
     const seasons = homeSeasons({ year: 2026, rounds: 23, run: 20, indianapolis: 0 })
     const shown = chartNotes(seasons)
     const reach = MARKER.r + MARKER.ring / 2
-    for (const width of [320, 352, 640, 900]) {
+    for (const width of [300, 320, 343, 352, 375, 400, 640, 900]) {
       const layout = columnLayout({ data: chartData(seasons), width, height: 260, labelPeak: false, marks: shown.marks, bands: shown.bands })
       assert.deepEqual(layout.markers.map((m) => m.n), [1, 2, 3, 4], `${width}: every note has its marker`)
       for (const m of layout.markers) assert.ok(m.cy - reach >= -1e-9, `${width}: marker ${m.n} is inside the drawing (${m.cy})`)
@@ -6100,6 +6116,18 @@ describe('the annotation pattern (VD-121)', () => {
           const [p, q] = [layout.markers[a], layout.markers[b]]
           assert.ok(Math.hypot(p.cx - q.cx, p.cy - q.cy) >= 2 * reach, `${width}: markers ${p.n} and ${q.n} do not overlap`)
         }
+      // No hairline runs through another marker's disc: on a phone 2026's
+      // and the 2024-25 peak's stand a few pixels apart (the review of #1409).
+      for (const m of layout.markers) {
+        if (!m.leader) continue
+        const { x1, y1, x2, y2 } = m.leader
+        for (const o of layout.markers) {
+          if (o === m) continue
+          const t = Math.max(0, Math.min(1, ((o.cx - x1) * (x2 - x1) + (o.cy - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2)))
+          const d = Math.hypot(x1 + t * (x2 - x1) - o.cx, y1 + t * (y2 - y1) - o.cy)
+          assert.ok(d >= reach, `${width}: marker ${m.n}'s hairline clears marker ${o.n}'s disc (${d.toFixed(1)})`)
+        }
+      }
       // Each disc stands over its columns, no lower than their top.
       const top = (keys) => Math.min(...layout.columns.filter((c) => keys.includes(c.d.key)).map((c) => c.peak))
       for (const [k, m] of layout.markers.entries()) assert.ok(m.cy + reach <= top(shown.marks[k].keys), `${width}: marker ${m.n} clears its columns`)

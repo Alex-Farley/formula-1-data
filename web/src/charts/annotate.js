@@ -14,9 +14,10 @@
  * - spans as shaded bands under the marks, explained in the key.
  *
  * placeMarker() is a line's: above or below a point between other lines.
- * placeAbove() is a column's (VD-123): a column fills the space under its
- * top, so its marker only ever goes up, and further up where it would touch
- * one already placed.
+ * placeColumnMarkers() is a column chart's (VD-123): a column fills the
+ * space under its top, so a marker never goes below it; where two would
+ * touch, the earlier one steps aside on an angled hairline, and only where
+ * it cannot is the later one raised over it (placeAbove()).
  *
  * What a note says, and which point it marks, is the caller's: the figure
  * works it out from the data, and the key under the plot carries every word
@@ -164,6 +165,9 @@ export function placeMarker(x, y, others, { top = 0, bottom = Infinity, taken = 
   }
 }
 
+/** The least distance between two discs' centres: their rings and two pixels of air. */
+const APART = 2 * (MARKER.r + MARKER.ring / 2) + 2
+
 /**
  * Where a marker goes over the top of a column, or of several (VD-123): the
  * disc MARKER.offset above (x, y), and where that would touch a disc already
@@ -176,18 +180,73 @@ export function placeMarker(x, y, others, { top = 0, bottom = Infinity, taken = 
  * the drawing.
  */
 export function placeAbove(x, y, { taken = [], leader = true } = {}) {
-  const apart = 2 * (MARKER.r + MARKER.ring / 2) + 2
   let cy = y - MARKER.offset
   // Each pass only raises the disc, past the first disc it touches, so the
   // loop ends: at most once per disc placed.
   for (let pass = 0; pass <= taken.length; pass += 1) {
-    const hit = taken.find((t) => Math.hypot(t.cx - x, t.cy - cy) < apart - 0.01)
+    const hit = taken.find((t) => Math.hypot(t.cx - x, t.cy - cy) < APART - 0.01)
     if (!hit) break
-    cy = hit.cy - Math.sqrt(apart ** 2 - Math.min(apart, Math.abs(hit.cx - x)) ** 2) - 0.01
+    cy = hit.cy - Math.sqrt(APART ** 2 - Math.min(APART, Math.abs(hit.cx - x)) ** 2) - 0.01
   }
   return {
     cx: x,
     cy,
     leader: leader ? { x1: x, y1: y - MARKER.gap, x2: x, y2: cy + MARKER.r } : null,
   }
+}
+
+/**
+ * The hairline from a point to a disc set to one side of it: from just
+ * above the point to the disc's edge, along the line between them.
+ */
+function angled(point, cx, cy) {
+  const x1 = point.x
+  const y1 = point.y - MARKER.gap
+  const dx = cx - x1
+  const dy = cy - y1
+  const length = Math.hypot(dx, dy)
+  return { x1, y1, x2: cx - (dx / length) * MARKER.r, y2: cy - (dy / length) * MARKER.r }
+}
+
+/**
+ * Every marker on a column chart (VD-123), in the order given: each `{ n,
+ * x, y, leader }`, the top of the columns it marks at (x, y). Each disc
+ * goes MARKER.offset above its point. Where it would touch one already
+ * placed, that one steps aside, away from it, level, on an angled hairline,
+ * as the approved mockup sets home's 2024-25 beside 2026 - so the later
+ * disc's hairline never runs through the earlier disc, which raising the
+ * later one straight over it would do on a phone. It steps aside only
+ * where it lands inside [left, right], clear of every other disc, and over
+ * no column that reaches it (`floor(cx)`: the highest column top within a
+ * disc's reach of cx); a disc with no hairline (a band's) never moves.
+ * Otherwise the later disc is raised over it, as placeAbove() does.
+ */
+export function placeColumnMarkers(points, { left = -Infinity, right = Infinity, floor = () => Infinity } = {}) {
+  const reach = MARKER.r + MARKER.ring / 2
+  const clear = (a, b) => Math.hypot(a.cx - b.cx, a.cy - b.cy) >= APART - 0.01
+  const placed = []
+  for (const p of points) {
+    const point = p.leader === false ? null : { x: p.x, y: p.y }
+    const want = placeAbove(p.x, p.y, { leader: p.leader !== false })
+    const hit = placed.find((t) => !clear(t, want))
+    if (hit?.point) {
+      const side = hit.point.x <= p.x ? -1 : 1
+      const dy = Math.abs(want.cy - hit.cy)
+      const cx = want.cx + side * Math.sqrt(Math.max(0, APART ** 2 - dy ** 2))
+      const moved = { cx, cy: hit.cy }
+      const fits =
+        cx - reach >= left &&
+        cx + reach <= right &&
+        hit.cy + reach <= floor(cx) - 1 &&
+        placed.every((t) => t === hit || (clear(t, moved) && clear(t, want)))
+      if (fits) {
+        hit.cx = cx
+        hit.leader = angled(hit.point, cx, hit.cy)
+        placed.push({ n: p.n, ...want, point })
+        continue
+      }
+    }
+    placed.push({ n: p.n, ...placeAbove(p.x, p.y, { taken: placed, leader: p.leader !== false }), point })
+  }
+  return placed.map(({ point, ...marker }) => marker)
 }

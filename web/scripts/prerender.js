@@ -1599,7 +1599,7 @@ const dotPlotSvg = (chart, width) => {
 
 /* ColumnChart.jsx at rest: the shaded bands under everything, the columns
    in the entity's colour or in ink, a marked one in the accent and a hollow
-   one outlined, what is still ahead of a column outlined over it, the
+   one outlined, what is still ahead of a column dashed over it, the
    printed values over theirs, every labelEvery-th season under the axis,
    and the numbered markers over the columns (VD-123). */
 const columnSvg = (chart, colour, width) => {
@@ -1613,7 +1613,9 @@ const columnSvg = (chart, colour, width) => {
     .map(
       (c) =>
         `<g><path${c.d.hollow ? ' class="column-hollow"' : ''} d="${tidy(c.path)}" fill="${paint(c.d)}"/>${
-          c.ahead !== null ? `<path class="column-ahead" d="${tidy(c.ahead)}" fill="none" stroke="${paint(c.d)}"/>` : ''
+          c.ahead !== null
+            ? `<line class="column-ahead" x1="${px(c.ahead.x)}" x2="${px(c.ahead.x)}" y1="${px(c.ahead.y1)}" y2="${px(c.ahead.y2)}" stroke="${paint(c.d)}" stroke-width="${px(c.ahead.width)}"/>`
+            : ''
         }${
           c.value !== null ? `<text class="value-text" x="${px(c.centre)}" y="${px(c.top - 6)}" text-anchor="middle">${esc(c.value)}</text>` : ''
         }${c.label !== null ? `<text class="axis-text" x="${px(c.centre)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(c.label)}</text>` : ''}</g>`,

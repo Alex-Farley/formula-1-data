@@ -5,7 +5,7 @@
  * page, which has no React to run. Why the columns are capped and rounded
  * as they are is ColumnChart.jsx's to say; this is only where things go.
  */
-import { MARKER, placeAbove } from './annotate.js'
+import { MARKER, placeColumnMarkers } from './annotate.js'
 import { band, linear, niceDomain, ticks } from './scales.js'
 
 export const COLUMN_MARGIN = { top: 16, right: 10, bottom: 30, left: 44 }
@@ -18,7 +18,7 @@ export const MARKED_TOP = 28
  * optionally `print`, `mark`, `hollow` and `ahead` (VD-94, VD-123;
  * ColumnChart says what each draws). Null where there is nothing to draw.
  * Each column carries its hit target (the full step), its rounded-top path,
- * the outlined path over it where it has `ahead`, whether its value is
+ * the dashed stroke over it where it has `ahead`, whether its value is
  * printed over it, and whether its axis label is drawn (every `labelEvery`th).
  *
  * The annotation pattern (VD-123; charts/annotate.js): `bands` are
@@ -26,8 +26,8 @@ export const MARKED_TOP = 28
  * first one's step to the last one's; `marks` are `{ n, keys, leader }`, a
  * numbered disc over the middle of the columns `keys` names - one, or a run
  * of tied ones, which share it - over the tallest of them, on a hairline
- * unless `leader` is false. A disc is placed in `marks`' order, raised where
- * it would touch one placed before it, and the plot is lowered until every
+ * unless `leader` is false. The discs are placed by placeColumnMarkers() in
+ * charts/annotate.js, in `marks`' order, and the plot is lowered until every
  * disc is inside the drawing, so a chart with marks is never clipped.
  *
  * The value printed is the peak's, where the column is tall enough to hold
@@ -79,8 +79,11 @@ function layColumns({ data, width, height, format, labelEvery, labelPeak, intege
     const top = y(Math.max(0, d.value))
     const bottom = y(0)
     const tall = Math.abs(bottom - top)
-    // Still to come (VD-123): the rounds of a season not yet run, outlined
-    // square over the solid column, which loses its rounded top to meet it.
+    // Still to come (VD-123): the rounds of a season not yet run, dashed
+    // over the solid column the column's width, from the calendar's top down
+    // to a pixel and a half above the rounds run, whose column loses its
+    // rounded top under it. A stroke the column's width, not an outline:
+    // an outline on a phone's 2.3 px column is all stroke, and reads as solid.
     const ahead = d.ahead > 0 ? y(d.value + d.ahead) : null
     return {
       d,
@@ -89,10 +92,7 @@ function layColumns({ data, width, height, format, labelEvery, labelPeak, intege
       // The column's top, what is ahead of it included: where a marker over
       // it stands.
       peak: ahead ?? top,
-      ahead:
-        ahead === null
-          ? null
-          : `M${left + 0.75},${top} L${left + 0.75},${ahead + 0.75} L${left + thickness - 0.75},${ahead + 0.75} L${left + thickness - 0.75},${top} Z`,
+      ahead: ahead === null ? null : { x: centre, y1: ahead, y2: top - 1.5, width: thickness },
       hit: { x: centre - x.step / 2, y: M.top, width: x.step, height: height - M.bottom - M.top },
       path:
         ahead === null
@@ -109,15 +109,17 @@ function layColumns({ data, width, height, format, labelEvery, labelPeak, intege
     .map((b) => [byKey.get(b.from), byKey.get(b.to)])
     .filter(([a, b]) => a && b)
     .map(([a, b]) => ({ x: a.hit.x, width: b.hit.x + b.hit.width - a.hit.x, y: M.top, height: height - M.bottom - M.top }))
-  const markers = []
-  for (const mark of marks) {
+  const points = marks.flatMap((mark) => {
     const over = mark.keys.map((k) => byKey.get(k)).filter(Boolean)
-    if (over.length === 0) continue
+    if (over.length === 0) return []
     const centres = over.map((c) => c.centre)
-    const cx = (Math.min(...centres) + Math.max(...centres)) / 2
-    const peak = Math.min(...over.map((c) => c.peak))
-    markers.push({ n: mark.n, ...placeAbove(cx, peak, { taken: markers, leader: mark.leader !== false }) })
-  }
+    return [{ n: mark.n, x: (Math.min(...centres) + Math.max(...centres)) / 2, y: Math.min(...over.map((c) => c.peak)), leader: mark.leader !== false }]
+  })
+  // The highest column top a disc centred at cx would reach over.
+  const reach = MARKER.r + MARKER.ring / 2
+  const floor = (cx) =>
+    Math.min(...columns.filter((c) => Math.abs(c.centre - cx) <= reach + thickness / 2).map((c) => c.peak), Infinity)
+  const markers = placeColumnMarkers(points, { left: 0, right: width, floor })
   return {
     width,
     height,

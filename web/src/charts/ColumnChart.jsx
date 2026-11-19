@@ -21,9 +21,9 @@ import { useMeasure } from './useMeasure.js'
  * outlined in ink and unfilled, for a column that is not a measurement of the
  * same kind as the rest - the home page's calendars, which are not results.
  * Each carries a second cue beside the colour: the printed value, the fill.
- * A datum may also carry `ahead`: rounds still to come, drawn as an outline
- * over the solid column in its colour (VD-123) - a season being run, its
- * rounds run solid and the rest of its calendar outlined.
+ * A datum may also carry `ahead`: rounds still to come, dashed over the
+ * solid column in its colour (VD-123) - a season being run, its rounds run
+ * solid and the rest of its calendar dashed.
  *
  * `marks` and `bands` are the annotation pattern's (VD-123; charts/annotate.js,
  * docs/design-system.md section 3, *Annotation*): numbered discs over the
@@ -126,11 +126,14 @@ export default function ColumnChart({
                 opacity={hover && hover.key !== d.key ? 0.55 : 1}
               />
               {column.ahead !== null && (
-                <path
+                <line
                   className="column-ahead"
-                  d={column.ahead}
-                  fill="none"
+                  x1={column.ahead.x}
+                  x2={column.ahead.x}
+                  y1={column.ahead.y1}
+                  y2={column.ahead.y2}
                   stroke={paint(d)}
+                  strokeWidth={column.ahead.width}
                   opacity={hover && hover.key !== d.key ? 0.55 : 1}
                 />
               )}

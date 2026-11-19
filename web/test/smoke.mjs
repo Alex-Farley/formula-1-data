@@ -3944,7 +3944,7 @@ try {
           return { n: clean(g.querySelector('text')), top: c.top, bottom: c.bottom }
         }),
         bands: svg.querySelectorAll('rect.plot-band').length,
-        ahead: svg.querySelectorAll('path.column-ahead').length,
+        ahead: svg.querySelectorAll('.column-ahead').length,
       }
     }
     atLeast(shown.notes.length, 1, '/: the chart has notes to show')
@@ -3985,12 +3985,12 @@ try {
       }
     }
     // The red column is the season so far: what it has still to run is
-    // outlined over it, where it has any.
+    // dashed over it, where it has any.
     const raced = db.prepare(`SELECT COUNT(*) AS rounds, SUM(status = 'completed') AS run FROM races WHERE year = (SELECT MAX(year) FROM races WHERE status = 'completed')`).get()
     await page.setViewportSize({ width: 1440, height: 900 })
     await settle()
     const app = await page.evaluate(read, ['#root main', CHART_HEADING])
-    is(app?.ahead ?? null, raced.rounds > raced.run ? 1 : 0, `/: the last season raced outlines its ${raced.rounds - raced.run} rounds still to run`)
+    is(app?.ahead ?? null, raced.rounds > raced.run ? 1 : 0, `/: the last season raced dashes its ${raced.rounds - raced.run} rounds still to run`)
     await noJs.close()
     await page.setViewportSize({ width: 1280, height: 900 })
   })

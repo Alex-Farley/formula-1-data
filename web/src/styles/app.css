@@ -4076,10 +4076,12 @@ figure.figure > .figure-note:first-child {
 }
 
 /* What is still ahead of a column (VD-123): a season's rounds to come,
-   outlined over the rounds it has run in the column's own colour, which the
-   element carries as its stroke. */
+   dashed over the rounds it has run, the column's width, in the column's
+   own colour, which the element carries as its stroke - at full strength,
+   so each dash holds the colour's 3:1 on the panel, and the gaps are what
+   tell it from the solid column at any width. */
 .figure .column-ahead {
-  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
 }
 
 /* The reach chart (AF-132): the most a contender could still score, drawn

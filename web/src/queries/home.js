@@ -389,7 +389,7 @@ export const chartNote = (seasons) => {
 /**
  * The columns (VD-94, VD-123): the last season raced in the accent, the one
  * value the page states, and where it has rounds still to run, drawn as the
- * rounds it has run with the rest of its calendar outlined over them, so
+ * rounds it has run with the rest of its calendar dashed over them, so
  * the red column is the season so far and not its calendar; a calendar is
  * drawn hollow, because the note says it is not a set of results, and its
  * tooltip says "calendar". No value is printed on the plot: each figure the
@@ -477,7 +477,10 @@ export const chartNotes = (seasons) => {
   if (!raced || !complete.length || first.run !== first.rounds) return { finding: null, kicker: null, notes: [], marks: [], bands: [] }
   const most = Math.max(...complete.map((s) => s.rounds))
   const tied = complete.filter((s) => s.rounds === most).map((s) => s.year)
-  const finding = `${capital(inWords(first.rounds))} races in ${first.year}; ${inWords(most)} by ${tied[0]}.`
+  const finding =
+    tied[0] === first.year
+      ? `${capital(inWords(first.rounds))} races in ${first.year}, never more.`
+      : `${capital(inWords(first.rounds))} races in ${first.year}; ${inWords(most)} by ${tied[0]}.`
 
   const parts = []
   parts.push({
@@ -498,9 +501,12 @@ export const chartNotes = (seasons) => {
   }
   const before = tied.filter((year) => year !== raced.year)
   const racedHolds = raced.run === raced.rounds && raced.rounds === most
-  if (before.length && !before.includes(first.year)) {
+  // The first season has its own marker, so a peak it shares is marked over
+  // the seasons after it, and named with it.
+  const marked = before.filter((year) => year !== first.year)
+  if (marked.length) {
     parts.push({
-      keys: lastRun(before),
+      keys: lastRun(marked),
       lead: `${years(before)}: ${number(most)}`,
       text: racedHolds ? `The most in any completed season, matched in ${raced.year}.` : 'The most in any completed season.',
     })
@@ -516,7 +522,7 @@ export const chartNotes = (seasons) => {
       lead: left > 0 ? `${raced.year}: ${number(raced.run)} of ${number(raced.rounds)} run` : `${raced.year}: ${number(raced.rounds)} rounds`,
       text:
         left > 0
-          ? `In red; the ${inWords(left)} to come ${left === 1 ? 'is' : 'are'} outlined.${later}`
+          ? `In red; the ${inWords(left)} to come ${left === 1 ? 'is' : 'are'} dashed above.${later}`
           : `In red, the season run last${racedHolds && !before.length ? ': the most in any season' : ''}.${later}`,
     })
   }
