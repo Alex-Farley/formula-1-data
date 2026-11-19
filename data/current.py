@@ -639,7 +639,10 @@ SOURCE_REGISTRY = [
      "photo_ columns, in f1-geometry.db, AF-96): points on the middle of the "
      "track in the photograph - marked by eye for Monza, found by a script "
      "at stations spaced along the centreline for the other six - and the "
-     "transform fitted onto them.",
+     "transform fitted onto them; and for the placing of F1DB's outline on "
+     "the same photographs (circuit_outlines' photo_ columns, AF-177): points "
+     "marked by eye on the middle of the track and the affine fitted to them, "
+     "with no OpenStreetMap input.",
      "authored",
      "Original to this repository, with no upstream to owe anything to. The "
      "prose of ten of its twelve tables is offered under CC BY 4.0 "

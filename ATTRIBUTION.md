@@ -110,6 +110,18 @@ outline is stored bare in the same 500-unit box, and stops on any other
 transform. The site then draws every outline in its own ink at a constant
 stroke width, with nothing added; F1DB's black 20-unit stroke is not kept.
 
+Where a placing is stored (`AF-177`), a circuit's page also draws the outline
+of its layout over the circuit's aerial photograph, scaled, turned and
+stretched by an affine transform onto the picture. The placing is this
+project's own (source 18), made from the photograph alone with no
+OpenStreetMap input: points marked by eye on the track, and the transform
+fitted to them, stored with the outline in `circuit_outlines`' `photo_`
+columns in `f1.db`. The caption says *Layout drawn over the photograph:
+F1DB, CC BY 4.0, drawn by Jules Roy, placed by eye* after the photograph's
+own credit, and the alt says the layout is drawn over it from F1DB's
+outline, which is also where the change to the CC BY-SA photograph is
+stated.
+
 This is the most permissive licence of any bulk source used here, and since
 v2.15 it is the single most important fact about this repository's data.
 
@@ -288,7 +300,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->181,188<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->181,194<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -311,14 +323,12 @@ derivative, so the obligation follows the file it belongs to and no further.
   figures — the relation, the length measured against the published one, the
   points, whether the walk closes — read from `f1-geometry.db`, with the
   credit under them on every page that carries them.
-- Where a placing is stored (`AF-96`), a circuit's page also draws the lap
-  over the circuit's aerial photograph. That drawing is a *Produced Work* of
-  the centreline, so the photograph's caption names **Track © OpenStreetMap
-  contributors** and the licence after the photograph's own credit. The
-  placing — the transform that carries the centreline onto the photograph —
-  was fitted to OpenStreetMap's coordinates, so it ships with them in
-  `f1-geometry.db`, in `circuit_geometry`'s `photo_` columns, never in
-  `f1.db`.
+- The site no longer draws the centreline over a circuit's aerial
+  photograph (`AF-96`): since `AF-177` the line there is F1DB's outline,
+  above. The `AF-96` placings — the transform that carries the centreline
+  onto the photograph, fitted to OpenStreetMap's coordinates — are still
+  built into `f1-geometry.db`, in `circuit_geometry`'s `photo_` columns,
+  never into `f1.db`, until `AF-179` removes them.
 
 The centrelines are still checked on every build — the re-measurement that
 catches Monaco's relation reading 12% long runs against the overlay.

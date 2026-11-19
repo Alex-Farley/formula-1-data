@@ -568,6 +568,8 @@ import {
   otherLayouts,
   outlineCaption,
   outlineLabel,
+  PHOTO_OUTLINE_BY,
+  photoOutline,
   raceLayoutNote,
   roundShortName,
   roundStates,
@@ -676,7 +678,7 @@ import {
   teamsBySeason,
 } from '../src/queries/driver.js'
 import { faceColours } from '../src/charts/own.js'
-import { OSM_COPYRIGHT, TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, photoTrace, traceFields } from '../src/lib/trace.js'
+import { TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, traceFields } from '../src/lib/trace.js'
 import {
   COMPARE_DESCRIPTION,
   COMPARE_LEDE,
@@ -2517,9 +2519,10 @@ const outbound = (url, label, name = null) =>
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
  *
- * `trace` is the lap over a circuit's photograph (AF-96), photoTrace()'s, as
- * CommonsImage draws it: the same frame, the same two paths, and the same
- * OpenStreetMap credit after the photograph's own.
+ * `trace` is F1DB's outline over a circuit's photograph (AF-177),
+ * photoOutline()'s, as CommonsImage draws it: the same frame, the same two
+ * paths under the same transform, and the same credit after the photograph's
+ * own.
  */
 const photograph = (image, width, caption = null, alt = caption, checks = true, trace = null) => {
   const title = fileTitle(image.file_name)
@@ -2529,12 +2532,12 @@ const photograph = (image, width, caption = null, alt = caption, checks = true, 
   return `<figure class="photo">
         ${
           trace
-            ? `<div class="photo-frame">${picture}<svg class="photo-trace" viewBox="0 0 ${esc(trace.width)} ${esc(trace.height)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path class="photo-trace-casing" d="${esc(trace.d)}"></path><path class="photo-trace-line" d="${esc(trace.d)}"></path></svg></div>`
+            ? `<div class="photo-frame">${picture}<svg class="photo-trace" viewBox="0 0 ${esc(trace.width)} ${esc(trace.height)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path class="photo-trace-casing" d="${esc(trace.d)}" transform="${esc(trace.transform)}"></path><path class="photo-trace-line" d="${esc(trace.d)}" transform="${esc(trace.transform)}"></path></svg></div>`
             : picture
         }
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title, fileLinkName(image))} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
-        }${trace ? ` · Track ${outbound(OSM_COPYRIGHT, '\u00a9 OpenStreetMap contributors')}, ${esc(trace.licence)}` : ''}${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
+        }${trace ? ` · ${esc(PHOTO_OUTLINE_BY)}` : ''}${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
           image.route === 'category' ? ` · ${confidencePill(image.confidence)}` : ''
         }</figcaption>
       </figure>`
@@ -4439,9 +4442,9 @@ page({
     // The photograph beside the heading, as Circuit.jsx draws it (VD-62):
     // the same query, through canShow() first, and nothing where there is none.
     const pictured = all(CIRCUIT_PHOTOGRAPH, c.id).find(canShow) ?? null
-    // AF-96: the lap over it, where a placing was fitted on this file.
+    // AF-177: F1DB's outline over it, where one was placed on this file.
     const tracesHere = geometryOf.all(c.id)
-    const pictureTrace = pictured ? photoTrace(tracesHere, pictured) : null
+    const pictureTrace = pictured ? photoOutline(outlinesHere, pictured) : null
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     // VD-83 (SD-41), as Circuit.jsx: what *Every layout raced here* holds -
     // the timeline's rows, or the other drawings, behind one disclosure. The

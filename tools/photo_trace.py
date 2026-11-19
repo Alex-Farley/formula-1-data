@@ -3,7 +3,10 @@
 Fit a circuit's OpenStreetMap centreline to its aerial photograph (AF-96).
 
 WHAT THIS IS
-    The circuit page draws the track over the circuit's aerial photograph.
+    The circuit page drew the track over the circuit's aerial photograph
+    until AF-177, which draws F1DB's outline there instead
+    (PHOTO_OUTLINE in data/harvest.py); these placings are kept, and no
+    longer drawn, until AF-179 removes them.
     The photographs are not georeferenced: a Commons SkySat file is a cropped,
     often rotated image with no corner coordinates. So each one is placed by
     this project, as its own derivation (source 18):

@@ -231,7 +231,7 @@ capped in rem, and below 768 everything runs the full column.
 | Result rail | `--rail-podium`, `--rail-points`, `--rail-classified` | state on a result row |
 | Chart | `--series-ink`, `--series-mark`, `--series-1..3`, `--grid` | a chart with no owner in ink, its one stated value in the accent (VD-94, `[D-61]`); several series with no sourced colour in the three slots. Never text |
 | Identity | `--racing-*` (1950–1967, a pair per theme); `--livery` (2010 on, per element) | a constructor's colour, beside a name it never replaces |
-| Photograph | `--photo-trace`, `--photo-trace-casing` (provisional, AF-96) | the lap drawn over an aerial photograph, and the casing under it; one value in both themes, since the photograph does not change with the theme |
+| Photograph | `--photo-trace`, `--photo-trace-casing` (provisional, AF-96, AF-177) | the layout drawn over an aerial photograph, and the casing under it; one value in both themes, since the photograph does not change with the theme |
 
 Both themes keep their measured contrast (the figures are in the
 `tokens.css` header). Dark stays a second instrument, not an inversion.
@@ -552,7 +552,7 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the team-mates face-off (VD-122 #1346), the lap over a photograph (AF-96 #977); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
 
 **Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
@@ -870,32 +870,37 @@ PD-56's). One question asked of a race: when the field stopped.
 - **Placement:** its own section, *Pit stops*, below the classification and
   qualifying; who stopped first between neighbours follows under an h3.
 
-**The lap over a photograph — provisional (AF-96 #977).** A circuit's
-OpenStreetMap centreline drawn over its aerial photograph, so a reader sees
-the layout on the ground it runs over.
+**The layout over a photograph — provisional (AF-96 #977, AF-177 #1393).**
+F1DB's outline of a circuit's layout drawn over its aerial photograph, so a
+reader sees the layout on the ground it runs over. It was the OpenStreetMap
+centreline until AF-177 (ruled on AF-174 #1387), in the same casing and line
+style.
 
 - **Where:** inside the photograph's own figure, in the header's slot for it
   (VD-62). It displaces nothing: the outline still leads the opening slot
   (VD-74, VD-84), and a photograph with no placing is drawn exactly as
   before.
-- **Parts:** `CommonsImage`'s `trace`, from `photoTrace()` in
-  `lib/trace.js`, which `photograph()` in `scripts/prerender.js` draws too:
+- **Parts:** `CommonsImage`'s `trace`, from `photoOutline()` in
+  `lib/outline.js`, which `photograph()` in `scripts/prerender.js` draws too:
   `.photo-frame` round the picture, and an `aria-hidden` `svg.photo-trace`
   over it whose viewBox is the photograph's stored frame, fitted as
-  `object-fit: contain` fits the pixels, so the line holds at any width and
-  inside the header's capped height.
+  `object-fit: contain` fits the pixels, and the outline's path under the
+  placing's `transform`, so the line holds at any width and inside the
+  header's capped height.
 - **Ink:** `--photo-trace` at 2 px over `--photo-trace-casing` at 4 px, both
   at a constant stroke, so the line reads on the pale concrete and the dark
   woods of one picture.
-- **Credit:** the line is ODbL, a Produced Work of OpenStreetMap, so the
-  caption names *Track © OpenStreetMap contributors* and the row's licence
-  after the photograph's own credit. The one attribution rule still decides
-  whether the figure is drawn at all.
-- **Second cue:** the alt says the lap is drawn over the picture
-  (`photographAlt` in `queries/circuit.js`); the line is decoration to it.
-- **What it may claim:** that the lap runs there, to within the tolerance the
-  build holds each placing to (`PHOTO_TRACE_TOLERANCE_PX` in
-  `data/harvest.py`), and nothing about the photograph: the placing is this
+- **Credit:** the drawing is F1DB's, CC BY 4.0, so the caption says
+  *Layout drawn over the photograph: F1DB, CC BY 4.0, drawn by Jules Roy,
+  placed by eye* (`PHOTO_OUTLINE_BY`) after the photograph's own credit. The
+  one attribution rule still decides whether the figure is drawn at all.
+- **Second cue:** the alt says the layout is drawn over the picture from
+  F1DB's outline (`photographAlt` in `queries/circuit.js`); the line is
+  decoration to it.
+- **What it may claim:** that the layout runs there, to within the tolerance
+  the build holds each placing to (`PHOTO_OUTLINE_TOLERANCE_PX` in
+  `data/harvest.py`), and nothing about the photograph: the outline is a
+  drawing of the layout, not a survey of the tarmac, and the placing is this
   project's own, at no more than *medium*.
 - **States:** the line is drawn only over a photograph that has arrived:
   hidden while it loads, so it never stands alone in the empty box, and

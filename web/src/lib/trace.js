@@ -9,10 +9,9 @@
  * the trace is stated rather than drawn on a stage of its own, and these are
  * the words it is stated in, shared by the register and the circuit page —
  * the app's and the one scripts/prerender.js writes (CR-33), so the two halves
- * of a circuit page cannot state the trace differently. The one place it is
- * drawn is over a circuit's aerial photograph, once the photograph has
- * arrived, where it shows where the lap runs on the ground (AF-96,
- * photoTrace below).
+ * of a circuit page cannot state the trace differently. It was once drawn
+ * over a circuit's aerial photograph (AF-96); F1DB's outline is drawn there
+ * now (AF-177, photoOutline in lib/outline.js).
  *
  * The ODbL credit travels with the figures exactly as it travelled with the
  * line: a measurement taken from an ODbL database is as much that database's
@@ -26,42 +25,6 @@ import { number } from './format.js'
 export const odblCredit = (licence) => `\u00a9 OpenStreetMap contributors, ${licence || 'ODbL 1.0'}.`
 
 export const ODBL_CREDIT = odblCredit()
-
-/**
- * The trace over the photograph (AF-96): the centreline of whichever of the
- * circuit's `traces` (its circuit_geometry rows) was placed on this very
- * file, carried onto it as SVG path data in the photograph's stored frame
- * (`width` x `height`), or null where nothing is placed on it.
- *
- * The photographs are not georeferenced, so the placing is this project's own:
- * points marked on the track, and the transform build.py stores beside the
- * centreline only after every point lies within PHOTO_TRACE_TOLERANCE_PX of
- * the line it draws (data/harvest.py). It is keyed to the file it was fitted
- * on, and a row placed on another file draws nothing here — the photograph is
- * shown plain, which is the right page for a photograph nobody has placed.
- * CommonsImage and scripts/prerender.js's photograph() both draw what this
- * returns, so the two halves of the page draw the same line.
- */
-export const photoTrace = (traces, photograph) => {
-  if (!photograph?.file_name || !photograph.width || !photograph.height) return null
-  const row = traces.find((g) => g.photo_transform && g.photo_file === photograph.file_name)
-  if (!row) return null
-  const { origin, x, y } = JSON.parse(row.photo_transform)
-  const at = ([lon, lat]) => {
-    const east = lon - origin[0]
-    const north = lat - origin[1]
-    return `${tenth(x[0] * east + x[1] * north + x[2])} ${tenth(y[0] * east + y[1] * north + y[2])}`
-  }
-  const d = JSON.parse(row.centreline)
-    .coordinates.map((line) => `M${line.map(at).join('L')}`)
-    .join('')
-  return { d, width: photograph.width, height: photograph.height, licence: row.licence || 'ODbL 1.0' }
-}
-
-const tenth = (n) => Math.round(n * 10) / 10
-
-/** Where the trace's credit links: OpenStreetMap's own page for the credit it asks. */
-export const OSM_COPYRIGHT = 'https://www.openstreetmap.org/copyright'
 
 /**
  * "6.004 km against 6.003 km published here (+0.01%)": what a trace measured,

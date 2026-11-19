@@ -111,9 +111,10 @@
   --accent-ink: #a20d20;
   --accent-wash: #fdeef0;
 
-  /* The lap drawn over a circuit's aerial photograph (AF-96): the light
-     accent on a white casing. Set here once and in neither dark block, since
-     the photograph under it is the same picture in both themes. */
+  /* The layout drawn over a circuit's aerial photograph (AF-96, AF-177):
+     the light accent on a white casing. Set here once and in neither dark
+     block, since the photograph under it is the same picture in both
+     themes. */
   --photo-trace: #c81028;
   --photo-trace-casing: #ffffff;
 

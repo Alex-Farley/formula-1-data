@@ -161,7 +161,7 @@ import { eraCell } from '../src/queries/eras.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
 import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
-import { photoTrace, traceFields } from '../src/lib/trace.js'
+import { traceFields } from '../src/lib/trace.js'
 import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
@@ -256,6 +256,7 @@ import {
   leadOutline,
   outlineCaption,
   outlineFigures,
+  photoOutline,
   RACE_LAYOUT_NOTE,
   raceLayoutNote,
   roundShortName,
@@ -6275,34 +6276,23 @@ describe("the team-mates face-off (VD-122), on rows written out", async () => {
   it('has nothing to say with no team-mate', () => assert.equal(faceOffs('A Driver', []), null))
 })
 
-describe('the lap over a photograph (AF-96), on rows written out', () => {
-  // A transform that moves one degree of longitude to 100 px right and one of
-  // latitude to 200 px up, about an origin at (10, 50) drawn at (40, 30).
-  const transform = JSON.stringify({ origin: [10, 50], x: [100, 0, 40], y: [0, -200, 30] })
+describe("F1DB's outline over a photograph (AF-177), on rows written out", () => {
   const photo = { file_name: 'File:A.jpg', width: 800, height: 450 }
-  const row = {
-    centreline: JSON.stringify({ type: 'MultiLineString', coordinates: [[[10, 50], [10.5, 50.1]], [[10.5, 50.1], [10.25, 49.95]]] }),
-    photo_file: 'File:A.jpg',
-    photo_transform: transform,
-    licence: 'ODbL-1.0',
-  }
-  it('carries every line of the centreline onto the frame, in order', () => {
-    assert.deepEqual(photoTrace([row], photo), { d: 'M40 30L90 10M90 10L65 40', width: 800, height: 450, licence: 'ODbL-1.0' })
+  const row = { path: 'M10 10L490 490', photo_file: 'File:A.jpg', photo_transform: JSON.stringify([1.5, 0, 0, -1.25, 20, 400]) }
+  it('draws the outline as stored, under the transform its placing stores, in the frame of the photograph', () => {
+    assert.deepEqual(photoOutline([row], photo), { d: 'M10 10L490 490', transform: 'matrix(1.5 0 0 -1.25 20 400)', width: 800, height: 450 })
   })
   it('draws nothing on a photograph it was not placed on', () => {
-    assert.equal(photoTrace([row], { ...photo, file_name: 'File:B.jpg' }), null)
+    assert.equal(photoOutline([row], { ...photo, file_name: 'File:B.jpg' }), null)
   })
-  it('draws nothing where no row is placed, or the photograph has no size', () => {
-    assert.equal(photoTrace([{ ...row, photo_file: null, photo_transform: null }], photo), null)
-    assert.equal(photoTrace([], photo), null)
-    assert.equal(photoTrace([row], { ...photo, width: null }), null)
+  it('draws nothing where no outline is placed, or the photograph has no size', () => {
+    assert.equal(photoOutline([{ ...row, photo_file: null, photo_transform: null }], photo), null)
+    assert.equal(photoOutline([], photo), null)
+    assert.equal(photoOutline([row], { ...photo, width: null }), null)
+    assert.equal(photoOutline([row], null), null)
   })
-  it('credits the licence the row names, and ODbL where it names none', () => {
-    assert.equal(photoTrace([row], photo)?.licence, 'ODbL-1.0')
-    assert.equal(photoTrace([{ ...row, licence: null }], photo)?.licence, 'ODbL 1.0')
-  })
-  it('takes the placed row where a circuit has two', () => {
-    const other = { ...row, photo_file: null, photo_transform: null, centreline: '{"coordinates":[[[0,0],[1,1]]]}' }
-    assert.equal(photoTrace([other, row], photo)?.d, 'M40 30L90 10M90 10L65 40')
+  it('takes the placed outline where a circuit has several', () => {
+    const other = { path: 'M0 0L1 1', photo_file: null, photo_transform: null }
+    assert.equal(photoOutline([other, row], photo)?.d, 'M10 10L490 490')
   })
 })

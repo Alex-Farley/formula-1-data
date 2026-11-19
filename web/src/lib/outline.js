@@ -25,6 +25,44 @@ export const OUTLINE_CREDIT = 'Circuit outlines from F1DB (CC BY 4.0), drawn by 
 /** The credit as a figure caption carries it. */
 export const OUTLINE_BY = 'F1DB, CC BY 4.0 · drawn by Jules Roy'
 
+/**
+ * F1DB's outline over a circuit's aerial photograph (AF-177), which replaced
+ * the OpenStreetMap trace there (AF-174): the circuit's outline row placed on
+ * this very file, as the path and the SVG transform that carries its 500-unit
+ * box onto the photograph's stored frame (`width` x `height`), or null where
+ * nothing is placed on it.
+ *
+ * Neither the drawing nor the photograph has coordinates, so the placing is
+ * this project's own: points marked by eye on the track, each paired with a
+ * point of this very drawing (its path's digest is checked), and the affine
+ * build.py fits to the pairs and stores only once every point lies within
+ * PHOTO_OUTLINE_TOLERANCE_PX of its pair (data/harvest.py). It is keyed to
+ * the file it was marked on, and an outline placed on another file draws
+ * nothing here — the photograph is shown plain. CommonsImage and
+ * scripts/prerender.js's photograph() both draw what this returns, so the two
+ * halves of the page draw the same line.
+ */
+export const photoOutline = (outlines, photograph) => {
+  if (!photograph?.file_name || !photograph.width || !photograph.height) return null
+  const row = outlines.find((o) => o.photo_transform && o.photo_file === photograph.file_name)
+  if (!row) return null
+  return {
+    d: row.path,
+    transform: `matrix(${JSON.parse(row.photo_transform).join(' ')})`,
+    width: photograph.width,
+    height: photograph.height,
+  }
+}
+
+/**
+ * The placed outline's credit, after the photograph's own (AF-177, as
+ * approved on its mockup): whose drawing it is, under what licence, and that
+ * it was placed by eye — a drawing laid over the photograph, not a survey of
+ * it. Drawing over a CC BY-SA photograph modifies it, and this, with the alt,
+ * is where that is stated.
+ */
+export const PHOTO_OUTLINE_BY = 'Layout drawn over the photograph: F1DB, CC BY 4.0, drawn by Jules Roy, placed by eye'
+
 /** Printed wherever a shape appears. */
 export const OUTLINE_RULE = 'The outline is F1DB’s, for every layout; the trace is OpenStreetMap’s, where it exists.'
 
