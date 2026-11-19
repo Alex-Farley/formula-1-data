@@ -32,6 +32,7 @@ import {
   SEASON_TEAMS,
   STANDINGS,
   TEAM_MATES,
+  TITLE_RUNNERS_UP,
   WINS_AT,
   TEAM_MATE_COLUMNS,
   THIS_SEASON,
@@ -264,6 +265,7 @@ export default function Driver() {
     thisSeason: [THIS_SEASON, [id]],
     teamMates: [TEAM_MATES, [id, null]],
     winsAt: [WINS_AT, [id]],
+    runnersUp: [TITLE_RUNNERS_UP, [id]],
     sources: [DRIVER_SOURCES, [id]],
     practice: [DRIVER_PRACTICE, [id]],
     // AF-132: where a contender stands in the title fight being run.
@@ -323,8 +325,12 @@ function DriverBody({ driver, data }) {
   const seasons = useMemo(() => seasonRows(bySeason, standings), [bySeason, standings])
   const teams = useMemo(() => teamsBySeason(rows(data, 'seasonTeams')), [data])
   // The championship chart, worked out in queries/driver.js so the static
-  // page draws the same dots (VD-73).
-  const career = useMemo(() => finishesFigure(driver, standings, teams, bySeason), [driver, standings, teams, bySeason])
+  // page draws the same dots (VD-73), and the same line, finding and notes
+  // (VD-124).
+  const career = useMemo(
+    () => finishesFigure(driver, standings, teams, bySeason, { wins: rows(data, 'winsAt'), runnersUp: rows(data, 'runnersUp') }),
+    [driver, standings, teams, bySeason, data],
+  )
   const seasonColumns = useMemo(() => {
     const app = seasonApp(teams)
     return SEASON_COLUMNS.map((column) => ({ ...column, ...app[column.key] }))
@@ -391,12 +397,24 @@ function DriverBody({ driver, data }) {
 
       {career && (
         <Section lead title={FINISHES_HEADING}>
-          <Figure lead note={career.note} table={{ rows: career.rows, columns: finishesColumns }}>
+          <Figure
+            lead
+            note={career.note}
+            finding={career.finding}
+            kicker={career.kicker}
+            annotations={career.annotations}
+            table={{ rows: career.rows, columns: finishesColumns }}
+          >
             <DotPlot
               data={career.data}
               yMax={career.yMax}
               format={career.format}
               formatX={career.formatX}
+              formatXShort={career.formatXShort}
+              everyX={career.everyX}
+              line={career.line}
+              yTickValues={career.yTickValues}
+              marks={career.marks}
               xDomain={career.xDomain}
               height={career.height}
               label={career.label}

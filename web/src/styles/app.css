@@ -3922,6 +3922,14 @@ figure.figure > .figure-note:first-child {
   font-weight: var(--weight-semibold);
 }
 
+/* A driver's career as a line through its dots (VD-124): thinner than a
+   line chart's and at half strength, so it reads as the shape between the
+   dots, which carry the values, and never as a mark of its own. */
+.figure .career-line {
+  stroke-width: 1.5;
+  stroke-opacity: 0.5;
+}
+
 /* A numbered marker: a disc in ink, ringed in the panel's colour so it
    reads over a gridline or a line, on a hairline to its point. */
 .figure .anno-marker line {

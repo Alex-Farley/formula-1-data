@@ -5079,6 +5079,157 @@ describe("the championship chart's axis is the career (IX-38)", async () => {
   })
 })
 
+describe('a driver’s career chart tells the career (VD-124), on rows written out', async () => {
+  const { careerStory, finishesFigure } = await import('../src/queries/driver.js')
+  const { dotPlotLayout, DOT_R, RING_R } = await import('../src/charts/dotPlot.js')
+  const { MARKER, placeDotMarkers } = await import('../src/charts/annotate.js')
+  const final = (year, position, points) => ({ year, position, points, basis: 'final' })
+  // Norris's shape: 11th, 9th, 6th, 7th, 6th, 2nd, champion by two, and the season being run.
+  const norris = [final(2019, 11, 49), final(2020, 9, 97), final(2021, 6, 160), final(2022, 7, 122), final(2023, 6, 205), final(2024, 2, 374), final(2025, 1, 423), { year: 2026, position: 6, points: 150, basis: 'running' }]
+  const raced = norris.map((s) => s.year)
+  const wins = [{ year: 2024, round: 6, name_used: 'Miami Grand Prix' }, { year: 2024, round: 15, name_used: 'Dutch Grand Prix' }]
+  const runnersUp = [{ year: 2025, points: 421, name: 'Max Verstappen' }]
+
+  it('states the climb to one title, and a note for the first win and one for the title', () => {
+    const story = careerStory(norris, { wins, runnersUp, first: 2019, raced })
+    assert.equal(story.finding, 'From 11th to champion in seven seasons')
+    assert.equal(story.kicker, 'Final championship position each season · the title ringed')
+    assert.deepEqual(story.notes, [
+      { n: 1, x: 2024, lead: 'First win, 2024', text: 'Miami Grand Prix, round 6; 2nd in the championship that year.' },
+      { n: 2, x: 2025, lead: 'Champion, 2025', text: 'By two points from Verstappen.' },
+    ])
+  })
+  it('counts the seasons raced, not the years, and names both years where the first season has no place', () => {
+    const gap = [{ year: 1968, position: null, basis: 'final' }, final(1970, 15, 4), final(1978, 1, 64)]
+    assert.equal(careerStory(gap, { first: 1968, raced: [1968, 1970, 1978] }).finding, 'From 15th in 1970 to champion in 1978')
+    const sabbatical = [final(2001, 9, 10), final(2004, 3, 50), final(2005, 1, 90)]
+    assert.equal(careerStory(sabbatical, { first: 2001, raced: [2001, 2004, 2005] }).finding, 'From 9th to champion in three seasons')
+  })
+  it('counts several titles, and makes a first win in a title season one note', () => {
+    const story = careerStory([final(1950, 1, 30), final(1951, 4, 19), final(1952, 1, 36)], {
+      wins: [{ year: 1950, round: 1, name_used: 'British Grand Prix' }],
+      runnersUp: [{ year: 1950, points: 27.5, name: 'Juan Manuel Fangio' }],
+      first: 1950,
+      raced: [1950, 1951, 1952],
+    })
+    assert.equal(story.finding, 'Two titles between 1950 and 1952')
+    assert.equal(story.kicker, 'Final championship position each season · each title ringed')
+    assert.deepEqual(story.notes, [
+      { n: 1, x: 1950, lead: 'First win and first title, 1950', text: 'British Grand Prix, round 1. By 2.5 points from Fangio.' },
+    ])
+    assert.equal(careerStory([final(1950, 1, 30), final(1951, 4, 19)], { first: 1950, raced: [1950, 1951] }).finding, 'Champion at the first attempt')
+  })
+  it('never calls the season being run a title, and says it as so far', () => {
+    const rookie = [final(2025, 7, 150), { year: 2026, position: 1, points: 390, basis: 'running' }]
+    const story = careerStory(rookie, { wins: [{ year: 2026, round: 2, name_used: 'Chinese Grand Prix' }], first: 2025, raced: [2025, 2026] })
+    assert.equal(story.finding, 'At best 7th in the championship, in 2025; 1st in 2026 so far')
+    assert.equal(story.kicker, 'Final championship position each season')
+    // No final place to state for the season of the first win.
+    assert.deepEqual(story.notes, [{ n: 1, x: 2026, lead: 'First win, 2026', text: 'Chinese Grand Prix, round 2.' }])
+    const chart = finishesFigure({ full_name: 'A Driver', first_season: 2025, last_season: 2026 }, rookie, new Map(), [{ year: 2025 }, { year: 2026 }])
+    assert.deepEqual(chart.data.map((d) => d.mark), [false, false], 'a lead in the season being run is not ringed')
+  })
+  it('names the best final place and how often, and gives no note without a dot to point to', () => {
+    const story = careerStory([final(1955, 2, 23), final(1956, 2, 27), final(1957, 2, 25), { year: 1962, position: null, basis: 'final' }], {
+      wins: [{ year: 1962, round: 1, name_used: 'A Grand Prix' }],
+      first: 1955,
+    })
+    assert.equal(story.finding, 'At best 2nd in the championship, three times')
+    assert.deepEqual(story.notes, [])
+  })
+  it('gives the points alone where no single runner-up is on record, and a level title as level', () => {
+    const one = [final(2000, 3, 20), final(2001, 1, 40)]
+    assert.equal(careerStory(one, { first: 2000 }).notes[0].text, 'On 40 points.')
+    assert.equal(careerStory(one, { first: 2000, runnersUp: [{ year: 2001, points: 40, name: 'B Driver' }] }).notes[0].text, 'Level on points with Driver.')
+    assert.equal(careerStory(one, { first: 2000, runnersUp: [{ year: 2001, points: 39, name: 'B Driver' }] }).notes[0].text, 'By one point from Driver.')
+  })
+
+  const driver = { full_name: 'Lando Norris', first_season: 2019, last_season: 2026 }
+  const chart = finishesFigure(driver, norris, new Map(), raced.map((year) => ({ year })), { wins, runnersUp })
+  it('labels every season, in the short form where only that fits, and both ends where neither does', () => {
+    assert.deepEqual(dotPlotLayout({ ...chart, width: 480 }).xTicks.map((t) => t.text), raced.map(String))
+    assert.deepEqual(dotPlotLayout({ ...chart, width: 300 }).xTicks.map((t) => t.text), raced.map((y) => `’${String(y).slice(-2)}`))
+    const long = finishesFigure({ full_name: 'A', first_season: 1993, last_season: 2011 }, [final(1993, 17, 2), final(2011, 17, 4)], new Map(), [])
+    const ticks = dotPlotLayout({ ...long, width: 320 }).xTicks.map((t) => t.value)
+    assert.equal(ticks[0], 1993)
+    assert.equal(ticks[ticks.length - 1], 2011)
+    assert.ok(ticks.length < 19, 'not every season, where they would collide')
+  })
+  it('grids P1, P5 and P10, and the tens past them, never the floor', () => {
+    assert.deepEqual(dotPlotLayout({ ...chart, width: 480 }).yTicks.map((t) => t.text), ['P1', 'P5', 'P10'])
+    const deep = finishesFigure(driver, [final(2019, 23, 0), final(2020, 9, 1)], new Map(), [])
+    assert.deepEqual(dotPlotLayout({ ...deep, width: 480 }).yTicks.map((t) => t.text), ['P1', 'P5', 'P10', 'P20'])
+  })
+  it('breaks the line at a season with no dot and at a season not raced', () => {
+    const data = [{ x: 1, y: 3 }, { x: 2, y: 2 }, { x: 3, y: null }, { x: 4, y: 1 }, { x: 5, y: 2 }, { x: 7, y: 4 }]
+    const layout = dotPlotLayout({ data, width: 400, line: true })
+    assert.equal(layout.segments.length, 2)
+    assert.equal((layout.linePath.match(/M/g) ?? []).length, 2)
+    assert.equal(dotPlotLayout({ data, width: 400 }).linePath, '', 'no line unless asked')
+  })
+  it('takes the one colour every dot shares, and ink where they differ', () => {
+    const pair = { light: '#d66c00', dark: '#ff8000' }
+    const data = [{ x: 1, y: 1, colour: pair }, { x: 2, y: 2, colour: { ...pair } }]
+    assert.deepEqual(dotPlotLayout({ data, width: 400, line: true }).lineColour, pair)
+    assert.equal(dotPlotLayout({ data: [...data, { x: 3, y: 2, colour: { light: '#000', dark: '#fff' } }], width: 400, line: true }).lineColour, null)
+    assert.equal(dotPlotLayout({ data: [...data, { x: 3, y: 2, hollow: true }], width: 400, line: true }).lineColour, null)
+  })
+  it('sets every marker under its dot, clear of every dot, the line and the other marker, at every width', () => {
+    const reach = MARKER.r + MARKER.ring / 2
+    const near = (s, px, py) => {
+      const l = (s.x2 - s.x1) ** 2 + (s.y2 - s.y1) ** 2
+      const t = Math.max(0, Math.min(1, ((px - s.x1) * (s.x2 - s.x1) + (py - s.y1) * (s.y2 - s.y1)) / l))
+      return Math.hypot(s.x1 + t * (s.x2 - s.x1) - px, s.y1 + t * (s.y2 - s.y1) - py)
+    }
+    for (const width of [300, 352, 480, 640]) {
+      const layout = dotPlotLayout({ ...chart, width })
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2], `${width}: a marker for each note`)
+      for (const m of layout.markers) {
+        const dot = layout.points.find((p) => Math.abs(p.cx - m.cx) < 0.01)
+        assert.ok(m.cy > dot.cy, `${width}: marker ${m.n} under its dot`)
+        assert.ok(m.cy + reach <= layout.tickY - 10, `${width}: marker ${m.n} above the axis`)
+        for (const p of layout.points) assert.ok(Math.hypot(p.cx - m.cx, p.cy - m.cy) >= reach + (p.d.mark ? RING_R : DOT_R), `${width}: marker ${m.n} clear of ${p.d.x}`)
+        for (const s of layout.segments) assert.ok(near(s, m.cx, m.cy) >= reach, `${width}: marker ${m.n} clear of the line`)
+      }
+      const [a, b] = layout.markers
+      assert.ok(Math.hypot(a.cx - b.cx, a.cy - b.cy) >= 2 * reach, `${width}: the two markers apart`)
+    }
+  })
+  it('goes over a dot where under would leave the drawing', () => {
+    const [m] = placeDotMarkers([{ n: 1, x: 50, y: 95, r: DOT_R }], { dots: [{ x: 50, y: 95, r: DOT_R }], bottom: 100 })
+    assert.ok(m.cy < 95)
+    assert.ok(m.leader.y1 < 95 && m.leader.y2 < m.leader.y1, 'the hairline runs up from the dot to the disc')
+  })
+  it('steps a disc aside where nothing straight under or over a title is clear: Button at 300 to 400 px', () => {
+    const reach = MARKER.r + MARKER.ring / 2
+    const near = (s, px, py) => {
+      const l = (s.x2 - s.x1) ** 2 + (s.y2 - s.y1) ** 2
+      const t = Math.max(0, Math.min(1, ((px - s.x1) * (s.x2 - s.x1) + (py - s.y1) * (s.y2 - s.y1)) / l))
+      return Math.hypot(s.x1 + t * (s.x2 - s.x1) - px, s.y1 + t * (s.y2 - s.y1) - py)
+    }
+    // A ringed P1 between an 18th and a 5th: the climb under the title fills the space below it.
+    const places = [8, 17, 7, 9, 3, 9, 6, 15, 18, 1, 5, 2, 5, 9, 8, 16, 15]
+    const button = places.map((position, i) => final(2000 + i, position, 10))
+    const years = button.map((s) => s.year)
+    const chart = finishesFigure({ full_name: 'Jenson Button', first_season: 2000, last_season: 2016 }, button, new Map(), years.map((year) => ({ year })), {
+      wins: [{ year: 2006, round: 13, name_used: 'Hungarian Grand Prix' }],
+    })
+    for (const width of [300, 320, 360, 400]) {
+      const layout = dotPlotLayout({ ...chart, width })
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2], `${width}: a marker for each note`)
+      for (const m of layout.markers) {
+        for (const p of layout.points) assert.ok(Math.hypot(p.cx - m.cx, p.cy - m.cy) >= reach + (p.d.mark ? RING_R : DOT_R), `${width}: marker ${m.n} clear of ${p.d.x}`)
+        for (const s of layout.segments) assert.ok(near(s, m.cx, m.cy) >= reach, `${width}: marker ${m.n} clear of the line`)
+        assert.ok(m.cx - reach >= 0 && m.cx + reach <= width && m.cy - reach >= 0 && m.cy + reach <= layout.tickY - 10, `${width}: marker ${m.n} inside the drawing`)
+        // The hairline runs out from the dot towards the disc, never back on itself.
+        const dot = layout.points.find((p) => Math.hypot(p.cx - m.leader.x1, p.cy - m.leader.y1) <= (p.d.mark ? RING_R : DOT_R) + 1.01)
+        assert.ok(dot, `${width}: marker ${m.n}'s hairline starts at a dot's edge`)
+        assert.ok(Math.hypot(m.leader.x2 - dot.cx, m.leader.y2 - dot.cy) >= Math.hypot(m.leader.x1 - dot.cx, m.leader.y1 - dot.cy), `${width}: marker ${m.n}'s hairline runs outward`)
+      }
+    }
+  })
+})
+
 describe("/data's identifier policy reads meta as the file states it (DA-25)", () => {
   it('sets paired backticks as code, and an unpaired one as text', () => {
     assert.deepEqual(codeSpans('join `a` on `b`'), [

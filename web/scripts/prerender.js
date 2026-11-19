@@ -659,6 +659,7 @@ import {
   STANDINGS,
   TEAM_MATES,
   WINS_AT,
+  TITLE_RUNNERS_UP,
   TEAM_MATE_COLUMNS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
@@ -1571,12 +1572,18 @@ const xAxis = (layout) =>
     .map((tick) => `<text class="axis-text" x="${px(tick.x)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(tick.text)}</text>`)
     .join('')
 
-/* DotPlot.jsx at rest: the halo on a flagged dot, then the dots, each in its
-   own colour's group where it has one, hollow in ink where it has none. */
+/* DotPlot.jsx at rest: a career's line under everything (VD-124), the halo
+   on a flagged dot, then the dots, each in its own colour's group where it
+   has one, hollow in ink where it has none, and the numbered markers. */
 const dotPlotSvg = (chart, width) => {
   const layout = dotPlotLayout({ ...chart, width })
   if (!layout) return ''
   const paint = (d) => (d.colour ? 'var(--livery)' : INK)
+  const line = layout.linePath
+    ? `<g${ownAttrs(layout.lineColour)}><path class="career-line" d="${tidy(layout.linePath)}" fill="none" stroke="${
+        layout.lineColour ? 'var(--livery)' : INK
+      }" stroke-linejoin="round" stroke-linecap="round"/></g>`
+    : ''
   const halos = layout.points
     .filter(({ d }) => d.mark)
     .map(
@@ -1594,7 +1601,8 @@ const dotPlotSvg = (chart, width) => {
         }"/></g>`,
     )
     .join('')
-  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${halos}${dots}`)}</div>`
+  const markers = layout.markers.map(markerSvg).join('')
+  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${line}${halos}${dots}${markers}`)}</div>`
 }
 
 /* ColumnChart.jsx at rest: the shaded bands under everything, the columns
@@ -4056,6 +4064,7 @@ const seasonsTable = (rows) =>
   const thisSeasonOf = db.prepare(THIS_SEASON)
   const teamMatesOf = db.prepare(TEAM_MATES)
   const winsAtOf = db.prepare(WINS_AT)
+  const runnersUpOf = db.prepare(TITLE_RUNNERS_UP)
   const seasonTeamsOf = db.prepare(SEASON_TEAMS)
 
   for (const { id } of register) {
@@ -4096,7 +4105,8 @@ const seasonsTable = (rows) =>
     const teamMates = teamMatesOf.all(id, null)
     // Driver.jsx's circuits won at (VD-104 (b)), after the career and before
     // the tables, and no section for a driver who never won.
-    const wonAtHere = wonAt(winsAtOf.all(id))
+    const wins = winsAtOf.all(id)
+    const wonAtHere = wonAt(wins)
     const constructors = constructorsOf.all(id).map((c) => c.name)
     // A Friday driver's whole record is the practice sheets (LV-03), as in
     // Driver.jsx: the sentence, the notice and the table are the app's.
@@ -4117,11 +4127,17 @@ const seasonsTable = (rows) =>
     // The championship chart that leads the page (VD-73): Driver.jsx's
     // figure, from queries/driver.js, in the slot after the tiles. A Friday
     // driver has no championship season to draw, and no tiles to follow.
-    const finishes = practiceOnly ? null : finishesFigure(d, standings, teamsBySeason(seasonTeamsOf.all(id)), bySeason)
+    // Its finding and notes too (VD-124); the runner-up is asked for only
+    // where there is a title for it to have been second in.
+    const runnersUp = standings.some((s) => s.position === 1 && s.basis === 'final') ? runnersUpOf.all(id) : []
+    const finishes = practiceOnly ? null : finishesFigure(d, standings, teamsBySeason(seasonTeamsOf.all(id)), bySeason, { wins, runnersUp })
     const finishesChart = finishes
       ? leadFigure({
           heading: FINISHES_HEADING,
           note: finishes.note,
+          finding: finishes.finding,
+          kicker: finishes.kicker,
+          annotations: finishes.annotations,
           plot: dotPlotSvg(finishes, LEAD_WIDTH),
           table: fromColumns(FINISHES_COLUMNS, finishes.rows, {}, { unfolded: UNFOLDED.figure }),
         })
