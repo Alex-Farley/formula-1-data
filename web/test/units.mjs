@@ -6103,6 +6103,48 @@ describe('the annotation pattern (VD-121)', () => {
     assert.deepEqual(held.marks.map((m) => m.keys), [[1950], [1951], [1953]])
   })
 
+  // The whole home series, every season 1950-2027 as the register held it in
+  // November 2026, so the layout is tested on columns as thin as the page's
+  // (the confirmation of #1409: the cut-down series' columns are wider, and
+  // hid a hairline starting inside a neighbouring disc on a phone).
+  const ROUNDS = [
+    7, 8, 8, 9, 9, 7, 8, 8, 11, 9, 10, 8, 9, 10, 10, 10, 9, 11, 12, 11, 13, 11, 12, 15, 15, 14, 16, 17, 16, 15, 14, 15, 16, 15, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16, 17, 16, 17, 16, 16, 17, 17, 17, 16, 18, 19, 18, 17, 18, 17, 19, 19, 20, 19, 19, 19, 21, 20, 21, 21,
+    17, 22, 22, 22, 24, 24, 23, 24,
+  ]
+  const wholeSeries = ROUNDS.map((rounds, k) => {
+    const year = 1950 + k
+    return { year, rounds, run: year === 2026 ? 20 : year === 2027 ? 0 : rounds, indianapolis: year <= 1960 ? 1 : 0 }
+  })
+
+  it('lays the whole home series’ markers out sound at every width from 250 to 1800 px (VD-123)', () => {
+    const shown = chartNotes(wholeSeries)
+    assert.deepEqual(shown.marks.map((m) => m.keys.length > 0), [true, true, true, true])
+    const reach = MARKER.r + MARKER.ring / 2
+    for (let width = 250; width <= 1800; width += 1) {
+      const layout = columnLayout({ data: chartData(wholeSeries), width, height: 260, labelPeak: false, marks: shown.marks, bands: shown.bands })
+      const where = (m) => `${width}: marker ${m.n} at (${m.cx.toFixed(1)}, ${m.cy.toFixed(1)})`
+      assert.equal(layout.markers.length, 4, `${width}: every note has its marker`)
+      for (const m of layout.markers) {
+        assert.ok(m.cy - reach >= -1e-9 && m.cx - reach >= -1e-9 && m.cx + reach <= width + 1e-9, `${where(m)} is inside the drawing`)
+        // Over no column it reaches: the column's own edges, read off its path.
+        for (const c of layout.columns) {
+          const half = c.centre - Number(c.path.match(/^M([-\d.]+),/)[1])
+          if (Math.abs(c.centre - m.cx) <= reach + half) assert.ok(m.cy + reach <= c.peak + 1e-9, `${where(m)} clears ${c.d.key}'s column`)
+        }
+        for (const o of layout.markers) {
+          if (o === m) continue
+          assert.ok(Math.hypot(m.cx - o.cx, m.cy - o.cy) >= 2 * reach, `${where(m)} and marker ${o.n} do not overlap`)
+          if (!m.leader) continue
+          const { x1, y1, x2, y2 } = m.leader
+          const t = Math.max(0, Math.min(1, ((o.cx - x1) * (x2 - x1) + (o.cy - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2)))
+          const d = Math.hypot(x1 + t * (x2 - x1) - o.cx, y1 + t * (y2 - y1) - o.cy)
+          assert.ok(d >= reach, `${where(m)}: its hairline clears marker ${o.n}'s disc (${d.toFixed(1)})`)
+        }
+      }
+    }
+  })
+
   it('lays the home chart’s markers out inside the drawing at every width, none touching another (VD-123)', () => {
     const seasons = homeSeasons({ year: 2026, rounds: 23, run: 20, indianapolis: 0 })
     const shown = chartNotes(seasons)

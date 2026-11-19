@@ -617,10 +617,12 @@ key under it at every width. `charts/columnChart.js` takes `marks` and
 step to its last's, and a marker stands over the middle of the columns it
 names - one, or a run of tied ones side by side, which share it - placed
 by `placeColumnMarkers()` in `charts/annotate.js`: never below its point,
-and where two would touch (home's 2024-25 and 2026, a few pixels apart on a
+over no column it would cover, and with no hairline through another disc.
+Where two would touch (home's 2024-25 and 2026, a few pixels apart on a
 phone), the earlier steps aside, level, on an angled hairline, as the
-mockup sets it, so no hairline runs through another disc; only where it
-cannot is the later one raised over it. The layout lowers the plot until
+mockup sets it, and the later one rises as far as it must to clear the
+earlier one's hairline; a disc a taller neighbour would cover (1950's, on a
+narrow chart) rises the same way. The layout lowers the plot until
 every disc is inside the drawing. A band's marker has no hairline: it marks
 the band, not a point in it. A column may carry `ahead`, what is still to
 come, dashed over it the column's width in its own colour: the season being

@@ -58,7 +58,7 @@ export const SHAPE = `
  * count because a season whose rounds have all still to be run is a calendar
  * rather than a set of results, and the note has to name which ones those
  * are - from the rows, never from arithmetic on the current year; and a
- * season part run is drawn as what it has run, with the rest outlined
+ * season part run is drawn as what it has run, with the rest dashed
  * (VD-123). `indianapolis` counts the season's Indianapolis 500, a
  * championship round to 1960, which the note and the first season's note
  * say are counted.
