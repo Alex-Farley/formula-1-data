@@ -440,7 +440,8 @@ function DriverBody({ driver, data }) {
           no section, as it has no rows (PD-43). */}
       {teamMates.length > 0 && (
         <Section title="Team-mates" count={teamMateCount(teamMates)}>
-          <FaceOffs faceOff={faceOff} />
+          {/* Keyed by the driver: an opened disclosure (VD-130) is that page's, not the next one's. */}
+          <FaceOffs key={driver.id} faceOff={faceOff} />
           <DataTable
             rows={teamMates}
             fold={FOLD_NOUN.teamMates}

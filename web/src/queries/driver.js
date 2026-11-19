@@ -15,7 +15,7 @@
  */
 import { EMPTY, finished, inWords, missing, number, ordinal, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
-import { FOLD_NOUN } from '../lib/table.js'
+import { FOLD_NOUN, foldMore } from '../lib/table.js'
 import { byRoundText } from '../charts/spark.js'
 import { PRACTICE_SESSIONS, STARTED, carName } from './race.js'
 import { LABELS } from '../lib/site.js'
@@ -758,20 +758,27 @@ export const teamMatesFooter = (name) =>
  * same TEAM_MATES rows. Every figure is a sum of the table's own columns, so
  * the face-off can say nothing the table under it does not.
  *
- * One block per team-mate shown, at most FACE_OFFS of them: the latest
- * team-mate - the one with the latest round together (`last_round`), not
- * the first row, which within a year is ordered by team name; two shared
- * that round goes to the query's order - and then those with the most
- * Grands Prix together, a tie going to the later pairing and then the
- * name. A career of 106 team-mates is not 106 blocks; the table
- * holds every pairing, and the note under the blocks says how many are
- * shown of how many. The blocks are set latest first, as the table is.
+ * FACE_OFFS blocks are shown: the latest team-mate - the one with the
+ * latest round together (`last_round`), not the first row, which within a
+ * year is ordered by team name; two shared that round goes to the query's
+ * order - and then those with the most Grands Prix together, a tie going to
+ * the later pairing and then the name, set latest first, as the table is.
+ * Every other team-mate has a block too, latest first, behind one closed
+ * disclosure under them (VD-130, decided 2026-11-17): a career of 106
+ * team-mates opens on three blocks, not 106, and the key under them says
+ * where the rest are. Both halves write every block, as a fold writes every
+ * row, so the static page and the app open the same disclosure; Brabham's
+ * static page carries 103 blocks more for it, about 270 KB of HTML and 6 KB
+ * once gzipped.
  *
  * Each block's colours are its last season's team (D-65): the driver in the
  * team's pair and the team-mate in the livery's second colour, or in ink
  * where it has none, as charts/own.js faceColours() writes them.
  */
 export const FACE_OFFS = 3
+
+/** The face-offs past FACE_OFFS: the disclosure's two faces, as a fold's. */
+export const faceFold = (mates) => ({ more: foldMore(mates, 'team-mates'), less: `Show the first ${FACE_OFFS}` })
 
 /** The three counts, in the table's order, and how a sentence names each. */
 const TALLIES = [
@@ -877,7 +884,9 @@ function headline(block) {
  * under the verdict, the `verdict`, its
  * `tallies`, its `seasons` - each a year, newest first, and its tallies,
  * summed over the year's rows where the two shared more than one team - and the
- * `colour` its last season's team wears), and `note`, the key under them.
+ * `colour` its last season's team wears), `more` (every other team-mate's
+ * block, latest first, behind the disclosure), `fold` (the disclosure's
+ * faces, or null where there is no `more`) and `note`, the key under them.
  */
 export function faceOffs(name, rows) {
   if (!rows.length) return null
@@ -897,8 +906,9 @@ export function faceOffs(name, rows) {
     .filter((m) => m !== latest)
     .sort((x, y) => y.races - x.races || y.last - x.last || x.mate.localeCompare(y.mate))
     .slice(0, FACE_OFFS - 1)
-  const shown = [latest, ...others].sort((x, y) => y.last - x.last || y.races - x.races || x.mate.localeCompare(y.mate))
-  const blocks = shown.map(({ rows: list }) => {
+  const latestFirst = (x, y) => y.last - x.last || y.races - x.races || x.mate.localeCompare(y.mate)
+  const shown = [latest, ...others].sort(latestFirst)
+  const block = ({ rows: list }) => {
     const [a, b] = shortNames([name, list[0].mate])
     const years = [...new Set(list.map((row) => row.year))].sort((x, y) => x - y)
     // One split a year: a pairing at two teams in a season is one season.
@@ -922,7 +932,12 @@ export function faceOffs(name, rows) {
       seasons,
       colour: colourForEntry({ constructorId: last.constructor_id, country: last.constructor_country, year: last.year, team: last.constructor }),
     }
-  })
+  }
+  const blocks = shown.map(block)
+  const more = mates
+    .filter((m) => !shown.includes(m))
+    .sort(latestFirst)
+    .map(block)
   const first = blocks[0]
   const [a] = first.names
   const together = `${capitalise(inWords(first.seasonCount))} ${first.seasonCount === 1 ? 'season' : 'seasons'} together at ${joinAnd(first.constructors)}.`
@@ -935,15 +950,17 @@ export function faceOffs(name, rows) {
     ? ` Across ${plural(byMate.size, 'team-mate')}, ${a} was ahead in qualifying in ${number(ahead)} of ${plural(counted.length, 'team-mate season')}` +
       `${level ? `, level in ${number(level)}` : ''}${behind ? `, behind in ${number(behind)}` : ''}.`
     : ''
-  const some =
-    byMate.size > blocks.length
-      ? ` Shown: the latest team-mate and the ${inWords(blocks.length - 1)} ${blocks.length === 2 ? 'other' : 'others'} with the most Grands Prix together, of ${plural(byMate.size, 'team-mate')}; the table has every pairing.`
-      : ' The table has every pairing.'
+  const fold = more.length ? faceFold(byMate.size) : null
+  const some = fold
+    ? ` Shown first: the latest team-mate and the ${inWords(blocks.length - 1)} ${blocks.length === 2 ? 'other' : 'others'} with the most Grands Prix together; the other ${inWords(more.length)} ${more.length === 1 ? 'follows' : 'follow'} under “${fold.more}”, latest first, and the table has every pairing.`
+    : ' The table has every pairing.'
   return {
     headline: headline(first),
     standfirst: `${together}${across}`,
     blocks,
-    note: `${colourKey(a, blocks)} The larger figure is the one ahead, and the tick marks level.${some}`,
+    more,
+    fold,
+    note: `${colourKey(a, [...blocks, ...more])} The larger figure is the one ahead, and the tick marks level.${some}`,
   }
 }
 

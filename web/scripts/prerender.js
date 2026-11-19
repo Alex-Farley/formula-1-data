@@ -2068,7 +2068,11 @@ const faceBlock = (block) => {
 }
 const faceOffHtml = (faceOff) =>
   faceOff
-    ? `<p class="face-headline">${esc(faceOff.headline.text)} <em>${esc(faceOff.headline.figure)}</em></p><p class="note">${esc(faceOff.standfirst)}</p>${faceOff.blocks.map(faceBlock).join('')}<p class="faint face-key">${esc(faceOff.note)}</p>`
+    ? `<p class="face-headline">${esc(faceOff.headline.text)} <em>${esc(faceOff.headline.figure)}</em></p><p class="note">${esc(faceOff.standfirst)}</p>${faceOff.blocks.map(faceBlock).join('')}${
+        faceOff.fold
+          ? `<details class="face-fold"><summary><span class="fold-more">${esc(faceOff.fold.more)}</span><span class="fold-less">${esc(faceOff.fold.less)}</span></summary>${faceOff.more.map(faceBlock).join('')}</details>`
+          : ''
+      }<p class="faint face-key">${esc(faceOff.note)}</p>`
     : ''
 
 // components/ValueBar.jsx: a figure and its bar, `share` of the leader's, in

@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { staticFaceFoldOpen } from '../lib/handover.js'
 import { faceColours } from './own.js'
 
 /**
@@ -12,10 +14,16 @@ import { faceColours } from './own.js'
  * figures saying what they draw, each after its driver's name in sr-only
  * text; the per-season splits are hidden too, as the table under them holds
  * every season's figures under its own headers.
+ *
+ * Every other team-mate's block is behind one closed disclosure under the
+ * first FACE_OFFS (VD-130), its two faces in the markup and the stylesheet
+ * showing one, as a table's fold does. A reader who opened it on the static
+ * page finds it open in the app (lib/handover.js).
  */
 export default function FaceOffs({ faceOff }) {
+  const [open, setOpen] = useState(staticFaceFoldOpen)
   if (!faceOff) return null
-  const { headline, standfirst, blocks, note } = faceOff
+  const { headline, standfirst, blocks, more, fold, note } = faceOff
   return (
     <>
       <p className="face-headline">
@@ -25,6 +33,17 @@ export default function FaceOffs({ faceOff }) {
       {blocks.map((block) => (
         <Block key={block.key} block={block} />
       ))}
+      {fold && (
+        <details className="face-fold" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+          <summary>
+            <span className="fold-more">{fold.more}</span>
+            <span className="fold-less">{fold.less}</span>
+          </summary>
+          {more.map((block) => (
+            <Block key={block.key} block={block} />
+          ))}
+        </details>
+      )}
       <p className="faint face-key">{note}</p>
     </>
   )
