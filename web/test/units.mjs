@@ -6681,3 +6681,248 @@ describe("F1DB's outline over a photograph (AF-177), on rows written out", () =>
     assert.equal(photoOutline([other, row], photo)?.d, 'M10 10L490 490')
   })
 })
+
+import { LABEL_CLEAR, SQUARE, SQUARE_ROOM, COLUMN_MARGIN } from '../src/charts/columnChart.js'
+import { winsFigure, winsStory } from '../src/queries/constructor.js'
+
+describe('a constructor’s wins chart, its titles, peak and drought marked (VD-125), on rows written out', () => {
+  // Ferrari's wins, 1950-2026, as the register held them in November 2026,
+  // so the layout is tested on columns as thin as the page's.
+  const FERRARI = [
+    0, 3, 7, 7, 2, 1, 6, 0, 2, 2, 1, 5, 0, 1, 3, 0, 2, 0, 1, 0, 4, 2, 1, 0, 3, 6, 6, 4, 5, 6, 0, 2, 3, 4, 1, 2, 0, 2, 1, 3, 6, 0, 0, 0, 1, 1,
+    3, 5, 6, 6, 10, 9, 15, 8, 15, 1, 9, 9, 8, 1, 5, 1, 3, 2, 0, 3, 0, 5, 6, 3, 0, 0, 4, 1, 5, 0, 2,
+  ]
+  const TITLES = [1961, 1964, 1975, 1976, 1977, 1979, 1982, 1983, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008]
+  const ferrari = { id: 'ferrari', name: 'Ferrari' }
+  const seasons = FERRARI.map((wins, k) => ({ year: 1950 + k, wins, entries: 2 }))
+  // Constructors' tables: a final one each finished season, 2026 still running.
+  const standings = seasons.map((s) => ({
+    year: s.year,
+    position: TITLES.includes(s.year) ? 1 : 2,
+    basis: s.year === 2026 ? 'running' : 'final',
+  }))
+  const champ = (year, driver_id, name) => ({ year, driver_id, name })
+  const champions = [
+    champ(1952, 'ascari', 'Alberto Ascari'),
+    champ(1953, 'ascari', 'Alberto Ascari'),
+    champ(1956, 'fangio', 'Juan Manuel Fangio'),
+    champ(1958, 'hawthorn', 'Mike Hawthorn'),
+    champ(1961, 'phil-hill', 'Phil Hill'),
+    champ(1964, 'surtees', 'John Surtees'),
+    champ(1975, 'lauda', 'Niki Lauda'),
+    champ(1977, 'lauda', 'Niki Lauda'),
+    champ(1979, 'scheckter', 'Jody Scheckter'),
+    ...[2000, 2001, 2002, 2003, 2004].map((y) => champ(y, 'michael-schumacher', 'Michael Schumacher')),
+    champ(2007, 'raikkonen', 'Kimi Räikkönen'),
+  ]
+  const colour = { name: 'Rosso Scuderia livery', pair: { lead: { name: 'Rosso Scuderia' } } }
+
+  it('works Ferrari’s finding, kicker and four notes out from the rows, the notes as the approved mockup has them', () => {
+    const story = winsStory(ferrari, seasons, { standings, champions, colour })
+    // Not the mockup's "The Schumacher years": his 2001 (9) and 2003 (8) are
+    // no higher than 2006-07 (9) and 2008 (8), so the reign does not stand
+    // above everything else, and the finding states the peak.
+    assert.equal(story.finding, 'Fifteen wins in 2002 and 2004 stand above everything else')
+    assert.equal(story.kicker, 'Ferrari’s wins each season, in Rosso Scuderia')
+    assert.equal(story.titleKey, 'a constructors’ title (16)')
+    assert.deepEqual([...story.titles].sort(), TITLES)
+    assert.deepEqual(
+      story.notes.map((n) => `${n.n}. ${n.lead}: ${n.text}`),
+      [
+        '1. 1952–53: Ascari: Seven wins each season, and both drivers’ titles.',
+        '2. 1975–77: three titles in a row: Constructors’ titles each year; Lauda champion in 1975 and 1977.',
+        '3. 1991–93: no win: The longest winless run in Ferrari’s 77 seasons, shaded.',
+        '4. 2002 and 2004: 15 each: Ferrari’s most in a season, inside Schumacher’s five straight titles.',
+      ],
+    )
+    // The tie is one marker over both its seasons; the drought's disc is lifted
+    // into its band on a hairline, and the band is shaded.
+    assert.deepEqual(
+      story.marks.map((m) => [m.n, m.keys.join(','), m.leader, m.lift]),
+      [
+        [1, '1952,1953', false, false],
+        [2, '1975,1976,1977', false, false],
+        [3, '1991,1992,1993', true, true],
+        [4, '2002,2004', false, false],
+      ],
+    )
+    assert.deepEqual(story.bands, [{ from: 1991, to: 1993 }])
+    // No colour: the kicker names none. The season being run is not a title.
+    assert.equal(winsStory(ferrari, seasons, { standings, champions }).kicker, 'Ferrari’s wins each season')
+    const leading = standings.map((s) => (s.year === 2026 ? { ...s, position: 1 } : s))
+    assert.equal(winsStory(ferrari, seasons, { standings: leading, champions }).titles.has(2026), false)
+  })
+
+  const team = { id: 'x', name: 'Williams' }
+  const run = (from, wins) => wins.map((w, k) => ({ year: from + k, wins: w, entries: 2 }))
+  const finals = (rows, titles = [], running = null) =>
+    rows.map((s) => ({ year: s.year, position: titles.includes(s.year) ? 1 : 3, basis: s.year === running ? 'running' : 'final' }))
+
+  it('gives tied peaks decades apart a disc each with one number, and one key entry', () => {
+    const rows = run(1962, [2, 4, 4, 1, 0, 1, 4, 0, 0])
+    const story = winsStory({ name: 'Brabham' }, rows, { standings: finals(rows) })
+    assert.equal(story.finding, 'Four wins in 1963, 1964 and 1968 stand above everything else')
+    const peak = story.notes.find((n) => n.lead.endsWith('4 each'))
+    assert.equal(peak.lead, '1963, 1964 and 1968: 4 each')
+    assert.deepEqual(
+      story.marks.filter((m) => m.n === peak.n).map((m) => m.keys),
+      [[1963, 1964], [1968]],
+      'within two seasons, one disc; further, a disc of its own with the same number',
+    )
+    assert.equal(story.notes.filter((n) => n.n === peak.n).length, 1)
+  })
+
+  it('names every champion of a tied peak where no one driver holds it, and loses no title to a merged note', () => {
+    // Brabham: titles in a row in 1966-67 are exactly the first disc of a
+    // peak tied with 1983, so the run's note goes; Brabham's own 1966 title
+    // is at the peak too, so its note goes; the peak's note names all three.
+    const rows = run(1964, [0, 0, 4, 4, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 4])
+    const champs = [
+      champ(1966, 'jack-brabham', 'Jack Brabham'),
+      champ(1967, 'hulme', 'Denny Hulme'),
+      champ(1981, 'piquet', 'Nelson Piquet'),
+      champ(1983, 'piquet', 'Nelson Piquet'),
+    ]
+    const story = winsStory({ name: 'Brabham' }, rows, { standings: finals(rows, [1966, 1967]), champions: champs })
+    const peak = story.notes.find((n) => n.lead.endsWith('4 each'))
+    assert.equal(peak.text, 'Brabham’s most in a season; Brabham champion in 1966, Hulme in 1967, Piquet in 1983.')
+    assert.equal(story.notes.some((n) => n.lead.includes('titles in a row') || n.lead === '1966: Brabham'), false)
+  })
+
+  it('calls a reign the finding only where every season of it stands above every other', () => {
+    // Red Bull: the peak, 2023, is inside Verstappen's 2021-24, but 2021 and
+    // 2024 are below Vettel's 2011 and 2013.
+    const rows = run(2010, [9, 12, 5, 13, 0, 0, 2, 3, 4, 2, 2, 11, 17, 21, 9])
+    const champs = [
+      ...[2010, 2011, 2012, 2013].map((y) => champ(y, 'vettel', 'Sebastian Vettel')),
+      ...[2021, 2022, 2023, 2024].map((y) => champ(y, 'verstappen', 'Max Verstappen')),
+    ]
+    const story = winsStory({ name: 'Red Bull' }, rows, { standings: finals(rows), champions: champs })
+    assert.equal(story.finding, '21 wins in 2023 stand above everything else')
+    assert.equal(story.notes.find((n) => n.lead === '2023: 21').text, 'Red Bull’s most in a season, inside Verstappen’s four straight titles.')
+    // The same reign with its worst season above every other: the finding names it.
+    const higher = rows.map((s) => (s.year >= 2021 ? { ...s, wins: s.wins + 5 } : s))
+    assert.equal(winsStory({ name: 'Red Bull' }, higher, { standings: finals(higher), champions: champs }).finding, 'The Verstappen years stand above everything else')
+  })
+
+  it('marks no peak where the best is one win, and says how many seasons had one', () => {
+    const rows = run(2012, [1, 1, 0, 0])
+    const story = winsStory({ name: 'Lotus F1 Team' }, rows, { standings: finals(rows) })
+    assert.equal(story.finding, 'A win in two of Lotus F1 Team’s four seasons')
+    assert.deepEqual(story.notes.map((n) => n.lead), ['2014–15: no win'])
+    assert.equal(story.titleKey, null)
+  })
+
+  it('shades every drought as long as the longest, names a running one "since", and leaves out a single dry season', () => {
+    const rows = run(1950, [0, 0, 0, 1, 2, 0, 3, 4, 0, 0, 0])
+    const story = winsStory({ name: 'Maserati' }, rows, { standings: finals(rows) })
+    const dry = story.notes.find((n) => n.lead.endsWith('no win'))
+    assert.equal(dry.lead, '1950–52 and 1958–60: no win')
+    assert.equal(dry.text, 'The longest winless runs in Maserati’s 11 seasons, three each, shaded.')
+    assert.deepEqual(story.bands, [{ from: 1950, to: 1952 }, { from: 1958, to: 1960 }])
+    assert.equal(story.marks.filter((m) => m.n === dry.n).length, 2)
+    // Still running: it reaches the season being run.
+    const now = run(2020, [3, 1, 0, 0, 0])
+    const running = winsStory(team, now, { standings: finals(now, [], 2024) })
+    assert.equal(running.notes.map((n) => `${n.lead}: ${n.text}`).at(-1), 'Since 2022: no win: The longest winless run in Williams’ 5 seasons, and still running, shaded.')
+    // The same seasons all finished: a span, not "since".
+    assert.equal(winsStory(team, now, { standings: finals(now) }).notes.at(-1).lead, '2022–24: no win')
+    // One dry season between wins is no drought.
+    const wet = run(2000, [2, 0, 3])
+    assert.equal(winsStory(team, wet, { standings: finals(wet) }).notes.some((n) => n.lead.endsWith('no win')), false)
+  })
+
+  it('says a champion’s season once where it is the peak, and a run of titles once where it is the tie', () => {
+    // BRM 1962: Hill's title and the peak are one column, so one note.
+    const rows = run(1960, [0, 0, 4, 2, 2])
+    const hill = [champ(1962, 'graham-hill', 'Graham Hill')]
+    const brm = winsStory({ name: 'BRM' }, rows, { standings: finals(rows, [1962]), champions: hill })
+    assert.deepEqual(brm.notes.map((n) => `${n.lead}: ${n.text}`).slice(-1), ['1962: 4: BRM’s most in a season; Hill champion.'])
+    assert.equal(brm.notes.some((n) => n.lead === '1962: Hill'), false)
+    // Renault 2005-06: the titles in a row are the tied seasons, so the peak's note says it.
+    const renault = run(2004, [1, 8, 8, 0, 2])
+    const alonso = [champ(2005, 'alonso', 'Fernando Alonso'), champ(2006, 'alonso', 'Fernando Alonso')]
+    const story = winsStory({ name: 'Renault' }, renault, { standings: finals(renault, [2005, 2006]), champions: alonso })
+    assert.equal(story.finding, 'The Alonso years stand above everything else')
+    assert.deepEqual(story.notes.map((n) => n.lead), ['2005 and 2006: 8 each'])
+    assert.equal(story.notes[0].text, 'Renault’s most in a season, inside Alonso’s two straight titles.')
+    // Two champions inside the run: each named, the second without "champion".
+    const mclaren = run(1983, [1, 12, 6, 4])
+    const two = [champ(1984, 'lauda', 'Niki Lauda'), champ(1985, 'prost', 'Alain Prost'), champ(1986, 'prost', 'Alain Prost')]
+    const titles = winsStory({ name: 'McLaren' }, mclaren, { standings: finals(mclaren, [1984, 1985]), champions: two })
+    assert.equal(titles.notes.find((n) => n.lead === '1984–85: two titles in a row').text, 'Constructors’ titles each year; Lauda champion in 1984, Prost in 1985.')
+  })
+
+  it('draws a season of no win as a stub, a title as a square under its column, and labels round years clear of each other', () => {
+    const figure = winsFigure(ferrari, seasons, { standings, champions, colour })
+    assert.equal(figure.keyBeside, true, 'more seasons than the slot: full width, its key beside it')
+    assert.equal(figure.labelPeak, false, 'the peak is a marker, not a figure over its first column')
+    for (const width of [352, 900]) {
+      const layout = columnLayout({ ...figure, width })
+      const baseline = figure.height - COLUMN_MARGIN.bottom - SQUARE_ROOM
+      const zero = layout.columns.filter((c) => c.d.value === 0)
+      assert.ok(zero.length > 0 && zero.every((c) => c.zero && c.path === null), `${width}: every winless season a stub, never a column`)
+      assert.ok(zero.every((c) => Math.abs(c.zero.y - (baseline - 1)) < 1e-9), `${width}: on the baseline`)
+      const squares = layout.columns.filter((c) => c.square)
+      assert.deepEqual(squares.map((c) => c.d.key), TITLES, `${width}: a square under every title and no other season`)
+      for (const c of squares) {
+        assert.ok(c.square.y > baseline && c.square.y + c.square.size < layout.tickY - 9, `${width}: ${c.d.key}'s square between the baseline and the labels`)
+        assert.ok(c.square.size <= SQUARE && Math.abs(c.square.x + c.square.size / 2 - c.centre) < 1e-9, `${width}: centred under its column`)
+      }
+      const labels = layout.columns.filter((c) => c.label !== null)
+      assert.equal(labels[0].d.key, 1950, `${width}: the first season named`)
+      for (let k = 1; k < labels.length; k += 1)
+        assert.ok(labels[k].centre - labels[k - 1].centre >= LABEL_CLEAR, `${width}: ${labels[k - 1].label} and ${labels[k].label} clear of each other`)
+      assert.ok(labels.slice(1).every((c) => c.d.key % 5 === 0), `${width}: the rest are round years (${labels.map((c) => c.label).join(' ')})`)
+      assert.equal(labels.length, width === 352 ? 4 : 8, `${width}: every quarter-century on a phone, every decade at 900, as the mockup labels them`)
+      assert.ok(layout.columns.every((c) => c.value === null), `${width}: no figure printed over a column`)
+    }
+    // An axis that jumps decades - a team absent between - keeps its labels apart.
+    const gap = [1954, 1955, ...Array.from({ length: 17 }, (_, k) => 2010 + k)].map((year) => ({ key: year, value: 1, label: String(year) }))
+    const jumped = columnLayout({ data: gap, width: 352, roundLabels: true })
+    const named = jumped.columns.filter((c) => c.label !== null)
+    for (let k = 1; k < named.length; k += 1) assert.ok(named[k].centre - named[k - 1].centre >= LABEL_CLEAR, `${named.map((c) => c.label).join(' ')}`)
+    // Too few round years for the step (twenty seasons on a phone): every
+    // labelEvery-th, thinned the same way, never overprinting.
+    const short = Array.from({ length: 20 }, (_, k) => ({ key: 1950 + k, value: k % 3, label: String(1950 + k) }))
+    for (const width of [250, 320, 400]) {
+      const thin = columnLayout({ data: short, width, roundLabels: true, labelEvery: 2 }).columns.filter((c) => c.label !== null)
+      assert.ok(thin.length >= 2, `${width}: still labelled`)
+      for (let k = 1; k < thin.length; k += 1) assert.ok(thin[k].centre - thin[k - 1].centre >= LABEL_CLEAR, `${width}: ${thin.map((c) => c.label).join(' ')}`)
+    }
+    // A stub only where a chart asks for stubs: elsewhere a zero draws nothing.
+    const plainZero = columnLayout({ data: [{ key: 'a', value: 0 }, { key: 'b', value: 3 }], width: 400 })
+    assert.equal(plainZero.columns[0].zero, null)
+    assert.notEqual(plainZero.columns[0].path, null)
+    // A tie printed: every column at the peak, not the first of them.
+    const tie = columnLayout({ data: [3, 15, 8, 15].map((value, k) => ({ key: k, value })), width: 400 })
+    assert.deepEqual(tie.columns.map((c) => c.value), [null, '15', null, '15'])
+  })
+
+  it('lays Ferrari’s markers out sound at every width from 250 to 1800 px, the drought’s in its band', () => {
+    const figure = winsFigure(ferrari, seasons, { standings, champions, colour })
+    const reach = MARKER.r + MARKER.ring / 2
+    for (let width = 250; width <= 1800; width += 1) {
+      const layout = columnLayout({ ...figure, width })
+      const where = (m) => `${width}: marker ${m.n} at (${m.cx.toFixed(1)}, ${m.cy.toFixed(1)})`
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2, 3, 4], `${width}: every note has its marker`)
+      for (const m of layout.markers) {
+        assert.ok(m.cy - reach >= -1e-9 && m.cx - reach >= -1e-9 && m.cx + reach <= width + 1e-9, `${where(m)} is inside the drawing`)
+        for (const c of layout.columns) {
+          if (c.path === null) continue
+          const half = c.centre - Number(c.path.match(/^M([-\d.]+),/)[1])
+          if (Math.abs(c.centre - m.cx) <= reach + half) assert.ok(m.cy + reach <= c.peak + 1e-9, `${where(m)} clears ${c.d.key}'s column`)
+        }
+        for (const o of layout.markers)
+          if (o !== m) assert.ok(Math.hypot(m.cx - o.cx, m.cy - o.cy) >= 2 * reach, `${where(m)} and marker ${o.n} do not overlap`)
+      }
+      // The drought's disc: inside its band, well above the baseline, on a hairline down to it.
+      const [band] = layout.bands
+      const dry = layout.markers[2]
+      assert.ok(dry.cx >= band.x && dry.cx <= band.x + band.width, `${where(dry)} is over its band`)
+      const baseline = layout.columns[0].top
+      assert.ok(dry.cy <= (band.y + baseline) / 2 + 1e-9, `${where(dry)} is lifted halfway up the plot or higher`)
+      assert.ok(dry.leader && dry.leader.y1 > dry.cy && Math.abs(dry.leader.y1 - (baseline - MARKER.gap)) < 1e-9, `${where(dry)} has its hairline from the baseline`)
+    }
+  })
+})

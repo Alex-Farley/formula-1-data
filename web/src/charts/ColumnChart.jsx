@@ -30,6 +30,13 @@ import { useMeasure } from './useMeasure.js'
  * columns a note names, and shaded spans under them. What each says is in
  * the key Figure sets under or beside the plot, never only here.
  *
+ * A constructor's wins (VD-125) add three: `stubs`, a season of no win
+ * drawn as a dashed stub on the baseline in the column's colour, so a
+ * drought reads as seasons entered and not as a gap in the axis; `square`, a title's ink
+ * square under its column, a second cue that is shape rather than colour;
+ * and `roundLabels`, the axis labelled at the decades, or every five or
+ * twenty-five years, as the width allows (charts/columnChart.js).
+ *
  * The chart is one tab stop, as DotPlot is (charts/useChartKeys.js, AX-32):
  * on keyboard focus it reads the first column, the arrow keys step along,
  * Home and End jump, and Escape lets go. What is read goes to a status
@@ -54,13 +61,15 @@ export default function ColumnChart({
   integer = false,
   marks = [],
   bands = [],
+  roundLabels = false,
+  stubs = false,
 }) {
   const [ref, width] = useMeasure()
   const own = ownColour(colour)
 
   // The geometry is charts/columnChart.js's, which the static page draws
   // from too (VD-73), so the two halves place every column alike.
-  const layout = columnLayout({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands })
+  const layout = columnLayout({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, roundLabels, stubs })
   // An index into the columns, in the order they are drawn.
   const { active, setActive, keys } = useChartKeys(layout ? layout.columns.length : 0)
 
@@ -119,12 +128,33 @@ export default function ColumnChart({
                 height={column.hit.height}
                 fill="transparent"
               />
-              <path
-                className={d.hollow ? 'column-hollow' : undefined}
-                d={column.path}
-                fill={paint(d)}
-                opacity={hover && hover.key !== d.key ? 0.55 : 1}
-              />
+              {column.zero ? (
+                <line
+                  className="column-zero"
+                  x1={column.zero.x1}
+                  x2={column.zero.x2}
+                  y1={column.zero.y}
+                  y2={column.zero.y}
+                  stroke={paint(d) === 'none' ? INK : paint(d)}
+                  opacity={hover && hover.key !== d.key ? 0.55 : 1}
+                />
+              ) : (
+                <path
+                  className={d.hollow ? 'column-hollow' : undefined}
+                  d={column.path}
+                  fill={paint(d)}
+                  opacity={hover && hover.key !== d.key ? 0.55 : 1}
+                />
+              )}
+              {column.square && (
+                <rect
+                  className="column-title"
+                  x={column.square.x}
+                  y={column.square.y}
+                  width={column.square.size}
+                  height={column.square.size}
+                />
+              )}
               {column.ahead !== null && (
                 <line
                   className="column-ahead"
@@ -151,8 +181,9 @@ export default function ColumnChart({
           )
         })}
 
+        {/* Keyed by number and place: two discs may carry one note's number. */}
         {layout.markers.map((m) => (
-          <g key={`mark-${m.n}`} className="anno-marker">
+          <g key={`mark-${m.n}-${Math.round(m.cx)}`} className="anno-marker">
             {m.leader && <line x1={m.leader.x1} y1={m.leader.y1} x2={m.leader.x2} y2={m.leader.y2} />}
             <circle cx={m.cx} cy={m.cy} r={MARKER.r} />
             <text x={m.cx} y={m.cy} textAnchor="middle" dominantBaseline="central">
