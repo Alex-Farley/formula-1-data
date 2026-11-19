@@ -30,9 +30,9 @@ import { useMeasure } from './useMeasure.js'
  * columns a note names, and shaded spans under them. What each says is in
  * the key Figure sets under or beside the plot, never only here.
  *
- * A constructor's wins (VD-125) add three: a season of no win drawn as a
- * dashed stub on the baseline in the column's colour, so a drought reads
- * as seasons entered and not as a gap in the axis; `square`, a title's ink
+ * A constructor's wins (VD-125) add three: `stubs`, a season of no win
+ * drawn as a dashed stub on the baseline in the column's colour, so a
+ * drought reads as seasons entered and not as a gap in the axis; `square`, a title's ink
  * square under its column, a second cue that is shape rather than colour;
  * and `roundLabels`, the axis labelled at the decades, or every five or
  * twenty-five years, as the width allows (charts/columnChart.js).
@@ -62,13 +62,14 @@ export default function ColumnChart({
   marks = [],
   bands = [],
   roundLabels = false,
+  stubs = false,
 }) {
   const [ref, width] = useMeasure()
   const own = ownColour(colour)
 
   // The geometry is charts/columnChart.js's, which the static page draws
   // from too (VD-73), so the two halves place every column alike.
-  const layout = columnLayout({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, roundLabels })
+  const layout = columnLayout({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, roundLabels, stubs })
   // An index into the columns, in the order they are drawn.
   const { active, setActive, keys } = useChartKeys(layout ? layout.columns.length : 0)
 

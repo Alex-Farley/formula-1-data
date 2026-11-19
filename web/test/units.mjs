@@ -6717,9 +6717,12 @@ describe('a constructor’s wins chart, its titles, peak and drought marked (VD-
   ]
   const colour = { name: 'Rosso Scuderia livery', pair: { lead: { name: 'Rosso Scuderia' } } }
 
-  it('works Ferrari’s finding, kicker and four notes out from the rows, as the approved mockup has them', () => {
+  it('works Ferrari’s finding, kicker and four notes out from the rows, the notes as the approved mockup has them', () => {
     const story = winsStory(ferrari, seasons, { standings, champions, colour })
-    assert.equal(story.finding, 'The Schumacher years stand above everything else')
+    // Not the mockup's "The Schumacher years": his 2001 (9) and 2003 (8) are
+    // no higher than 2006-07 (9) and 2008 (8), so the reign does not stand
+    // above everything else, and the finding states the peak.
+    assert.equal(story.finding, 'Fifteen wins in 2002 and 2004 stand above everything else')
     assert.equal(story.kicker, 'Ferrari’s wins each season, in Rosso Scuderia')
     assert.equal(story.titleKey, 'a constructors’ title (16)')
     assert.deepEqual([...story.titles].sort(), TITLES)
@@ -6767,6 +6770,39 @@ describe('a constructor’s wins chart, its titles, peak and drought marked (VD-
       'within two seasons, one disc; further, a disc of its own with the same number',
     )
     assert.equal(story.notes.filter((n) => n.n === peak.n).length, 1)
+  })
+
+  it('names every champion of a tied peak where no one driver holds it, and loses no title to a merged note', () => {
+    // Brabham: titles in a row in 1966-67 are exactly the first disc of a
+    // peak tied with 1983, so the run's note goes; Brabham's own 1966 title
+    // is at the peak too, so its note goes; the peak's note names all three.
+    const rows = run(1964, [0, 0, 4, 4, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 4])
+    const champs = [
+      champ(1966, 'jack-brabham', 'Jack Brabham'),
+      champ(1967, 'hulme', 'Denny Hulme'),
+      champ(1981, 'piquet', 'Nelson Piquet'),
+      champ(1983, 'piquet', 'Nelson Piquet'),
+    ]
+    const story = winsStory({ name: 'Brabham' }, rows, { standings: finals(rows, [1966, 1967]), champions: champs })
+    const peak = story.notes.find((n) => n.lead.endsWith('4 each'))
+    assert.equal(peak.text, 'Brabham’s most in a season; Brabham champion in 1966, Hulme in 1967, Piquet in 1983.')
+    assert.equal(story.notes.some((n) => n.lead.includes('titles in a row') || n.lead === '1966: Brabham'), false)
+  })
+
+  it('calls a reign the finding only where every season of it stands above every other', () => {
+    // Red Bull: the peak, 2023, is inside Verstappen's 2021-24, but 2021 and
+    // 2024 are below Vettel's 2011 and 2013.
+    const rows = run(2010, [9, 12, 5, 13, 0, 0, 2, 3, 4, 2, 2, 11, 17, 21, 9])
+    const champs = [
+      ...[2010, 2011, 2012, 2013].map((y) => champ(y, 'vettel', 'Sebastian Vettel')),
+      ...[2021, 2022, 2023, 2024].map((y) => champ(y, 'verstappen', 'Max Verstappen')),
+    ]
+    const story = winsStory({ name: 'Red Bull' }, rows, { standings: finals(rows), champions: champs })
+    assert.equal(story.finding, '21 wins in 2023 stand above everything else')
+    assert.equal(story.notes.find((n) => n.lead === '2023: 21').text, 'Red Bull’s most in a season, inside Verstappen’s four straight titles.')
+    // The same reign with its worst season above every other: the finding names it.
+    const higher = rows.map((s) => (s.year >= 2021 ? { ...s, wins: s.wins + 5 } : s))
+    assert.equal(winsStory({ name: 'Red Bull' }, higher, { standings: finals(higher), champions: champs }).finding, 'The Verstappen years stand above everything else')
   })
 
   it('marks no peak where the best is one win, and says how many seasons had one', () => {
@@ -6846,6 +6882,18 @@ describe('a constructor’s wins chart, its titles, peak and drought marked (VD-
     const jumped = columnLayout({ data: gap, width: 352, roundLabels: true })
     const named = jumped.columns.filter((c) => c.label !== null)
     for (let k = 1; k < named.length; k += 1) assert.ok(named[k].centre - named[k - 1].centre >= LABEL_CLEAR, `${named.map((c) => c.label).join(' ')}`)
+    // Too few round years for the step (twenty seasons on a phone): every
+    // labelEvery-th, thinned the same way, never overprinting.
+    const short = Array.from({ length: 20 }, (_, k) => ({ key: 1950 + k, value: k % 3, label: String(1950 + k) }))
+    for (const width of [250, 320, 400]) {
+      const thin = columnLayout({ data: short, width, roundLabels: true, labelEvery: 2 }).columns.filter((c) => c.label !== null)
+      assert.ok(thin.length >= 2, `${width}: still labelled`)
+      for (let k = 1; k < thin.length; k += 1) assert.ok(thin[k].centre - thin[k - 1].centre >= LABEL_CLEAR, `${width}: ${thin.map((c) => c.label).join(' ')}`)
+    }
+    // A stub only where a chart asks for stubs: elsewhere a zero draws nothing.
+    const plainZero = columnLayout({ data: [{ key: 'a', value: 0 }, { key: 'b', value: 3 }], width: 400 })
+    assert.equal(plainZero.columns[0].zero, null)
+    assert.notEqual(plainZero.columns[0].path, null)
     // A tie printed: every column at the peak, not the first of them.
     const tie = columnLayout({ data: [3, 15, 8, 15].map((value, k) => ({ key: k, value })), width: 400 })
     assert.deepEqual(tie.columns.map((c) => c.value), [null, '15', null, '15'])

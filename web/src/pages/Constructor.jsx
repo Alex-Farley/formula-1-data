@@ -230,6 +230,7 @@ function ConstructorBody({ constructor, data }) {
               data={winsChart.data}
               labelEvery={winsChart.labelEvery}
               roundLabels={winsChart.roundLabels}
+              stubs={winsChart.stubs}
               labelPeak={winsChart.labelPeak}
               integer={winsChart.integer}
               height={winsChart.height}

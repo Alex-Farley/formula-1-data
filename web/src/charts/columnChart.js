@@ -49,9 +49,11 @@ const ROUND_STEPS = [1, 2, 5, 10, 25, 50]
  * empty band, on a hairline down to the baseline. Two marks may share a
  * number: one note pointing at two places (tied peaks decades apart).
  *
- * A column of zero is drawn as a dashed stub on the baseline in its colour
- * (VD-125): a season entered and not won, which an empty slot would leave
- * looking like a season not on the axis. A datum with `square` has a square
+ * With `stubs`, a column of zero is drawn as a dashed stub on the baseline
+ * in its colour (VD-125): a season entered and not won, which an empty slot
+ * would leave looking like a season not on the axis. Without it a zero is
+ * nothing, as on a chart whose zero means none of a kind (Quality's
+ * confidence ladder). A datum with `square` has a square
  * under the baseline, ink, its column's width to SQUARE: a constructors'
  * title, a second cue that is shape rather than colour.
  *
@@ -63,7 +65,8 @@ const ROUND_STEPS = [1, 2, 5, 10, 25, 50]
  * nearer than LABEL_CLEAR to the last one kept is left out: an axis of the
  * seasons entered puts 1955 and 2010 side by side for a team absent
  * between. Where fewer than two keys after the first are round,
- * `labelEvery` stands.
+ * every `labelEvery`th stands, thinned the same way, so a phone's thin
+ * columns never overprint their years.
  *
  * The value printed is the peak's, where the column is tall enough to hold
  * the number, and every peak's where several tie (VD-125: a tie printed on
@@ -83,6 +86,7 @@ export function columnLayout({
   marks = [],
   bands = [],
   roundLabels = false,
+  stubs = false,
 }) {
   if (data.length === 0) return null
   // The disc's reach above its centre; a disc is inside the drawing when its
@@ -92,7 +96,7 @@ export function columnLayout({
   let top = marks.length ? MARKED_TOP : COLUMN_MARGIN.top
   let laid = null
   for (let pass = 0; pass < 3; pass += 1) {
-    laid = layColumns({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, roundLabels, top })
+    laid = layColumns({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, roundLabels, stubs, top })
     const highest = Math.min(...laid.markers.map((m) => m.cy - reach), Infinity)
     if (highest >= 0) break
     top += Math.ceil(-highest)
@@ -100,7 +104,7 @@ export function columnLayout({
   return laid
 }
 
-function layColumns({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, roundLabels, top: marginTop }) {
+function layColumns({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, roundLabels, stubs, top: marginTop }) {
   const squared = data.some((d) => d.square)
   const M = { ...COLUMN_MARGIN, top: marginTop, bottom: COLUMN_MARGIN.bottom + (squared ? SQUARE_ROOM : 0) }
   const keys = data.map((d) => d.key)
@@ -109,17 +113,18 @@ function layColumns({ data, width, height, format, labelEvery, labelPeak, intege
   // axis; otherwise every labelEvery-th.
   const step = roundLabels ? (ROUND_STEPS.find((k) => k * x.step >= LABEL_SPACING) ?? ROUND_STEPS[ROUND_STEPS.length - 1]) : null
   const round = step !== null && keys.slice(1).filter((k) => Number(k) % step === 0).length >= 2
+  const candidate = (k, i) => (round ? i === 0 || Number(k) % step === 0 : i % labelEvery === 0)
   const shown = new Set()
-  if (round) {
+  if (roundLabels) {
     let last = -Infinity
     keys.forEach((k, i) => {
-      if ((i === 0 || Number(k) % step === 0) && x.centre(k) - last >= LABEL_CLEAR) {
+      if (candidate(k, i) && x.centre(k) - last >= LABEL_CLEAR) {
         shown.add(i)
         last = x.centre(k)
       }
     })
   }
-  const labelled = (d, i) => (round ? shown.has(i) : i % labelEvery === 0)
+  const labelled = (d, i) => (roundLabels ? shown.has(i) : i % labelEvery === 0)
   // A column's full height is its value and what is still ahead of it.
   const y = linear(niceDomain(data.map((d) => d.value + (d.ahead ?? 0))), [height - M.bottom, M.top])
   const thickness = Math.min(x.bandwidth, MAX_THICKNESS)
@@ -140,7 +145,7 @@ function layColumns({ data, width, height, format, labelEvery, labelPeak, intege
     // an outline on a phone's 2.3 px column is all stroke, and reads as solid.
     const ahead = d.ahead > 0 ? y(d.value + d.ahead) : null
     // Nothing, and nothing to come: a stub on the baseline, not a column.
-    const zero = d.value === 0 && ahead === null
+    const zero = stubs && d.value === 0 && ahead === null
     const side = Math.min(thickness, SQUARE)
     return {
       d,

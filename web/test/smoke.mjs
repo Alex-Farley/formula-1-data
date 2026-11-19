@@ -4152,7 +4152,8 @@ try {
         })),
       }
     }
-    is(shown.finding, 'The Schumacher years stand above everything else', '/constructors/ferrari: the approved mockup’s finding, worked out from the rows')
+    // Not the mockup's "The Schumacher years": his 2001 and 2003 are no higher than 2006-07 and 2008.
+    is(shown.finding, 'Fifteen wins in 2002 and 2004 stand above everything else', '/constructors/ferrari: the finding worked out from the rows')
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
     const plain = await noJs.newPage()
     await go('/constructors/ferrari', 'Ferrari')

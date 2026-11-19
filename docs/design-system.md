@@ -663,27 +663,32 @@ notes and the markers in both halves.
 **Built (VD-125), on a constructor's wins.** The column chart's second
 annotated use (`docs/critiques/2026-11-13-visual-design/P07v2.html`).
 `winsStory()` in `queries/constructor.js` writes the finding - "The
-Schumacher years stand above everything else" only where the peak lies
-inside one driver's straight titles in the team's car, the peak's figure
-otherwise, and how many seasons had a win where the best is one - the kicker naming the colour drawn, and at most four notes in
+Alonso years stand above everything else" only where the peak lies inside
+one driver's straight titles in the team's car and every season of them
+has more wins than any outside them (not Ferrari's, whose Schumacher 2001
+and 2003 are no higher than 2006-07 and 2008, though the mockup says so),
+the peak's figure otherwise, and how many seasons had a win where the best
+is one - the kicker naming the colour drawn, and at most four notes in
 axis order: the first drivers' title in the team's car and the same
 driver's straight after it; the first run of constructors' titles in a row,
 with the champions inside it; the peak, every season tied at it, where the
-best is more than one win; and the longest winless run of two seasons or
+best is more than one win, with the champions in those seasons; and the longest winless run of two seasons or
 more, shaded, "since" where it reaches the season being run. A note is
 left out where another on the same seasons says it: the champion's where
-it overlaps the run of titles or is all at the peak (the peak's note then
-names the champion), the run of titles where it is exactly the seasons
-under one of the peak's discs. A title is a
+it overlaps a run of titles that has its note, or is all at the peak (the
+peak's note then names the champion), the run of titles where it is
+exactly the seasons under one of the peak's discs. A title is a
 final table's first place, drawn as an ink square under its column, a
 second cue that is shape (`square`, with `SQUARE_ROOM` under the baseline
 for it), and the kicker draws the square and names it. A season of no win
 is a dashed stub on the baseline in the column's colour, 2 px, so a
-drought reads as seasons entered. A drought's marker has `lift`: its disc
+drought reads as seasons entered (`stubs`, which no other column chart
+sets: a zero elsewhere is none of a kind, and draws nothing). A drought's marker has `lift`: its disc
 starts halfway up the plot, in the empty band, on a hairline down to the
 baseline. The axis takes `roundLabels`: the first season, then the
 decades, or every five or twenty-five years, as the width leaves 60 px
-between them, none nearer the last than 40. The peak is no longer printed
+between them, none nearer the last than 40; where too few years are round
+for that, every so many seasons, thinned the same way. The peak is no longer printed
 over its first column; `columnChart.js` prints every column tied at the
 peak where a chart prints one. The key stands beside a full-width chart
 and under one in the slot. `units.mjs` holds the working and Ferrari's

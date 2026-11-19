@@ -155,6 +155,8 @@ export function winsFigure(constructor, bySeason, { standings = [], champions = 
     })),
     labelEvery: Math.max(1, Math.ceil(seasons.length / 12)),
     roundLabels: true,
+    // A winless season a stub on the baseline, not an empty slot.
+    stubs: true,
     // The peak is a marker now, with its words in the key.
     labelPeak: false,
     integer: true,
@@ -206,12 +208,15 @@ const TIE_REACH = 2
  *
  *   the first drivers' title won in the team's car, and the same driver's
  *     titles straight after it ("1952–53: Ascari") - left out where it
- *     falls inside the next note's run, which then names the champion;
+ *     falls inside the next note's run, which then names the champion, or
+ *     is all at the peak, whose note does;
  *   the first run of constructors' titles in a row ("1975–77: three titles
- *     in a row"), and who was champion in the team's car inside it;
+ *     in a row"), and who was champion in the team's car inside it - left
+ *     out where it is exactly the seasons of one of the peak's discs;
  *   the peak, every season tied at the most wins, where that is more than
  *     one (a team whose best is one win has every winning season at its
- *     peak, and nothing to point at): one marker between tied seasons
+ *     peak, and nothing to point at), with the champions in the team's car
+ *     in those seasons: one marker between tied seasons
  *     TIE_REACH apart or fewer, and a disc with the same number on each run
  *     of them further apart, so no tie reads as one record;
  *   the longest winless run, of two seasons or more, shaded, its disc in
@@ -219,9 +224,12 @@ const TIE_REACH = 2
  *     named. A run that reaches a season still being run is "since".
  *
  * The finding names a driver only where the peak lies inside one driver's
- * run of straight titles in the team's car, as the mockup's "The
- * Schumacher years" does; otherwise it states the peak, or, where the best
- * is one win, how many seasons had one.
+ * run of straight titles in the team's car and every season of that run
+ * has more wins than any season outside it ("The Alonso years" at
+ * Renault); otherwise it states the peak, or, where the best is one win,
+ * how many seasons had one. The approved mockup's "The Schumacher years"
+ * is not Ferrari's: his 2001 (nine) and 2003 (eight) are no higher than
+ * 2006-07 and 2008.
  */
 export function winsStory(constructor, seasons, { standings = [], champions = [], colour = null } = {}) {
   const name = constructor.name
@@ -248,11 +256,32 @@ export function winsStory(constructor, seasons, { standings = [], champions = []
   const crownedIn = new Map(crowned.map((c) => [c.year, c]))
   const peakChampion =
     tied.every((y) => crownedIn.has(y)) && new Set(tied.map((y) => crownedIn.get(y).driver_id)).size === 1 ? crownedIn.get(tied[0]) : null
+  // The champions in the team's car in some of `years`, each named once:
+  // "Lauda champion in 1984, Prost in 1985".
+  const championsIn = (years) => {
+    const inside = crowned.filter((c) => years.includes(c.year))
+    const byDriver = [...new Set(inside.map((c) => c.driver_id))].map((id) => inside.filter((c) => c.driver_id === id))
+    return byDriver.map((list, i) => `${surname(list[0])}${i === 0 ? ' champion' : ''} in ${yearsText(list.map((c) => c.year))}`).join(', ')
+  }
+  // Short of one champion in every peak season, each peak season's own, so
+  // no title in a peak season goes unsaid (Brabham: 1966, 1967 and 1983).
+  const peakChampions = championsIn(tied)
   const peakSays = reign
     ? `, inside ${owns(surname(reign[0]))} ${inWords(reign.length)} straight titles`
     : peakChampion
       ? `; ${surname(peakChampion)} champion${tied.length > 1 ? ' each time' : ''}`
-      : ''
+      : peakChampions
+        ? `; ${peakChampions}`
+        : ''
+  // The reign is the finding only where it stands above everything else:
+  // its worst season beats every season outside it. Red Bull's peak is
+  // inside Verstappen's four titles, but his 2021 and 2024 are below
+  // Vettel's 2011 and 2013.
+  const reignYears = new Set((reign ?? []).map((c) => c.year))
+  const above =
+    reign !== null &&
+    Math.min(...seasons.filter((s) => reignYears.has(s.year)).map((s) => s.wins)) >
+      Math.max(-1, ...seasons.filter((s) => !reignYears.has(s.year)).map((s) => s.wins))
   const sameYears = (a, b) => a.length === b.length && a.every((y, i) => y === b[i])
   // Tied seasons near enough to share a marker, each run of them a disc.
   const clusters = marked ? runsOf(tied, (a, b) => b - a <= TIE_REACH) : []
@@ -260,11 +289,14 @@ export function winsStory(constructor, seasons, { standings = [], champions = []
   const parts = []
   const constructorsRun = titleRuns.find((run) => run.length > 1) ?? null
   const firstDriverRun = driverRuns[0] ?? null
+  // The run of titles has a note of its own unless it is exactly the
+  // seasons of one of the peak's discs, whose note then says it.
+  const runNote = constructorsRun !== null && !clusters.some((keys) => sameYears(keys, constructorsRun))
   const overlaps =
-    constructorsRun && firstDriverRun && firstDriverRun.some((c) => c.year >= constructorsRun[0] && c.year <= constructorsRun[constructorsRun.length - 1])
+    runNote && firstDriverRun && firstDriverRun.some((c) => c.year >= constructorsRun[0] && c.year <= constructorsRun[constructorsRun.length - 1])
   // A champion's seasons that are all the peak's are the peak's note, which
   // names the champion; two notes on one column would say one thing twice.
-  const inPeak = marked && (reign || peakChampion) && firstDriverRun?.every((c) => tied.includes(c.year))
+  const inPeak = marked && firstDriverRun?.every((c) => tied.includes(c.year))
   if (firstDriverRun && !overlaps && !inPeak) {
     const years = firstDriverRun.map((c) => c.year)
     const n = years.length
@@ -279,16 +311,14 @@ export function winsStory(constructor, seasons, { standings = [], champions = []
   }
   // The same, for a run of titles that is exactly the seasons of one of the
   // peak's discs.
-  if (constructorsRun && !clusters.some((keys) => sameYears(keys, constructorsRun))) {
+  if (runNote) {
     const [from, to] = [constructorsRun[0], constructorsRun[constructorsRun.length - 1]]
-    const inside = crowned.filter((c) => c.year >= from && c.year <= to)
-    const byDriver = [...new Set(inside.map((c) => c.driver_id))].map((id) => inside.filter((c) => c.driver_id === id))
-    const champs = byDriver.map((list, i) => `${surname(list[0])}${i === 0 ? ' champion' : ''} in ${yearsText(list.map((c) => c.year))}`)
+    const champs = championsIn(constructorsRun)
     parts.push({
       keys: constructorsRun,
       leader: false,
       lead: `${yearSpan(from, to)}: ${inWords(constructorsRun.length)} titles in a row`,
-      text: `Constructors’ titles each year${champs.length ? `; ${champs.join(', ')}` : ''}.`,
+      text: `Constructors’ titles each year${champs ? `; ${champs}` : ''}.`,
     })
   }
 
@@ -331,7 +361,7 @@ export function winsStory(constructor, seasons, { standings = [], champions = []
   }
 
   let finding
-  if (marked && reign) finding = `The ${surname(reign[0])} years stand above everything else`
+  if (marked && above) finding = `The ${surname(reign[0])} years stand above everything else`
   else if (marked) finding = `${sentence(inWords(peak))} wins in ${listed(tied)} stand above everything else`
   else {
     const won = seasons.filter((s) => s.wins > 0).length
