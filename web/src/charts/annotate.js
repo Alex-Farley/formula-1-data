@@ -14,6 +14,9 @@
  * - spans as shaded bands under the marks, explained in the key.
  *
  * placeMarker() is a line's: above or below a point between other lines.
+ * placeDotMarkers() is a dot plot's (VD-124): under its dot, in the space
+ * a career's line leaves open, clear of every dot and every stretch of the
+ * line.
  * placeColumnMarkers() is a column chart's (VD-123): a column fills the
  * space under its top, so a marker never goes below it; where two would
  * touch, the earlier one steps aside on an angled hairline, and where a
@@ -282,4 +285,53 @@ export function placeColumnMarkers(points, { left = -Infinity, right = Infinity,
     placed.push(chosen ? chosen.disc : { n: p.n, ...placeAbove(p.x, p.y, { taken: placed, leader: p.leader !== false }), point })
   }
   return placed.map(({ point, ...marker }) => marker)
+}
+
+/**
+ * Every marker on a dot plot (VD-124), in the order given: each `{ n, x, y,
+ * r }`, the dot it marks centred at (x, y), `r` out to its edge - its ring,
+ * where a title is ringed. A disc goes under its dot, in the space a
+ * career's line leaves open below its best seasons, and over it only where
+ * no distance under it is sound; as near the dot as is sound either way. A
+ * disc is sound where it lies inside [top, bottom], clear of every dot
+ * (`dots`, each { x, y, r }), of every stretch of the line (`segments`, each
+ * { x1, y1, x2, y2 }), of every label on the axes (`boxes`, each { left,
+ * right, top, bottom }) - a first season's disc beside "P5" - and of every
+ * disc placed before it, with its hairline
+ * through no disc and no other hairline through it. Where none is, it is
+ * placed as placeMarker() places one, clear of the discs before it. Returns
+ * `{ n, cx, cy, leader }` for each, the hairline from the dot's edge to the
+ * disc's.
+ */
+export function placeDotMarkers(marks, { dots = [], segments = [], boxes = [], top = 0, bottom = Infinity } = {}) {
+  const reach = MARKER.r + MARKER.ring / 2
+  const FURTHEST = 48
+  const placed = []
+  for (const m of marks) {
+    const leaderTo = (cy) => {
+      const down = cy > m.y
+      return { x1: m.x, y1: down ? m.y + m.r + 1 : m.y - m.r - 1, x2: m.x, y2: down ? cy - MARKER.r : cy + MARKER.r }
+    }
+    const sound = (cy) => {
+      if (cy - reach < top || cy + reach > bottom) return false
+      if (dots.some((d) => Math.hypot(d.x - m.x, d.y - cy) < reach + d.r + 1)) return false
+      if (segments.some((s) => nearest(s, m.x, cy) < reach + 1)) return false
+      const off = (b) => Math.hypot(Math.max(b.left - m.x, 0, m.x - b.right), Math.max(b.top - cy, 0, cy - b.bottom))
+      if (boxes.some((b) => off(b) < reach + 1)) return false
+      const leader = leaderTo(cy)
+      return placed.every(
+        (p) => Math.hypot(p.cx - m.x, p.cy - cy) >= APART - 0.01 && nearest(leader, p.cx, p.cy) >= reach && nearest(p.leader, m.x, cy) >= reach,
+      )
+    }
+    let cy = null
+    for (const sign of [1, -1]) {
+      for (let d = MARKER.offset; d <= MARKER.offset + FURTHEST && cy === null; d += 1) if (sound(m.y + sign * d)) cy = m.y + sign * d
+      if (cy !== null) break
+    }
+    if (cy === null) {
+      const fallback = placeMarker(m.x, m.y, [], { top, bottom, taken: placed })
+      placed.push({ n: m.n, cx: fallback.cx, cy: fallback.cy, leader: leaderTo(fallback.cy) })
+    } else placed.push({ n: m.n, cx: m.x, cy, leader: leaderTo(cy) })
+  }
+  return placed
 }

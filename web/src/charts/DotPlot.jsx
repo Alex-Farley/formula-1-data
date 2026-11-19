@@ -1,4 +1,5 @@
 import { dotPlotLayout } from './dotPlot.js'
+import { MARKER } from './annotate.js'
 import { ownColour } from './own.js'
 import { INK } from './palette.js'
 import Tooltip from './Tooltip.jsx'
@@ -54,6 +55,13 @@ import { useMeasure } from './useMeasure.js'
  * a screen reader announce each step; the visible box is the same words,
  * hidden from it, so they are not read twice. ColumnChart and LineChart do
  * the same, through the one hook (charts/useChartKeys.js, AX-32).
+ *
+ * A DRIVER'S CAREER (VD-124) is drawn as a line through its dots, in the
+ * one colour every dot shares or in ink where they differ, quiet under the
+ * dots, which still carry the data; with P1, P5 and P10 for gridlines,
+ * every season on the axis where it fits, and the annotation pattern's
+ * numbered markers under the dots they mark, their words in the key Figure
+ * draws under the plot. charts/dotPlot.js places all of it.
  */
 const HIT = 14
 // How far the box stands off the point, clear of the grown dot and its ring.
@@ -70,12 +78,18 @@ export default function DotPlot({
   label,
   // The entity whose chart this is (VD-34); see ColumnChart for the rule.
   colour = null,
+  // VD-124: charts/dotPlot.js says what each does.
+  line = false,
+  yTickValues = null,
+  formatXShort = null,
+  everyX = false,
+  marks = [],
 }) {
   const [ref, width] = useMeasure()
   const own = ownColour(colour)
   // The geometry is charts/dotPlot.js's, which the static page draws from
   // too (VD-73), so the two halves place every dot and tick alike.
-  const layout = dotPlotLayout({ data, width, height, yMax, invert, format, formatX, xDomain })
+  const layout = dotPlotLayout({ data, width, height, yMax, invert, format, formatX, xDomain, line, yTickValues, formatXShort, everyX, marks })
   // An index into the plotted points (charts/useChartKeys.js says why), and
   // called before the early return, as a hook must be.
   const { active, setActive, keys } = useChartKeys(layout ? layout.points.length : 0)
@@ -138,6 +152,20 @@ export default function DotPlot({
           </text>
         ))}
 
+        {layout.linePath && (
+          <g className={layout.lineColour ? ownColour(layout.lineColour).className : undefined} style={layout.lineColour ? ownColour(layout.lineColour).style : undefined}>
+            <path
+              className="career-line"
+              d={layout.linePath}
+              fill="none"
+              stroke={layout.lineColour ? 'var(--livery)' : INK}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              pointerEvents="none"
+            />
+          </g>
+        )}
+
         {/* A dot the caller has flagged gets a halo: on a driver's page the
             title-winning seasons were four more dots in a line of dots, told
             apart only by being at the top of an axis a reader has to read to
@@ -173,6 +201,16 @@ export default function DotPlot({
               fill={d.hollow ? 'none' : paintOf(d)}
               pointerEvents="none"
             />
+          </g>
+        ))}
+
+        {layout.markers.map((m) => (
+          <g key={`mark-${m.n}`} className="anno-marker" pointerEvents="none">
+            <line x1={m.leader.x1} y1={m.leader.y1} x2={m.leader.x2} y2={m.leader.y2} />
+            <circle cx={m.cx} cy={m.cy} r={MARKER.r} />
+            <text x={m.cx} y={m.cy} textAnchor="middle" dominantBaseline="central">
+              {m.n}
+            </text>
           </g>
         ))}
       </svg>

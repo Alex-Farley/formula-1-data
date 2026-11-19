@@ -552,7 +552,7 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the key beside a full-width chart and markers on a column chart (VD-123 #1347), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393); pending: a tied peak's marker on a constructor's wins (VD-125 #1349)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the key beside a full-width chart and markers on a column chart (VD-123 #1347), a career's line and markers on the dot plot (VD-124 #1348), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393); pending: a tied peak's marker on a constructor's wins (VD-125 #1349)
 
 **Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
@@ -633,8 +633,28 @@ works the finding and the notes out from the rows; `units.mjs` holds the
 working and the layout, and `smoke.mjs` the finding, the notes, the
 markers and where the key stands at 1440, 1024 and 400, in both halves.
 
-A tied peak's one marker on a constructor's wins is VD-125 (#1349);
-VD-124 (#1348, a driver's career) applies the pattern to the dot plot.
+**Built (VD-124), on a driver's career.** The first dot plot to carry the
+pattern (`docs/critiques/2026-11-13-visual-design/P05v2.html`). The dots
+are joined season to season by a line at 1.5 px and half strength
+(`.career-line`), in the one colour every dot shares and in ink where they
+differ, broken at a season with no dot or not raced, so the line is the
+career's shape and the dots stay the values. The gridlines are P1, P5 and
+P10 and the tens past them, never the floor; the axis labels every season,
+'19 where only the short form fits, and both ends with round years between
+where neither does (IX-50). `charts/dotPlot.js` takes `line`,
+`yTickValues`, `everyX` and `marks`; a marker is placed by
+`placeDotMarkers()` in `charts/annotate.js` under its dot, in the space a
+career's line leaves below its best seasons, as near as it is clear of
+every dot, ring, stretch of line, axis label and other disc, and over the
+dot only where nothing under it is. `careerStory()` in `queries/driver.js`
+writes the finding (a champion's climb, a count of titles, or the best
+final place), the kicker and at most two notes, the first win and the
+first title with its margin over the runner-up; a title is a final table's
+first place, so the season being run is neither ringed nor a title.
+`units.mjs` holds the working and the layout; `smoke.mjs` the finding, the
+notes and the markers in both halves.
+
+A tied peak's one marker on a constructor's wins is VD-125 (#1349).
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold
@@ -1479,8 +1499,9 @@ citation, is already one system and is kept.
 - **Driver:** lead chart (championship finishes) · the current season
   (active drivers only; one statement, not a tile plus a note) · *Circuits
   won at*, a driver with a win (provisional, VD-104 #1239, §3 *Outline
-  card*) · Season by season · Team-mates · Every entry. **Pending:** the lead chart annotated
-  in the shared pattern (VD-124 #1348); Team-mates as a face-off, the two
+  card*) · Season by season · Team-mates · Every entry. The lead chart is annotated
+  in the shared pattern (provisional, VD-124 #1348, §3 *Figure*).
+  **Pending:** Team-mates as a face-off, the two
   names set large over rules in each driver's colour, split tallies for
   qualifying, races and points with the winning side's figure set large,
   and a verdict headline (VD-122 #1346, `[D-65]`).

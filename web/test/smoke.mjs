@@ -97,7 +97,22 @@ import {
   standingsHeading,
   titleHeading,
 } from '../src/queries/season.js'
-import { DRIVER_SOURCES, SEASON_TEAMS, STANDINGS, THIS_SEASON, roundsRun, seasonTile, teamsBySeason, thisSeasonHeading } from '../src/queries/driver.js'
+import {
+  BY_SEASON as DRIVER_BY_SEASON,
+  DRIVER,
+  DRIVER_SOURCES,
+  FINISHES_HEADING,
+  SEASON_TEAMS,
+  STANDINGS,
+  THIS_SEASON,
+  TITLE_RUNNERS_UP,
+  WINS_AT,
+  finishesFigure,
+  roundsRun,
+  seasonTile,
+  teamsBySeason,
+  thisSeasonHeading,
+} from '../src/queries/driver.js'
 import { lastTeamColour } from '../src/lib/liveries.js'
 import { handoverWords } from '../src/lib/handover.js'
 import {
@@ -3991,6 +4006,87 @@ try {
     await settle()
     const app = await page.evaluate(read, ['#root main', CHART_HEADING])
     is(app?.ahead ?? null, raced.rounds > raced.run ? 1 : 0, `/: the last season raced dashes its ${raced.rounds - raced.run} rounds still to run`)
+    await noJs.close()
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
+   * VD-124: a driver's career is a line through its dots, with a finding
+   * over it and its notes in the key under it, in both halves. careerStory()
+   * writes the words (units.mjs holds the working, on rows written out);
+   * this holds what reaches the page on Norris, the approved mockup's
+   * driver: the finding and every note shown, a marker for each, every
+   * marker inside the drawing and under the dot it marks, the line drawn,
+   * and the axis naming the career's first season and its last (IX-50).
+   */
+  await section('/drivers/norris  (the career, annotated: VD-124)', async () => {
+    const id = 'norris'
+    const shown = finishesFigure(
+      db.prepare(DRIVER).get(id),
+      db.prepare(STANDINGS).all(id),
+      teamsBySeason(db.prepare(SEASON_TEAMS).all(id)),
+      db.prepare(DRIVER_BY_SEASON).all(id),
+      { wins: db.prepare(WINS_AT).all(id), runnersUp: db.prepare(TITLE_RUNNERS_UP).all(id) },
+    )
+    const read = ([root, heading]) => {
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const h2 = [...document.querySelectorAll(`${root} h2`)].find((h) => clean(h) === heading)
+      const section = h2?.closest('section')
+      const svg = section?.querySelector('figure.figure .figure-body svg[role="img"]')
+      const key = section?.querySelector('figure.figure .figure-key')
+      if (!svg || !key) return null
+      const plot = svg.getBoundingClientRect()
+      const centre = (n) => {
+        const b = n.getBoundingClientRect()
+        return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, top: b.top, bottom: b.bottom }
+      }
+      return {
+        finding: clean(section.querySelector(':scope > p.figure-finding') ?? document.createElement('p')),
+        kicker: clean(section.querySelector(':scope > p.figure-kicker') ?? document.createElement('p')),
+        notes: [...key.querySelectorAll(':scope > li p')].map(clean),
+        line: svg.querySelectorAll('path.career-line').length,
+        years: [...svg.querySelectorAll('text.axis-text')].map(clean).filter((t) => /^(?:\d{4}|’\d\d)$/.test(t)),
+        plot: { top: plot.top, bottom: plot.bottom },
+        dots: [...svg.querySelectorAll('circle.mark-ring, circle.mark-hollow')].map(centre),
+        markers: [...svg.querySelectorAll('.anno-marker')].map((g) => ({ n: clean(g.querySelector('text')), ...centre(g.querySelector('circle')) })),
+      }
+    }
+    atLeast(shown.annotations.length, 2, '/drivers/norris: the first win and the title to note')
+    const [from, to] = shown.xDomain
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    await go('/drivers/norris', 'Norris')
+    await plain.goto(`${BASE}/drivers/norris`, { waitUntil: 'load' })
+    for (const width of [1440, 400]) {
+      await page.setViewportSize({ width, height: 900 })
+      await plain.setViewportSize({ width, height: 900 })
+      await settle()
+      for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
+        const at = `/drivers/norris at ${width}, ${half}`
+        const got = await tab.evaluate(read, [root, FINISHES_HEADING])
+        if (!got) {
+          fail(`${at}: “${FINISHES_HEADING}” has no drawing or no key`)
+          continue
+        }
+        is(got.finding, shown.finding, `${at}: the finding over the figure`)
+        is(got.kicker, shown.kicker, `${at}: and its kicker`)
+        is(got.notes.join(' / '), shown.annotations.map((n) => `Note ${n.n}: ${n.lead}. ${n.text}`).join(' / '), `${at}: every note in the key`)
+        is(got.markers.map((m) => m.n).join(' '), shown.annotations.map((n) => String(n.n)).join(' '), `${at}: a marker on the plot for every note`)
+        is(got.line, 1, `${at}: the career drawn as a line`)
+        truthy(
+          got.markers.every((m) => m.top >= got.plot.top - 0.5 && m.bottom <= got.plot.bottom + 0.5),
+          `${at}: every marker inside the drawing`,
+        )
+        truthy(
+          got.markers.every((m) => got.dots.some((d) => Math.abs(d.x - m.x) < 1 && d.y < m.y)),
+          `${at}: every marker under the dot it marks`,
+        )
+        truthy(
+          got.years.length >= 2 && got.years[0].endsWith(String(from).slice(-2)) && got.years[got.years.length - 1].endsWith(String(to).slice(-2)),
+          `${at}: the axis names the first season and the last (${got.years[0]}, ${got.years[got.years.length - 1]})`,
+        )
+      }
+    }
     await noJs.close()
     await page.setViewportSize({ width: 1280, height: 900 })
   })
