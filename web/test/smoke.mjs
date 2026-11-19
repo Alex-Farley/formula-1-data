@@ -208,7 +208,16 @@ import {
   winnerStarts,
   winsBy,
 } from '../src/queries/circuit.js'
-import { BY_SEASON as CONSTRUCTOR_BY_SEASON, CONSTRUCTOR_SOURCES } from '../src/queries/constructor.js'
+import {
+  BY_SEASON as CONSTRUCTOR_BY_SEASON,
+  CHAMPIONS as CONSTRUCTOR_CHAMPIONS,
+  CONSTRUCTOR as CONSTRUCTOR_ROW,
+  CONSTRUCTOR_SOURCES,
+  STANDINGS as CONSTRUCTOR_STANDINGS,
+  WINS_HEADING as CONSTRUCTOR_WINS_HEADING,
+  winsFigure,
+} from '../src/queries/constructor.js'
+import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry } from '../src/lib/liveries.js'
 import { GRAND_PRIX_SOURCES } from '../src/queries/grandprix.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -4084,6 +4093,100 @@ try {
         truthy(
           got.years.length >= 2 && got.years[0].endsWith(String(from).slice(-2)) && got.years[got.years.length - 1].endsWith(String(to).slice(-2)),
           `${at}: the axis names the first season and the last (${got.years[0]}, ${got.years[got.years.length - 1]})`,
+        )
+      }
+    }
+    await noJs.close()
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
+   * VD-125: a constructor's wins chart in the shared annotation pattern,
+   * built to the approved mockup P07v2 on its team. units.mjs holds the
+   * working on rows written out and the layout at every width; this holds
+   * what reaches the page on Ferrari, in both halves: the finding and the
+   * kicker, every note in the key and a marker for each, the tie's one
+   * marker, the drought's disc inside its shaded band, a square under every
+   * title and a stub for every winless season, and the key beside the plot
+   * at 1440 and under it on a phone.
+   */
+  await section('/constructors/ferrari  (the wins chart, annotated: VD-125)', async () => {
+    const id = 'ferrari'
+    const team = db.prepare(CONSTRUCTOR_ROW).get(id)
+    const bySeason = db.prepare(CONSTRUCTOR_BY_SEASON).all(id)
+    const last = bySeason.at(-1)
+    const livery = last.year >= LIVERY_ERA ? liveryFor(id, last.year) : null
+    const colour = livery ? colourForEntry({ constructorId: id, country: team.country, year: last.year, team: team.name }) : nationalEntry(team.country)
+    const shown = winsFigure(team, bySeason, {
+      standings: db.prepare(CONSTRUCTOR_STANDINGS).all(id),
+      champions: db.prepare(CONSTRUCTOR_CHAMPIONS).all(id),
+      colour,
+    })
+    const titles = shown.data.filter((d) => d.square).length
+    const winless = shown.data.filter((d) => d.value === 0).length
+    const read = ([root, heading]) => {
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const h2 = [...document.querySelectorAll(`${root} h2`)].find((h) => clean(h) === heading)
+      const section = h2?.closest('section')
+      const svg = section?.querySelector('figure.figure .figure-body svg[role="img"]')
+      const key = section?.querySelector('figure.figure .figure-key')
+      if (!svg || !key) return null
+      const box = (n) => {
+        const b = n.getBoundingClientRect()
+        return { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, left: b.left, right: b.right, top: b.top, bottom: b.bottom }
+      }
+      return {
+        finding: clean(section.querySelector(':scope > p.figure-finding') ?? document.createElement('p')),
+        kicker: clean(section.querySelector(':scope > p.figure-kicker') ?? document.createElement('p')),
+        squareInKicker: section.querySelectorAll(':scope > p.figure-kicker .title-square').length,
+        notes: [...key.querySelectorAll(':scope > li p')].map(clean),
+        plot: box(svg),
+        key: box(key),
+        squares: svg.querySelectorAll('rect.column-title').length,
+        stubs: svg.querySelectorAll('line.column-zero').length,
+        bands: [...svg.querySelectorAll('rect.plot-band')].map(box),
+        markers: [...svg.querySelectorAll('.anno-marker')].map((g) => ({
+          n: clean(g.querySelector('text')),
+          leader: Boolean(g.querySelector('line')),
+          ...box(g.querySelector('circle')),
+        })),
+      }
+    }
+    is(shown.finding, 'The Schumacher years stand above everything else', '/constructors/ferrari: the approved mockup’s finding, worked out from the rows')
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    await go('/constructors/ferrari', 'Ferrari')
+    await plain.goto(`${BASE}/constructors/ferrari`, { waitUntil: 'load' })
+    for (const width of [1440, 400]) {
+      await page.setViewportSize({ width, height: 900 })
+      await plain.setViewportSize({ width, height: 900 })
+      await settle()
+      for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
+        const at = `/constructors/ferrari at ${width}, ${half}`
+        const got = await tab.evaluate(read, [root, CONSTRUCTOR_WINS_HEADING])
+        if (!got) {
+          fail(`${at}: “${CONSTRUCTOR_WINS_HEADING}” has no drawing or no key`)
+          continue
+        }
+        is(got.finding, shown.finding, `${at}: the finding over the figure`)
+        is(got.kicker, `${shown.kicker} · a square under a season is ${shown.titleKey}`, `${at}: and its kicker, naming the square`)
+        is(got.squareInKicker, 1, `${at}: the kicker draws the square it names`)
+        is(got.notes.join(' / '), shown.annotations.map((n) => `Note ${n.n}: ${n.lead}. ${n.text}`).join(' / '), `${at}: every note in the key`)
+        is(got.markers.map((m) => m.n).join(' '), shown.marks.map((m) => String(m.n)).join(' '), `${at}: a marker on the plot for every note, the tie’s one`)
+        is(got.squares, titles, `${at}: a square under each of the ${titles} titles`)
+        is(got.stubs, winless, `${at}: a stub on the baseline for each of the ${winless} winless seasons`)
+        truthy(
+          got.markers.every((m) => m.top >= got.plot.top - 0.5 && m.bottom <= got.plot.bottom + 0.5),
+          `${at}: every marker inside the drawing`,
+        )
+        const dry = got.markers.filter((m) => m.leader)
+        truthy(
+          dry.length === got.bands.length && dry.every((m) => got.bands.some((b) => m.x >= b.left && m.x <= b.right && m.y < (b.top + b.bottom) / 2 + 1)),
+          `${at}: the drought’s disc stands in its shaded band, halfway up or higher, on a hairline`,
+        )
+        truthy(
+          width >= 1180 ? got.key.left >= got.plot.right - 0.5 : got.key.top >= got.plot.bottom - 0.5,
+          `${at}: the key ${width >= 1180 ? 'beside the plot' : 'under the plot'}`,
         )
       }
     }

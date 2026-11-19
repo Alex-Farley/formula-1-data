@@ -552,7 +552,7 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the key beside a full-width chart and markers on a column chart (VD-123 #1347), a career's line and markers on the dot plot (VD-124 #1348), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393); pending: a tied peak's marker on a constructor's wins (VD-125 #1349)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the key beside a full-width chart and markers on a column chart (VD-123 #1347), a career's line and markers on the dot plot (VD-124 #1348), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393), a constructor's wins with its titles, peak and drought marked (VD-125 #1349)
 
 **Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
@@ -572,10 +572,14 @@ for every chart that names its story, built once and shared.
   moves, so converging lines never hide a value (Lauda's 68 in 1976,
   Russell's 262 in 2026).
 - **Spans as shaded bands**, explained in the key, never brackets with text
-  over the marks; tied peaks share one marker.
+  over the marks; tied peaks share one marker. Tied peaks further apart
+  than that marker can sit between (more than two seasons, on a
+  constructor's wins) each take a disc with the one note's number, which
+  the key gives once (VD-125).
 - **One to three notes per chart.** Every note is text in the key, so
   nothing lives only in the drawing. Declared: home's *shape of the
-  championship* carries four, as its approved mockup (P02v2) does (VD-123).
+  championship* carries four, as its approved mockup (P02v2) does (VD-123),
+  and so may a constructor's wins, as P07v2 does (VD-125).
 
 **Built (VD-121), on the season's title race.** `charts/annotate.js` holds
 the geometry both renderers share: the gutter as wide as the widest label,
@@ -656,7 +660,35 @@ first place, so the season being run is neither ringed nor a title.
 `units.mjs` holds the working and the layout; `smoke.mjs` the finding, the
 notes and the markers in both halves.
 
-A tied peak's one marker on a constructor's wins is VD-125 (#1349).
+**Built (VD-125), on a constructor's wins.** The column chart's second
+annotated use (`docs/critiques/2026-11-13-visual-design/P07v2.html`).
+`winsStory()` in `queries/constructor.js` writes the finding - "The
+Schumacher years stand above everything else" only where the peak lies
+inside one driver's straight titles in the team's car, the peak's figure
+otherwise, and how many seasons had a win where the best is one - the kicker naming the colour drawn, and at most four notes in
+axis order: the first drivers' title in the team's car and the same
+driver's straight after it; the first run of constructors' titles in a row,
+with the champions inside it; the peak, every season tied at it, where the
+best is more than one win; and the longest winless run of two seasons or
+more, shaded, "since" where it reaches the season being run. A note is
+left out where another on the same seasons says it: the champion's where
+it overlaps the run of titles or is all at the peak (the peak's note then
+names the champion), the run of titles where it is exactly the seasons
+under one of the peak's discs. A title is a
+final table's first place, drawn as an ink square under its column, a
+second cue that is shape (`square`, with `SQUARE_ROOM` under the baseline
+for it), and the kicker draws the square and names it. A season of no win
+is a dashed stub on the baseline in the column's colour, 2 px, so a
+drought reads as seasons entered. A drought's marker has `lift`: its disc
+starts halfway up the plot, in the empty band, on a hairline down to the
+baseline. The axis takes `roundLabels`: the first season, then the
+decades, or every five or twenty-five years, as the width leaves 60 px
+between them, none nearer the last than 40. The peak is no longer printed
+over its first column; `columnChart.js` prints every column tied at the
+peak where a chart prints one. The key stands beside a full-width chart
+and under one in the slot. `units.mjs` holds the working and Ferrari's
+layout at every width; `smoke.mjs` the finding, kicker, notes, markers,
+squares, stubs and the key's place in both halves.
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold
@@ -1508,8 +1540,9 @@ citation, is already one system and is kept.
   qualifying, races and points with the winning side's figure set large,
   and a verdict headline (VD-122 #1346, `[D-65]`).
 - **Constructor:** lead chart (wins by season) · Season by season · Every
-  win · Cars built · photographs. **Pending:** the lead chart annotated,
-  titles, peak and drought marked (VD-125 #1349); the livery band as a
+  win · Cars built · photographs. The lead chart is annotated in the shared
+  pattern, titles, peak and drought marked (provisional, VD-125 #1349, §3
+  *Figure*). **Pending:** the livery band as a
   season-by-season ribbon (VD-115 #1337); one count of wins wherever the
   page and `/records` show them side by side (VD-117 #1339).
 - **Circuit:** the current outline in the slot (VD-74, VD-84) · winners

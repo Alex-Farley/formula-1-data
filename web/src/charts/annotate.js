@@ -220,7 +220,10 @@ function nearest({ x1, y1, x2, y2 }, px, py) {
 
 /**
  * Every marker on a column chart (VD-123), in the order given: each `{ n,
- * x, y, leader }`, the top of the columns it marks at (x, y). A disc is
+ * x, y, leader, lift }`, the top of the columns it marks at (x, y), and
+ * `lift`, where it is not null, the height its disc starts from instead of
+ * MARKER.offset above the point (VD-125: a drought's disc, halfway up the
+ * empty band it marks, on a hairline down to the baseline). A disc is
  * sound where it lies inside [left, right], over no column within its
  * reach (`floor(cx)`: the highest column top a disc centred at cx would
  * cover), apart from every other disc, with its hairline clear of every
@@ -259,8 +262,9 @@ export function placeColumnMarkers(points, { left = -Infinity, right = Infinity,
     )
   for (const p of points) {
     const point = p.leader === false ? null : { x: p.x, y: p.y }
+    const start = typeof p.lift === 'number' ? Math.min(p.y - MARKER.offset, p.lift) : p.y - MARKER.offset
     const at = (k) => {
-      const cy = p.y - MARKER.offset - k * RISE
+      const cy = start - k * RISE
       return { n: p.n, cx: p.x, cy, leader: vertical(point, cy), point }
     }
     const first = at(0)

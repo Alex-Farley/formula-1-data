@@ -417,6 +417,7 @@ import {
 } from '../src/queries/race.js'
 import {
   BY_SEASON as TEAM_BY_SEASON,
+  CHAMPIONS as TEAM_CHAMPIONS,
   CONSTRUCTOR_SOURCES,
   DERIVED as TEAM_DERIVED,
   DESIGNS,
@@ -1607,9 +1608,10 @@ const dotPlotSvg = (chart, width) => {
 
 /* ColumnChart.jsx at rest: the shaded bands under everything, the columns
    in the entity's colour or in ink, a marked one in the accent and a hollow
-   one outlined, what is still ahead of a column dashed over it, the
-   printed values over theirs, every labelEvery-th season under the axis,
-   and the numbered markers over the columns (VD-123). */
+   one outlined, a season of nothing as a dashed stub on the baseline, what
+   is still ahead of a column dashed over it, a title's square under it, the
+   printed values over theirs, the labelled seasons under the axis, and the
+   numbered markers over the columns (VD-123, VD-125). */
 const columnSvg = (chart, colour, width) => {
   const layout = columnLayout({ ...chart, width })
   if (!layout) return ''
@@ -1620,7 +1622,17 @@ const columnSvg = (chart, colour, width) => {
   const columns = layout.columns
     .map(
       (c) =>
-        `<g><path${c.d.hollow ? ' class="column-hollow"' : ''} d="${tidy(c.path)}" fill="${paint(c.d)}"/>${
+        `<g>${
+          c.zero
+            ? `<line class="column-zero" x1="${px(c.zero.x1)}" x2="${px(c.zero.x2)}" y1="${px(c.zero.y)}" y2="${px(c.zero.y)}" stroke="${
+                paint(c.d) === 'none' ? INK : paint(c.d)
+              }"/>`
+            : `<path${c.d.hollow ? ' class="column-hollow"' : ''} d="${tidy(c.path)}" fill="${paint(c.d)}"/>`
+        }${
+          c.square
+            ? `<rect class="column-title" x="${px(c.square.x)}" y="${px(c.square.y)}" width="${px(c.square.size)}" height="${px(c.square.size)}"/>`
+            : ''
+        }${
           c.ahead !== null
             ? `<line class="column-ahead" x1="${px(c.ahead.x)}" x2="${px(c.ahead.x)}" y1="${px(c.ahead.y1)}" y2="${px(c.ahead.y2)}" stroke="${paint(c.d)}" stroke-width="${px(c.ahead.width)}"/>`
             : ''
@@ -1895,12 +1907,15 @@ const leadFigure = ({
   legend = null,
   finding = null,
   kicker = null,
+  // A kicker already written as markup (VD-125: a constructor's, with its
+  // title square), each text in it escaped by the caller.
+  kickerHtml = kicker ? esc(kicker) : null,
   annotations = [],
   plot,
   table,
 }) =>
   `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2>${
-    finding ? `<p class="figure-finding">${esc(finding)}</p>${kicker ? `<p class="figure-kicker">${esc(kicker)}</p>` : ''}` : ''
+    finding ? `<p class="figure-finding">${esc(finding)}</p>${kickerHtml ? `<p class="figure-kicker">${kickerHtml}</p>` : ''}` : ''
   }<figure class="${lead ? 'figure figure-lead' : 'figure'}${keyBeside && annotations.length ? ' key-beside' : ''}" aria-label="${esc(
     name,
   )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}${annotationKey(annotations)}</div>${legendHtml(legend)}<p class="figure-note" id="lead-figure-note"><span>${esc(
@@ -4326,12 +4341,25 @@ page({
     // from queries/constructor.js, in the team's colour, after the tiles -
     // in the slot, or at the full width for a team of more seasons than the
     // slot can draw (SLOT_MARKS), and then laid out at the column's width.
-    const winsChart = winsFigure(c, teamBySeason)
+    // Its finding, title squares and notes too (VD-125), from the same rows.
+    const winsChart = winsFigure(c, teamBySeason, {
+      standings: teamStandings,
+      champions: all(TEAM_CHAMPIONS, c.id),
+      colour: identity,
+    })
     const winsSection = winsChart
       ? leadFigure({
           heading: WINS_HEADING,
           slot: winsChart.lead,
+          keyBeside: winsChart.keyBeside,
           note: winsChart.note,
+          finding: winsChart.finding,
+          kickerHtml: `${esc(winsChart.kicker)}${
+            winsChart.titleKey
+              ? ` · <i class="title-square" aria-hidden="true"></i><span class="sr-only">a square under a season is </span>${esc(winsChart.titleKey)}`
+              : ''
+          }`,
+          annotations: winsChart.annotations,
           plot: columnSvg(winsChart, identity, winsChart.lead ? LEAD_WIDTH : COLUMN_WIDTH),
           table: fromColumns(WINS_FIGURE_COLUMNS, winsChart.rows, {}, { unfolded: UNFOLDED.figure }),
         })
