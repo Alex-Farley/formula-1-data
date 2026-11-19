@@ -679,10 +679,19 @@ page's `faceOffHtml()` writes the same markup.
   ahead on what, three split tallies (qualifying, race when both
   classified, points) and each season as a small split; last, a key in
   faint prose saying what the colours and the figures are.
-- **How many:** at most three blocks (`FACE_OFFS`): the latest team-mate,
+- **How many:** three blocks shown (`FACE_OFFS`): the latest team-mate,
   and the two others with the most Grands Prix together, set latest first.
-  A career of 106 team-mates is not 106 blocks; the key says how many are
-  shown of how many, and the table under it has every pairing.
+  Every other team-mate's block is under them, latest first, behind one
+  closed disclosure (`.face-fold`, VD-130 #1370, ruled 2026-11-17) whose
+  faces are a fold's, *Show all 106 team-mates* and *Show the first 3*,
+  counting what the section's heading counts; so a career of 106 team-mates
+  opens on three blocks, and the key says where the rest are. Both halves
+  write every block, as a fold writes every row, and a disclosure opened on
+  the static page stays open at the handover. That costs Brabham's static
+  page 103 blocks, some 270 KB of HTML but 6 KB gzipped, and the 488
+  driver pages with more than three team-mates about 13.6 MB raw and
+  440 KB gzipped together, under 6 % of every driver page's gzipped total
+  (measured on the PR).
 - **A tally:** a bar split at the driver's share of the two figures, the
   driver from the left, with a tick in ink at the middle where level would
   meet. The leading figure is `--size-9` in ink and the other `--size-7` in

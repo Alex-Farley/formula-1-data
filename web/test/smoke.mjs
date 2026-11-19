@@ -2345,7 +2345,7 @@ try {
    * yet in the standings, say) is held to having no answer in its lede,
    * rather than failing the build.
    */
-  await section('/drivers/norris /drivers/prost  (the team-mates face-off, both renderers: VD-122)', async () => {
+  await section('/drivers/norris /drivers/prost  (the team-mates face-off, both renderers: VD-122, VD-130)', async () => {
     const squash = (value) => value.replace(/\s+/g, ' ').trim()
     for (const [id, name, owned] of [['norris', 'Lando Norris', true], ['prost', 'Alain Prost', false]]) {
       const pairs = `FROM race_entries e JOIN race_entries o ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id AND o.driver_id <> e.driver_id WHERE e.driver_id = '${id}'`
@@ -2369,12 +2369,32 @@ try {
       const app = await page.$$eval('#root main .face-off', (nodes) => nodes.map((node) => node.textContent))
       const appHead = await page.$eval('#root main .face-headline', (node) => node.textContent)
       const appClass = await page.$eval('#root main .face-off', (node) => `${node.className} ${node.getAttribute('style') ?? ''}`)
+      // The blocks a reader sees, and the disclosure's closed face (VD-130).
+      const visible = () => page.$$eval('#root main .face-off', (nodes) => nodes.filter((node) => node.checkVisibility()).length)
+      const appFold = await page.$eval('#root main', (main) => {
+        const fold = main.querySelector('details.face-fold')
+        return fold ? { open: fold.open, face: fold.querySelector('summary .fold-more')?.textContent ?? null, outside: main.querySelectorAll('.face-off:not(.face-fold .face-off)').length } : null
+      })
       const html = (await (await fetch(`${BASE}/drivers/${id}`)).text()).split('<div id="prerendered">')[1] ?? ''
       // The text between the tags, as textOf() reads it below (no tag-stripping replace: CodeQL).
       const flat = (fragment) => squash(unescaped([...fragment.matchAll(/(?:^|>)([^<]*)/g)].map((t) => t[1]).join('')))
-      const staticBlocks = html.split('<div class="face-off').slice(1).map((chunk) => chunk.slice(0, chunk.indexOf('<p class="faint face-key">') >= 0 ? chunk.indexOf('<p class="faint face-key">') : undefined))
+      const staticFace = html.match(/<details class="face-fold"><summary><span class="fold-more">([^<]*)<\/span>/)?.[1] ?? null
+      // The disclosure's summary is not a block's words: cut before splitting.
+      const staticBlocks = html
+        .replace(/<summary>[\s\S]*?<\/summary>/g, '')
+        .split('<div class="face-off')
+        .slice(1)
+        .map((chunk) => chunk.slice(0, chunk.indexOf('<p class="faint face-key">') >= 0 ? chunk.indexOf('<p class="faint face-key">') : undefined))
       const staticHead = flat(html.match(/<p class="face-headline">[\s\S]*?<\/p>/)?.[0] ?? '')
-      is(app.length, Math.min(3, mates), `${id}: a block for each team-mate shown, at most three of ${mates}`)
+      is(app.length, mates, `${id}: a block for every one of ${mates} team-mates`)
+      is(await visible(), Math.min(3, mates), `${id}: three of them shown until the reader asks`)
+      if (mates > 3) {
+        truthy(appFold && !appFold.open && appFold.outside === 3, `${id}: the rest behind one closed disclosure under the first three — ${JSON.stringify(appFold)}`)
+        is(appFold?.face, `Show all ${mates} team-mates`, `${id}: the disclosure names the whole count, as the heading counts it`)
+        is(staticFace ? unescaped(staticFace) : null, appFold?.face, `${id}: the static page writes the same disclosure`)
+        await page.click('#root main details.face-fold > summary')
+        is(await visible(), mates, `${id}: opening it shows every block`)
+      } else is(appFold, null, `${id}: three team-mates or fewer, no disclosure`)
       is(staticBlocks.length, app.length, `${id}: the static page draws the same blocks`)
       is(staticBlocks.map((chunk) => flat(`<div class="face-off${chunk}`)).join(' | '), app.map(squash).join(' | '), `${id}: and says the same in them`)
       is(staticHead, squash(appHead), `${id}: both halves set the same headline`)

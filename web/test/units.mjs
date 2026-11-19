@@ -43,7 +43,7 @@ import {
   sharedLine,
   tableKey,
 } from '../src/lib/table.js'
-import { captureOpenFolds, captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
+import { captureOpenFolds, captureStaticTables, staticFaceFoldOpen, staticOpen, staticRows } from '../src/lib/handover.js'
 
 import {
   fieldText,
@@ -3686,13 +3686,17 @@ describe('the rows the static page drew (IX-19)', () => {
         ? { querySelector: (inner) => (inner === ':scope > details.table-fold' ? { open } : null) }
         : null,
   })
-  const stand = (pathname, tables, run) => {
+  // `faceFold`: the team-mates face-off's disclosure (VD-130), or null.
+  const stand = (pathname, tables, run, faceFold = null) => {
     const hadDocument = 'document' in globalThis
     const hadLocation = 'location' in globalThis
     const document = globalThis.document
     const location = globalThis.location
     globalThis.document = {
-      getElementById: (id) => (id === 'prerendered' ? { querySelectorAll: () => tables } : null),
+      getElementById: (id) =>
+        id === 'prerendered'
+          ? { querySelectorAll: () => tables, querySelector: (selector) => (selector === 'details.face-fold' ? faceFold : null) }
+          : null,
     }
     globalThis.location = { pathname }
     try {
@@ -3773,6 +3777,27 @@ describe('the rows the static page drew (IX-19)', () => {
       captureStaticTables()
       captureOpenFolds()
       assert.equal(staticOpen('Every entry'), false)
+    })
+  })
+
+  // VD-130: the face-off's disclosure, opened while the database arrived.
+  it('remembers the face-off disclosure the reader opened, on that route only', () => {
+    const fold = { open: false }
+    stand('/drivers/brabham', [fakeTable('Team-mates', 241)], () => {
+      captureStaticTables()
+      captureOpenFolds()
+      assert.equal(staticFaceFoldOpen(), false, 'written closed')
+      fold.open = true
+      captureOpenFolds()
+      assert.equal(staticFaceFoldOpen(), true)
+      assert.equal(staticOpen('Team-mates'), false, "the table's own fold is another thing")
+      globalThis.location = { pathname: '/drivers/fangio' }
+      assert.equal(staticFaceFoldOpen(), false)
+    }, fold)
+    stand('/drivers/norris', [fakeTable('Team-mates', 12)], () => {
+      captureStaticTables()
+      captureOpenFolds()
+      assert.equal(staticFaceFoldOpen(), false, 'a page with no disclosure')
     })
   })
 
@@ -6218,7 +6243,37 @@ describe("the team-mates face-off (VD-122), on rows written out", async () => {
   it('shows the latest team-mate and the others with the most Grands Prix together, latest first', () => {
     assert.equal(FACE_OFFS, 3)
     assert.deepEqual(face.blocks.map((b) => b.mate_id), ['late', 'long', 'mid'])
-    assert.match(face.note, /Shown: the latest team-mate and the two others with the most Grands Prix together, of 4 team-mates; the table has every pairing\./)
+    assert.match(face.note, /Shown first: the latest team-mate and the two others with the most Grands Prix together; the other one follows under “Show all 4 team-mates”, latest first, and the table has every pairing\./)
+  })
+  // VD-130: every other team-mate has a block, behind one disclosure.
+  it('puts every other team-mate behind the disclosure, latest first, and names it for the whole count', () => {
+    assert.deepEqual(face.more.map((b) => b.mate_id), ['short'])
+    assert.deepEqual(face.fold, { more: 'Show all 4 team-mates', less: 'Show the first 3' })
+    const many = faceOffs('A Driver', [
+      row(2024, 'Late', [3, 7, 10], [2, 4, 6], [20, 40], { races: 10 }),
+      row(2023, 'Few', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1 }),
+      row(2022, 'Long', [12, 8, 20], [9, 9, 18], [100, 90.5], { races: 20 }),
+      row(2020, 'Fewer', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1, round: 2 }),
+      row(2020, 'Fewest', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1, round: 1 }),
+      row(2019, 'Mid', [6, 4, 10], [5, 3, 8], [30, 10], { races: 15 }),
+    ])
+    assert.deepEqual(many.blocks.map((b) => b.mate_id), ['late', 'long', 'mid'])
+    assert.deepEqual(many.more.map((b) => b.mate_id), ['few', 'fewer', 'fewest'], 'the rest by their last round together, newest first')
+    assert.equal(new Set([...many.blocks, ...many.more].map((b) => b.mate_id)).size, 6, 'every team-mate once')
+    assert.match(many.note, /the other three follow under “Show all 6 team-mates”/)
+    const few = faceOffs('A Driver', rows.slice(0, 4))
+    assert.deepEqual([few.more, few.fold], [[], null], 'three team-mates or fewer have no disclosure')
+    assert.match(few.note, / The table has every pairing\.$/)
+  })
+  it('keys the colours of the blocks behind the disclosure as well', () => {
+    const hidden = faceOffs('A Driver', [
+      row(2024, 'A', [1, 0, 1], [1, 0, 1], [1, 0], { races: 10 }),
+      row(2023, 'B', [1, 0, 1], [1, 0, 1], [1, 0], { races: 10 }),
+      row(2022, 'C', [1, 0, 1], [1, 0, 1], [1, 0], { races: 10 }),
+      row(1955, 'D', [1, 0, 1], [1, 0, 1], [1, 0], { races: 1, team: 'maserati', name: 'Maserati', country: 'Italy' }),
+    ])
+    assert.deepEqual(hidden.more.map((b) => b.mate_id), ['d'])
+    assert.match(hidden.note, /or in ink where it has none/, 'the national colour with no second is only behind the disclosure')
   })
   it('sums the table\'s own columns, and says who led with the leader\'s figure first', () => {
     const long = face.blocks[1]
