@@ -70,7 +70,11 @@ export function LineKey({ index, count, colour }) {
  * short line saying what is plotted; the heading stays the figure's name.
  * `annotations` are the notes the plot's numbered markers point to, each
  * `{ n, lead, text }`, set as a key under the plot: every word of a note is
- * here, so nothing lives only in the drawing.
+ * here, so nothing lives only in the drawing. `keyBeside` is for a chart
+ * the full width of the page (VD-123, home's): its key stands beside the
+ * plot from 1180 px, in two columns under it from 768, and under it in one
+ * on a phone (app.css, `.figure.key-beside`). A chart in a slot keeps
+ * its key under it at every width.
  *
  * `table.caption` names the table where the heading above it would not;
  * left out, the table is named from the heading, as every other is (AX-28).
@@ -87,7 +91,17 @@ export function LineKey({ index, count, colour }) {
  * `lead` is the variant a figure takes where it leads a page (VD-53, VD-67):
  * the same parts in the same order, in the slot app.css gives it.
  */
-export default function Figure({ note, legend, lead = false, table, finding = null, kicker = null, annotations = [], children }) {
+export default function Figure({
+  note,
+  legend,
+  lead = false,
+  table,
+  finding = null,
+  kicker = null,
+  annotations = [],
+  keyBeside = false,
+  children,
+}) {
   const name = useContext(SectionTitle)
   const noteId = useId()
   const key = legend && legend.length > 1 && (
@@ -135,7 +149,7 @@ export default function Figure({ note, legend, lead = false, table, finding = nu
   )
   const figure = (
     <figure
-      className={lead ? 'figure figure-lead' : 'figure'}
+      className={`${lead ? 'figure figure-lead' : 'figure'}${keyBeside && annotations.length > 0 ? ' key-beside' : ''}`}
       aria-label={name ?? undefined}
       aria-describedby={note ? noteId : undefined}
     >

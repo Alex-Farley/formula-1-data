@@ -1,3 +1,4 @@
+import { MARKER } from './annotate.js'
 import { columnLayout } from './columnChart.js'
 import { ownColour } from './own.js'
 import { INK, MARK } from './palette.js'
@@ -20,6 +21,14 @@ import { useMeasure } from './useMeasure.js'
  * outlined in ink and unfilled, for a column that is not a measurement of the
  * same kind as the rest - the home page's calendars, which are not results.
  * Each carries a second cue beside the colour: the printed value, the fill.
+ * A datum may also carry `ahead`: rounds still to come, dashed over the
+ * solid column in its colour (VD-123) - a season being run, its rounds run
+ * solid and the rest of its calendar dashed.
+ *
+ * `marks` and `bands` are the annotation pattern's (VD-123; charts/annotate.js,
+ * docs/design-system.md section 3, *Annotation*): numbered discs over the
+ * columns a note names, and shaded spans under them. What each says is in
+ * the key Figure sets under or beside the plot, never only here.
  *
  * The chart is one tab stop, as DotPlot is (charts/useChartKeys.js, AX-32):
  * on keyboard focus it reads the first column, the arrow keys step along,
@@ -43,13 +52,15 @@ export default function ColumnChart({
   // Whole-number ticks for a count; a wins axis ticked at 2.5 is an axis
   // that lies (web/README.md says so, and scales.js already supports it).
   integer = false,
+  marks = [],
+  bands = [],
 }) {
   const [ref, width] = useMeasure()
   const own = ownColour(colour)
 
   // The geometry is charts/columnChart.js's, which the static page draws
   // from too (VD-73), so the two halves place every column alike.
-  const layout = columnLayout({ data, width, height, format, labelEvery, labelPeak, integer })
+  const layout = columnLayout({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands })
   // An index into the columns, in the order they are drawn.
   const { active, setActive, keys } = useChartKeys(layout ? layout.columns.length : 0)
 
@@ -79,6 +90,10 @@ export default function ColumnChart({
         tabIndex={0}
         {...keys}
       >
+        {layout.bands.map((b) => (
+          <rect key={`band-${b.x}`} className="plot-band" x={b.x} y={b.y} width={b.width} height={b.height} />
+        ))}
+
         {layout.yTicks.map((tick) => (
           <g key={tick.value}>
             <line className="grid-line" x1={layout.left} x2={layout.right} y1={tick.y} y2={tick.y} />
@@ -110,6 +125,18 @@ export default function ColumnChart({
                 fill={paint(d)}
                 opacity={hover && hover.key !== d.key ? 0.55 : 1}
               />
+              {column.ahead !== null && (
+                <line
+                  className="column-ahead"
+                  x1={column.ahead.x}
+                  x2={column.ahead.x}
+                  y1={column.ahead.y1}
+                  y2={column.ahead.y2}
+                  stroke={paint(d)}
+                  strokeWidth={column.ahead.width}
+                  opacity={hover && hover.key !== d.key ? 0.55 : 1}
+                />
+              )}
               {column.value !== null && (
                 <text className="value-text" x={column.centre} y={column.top - 6} textAnchor="middle">
                   {column.value}
@@ -123,6 +150,16 @@ export default function ColumnChart({
             </g>
           )
         })}
+
+        {layout.markers.map((m) => (
+          <g key={`mark-${m.n}`} className="anno-marker">
+            {m.leader && <line x1={m.leader.x1} y1={m.leader.y1} x2={m.leader.x2} y2={m.leader.y2} />}
+            <circle cx={m.cx} cy={m.cy} r={MARKER.r} />
+            <text x={m.cx} y={m.cy} textAnchor="middle" dominantBaseline="central">
+              {m.n}
+            </text>
+          </g>
+        ))}
       </svg>
 
       {/* Over the column's top, and held inside the plot (charts/Tooltip.jsx):

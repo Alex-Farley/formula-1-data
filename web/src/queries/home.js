@@ -23,7 +23,7 @@
  *     is split around it, as UNCHECKED_NOTE and ABOUT_REPOSITORY already are
  *     in lib/site.js, so the words are still decided once.
  */
-import { number, ordinal, raceDates } from '../lib/format.js'
+import { inWords, number, ordinal, raceDates } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
@@ -57,10 +57,15 @@ export const SHAPE = `
  * The column chart, and the sentence under it. `run` comes back beside the
  * count because a season whose rounds have all still to be run is a calendar
  * rather than a set of results, and the note has to name which ones those
- * are - from the rows, never from arithmetic on the current year.
+ * are - from the rows, never from arithmetic on the current year; and a
+ * season part run is drawn as what it has run, with the rest dashed
+ * (VD-123). `indianapolis` counts the season's Indianapolis 500, a
+ * championship round to 1960, which the note and the first season's note
+ * say are counted.
  */
 export const PER_SEASON = `
-  SELECT year, COUNT(*) AS rounds, SUM(status = 'completed') AS run
+  SELECT year, COUNT(*) AS rounds, SUM(status = 'completed') AS run,
+         SUM(gp_id = 'indianapolis-500') AS indianapolis
     FROM races GROUP BY year ORDER BY year
 `
 
@@ -331,43 +336,202 @@ export const BOARD = [
 ]
 
 export const CHART_HEADING = 'The shape of the championship'
+/** What the chart plots, under its finding (VD-123). */
+export const CHART_KICKER = 'Championship rounds per season'
+/**
+ * The plot's height, the same at every width so the static drawing holds
+ * the app's box (VD-73): room for the markers over the tallest columns as
+ * well as the columns.
+ */
+export const CHART_HEIGHT = 260
+/**
+ * The numbers behind the chart: each season's rounds, and how many of them
+ * have been run, which is the solid column where a season is part run
+ * (VD-123), and none in a calendar.
+ */
+export const CHART_COLUMNS = [
+  { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
+  { key: 'rounds', label: 'Rounds', align: 'num' },
+  { key: 'run', label: 'Run', align: 'num' },
+]
 
 /** "2026 and 2027", "2026, 2027 and 2028", "2027". */
 const years = (list) =>
   list.length < 2 ? String(list[0] ?? '') : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`
 
+const capital = (text) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/** The seasons the Indianapolis 500 counted in, as a span: "1950–60". */
+const indianapolisSpan = (seasons) => {
+  const held = seasons.filter((s) => s.indianapolis > 0).map((s) => s.year)
+  if (!held.length) return null
+  const [from, to] = [held[0], held[held.length - 1]]
+  return from === to ? String(from) : `${from}–${String(to).slice(Math.floor(from / 100) === Math.floor(to / 100) ? 2 : 0)}`
+}
+
+/**
+ * What the chart counts, and which columns are not results (VD-123): the
+ * Indianapolis 500 is counted where the register holds it, and a calendar
+ * is named as one. The growth it used to state is the finding over the
+ * chart now, and the season being run is its fourth note.
+ */
 export const chartNote = (seasons) => {
-  const raced = [...seasons].reverse().find((s) => s.run)
+  const span = indianapolisSpan(seasons)
+  const counted = seasons.length ? `Every championship round${span ? `, the Indianapolis 500 of ${span} included` : ''}.` : ''
   const calendars = seasons.filter((s) => !s.run).map((s) => s.year)
-  const grown = seasons.length && raced ? `${number(seasons[0].rounds)} rounds in ${seasons[0].year}; ${number(raced.rounds)} by ${raced.year}.` : ''
-  if (!calendars.length) return grown
+  if (!calendars.length) return counted
   const one = calendars.length === 1
-  return `${grown} The ${years(calendars)} column${one ? ' is a calendar' : 's are calendars'}: none of ${
+  return `${counted} The ${years(calendars)} column${one ? ' is a calendar' : 's are calendars'}: none of ${
     one ? 'its' : 'their'
   } rounds has been run.`
 }
 
 /**
- * The columns the note describes (VD-94): the first season and the last one
- * raced carry their counts printed over them, the last raced in the accent,
- * because those are the two figures the note states; a calendar is drawn
- * hollow, because the note says it is not a set of results, and its tooltip
- * says "calendar". Every tenth season is labelled under the axis. The two
- * rules read the rows as chartNote() does, so the picture and the sentence
- * cannot name different seasons.
+ * The columns (VD-94, VD-123): the last season raced in the accent, the one
+ * value the page states, and where it has rounds still to run, drawn as the
+ * rounds it has run with the rest of its calendar dashed over them, so
+ * the red column is the season so far and not its calendar; a calendar is
+ * drawn hollow, because the note says it is not a set of results, and its
+ * tooltip says "calendar". No value is printed on the plot: each figure the
+ * chart states is a note in its key. Every tenth season is labelled under
+ * the axis. The rules read the rows as chartNotes() does, so the picture and
+ * the notes cannot name different seasons.
  */
 export const chartData = (seasons) => {
-  const raced = [...seasons].reverse().find((s) => s.run)
-  const first = raced ? seasons[0] : null
-  return seasons.map((s) => ({
-    key: s.year,
-    value: s.rounds,
-    label: s.year % 10 === 0 ? s.year : '',
-    print: s === first || s === raced,
-    mark: s === raced,
-    hollow: !s.run,
-    note: s.run ? undefined : 'calendar',
-  }))
+  const raced = lastRaced(seasons)
+  return seasons.map((s) => {
+    const ahead = s.run > 0 ? s.rounds - s.run : 0
+    return {
+      key: s.year,
+      value: ahead > 0 ? s.run : s.rounds,
+      ahead,
+      label: s.year % 10 === 0 ? s.year : '',
+      mark: s === raced,
+      hollow: !s.run,
+      note: !s.run ? 'calendar' : ahead > 0 ? `${number(ahead)} still to run` : undefined,
+    }
+  })
+}
+
+/** The last season with a round run: the one the accent marks. */
+const lastRaced = (seasons) => [...seasons].reverse().find((s) => s.run > 0) ?? null
+
+/**
+ * The longest run of consecutive completed seasons whose round counts lie
+ * within one of each other - 1984–2003, every one 16 or 17 - the first where
+ * two are as long. Null where none runs to five seasons, which is no
+ * stretch worth shading.
+ */
+const steadiest = (complete) => {
+  let best = null
+  for (let i = 0; i < complete.length; i += 1) {
+    let lo = complete[i].rounds
+    let hi = lo
+    let j = i
+    while (j + 1 < complete.length && complete[j + 1].year === complete[j].year + 1) {
+      const next = complete[j + 1].rounds
+      if (Math.max(hi, next) - Math.min(lo, next) > 1) break
+      lo = Math.min(lo, next)
+      hi = Math.max(hi, next)
+      j += 1
+    }
+    const length = j - i + 1
+    if (length >= 5 && (!best || length > best.length)) best = { from: complete[i].year, to: complete[j].year, lo, hi, length }
+  }
+  return best
+}
+
+/**
+ * The years of `list` that run on without a gap to its last one: the
+ * columns a tied peak's one marker sits over (2024 and 2025), where a tie
+ * not side by side would put a shared disc over some other season.
+ */
+const lastRun = (list) => {
+  const out = [list[list.length - 1]]
+  for (let k = list.length - 2; k >= 0 && list[k] === out[0] - 1; k -= 1) out.unshift(list[k])
+  return out
+}
+
+/**
+ * The chart's annotation (VD-123; docs/design-system.md section 3,
+ * *Annotation*), every part worked out from the rows:
+ *
+ * - the finding: the first season's count, and the most any completed
+ *   season has run, with the first season to run it;
+ * - four notes, each with its marker or band - the first season; the
+ *   longest steady stretch, shaded (steadiest()); the most in a completed
+ *   season, one marker over the tied seasons where they stand together; and
+ *   the season raced last, the accented column, with what it has still to
+ *   run where it has any.
+ *
+ * A note whose subject the rows do not hold is left out, and the markers are
+ * numbered in the order they stand on the axis. Where the season raced last
+ * is complete and holds the peak, its own note says so, and the peak's note
+ * names the seasons before it. Returns { finding, kicker, notes, marks,
+ * bands }; with nothing raced, no finding and no notes.
+ */
+export const chartNotes = (seasons) => {
+  const raced = lastRaced(seasons)
+  const complete = seasons.filter((s) => s.run > 0 && s.run === s.rounds)
+  const first = seasons[0]
+  if (!raced || !complete.length || first.run !== first.rounds) return { finding: null, kicker: null, notes: [], marks: [], bands: [] }
+  const most = Math.max(...complete.map((s) => s.rounds))
+  const tied = complete.filter((s) => s.rounds === most).map((s) => s.year)
+  const finding =
+    tied[0] === first.year
+      ? `${capital(inWords(first.rounds))} races in ${first.year}, never more.`
+      : `${capital(inWords(first.rounds))} races in ${first.year}; ${inWords(most)} by ${tied[0]}.`
+
+  const parts = []
+  parts.push({
+    keys: [first.year],
+    lead: `${first.year}: ${inWords(first.rounds)} rounds`,
+    text: `The first championship${first.indianapolis > 0 ? ', the Indianapolis 500 included' : ''}.`,
+  })
+  const steady = steadiest(complete)
+  if (steady && steady.from !== first.year) {
+    const keys = complete.filter((s) => s.year >= steady.from && s.year <= steady.to).map((s) => s.year)
+    parts.push({
+      keys,
+      leader: false,
+      band: { from: steady.from, to: steady.to },
+      lead: `${steady.from}–${steady.to}: ${steady.lo === steady.hi ? number(steady.lo) : `${number(steady.lo)} or ${number(steady.hi)}`}, every year`,
+      text: `${capital(inWords(steady.length))} seasons in a row within a round of each other, shaded.`,
+    })
+  }
+  const before = tied.filter((year) => year !== raced.year)
+  const racedHolds = raced.run === raced.rounds && raced.rounds === most
+  // The first season has its own marker, so a peak it shares is marked over
+  // the seasons after it, and named with it.
+  const marked = before.filter((year) => year !== first.year)
+  if (marked.length) {
+    parts.push({
+      keys: lastRun(marked),
+      lead: `${years(before)}: ${number(most)}`,
+      text: racedHolds ? `The most in any completed season, matched in ${raced.year}.` : 'The most in any completed season.',
+    })
+  }
+  if (raced !== first) {
+    const left = raced.rounds - raced.run
+    const calendars = seasons.filter((s) => !s.run).map((s) => s.year)
+    const later = calendars.length
+      ? ` ${years(calendars)} ${calendars.length === 1 ? 'is a calendar' : 'are calendars'}.`
+      : ''
+    parts.push({
+      keys: [raced.year],
+      lead: left > 0 ? `${raced.year}: ${number(raced.run)} of ${number(raced.rounds)} run` : `${raced.year}: ${number(raced.rounds)} rounds`,
+      text:
+        left > 0
+          ? `In red; the ${inWords(left)} to come ${left === 1 ? 'is' : 'are'} dashed above.${later}`
+          : `In red, the season run last${racedHolds && !before.length ? ': the most in any season' : ''}.${later}`,
+    })
+  }
+  // In the order they stand on the axis, numbered so.
+  parts.sort((a, b) => a.keys[0] - b.keys[0])
+  const notes = parts.map((p, i) => ({ n: i + 1, lead: p.lead, text: p.text }))
+  const marks = parts.map((p, i) => ({ n: i + 1, keys: p.keys, leader: p.leader !== false }))
+  const bands = parts.filter((p) => p.band).map((p) => p.band)
+  return { finding, kicker: CHART_KICKER, notes, marks, bands }
 }
 
 export const chartLabel = (shape) =>

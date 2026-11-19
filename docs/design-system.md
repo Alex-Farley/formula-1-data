@@ -552,7 +552,7 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393); pending: the key beside a full-width chart, and a tied peak's marker (VD-123 #1347, VD-125 #1349)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the key beside a full-width chart and markers on a column chart (VD-123 #1347), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393); pending: a tied peak's marker on a constructor's wins (VD-125 #1349)
 
 **Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
@@ -574,7 +574,8 @@ for every chart that names its story, built once and shared.
 - **Spans as shaded bands**, explained in the key, never brackets with text
   over the marks; tied peaks share one marker.
 - **One to three notes per chart.** Every note is text in the key, so
-  nothing lives only in the drawing.
+  nothing lives only in the drawing. Declared: home's *shape of the
+  championship* carries four, as its approved mockup (P02v2) does (VD-123).
 
 **Built (VD-121), on the season's title race.** `charts/annotate.js` holds
 the geometry both renderers share: the gutter as wide as the widest label,
@@ -606,11 +607,34 @@ at the last round; `titleFinding()` writes who led and for how long.
 marker a note in the key, and the finding, labels, markers and key the same
 in both halves.
 
-The key beside a full-width chart from 1180 and in two columns from 768
-lands with its first full-width chart, VD-123 (#1347, home's *shape of the
-championship*); a tied peak's one marker with VD-125 (#1349, a
-constructor's wins); VD-124 (#1348, a driver's career) applies the pattern
-to the dot plot.
+**Built (VD-123), on home's *shape of the championship*.** The first
+full-width chart to carry the pattern, and the first column chart.
+`Figure`'s `keyBeside` sets the key beside the plot, three page columns
+wide, from 1180, in two columns under it from 768, and in one under it on
+a phone (`.figure.key-beside` in `app.css`); a chart in a slot keeps its
+key under it at every width. `charts/columnChart.js` takes `marks` and
+`bands`: a band is shaded the plot's full height from its first column's
+step to its last's, and a marker stands over the middle of the columns it
+names - one, or a run of tied ones side by side, which share it - placed
+by `placeColumnMarkers()` in `charts/annotate.js`: never below its point,
+over no column it would cover, and with no hairline through another disc.
+Where two would touch (home's 2024-25 and 2026, a few pixels apart on a
+phone), the earlier steps aside, level, on an angled hairline, as the
+mockup sets it, and the later one rises as far as it must to clear the
+earlier one's hairline; a disc a taller neighbour would cover (1950's, on a
+narrow chart) rises the same way. The layout lowers the plot until
+every disc is inside the drawing. A band's marker has no hairline: it marks
+the band, not a point in it. A column may carry `ahead`, what is still to
+come, dashed over it the column's width in its own colour: the season being
+run is its rounds run, solid, under the rest of its calendar. Dashed, not
+outlined as the mockup drew it: an outline on a phone's 2.3 px column is all
+stroke, and read as a solid 23. `chartNotes()` in `queries/home.js`
+works the finding and the notes out from the rows; `units.mjs` holds the
+working and the layout, and `smoke.mjs` the finding, the notes, the
+markers and where the key stands at 1440, 1024 and 400, in both halves.
+
+A tied peak's one marker on a constructor's wins is VD-125 (#1349);
+VD-124 (#1348, a driver's career) applies the pattern to the dot plot.
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold
@@ -635,7 +659,8 @@ to the dot plot.
   2. A chart with one series and no such colour is drawn in `--series-ink`,
      and the one value its page states in `--series-mark`, with that value
      or its name printed on or beside the mark: the home chart's latest season
-     raced, a record's holder on `/records`, a race's winner
+     raced (its value in the key, under the numbered marker beside it, VD-123),
+     a record's holder on `/records`, a race's winner
      in *Grid to flag*. A chart whose page states no one value has no
      accented mark. A chart in liveries takes no accent.
   3. Several series with no sourced colour, or colours that cannot be told

@@ -201,6 +201,10 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // three-letter abbreviation, counted as they are read; one not yet seen
     // has been seen by none.
     ['src/charts/gridFlag.js', [1, 'drivers in one figure sharing an abbreviation']],
+    // VD-123: a column's rounds still to run, which a datum carries only
+    // where its season is part run; every other column has none ahead of
+    // it. A count of a calendar's rows, never a stored figure.
+    ['src/charts/columnChart.js', [1, "rounds still to run over a season's column"]],
     // AF-134: the pit wave's stops on one lap, counted as the race's stops
     // are read; a lap no stop has been seen on has none so far. It counts
     // pit_stops rows, never reads a stored column as a figure.
@@ -2528,10 +2532,11 @@ describe('one figure grammar: the heading names the figure, and the note goes un
       // AF-138: the longest leader's name the strip's rows can carry, twice.
       'clinch strip': clinchNote('Andrea Kimi Antonelli'),
       'races per season, two calendars': chartNote([
-        { year: 1950, rounds: 7, run: true },
-        { year: 2026, rounds: 24, run: true },
-        { year: 2027, rounds: 24, run: false },
-        { year: 2028, rounds: 24, run: false },
+        { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+        { year: 1960, rounds: 10, run: 10, indianapolis: 1 },
+        { year: 2026, rounds: 24, run: 24, indianapolis: 0 },
+        { year: 2027, rounds: 24, run: 0, indianapolis: 0 },
+        { year: 2028, rounds: 24, run: 0, indianapolis: 0 },
       ]),
       'chassis named': CHASSIS_NOTE,
       // AF-133: both kinds of colour and a hollow dot, as Monza's grid has.

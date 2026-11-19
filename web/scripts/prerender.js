@@ -287,7 +287,9 @@ import {
   BOARD,
   BOARD_HEADING,
   BOARD_NOTE,
+  CHART_COLUMNS,
   CHART_HEADING,
+  CHART_HEIGHT,
   CLASSIFICATION_LINK,
   CYCLE,
   FIGHT_TEAMS,
@@ -318,7 +320,10 @@ import {
   WON_BY,
   WON_FOR,
   calendarLink,
+  chartData,
+  chartLabel,
   chartNote,
+  chartNotes,
   openingCaption,
   openingRace,
   reading,
@@ -1351,8 +1356,9 @@ const timeline = (milestones) =>
  * Most drawings are not here — a React component reading a layout this
  * file has no way to run — and that is the whole of what the static half is
  * missing; grid to flag and the stints are drawn, from layouts both halves
- * share, and so are the three lead charts, which leadFigure() below frames
- * as the app does, their numbers behind its disclosure. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words: it is the
+ * share, and so are the three lead charts and home's rounds per season
+ * (VD-123), which leadFigure() below frames as the app does, their numbers
+ * behind its disclosure. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words: it is the
  * copy of the figure that a keyboard, a screen reader and anything pasting
  * it elsewhere can actually use, and it is what both halves carry. It is
  * open here rather than behind the app's disclosure, because there is no
@@ -1591,24 +1597,41 @@ const dotPlotSvg = (chart, width) => {
   return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${halos}${dots}`)}</div>`
 }
 
-/* ColumnChart.jsx at rest: the columns in the entity's colour or in ink, a
-   marked one in the accent and a hollow one outlined, the printed values
-   over theirs, and every labelEvery-th season under the axis. */
+/* ColumnChart.jsx at rest: the shaded bands under everything, the columns
+   in the entity's colour or in ink, a marked one in the accent and a hollow
+   one outlined, what is still ahead of a column dashed over it, the
+   printed values over theirs, every labelEvery-th season under the axis,
+   and the numbered markers over the columns (VD-123). */
 const columnSvg = (chart, colour, width) => {
   const layout = columnLayout({ ...chart, width })
   if (!layout) return ''
   const paint = (d) => (d.hollow ? 'none' : colour ? 'var(--livery)' : d.mark ? MARK : INK)
+  const bands = layout.bands
+    .map((b) => `<rect class="plot-band" x="${px(b.x)}" y="${px(b.y)}" width="${px(b.width)}" height="${px(b.height)}"/>`)
+    .join('')
   const columns = layout.columns
     .map(
       (c) =>
         `<g><path${c.d.hollow ? ' class="column-hollow"' : ''} d="${tidy(c.path)}" fill="${paint(c.d)}"/>${
+          c.ahead !== null
+            ? `<line class="column-ahead" x1="${px(c.ahead.x)}" x2="${px(c.ahead.x)}" y1="${px(c.ahead.y1)}" y2="${px(c.ahead.y2)}" stroke="${paint(c.d)}" stroke-width="${px(c.ahead.width)}"/>`
+            : ''
+        }${
           c.value !== null ? `<text class="value-text" x="${px(c.centre)}" y="${px(c.top - 6)}" text-anchor="middle">${esc(c.value)}</text>` : ''
         }${c.label !== null ? `<text class="axis-text" x="${px(c.centre)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(c.label)}</text>` : ''}</g>`,
     )
     .join('')
+  const markers = layout.markers.map(markerSvg).join('')
   const holder = colour ? ` class="plot-holder livery-series" style="${pairStyle(colour)}"` : ' class="plot-holder"'
-  return `<div${holder}>${plotSvg(layout, chart.label, `${yAxis(layout)}${columns}`)}</div>`
+  return `<div${holder}>${plotSvg(layout, chart.label, `${bands}${yAxis(layout)}${columns}${markers}`)}</div>`
 }
+
+/* A numbered marker as LineChart.jsx and ColumnChart.jsx draw one (VD-121,
+   VD-123): the hairline from its point, where it has one, and the disc. */
+const markerSvg = (m) =>
+  `<g class="anno-marker">${
+    m.leader ? `<line x1="${px(m.leader.x1)}" y1="${px(m.leader.y1)}" x2="${px(m.leader.x2)}" y2="${px(m.leader.y2)}"/>` : ''
+  }<circle cx="${px(m.cx)}" cy="${px(m.cy)}" r="${MARKER.r}"/><text x="${px(m.cx)}" y="${px(m.cy)}" text-anchor="middle" dominant-baseline="central">${m.n}</text></g>`
 
 /* LineChart.jsx at rest: the shaded bands under everything, each line in
    its slot's dash with its end marked, each end's name and value in the
@@ -1633,14 +1656,7 @@ const lineSvg = (chart, width) => {
       } x="${px(label.x)}" y="${px(label.y)}" dominant-baseline="middle">${words}</text></g>`
     })
     .join('')
-  const markers = layout.markers
-    .map(
-      (m) =>
-        `<g class="anno-marker"><line x1="${px(m.leader.x1)}" y1="${px(m.leader.y1)}" x2="${px(m.leader.x2)}" y2="${px(m.leader.y2)}"/><circle cx="${px(
-          m.cx,
-        )}" cy="${px(m.cy)}" r="${MARKER.r}"/><text x="${px(m.cx)}" y="${px(m.cy)}" text-anchor="middle" dominant-baseline="central">${m.n}</text></g>`,
-    )
-    .join('')
+  const markers = layout.markers.map(markerSvg).join('')
   const lines = layout.lines
     .map(({ s, i, path, end }) => {
       const stroke = s.colour ? 'var(--livery)' : slotColour(i, layout.lines.length)
@@ -1859,10 +1875,25 @@ const legendHtml = (legend) =>
 // stands rather than wrapping the tiles for it.
 const opened = (head, lead) => (lead ? `<section class="section">${head}</section>${lead}` : head)
 
-const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = null, finding = null, kicker = null, annotations = [], plot, table }) =>
+// `lead: false` frames a drawn figure that does not lead its page - home's
+// rounds per season (VD-123) - as Figure.jsx without `lead` does, and
+// `keyBeside` sets its key as Figure's prop of that name.
+const leadFigure = ({
+  heading: name,
+  slot = true,
+  lead = true,
+  keyBeside = false,
+  note: figureNote,
+  legend = null,
+  finding = null,
+  kicker = null,
+  annotations = [],
+  plot,
+  table,
+}) =>
   `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2>${
     finding ? `<p class="figure-finding">${esc(finding)}</p>${kicker ? `<p class="figure-kicker">${esc(kicker)}</p>` : ''}` : ''
-  }<figure class="figure figure-lead" aria-label="${esc(
+  }<figure class="${lead ? 'figure figure-lead' : 'figure'}${keyBeside && annotations.length ? ' key-beside' : ''}" aria-label="${esc(
     name,
   )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}${annotationKey(annotations)}</div>${legendHtml(legend)}<p class="figure-note" id="lead-figure-note"><span>${esc(
     figureNote,
@@ -3058,6 +3089,37 @@ const TITLE = currentTitle(fightRows, META.built)
   const now = one(SEASON_NOW)
   const lead = all(SEASON_LEAD)
   const { headline, title } = NAMES.home()
+  // The shape of the championship, drawn (VD-123): Home.jsx's figure, its
+  // finding, markers and key from chartNotes(), at the column chart's width,
+  // its numbers behind the app's disclosure. A figure, not a lead one.
+  const shown = chartNotes(seasons)
+  const chartFigure = leadFigure({
+    heading: CHART_HEADING,
+    slot: false,
+    lead: false,
+    keyBeside: true,
+    note: chartNote(seasons),
+    finding: shown.finding,
+    kicker: shown.kicker,
+    annotations: shown.notes,
+    plot: columnSvg(
+      {
+        data: chartData(seasons),
+        height: CHART_HEIGHT,
+        labelPeak: false,
+        label: chartLabel(shape),
+        marks: shown.marks,
+        bands: shown.bands,
+      },
+      null,
+      COLUMN_WIDTH,
+    ),
+    table: table(
+      CHART_COLUMNS.map((c) => c.label),
+      seasons.map((row) => [link(`seasons/${row.year}`, row.year), num(row.rounds), num(row.run)]),
+      { aligns: CHART_COLUMNS.map((c) => c.align), rowHeaders: [true], unfolded: UNFOLDED.figure },
+    ),
+  })
 
   // The winning car's colour, as Home.jsx takes it from the same row.
   const winner = latest
@@ -3228,16 +3290,7 @@ const TITLE = currentTitle(fightRows, META.built)
             count ? `<span class="n">${esc(number(shape[count]))}</span>` : ''
           }</b><p>${esc(blurb)}</p></a>`,
       ).join('')}</div>
-      ${heading(CHART_HEADING)}
-      ${figure(
-        CHART_HEADING,
-        chartNote(seasons),
-        table(
-          ['Season', 'Rounds'],
-          seasons.map((row) => [link(`seasons/${row.year}`, row.year), num(row.rounds)]),
-          { aligns: ['num', 'num'], rowHeaders: [true], unfolded: UNFOLDED.figure },
-        ),
-      )}
+      ${chartFigure}
       ${heading(READING_HEADING)}
       <p class="note">${esc(READING_NOTE)}</p>
       <div class="grid">${reading(shape)
