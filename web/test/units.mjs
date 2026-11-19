@@ -215,6 +215,7 @@ import {
   RESULTS_DAYS,
   chartData,
   chartNote,
+  chartNotes,
   homeCycle,
   openingCaption,
   openingRace,
@@ -5310,28 +5311,37 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
     assert.deepEqual([0, 1, 2].map((i) => slotColour(i, 3)), ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'])
   })
 
-  it("the home chart prints the two figures its note states, marks the latest season raced and draws a calendar hollow", () => {
+  it('the home chart marks the latest season raced, draws it as the rounds it has run with the rest outlined, and a calendar hollow', () => {
     const seasons = [
-      { year: 1950, rounds: 7, run: 7 },
-      { year: 1960, rounds: 10, run: 10 },
-      { year: 2025, rounds: 24, run: 24 },
-      { year: 2026, rounds: 23, run: 18 },
-      { year: 2027, rounds: 24, run: 0 },
+      { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+      { year: 1960, rounds: 10, run: 10, indianapolis: 1 },
+      { year: 2025, rounds: 24, run: 24, indianapolis: 0 },
+      { year: 2026, rounds: 23, run: 18, indianapolis: 0 },
+      { year: 2027, rounds: 24, run: 0, indianapolis: 0 },
     ]
     const columns = chartData(seasons)
-    assert.deepEqual(columns.filter((c) => c.print).map((c) => c.key), [1950, 2026])
     assert.deepEqual(columns.filter((c) => c.mark).map((c) => c.key), [2026])
     assert.deepEqual(columns.filter((c) => c.hollow).map((c) => [c.key, c.note]), [[2027, 'calendar']])
-    // The note names the same two seasons the picture prints.
-    assert.match(chartNote(seasons), /^7 rounds in 1950; 23 by 2026\./)
-    // The layout prints those two and not the peak, 2025 and 2027's 24.
-    const layout = columnLayout({ data: columns, width: 600, height: 200 })
-    assert.deepEqual(layout.columns.filter((c) => c.value !== null).map((c) => c.d.key), [1950, 2026])
-    // With nothing raced nothing is marked, and the peak is printed as before.
+    // VD-123: the red column is the season so far, not its calendar.
+    const now = columns.find((c) => c.key === 2026)
+    assert.deepEqual([now.value, now.ahead, now.note], [18, 5, '5 still to run'])
+    assert.deepEqual([columns[0].value, columns[0].ahead], [7, 0], 'a completed season is all solid')
+    // Every figure the chart states is a note in its key now, so the plot prints none.
+    assert.equal(columns.some((c) => c.print), false)
+    const layout = columnLayout({ data: columns, width: 600, height: 260, labelPeak: false })
+    assert.equal(layout.columns.filter((c) => c.value !== null).length, 0)
+    const drawn = layout.columns.find((c) => c.d.key === 2026)
+    assert.ok(drawn.ahead !== null && drawn.peak < drawn.top, 'what is still to run is outlined over the solid column')
+    assert.ok(Math.abs(drawn.peak - layout.y(23)) < 1e-9, 'up to the calendar’s 23')
+    assert.equal(layout.columns.find((c) => c.d.key === 2025).ahead, null)
+    // The note says what is counted, and which column is not results.
+    assert.equal(
+      chartNote(seasons),
+      'Every championship round, the Indianapolis 500 of 1950–60 included. The 2027 column is a calendar: none of its rounds has been run.',
+    )
+    // With nothing raced nothing is marked.
     const calendar = chartData([{ year: 2027, rounds: 24, run: 0 }, { year: 2028, rounds: 20, run: 0 }])
-    assert.equal(calendar.some((c) => c.mark || c.print), false)
-    const peak = columnLayout({ data: calendar, width: 600, height: 200 })
-    assert.deepEqual(peak.columns.filter((c) => c.value !== null).map((c) => c.d.key), [2027])
+    assert.equal(calendar.some((c) => c.mark), false)
   })
 
   it('grid to flag marks the car classified first, and both of a shared winning drive', () => {
@@ -5958,7 +5968,7 @@ describe('the leader in the row and a bar in the points (VD-105, VD-110)', () =>
   })
 })
 
-import { LABEL_GAP, MARKER, STACKED_GAP, gutterWidth, nudge, placeMarker } from '../src/charts/annotate.js'
+import { LABEL_GAP, MARKER, STACKED_GAP, gutterWidth, nudge, placeAbove, placeMarker } from '../src/charts/annotate.js'
 import { lineLayout } from '../src/charts/lineChart.js'
 
 describe('the annotation pattern (VD-121)', () => {
@@ -5999,6 +6009,105 @@ describe('the annotation pattern (VD-121)', () => {
     const second = placeMarker(104, 100, [], { taken: [first] })
     const reach = MARKER.r + MARKER.ring / 2
     assert.ok(Math.hypot(second.cx - first.cx, second.cy - first.cy) >= 2 * reach, 'two markers a round apart do not overlap')
+  })
+
+  it('puts a column’s marker above it only, raised clear of one already placed, and over a band with no hairline (VD-123)', () => {
+    const one = placeAbove(100, 100)
+    assert.equal(one.cy, 100 - MARKER.offset)
+    assert.deepEqual([one.leader.y1, one.leader.y2], [100 - MARKER.gap, one.cy + MARKER.r])
+    const apart = 2 * (MARKER.r + MARKER.ring / 2) + 2
+    // A round apart on a phone: the second disc goes up, never down into its column.
+    const two = placeAbove(105, 106, { taken: [one] })
+    assert.ok(two.cy < one.cy, 'raised, not lowered')
+    assert.ok(Math.hypot(two.cx - one.cx, two.cy - one.cy) >= apart - 0.02, 'clear of the first')
+    assert.ok(Math.hypot(two.cx - one.cx, two.cy - one.cy) < apart + 0.5, 'and no further up than it must go')
+    // Far enough apart, nothing moves.
+    assert.equal(placeAbove(200, 100, { taken: [one] }).cy, 100 - MARKER.offset)
+    assert.equal(placeAbove(100, 100, { leader: false }).leader, null)
+  })
+
+  // The home chart's seasons, cut down: a steady stretch, a tied peak side by
+  // side, a season part run and a calendar.
+  const homeSeasons = (now) => [
+    { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+    { year: 1951, rounds: 8, run: 8, indianapolis: 1 },
+    ...[16, 16, 17, 16, 16, 17].map((rounds, k) => ({ year: 1984 + k, rounds, run: rounds, indianapolis: 0 })),
+    { year: 1990, rounds: 19, run: 19, indianapolis: 0 },
+    { year: 2024, rounds: 24, run: 24, indianapolis: 0 },
+    { year: 2025, rounds: 24, run: 24, indianapolis: 0 },
+    now,
+    { year: 2027, rounds: 24, run: 0, indianapolis: 0 },
+  ]
+
+  it('works the home chart’s finding and notes out from the rows (VD-123)', () => {
+    const shown = chartNotes(homeSeasons({ year: 2026, rounds: 23, run: 20, indianapolis: 0 }))
+    assert.equal(shown.finding, 'Seven races in 1950; 24 by 2024.')
+    assert.equal(shown.kicker, 'Championship rounds per season')
+    assert.deepEqual(
+      shown.notes.map((n) => `${n.n}. ${n.lead}: ${n.text}`),
+      [
+        '1. 1950: seven rounds: The first championship, the Indianapolis 500 included.',
+        '2. 1984–1989: 16 or 17, every year: Six seasons in a row within a round of each other, shaded.',
+        '3. 2024 and 2025: 24: The most in any completed season.',
+        '4. 2026: 20 of 23 run: In red; the three to come are outlined. 2027 is a calendar.',
+      ],
+    )
+    // One marker to a note, the tied peak's one over both its seasons; the
+    // band's over the band with no hairline, and shaded from its first season to its last.
+    assert.deepEqual(
+      shown.marks.map((m) => [m.n, m.keys.join(','), m.leader]),
+      [
+        [1, '1950', true],
+        [2, '1984,1985,1986,1987,1988,1989', false],
+        [3, '2024,2025', true],
+        [4, '2026', true],
+      ],
+    )
+    assert.deepEqual(shown.bands, [{ from: 1984, to: 1989 }])
+  })
+
+  it('names the season raced last once it is complete, and the peak where it ties (VD-123)', () => {
+    // Complete and level with the peak: the peak's note names the seasons
+    // before it, and says it was matched.
+    const level = chartNotes(homeSeasons({ year: 2026, rounds: 24, run: 24, indianapolis: 0 }))
+    assert.deepEqual(
+      level.notes.slice(2).map((n) => `${n.lead}: ${n.text}`),
+      ['2024 and 2025: 24: The most in any completed season, matched in 2026.', '2026: 24 rounds: In red, the season run last. 2027 is a calendar.'],
+    )
+    // Complete and past it: no peak note of its own, and the finding names it.
+    const most = chartNotes(homeSeasons({ year: 2026, rounds: 25, run: 25, indianapolis: 0 }))
+    assert.equal(most.finding, 'Seven races in 1950; 25 by 2026.')
+    assert.deepEqual(
+      most.notes.map((n) => n.lead),
+      ['1950: seven rounds', '1984–1989: 16 or 17, every year', '2026: 25 rounds'],
+    )
+    assert.equal(most.notes[2].text, 'In red, the season run last: the most in any season. 2027 is a calendar.')
+    assert.deepEqual(most.marks.map((m) => m.n), [1, 2, 3])
+    // Nothing raced: no finding and no notes.
+    assert.deepEqual(chartNotes([{ year: 2027, rounds: 24, run: 0, indianapolis: 0 }]).notes, [])
+  })
+
+  it('lays the home chart’s markers out inside the drawing at every width, none touching another (VD-123)', () => {
+    const seasons = homeSeasons({ year: 2026, rounds: 23, run: 20, indianapolis: 0 })
+    const shown = chartNotes(seasons)
+    const reach = MARKER.r + MARKER.ring / 2
+    for (const width of [320, 352, 640, 900]) {
+      const layout = columnLayout({ data: chartData(seasons), width, height: 260, labelPeak: false, marks: shown.marks, bands: shown.bands })
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2, 3, 4], `${width}: every note has its marker`)
+      for (const m of layout.markers) assert.ok(m.cy - reach >= -1e-9, `${width}: marker ${m.n} is inside the drawing (${m.cy})`)
+      for (let a = 0; a < layout.markers.length; a += 1)
+        for (let b = a + 1; b < layout.markers.length; b += 1) {
+          const [p, q] = [layout.markers[a], layout.markers[b]]
+          assert.ok(Math.hypot(p.cx - q.cx, p.cy - q.cy) >= 2 * reach, `${width}: markers ${p.n} and ${q.n} do not overlap`)
+        }
+      // Each disc stands over its columns, no lower than their top.
+      const top = (keys) => Math.min(...layout.columns.filter((c) => keys.includes(c.d.key)).map((c) => c.peak))
+      for (const [k, m] of layout.markers.entries()) assert.ok(m.cy + reach <= top(shown.marks[k].keys), `${width}: marker ${m.n} clears its columns`)
+      const [band] = layout.bands
+      const inBand = layout.columns.filter((c) => c.d.key >= 1984 && c.d.key <= 1989)
+      assert.ok(band.x <= inBand[0].centre && band.x + band.width >= inBand.at(-1).centre, `${width}: the band spans its seasons`)
+      assert.ok(layout.columns.filter((c) => c.d.key === 1990).every((c) => c.centre > band.x + band.width), `${width}: and stops before the next`)
+    }
   })
 
   // Two lines ending a point apart, as 1976 did: before VD-121 the second

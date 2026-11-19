@@ -13,6 +13,11 @@
  *   hairline (placeMarker());
  * - spans as shaded bands under the marks, explained in the key.
  *
+ * placeMarker() is a line's: above or below a point between other lines.
+ * placeAbove() is a column's (VD-123): a column fills the space under its
+ * top, so its marker only ever goes up, and further up where it would touch
+ * one already placed.
+ *
  * What a note says, and which point it marks, is the caller's: the figure
  * works it out from the data, and the key under the plot carries every word
  * of it, so nothing lives only in the drawing.
@@ -156,5 +161,33 @@ export function placeMarker(x, y, others, { top = 0, bottom = Infinity, taken = 
     cx: x,
     cy: side.cy,
     leader: { x1: x, y1: up ? y - MARKER.gap : y + MARKER.gap, x2: x, y2: up ? side.cy + MARKER.r : side.cy - MARKER.r },
+  }
+}
+
+/**
+ * Where a marker goes over the top of a column, or of several (VD-123): the
+ * disc MARKER.offset above (x, y), and where that would touch a disc already
+ * placed (`taken`, each { cx, cy }) - home's 2024-25 and 2026, a few pixels
+ * apart on a phone - raised until it clears it, by no more than it must.
+ * Never down: under the top is the column. The hairline runs from the top
+ * to the disc; `leader: false` leaves it out, for a disc set over a shaded
+ * band, which marks the band rather than a point in it. The caller makes
+ * the headroom: columnLayout() raises the plot until every disc is inside
+ * the drawing.
+ */
+export function placeAbove(x, y, { taken = [], leader = true } = {}) {
+  const apart = 2 * (MARKER.r + MARKER.ring / 2) + 2
+  let cy = y - MARKER.offset
+  // Each pass only raises the disc, past the first disc it touches, so the
+  // loop ends: at most once per disc placed.
+  for (let pass = 0; pass <= taken.length; pass += 1) {
+    const hit = taken.find((t) => Math.hypot(t.cx - x, t.cy - cy) < apart - 0.01)
+    if (!hit) break
+    cy = hit.cy - Math.sqrt(apart ** 2 - Math.min(apart, Math.abs(hit.cx - x)) ** 2) - 0.01
+  }
+  return {
+    cx: x,
+    cy,
+    leader: leader ? { x1: x, y1: y - MARKER.gap, x2: x, y2: cy + MARKER.r } : null,
   }
 }

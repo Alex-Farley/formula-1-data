@@ -3989,6 +3989,33 @@ figure.figure > .figure-note:first-child {
   font-weight: var(--weight-semibold);
 }
 
+/* The key beside a full-width chart (VD-123, home's rounds per season;
+   Figure's `keyBeside`): in two columns under the plot from 768, where one
+   column of notes would run the measure's width for a line apiece, and
+   beside it from 1180, three page columns wide, its top rule a step
+   stronger, as the plot keeps the rest. On a phone it stays under the plot
+   in one column, its text reflowing rather than shrinking. */
+@media (width >= 768px) {
+  .figure.key-beside > .figure-body .figure-key {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1180px) {
+  .figure.key-beside > .figure-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--span-3);
+    gap: var(--space-7) var(--space-8);
+    align-items: start;
+  }
+
+  .figure.key-beside > .figure-body .figure-key {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 0;
+    border-top-color: var(--rule-strong);
+  }
+}
+
 /* The ring round a dot the caller flagged - a season finished first, on a
    driver's page (VD-34). Drawn in the series' own colour, which the element
    carries as a stroke, and at full strength: that colour is the pair
@@ -4045,6 +4072,13 @@ figure.figure > .figure-note:first-child {
 .figure .column-hollow {
   fill: none;
   stroke: var(--ink-soft);
+  stroke-width: 1.5;
+}
+
+/* What is still ahead of a column (VD-123): a season's rounds to come,
+   outlined over the rounds it has run in the column's own colour, which the
+   element carries as its stroke. */
+.figure .column-ahead {
   stroke-width: 1.5;
 }
 

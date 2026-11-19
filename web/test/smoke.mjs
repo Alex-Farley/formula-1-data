@@ -129,7 +129,20 @@ import {
 import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
 import { CAR_SOURCES, ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES, carPhotographs } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED, lateNotice, lateRaces, readerDay } from '../src/lib/refresh.js'
-import { CYCLE, FORECAST_POINT, NEXT as HOME_NEXT, NEXT_SESSIONS as HOME_SESSIONS, PODIUM, SEASON_NOW, THIS_WEEKEND, homeCycle, podium } from '../src/queries/home.js'
+import {
+  CHART_HEADING,
+  CYCLE,
+  FORECAST_POINT,
+  NEXT as HOME_NEXT,
+  NEXT_SESSIONS as HOME_SESSIONS,
+  PER_SEASON,
+  PODIUM,
+  SEASON_NOW,
+  THIS_WEEKEND,
+  chartNotes,
+  homeCycle,
+  podium,
+} from '../src/queries/home.js'
 import { FORECAST_ORIGIN, FORECAST_LICENCE, forecastRequest, outlookDays, readForecast, sessionForecasts } from '../src/lib/forecast.js'
 import { LATEST as LATEST_RUN } from '../src/queries/races.js'
 import { dateSegments, houseDate } from '../src/lib/format.js'
@@ -3804,13 +3817,15 @@ try {
    * at the handover; as many marks - dots, columns, lines - in the same
    * colours; the same legend; and the numbers behind the chart, row for
    * row. Ferrari is the chart too wide for the slot, laid out at the
-   * column's width rather than the slot's.
+   * column's width rather than the slot's. Home's rounds per season
+   * (VD-123) is drawn on the static page too, and is read the same way,
+   * though it leads nothing: the first figure under its heading.
    */
   await section('The lead charts on the static page  (the app’s box, marks and numbers: VD-73)', async () => {
     const readChart = ([root, heading]) => {
       const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
       const h2 = [...document.querySelectorAll(`${root} h2`)].find((h) => clean(h) === heading)
-      const figure = h2?.closest('section')?.querySelector('figure.figure-lead')
+      const figure = h2?.closest('section')?.querySelector('figure.figure')
       const svg = figure?.querySelector('.figure-body svg[role="img"]')
       if (!svg) return null
       const paints = (nodes, attribute) =>
@@ -3851,6 +3866,7 @@ try {
       ['/constructors/mclaren', team('mclaren'), 'Wins by season'],
       ['/constructors/ferrari', team('ferrari'), 'Wins by season'],
       ['/seasons/1976', '1976', titleHeading(false)],
+      ['/', NAMES.home().headline, CHART_HEADING],
     ]
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
     const plain = await noJs.newPage()
@@ -3888,6 +3904,93 @@ try {
         is(served.open, false, `${at}: and behind the app's disclosure, closed`)
       }
     }
+    await noJs.close()
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
+   * VD-123: home's rounds per season states its finding and carries four
+   * notes, each a numbered marker on the plot and an entry in the key, the
+   * key beside the plot from 1180, in two columns under it from 768 and in
+   * one on a phone, in both halves. The notes are worked out by chartNotes()
+   * (units.mjs holds the working); this holds what reaches the page: every
+   * note shown, every marker inside the drawing and in the key, the key
+   * where the width puts it, and the red column the season so far.
+   */
+  await section('/  (the shape of the championship, annotated: VD-123)', async () => {
+    const shown = chartNotes(db.prepare(PER_SEASON).all())
+    const read = ([root, heading]) => {
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const h2 = [...document.querySelectorAll(`${root} h2`)].find((h) => clean(h) === heading)
+      const section = h2?.closest('section')
+      const figure = section?.querySelector('figure.figure')
+      const svg = figure?.querySelector('.figure-body svg[role="img"]')
+      const key = figure?.querySelector('.figure-key')
+      if (!svg || !key) return null
+      const box = (n) => {
+        const b = n.getBoundingClientRect()
+        return { left: b.left, right: b.right, top: b.top, bottom: b.bottom }
+      }
+      const items = [...key.querySelectorAll(':scope > li')]
+      return {
+        finding: clean(section.querySelector(':scope > p.figure-finding') ?? document.createElement('p')),
+        kicker: clean(section.querySelector(':scope > p.figure-kicker') ?? document.createElement('p')),
+        plot: box(svg),
+        key: box(key),
+        rows: [...new Set(items.map((li) => Math.round(li.getBoundingClientRect().top)))].length,
+        notes: items.map((li) => clean(li.querySelector('p'))),
+        markers: [...svg.querySelectorAll('.anno-marker')].map((g) => {
+          const c = g.querySelector('circle').getBoundingClientRect()
+          return { n: clean(g.querySelector('text')), top: c.top, bottom: c.bottom }
+        }),
+        bands: svg.querySelectorAll('rect.plot-band').length,
+        ahead: svg.querySelectorAll('path.column-ahead').length,
+      }
+    }
+    atLeast(shown.notes.length, 1, '/: the chart has notes to show')
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    await go('/', NAMES.home().headline)
+    await plain.goto(`${BASE}/`, { waitUntil: 'load' })
+    for (const width of [1440, 1024, 400]) {
+      await page.setViewportSize({ width, height: 900 })
+      await plain.setViewportSize({ width, height: 900 })
+      await settle()
+      for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
+        const at = `/ at ${width}, ${half}`
+        const got = await tab.evaluate(read, [root, CHART_HEADING])
+        if (!got) {
+          fail(`${at}: “${CHART_HEADING}” has no drawing or no key`)
+          continue
+        }
+        is(got.finding, shown.finding, `${at}: the finding over the figure`)
+        is(got.kicker, shown.kicker, `${at}: and its kicker`)
+        is(
+          got.notes.join(' / '),
+          shown.notes.map((n) => `Note ${n.n}: ${n.lead}. ${n.text}`).join(' / '),
+          `${at}: every note in the key, in its order`,
+        )
+        is(got.markers.map((m) => m.n).join(' '), shown.notes.map((n) => String(n.n)).join(' '), `${at}: a marker on the plot for every note`)
+        truthy(
+          got.markers.every((m) => m.top >= got.plot.top - 0.5 && m.bottom <= got.plot.bottom + 0.5),
+          `${at}: every marker inside the drawing`,
+        )
+        is(got.bands, shown.bands.length, `${at}: the steady stretch shaded`)
+        if (width === 1440)
+          truthy(got.key.left >= got.plot.right && got.key.top < got.plot.bottom, `${at}: the key stands beside the plot`)
+        else truthy(got.key.top >= got.plot.bottom - 0.5, `${at}: the key is under the plot`)
+        if (width === 1024 && got.notes.length > 1)
+          truthy(got.rows < got.notes.length, `${at}: the key in two columns (${got.rows} rows for ${got.notes.length} notes)`)
+        if (width === 400) is(got.rows, got.notes.length, `${at}: the key in one column`)
+      }
+    }
+    // The red column is the season so far: what it has still to run is
+    // outlined over it, where it has any.
+    const raced = db.prepare(`SELECT COUNT(*) AS rounds, SUM(status = 'completed') AS run FROM races WHERE year = (SELECT MAX(year) FROM races WHERE status = 'completed')`).get()
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await settle()
+    const app = await page.evaluate(read, ['#root main', CHART_HEADING])
+    is(app?.ahead ?? null, raced.rounds > raced.run ? 1 : 0, `/: the last season raced outlines its ${raced.rounds - raced.run} rounds still to run`)
     await noJs.close()
     await page.setViewportSize({ width: 1280, height: 900 })
   })

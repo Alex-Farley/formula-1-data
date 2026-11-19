@@ -5,17 +5,30 @@
  * page, which has no React to run. Why the columns are capped and rounded
  * as they are is ColumnChart.jsx's to say; this is only where things go.
  */
+import { MARKER, placeAbove } from './annotate.js'
 import { band, linear, niceDomain, ticks } from './scales.js'
 
 export const COLUMN_MARGIN = { top: 16, right: 10, bottom: 30, left: 44 }
 export const MAX_THICKNESS = 24
+/** The top margin of a chart with markers: room for a disc over its tallest column (lineChart.js's MARKED_TOP). */
+export const MARKED_TOP = 28
 
 /**
  * `data` as ColumnChart takes it: `{ key, value, label }` per column, and
- * optionally `print`, `mark` and `hollow` (VD-94; ColumnChart says what each
- * draws). Null where there is nothing to draw. Each column carries its hit
- * target (the full step), its rounded-top path, whether its value is printed
- * over it, and whether its axis label is drawn (every `labelEvery`th).
+ * optionally `print`, `mark`, `hollow` and `ahead` (VD-94, VD-123;
+ * ColumnChart says what each draws). Null where there is nothing to draw.
+ * Each column carries its hit target (the full step), its rounded-top path,
+ * the outlined path over it where it has `ahead`, whether its value is
+ * printed over it, and whether its axis label is drawn (every `labelEvery`th).
+ *
+ * The annotation pattern (VD-123; charts/annotate.js): `bands` are
+ * `{ from, to }` spans of keys, shaded the full height of the plot from the
+ * first one's step to the last one's; `marks` are `{ n, keys, leader }`, a
+ * numbered disc over the middle of the columns `keys` names - one, or a run
+ * of tied ones, which share it - over the tallest of them, on a hairline
+ * unless `leader` is false. A disc is placed in `marks`' order, raised where
+ * it would touch one placed before it, and the plot is lowered until every
+ * disc is inside the drawing, so a chart with marks is never clipped.
  *
  * The value printed is the peak's, where the column is tall enough to hold
  * the number - unless any datum carries `print`, when it is those columns'
@@ -30,12 +43,31 @@ export function columnLayout({
   labelEvery = 1,
   labelPeak = true,
   integer = false,
+  marks = [],
+  bands = [],
 }) {
   if (data.length === 0) return null
-  const M = COLUMN_MARGIN
+  // The disc's reach above its centre; a disc is inside the drawing when its
+  // ring clears the top edge. Three passes settle it: the headroom a disc
+  // needs barely moves as the plot is lowered for it.
+  const reach = MARKER.r + MARKER.ring / 2
+  let top = marks.length ? MARKED_TOP : COLUMN_MARGIN.top
+  let laid = null
+  for (let pass = 0; pass < 3; pass += 1) {
+    laid = layColumns({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, top })
+    const highest = Math.min(...laid.markers.map((m) => m.cy - reach), Infinity)
+    if (highest >= 0) break
+    top += Math.ceil(-highest)
+  }
+  return laid
+}
+
+function layColumns({ data, width, height, format, labelEvery, labelPeak, integer, marks, bands, top: marginTop }) {
+  const M = { ...COLUMN_MARGIN, top: marginTop }
   const keys = data.map((d) => d.key)
   const x = band(keys, [M.left, width - M.right], 0.28)
-  const y = linear(niceDomain(data.map((d) => d.value)), [height - M.bottom, M.top])
+  // A column's full height is its value and what is still ahead of it.
+  const y = linear(niceDomain(data.map((d) => d.value + (d.ahead ?? 0))), [height - M.bottom, M.top])
   const thickness = Math.min(x.bandwidth, MAX_THICKNESS)
   const peak = data.reduce((a, b) => (b.value > a.value ? b : a), data[0])
   const printed = data.some((d) => d.print)
@@ -47,18 +79,45 @@ export function columnLayout({
     const top = y(Math.max(0, d.value))
     const bottom = y(0)
     const tall = Math.abs(bottom - top)
+    // Still to come (VD-123): the rounds of a season not yet run, outlined
+    // square over the solid column, which loses its rounded top to meet it.
+    const ahead = d.ahead > 0 ? y(d.value + d.ahead) : null
     return {
       d,
       centre,
       top,
+      // The column's top, what is ahead of it included: where a marker over
+      // it stands.
+      peak: ahead ?? top,
+      ahead:
+        ahead === null
+          ? null
+          : `M${left + 0.75},${top} L${left + 0.75},${ahead + 0.75} L${left + thickness - 0.75},${ahead + 0.75} L${left + thickness - 0.75},${top} Z`,
       hit: { x: centre - x.step / 2, y: M.top, width: x.step, height: height - M.bottom - M.top },
-      path: `M${left},${bottom} L${left},${top + radius} Q${left},${top} ${left + radius},${top}
+      path:
+        ahead === null
+          ? `M${left},${bottom} L${left},${top + radius} Q${left},${top} ${left + radius},${top}
                     L${left + thickness - radius},${top} Q${left + thickness},${top} ${left + thickness},${top + radius}
-                    L${left + thickness},${bottom} Z`,
+                    L${left + thickness},${bottom} Z`
+          : `M${left},${bottom} L${left},${top} L${left + thickness},${top} L${left + thickness},${bottom} Z`,
       value: prints(d) && tall > 14 ? format(d.value) : null,
       label: i % labelEvery === 0 ? (d.label ?? d.key) : null,
     }
   })
+  const byKey = new Map(columns.map((c) => [c.d.key, c]))
+  const shaded = bands
+    .map((b) => [byKey.get(b.from), byKey.get(b.to)])
+    .filter(([a, b]) => a && b)
+    .map(([a, b]) => ({ x: a.hit.x, width: b.hit.x + b.hit.width - a.hit.x, y: M.top, height: height - M.bottom - M.top }))
+  const markers = []
+  for (const mark of marks) {
+    const over = mark.keys.map((k) => byKey.get(k)).filter(Boolean)
+    if (over.length === 0) continue
+    const centres = over.map((c) => c.centre)
+    const cx = (Math.min(...centres) + Math.max(...centres)) / 2
+    const peak = Math.min(...over.map((c) => c.peak))
+    markers.push({ n: mark.n, ...placeAbove(cx, peak, { taken: markers, leader: mark.leader !== false }) })
+  }
   return {
     width,
     height,
@@ -70,5 +129,7 @@ export function columnLayout({
     tickY: height - M.bottom + 15,
     yTicks: ticks(y.domain, 4, { integer }).map((value) => ({ value, y: y(value), text: format(value) })),
     columns,
+    bands: shaded,
+    markers,
   }
 }
