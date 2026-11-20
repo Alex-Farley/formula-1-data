@@ -947,8 +947,8 @@ SOURCE_LICENCE = {
 #
 # The glossary was held back at first: all 55 definitions read original, but
 # the ruling expected it to stay CC BY-SA. PM-67 (#835) read 38 of them by
-# hand against formula1.com's glossary, the FIA's regulations and Wikipedia
-# and found seven close paraphrases. The maintainer ruled on 2026-11-16: write
+# hand against whichever of formula1.com's glossary, the FIA's regulations
+# and Wikipedia holds each term, and found seven close paraphrases. The maintainer ruled on 2026-11-16: write
 # those seven in this project's own words, read the other 17 the same way,
 # then grant. That reading found two more (Dirty air, Pit window); all nine
 # were rewritten, and the pass has read every definition since.

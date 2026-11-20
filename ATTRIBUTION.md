@@ -180,7 +180,7 @@ CC BY-SA because its fan-car description is paraphrased, until that field is
 rewritten (`PM-62`, #692). The glossary was the last to be granted: all 55 of
 its definitions read original, but the ruling expected it to stay, so it was
 read again by hand, term by term, against whichever of formula1.com's
-glossary, the FIA's regulations and Wikipedia holds the term (two that none
+glossary, the FIA's regulations and Wikipedia holds the term (the few that none
 of them defines rest on the pass's screen). That reading found nine definitions following one of those
 sources' way of putting it, though none copied; the maintainer ruled to
 rewrite them and then grant, and the nine were written again in this
