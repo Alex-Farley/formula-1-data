@@ -1212,13 +1212,17 @@ IX-45's second page and so the step §8 needs to promote it.
 **A race's box, folded** (provisional, VD-131 #1399, `[D-67]`). On a race
 page the box follows the classification, closed to its heading: a
 `<details>` inside the aside, its h2 the summary, set inline beside the
-disclosure's marker, so the closed box is one line in its frame. The open
+disclosure's marker, so the closed box is one line in its frame at 1440
+(a long heading wraps at a phone's width). The open
 box is the box as it stands. Above the classification, and above the
 shared-drive note where there is one, a line in the prose voice at
 `--size-4` gives the box's own heading, so the two counts are one string,
 and links to the box (*Two sources disagree about this race, in 4 places:
 see below the table.*); following it in the app opens the box. The line
-takes the section gap above it and `--space-5` over the table. A reader
+takes the section gap above it and `--space-5` over the table, or over the
+shared-drive note where one stands between. An h2 inside a summary is
+flattened into the disclosure's name by some screen readers, which VD-119's
+role for the box heading should weigh. A reader
 who opened the box on the static page finds it open at the handover
 (`lib/handover.js`). Driver, constructor and car pages keep the box open
 above what it concerns.

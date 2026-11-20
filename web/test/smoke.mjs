@@ -3377,6 +3377,37 @@ try {
     is(opened.inView, true, 'and the box is on the screen')
     await page.setViewportSize({ width: 1280, height: 900 })
 
+    // A race with a shared drive as well: the note stands between the line
+    // and the table, and stands clear of the line (1957/5 had them touching).
+    const shared = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used FROM races r
+          WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id AND e.shared_drive = 1)
+            AND EXISTS (SELECT 1 FROM discrepancies d
+                         WHERE d.status = 'open' AND d.subject = CAST(r.year AS TEXT) || ' round ' || CAST(r.round AS TEXT))
+            AND (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id) <> ?
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get(disputed.entries)
+    if (shared) {
+      const sharedRoute = `/races/${shared.year}/${shared.round}`
+      const readGap = (root) => {
+        const pointer = document.querySelector(`${root} .page > p.disagreement-pointer`)
+        const next = pointer?.nextElementSibling
+        return next?.matches('.note-box') ? next.getBoundingClientRect().top - pointer.getBoundingClientRect().bottom : null
+      }
+      await go(sharedRoute, shared.name_used)
+      const appGap = await page.evaluate(readGap, '#root main')
+      const quietContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+      const quietPage = await quietContext.newPage()
+      await quietPage.goto(`${BASE}${sharedRoute}`, { waitUntil: 'load' })
+      const staticGap = await quietPage.evaluate(readGap, '#prerendered')
+      await quietContext.close()
+      for (const [half, gap] of [['the app', appGap], ['the static page', staticGap]]) {
+        truthy(gap !== null && gap >= 8, `${sharedRoute}, ${half}: the shared-drive note follows the line and stands clear of it (${gap === null ? 'no note after the line' : `${Math.round(gap)} px`})`)
+      }
+    } else pass('no race of another field size has both a shared drive and an open disagreement')
+
     // A race with none recorded has neither the line nor the box, in either
     // half. One of another field size: the app, moving between two race
     // pages with as many entries, keeps a narrow table marked as fitting its

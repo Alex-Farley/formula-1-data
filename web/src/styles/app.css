@@ -2751,7 +2751,9 @@ p.faint {
 
 /* The line above the classification that says what the folded box holds and
    links to it: a note attached to the table under it, so it sits the
-   section gap below the block before it and close over the table. */
+   section gap below the block before it and close over the table, or over
+   the shared-drive note where one stands between (1957/5), which has no
+   margin above it of its own. */
 .disagreement-pointer {
   font-size: var(--size-4);
   color: var(--ink-soft);
@@ -2759,7 +2761,8 @@ p.faint {
   margin: var(--space-9) 0 0;
 }
 
-.page > .disagreement-pointer + .section {
+.page > .disagreement-pointer + .section,
+.page > .disagreement-pointer + .note-box {
   margin-top: var(--space-5);
 }
 
