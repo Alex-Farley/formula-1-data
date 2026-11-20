@@ -182,6 +182,7 @@ import {
 import { LAYOUT_RACED, NO_DRAWING, NO_LAYOUT_RECORDED, NO_TIMELINE_ROW, OUTLINE_RULE, PHOTO_OUTLINE_BY, RACE_LAYOUT_NOTE, photoOutline } from '../src/lib/outline.js'
 import { lapLayout } from '../src/lib/lap.js'
 import { TRACE_HEADING } from '../src/lib/trace.js'
+import { FOLDED_ID, POINTER_LINK, openHeading } from '../src/lib/disagreement.js'
 import { until } from '../src/queries/sessions.js'
 import { FOLD_LESS, FOLD_NOUN, FOLD_OVER, FOLD_TO, foldMore } from '../src/lib/table.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
@@ -3286,6 +3287,146 @@ try {
         'and so does the app',
       )
     } else pass('no round is scheduled with a timetable, so there is none to lead with')
+  })
+
+  /*
+   * VD-131 (ruled 2026-11-18 on #1330): a race's recorded disagreements
+   * follow its classification, closed to the box's one-line heading, and a
+   * line above the table says how many and links to the box. Open above the
+   * table, the box ran 366 to 1,702 px on 44 race pages and put the
+   * classification's heading on the second screen. Read on the race with the
+   * most open rows, in both halves at 1440 x 900, and on one with none.
+   */
+  await section('/races  (the disagreements follow the classification, closed: VD-131)', async () => {
+    const disputed = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used, COUNT(*) AS n,
+                (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id) AS entries
+           FROM discrepancies d
+           JOIN races r ON d.subject = CAST(r.year AS TEXT) || ' round ' || CAST(r.round AS TEXT)
+          WHERE d.status = 'open'
+            AND EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
+          GROUP BY r.id
+          ORDER BY n DESC, r.year, r.round LIMIT 1`,
+      )
+      .get()
+    if (!disputed) {
+      fail('no race with an open disagreement and a classification to read the fold on')
+      return
+    }
+    const route = `/races/${disputed.year}/${disputed.round}`
+    const readFold = ([root, id]) => {
+      const main = document.querySelector(root)
+      const clean = (node) => (node ? node.textContent.replace(/\s+/g, ' ').trim() : null)
+      const pointer = main.querySelector('.page > p.disagreement-pointer')
+      const box = main.querySelector(`.page > aside.disagreement#${id}`)
+      const details = box?.querySelector(':scope > details')
+      const heading = [...main.querySelectorAll('h2')].find((h) => clean(h).startsWith('Classification'))
+      const classification = heading?.closest('section')
+      const tiles = main.querySelector('.stats, .fields')
+      const after = (a, b) => Boolean(a && b && a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+      return {
+        pointer: clean(pointer),
+        // Its lines: one at 1440, under the measure, where a line is its
+        // computed line-height.
+        pointerLines: pointer ? Math.round(pointer.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(pointer).lineHeight)) : null,
+        href: pointer?.querySelector('a')?.getAttribute('href') ?? null,
+        boxes: main.querySelectorAll('aside.disagreement').length,
+        summary: clean(details?.querySelector(':scope > summary > h2')),
+        open: details ? details.open : null,
+        rows: details ? details.querySelectorAll('dl > div').length : 0,
+        boxHeight: box ? box.getBoundingClientRect().height : null,
+        order: [after(pointer, classification), after(classification, box)],
+        heading: heading ? heading.getBoundingClientRect().top + window.scrollY : null,
+        tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
+      }
+    }
+    const headingText = openHeading('this race', disputed.n)
+    await go(route, disputed.name_used)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.evaluate(() => window.scrollTo(0, 0))
+    const app = await page.evaluate(readFold, ['#root main', FOLDED_ID])
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+    const served = await plain.evaluate(readFold, ['#prerendered', FOLDED_ID])
+    await noJs.close()
+    for (const [half, got] of [['the app', app], ['the static page', served]]) {
+      is(got.pointer, `${headingText}: ${POINTER_LINK}.`, `${route}, ${half}: the line above the classification gives the box's count`)
+      is(got.href, `#${FOLDED_ID}`, `${half}: and links to the box`)
+      is(got.pointerLines, 1, `${half}: on one line at 1440`)
+      is(got.boxes, 1, `${half}: one box`)
+      is(got.summary, headingText, `${half}: whose heading is the line's count, in its summary`)
+      is(got.open, false, `${half}: closed`)
+      is(got.rows, disputed.n, `${half}: with all ${disputed.n} readings in it`)
+      truthy(got.boxHeight !== null && got.boxHeight < 100, `${half}: the closed box is one line in its frame — ${got.boxHeight === null ? 'none' : `${Math.round(got.boxHeight)} px`}`)
+      is(got.order.join(' '), 'true true', `${half}: the line is above the classification and the box under it`)
+      truthy(
+        got.heading !== null && got.tilesEnd !== null && got.heading > got.tilesEnd && got.heading < 900,
+        `${half}: the classification heading is under the tiles and inside the first 900 px at 1440 — at ${Math.round(got.heading)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+      )
+    }
+    // Following the line opens the box, and brings it into view.
+    await page.click('#root main p.disagreement-pointer a')
+    const opened = await page.evaluate((id) => {
+      const box = document.getElementById(id)
+      const at = box?.getBoundingClientRect()
+      return { open: box?.querySelector(':scope > details')?.open ?? null, inView: Boolean(at && at.top < window.innerHeight && at.bottom > 0) }
+    }, FOLDED_ID)
+    is(opened.open, true, 'the app: following the line opens the box')
+    is(opened.inView, true, 'and the box is on the screen')
+    await page.setViewportSize({ width: 1280, height: 900 })
+
+    // A race with a shared drive as well: the note stands between the line
+    // and the table, and stands clear of the line (1957/5 had them touching).
+    const shared = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used FROM races r
+          WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id AND e.shared_drive = 1)
+            AND EXISTS (SELECT 1 FROM discrepancies d
+                         WHERE d.status = 'open' AND d.subject = CAST(r.year AS TEXT) || ' round ' || CAST(r.round AS TEXT))
+            AND (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id) <> ?
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get(disputed.entries)
+    if (shared) {
+      const sharedRoute = `/races/${shared.year}/${shared.round}`
+      const readGap = (root) => {
+        const pointer = document.querySelector(`${root} .page > p.disagreement-pointer`)
+        const next = pointer?.nextElementSibling
+        return next?.matches('.note-box') ? next.getBoundingClientRect().top - pointer.getBoundingClientRect().bottom : null
+      }
+      await go(sharedRoute, shared.name_used)
+      const appGap = await page.evaluate(readGap, '#root main')
+      const quietContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+      const quietPage = await quietContext.newPage()
+      await quietPage.goto(`${BASE}${sharedRoute}`, { waitUntil: 'load' })
+      const staticGap = await quietPage.evaluate(readGap, '#prerendered')
+      await quietContext.close()
+      for (const [half, gap] of [['the app', appGap], ['the static page', staticGap]]) {
+        truthy(gap !== null && gap >= 8, `${sharedRoute}, ${half}: the shared-drive note follows the line and stands clear of it (${gap === null ? 'no note after the line' : `${Math.round(gap)} px`})`)
+      }
+    } else pass('no race of another field size has both a shared drive and an open disagreement')
+
+    // A race with none recorded has neither the line nor the box, in either
+    // half. One of another field size: the app, moving between two race
+    // pages with as many entries, keeps a narrow table marked as fitting its
+    // box (IX-51 #1413), which the width sweep after this section would read.
+    const quiet = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used FROM races r
+          WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
+            AND NOT EXISTS (SELECT 1 FROM discrepancies d
+                             WHERE d.status = 'open' AND d.subject = CAST(r.year AS TEXT) || ' round ' || CAST(r.round AS TEXT))
+            AND (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id) <> ?
+          ORDER BY r.year DESC, r.round DESC LIMIT 1`,
+      )
+      .get(disputed.entries)
+    const plainRoute = `/races/${quiet.year}/${quiet.round}`
+    const html = await (await fetch(`${BASE}${plainRoute}`)).text()
+    truthy(!html.includes('disagreement-pointer') && !html.includes('<aside class="disagreement"'), `${plainRoute}: the static page of a race with none recorded has neither`)
+    await go(plainRoute, quiet.name_used)
+    is(await page.$$eval('#root main .disagreement-pointer, #root main aside.disagreement', (n) => n.length), 0, 'and nor does the app')
   })
 
   /*
@@ -10983,7 +11124,8 @@ try {
      * sectioned() once started a section at the h2 inside the aside, so the
      * browser closed the aside empty and the readings fell into a plain
      * section beneath it, unboxed. Comparing headings and prose cannot see
-     * that; where the aside sits in the markup can.
+     * that; where the aside sits in the markup can. A race's box opens on its
+     * heading inside the summary of its fold (VD-131).
      */
     const asides = []
     const misplaced = []
@@ -10996,7 +11138,7 @@ try {
         const before = article < 0 ? '' : html.slice(article, match.index)
         const depth = (before.match(/<section\b/g) ?? []).length - (before.match(/<\/section>/g) ?? []).length
         const inside = html.slice(match.index + match[0].length, html.indexOf('</aside>', match.index))
-        if (article < 0 || article > match.index || depth !== 0 || !/^\s*<h2>/.test(inside) || /<\/?section\b/.test(inside)) {
+        if (article < 0 || article > match.index || depth !== 0 || !/^\s*(<details><summary>)?<h2>/.test(inside) || /<\/?section\b/.test(inside)) {
           misplaced.push(route)
         }
       }
