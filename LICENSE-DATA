@@ -55,8 +55,9 @@ under the Creative Commons Attribution 4.0 International License (CC BY 4.0):
   - `known_gaps.area`, `known_gaps.reader`, `known_gaps.description` and
     `known_gaps.resolution` — what a reader is shown about each gap, the
     maintainer's note on it, and what would close it.
-  - The prose of ten of the twelve reference tables `source_registry` entry
-    18 records as written for this project (PM-49): `eras.summary` and
+  - The prose of eleven of the twelve reference tables `source_registry`
+    entry 18 records as written for this project (PM-49, PM-67):
+    `glossary.definition`, `eras.summary` and
     `eras.defining_features`, `engine_eras.notes`, `governance.detail` and
     `governance.significance`, `safety_milestones.trigger_event` and
     `safety_milestones.description`, `points_systems.notes`,
@@ -67,9 +68,13 @@ Attribute Lap Ledger; there is no share-alike, so
 nothing you build on them takes a licence from them. The share-alike above
 comes from Wikipedia, and none of Wikipedia's text is in these columns. The
 first five were written for this project, about this project's own database.
-The ten tables' prose was measured field by field against the Wikipedia
+The eleven tables' prose was measured field by field against the Wikipedia
 articles a writer would have reached for — `docs/prose_pass.tsv`, the prose
 pass — and every field in them reads as this project's own expression. The
+glossary was read by hand as well, against formula1.com's glossary, the FIA's
+regulations and Wikipedia, and the nine definitions that reading found
+following one of them were written again in this project's own words before
+it was granted (PM-67). The
 remaining columns of the tables they sit in — the subject and field of a
 disagreement, the two values, the state of a gap, an era's name and dates, a
 points scale, a grand prix's aliases — hold facts, identifiers and headings
@@ -80,15 +85,12 @@ The grant is stated inside the database too, as `meta.project_prose` and
 build in which those disagree with this file fails. The Parquet bundle carries
 the same two rows in `meta.parquet`, and a `README.txt` that states them. A CC BY grant cannot be
 withdrawn from a copy already taken, which is why the list is exactly this
-long, and why a granted field of the ten tables that is rewritten fails the
+long, and why a granted field of the eleven tables that is rewritten fails the
 build until the prose pass has read it again.
 
-**Two of entry 18's tables are not in it.** `technical_innovations` stays
+**One of entry 18's tables is not in it.** `technical_innovations` stays
 CC BY-SA because the prose pass reads one of its descriptions as following a
 Wikipedia article's wording, and it stays so until that field is rewritten.
-The glossary stays CC BY-SA while whether to grant it is an open question
-(PM-67): every definition in it reads as original, and the grant waits on a
-decision rather than on the evidence.
 
 ## The facts artefact — f1-facts.db, CC BY 4.0
 
@@ -120,8 +122,8 @@ share-alike, or that this project has not granted:
     the prose pass measures and neither grant above reaches.
   - The register of Wikimedia Commons photographs, each of which carries
     its own licence, several of them share-alike.
-  - This project's own writing that neither grant above reaches: the
-    glossary, `technical_innovations`, and the source registry's account
+  - This project's own writing that neither grant above reaches:
+    `technical_innovations`, and the source registry's account
     of each source, among others.
   - The values a recorded disagreement compares, and its status note: the
     values come from whichever sources it compares, often an article, and

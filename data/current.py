@@ -645,11 +645,10 @@ SOURCE_REGISTRY = [
      "with no OpenStreetMap input.",
      "authored",
      "Original to this repository, with no upstream to owe anything to. The "
-     "prose of ten of its twelve tables is offered under CC BY 4.0 "
-     "(meta.project_prose_columns, PM-49). The glossary and "
-     "technical_innovations stay under the release's CC BY-SA 4.0: one "
-     "technical_innovations description follows a Wikipedia article's "
-     "wording, and the glossary's grant is an open question. The photograph "
+     "prose of eleven of its twelve tables is offered under CC BY 4.0 "
+     "(meta.project_prose_columns, PM-49, PM-67). technical_innovations "
+     "stays under the release's CC BY-SA 4.0, because one of its "
+     "descriptions follows a Wikipedia article's wording. The photograph "
      "placings are the exception to having no upstream: each transform is "
      "fitted to OpenStreetMap's coordinates, and every placing's points but "
      "Monza's were spaced along them, so both are held under ODbL 1.0 with "
@@ -906,9 +905,9 @@ SOURCE_LICENCE = {
     # domain to match a URL against. Nothing here may sit above 'medium' - see
     # the authored ceiling in build.py and docs/DERIVED-CONFIDENCE.md - but
     # that is a confidence question, not a redistribution one: it is ours to
-    # publish. share_alike stays set because two of its twelve tables, the
-    # glossary and technical_innovations, still carry the release's CC BY-SA;
-    # the prose of the other ten is CC BY 4.0 (PROJECT_PROSE_COLUMNS, PM-49).
+    # publish. share_alike stays set because one of its twelve tables,
+    # technical_innovations, still carries the release's CC BY-SA; the prose
+    # of the other eleven is CC BY 4.0 (PROJECT_PROSE_COLUMNS, PM-49, PM-67).
     18: ("yes", 1, 1, None),
 }
 
@@ -940,15 +939,19 @@ SOURCE_LICENCE = {
 # (docs/prose_pass.tsv), and the maintainer ruled on 2026-09-30: an entry-18
 # table takes the grant only if every prose field in it is labelled original,
 # and is granted whole - every column the pass measures in it - or not at all.
-# Ten tables are granted below. Two are not:
+# Eleven tables are granted below. One is not:
 #
 #   technical_innovations  its fan-car description is labelled paraphrased,
 #                          and it stays CC BY-SA until that field is rewritten
 #                          (PM-62, #692) and the pass reads it again.
-#   glossary               all 55 definitions read original, but the ruling
-#                          expected the glossary to stay CC BY-SA, and a grant
-#                          that cannot be withdrawn is not made on a
-#                          contradiction. PM-67 (#835) holds the question.
+#
+# The glossary was held back at first: all 55 definitions read original, but
+# the ruling expected it to stay CC BY-SA. PM-67 (#835) read 38 of them by
+# hand against formula1.com's glossary, the FIA's regulations and Wikipedia
+# and found seven close paraphrases. The maintainer ruled on 2026-11-16: write
+# those seven in this project's own words, read the other 17 the same way,
+# then grant. That reading found two more (Dirty air, Pit window); all nine
+# were rewritten, and the pass has read every definition since.
 #
 # The headings and short values of the granted tables - an era's name, a
 # governance event, a points scale, a grand prix's aliases - are not on the
@@ -966,7 +969,9 @@ PROJECT_PROSE_COLUMNS = [
     "known_gaps.reader",
     "known_gaps.description",
     "known_gaps.resolution",
-    # Entry 18, granted table by table on the prose pass (PM-49).
+    # Entry 18, granted table by table on the prose pass (PM-49), the
+    # glossary after PM-67's reading and rewrite.
+    "glossary.definition",
     "eras.summary",
     "eras.defining_features",
     "engine_eras.notes",
