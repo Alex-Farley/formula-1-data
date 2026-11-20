@@ -147,8 +147,8 @@ const overlaps = (a, b) =>
  * above and to the right on a falling one, or the opposite corner below -
  * inside the plot, clear of the labels already set and of every marked
  * line, and with the end it is anchored at nearer its own line than any
- * other marked one, so that it cannot be read as another's. In the order given, so the finding's label
- * is set first.
+ * other marked one, so that it cannot be read as another's. In the order
+ * given: gridFlagLayout() gives the finding's moves first.
  */
 function placeNotes(picked, marked, bounds) {
   const notes = []
@@ -311,8 +311,13 @@ export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH, moves = []) {
     }
   })
   const marked = cars.filter((car) => car.won || car.strong)
+  // The finding's moves are labelled first, so that where there is room for
+  // only some labels the line the finding names has one.
   const notes = placeNotes(
-    moves.map((m) => cars[rows.findIndex((r) => r.entry === m.entry)]).filter((car) => car?.strong).map((car) => ({ car, text: car.note })),
+    [...moves.filter((m) => m.lead), ...moves.filter((m) => !m.lead)]
+      .map((m) => cars[rows.findIndex((r) => r.entry === m.entry)])
+      .filter((car) => car?.strong)
+      .map((car) => ({ car, text: car.note })),
     marked,
     { left: x(0), right: x(laps), top: TOP, bottom: plotBottom },
   )

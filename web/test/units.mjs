@@ -5595,6 +5595,34 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
     // An entry the figure cannot draw changes the kicker's claim.
     const short = gridFlagStory(gridFlagRows([car(1, 1, 1), car(2, 4, 2), car(3, 2, 3), car(4, 3, 4)]), [car(9, null, null)])
     assert.match(short.kicker, /^Grid slot to result · /)
+    // A surname another driver on the grid shares keeps the full name, though
+    // only one of the two is picked; the other keeps its surname.
+    const brothers = story([
+      car(1, 1, 1, { driver: 'Ralf Schumacher' }),
+      car(2, 9, 2, { driver: 'Michael Schumacher' }),
+      car(3, 2, 3),
+      car(4, 3, 4),
+      car(5, 4, 5),
+      car(6, 5, 6),
+      car(7, 6, 7),
+      car(8, 7, 8),
+      car(9, 8, 9),
+    ])
+    assert.equal(brothers.finding, 'Michael Schumacher came from 9th to finish 2nd')
+    assert.equal(brothers.moves[0].long, 'Michael Schumacher: 9th to 2nd, up seven')
+    // The finding's move is marked to be labelled first, even where a
+    // bigger fall comes before it in size.
+    const bigFall = story([car(1, 1, 1), car(2, 5, 2), car(3, 3, 3), car(4, 4, 4), car(5, 6, 5), car(6, 2, 9), car(7, 7, 6), car(8, 8, 7), car(9, 9, 8)])
+    assert.deepEqual(
+      bigFall.moves.map((m) => [m.entry.id, m.moved, m.lead]),
+      [
+        [6, -7, false],
+        [2, 3, true],
+      ],
+    )
+    // Three words, family name last, keep the last word though the first
+    // starts with the code.
+    assert.equal(story([car(1, 1, 1), car(2, 9, 2, { driver: 'Qing Hua Ma', abbreviation: 'QIN' }), car(3, 2, 3)]).finding, 'Ma came from 9th to finish 2nd')
     // A family name written first is the one its code spells.
     const zhou = story([car(1, 1, 1), car(2, 17, 2, { driver: 'Zhou Guanyu', abbreviation: 'ZHO' }), car(3, 2, 3)])
     assert.equal(zhou.finding, 'Zhou came from 17th to finish 2nd')

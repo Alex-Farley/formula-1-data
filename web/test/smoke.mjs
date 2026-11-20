@@ -5075,6 +5075,10 @@ try {
     // no two overlapping, each naming a line drawn in full ink.
     const notesHold = (half, got) => {
       for (const n of got.notes) {
+        // A label opens on its driver's surname, or code, which the line's
+        // name at the end closes on.
+        const named = n.text.includes(':') ? n.text.split(':')[0] : n.text.split(' ')[0]
+        truthy(got.strong.some((name) => name === named || name.endsWith(` ${named}`)), `${half}: “${n.text}” names a line drawn in full ink`)
         truthy(n.top >= got.plot.top - 1 && n.bottom <= got.plot.bottom + 1 && n.left >= got.plot.left - 1, `${half}: “${n.text}” sits inside the plot`)
       }
       const clash = got.notes.flatMap((a, i) =>
@@ -5182,7 +5186,7 @@ try {
     // shares PES with Pescarolo at /races/1976/11), cut with an ellipsis
     // where it cannot fit whole rather than cropped by the figure's edge.
     // And the labels on the lines (VD-113) on a phone, where /races/2026/20
-    // has three moves to set and room for fewer.
+    // has three moves to set and room for fewer, but for at least one.
     for (const [route, width] of [['/races/1976/11', 320], ['/races/1953/7', 375], ['/races/2026/20', 375]]) {
       await page.setViewportSize({ width, height: 900 })
       await go(route)
@@ -5198,13 +5202,14 @@ try {
             .filter(([, q]) => p.x < q.x + q.width && q.x < p.x + p.width && p.y < q.y + q.height && q.y < p.y + p.height)
             .map(([b]) => `${a} overlaps ${b}`),
         )
+        const none = location.pathname === '/races/2026/20' && !notes.length ? ['no label on a line'] : []
         return [...svg.querySelectorAll('text')]
           .map((t) => {
             const box = t.getBBox()
             return box.x < -0.5 || box.x + box.width > edge + 0.5 ? `${t.textContent} runs from ${Math.round(box.x)} to ${Math.round(box.x + box.width)} of ${edge}` : null
           })
           .filter(Boolean)
-          .concat(clash)
+          .concat(clash, none)
       })
       is(over.join(' · '), '', `${route} at ${width} px: every label inside the drawing, and none on a line over another`)
     }

@@ -877,13 +877,20 @@ export function gridFlagMoves(rows) {
 export function gridFlagStory(rows, undrawn = []) {
   const picked = gridFlagMoves(rows)
   if (!picked.length) return { finding: null, kicker: null, moves: [] }
-  const fulls = picked.map((m) => text(m.entry.driver ?? m.entry.driver_id))
-  // A family name written first - Zhou Guanyu, ZHO - is the one the code
-  // spells, where the last word's is not (shortNames() takes the last).
-  const surnames = shortNames(fulls).map((name, i) => {
-    const code = picked[i].entry.abbreviation
-    const first = fulls[i].split(/\s+/)[0]
-    return code && first !== fulls[i] && first.slice(0, 3).toUpperCase() === code && name.slice(0, 3).toUpperCase() !== code ? first : name
+  // Surnames are worked out over every driver drawn, not the picked alone,
+  // so a surname two of them share (Michael and Ralf Schumacher) keeps both
+  // full names, as shortNames() keeps them, rather than naming neither line.
+  const full = (entry) => text(entry.driver ?? entry.driver_id)
+  const field = [...new Set(rows.map((r) => full(r.entry)))]
+  const short = new Map(shortNames(field).map((name, i) => [field[i], name]))
+  // A two-word name whose family name comes first - Zhou Guanyu, ZHO - is
+  // named by the word its code spells, where the last word's is not
+  // (shortNames() takes the last).
+  const surnames = picked.map((m) => {
+    const name = short.get(full(m.entry))
+    const code = m.entry.abbreviation
+    const words = full(m.entry).split(/\s+/)
+    return code && words.length === 2 && words[0].slice(0, 3).toUpperCase() === code && name.slice(0, 3).toUpperCase() !== code ? words[0] : name
   })
   const gains = picked.filter((m) => m.moved > 0)
   const losses = picked.filter((m) => m.moved < 0)
@@ -897,6 +904,8 @@ export function gridFlagStory(rows, undrawn = []) {
     return {
       entry: m.entry,
       moved: m.moved,
+      // The finding's own, whose label is placed before the others'.
+      lead: top.includes(m),
       long: `${surnames[i]}: ${places(m)}${counted}`,
       short: code ? `${code} ${ordinal(m.entry.grid)} → ${ordinal(m.entry.finish_position)}` : null,
       said: `${surnames[i]}, ${places(m)}, ${by(m)}`,
