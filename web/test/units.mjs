@@ -2057,8 +2057,9 @@ describe('the queries a page and the prerenderer share', () => {
         assert.deepEqual(layout.bars.slice(1).map((bar) => bar.margin), [null, null, null])
       }
       // The leader says how far clear it is wherever that costs the bars at
-      // most a quarter of their length: always with the names above, and
-      // beside them only with room to spare - not in half of .split at 768.
+      // most a quarter of their length: at every width here with the names
+      // above (though a 250 px plot of long values can drop it), and beside
+      // them only with room to spare - not in half of .split at 768.
       assert.equal(above.bars[0].margin, '15 clear')
       assert.equal(beside.bars[0].margin, width >= 560 ? '15 clear' : null, `the margin beside the names at ${width}`)
       // The point of stacking: with no name column the longest bar is longer.
@@ -2081,7 +2082,7 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(barLayout({ data: [], width: 400, stacked: true, format }), null)
   })
 
-
+  // VD-90: the answer takes the lede position, and the season's own note
   // follows it rather than giving way, as a race's follows who won (SD-39).
   it("leads a season's lede with who can still win, and keeps the note after it", () => {
     const said = "Who can still win the drivers' title: Antonelli and Russell."
