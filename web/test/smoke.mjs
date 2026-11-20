@@ -5629,10 +5629,16 @@ try {
           const r = li.getBoundingClientRect()
           return { left: r.left, top: r.top, bottom: r.bottom }
         }),
-        inks: slabs.map((li) => {
-          const words = getComputedStyle(li.querySelector('.race-slab-first'))
-          return { ink: words.color, ground: getComputedStyle(li).backgroundColor, opacity: words.opacity }
-        }),
+        // Every line of words on a slab, each by the colour it is drawn in
+        // and the opacity that would thin it.
+        inks: slabs.flatMap((li, i) =>
+          ['.race-slab-first', '.race-slab-surname a', '.race-slab-surname', '.race-slab-meta > span:first-child'].flatMap((part) => {
+            const node = li.querySelector(part)
+            if (!node) return []
+            const words = getComputedStyle(node)
+            return [{ part: `slab ${i + 1} ${part}`, ink: words.color, ground: getComputedStyle(li).backgroundColor, opacity: words.opacity }]
+          }),
+        ),
       }
     }
     // WCAG 2's ratio, from the rgb() the browser resolved.
@@ -5686,18 +5692,46 @@ try {
         )
         truthy(one_.top < two.top && two.top < three.top, `${route}, ${half}: the winner's slab the tallest, third's the lowest`)
       }
-      // The words on each slab hold 4.5:1 against it, in both themes, in
-      // the colours the browser resolved (lib/podium.js's inkOn()).
-      for (const scheme of ['light', 'dark']) {
-        await page.emulateMedia({ colorScheme: scheme })
-        const { inks } = await page.evaluate(read, '#root main')
-        const under = inks
-          .map((k, i) => ({ ...k, i, r: ratio(k.ink, k.ground) }))
-          .filter((k) => k.r < 4.5 || k.opacity !== '1')
-          .map((k) => `slab ${k.i + 1}: ${k.ink} on ${k.ground}, ${k.r.toFixed(2)}:1 at opacity ${k.opacity}`)
-        truthy(under.length === 0, `${route}, ${scheme}: every slab's words clear 4.5:1 on it${under.length ? `; ${under.join('; ')}` : ''}`)
+      // The words on each slab hold 4.5:1 against it, in both themes and
+      // however the theme was chosen - the reader's system, or the toggle's
+      // stamp over a system that says the other - in the colours the browser
+      // resolved (lib/podium.js's inkOn()), in both halves. And the focus
+      // ring on the surname's link is drawn in that ink, so it holds 3:1 on
+      // the slab where the accent ring would vanish into a red.
+      const themes = [
+        ['light', null, 'light'],
+        ['dark', null, 'dark'],
+        ['light', 'dark', 'dark, stamped over a light system'],
+        ['dark', 'light', 'light, stamped over a dark system'],
+      ]
+      for (const [half, target, root] of shared ? [] : [['the app', page, '#root main'], ['the static page', still, '#prerendered']]) {
+        for (const [scheme, stamp, said] of themes) {
+          await target.emulateMedia({ colorScheme: scheme })
+          await target.evaluate((value) => {
+            if (value) document.documentElement.dataset.theme = value
+            else delete document.documentElement.dataset.theme
+          }, stamp)
+          const { inks } = await target.evaluate(read, root)
+          const under = inks
+            .map((k) => ({ ...k, r: ratio(k.ink, k.ground) }))
+            .filter((k) => k.r < 4.5 || k.opacity !== '1')
+            .map((k) => `${k.part}: ${k.ink} on ${k.ground}, ${k.r.toFixed(2)}:1 at opacity ${k.opacity}`)
+          truthy(inks.length >= 9 && under.length === 0, `${route}, ${half}, ${said}: every line on every slab clears 4.5:1 on it${under.length ? `; ${under.join('; ')}` : ''}`)
+          await target.keyboard.press('Shift')
+          await target.focus(`${root} .race-slab-1 .race-slab-surname a`)
+          const ring = await target.evaluate((sel) => {
+            const a = document.querySelector(sel)
+            const s = getComputedStyle(a)
+            return { visible: a.matches(':focus-visible'), style: s.outlineStyle, colour: s.outlineColor, ground: getComputedStyle(a.closest('li')).backgroundColor }
+          }, `${root} .race-slab-1 .race-slab-surname a`)
+          truthy(
+            ring.visible && ring.style !== 'none' && ratio(ring.colour, ring.ground) >= 3,
+            `${route}, ${half}, ${said}: the winner's link shows a focus ring that holds 3:1 on the slab — ${ring.style} ${ring.colour} on ${ring.ground}, ${ratio(ring.colour, ring.ground).toFixed(2)}:1`,
+          )
+        }
+        await target.evaluate(() => delete document.documentElement.dataset.theme)
+        await target.emulateMedia({ colorScheme: 'light' })
       }
-      await page.emulateMedia({ colorScheme: 'light' })
     }
     // On a phone the slabs stack in reading order, first at the top.
     await page.setViewportSize({ width: 400, height: 900 })

@@ -1489,11 +1489,17 @@ AF-133's grid — and these are new:
     built); and a line with the team and where the driver started —
     *from pole*, *from 21st*, *from the front of the grid* where the driver
     started first without the pole credit, *from the pit lane*, or *grid
-    not recorded* (`podiumStart` in `queries/race.js`) — then a chip for the
+    not recorded* (`podiumStart` in `queries/race.js`; no podium drawn on
+    the present data says the last, since every podium place with no grid
+    on record is on a page whose podium is declined for a shared place) —
+    then a chip for the
     places made or lost from a numbered slot: *▲ 19* on `--move-up`, *▼ 2*
     on `--move-down`, both white (`--on-move`), *held* ruled in the slab's
     ink, and no chip with no slot. A screen reader hears the chip's words
     (*19 places gained*) in place of the arrow.
+  - The surname's link keeps the focus ring, drawn in the slab's ink
+    (`currentColor`) rather than `--accent`, which on a red or papaya slab
+    all but vanishes into it.
   - The words on a slab are whichever of black and white has the higher
     contrast ratio against that value of the pair (`inkOn()` in
     `lib/podium.js`, `RACING_INK` there for the national colours, which are
@@ -1929,7 +1935,7 @@ control (VD-82).
 |---|---|---|
 | WCAG A/AA on the ten smoke routes | **floor** | axe-core in `web/test/smoke.mjs` (and 0 violations on 104 runs across 26 routes on 2026-10-06) |
 | Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); `smoke.mjs` *Sorting* focuses a sort button and a console example from the keyboard and reads the ring (VD-82) |
-| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. A block wholly to the right of an earlier one is a column read after it, and may start higher. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it |
+| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. A block wholly to the right of an earlier one is a column read after it, and may start higher. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it. Declared here: the podium's steps on home and its slabs on a race page (§3 *Season cycle*), listed first, second, third and stood second, first, third as a podium stands, so the eye and the keyboard part company inside that one block; ruled with the approved designs (AF-135, VD-108 #1330), and under 768 px the slabs stand in reading order |
 | Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
 | Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27; a field's placeholder, AX-27) |
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |

@@ -803,6 +803,14 @@ main {
   text-decoration: underline;
 }
 
+/* The focus ring in the slab's own ink, not --accent: the global ring is
+   drawn on the slab's colour, and on a red or papaya livery the accent all
+   but vanishes into it (about 1:1 on Italian red). currentColor is the ink
+   inkOn() chose for that colour, so the ring holds the 4.5:1 the words do. */
+.race-slab-surname a:focus-visible {
+  outline-color: currentColor;
+}
+
 .race-slab-meta {
   display: flex;
   flex-wrap: wrap;
