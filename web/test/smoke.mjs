@@ -3184,6 +3184,14 @@ try {
    * round is run, its timetable leads instead.
    */
   await section('/races  (the result leads)', async () => {
+    // Read once the web fonts are in: at `load` they may still be arriving,
+    // and a page read in the fallback faces wraps its lede and its line under
+    // the podium other than the page a reader sees, which is the one the rule
+    // is about (CI read /races/1950/6's static page 62 px taller that way).
+    const settled = async (target, root) => {
+      await target.evaluate(() => document.fonts.ready)
+      return target.evaluate(readLead, root)
+    }
     const readLead = (root) => {
       const main = document.querySelector(root)
       const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
@@ -3246,12 +3254,12 @@ try {
     await go(route, run.name_used)
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.evaluate(() => window.scrollTo(0, 0))
-    const app = await page.evaluate(readLead, '#root main')
+    const app = await settled(page, '#root main')
     await page.setViewportSize({ width: 1280, height: 900 })
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
     const plain = await noJs.newPage()
     await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
-    const served = await plain.evaluate(readLead, '#prerendered')
+    const served = await settled(plain, '#prerendered')
     await noJs.close()
     for (const [half, got] of [['the app', app], ['the static page', served]]) {
       truthy(
@@ -3301,12 +3309,12 @@ try {
       await go(there, r.name_used)
       await page.setViewportSize({ width: 1440, height: 900 })
       await page.evaluate(() => window.scrollTo(0, 0))
-      const inApp = await page.evaluate(readLead, '#root main')
+      const inApp = await settled(page, '#root main')
       await page.setViewportSize({ width: 1280, height: 900 })
       const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
       const still = await quiet.newPage()
       await still.goto(`${BASE}${there}`, { waitUntil: 'load' })
-      measured.push([there, inApp, await still.evaluate(readLead, '#prerendered')])
+      measured.push([there, inApp, await settled(still, '#prerendered')])
       await quiet.close()
     }
     for (const [there, inApp, inStatic] of measured) {
