@@ -281,7 +281,6 @@ import {
   STAKE_HEADING,
   currentTitle,
   fightCitation,
-  fightAhead,
   fightLine,
   isUpcoming,
   mergeSources,
@@ -304,14 +303,19 @@ import {
   CHART_HEIGHT,
   CLASSIFICATION_LINK,
   CYCLE,
+  DB_LINE_LEAD,
+  DB_LINE_LINK,
   FIGHT_TEAMS,
   NEXT_SESSIONS as HOME_NEXT_SESSIONS,
   NEXT_STARTS as HOME_NEXT_STARTS,
   PODIUM,
   PODIUM_LABEL,
   THIS_WEEKEND,
+  dbLine,
+  homeAhead,
   homeCycle,
-  podium,
+  homePlate,
+  lastPodium,
   reachHeading,
   sessionsClock,
   startsHeadingAt,
@@ -344,7 +348,6 @@ import {
   seasonLink,
   seasonStrip,
   stillToRunNote,
-  strip as homeStrip,
 } from '../src/queries/home.js'
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER, CONSTRUCTORS_LEDE } from '../src/queries/constructors.js'
@@ -2192,17 +2195,23 @@ const standingsLinks = (kind, rows, { year, teams, season, crowned }) => {
 }
 
 // components/SeasonPlate.jsx (VD-104 (c)): a concluded season's champion in
-// the pair of the team they won with, or in ink where none is on record.
-const seasonPlateHtml = (plate) =>
-  plate
-    ? `<div class="${plate.colour ? `season-plate livery-series" style="${pairStyle(plate.colour)}` : 'season-plate season-plate-none'}"><p class="season-plate-label">${liveryMark(
-        plate.colour,
-        true,
-      )}${esc(plate.label)}${plate.team ? ` · ${plate.teamHref ? link(plate.teamHref, plate.team) : esc(plate.team)}` : ''}</p><p class="season-plate-name">${link(
-        plate.href,
-        plate.name,
-      )}</p>${plate.margin ? `<p class="season-plate-figure"><span class="season-plate-margin">${esc(plate.margin)}</span> <span>${esc(plate.sentence)}</span></p>` : ''}</div>`
-    : ''
+// the pair of the team they won with, or in ink where none is on record; and
+// home's season being run (VD-109), with its last race beside it (`aside`,
+// HTML) under the same rule.
+const seasonPlateHtml = (plate, aside = '') => {
+  if (!plate) return ''
+  const champion = `<p class="season-plate-label">${liveryMark(plate.colour, true)}${esc(plate.label)}${
+    plate.team ? ` · ${plate.teamHref ? link(plate.teamHref, plate.team) : esc(plate.team)}` : ''
+  }</p><p class="season-plate-name">${plate.href ? link(plate.href, plate.name) : esc(plate.name)}</p>${
+    plate.margin || plate.sentence
+      ? `<p class="season-plate-figure">${plate.margin ? `<span class="season-plate-margin">${esc(plate.margin)}</span> ` : ''}<span>${esc(plate.sentence)}</span></p>`
+      : ''
+  }`
+  const split = aside ? ' season-plate-split' : ''
+  return `<div class="${plate.colour ? `season-plate livery-series${split}" style="${pairStyle(plate.colour)}` : `season-plate season-plate-none${split}`}">${
+    aside ? `<div class="season-plate-main">${champion}</div>${aside}` : champion
+  }</div>`
+}
 
 // A driver's or a constructor's livery band, as components/LiveryScheme.jsx
 // draws it and from the same words (lib/liveries.js bandWords, VD-79): the
@@ -3187,6 +3196,11 @@ const TITLE = currentTitle(fightRows, META.built)
     ),
   })
 
+  // The season plate (VD-109), as Home.jsx works it out from the same rows,
+  // and what the next race still says of the titles beside it.
+  const plate = homePlate({ now, lead, title: TITLE })
+  const ahead = homeAhead(TITLE, upcoming, plate?.said)
+
   // The winning car's colour, as Home.jsx takes it from the same row.
   const winner = latest
     ? colourForEntry({
@@ -3203,7 +3217,8 @@ const TITLE = currentTitle(fightRows, META.built)
   const cycleSessions = all(HOME_NEXT_SESSIONS)
   const cycle = homeCycle({ now, latest, next: upcoming, sessions: cycleSessions }, STATIC_NOW)
   const lap = cycle.state === CYCLE.weekend ? lapLayout(upcoming.outline, cycleSessions, STATIC_NOW) : null
-  const steps = cycle.state === CYCLE.results ? podium(all(PODIUM)) : null
+  // The last race's podium, in every state of the cycle (VD-109).
+  const steps = latest ? lastPodium(all(PODIUM)) : null
   const reach =
     cycle.state === CYCLE.results && TITLE
       ? (reachFigures(TITLE, TITLE.year, teamsByDriver(all(FIGHT_TEAMS)))[0] ?? null)
@@ -3215,16 +3230,16 @@ const TITLE = currentTitle(fightRows, META.built)
   const racePlace = (race) =>
     `<p class="muted small">${[race.circuit ? esc(race.circuit) : null, raceDates(race) ? raceDatesHtml(race) : null].filter(Boolean).join(' \u00b7 ')}</p>`
 
-  const lastPanel = `<div class="round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>${
-    latest && steps
-      ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
+  // Home.jsx's LastRace: beside the champion on the plate, or in the season
+  // block where there is no plate.
+  const lastPanel = !latest
+    ? ''
+    : `<div class="round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p><h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
         ${racePlace(latest)}
-        ${podiumHtml(steps)}
-        <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p>`
-      : latest
-      ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
-        <p class="muted small">${[latest.circuit ? esc(latest.circuit) : null, raceDates(latest) ? raceDatesHtml(latest) : null].filter(Boolean).join(' \u00b7 ')}</p>
-        <p>${esc(WON_BY)}${
+        ${
+          steps
+            ? podiumHtml(steps)
+            : `<p>${esc(WON_BY)}${
           latest.winner_id ? link(`drivers/${latest.winner_id}`, latest.winner) : esc(UNRECORDED_WINNER)
         }${
           latest.constructor
@@ -3234,10 +3249,9 @@ const TITLE = currentTitle(fightRows, META.built)
                   : `<span>${esc(latest.constructor)}</span>`
               }</span>`
             : ''
-        }.</p>
-        <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p>`
-      : ''
-  }</div>`
+        }.</p>`
+        }
+        <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p></div>`
 
   // Both panels read `now`, and the block they sit in is drawn only where
   // there is a season being run, so neither is built without one.
@@ -3261,25 +3275,32 @@ const TITLE = currentTitle(fightRows, META.built)
                 })
                 .join('')}</ol>`
             : ''
-        }${fightAhead(TITLE, upcoming) ? `\n        <p>${esc(fightAhead(TITLE, upcoming))}</p>` : ''}
+        }${ahead ? `\n        <p>${esc(ahead)}</p>` : ''}
         <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
       : upcoming
       ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
         <p class="muted small">${raceDatesHtml(upcoming)} \u00b7 round ${esc(upcoming.round)}</p>
-        <p class="muted">${esc(stillToRunNote(now))}</p>${fightAhead(TITLE, upcoming) ? `\n        <p>${esc(fightAhead(TITLE, upcoming))}</p>` : ''}
+        <p class="muted">${esc(stillToRunNote(now))}</p>${ahead ? `\n        <p>${esc(ahead)}</p>` : ''}
         <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
       : `<p class="muted">${esc(seasonComplete(now.year))}</p>${
           after ? `<p>${link(`seasons/${after}`, calendarLink(after))}</p>` : `<p class="muted">${esc(NOTHING_SCHEDULED)}</p>`
         }`
   }</div>`
 
-  // Its own <section>, as the tiles above it are, so that the slot written
-  // after it stands at the page's top level rather than being taken into the
-  // section its h2 would otherwise start (sectioned()).
+  // The plate's section (VD-109): the season plate with the last race
+  // beside it, then what the database holds, in a line - Home.jsx's
+  // HoldingsLine.
+  const plateBlock = `<section class="section">${seasonPlateHtml(plate, lastPanel)}
+      <p class="db-line">${esc(DB_LINE_LEAD)}${dbLine(shape)
+        .map((part) => `<b>${esc(part.value)}</b> ${esc(part.words)}`)
+        .join(' \u00b7 ')}. ${link(DB_LINE_LINK.to.replace(/^\//, ''), DB_LINE_LINK.text)}</p></section>`
+
+  // Its own <section>, as the plate's is, so that nothing after it is taken
+  // into the section its h2 would otherwise start (sectioned()).
   const seasonBlock = now
     ? `<section class="section">${heading(seasonHeading(now.year))}
-      ${tiles(seasonStrip(now, lead))}
-      <div class="split">${lastPanel}${nextPanel}</div>${
+      ${tiles(seasonStrip(now, plate))}
+      <div class="split">${plate ? '' : lastPanel}${nextPanel}</div>${
         reach
           ? `<div class="figure-part"><h3>${esc(reachHeading(reach.title))}</h3>${figure(
               reachHeading(reach.title),
@@ -3301,7 +3322,7 @@ const TITLE = currentTitle(fightRows, META.built)
       <p class="season-more">${link(`seasons/${now.year}`, seasonLink(now.year))}</p></section>`
     : ''
 
-  // The opening slot (VD-92), as Home.jsx writes it: after the season block.
+  // The opening slot (VD-92), as Home.jsx writes it: after the plate.
   const opening = openingRace(latest, upcoming, now)
   const caption = opening ? openingCaption(opening) : null
   const openingSlot = slot(
@@ -3332,9 +3353,9 @@ const TITLE = currentTitle(fightRows, META.built)
     body: `
       <h1>${esc(headline)}</h1>
       <p class="lede">${esc(HOME_LEDE)}</p>
-      <section class="section">${tiles(homeStrip(shape))}</section>
-      ${seasonBlock}
+      ${plateBlock}
       ${openingSlot}
+      ${seasonBlock}
       ${heading(BOARD_HEADING)}
       <p class="note">${esc(BOARD_NOTE)}</p>
       <div class="board index">${BOARD.map(

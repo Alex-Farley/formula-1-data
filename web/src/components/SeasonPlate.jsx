@@ -9,14 +9,21 @@ import { ownColour } from '../charts/own.js'
  * value as a chart series does - or in ink where no colour is on record.
  * The label names the team in words beside its mark, so the colour is never
  * the only cue. scripts/prerender.js writes the same markup. One component:
- * home's opening (VD-109) and a constructor's ribbon (VD-115) are to be
- * built on it.
+ * home's opening (VD-109, queries/home.js homePlate) is built on it, and a
+ * constructor's ribbon (VD-115) is to be.
+ *
+ * `aside` is what stands beside the champion under the same rule, from
+ * 1180 px in the slot's column: home's last race and its podium (VD-109).
+ * A sentence with no margin - a lead level on points - is printed alone.
  */
-export default function SeasonPlate({ plate }) {
+export default function SeasonPlate({ plate, aside = null }) {
   if (!plate) return null
   const own = ownColour(plate.colour)
-  return (
-    <div className={own.className ? `season-plate ${own.className}` : 'season-plate season-plate-none'} style={own.style}>
+  const classes = [own.className ? `season-plate ${own.className}` : 'season-plate season-plate-none', aside ? 'season-plate-split' : null]
+    .filter(Boolean)
+    .join(' ')
+  const champion = (
+    <>
       <p className="season-plate-label">
         {plate.colour && <LiveryMark colour={plate.colour} prose />}
         {plate.label}
@@ -27,13 +34,28 @@ export default function SeasonPlate({ plate }) {
           </>
         )}
       </p>
-      <p className="season-plate-name">
-        <Link to={`/${plate.href}`}>{plate.name}</Link>
-      </p>
-      {plate.margin && (
+      <p className="season-plate-name">{plate.href ? <Link to={`/${plate.href}`}>{plate.name}</Link> : plate.name}</p>
+      {(plate.margin || plate.sentence) && (
         <p className="season-plate-figure">
-          <span className="season-plate-margin">{plate.margin}</span> <span>{plate.sentence}</span>
+          {plate.margin && (
+            <>
+              <span className="season-plate-margin">{plate.margin}</span>{' '}
+            </>
+          )}
+          <span>{plate.sentence}</span>
         </p>
+      )}
+    </>
+  )
+  return (
+    <div className={classes} style={own.style}>
+      {aside ? (
+        <>
+          <div className="season-plate-main">{champion}</div>
+          {aside}
+        </>
+      ) : (
+        champion
       )}
     </div>
   )

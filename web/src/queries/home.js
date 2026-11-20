@@ -23,15 +23,18 @@
  *     is split around it, as UNCHECKED_NOTE and ABOUT_REPOSITORY already are
  *     in lib/site.js, so the words are still decided once.
  */
-import { inWords, number, raceDates } from '../lib/format.js'
+import { inWords, missing, number, points, raceDates } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
+import { podium } from '../lib/podium.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 import { ON_A_CAR_PAGE } from './car.js'
 import { STARTS } from './circuit.js'
-import { DRIVER_TEAMS } from './season.js'
+import { podiumStart } from './race.js'
+import { DRIVER_TEAMS, SEASON_PLATE_LABEL, fightAhead } from './season.js'
 import { raceStage } from './sessions.js'
 
-/** The counts the opening strip and the board are built from. */
+/** The counts the line under the season plate (VD-109) and the board are built from. */
 export const SHAPE = `
   SELECT
     (SELECT COUNT(*) FROM races WHERE status = 'completed') AS races_run,
@@ -40,6 +43,7 @@ export const SHAPE = `
     (SELECT COUNT(*) FROM qualifying)     AS qualifying,
     (SELECT COUNT(*) FROM standings)      AS standings,
     (SELECT COUNT(*) FROM pit_stops)      AS pit_stops,
+    (SELECT MIN(r.year) FROM pit_stops p JOIN races r ON r.id = p.race_id) AS pit_stops_from,
     (SELECT COUNT(DISTINCT driver_id) FROM race_entries) AS drivers,
     (SELECT COUNT(*) FROM constructors)   AS constructors,
     (SELECT COUNT(*) FROM chassis)        AS chassis,
@@ -146,13 +150,29 @@ export const SEASON_NOW = `
  * rows, because the gap is the second thing a reader wants and it is not a
  * fact about either row on its own. A position nobody established is not a
  * lead, so the rows without one are left out.
+ *
+ * Each row carries the team the season plate (VD-109) wears: for the
+ * champion on the record, the team the record says they won it with, as the
+ * season page's plate takes it; for anyone else, the team of their latest
+ * race entry of the season. No entry and no record, and the plate is drawn
+ * in ink with no team named.
  */
 export const SEASON_LEAD = `
-  WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
-  SELECT f.entity, f.driver_id, f.team, f.points
-    FROM v_standings_final f, now n
-   WHERE f.year = n.year AND f.table_type = 'drivers' AND f.position IS NOT NULL
-   ORDER BY f.position LIMIT 2
+  WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season'),
+  lead AS (
+    SELECT f.entity, f.driver_id, f.team, f.points, f.position, n.year
+      FROM v_standings_final f, now n
+     WHERE f.year = n.year AND f.table_type = 'drivers' AND f.position IS NOT NULL
+     ORDER BY f.position LIMIT 2)
+  SELECT l.entity, l.driver_id, l.team, l.points,
+         k.id AS constructor_id, k.name AS constructor, k.country AS constructor_country
+    FROM lead l
+    LEFT JOIN constructors k ON k.id = COALESCE(
+           (SELECT s.champion_team FROM seasons s WHERE s.year = l.year AND s.drivers_champion = l.driver_id),
+           (SELECT e.constructor_id FROM race_entries e JOIN races r ON r.id = e.race_id
+             WHERE r.year = l.year AND e.driver_id = l.driver_id
+             ORDER BY r.round DESC, e.id DESC LIMIT 1))
+   ORDER BY l.position
 `
 
 /**
@@ -171,66 +191,144 @@ export const LEDE =
   'Silverstone in May 1950 to the calendar still to be run. Search it, sort it, or write your own ' +
   'SQL. It all runs in this tab, so it is quick, and nothing you search for is sent as you type it.'
 
-/** The opening strip, as components/Page.jsx's <Stats> and prerender's stats() draw it. */
-export const strip = (shape) => [
-  { label: 'Races run', value: number(shape.races_run), note: `${shape.from_year}–${shape.to_year}` },
-  { label: LABELS.entries, value: number(shape.entries), note: 'one row per driver per race' },
-  { label: 'Qualifying rows', value: number(shape.qualifying) },
-  { label: 'Standings rows', value: number(shape.standings), note: 'after every round' },
-  { label: 'Pit stops', value: number(shape.pit_stops), note: 'from 1994' },
-  { label: 'Photographs', value: number(shape.images), note: 'of cars, linked from Wikimedia Commons' },
-]
+/**
+ * What the database holds, as one quiet line under the season plate
+ * (VD-109): the six counts the opening strip used to stand as tiles, which
+ * described the inventory rather than the season, and the way to how far
+ * they can be trusted. Each part is `{ value, words }`, the figure set in
+ * bold by each renderer; `from` is dropped where the table holds no year to
+ * count from, rather than printed as nothing.
+ */
+export const DB_LINE_LEAD = 'In the database: '
+export const DB_LINE_LINK = { to: '/data/quality', text: 'How far to trust it →' }
+export const dbLine = (shape) => {
+  const since = (year) => (missing(year) ? '' : ` since ${year}`)
+  return [
+    { value: number(shape.races_run), words: `races run${since(shape.from_year)}` },
+    { value: number(shape.entries), words: LABELS.entries.toLowerCase() },
+    { value: number(shape.qualifying), words: 'qualifying rows' },
+    { value: number(shape.standings), words: 'standings rows' },
+    { value: number(shape.pit_stops), words: `pit stops${since(shape.pit_stops_from)}` },
+    { value: number(shape.images), words: 'photographs of cars' },
+  ]
+}
+
+/**
+ * The season plate on home (VD-109; design-system.md section 3, *Season
+ * cycle*): components/SeasonPlate.jsx's shape, which the season page's
+ * concluded plate (queries/season.js seasonPlate) fills too, for the season
+ * being run. `now` is SEASON_NOW's row, `lead` SEASON_LEAD's two and
+ * `title` currentTitle()'s answer, or null.
+ *
+ *   label     "2026 World Champion" once the record names the leader the
+ *             champion, and "Leading the 2026 championship" until then;
+ *   margin    the leader's points less the runner-up's, at the hero size,
+ *             since the margin is the season's figure and a name is never
+ *             a hero (section 2, *Type*) - null where either total is not
+ *             established, or the two are level;
+ *   sentence  what the margin is, after how many rounds, and where each
+ *             title on the record with rounds to run was settled
+ *             (crownedTitles(), whose clinchRound() names the race; where
+ *             it declines, the constructors' clause stops at the title);
+ *   said      the titles the plate states, so the next race's panel does
+ *             not say them a second time (homeAhead).
+ *
+ * Null with no round run or nobody on the table: nobody leads a calendar,
+ * and the season block keeps its rounds tile instead.
+ */
+export const LEADING_LABEL = (year) => `Leading the ${year} championship`
+export function homePlate({ now, lead, title }) {
+  const [first, second] = lead ?? []
+  if (!now || !(now.run > 0) || !first) return null
+  const champion = !missing(now.champion) && now.champion === first.driver_id
+  const gap = second && !missing(first.points) && !missing(second.points) ? first.points - second.points : null
+  const after = now.run === now.rounds ? `after all ${number(now.rounds)} rounds` : `after ${number(now.run)} of ${number(now.rounds)} rounds`
+  const crowned = title?.year === now.year ? title.crowned : null
+  const raceAt = (round) => title.rounds?.find((r) => r.round === round)?.name_used ?? null
+  const said = []
+  const settled = []
+  const drivers = crowned?.drivers
+  if (champion && drivers?.id === first.driver_id) {
+    said.push('drivers')
+    if (drivers.round && raceAt(drivers.round)) settled.push(`The title was settled at the ${raceAt(drivers.round)}, round ${number(drivers.round)}.`)
+  }
+  const teams = crowned?.constructors
+  if (teams?.name) {
+    said.push('constructors')
+    settled.push(
+      teams.round && raceAt(teams.round)
+        ? `${teams.name} took the constructors' title at the ${raceAt(teams.round)}, round ${number(teams.round)}.`
+        : `${teams.name} took the constructors' title.`,
+    )
+  }
+  const standing =
+    gap === null || gap < 0
+      ? null
+      : gap === 0
+        ? `Level on points with ${second.entity} ${after}.`
+        : `${gap === 1 ? 'point' : 'points'} clear of ${second.entity} ${after}.`
+  const sentence = [standing, ...settled].filter(Boolean).join(' ')
+  return {
+    label: champion ? SEASON_PLATE_LABEL(now.year) : LEADING_LABEL(now.year),
+    team: first.constructor ?? null,
+    teamHref: first.constructor_id ? `constructors/${first.constructor_id}` : null,
+    name: first.entity,
+    href: first.driver_id ? `drivers/${first.driver_id}` : null,
+    margin: gap !== null && gap > 0 ? points(gap) : null,
+    sentence: sentence || null,
+    colour: first.constructor_id
+      ? colourForEntry({ constructorId: first.constructor_id, country: first.constructor_country, year: now.year, team: first.constructor })
+      : null,
+    said,
+  }
+}
+
+/**
+ * What the next race's panel says of the titles (AF-132's fightAhead), less
+ * what the season plate has already said (VD-109): each title on the record
+ * the plate states is left out, and what is still fought stays. Null where
+ * nothing is left to say.
+ */
+export const homeAhead = (title, race, said = []) => {
+  if (!fightAhead(title, race)) return null
+  if (!title.crowned) return title.who
+  const unsaid = ['drivers', 'constructors'].filter((kind) => title.crowned[kind] && !said.includes(kind)).map((kind) => title.crowned[kind].line)
+  return [...unsaid, title.fought].filter(Boolean).join(' ') || null
+}
 
 export const seasonHeading = (year) => `The ${year} season`
 
 /**
- * What is happening this season, in three figures (PD-48).
+ * What is happening this season, in tiles (PD-48), under the season plate
+ * (VD-109), which says who leads it, by how much and after how many rounds.
  *
  * The home page is where a reader arrives first and it named none of it: the
  * season page opens on who is in the cars and the registers all filter on
  * this year, and `/` said only what the whole database holds.
  *
- * A season with no round run yet gets the rounds tile as NOT_YET_RUN rather
- * than as "0 of 24" - a calendar is not a record of nothing, which is the
- * same distinction IA-17 draws on /seasons - and no leader, because there
- * is nobody leading.
+ * With a plate the strip is who is in the cars: the plate's sentence counts
+ * the rounds, and its margin is the page's hero figure. Without one - no
+ * round run yet, or nobody on the table - the rounds tile leads again: a
+ * season with no round run gets it as NOT_YET_RUN rather than as "0 of 24"
+ * (a calendar is not a record of nothing, which is the same distinction
+ * IA-17 draws on /seasons).
  */
-export const seasonStrip = (now, lead) => {
+export const seasonStrip = (now, plate) => {
   if (!now) return []
-  const [first, second] = lead ?? []
   // COUNT(*) over the rounds, so never NULL: a season with no round run
   // counts 0, and 0 is the answer rather than a missing one.
   const started = now.run > 0
-  const gap = first && second ? first.points - second.points : null
   return [
-    {
-      label: 'Rounds run',
-      value: started ? `${number(now.run)} of ${number(now.rounds)}` : NOT_YET_RUN,
-      note: started ? null : `${number(now.rounds)} on the calendar`,
-      lead: true,
-    },
-    started && first
-      ? {
-          // "Leading" only while there is something to lead: once the season
-          // has a champion on the record, the same row is the champion, and
-          // a tile still calling them the leader would restate as open a
-          // question the season page next door has settled.
-          label: now.champion ? 'Champion' : 'Leading the championship',
-          value: first.entity,
-          kind: 'name',
-          note: leadNote(first, gap),
+    plate
+      ? null
+      : {
+          label: 'Rounds run',
+          value: started ? `${number(now.run)} of ${number(now.rounds)}` : NOT_YET_RUN,
+          note: started ? null : `${number(now.rounds)} on the calendar`,
           lead: true,
-        }
-      : null,
+        },
     { label: 'On the grid', value: number(now.seats), note: `${number(now.teams)} teams` },
   ].filter(Boolean)
-}
-
-/** "312 points, 24 clear" — and never "0 clear", which is level. */
-const leadNote = (first, gap) => {
-  const points = `${number(first.points)} points`
-  if (gap === null || gap === undefined) return points
-  return gap > 0 ? `${points}, ${number(gap)} clear` : `${points}, level at the top`
 }
 
 export const seasonLink = (year) => `Open the ${year} season — the grid, the calendar and the standings →`
@@ -595,12 +693,16 @@ export const reading = (shape) => [
  *             its sessions with their times; once the race itself is over
  *             and the database does not hold it yet, a line saying so
  *   results   from a result landing until RESULTS_DAYS after its race:
- *             the podium, the title fight's reach chart, and the next round
+ *             the title fight's reach chart, and the next round
  *   off       no round of the season being run is still to come: the block
  *             as it was, the last race and the season complete
+ *
+ * The last race's podium stands in every state (VD-109): beside the season
+ * plate, or in the block where there is no plate. It led the block in the
+ * results state alone until then, and the last race shrank to a sentence.
  */
 
-/** Days after a race's day (`date_iso`, UTC) its podium leads the block. */
+/** Days after a race's day (`date_iso`, UTC) the block draws the reach chart. */
 export const RESULTS_DAYS = 3
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -625,9 +727,9 @@ export const NEXT_SESSIONS = `
  *
  * The weekend opens at the round's first session, or, where it has no
  * timetable, at the start of its first day (`date_from`, read as UTC) or
- * wherever raceStage() says its race has started, whichever is first. A podium
- * leads only for a result of the season being run, so last year's finale
- * is never this year's news.
+ * wherever raceStage() says its race has started, whichever is first. The
+ * results state is only ever for a result of the season being run, so last
+ * year's finale is never this year's news.
  */
 export function homeCycle({ now, latest, next, sessions = [] }, clock) {
   if (!now || !next) return { state: CYCLE.off, run: false }
@@ -670,12 +772,13 @@ export const sessionsClock = (zone) => (zone ? `Start times, your time (${zone.r
 /**
  * The top three of the last race run, for the podium (lib/podium.js's
  * podium(), which declines a place held by two entries or by none, and the
- * block then keeps its sentence).
+ * panel then keeps its sentence), with where each started (lastPodium).
  */
 export const PODIUM = `
   WITH last AS (SELECT id, year FROM races WHERE status = 'completed' ORDER BY year DESC, round DESC LIMIT 1)
   SELECT e.finish_position AS position, e.driver_id, d.full_name AS driver,
-         e.constructor_id, k.name AS constructor, k.country AS constructor_country, l.year
+         e.constructor_id, k.name AS constructor, k.country AS constructor_country, l.year,
+         e.grid, e.grid_text, e.pole
     FROM race_entries e
     JOIN last l ON l.id = e.race_id
     LEFT JOIN drivers d ON d.id = e.driver_id
@@ -687,6 +790,13 @@ export const PODIUM = `
 // The steps themselves are lib/podium.js's, which a race page's slabs stand
 // as well (VD-108); home's modules and tests read them from here.
 export { PODIUM_LABEL, podium } from '../lib/podium.js'
+
+/**
+ * The last race's steps from PODIUM's rows, each adding where its driver
+ * started as a race page's slab says it (VD-109; queries/race.js
+ * podiumStart): *McLaren · from pole*, *Red Bull Racing · from 21st*.
+ */
+export const lastPodium = (rows) => podium((rows ?? []).map((r) => ({ ...r, start: podiumStart(r) })))
 
 /** The heading over the reach chart in the results state: which title it is. */
 export const reachHeading = (title) => `Who can still win ${title.replace(/^The /, 'the ')}`

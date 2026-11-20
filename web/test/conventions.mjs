@@ -2685,14 +2685,17 @@ describe('one vocabulary: tile labels and provenance headings come from one list
     }
     assert.deepEqual(offenders, [], 'a tile label off the one vocabulary')
     // 12 since VD-112, which opened a record's page on its figure and took
-    // its recordStrip away.
-    assert.ok(strips.length >= 12, `the scan found the strips it is guarding, ${strips.length} of them`)
+    // its recordStrip away; 11 since VD-109, which opened home on its season
+    // plate and took home's strip of row counts away.
+    assert.ok(strips.length >= 11, `the scan found the strips it is guarding, ${strips.length} of them`)
     assert.ok(
       strips.some(({ file, name }) => rel(file).endsWith('queries/driver.js') && name === 'strip'),
       "and the driver's, which is a function",
     )
+    // 6 since VD-109: home's strip read LABELS.entries, and its line of
+    // counts under the plate (queries/home.js dbLine) still does.
     assert.ok(
-      strips.filter(({ body }) => /\bLABELS\.\w+/.test(body)).length >= 7,
+      strips.filter(({ body }) => /\bLABELS\.\w+/.test(body)).length >= 6,
       'and the entity strips read the list',
     )
   })

@@ -142,12 +142,14 @@ The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
 nowhere** (visual V7). DP-10 kept them for the one hero figure per page,
 which VD-84 set: the first lead figure of a ranked tile strip (a driver's, a
-team's or a car's wins, the rounds run on the home page;
+team's or a car's wins;
 the season, race and circuit strips rank nothing and have none), at
 `--size-9` on a phone,
 `--size-10` from `--bp-tablet` and `--size-11` from `--bp-desktop`, beside
 the opening band. A concluded season's is the margin on its plate (VD-104,
-§3 *Season cycle*). A second lead keeps `--size-8`, so a page has one hero and
+§3 *Season cycle*), and so is home's: the leader's margin over the
+runner-up on the plate of the season being run (VD-109, `[D-69]`), or the
+rounds run where nobody leads it yet. A second lead keeps `--size-8`, so a page has one hero and
 not two, and a name is never one. `conventions.mjs` now declares no token
 unused.
 
@@ -425,8 +427,8 @@ the tiles below that. What fills it:
   (`openingRace` in `queries/home.js`, read off the database and never a
   clock, so both renderers choose the same race). Where the one chosen has
   no drawing the other takes the slot, and with neither the header keeps the
-  width. It is written after the season block, as a race's is after its
-  classification, so below 1180 it follows the panel that names the race.
+  width. It is written after the season plate (VD-109), as a race's is after
+  its classification, so below 1180 it follows the panel that names the race.
 
 A picture is `<Slot>` in the app and `slot()` in `prerender.js`, the same
 `div.slot`. A lead chart is `<Section lead>` in the app and `leadFigure()` in
@@ -1443,7 +1445,7 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
-### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); core: the podium, on home and every race page (VD-108 #1330), its race page's form the stepped slabs; pending: the season plate (VD-109 #1331, VD-115 #1337)
+### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); core: the podium, on home and every race page (VD-108 #1330), its race page's form the stepped slabs; the season plate, on the season page and home (VD-104 #1239, VD-109 #1331); pending: the plate on a constructor's page (VD-115 #1337)
 
 Home's season block follows the calendar while the season being run has a
 round to come, in three states worked out from the database and a clock —
@@ -1452,11 +1454,16 @@ the reader's in the app, the build's day in the prerender (`homeCycle` in
 
 | State | When | The two panels, and what follows them |
 |---|---|---|
-| Preview | from the end of the results state to the next round's first session | *Last race run* and *Next on the calendar*, as before; the next circuit's *Where winners start* figure |
-| Weekend | from that first session (its first day, where it has no timetable) until the result is in the database | *Last race run* and *This weekend*: once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the **weekend lap**, and under it the round's sessions as a list, its start times in UTC on the static page and in the reader's time in the app; the history figure |
-| Results | from the result landing to the end of the third day after the race | the **podium** in place of the winner's sentence, and *Next on the calendar*; the reach chart of the first title still fought (AF-132's); the history figure |
+| Preview | from the end of the results state to the next round's first session | *Next on the calendar*; the next circuit's *Where winners start* figure |
+| Weekend | from that first session (its first day, where it has no timetable) until the result is in the database | *This weekend*: once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the **weekend lap**, and under it the round's sessions as a list, its start times in UTC on the static page and in the reader's time in the app; the history figure |
+| Results | from the result landing to the end of the third day after the race | *Next on the calendar*; the reach chart of the first title still fought (AF-132's); the history figure |
 
-With no round to come, the block is as it was. Its parts are the system's
+*Last race run* stands in every state (VD-109, `[D-69]`): beside the
+champion on the season plate the page opens on, or in the block beside the
+next round where there is no plate, and with its **podium** wherever one can
+be drawn — until VD-109 the podium led in the results state alone, and the
+rest of the cycle shrank the last race to its winner's sentence. With no
+round to come, the block is as it was. Its parts are the system's
 own — the round panels, `FigurePart`, `Figure`, AF-132's reach chart and
 AF-133's grid — and these are new:
 
@@ -1468,7 +1475,10 @@ AF-133's grid — and these are new:
   none is on record, so colour is never the only cue. Heights are spacing
   tokens. A place held by two entries or by none is not drawn: the panel
   keeps its sentence. Race gaps are not shown: the database holds no
-  race times (AF-157 #1252). One component in each renderer,
+  race times (AF-157 #1252). Home's steps say where each driver started
+  under the team, as a race page's slabs do — *McLaren · from pole* —
+  from the same `podiumStart` (`lastPodium` in `queries/home.js`, VD-109).
+  One component in each renderer,
   `components/Podium.jsx` and `podiumHtml()` in `prerender.js`.
   **Core** since its second page (VD-108 #1330, §8 *Promoting*): every race
   page draws the same three, from the same `podium()` in `lib/podium.js`,
@@ -1515,9 +1525,9 @@ AF-133's grid — and these are new:
     podium is drawn and the strip stands, its Winner tile with it.
   - One component in each renderer, `components/RacePodium.jsx` and
     `racePodiumBlock()` in `prerender.js`, from `slab()` in `lib/podium.js`.
-- **The season plate** — provisional on the season page (VD-104 #1239
-  (c)); pending on home (VD-109 #1331) and a constructor's page (VD-115
-  #1337). One component, `SeasonPlate`: a 4 px rule (`--space-2`) in the
+- **The season plate** — **core** since its second page (§8 *Promoting*):
+  the season page (VD-104 #1239 (c)) and home (VD-109 #1331); pending on a
+  constructor's page (VD-115 #1337). One component, `SeasonPlate`: a 4 px rule (`--space-2`) in the
   champion's team pair, `.livery-series` choosing the light or the dark
   value as a series does, or in ink where no colour is on record (1968 to
   2009, or a team with none sourced); the label, *2021 World Champion ·
@@ -1535,11 +1545,30 @@ AF-133's grid — and these are new:
   both, *Margin* showing the em dash. The margin is the page's one hero figure, since the season strip
   is not ranked. No accent (D-61). `seasonPlate` in `queries/season.js`
   gives both renderers the plate; `units.mjs` holds it and the strip it
-  trims, `smoke.mjs` the plate and the strip in both halves. Home opens on
-  it in place of the six row counts, which become one quiet line (VD-109,
-  `docs/critiques/2026-11-13-visual-design/P01-home-season-plate.html`); a
-  constructor page runs it season by season as a livery ribbon (VD-115,
-  `P08-constructor-livery-ribbon.html`), built on this component.
+  trims, `smoke.mjs` the plate and the strip in both halves. A
+  constructor page is to run it season by season as a livery ribbon
+  (VD-115, `P08-constructor-livery-ribbon.html`), built on this component.
+  - **On home** (VD-109, `[D-69]`,
+    `docs/critiques/2026-11-13-visual-design/P01-home-season-plate.html`):
+    the season being run, from the first round run, in place of the six
+    row counts the page opened on. The label is *Leading the 2026
+    championship* until the record names the leader the champion, then
+    *2026 World Champion*, with the team of the leader's latest race entry
+    of the season (the record's for the champion); the margin is the
+    leader's points less the runner-up's in the standings, beside *points
+    clear of Max Verstappen after 20 of 23 rounds*, then, for each title on
+    the record with rounds to run, where it was settled (*The title was
+    settled at the Mexico City Grand Prix, round 19. Mercedes took the
+    constructors' title at the Sao Paulo Grand Prix, round 20.*), which the
+    next race's panel then does not say again (`homePlate` and `homeAhead`
+    in `queries/home.js`). Level on points, it prints the sentence and no
+    figure; a total not established, neither. Beside the champion, under
+    the same rule, *Last race run* and its podium, from 1180 px in the
+    slot's column (`aside`, `.season-plate-split`), and under them both.
+    The six counts follow as one line, the figures in the ink and the words
+    in the soft ink at `--size-4`, ending *How far to trust it →* to
+    `/data/quality` (`dbLine`). With nobody leading — no round run yet —
+    there is no plate, and the block's rounds tile leads as it did.
 - **The weekend lap** (AF-156 #1250). The round's outline, `Outline`
   itself with the marks as its children, so a drawing with stops on it is
   still the one outline component (VD-92's), drawn faint and dashed as the
@@ -1776,7 +1805,7 @@ this Grand Prix's winners start* between *Most wins* and *Every edition*
   its end, as the reach chart already does below 480 px; from 768 nothing
   changes.
 
-Home's opening is under *Season cycle* (the season plate, VD-109), and its
+Home's opening is under *Season cycle* (the season plate, built by VD-109), and its
 *Where winners start* figure takes the drawing's width rather than 100 px of
 a 1,232 px frame (VD-116 #1338).
 

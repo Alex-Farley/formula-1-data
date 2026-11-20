@@ -1528,7 +1528,7 @@ export function crownedTitles({ season, year, remaining, standings, rounds, afte
     const round = counted && !missing(afterRound) ? clinchRound(title, kind, id) : null
     const race = (rounds ?? []).find((r) => r.round === round)?.name_used
     const at = race ? `, clinched at the ${race} (round ${number(round)})` : ''
-    return { id, round: race ? round : null, line: `${name} is the ${year} ${honour}${at}.` }
+    return { id, name: name ?? null, round: race ? round : null, line: `${name} is the ${year} ${honour}${at}.` }
   }
   const drivers = crowned('drivers', season?.drivers_champion, season?.champion, 'World Champion')
   const constructors = crowned(
@@ -1556,7 +1556,9 @@ export function seasonAnswer({ season, rounds, standings, ...args }) {
   const clinch = clinchStrips(answer, remaining, rounds)
   if (!crowned) return answer && { ...answer, clinch }
   const said = [crowned.drivers?.line, crowned.constructors?.line, answer?.who].filter(Boolean).join(' ')
-  return { basis: null, drivers: null, constructors: null, afterRound, year, ...answer, who: said, crowned, clinch }
+  // `fought` is `who` without the titles on the record: what home's next
+  // race still says once the season plate has stated them (VD-109).
+  return { basis: null, drivers: null, constructors: null, afterRound, year, ...answer, who: said, fought: answer?.who ?? null, crowned, clinch }
 }
 
 /**

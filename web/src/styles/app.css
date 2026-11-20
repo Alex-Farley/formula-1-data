@@ -5502,6 +5502,46 @@ figure.figure > .figure-note:first-child {
   }
 }
 
+/* Home's plate (VD-109): the season being run, with the last race and its
+   podium beside the champion under the same rule - from 1180 px in the
+   slot's column, so the panel's edge is the outline's above it, and under
+   the champion below that. */
+.season-plate-split {
+  display: grid;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+.season-plate-main > :first-child {
+  margin-top: 0;
+}
+
+@media (width >= 1180px) {
+  .season-plate-split {
+    grid-template-columns: minmax(0, 1fr) var(--span-5);
+    column-gap: var(--gutter);
+  }
+}
+
+/* What the database holds, in one quiet line under home's plate (VD-109):
+   the six counts that used to open the page as tiles, the figures in the
+   ink and the words in the soft ink, at the size of a note attached to a
+   box, since it is the plate's. */
+.db-line {
+  margin: 0;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--rule);
+  font-size: var(--size-4);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.db-line b {
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The key to a line (charts/Figure.jsx LineKey): a stroke in the series'
    dash, in the tooltip (AX-16). The round caps reach a
    pixel past the box. `.figure svg` sizes the plot to its column, so the key

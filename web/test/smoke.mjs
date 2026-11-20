@@ -85,7 +85,6 @@ import {
   REACH_HEADING,
   STAKE_HEADING,
   currentTitle,
-  fightAhead,
   fightCitation,
   fightLine,
   latestRound,
@@ -153,11 +152,16 @@ import {
   NEXT_SESSIONS as HOME_SESSIONS,
   PER_SEASON,
   PODIUM,
+  SHAPE as HOME_SHAPE,
+  SEASON_LEAD,
   SEASON_NOW,
   THIS_WEEKEND,
   chartNotes,
+  dbLine,
+  homeAhead,
   homeCycle,
-  podium,
+  homePlate,
+  lastPodium,
 } from '../src/queries/home.js'
 import { FORECAST_ORIGIN, FORECAST_LICENCE, forecastRequest, outlookDays, readForecast, sessionForecasts } from '../src/lib/forecast.js'
 import { LATEST as LATEST_RUN } from '../src/queries/races.js'
@@ -303,6 +307,9 @@ const count = (sql, ...args) => one(sql, ...args)
    calendar has moved it to, which is the app being right. Which state each
    half draws at its own clock is checked in '/  (overview)'. */
 const STATIC_NOW = Date.parse(`${one("SELECT value FROM meta WHERE key = 'built'")}T00:00Z`)
+// Home's season plate (VD-109), as both renderers work it out from the rows.
+const homePlateNow = () =>
+  homePlate({ now: db.prepare(SEASON_NOW).get() ?? null, lead: db.prepare(SEASON_LEAD).all(), title: currentFight() })
 const homeCycleAt = (clock) =>
   homeCycle(
     {
@@ -1700,11 +1707,51 @@ try {
 
   await section('/  (overview)', async () => {
     const racesRun = count("SELECT COUNT(*) FROM races WHERE status = 'completed'")
-    const homeStats = await page.$$eval('#root main .stats dd', (nodes) => nodes.map((n) => n.textContent))
-    truthy(
-      homeStats.some((value) => value.includes(racesRun.toLocaleString('en-GB'))),
-      `the overview leads with ${racesRun.toLocaleString('en-GB')} races run`,
-    )
+    // VD-109: the row counts are one line under the season plate, no longer
+    // the tiles the page opens on, and the plate is the season being run,
+    // the same in both halves.
+    const quietHome = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+    const stillHome = await quietHome.newPage()
+    await stillHome.goto(`${BASE}/`, { waitUntil: 'load' })
+    const plate = homePlateNow()
+    const shape = db.prepare(HOME_SHAPE).get()
+    const readPlate = (root) => {
+      const flat = (node) => (node?.textContent ?? '').replace(/\s+/g, ' ').trim()
+      const section = document.querySelector(`${root} .page > header + section.section`)
+      return {
+        tiles: section?.querySelectorAll('dl.stats').length ?? null,
+        label: flat(section?.querySelector('.season-plate-label')),
+        name: flat(section?.querySelector('.season-plate-name')),
+        nameHref: section?.querySelector('.season-plate-name a')?.getAttribute('href') ?? null,
+        margin: flat(section?.querySelector('.season-plate-margin')),
+        figure: flat(section?.querySelector('.season-plate-figure')),
+        aside: flat(section?.querySelector('.season-plate-split > .round-panel > .eyebrow')),
+        steps: [...(section?.querySelectorAll('.season-plate-split > .round-panel ol.podium > li .podium-team') ?? [])].map(flat),
+        line: flat(section?.querySelector(':scope > p.db-line')),
+        figures: [...(section?.querySelectorAll(':scope > p.db-line > b') ?? [])].map(flat),
+        trust: section?.querySelector(':scope > p.db-line > a')?.getAttribute('href') ?? null,
+      }
+    }
+    const steps = lastPodium(db.prepare(PODIUM).all())
+    for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', stillHome, '#prerendered main']]) {
+      const got = await tab.evaluate(readPlate, root)
+      is(got.tiles, 0, `/, ${half}: the page no longer opens on a strip of tiles`)
+      is(got.figures.join(' '), dbLine(shape).map((p) => p.value).join(' '), `/, ${half}: the line under the plate carries the six counts`)
+      truthy(got.figures[0] === racesRun.toLocaleString('en-GB'), `/, ${half}: and leads with ${racesRun.toLocaleString('en-GB')} races run`)
+      truthy(got.line.startsWith('In the database: ') && got.trust?.endsWith('data/quality'), `/, ${half}: and hands on to how far to trust it`)
+      if (!plate) {
+        is(got.label, '', `/, ${half}: no plate with nobody leading the season`)
+        continue
+      }
+      is(got.label, `${plate.label}${plate.team ? ` · ${plate.team}` : ''}`, `/, ${half}: the plate's label names the season and the team`)
+      is(got.name, plate.name, `/, ${half}: and the leader`)
+      truthy(!plate.href || got.nameHref?.endsWith(plate.href), `/, ${half}: linked to their page`)
+      is(got.margin, plate.margin ?? '', `/, ${half}: the margin is the plate's figure`)
+      is(got.figure, [plate.margin, plate.sentence].filter(Boolean).join(' '), `/, ${half}: beside its sentence`)
+      is(got.aside, 'Last race run', `/, ${half}: the last race stands beside the champion`)
+      is(got.steps.join(' / '), steps ? steps.map((s) => [s.constructor ?? '\u2014', s.start].filter(Boolean).join(' · ')).join(' / ') : '', `/, ${half}: its podium says where each driver started`)
+    }
+    await quietHome.close()
 
     // VD-93: one index, and no second grid of doors - the onward band that
     // stood under it - in either half.
@@ -1720,7 +1767,7 @@ try {
     // here from the database by the same function, and on the page by what
     // only that state draws: the podium, and the weekend's panel.
     {
-      const steps = podium(db.prepare(PODIUM).all())
+      const steps = lastPodium(db.prepare(PODIUM).all())
       const readCycle = (root) => ({
         podium: document.querySelectorAll(`${root} ol.podium > li`).length,
         weekend: [...document.querySelectorAll(`${root} .round-panel > .eyebrow`)].some((n) => n.textContent === 'This weekend'),
@@ -1737,7 +1784,7 @@ try {
       ]) {
         const { state } = homeCycleAt(clock)
         const got = await tab.evaluate(readCycle, root)
-        is(got.podium, state === CYCLE.results && steps ? 3 : 0, `/, ${half}: the podium stands only in the results state, and the state is ${state}`)
+        is(got.podium, steps ? 3 : 0, `/, ${half}: the last race's podium stands in every state (VD-109), and the state is ${state}`)
         is(got.weekend, state === CYCLE.weekend, `/, ${half}: the panel reads "${THIS_WEEKEND}" only in the weekend state`)
         if (state === CYCLE.weekend) {
           is(got.sessions, db.prepare(HOME_SESSIONS).all().length, `/, ${half}: and lists every session of the weekend`)
@@ -2558,7 +2605,7 @@ try {
       }
       clinchDrawn(half, `/seasons/${year}`, body)
     }
-    const ahead = fightAhead(title, { year: one(`SELECT year FROM races WHERE year = ? AND status = 'scheduled' ORDER BY round LIMIT 1`, year) })
+    const ahead = homeAhead(title, { year: one(`SELECT year FROM races WHERE year = ? AND status = 'scheduled' ORDER BY round LIMIT 1`, year) }, homePlateNow()?.said)
     for (const [half, body] of await both('/')) {
       if (ahead) is(body.split(ahead).length - 1, 1, `the ${half} of the home page says who can still win once, under the next race`)
     }
@@ -2634,8 +2681,15 @@ try {
         truthy(!body.includes(reachTitle('drivers')), `and draws no reach chart for it`)
       }
     }
+    // Home's plate states each title on the record and where it was settled
+    // (VD-109), so the next race does not say it again.
+    const plate = homePlateNow()
     for (const [half, body] of await halves('/')) {
-      for (const { line } of lines) is(body.split(line).length - 1, 1, `the ${half} of the home page says it once, under the next race`)
+      for (const [kind, { line, round }] of Object.entries(crowned).filter(([, held]) => held)) {
+        const said = plate?.said.includes(kind)
+        is(body.split(line).length - 1, said ? 0 : 1, `the ${half} of the home page says the ${kind}' title ${said ? 'on its plate, not under the next race' : 'once, under the next race'}`)
+        if (said && round) truthy(plate.sentence.includes(`round ${round}.`) && body.includes(plate.sentence), `and the plate names round ${round}`)
+      }
     }
     for (const [kind, { id, line }] of Object.entries(crowned).filter(([, held]) => held)) {
       for (const [half, body] of await halves(`/${kind}/${id}`)) {
@@ -3784,8 +3838,10 @@ try {
       const before = slot?.previousElementSibling
       // The strip's last row of tiles, and the blank after its last tile; on
       // a race page that draws its podium, the slabs, which stand where the
-      // strip stood (VD-108).
-      const strip = tiles?.querySelector('.stats, .race-podium')
+      // strip stood (VD-108); on home, the season plate, which stands where
+      // its strip did (VD-109) - and only where the section has no strip, as
+      // a concluded season's plate stands above its own.
+      const strip = tiles?.querySelector('.stats, .race-podium') ?? tiles?.querySelector('.season-plate')
       const cells = [...(strip?.querySelectorAll(':scope > div, :scope > .race-slabs > li') ?? [])].map((tile) => tile.getBoundingClientRect())
       const lastTop = cells.length ? Math.max(...cells.map((b) => Math.round(b.top))) : null
       const lastRow = cells.filter((b) => Math.round(b.top) === lastTop)
@@ -3799,7 +3855,8 @@ try {
         // notes belong there (Season.jsx), and the static page once wrote a
         // car's story and a circuit's characteristics there, so the picture
         // fell below them before the handover and above them after it.
-        extra: tiles ? [...tiles.children].filter((n) => n !== strip && !n.contains(strip)).length : 0,
+        // Home's holds its plate and the line of counts under it (VD-109).
+        extra: tiles ? [...tiles.children].filter((n) => n !== strip && !n.contains(strip) && !n.matches('p.db-line')).length : 0,
         lastRow: lastRow.map((b) => b.width),
         blank: strip && lastRow.length ? strip.getBoundingClientRect().right - Math.max(...lastRow.map((b) => b.right)) : 0,
         plot: box(slot?.querySelector('svg[role="img"][aria-label]')),
@@ -3850,9 +3907,9 @@ try {
       // the rule, and there is no layouts section below.
       [`/circuits/${single.id}`, single.name, 'outline', 'tiles', true],
       ['/cars/lotus-72', name('cars', 'lotus-72', 'full_name'), 'photograph', 'tiles', true],
-      // Home (VD-92): a race's outline, written after the season block,
-      // whose h2 is "The <year> season", and the tiles' strip before both.
-      ['/', NAMES.home().headline, 'outline', 'The', true],
+      // Home (VD-92): a race's outline, written after the season plate
+      // (VD-109), which stands where the tiles' strip did.
+      ['/', NAMES.home().headline, 'outline', 'tiles', true],
     ]
     const FILLS = { chart: 'svg[role="img"]', outline: '.outline-card svg.outline', photograph: 'figure.photo img' }
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
