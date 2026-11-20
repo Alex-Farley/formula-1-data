@@ -607,7 +607,7 @@ export function winsByRace(entries) {
   }
   return [...byRace.values()].map((row) => ({
     ...row,
-    ...(row.drivers.length > 1 ? { driver: row.drivers.map((d) => d.name).join(TILE_JOIN) } : {}),
+    ...(row.drivers.length > 1 ? { driver: row.drivers.map((d) => d.name ?? EMPTY).join(TILE_JOIN) } : {}),
     ...(row.designs.length > 1 ? { chassis: row.designs.map((d) => d.name ?? d.id ?? EMPTY).join(TILE_JOIN) } : {}),
   }))
 }
