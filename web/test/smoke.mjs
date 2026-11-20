@@ -4753,6 +4753,75 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 })
   })
 
+  await section('/records  (the leaderboards on a phone: each name above its bar below 768, beside it from 768, the leader clear of the next: VD-114)', async () => {
+    /*
+     * docs/design-system.md section 3, *Figure* (BarChart). A 168 px name
+     * column on a 400 px phone left Hamilton's bar about 100 px long; below
+     * the tablet breakpoint each name now sits on its own line above its
+     * bar, which takes the plot's width, and the one bar that alone leads
+     * says how far clear it is after its value.
+     */
+    const read = () =>
+      [...document.querySelectorAll('#root main figure.figure .plot-holder > svg')]
+        .filter((svg) => svg.querySelector('.bar-label'))
+        .map((svg) => {
+          const box = svg.getBoundingClientRect()
+          const rows = [...svg.querySelectorAll('g')].filter((g) => g.querySelector(':scope > .bar-label')).map((g) => {
+            const r = (el) => el.getBoundingClientRect()
+            const name = r(g.querySelector('.bar-label'))
+            const bar = r(g.querySelector('path'))
+            const value = g.querySelector('.value-text')
+            return {
+              name: { left: name.left - box.left, right: name.right - box.left, top: name.top, bottom: name.bottom, middle: (name.top + name.bottom) / 2 },
+              bar: { left: bar.left - box.left, right: bar.right - box.left, top: bar.top, bottom: bar.bottom, middle: (bar.top + bar.bottom) / 2 },
+              valueRight: r(value).right - box.left,
+              margin: value.querySelector('.bar-margin')?.textContent ?? null,
+            }
+          })
+          return { width: box.width, rows }
+        })
+    await go('/records', 'Records')
+    const wins = db.prepare(DRIVER_WINS).all()
+    const clear = wins[0].wins > wins[1].wins ? `${(wins[0].wins - wins[1].wins).toLocaleString('en-GB')} clear` : null
+    for (const width of [1280, 768, 767, 400, 320]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.waitForFunction(
+        (phone) => {
+          const label = document.querySelector('#root main figure.figure svg .bar-label')
+          return label && (label.getAttribute('text-anchor') === 'start') === phone
+        },
+        width < 768,
+        { timeout: 10000 },
+      )
+      const charts = await page.evaluate(read)
+      atLeast(charts.length, 4, `/records at ${width}: the leaderboards drew`)
+      const wrong = []
+      charts.forEach((chart, c) => {
+        chart.rows.forEach((row, i) => {
+          const where = `chart ${c + 1} row ${i + 1}`
+          if (row.valueRight > chart.width + 0.5) wrong.push(`${where}: its figures run ${Math.round(row.valueRight - chart.width)} px out of the plot`)
+          if (row.name.left < -0.5) wrong.push(`${where}: its name is cut at the left edge`)
+          if (width < 768) {
+            if (row.name.bottom > row.bar.top + 0.5) wrong.push(`${where}: the name is not above its bar`)
+            if (Math.abs(row.bar.left - row.name.left) > 2) wrong.push(`${where}: the bar does not start under its name`)
+          } else {
+            if (row.name.right > row.bar.left + 0.5) wrong.push(`${where}: the name runs into its bar`)
+            if (Math.abs(row.name.middle - row.bar.middle) > 2) wrong.push(`${where}: the name is not beside its bar`)
+          }
+        })
+      })
+      is(wrong.join('; '), '', `/records at ${width}: every leaderboard name sits ${width < 768 ? 'above' : 'beside'} its bar, and every figure inside the plot`)
+      if (width < 768) {
+        // The point of it: the longest bar has most of the plot to itself.
+        const longest = Math.max(...charts[0].rows.map((row) => row.bar.right - row.bar.left))
+        truthy(longest > charts[0].width / 2, `/records at ${width}: the longest wins bar takes over half the plot (${Math.round(longest)} of ${Math.round(charts[0].width)} px)`)
+        is(charts[0].rows.map((row) => row.margin).filter(Boolean).join(' | '), clear ?? '', `/records at ${width}: the wins leader alone says how far clear it is`)
+        is(charts[0].rows[0].margin, clear, `/records at ${width}: and it says so on the leader's own bar`)
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
   await section('/races  (the race photographs lead, and say so)', async () => {
     /*
      * PD-64. The race page showed each entered car's article photograph under

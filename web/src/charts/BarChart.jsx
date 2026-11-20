@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { linear, niceDomain } from './scales.js'
+import { MARGIN_GAP, barLayout } from './barChart.js'
 import { ownColour } from './own.js'
 import { INK, MARK } from './palette.js'
 import { useMeasure } from './useMeasure.js'
+import { PHONE } from '../lib/table.js'
+import { useMatches } from '../lib/useMatches.js'
 
 /**
  * A ranked list, drawn as lengths.
@@ -29,29 +31,25 @@ import { useMeasure } from './useMeasure.js'
  * keep the colours it has rather than dropping all of them because some
  * entity falls in the declared 1968-2009 gap. Whether to mix at all stays the
  * CALLER's decision; see Records.jsx.
+ *
+ * Below the tablet breakpoint each name sits above its bar and the bar takes
+ * the whole width (VD-114), and the one bar that alone leads says by how
+ * much, "15 clear", after its value, where that leaves the bars their room;
+ * charts/barChart.js lays both out.
  */
-const ROW = 27
-const THICKNESS = 14
-const LABEL_WIDTH = 168
 
 export default function BarChart({ data, format = (v) => v.toLocaleString('en-GB'), label }) {
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
-  if (data.length === 0) return null
-
-  const height = data.length * ROW + 8
-  const valueRoom = 54
-  const x = linear(niceDomain(data.map((d) => d.value)), [LABEL_WIDTH, Math.max(LABEL_WIDTH + 40, width - valueRoom)])
-  const radius = 4
+  const stacked = useMatches(PHONE)
+  const layout = barLayout({ data, width, stacked, format })
+  if (!layout) return null
 
   return (
     <div className="plot-holder" ref={ref}>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
-        {data.map((d, i) => {
-          const y = 4 + i * ROW + (ROW - THICKNESS) / 2
-          const end = x(d.value)
-          const start = x(0)
-          const long = Math.max(end - start, 1)
+      <svg viewBox={`0 0 ${width} ${layout.height}`} role="img" aria-label={label}>
+        {layout.bars.map((bar) => {
+          const { d } = bar
           // The class and the properties go on the bar's own group: the label
           // and the value beside it paint --ink and --ink-soft, so only the
           // path below reads --livery.
@@ -64,12 +62,12 @@ export default function BarChart({ data, format = (v) => v.toLocaleString('en-GB
               onMouseEnter={() => setHover(d)}
               onMouseLeave={() => setHover(null)}
             >
-              <rect x="0" y={4 + i * ROW} width={width} height={ROW} fill="transparent" />
+              <rect x="0" y={bar.rowTop} width={width} height={layout.row} fill="transparent" />
               <text
                 className="axis-text bar-label"
-                x={LABEL_WIDTH - 10}
-                y={y + THICKNESS / 2}
-                textAnchor="end"
+                x={bar.labelX}
+                y={bar.labelY}
+                textAnchor={bar.labelAnchor}
                 dominantBaseline="middle"
                 fill="var(--ink)"
               >
@@ -77,19 +75,17 @@ export default function BarChart({ data, format = (v) => v.toLocaleString('en-GB
               </text>
               <path
                 className={d.hollow ? 'bar-hollow' : undefined}
-                d={`M${start},${y} L${start + long - radius},${y} Q${start + long},${y} ${start + long},${y + radius}
-                    L${start + long},${y + THICKNESS - radius} Q${start + long},${y + THICKNESS} ${start + long - radius},${y + THICKNESS}
-                    L${start},${y + THICKNESS} Z`}
+                d={bar.path}
                 fill={d.hollow ? 'none' : (own.paint ?? (d.mark ? MARK : INK))}
                 opacity={hover && hover.key !== d.key ? 0.55 : 1}
               />
-              <text
-                className="value-text"
-                x={start + long + 8}
-                y={y + THICKNESS / 2}
-                dominantBaseline="middle"
-              >
+              <text className="value-text" x={bar.valueX} y={bar.middle} dominantBaseline="middle">
                 {format(d.value)}
+                {bar.margin && (
+                  <tspan className="bar-margin" dx={MARGIN_GAP}>
+                    {bar.margin}
+                  </tspan>
+                )}
               </text>
             </g>
           )

@@ -23,6 +23,7 @@ import {
   tableKey,
 } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
+import { useMatches } from '../lib/useMatches.js'
 import Columns from './Columns.jsx'
 import { dateCell } from './Dates.jsx'
 import { PageTitle, SectionTitle } from './Page.jsx'
@@ -167,26 +168,6 @@ function normalise(columns, rows) {
       label: spec.label ?? humanise(spec.key),
     }
   })
-}
-
-/**
- * Does the page match a media query? False where there is no query to ask,
- * so a table that declares no phone set subscribes to nothing.
- */
-function useMatches(query) {
-  const [matches, setMatches] = useState(() => Boolean(query && globalThis.matchMedia?.(query).matches))
-  useEffect(() => {
-    if (!query || !globalThis.matchMedia) {
-      setMatches(false)
-      return undefined
-    }
-    const list = globalThis.matchMedia(query)
-    const change = () => setMatches(list.matches)
-    change()
-    list.addEventListener('change', change)
-    return () => list.removeEventListener('change', change)
-  }, [query])
-  return matches
 }
 
 /**
