@@ -149,7 +149,7 @@ the season, race and circuit strips rank nothing and have none), at
 the opening band. A concluded season's is the margin on its plate (VD-104,
 §3 *Season cycle*), and so is home's: the leader's margin over the
 runner-up on the plate of the season being run (VD-109, `[D-69]`), or the
-rounds run where nobody leads it yet. A second lead keeps `--size-8`, so a page has one hero and
+rounds run where there is no plate or it prints no margin. A second lead keeps `--size-8`, so a page has one hero and
 not two, and a name is never one. `conventions.mjs` now declares no token
 unused.
 
@@ -1452,7 +1452,7 @@ round to come, in three states worked out from the database and a clock —
 the reader's in the app, the build's day in the prerender (`homeCycle` in
 `queries/home.js`, which both renderers call):
 
-| State | When | The two panels, and what follows them |
+| State | When | The round to come, and what follows it |
 |---|---|---|
 | Preview | from the end of the results state to the next round's first session | *Next on the calendar*; the next circuit's *Where winners start* figure |
 | Weekend | from that first session (its first day, where it has no timetable) until the result is in the database | *This weekend*: once the race is over, a line that says so, with the last check (`resultsPending` in `lib/refresh.js`); the **weekend lap**, and under it the round's sessions as a list, its start times in UTC on the static page and in the reader's time in the app; the history figure |
@@ -1562,11 +1562,14 @@ AF-133's grid — and these are new:
     constructors' title at the Sao Paulo Grand Prix, round 20.*), which the
     next race's panel then does not say again (`homePlate` and `homeAhead`
     in `queries/home.js`). Level on points, it prints the sentence and no
-    figure; a total not established, neither. Beside the champion, under
-    the same rule, *Last race run* and its podium, from 1180 px in the
-    slot's column (`aside`, `.season-plate-split`), and under them both.
-    The six counts follow as one line, the figures in the ink and the words
-    in the soft ink at `--size-4`, ending *How far to trust it →* to
+    figure; a total not established, neither; and with no margin printed
+    the block's rounds tile stays and is the page's hero. The name is the
+    section's h2 (`heading`), as the mockup sets it, since the plate's
+    section has no other. Beside the champion, under the same rule, *Last
+    race run* and its podium: from 1180 px in the slot's column (`aside`,
+    `.season-plate-split`), and below that under the champion. The six
+    counts follow as one line, the figures in the ink and the words in the
+    soft ink at `--size-4`, ending *How far to trust it →* to
     `/data/quality` (`dbLine`). With nobody leading — no round run yet —
     there is no plate, and the block's rounds tile leads as it did.
 - **The weekend lap** (AF-156 #1250). The round's outline, `Outline`

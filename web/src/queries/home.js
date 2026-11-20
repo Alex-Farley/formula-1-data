@@ -306,11 +306,14 @@ export const seasonHeading = (year) => `The ${year} season`
  * season page opens on who is in the cars and the registers all filter on
  * this year, and `/` said only what the whole database holds.
  *
- * With a plate the strip is who is in the cars: the plate's sentence counts
- * the rounds, and its margin is the page's hero figure. Without one - no
- * round run yet, or nobody on the table - the rounds tile leads again: a
- * season with no round run gets it as NOT_YET_RUN rather than as "0 of 24"
- * (a calendar is not a record of nothing, which is the same distinction
+ * With a plate that prints a margin the strip is who is in the cars: the
+ * plate's sentence counts the rounds, and its margin is the page's one hero
+ * figure. Without one - no round run yet, nobody on the table, a lead level
+ * on points or a total nobody established - the rounds tile stays and leads,
+ * so the page keeps one hero and always says how far the season has run,
+ * as the season page's strip keeps its tiles where its plate has no margin.
+ * A season with no round run gets it as NOT_YET_RUN rather than as "0 of
+ * 24" (a calendar is not a record of nothing, which is the same distinction
  * IA-17 draws on /seasons).
  */
 export const seasonStrip = (now, plate) => {
@@ -319,7 +322,7 @@ export const seasonStrip = (now, plate) => {
   // counts 0, and 0 is the answer rather than a missing one.
   const started = now.run > 0
   return [
-    plate
+    plate?.margin
       ? null
       : {
           label: 'Rounds run',

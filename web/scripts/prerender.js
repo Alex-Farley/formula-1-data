@@ -2197,12 +2197,14 @@ const standingsLinks = (kind, rows, { year, teams, season, crowned }) => {
 // components/SeasonPlate.jsx (VD-104 (c)): a concluded season's champion in
 // the pair of the team they won with, or in ink where none is on record; and
 // home's season being run (VD-109), with its last race beside it (`aside`,
-// HTML) under the same rule.
-const seasonPlateHtml = (plate, aside = '') => {
+// HTML) under the same rule, and its name an h2 (`heading`), as the
+// component's prop sets it.
+const seasonPlateHtml = (plate, aside = '', heading = false) => {
   if (!plate) return ''
+  const name = heading ? 'h2' : 'p'
   const champion = `<p class="season-plate-label">${liveryMark(plate.colour, true)}${esc(plate.label)}${
     plate.team ? ` · ${plate.teamHref ? link(plate.teamHref, plate.team) : esc(plate.team)}` : ''
-  }</p><p class="season-plate-name">${plate.href ? link(plate.href, plate.name) : esc(plate.name)}</p>${
+  }</p><${name} class="season-plate-name">${plate.href ? link(plate.href, plate.name) : esc(plate.name)}</${name}>${
     plate.margin || plate.sentence
       ? `<p class="season-plate-figure">${plate.margin ? `<span class="season-plate-margin">${esc(plate.margin)}</span> ` : ''}<span>${esc(plate.sentence)}</span></p>`
       : ''
@@ -3290,7 +3292,7 @@ const TITLE = currentTitle(fightRows, META.built)
   // The plate's section (VD-109): the season plate with the last race
   // beside it, then what the database holds, in a line - Home.jsx's
   // HoldingsLine.
-  const plateBlock = `<section class="section">${seasonPlateHtml(plate, lastPanel)}
+  const plateBlock = `<section class="section">${seasonPlateHtml(plate, lastPanel, true)}
       <p class="db-line">${esc(DB_LINE_LEAD)}${dbLine(shape)
         .map((part) => `<b>${esc(part.value)}</b> ${esc(part.words)}`)
         .join(' \u00b7 ')}. ${link(DB_LINE_LINK.to.replace(/^\//, ''), DB_LINE_LINK.text)}</p></section>`

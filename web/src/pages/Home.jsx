@@ -399,7 +399,7 @@ export default function Home() {
                   scripts/prerender.js draws the same block from the same
                   module, so the static half opens on it too. */}
               <Section>
-                <SeasonPlate plate={plate} aside={last} />
+                <SeasonPlate plate={plate} aside={last} heading />
                 <HoldingsLine shape={shape} />
               </Section>
 

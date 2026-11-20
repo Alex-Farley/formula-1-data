@@ -5459,6 +5459,7 @@ figure.figure > .figure-note:first-child {
   font-size: var(--size-8);
   font-weight: var(--weight-bold);
   line-height: 1.05;
+  letter-spacing: normal;
   overflow-wrap: anywhere;
 }
 

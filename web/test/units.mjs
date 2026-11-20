@@ -3974,6 +3974,8 @@ describe("the home page's season block (PD-48)", () => {
     const level = homePlate({ now: running, lead: [lead[0], { ...lead[1], points: 312 }], title: null })
     assert.equal(level.margin, null)
     assert.equal(level.sentence, 'Level on points with Oscar Piastri after 14 of 23 rounds.')
+    // A plate with no margin has no hero, so the rounds tile keeps the role.
+    assert.deepEqual(seasonStrip(running, level).map((t) => [t.label, t.value, Boolean(t.lead)]), [['Rounds run', '14 of 23', true], ['On the grid', '20', false]])
     const one = homePlate({ now: running, lead: [lead[0], { ...lead[1], points: 311 }], title: null })
     assert.equal(one.sentence, 'point clear of Oscar Piastri after 14 of 23 rounds.')
     // A total nobody established is not a zero, and a lone row has no gap.
@@ -3982,6 +3984,7 @@ describe("the home page's season block (PD-48)", () => {
       assert.equal(plate.margin, null)
       assert.equal(plate.sentence, null)
       assert.equal(plate.name, 'Lando Norris')
+      assert.equal(seasonStrip(running, plate)[0].value, '14 of 23', 'and the strip still says how far the season has run')
     }
     // A leader with no team on record is drawn in ink and named alone.
     const bare = homePlate({ now: running, lead: [{ ...lead[0], constructor_id: null, constructor: null }, lead[1]], title: null })

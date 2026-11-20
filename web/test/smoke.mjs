@@ -1723,6 +1723,8 @@ try {
         label: flat(section?.querySelector('.season-plate-label')),
         name: flat(section?.querySelector('.season-plate-name')),
         nameHref: section?.querySelector('.season-plate-name a')?.getAttribute('href') ?? null,
+        nameTag: section?.querySelector('.season-plate-name')?.tagName ?? null,
+        levels: [...document.querySelectorAll(`${root} h1, ${root} h2, ${root} h3, ${root} h4`)].map((h) => Number(h.tagName[1])),
         margin: flat(section?.querySelector('.season-plate-margin')),
         figure: flat(section?.querySelector('.season-plate-figure')),
         aside: flat(section?.querySelector('.season-plate-split > .round-panel > .eyebrow')),
@@ -1745,6 +1747,8 @@ try {
       }
       is(got.label, `${plate.label}${plate.team ? ` · ${plate.team}` : ''}`, `/, ${half}: the plate's label names the season and the team`)
       is(got.name, plate.name, `/, ${half}: and the leader`)
+      is(got.nameTag, 'H2', `/, ${half}: whose name is the plate section's h2`)
+      is(got.levels.findIndex((level, i) => i > 0 && level > got.levels[i - 1] + 1), -1, `/, ${half}: so no heading skips a level (${got.levels.join(' ')})`)
       truthy(!plate.href || got.nameHref?.endsWith(plate.href), `/, ${half}: linked to their page`)
       is(got.margin, plate.margin ?? '', `/, ${half}: the margin is the plate's figure`)
       is(got.figure, [plate.margin, plate.sentence].filter(Boolean).join(' '), `/, ${half}: beside its sentence`)

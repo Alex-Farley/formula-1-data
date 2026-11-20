@@ -521,7 +521,8 @@ The rule: from the first round run, home opens on the season plate of the
 season being run, its hero figure the leader's margin over the runner-up,
 its sentence saying after how many rounds and where each title on the record
 was settled, and the last race and its podium beside it; the six counts are
-one line under it. Where nobody leads yet, the rounds tile leads as before.
+one line under it. Where nobody leads yet, or the plate has no margin to
+print, the rounds tile leads as before.
 The last race's podium stands in every state of the cycle, each step saying
 where its driver started. What it does not change: the cycle's states, the
 reach chart in the results state alone, the outline in the slot, the plate

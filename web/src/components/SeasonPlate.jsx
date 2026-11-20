@@ -15,8 +15,13 @@ import { ownColour } from '../charts/own.js'
  * `aside` is what stands beside the champion under the same rule, from
  * 1180 px in the slot's column: home's last race and its podium (VD-109).
  * A sentence with no margin - a lead level on points - is printed alone.
+ * `heading` sets the name as an h2 where the plate opens a section that has
+ * none, as home's does, so the aside's h3 is not the page's first heading
+ * under its h1; the season page's plate stands above its tiles in a
+ * paragraph, as it always has.
  */
-export default function SeasonPlate({ plate, aside = null }) {
+export default function SeasonPlate({ plate, aside = null, heading = false }) {
+  const Name = heading ? 'h2' : 'p'
   if (!plate) return null
   const own = ownColour(plate.colour)
   const classes = [own.className ? `season-plate ${own.className}` : 'season-plate season-plate-none', aside ? 'season-plate-split' : null]
@@ -34,7 +39,7 @@ export default function SeasonPlate({ plate, aside = null }) {
           </>
         )}
       </p>
-      <p className="season-plate-name">{plate.href ? <Link to={`/${plate.href}`}>{plate.name}</Link> : plate.name}</p>
+      <Name className="season-plate-name">{plate.href ? <Link to={`/${plate.href}`}>{plate.name}</Link> : plate.name}</Name>
       {(plate.margin || plate.sentence) && (
         <p className="season-plate-figure">
           {plate.margin && (
