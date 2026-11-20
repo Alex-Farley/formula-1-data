@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Disagreement, { CONSTRUCTOR_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
@@ -28,7 +29,6 @@ import {
   SEASON_COLUMNS,
   STANDINGS,
   WINS,
-  WINS_FOOTER,
   WIN_COLUMNS,
   WINS_FIGURE_COLUMNS,
   WINS_HEADING,
@@ -37,12 +37,15 @@ import {
   recordFigures,
   seasonsFooter,
   teamStrip,
+  winsByRace,
   winsFigure,
+  winsFooter,
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
 import { EYEBROWS, LABELS, NAMES } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
+import { TILE_JOIN } from '../lib/tiles.js'
 /*
  * The React renders for the columns queries/constructor.js defines — the
  * links and the sort keys; the router is the reason they live here. The words
@@ -55,6 +58,15 @@ const SEASON_APP = {
   championship_text: { sort: (row) => row.championship },
   by_round: { render: (value, row) => <ByRoundSpark value={value} rounds={row.rounds} label={byRoundText(value)} /> },
 }
+// A shared drive's drivers, or its designs, each linked and joined as the
+// column's words join them (queries/constructor.js winsByRace).
+const joined = (list, linked) =>
+  list.map((item, i) => (
+    <Fragment key={item.id ?? i}>
+      {i > 0 && TILE_JOIN}
+      {linked(item)}
+    </Fragment>
+  ))
 const WIN_APP = {
   year: seasonLink,
   name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
@@ -62,11 +74,20 @@ const WIN_APP = {
     render: (name, row) => (row.circuit_id ? <Link to={`/circuits/${row.circuit_id}`}>{name}</Link> : cell(name)),
   },
   driver: {
-    render: (name, row) => (row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name)),
+    render: (name, row) =>
+      row.drivers.length > 1
+        ? joined(row.drivers, (d) => (d.id ? <Link to={`/drivers/${d.id}`}>{d.name}</Link> : cell(d.name)))
+        : row.driver_id
+          ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link>
+          : cell(name),
   },
   chassis: {
     render: (name, row) =>
-      row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link> : cell(name),
+      row.designs.length > 1
+        ? joined(row.designs, (d) => (d.id ? <Link to={`/cars/${d.id}`}>{d.name ?? d.id}</Link> : cell(d.name)))
+        : row.chassis_id
+          ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link>
+          : cell(name),
   },
 }
 const DESIGN_APP = {
@@ -143,7 +164,8 @@ function ConstructorBody({ constructor, data }) {
   const derived = data.derived.rows[0] ?? {}
   const bySeason = rows(data, 'bySeason')
   const standings = rows(data, 'standings')
-  const wins = rows(data, 'wins')
+  // A row a race, a shared drive once (VD-117), as the tile counts them.
+  const wins = winsByRace(rows(data, 'wins'))
   const designs = rows(data, 'designs')
   const lineage = lineageChains(rows(data, 'lineage'), constructor)
   const images = rows(data, 'images')
@@ -287,12 +309,12 @@ function ConstructorBody({ constructor, data }) {
           <DataTable
             rows={wins}
             fold={FOLD_NOUN.wins}
-            rowKey={(row) => `${row.year}-${row.round}-${row.driver_id}`}
+            rowKey={(row) => `${row.year}-${row.round}`}
             sort="year"
             direction="desc"
             page={100}
             columns={withRenders(WIN_COLUMNS, WIN_APP)}
-            footer={WINS_FOOTER}
+            footer={winsFooter(wins)}
           />
         </Section>
       )}

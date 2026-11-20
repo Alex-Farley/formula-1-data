@@ -6756,10 +6756,17 @@ try {
     const ferrari = await tableRows()
     truthy(
       ferrari.includes(
-        count("SELECT COUNT(*) FROM race_entries WHERE constructor_id = 'ferrari' AND finish_position = 1"),
+        // A row a race, a shared drive once (VD-117).
+        count("SELECT COUNT(DISTINCT race_id) FROM race_entries WHERE constructor_id = 'ferrari' AND finish_position = 1"),
       ),
       'every Ferrari win is listed',
     )
+    // VD-117: the tile counts races, as /records does, so the two pages give
+    // Ferrari one figure; the race two drivers shared is one row naming both.
+    const tile = await page.$$eval('#root main .stats dt', (dts) =>
+      dts.find((dt) => dt.textContent.trim() === 'Wins')?.nextElementSibling?.textContent.trim() ?? null,
+    )
+    is(tile, one("SELECT wins FROM v_wins_by_constructor WHERE id = 'ferrari'").toLocaleString('en-GB'), 'the Wins tile is /records\' figure for Ferrari')
 
     // VD-28, and this page is where it was measured: eight tiles, and
     // "Constructors' titles" took two lines for its label and dropped its own
@@ -6847,7 +6854,8 @@ try {
    * no script at all.
    */
   await section('An exhaustive list opens on its first ten', async () => {
-    const wins = count("SELECT COUNT(*) FROM race_entries WHERE constructor_id = 'ferrari' AND finish_position = 1")
+    // A row a race, a shared drive once (VD-117).
+    const wins = count("SELECT COUNT(DISTINCT race_id) FROM race_entries WHERE constructor_id = 'ferrari' AND finish_position = 1")
     const firstWin = one(
       `SELECT r.year FROM race_entries e JOIN races r ON r.id = e.race_id
        WHERE e.constructor_id = 'ferrari' AND e.finish_position = 1 ORDER BY r.year, r.round LIMIT 1`,
@@ -6881,6 +6889,18 @@ try {
     // The Section under the heading, in either half: both draw a <section>
     // per h2-led block (VD-01).
     const under = (on, root) => on.locator(`${root} section`).filter({ has: on.locator('h2', { hasText: 'Every win' }) })
+    // VD-117: the race two drivers shared, as the rows under a heading give
+    // it - one row, naming both - in either half.
+    const shared = ({ root, heading }) => {
+      const h2 = [...document.querySelector(root).querySelectorAll('h2')].find((h) => h.textContent.trim().startsWith(heading))
+      const scope = h2?.closest('section') ?? h2?.parentElement
+      return [...(scope?.querySelectorAll('tbody tr') ?? [])]
+        .map((tr) => [...tr.querySelectorAll('th, td')].map((cell) => cell.textContent.trim()))
+        .filter((cells) => cells[0] === '1956' && cells[1] === 'Argentine Grand Prix')
+        .map((cells) => cells[3])
+        .join(' | ')
+    }
+    const SHARED = 'Luigi Musso / Juan Manuel Fangio'
 
     await go('/constructors/ferrari', 'Ferrari')
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -6918,6 +6938,7 @@ try {
       got = await page.evaluate(fold, app)
       is(got?.firstShown, String(firstWin), `sorted by season, the fold opens on Ferrari’s first win, ${firstWin}`)
       is(got?.shown, FOLD_TO, `and still shows ${FOLD_TO}`)
+      is(await page.evaluate(shared, app), SHARED, 'the 1956 Argentine Grand Prix is one row naming both drivers')
 
       // By keyboard: focus, Enter, every row, and focus on the first row it
       // revealed (DP-29, VD-82) rather than on a summary now thousands of
@@ -6976,6 +6997,7 @@ try {
       const served = { root: '#prerendered', heading: 'Every win' }
       let got = await plain.evaluate(fold, served)
       is(got?.drawn, wins, `the static Every win holds all ${wins} rows`)
+      is(await plain.evaluate(shared, served), SHARED, 'the static page gives the shared drive one row too')
       is(got?.shown, FOLD_TO, `and shows ${FOLD_TO} of them`)
       is(got?.name, `${foldMore(wins, FOLD_NOUN.wins)}, Every win`, 'behind the same disclosure, named the same way')
       await under(plain, '#prerendered').locator('details.table-fold > summary').click()

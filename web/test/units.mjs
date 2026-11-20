@@ -186,7 +186,18 @@ import {
   titleRaceText,
 } from '../src/charts/spark.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
-import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, lineageChains, recordFigures } from '../src/queries/constructor.js'
+import {
+  BY_SEASON as TEAM_BY_SEASON,
+  DERIVED as TEAM_DERIVED,
+  STANDINGS as TEAM_STANDINGS,
+  WINS as TEAM_WINS,
+  WINS_FOOTER as TEAM_WINS_FOOTER,
+  constructorSeasons,
+  lineageChains,
+  recordFigures,
+  winsByRace,
+  winsFooter,
+} from '../src/queries/constructor.js'
 import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
 import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
 import { ONWARD, raceSteps } from '../src/lib/wayfinding.js'
@@ -4541,14 +4552,80 @@ describe("a constructor's record figures (CD-34)", () => {
     ])
   })
 
-  it('names the four teams where the register and the count part, from f1.db', () => {
+  // VD-117: the count is of races won, so the three teams that won a shared
+  // drive - where counting entries parted it from the register by one - say
+  // one figure twice, and every other team holding a total does too.
+  it('counts every team holding a total as the register does, the shared drives once, from f1.db', () => {
     const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
     try {
-      const wins = (id) => recordFigures(db.prepare('SELECT * FROM constructors WHERE id = ?').get(id), db.prepare(TEAM_DERIVED).get(id) ?? {})[0][1]
-      for (const id of ['ferrari', 'vanwall', 'alfa-romeo']) {
-        assert.match(wins(id), /^[\d,]+ derived · [\d,]+ published$/, id)
+      const teams = db.prepare('SELECT * FROM constructors WHERE wins IS NOT NULL').all()
+      assert.ok(teams.length > 100, `${teams.length} constructors hold a total`)
+      for (const team of teams) {
+        const shown = recordFigures(team, db.prepare(TEAM_DERIVED).get(team.id) ?? {})[0][1]
+        assert.equal(shown, `${team.wins.toLocaleString('en-GB')} derived · ${team.wins.toLocaleString('en-GB')} published`, team.id)
       }
+      const wins = (id) => recordFigures(db.prepare('SELECT * FROM constructors WHERE id = ?').get(id), db.prepare(TEAM_DERIVED).get(id) ?? {})[0][1]
       assert.equal(wins('rob-walker'), '0 derived')
+    } finally {
+      db.close()
+    }
+  })
+})
+
+// VD-117: *Every win* a row a race, so its count is the tile's and /records'.
+describe("a constructor's wins, a shared drive once (VD-117)", () => {
+  const entry = (year, round, driver, chassis = 'ferrari-555', extra = {}) => ({
+    year,
+    round,
+    name_used: `Race ${round}`,
+    driver_id: driver,
+    driver: driver.toUpperCase(),
+    chassis_id: chassis,
+    chassis: chassis?.toUpperCase() ?? null,
+    ...extra,
+  })
+
+  it('makes the entries of one race one row, each driver kept in order, a design once', () => {
+    const rows = winsByRace([entry(1957, 2, 'a'), entry(1956, 1, 'musso'), entry(1956, 1, 'fangio'), entry(1955, 3, 'b', null)])
+    assert.equal(rows.length, 3)
+    assert.deepEqual(rows.map((r) => r.driver), ['A', 'MUSSO / FANGIO', 'B'])
+    assert.deepEqual(rows[1].drivers, [{ id: 'musso', name: 'MUSSO' }, { id: 'fangio', name: 'FANGIO' }])
+    assert.equal(rows[1].designs.length, 1)
+    assert.equal(rows[1].chassis, 'FERRARI-555', 'one design keeps its own words')
+    assert.equal(rows[2].chassis, null, 'a blank chassis stays blank')
+  })
+
+  it('joins two designs where a shared drive raced both', () => {
+    const [row] = winsByRace([entry(1956, 1, 'musso', 'x'), entry(1956, 1, 'fangio', 'y')])
+    assert.equal(row.chassis, 'X / Y')
+    assert.deepEqual(row.designs.map((d) => d.id), ['x', 'y'])
+  })
+
+  it('names the shared races under the table, and only where there is one', () => {
+    const shared = winsByRace([entry(1956, 1, 'musso', 'x', { name_used: 'Argentine Grand Prix' }), entry(1956, 1, 'fangio', 'x', { name_used: 'Argentine Grand Prix' })])
+    assert.equal(
+      winsFooter(shared),
+      `${TEAM_WINS_FOOTER} A shared drive counts once, to the car, with each of its drivers named: the 1956 Argentine Grand Prix.`,
+    )
+    assert.equal(winsFooter(winsByRace([entry(1957, 2, 'a')])), TEAM_WINS_FOOTER)
+    assert.equal(winsFooter([]), TEAM_WINS_FOOTER)
+  })
+
+  it('gives every team as many rows, and season wins, as the tile counts, from f1.db', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const teams = db.prepare('SELECT DISTINCT constructor_id AS id FROM race_entries WHERE finish_position = 1 AND constructor_id IS NOT NULL').all()
+      let shared = 0
+      for (const { id } of teams) {
+        const { wins } = db.prepare(TEAM_DERIVED).get(id)
+        const rows = winsByRace(db.prepare(TEAM_WINS).all(id))
+        assert.equal(rows.length, wins, `${id}: Every win`)
+        assert.equal(db.prepare(TEAM_BY_SEASON).all(id).reduce((sum, s) => sum + s.wins, 0), wins, `${id}: Wins by season`)
+        shared += rows.filter((r) => r.drivers.length > 1).length
+      }
+      assert.ok(shared > 0, 'the register holds a shared drive for this to be about')
+      const ferrari = winsByRace(db.prepare(TEAM_WINS).all('ferrari'))
+      assert.match(winsFooter(ferrari), /each of its drivers named: .*the 1956 Argentine Grand Prix/)
     } finally {
       db.close()
     }
@@ -7066,9 +7143,10 @@ import { winsFigure, winsStory } from '../src/queries/constructor.js'
 
 describe('a constructor’s wins chart, its titles, peak and drought marked (VD-125), on rows written out', () => {
   // Ferrari's wins, 1950-2026, as the register held them in November 2026,
-  // so the layout is tested on columns as thin as the page's.
+  // so the layout is tested on columns as thin as the page's - races won,
+  // 1956's shared drive once (VD-117).
   const FERRARI = [
-    0, 3, 7, 7, 2, 1, 6, 0, 2, 2, 1, 5, 0, 1, 3, 0, 2, 0, 1, 0, 4, 2, 1, 0, 3, 6, 6, 4, 5, 6, 0, 2, 3, 4, 1, 2, 0, 2, 1, 3, 6, 0, 0, 0, 1, 1,
+    0, 3, 7, 7, 2, 1, 5, 0, 2, 2, 1, 5, 0, 1, 3, 0, 2, 0, 1, 0, 4, 2, 1, 0, 3, 6, 6, 4, 5, 6, 0, 2, 3, 4, 1, 2, 0, 2, 1, 3, 6, 0, 0, 0, 1, 1,
     3, 5, 6, 6, 10, 9, 15, 8, 15, 1, 9, 9, 8, 1, 5, 1, 3, 2, 0, 3, 0, 5, 6, 3, 0, 0, 4, 1, 5, 0, 2,
   ]
   const TITLES = [1961, 1964, 1975, 1976, 1977, 1979, 1982, 1983, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008]

@@ -16,15 +16,26 @@ import { derivedAndPublished } from './driver.js'
 import { shortNames } from './season.js'
 import { byRoundText } from '../charts/spark.js'
 import { LABELS, SLOT_MARKS } from '../lib/site.js'
+import { TILE_JOIN } from '../lib/tiles.js'
 
 export const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
 
-/** The record, counted from the race records rather than read from a column. */
+/**
+ * The record, counted from the race records rather than read from a column.
+ *
+ * A WIN IS A RACE WON (VD-117). Two drivers who shared one car's drive are
+ * two entries classified first, and counting entries gave Ferrari 251 here
+ * against the 250 races /records, the register's own `wins` and F1DB give
+ * it: the 1956 Argentine Grand Prix, one car Musso and Fangio shared,
+ * counted twice. `wins` here and in BY_SEASON counts races, so a shared
+ * drive counts once, to the car, as /records and verify.py's hold on the
+ * register count it; the driver tables credit it to each driver.
+ */
 export const DERIVED = `
   SELECT COUNT(*)                       AS entries,
          COUNT(DISTINCT r.year)         AS seasons,
          COUNT(DISTINCT r.id)           AS races,
-         SUM(e.finish_position = 1)     AS wins,
+         COUNT(DISTINCT CASE WHEN e.finish_position = 1 THEN r.id END) AS wins,
          SUM(e.finish_position <= 3)    AS podiums,
          SUM(e.pole = 1)                AS poles,
          SUM(e.fastest_lap = 1)         AS fastest_laps,
@@ -36,12 +47,14 @@ export const DERIVED = `
 
 /**
  * Wins and Poles as the register states them (CD-34): the count from the race
- * records beside the published figure, in the driver page's words - "251
- * derived · 250 published". The stored `constructors.wins` is hand-entered
- * from reference records and parts from the count on four teams (ferrari,
- * vanwall, alfa-romeo, rob-walker), so neither figure is shown alone. Read by
- * the app's "On the record" and the static page's facts list, which is how
- * the two say the same thing; the Stats strip's Wins is the derived half.
+ * records beside the stored figure, in the driver page's words - "250
+ * derived · 250 published". The two used to part on Ferrari, Vanwall and
+ * Alfa Romeo, which was DERIVED counting a shared drive twice (VD-117);
+ * counted by race, as verify.py holds the stored total to, they agree. Where
+ * the register holds no total - rob-walker, whose wins are its chassis
+ * makers' - the count stands alone. Read by the app's "On the record" and
+ * the static page's facts list, which is how the two say the same thing; the
+ * Stats strip's Wins is the derived half.
  */
 export const recordFigures = (constructor, derived) => [
   ['Wins', derivedAndPublished(derived.wins ?? 0, constructor.wins)],
@@ -51,7 +64,8 @@ export const recordFigures = (constructor, derived) => [
 export const BY_SEASON = `
   SELECT r.year,
          COUNT(*)                    AS entries,
-         COALESCE(SUM(e.finish_position = 1), 0)  AS wins,
+         -- Races won, a shared drive once (VD-117, as DERIVED).
+         COUNT(DISTINCT CASE WHEN e.finish_position = 1 THEN r.id END) AS wins,
          COALESCE(SUM(e.finish_position <= 3), 0) AS podiums,
          COALESCE(SUM(e.pole = 1), 0)             AS poles,
          SUM(COALESCE(e.points, 0))  AS points,
@@ -405,7 +419,11 @@ export const STANDINGS = `
    ORDER BY s.year, s.position IS NULL, s.position, s.id
 `
 
-/** Newest first: the order the app's table opens in. */
+/**
+ * Newest first: the order the app's table opens in. A row is an entry
+ * classified first, so a shared drive is two rows; winsByRace() makes them
+ * one before either renderer draws the table.
+ */
 export const WINS = `
   SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
          e.driver_id, d.full_name AS driver, e.chassis_id, ch.name AS chassis
@@ -562,8 +580,53 @@ export const WIN_COLUMNS = [
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
 ]
 
+/**
+ * *Every win* a row a race (VD-117): WINS's rows, the entries of one race
+ * made one row, so the table, its count and its fold say what the Wins tile,
+ * the chart and /records say. A shared drive keeps each driver, in WINS's
+ * order, as `drivers` for the links and `driver` for the words, joined as
+ * every race list joins a shared drive's winners (TILE_JOIN); its chassis
+ * likewise as `designs` and `chassis`, each design once, where they were more
+ * than one. A race one entry won keeps that entry's words.
+ */
+export function winsByRace(entries) {
+  const byRace = new Map()
+  for (const entry of entries) {
+    const key = `${entry.year}-${entry.round}`
+    const row = byRace.get(key)
+    if (!row) {
+      byRace.set(key, {
+        ...entry,
+        drivers: [{ id: entry.driver_id, name: entry.driver }],
+        designs: [{ id: entry.chassis_id, name: entry.chassis }],
+      })
+      continue
+    }
+    row.drivers.push({ id: entry.driver_id, name: entry.driver })
+    if (!row.designs.some((d) => d.id === entry.chassis_id)) row.designs.push({ id: entry.chassis_id, name: entry.chassis })
+  }
+  return [...byRace.values()].map((row) => ({
+    ...row,
+    ...(row.drivers.length > 1 ? { driver: row.drivers.map((d) => d.name).join(TILE_JOIN) } : {}),
+    ...(row.designs.length > 1 ? { chassis: row.designs.map((d) => d.name ?? d.id ?? EMPTY).join(TILE_JOIN) } : {}),
+  }))
+}
+
 export const WINS_FOOTER =
   'A blank chassis is a season this team ran more than one design and no source records which car raced which round.'
+
+/**
+ * *Every win*'s source line: the blank chassis, and where the team won a race
+ * two drivers shared, which races, and that each counts once (VD-117) - the
+ * chart says the rule, and this names the rows it is about. Takes
+ * winsByRace()'s rows.
+ */
+export const winsFooter = (wins) => {
+  const shared = wins.filter((row) => row.drivers?.length > 1).map((row) => `the ${row.year} ${row.name_used}`)
+  return shared.length
+    ? `${WINS_FOOTER} A shared drive counts once, to the car, with each of its drivers named: ${listed(shared)}.`
+    : WINS_FOOTER
+}
 
 export const DESIGN_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Chassis' },
