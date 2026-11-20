@@ -78,6 +78,7 @@ import {
   hasEntryNote,
   gridFlagLabel,
   gridFlagNote,
+  gridFlagStory,
   gridFlagUndrawn,
   inClassificationOrder,
   qualifyingColumns,
@@ -368,6 +369,8 @@ function RaceBody({ race, data, year, round }) {
   const classified = useMemo(() => inClassificationOrder(entries), [entries])
   // PD-30: the cars the grid-to-flag figure draws, in the order it ends them.
   const flag = useMemo(() => gridFlagRows(entries), [entries])
+  // VD-113: its biggest moves, and the finding and kicker they give it.
+  const flagStory = useMemo(() => gridFlagStory(flag, undrawnOf(entries)), [flag, entries])
   // PD-56: the drivers the stint figure draws, and the pairs the pit order reads.
   const stints = useMemo(() => stintRows(entries, pits), [entries, pits])
   const pairs = useMemo(() => pitPairs(entries, pits), [entries, pits])
@@ -548,9 +551,11 @@ function RaceBody({ race, data, year, round }) {
         <Section id="grid-to-flag" title={GRID_FLAG_HEADING}>
           <Figure
             note={gridFlagNote(flag)}
+            finding={flagStory.finding}
+            kicker={flagStory.kicker}
             table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS, footer: gridFlagUndrawn(undrawnOf(entries)) }}
           >
-            <GridFlag entries={entries} label={gridFlagLabel(flag)} />
+            <GridFlag entries={entries} moves={flagStory.moves} label={gridFlagLabel(flag, flagStory.moves)} />
           </Figure>
         </Section>
       )}

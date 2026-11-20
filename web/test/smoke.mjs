@@ -5023,6 +5023,11 @@ try {
    * stop short of the flag in the order the classification lists them -
    * the staircase the figure exists to show - and the two halves draw the
    * same cars in the same order with the same labels.
+   *
+   * VD-113: the race's biggest moves are drawn in full ink, over the field,
+   * with a finding and a kicker over the figure, the same in both halves,
+   * and each move's label on its line names that line's driver, inside
+   * the plot and clear of every other label, as the browser measures them.
    */
   await section('/races/1976/9  (grid to flag: PD-30)', async () => {
     const readFlag = ([root, heading]) => {
@@ -5044,9 +5049,38 @@ try {
         won: cars.map((g) => g.classList.contains('flag-won')),
         crosses: svg.querySelectorAll('g.flag-out path.flag-cross').length,
         ends: cars.map((g) => Number(g.querySelector('line.flag-line')?.getAttribute('x2'))),
+        tops: cars.map((g) => Number(g.querySelector('line.flag-line')?.getAttribute('y2'))),
         rows: figure.querySelectorAll('table tbody tr').length,
         width: Number(svg.getAttribute('viewBox')?.split(' ')[2]),
+        finding: h2.closest('section').querySelector('p.figure-finding')?.textContent.trim() ?? null,
+        kicker: h2.closest('section').querySelector('p.figure-kicker')?.textContent.trim() ?? null,
+        strong: cars.filter((g) => g.classList.contains('flag-strong')).map((g) => g.querySelector('.flag-name')?.textContent.trim()),
+        strongWeight: cars
+          .filter((g) => g.classList.contains('flag-strong'))
+          .map((g) => getComputedStyle(g.querySelector('.flag-name')).fontWeight),
+        // The field is drawn first and the marked lines over it.
+        markedLast: cars.findIndex((g) => g.matches('.flag-won, .flag-strong')) >= cars.length - cars.filter((g) => g.matches('.flag-won, .flag-strong')).length,
+        notes: [...svg.querySelectorAll('text.flag-note')].map((t) => {
+          const box = t.getBBox()
+          return { text: t.textContent, left: box.x, right: box.x + box.width, top: box.y, bottom: box.y + box.height }
+        }),
+        plot: (() => {
+          const ticks = [...svg.querySelectorAll('line.grid-line')]
+          const xs = ticks.map((l) => Number(l.getAttribute('x1')))
+          return { top: Number(ticks[0]?.getAttribute('y1')), bottom: Number(ticks[0]?.getAttribute('y2')), left: Math.min(...xs) }
+        })(),
       }
+    }
+    // Every label inside the plot's height and right of its first gridline,
+    // no two overlapping, each naming a line drawn in full ink.
+    const notesHold = (half, got) => {
+      for (const n of got.notes) {
+        truthy(n.top >= got.plot.top - 1 && n.bottom <= got.plot.bottom + 1 && n.left >= got.plot.left - 1, `${half}: “${n.text}” sits inside the plot`)
+      }
+      const clash = got.notes.flatMap((a, i) =>
+        got.notes.slice(i + 1).filter((b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom).map((b) => `${a.text} / ${b.text}`),
+      )
+      is(clash.join(' · '), '', `${half}: no two labels on the lines overlap`)
     }
     const drawn = `race_id = ? AND (grid IS NOT NULL OR grid_text = 'PL') AND laps_completed IS NOT NULL
                    AND COALESCE(position_text, '') NOT IN ('DNS', 'DNQ', 'DNPQ', 'DNP', 'EX')`
@@ -5074,10 +5108,29 @@ try {
       is(got.out.filter(Boolean).length, out, `${half}: a car the result does not classify is drawn dashed`)
       is(got.crosses, out, `${half}: and ends on a cross`)
       is(got.rows, cars, `${half}: the figure's table carries every car it draws`)
-      is(got.results[0], '1', `${half}: the winner ends at the top`)
       // VD-94: the winner's line is the one in the accent, and no other.
       is(got.won.filter(Boolean).length, won, `${half}: every car classified first is drawn in the accent`)
-      is(got.won[0], true, `${half}: and it is the line that ends at the top`)
+      const top = got.tops.indexOf(Math.min(...got.tops))
+      is(got.results[top], '1', `${half}: the winner ends at the top`)
+      is(got.won[top], true, `${half}: and it is the line in the accent`)
+      // VD-113: 1976/9's two biggest moves are Pryce's and Ertl's, sixteen
+      // places each, counted here from the record rather than the layout.
+      const climbs = db
+        .prepare(
+          `SELECT grid - finish_position AS moved FROM race_entries WHERE ${drawn} AND finish_position IS NOT NULL AND grid IS NOT NULL
+              AND COALESCE(shared_drive, 0) = 0 AND grid <> finish_position ORDER BY ABS(grid - finish_position) DESC`,
+        )
+        .all(raceId)
+        .map((r) => r.moved)
+      truthy(climbs[0] === climbs[1] && Math.abs(climbs[2]) < Math.abs(climbs[1]), `/races/1976/9's two biggest moves tie at ${climbs[0]}, ahead of the rest`)
+      is(got.strong.length, 2, `${half}: and both are drawn in full ink — ${got.strong.join(', ')}`)
+      truthy(got.strongWeight.every((w) => Number(w) >= 600), `${half}: their names at the end set semibold`)
+      truthy(got.markedLast, `${half}: the marked lines are drawn over the field`)
+      truthy(/ each climbed sixteen places$/.test(got.finding ?? ''), `${half}: the finding states the tie — “${got.finding}”`)
+      truthy(/the biggest gains drawn in full ink$/.test(got.kicker ?? ''), `${half}: the kicker says what the ink is — “${got.kicker}”`)
+      truthy(got.label.includes('Drawn in full ink: '), `${half}: and the screen reader hears every move`)
+      is(got.notes.length, 2, `${half}: each move labelled on its line at this width`)
+      notesHold(half, got)
       const outEnds = got.ends.filter((_, i) => got.out[i])
       const flag = Math.max(...got.ends)
       truthy(Math.min(...outEnds) < flag, `${half}: a retirement stops short of the flag`)
@@ -5093,6 +5146,10 @@ try {
       is(served.results.join(' '), app.results.join(' '), 'both halves end the cars in the same order')
       is(served.grids.join(' '), app.grids.join(' '), 'from the same grid slots')
       is(served.width, GRID_FLAG_WIDTH, `the static page draws at ${GRID_FLAG_WIDTH}, the width the app starts at`)
+      is(served.finding, app.finding, 'both halves state the same finding')
+      is(served.kicker, app.kicker, 'under the same kicker')
+      is(served.strong.join(', '), app.strong.join(', '), 'and draw the same moves in full ink')
+      is(served.label, app.label, 'and name the drawing alike')
     }
 
     // A race no car failed to finish says nothing about dashed lines, and a
@@ -5124,7 +5181,9 @@ try {
     // and the full name a shared abbreviation falls back to (Pesenti-Rossi
     // shares PES with Pescarolo at /races/1976/11), cut with an ellipsis
     // where it cannot fit whole rather than cropped by the figure's edge.
-    for (const [route, width] of [['/races/1976/11', 320], ['/races/1953/7', 375]]) {
+    // And the labels on the lines (VD-113) on a phone, where /races/2026/20
+    // has three moves to set and room for fewer.
+    for (const [route, width] of [['/races/1976/11', 320], ['/races/1953/7', 375], ['/races/2026/20', 375]]) {
       await page.setViewportSize({ width, height: 900 })
       await go(route)
       await page.waitForSelector('#root main svg.grid-flag', { timeout: 5000 }).catch(() => null)
@@ -5132,14 +5191,22 @@ try {
         const svg = document.querySelector('#root main svg.grid-flag')
         if (!svg) return ['no figure']
         const edge = Number(svg.getAttribute('viewBox').split(' ')[2])
+        const notes = [...svg.querySelectorAll('text.flag-note')].map((t) => [t.textContent, t.getBBox()])
+        const clash = notes.flatMap(([a, p], i) =>
+          notes
+            .slice(i + 1)
+            .filter(([, q]) => p.x < q.x + q.width && q.x < p.x + p.width && p.y < q.y + q.height && q.y < p.y + p.height)
+            .map(([b]) => `${a} overlaps ${b}`),
+        )
         return [...svg.querySelectorAll('text')]
           .map((t) => {
             const box = t.getBBox()
-            return box.x + box.width > edge + 0.5 ? `${t.textContent} ends at ${Math.round(box.x + box.width)} of ${edge}` : null
+            return box.x < -0.5 || box.x + box.width > edge + 0.5 ? `${t.textContent} runs from ${Math.round(box.x)} to ${Math.round(box.x + box.width)} of ${edge}` : null
           })
           .filter(Boolean)
+          .concat(clash)
       })
-      is(over.join(' · '), '', `${route} at ${width} px: every label ends inside the drawing`)
+      is(over.join(' · '), '', `${route} at ${width} px: every label inside the drawing, and none on a line over another`)
     }
     await page.setViewportSize({ width: 1280, height: 900 })
   })

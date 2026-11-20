@@ -552,7 +552,7 @@ a frame.
   card against the race records; */records (the record cards)* reads the columns, the
   bars inside their cards from 1440 to 320, and the two fills.
 
-### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the key beside a full-width chart and markers on a column chart (VD-123 #1347), a career's line and markers on the dot plot (VD-124 #1348), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393), a constructor's wins with its titles, peak and drought marked (VD-125 #1349)
+### Figure, and its `lead` variant (core) — built (VD-80); provisional: annotation (VD-121 #1345), the key beside a full-width chart and markers on a column chart (VD-123 #1347), a career's line and markers on the dot plot (VD-124 #1348), the team-mates face-off (VD-122 #1346), the layout over a photograph (AF-96 #977, AF-177 #1393), a constructor's wins with its titles, peak and drought marked (VD-125 #1349), a race's biggest moves labelled on Grid to flag (VD-113 #1335)
 
 **Annotation — provisional (VD-121 #1345).** Decided on the 2026-11-13 visual
 critique (`docs/critiques/2026-11-13-visual-design/P09v2.html`): one pattern
@@ -694,6 +694,37 @@ peak where a chart prints one. The key stands beside a full-width chart
 and under one in the slot. `units.mjs` holds the working and Ferrari's
 layout at every width; `smoke.mjs` the finding, kicker, notes, markers,
 squares, stubs and the key's place in both halves.
+
+**Built (VD-113), on a race's *Grid to flag*.** The pattern's first labels
+on the lines, to the approved mockup
+(`docs/critiques/2026-11-13-visual-design/P04-race-grid-to-flag.html`,
+approved 2026-11-13 as it stands). `gridFlagMoves()` in `queries/race.js`
+picks the race's biggest moves, grid number minus finishing place, largest
+first whichever way, a gain before a loss of the same size, at most three,
+and a tie at the cut left out whole; a car not classified, a pit-lane start
+and a shared drive have no move. `gridFlagStory()` writes the finding - the
+biggest climb (*Verstappen came from 21st to finish 2nd*), the drivers tied
+at it where several are, or the biggest fall where nobody picked climbed -
+the kicker, and each move's label: *Hamilton: 20th to 9th*, the finding's
+with its count (*up nineteen*), or the three-letter code where the chart
+names drivers by theirs (*HAM 20th → 9th*). The field is drawn at 1.2 px,
+the moves over it in `--ink` at 2.5 px and the winner in `--series-mark` at
+2.5 px, their names at the end semibold. `charts/gridFlag.js` sets each
+label in the label register, `--size-3` semibold over a 5 px `--panel` halo,
+on the side its own line leaves clear, inside the plot, clear of the other
+labels and of every marked line, or not at all; the line stays heavy and
+the drawing's accessible name says every move. Declared against the
+mockup and the pattern: the labels stand on the lines, not in a key, as the
+approved mockup sets them, and the table and the accessible name carry
+every value, so nothing lives only in the drawing; the field stays in
+`--series-ink`, where the mockup's `--rule-strong` is 1.5:1 on the panel and
+under §7's 3:1 for a chart series; places are ordinals in digits, as a
+race's standfirst writes them, not the mockup's *second*; and the winner's
+own label (*Norris: pole to win*) is not drawn, the issue naming the three
+moves and the pattern one to three notes. `units.mjs` holds the picks, the
+words and the labels' places; `smoke.mjs` the moves, the finding, the
+kicker and the labels in both halves, and the labels apart and inside the
+drawing on a phone.
 
 - **Job:** make one comparison visible.
 - **Parts:** the section's **h2 is the figure's name**, with no second bold

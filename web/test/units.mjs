@@ -191,6 +191,7 @@ import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
 import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
 import { ONWARD, raceSteps } from '../src/lib/wayfinding.js'
 import { NEIGHBOURS as RACE_NEIGHBOURS } from '../src/queries/race.js'
+import { gridFlagLabel, gridFlagMoves, gridFlagStory } from '../src/queries/race.js'
 import {
   AGGREGATE_METHOD,
   DISTANCE_LABEL,
@@ -285,7 +286,7 @@ import {
   tiersOf,
 } from '../src/queries/records.js'
 import { columnLayout } from '../src/charts/columnChart.js'
-import { flagCarClass, gridFlagLayout, textWidth } from '../src/charts/gridFlag.js'
+import { flagCarClass, gridFlagLayout, gridFlagRows, textWidth } from '../src/charts/gridFlag.js'
 import { INK, slotColour } from '../src/charts/palette.js'
 import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 import { unestablished } from '../src/lib/tiles.js'
@@ -5505,10 +5506,134 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
       position_text: finish === null ? 'DNF' : String(finish),
       laps_completed: laps,
     })
+    // The field first, in the order it ended, then the marked lines, so
+    // the winner is drawn over the field (VD-113).
     const layout = gridFlagLayout([entry(1, 2, 1, 50), entry(2, 1, 2, 50), entry(3, 3, null, 20)])
-    assert.deepEqual(layout.cars.map(flagCarClass), ['flag-car flag-won', 'flag-car', 'flag-car flag-out'])
+    assert.deepEqual(layout.cars.map(flagCarClass), ['flag-car', 'flag-car flag-out', 'flag-car flag-won'])
+    assert.deepEqual(layout.notes, [])
     const shared = gridFlagLayout([entry(1, 1, 1, 50), entry(2, 1, 1, 50), entry(3, 2, 2, 50)])
-    assert.deepEqual(shared.cars.map((car) => car.won), [true, true, false])
+    assert.deepEqual(shared.cars.map((car) => car.won), [false, true, true])
+  })
+
+  // VD-113: the race's biggest moves, grid number minus finishing place.
+  const car = (id, grid, finish, extra = {}) => ({
+    id,
+    driver: `Driver Name${id}`,
+    abbreviation: `N${String(id).padStart(2, '0')}`,
+    grid,
+    grid_text: grid === null ? 'PL' : String(grid),
+    finish_position: finish,
+    position_text: finish === null ? 'DNF' : String(finish),
+    laps_completed: finish === null ? 10 : 50,
+    ...extra,
+  })
+  const story = (entries) => gridFlagStory(gridFlagRows(entries))
+
+  it('grid to flag picks the biggest moves, a gain before a loss of the same size, three at most', () => {
+    // 2 climbs six and 8 falls six, the gain first; 5 climbs four; the
+    // fourth biggest is 9's fall of two, and nothing else is two.
+    const field = [car(1, 1, 1), car(2, 8, 2), car(3, 3, 3), car(4, 4, 4), car(5, 9, 5), car(6, 5, 6), car(7, 6, 7), car(8, 2, 8), car(9, 7, 9)]
+    assert.deepEqual(
+      gridFlagMoves(gridFlagRows(field)).map((m) => [m.entry.id, m.moved]),
+      [
+        [2, 6],
+        [8, -6],
+        [5, 4],
+      ],
+    )
+    // The same rows in another order pick the same moves in the same order.
+    assert.deepEqual(
+      gridFlagMoves(gridFlagRows([...field].reverse())).map((m) => m.entry.id),
+      [2, 8, 5],
+    )
+  })
+
+  it('grid to flag leaves a tie at the cut out whole, and has no story where nothing moved', () => {
+    // 2 climbs five; 3, 4 and 5 each move one: the cut at three would keep
+    // two of them, so none is kept.
+    const tied = [car(1, 1, 1), car(2, 7, 2), car(3, 2, 3), car(4, 3, 4), car(5, 4, 5), car(6, 5, 6), car(7, 6, 7)]
+    assert.deepEqual(gridFlagMoves(gridFlagRows(tied)).map((m) => m.entry.id), [2])
+    const still = [car(1, 1, 1), car(2, 2, 2), car(3, 3, 3)]
+    assert.deepEqual(story(still), { finding: null, kicker: null, moves: [] })
+    const layout = gridFlagLayout(still, 640, [])
+    assert.equal(layout.cars.some((c) => c.strong), false)
+  })
+
+  it('grid to flag counts no move it cannot establish: a retirement, a pit-lane start, a shared drive', () => {
+    const entries = [
+      car(1, 1, 1),
+      car(2, 2, null),
+      car(3, null, 2),
+      car(4, 20, 3, { shared_drive: 1 }),
+      car(5, 4, 4),
+      car(6, 3, 5),
+    ]
+    assert.deepEqual(gridFlagMoves(gridFlagRows(entries)).map((m) => [m.entry.id, m.moved]), [[6, -2]])
+  })
+
+  it('grid to flag states the biggest climb, names a tie at it, and falls back to the biggest fall', () => {
+    const climb = story([car(1, 1, 1), car(2, 8, 2), car(3, 3, 3), car(4, 4, 4), car(5, 9, 5), car(6, 5, 6), car(7, 6, 7), car(8, 2, 8), car(9, 7, 9)])
+    assert.equal(climb.finding, 'Name2 came from 8th to finish 2nd')
+    assert.equal(climb.kicker, 'Each starter, grid slot to result · the winner in red · the biggest gains and losses drawn in full ink')
+    assert.deepEqual(
+      climb.moves.map((m) => [m.long, m.short]),
+      [
+        ['Name2: 8th to 2nd, up six', 'N02 8th → 2nd'],
+        ['Name8: 2nd to 8th', 'N08 2nd → 8th'],
+        ['Name5: 9th to 5th', 'N05 9th → 5th'],
+      ],
+    )
+    const won = story([car(1, 5, 1), car(2, 1, 2), car(3, 2, 3), car(4, 3, 4), car(5, 4, 5)])
+    assert.equal(won.finding, 'Name1 came from 5th to win')
+    assert.equal(won.kicker, 'Each starter, grid slot to result · the winner in red · the biggest gain drawn in full ink')
+    const pair = story([car(1, 1, 1), car(2, 6, 2), car(3, 7, 3), car(4, 2, 4), car(5, 3, 5), car(6, 4, 6), car(7, 5, 7)])
+    assert.equal(pair.finding, 'Name2 and Name3 each climbed four places')
+    const fall = story([car(1, 1, 1), car(2, 2, 6), car(3, 3, 2), car(4, 4, 3), car(5, 5, 4), car(6, 6, 5)])
+    // 2 fell four; 3 to 6 each climbed one, a tie past the cut.
+    assert.equal(fall.finding, 'Name2 fell from 2nd to 6th')
+    assert.equal(fall.kicker, 'Each starter, grid slot to result · the winner in red · the biggest loss drawn in full ink')
+    // An entry the figure cannot draw changes the kicker's claim.
+    const short = gridFlagStory(gridFlagRows([car(1, 1, 1), car(2, 4, 2), car(3, 2, 3), car(4, 3, 4)]), [car(9, null, null)])
+    assert.match(short.kicker, /^Grid slot to result · /)
+    // A family name written first is the one its code spells.
+    const zhou = story([car(1, 1, 1), car(2, 17, 2, { driver: 'Zhou Guanyu', abbreviation: 'ZHO' }), car(3, 2, 3)])
+    assert.equal(zhou.finding, 'Zhou came from 17th to finish 2nd')
+    assert.match(gridFlagLabel(gridFlagRows([car(1, 1, 1), car(2, 4, 2)]), zhou.moves), / Drawn in full ink: Zhou, 17th to 2nd, up fifteen; /)
+  })
+
+  it('grid to flag sets each picked line its label clear of the others, inside the plot, or none', () => {
+    // Three big moves: 20th to 2nd, 19th to 3rd and 1st to 18th; the rest
+    // move two places or fewer.
+    const order = [3, 20, 19, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 17, 18]
+    const entries = order.map((grid, i) => car(i + 1, grid, i + 1))
+    const rows = gridFlagRows(entries)
+    const told = gridFlagStory(rows)
+    assert.equal(told.moves.length, 3)
+    for (const width of [1000, 640, 375, 320]) {
+      const layout = gridFlagLayout(entries, width, told.moves)
+      assert.equal(layout.cars.filter((c) => c.strong).length, 3, `${width}: three lines in full ink`)
+      const coded = layout.cars.some((c) => c.name.length === 3)
+      for (const note of layout.notes) {
+        const drawn = layout.cars.find((c) => c.key === note.key)
+        assert.equal(drawn.strong, true)
+        assert.equal(note.text, coded ? told.moves.find((m) => m.entry.id === note.key).short : told.moves.find((m) => m.entry.id === note.key).long)
+        const w = textWidth(note.text) * 1.2
+        const left = note.anchor === 'end' ? note.x - w : note.x
+        assert.ok(left >= layout.start - 0.1 && left + w <= layout.finish + 0.1, `${width}: “${note.text}” inside the plot`)
+        assert.ok(note.y - 7 >= layout.top && note.y + 7 <= layout.bottom, `${width}: “${note.text}” inside the plot's height`)
+      }
+      const boxes = layout.notes.map((n) => {
+        const w = textWidth(n.text) * 1.2
+        const left = n.anchor === 'end' ? n.x - w : n.x
+        return { left, right: left + w, top: n.y - 7, bottom: n.y + 7 }
+      })
+      for (let i = 0; i < boxes.length; i++)
+        for (let j = i + 1; j < boxes.length; j++) {
+          const [a, b] = [boxes[i], boxes[j]]
+          assert.ok(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top, `${width}: two labels overlap`)
+        }
+      if (width === 1000) assert.equal(layout.notes.length, 3, 'at 1,000 px every label fits')
+    }
   })
 })
 

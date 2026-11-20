@@ -35,6 +35,15 @@
  * grid with a gap in it (a car withdrawn after qualifying) or a shared drive
  * (two drivers, one slot) still lines up, and each label says the number the
  * source gives.
+ *
+ * WHAT IT PICKS OUT (VD-113)
+ *     The race's biggest moves, which queries/race.js's gridFlagStory()
+ *     chooses from these same rows and words, are drawn in full ink and
+ *     heavier, each with its label on its line, over a field drawn lighter;
+ *     the winner keeps the accent. A label goes where it is clear of every
+ *     other label and every picked line, inside the plot, or is not drawn:
+ *     the line stays heavy and its name semibold, and the drawing's
+ *     accessible name says every move whether its label fitted or not.
  */
 import { classificationOrder, missing, result, text } from '../lib/format.js'
 import { linear, ticks } from './scales.js'
@@ -83,6 +92,103 @@ const fit = (name, room) => {
 }
 
 const round = (value) => Math.round(value * 10) / 10
+
+// A label on a picked line (VD-113): set in the label register, 12 px
+// semibold, which runs wider than the axis face textWidth() measures, so
+// that is scaled up - generous, as textWidth is. Its middle sits NOTE_RISE
+// off the line, on the side the line leaves clear, NOTE_HALF either side
+// of it, and NOTE_PAD keeps two labels from touching.
+const NOTE_SCALE = 1.2
+const NOTE_RISE = 10
+const NOTE_HALF = 7
+const NOTE_PAD = 2
+// Where along its line a label may stand, as a share of the line's run from
+// the start, tried in this order on each side; the first that is clear wins.
+const NOTE_AT = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]
+
+/** Whether the segment from (x1, y1) to (x2, y2) passes through the box (Liang-Barsky). */
+const crosses = ({ x1, y1, x2, y2 }, box) => {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  let lo = 0
+  let hi = 1
+  for (const [p, q] of [
+    [-dx, x1 - box.left],
+    [dx, box.right - x1],
+    [-dy, y1 - box.top],
+    [dy, box.bottom - y1],
+  ]) {
+    if (p === 0) {
+      if (q < 0) return false
+    } else {
+      const r = q / p
+      if (p < 0) lo = Math.max(lo, r)
+      else hi = Math.min(hi, r)
+      if (lo > hi) return false
+    }
+  }
+  return true
+}
+
+/** How far the point (x, y) is from the segment. */
+const distance = ({ x1, y1, x2, y2 }, x, y) => {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const t = dx || dy ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy))) : 0
+  return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy))
+}
+
+const overlaps = (a, b) =>
+  a.left < b.right + NOTE_PAD && b.left < a.right + NOTE_PAD && a.top < b.bottom + NOTE_PAD && b.top < a.bottom + NOTE_PAD
+
+/**
+ * Each picked line's label, where one fits: on the side of its line the line
+ * itself leaves clear - above and to the left of a point on a climbing line,
+ * above and to the right on a falling one, or the opposite corner below -
+ * inside the plot, clear of the labels already set and of every marked
+ * line, and with the end it is anchored at nearer its own line than any
+ * other marked one, so that it cannot be read as another's. In the order given, so the finding's label
+ * is set first.
+ */
+function placeNotes(picked, marked, bounds) {
+  const notes = []
+  for (const { car, text } of picked) {
+    const width = textWidth(text) * NOTE_SCALE
+    const climbs = car.y2 <= car.y1
+    const sides = climbs
+      ? [
+          { anchor: 'end', rise: -1, at: NOTE_AT },
+          { anchor: 'start', rise: 1, at: [...NOTE_AT].reverse() },
+        ]
+      : [
+          { anchor: 'start', rise: -1, at: [...NOTE_AT].reverse() },
+          { anchor: 'end', rise: 1, at: NOTE_AT },
+        ]
+    let set = null
+    for (const side of sides) {
+      for (const t of side.at) {
+        const x = car.x1 + (car.x2 - car.x1) * t
+        const y = car.y1 + (car.y2 - car.y1) * t + side.rise * NOTE_RISE
+        const box = {
+          left: side.anchor === 'end' ? x - width : x,
+          right: side.anchor === 'end' ? x : x + width,
+          top: y - NOTE_HALF,
+          bottom: y + NOTE_HALF,
+        }
+        if (box.left < bounds.left || box.right > bounds.right || box.top < bounds.top || box.bottom > bounds.bottom) continue
+        if (notes.some((n) => overlaps(n.box, box))) continue
+        if (marked.some((line) => crosses(line, box))) continue
+        const own = distance(car, x, y)
+        if (marked.some((line) => line !== car && distance(line, x, y) <= own)) continue
+        set = { key: car.key, x: round(x), y: round(y), anchor: side.anchor, text, box }
+        break
+      }
+      if (set) break
+    }
+    if (set) notes.push(set)
+  }
+  return notes.map(({ box, ...note }) => note)
+}
 
 /**
  * The name each driver is labelled with inside a figure, given the width of
@@ -147,8 +253,15 @@ const gridText = (entry) => text(entry.grid_text ?? entry.grid)
  * Pescarolo), so the column stops at MOST of the width and a name past it is
  * shortened to fit: a cut name with an ellipsis says it was cut, where a
  * cropped one does not.
+ *
+ * `moves` are gridFlagStory()'s (queries/race.js), each an entry with the
+ * words for its line: `long` where the column names drivers in full,
+ * `short` where it names them by their codes. The cars come field first,
+ * in the order they ended, then the marked ones - the winner and the moves -
+ * in the same order, so that a marked line is drawn over the field and
+ * never under it; `notes` are the labels that fitted.
  */
-export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
+export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH, moves = []) {
   const rows = gridFlagRows(entries)
   if (!gridFlagShown(rows)) return null
   const laps = Math.max(...rows.map((r) => r.entry.laps_completed))
@@ -168,6 +281,41 @@ export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
   const plotBottom = TOP + rows.length * ROW
   const labelX = x(laps) + GAP
   const nameX = labelX + resultWidth + SPACE
+  const picks = new Map(moves.map((m) => [m.entry, m]))
+
+  const cars = rows.map((r, i) => {
+    const end = x(r.entry.laps_completed)
+    const move = picks.get(r.entry)
+    const coded = r.entry.abbreviation && names[i] === r.entry.abbreviation
+    return {
+      key: r.entry.id ?? r.entry.driver_id,
+      out: r.out,
+      // The winner's line wears the accent (VD-94): the race's lede says
+      // who won, and this is that line. Every car classified first, so a
+      // shared winning drive marks both of its drivers.
+      won: r.entry.finish_position === 1,
+      // One of the race's biggest moves (VD-113), in full ink.
+      strong: Boolean(move),
+      note: move ? ((coded && move.short) || move.long) : null,
+      x1: round(x(0)),
+      y1: round(y(r.start)),
+      x2: round(end),
+      y2: round(y(r.end)),
+      // A dotted rule from a line that stops short of the flag - a
+      // retirement, or a finisher laps down - to its label, so the eye
+      // can carry the row across the gap.
+      leader: end + 5 < labelX - 3 ? { from: round(end + 5), to: round(labelX - 3) } : null,
+      grid: gridText(r.entry),
+      result: result(r.entry),
+      name: names[i],
+    }
+  })
+  const marked = cars.filter((car) => car.won || car.strong)
+  const notes = placeNotes(
+    moves.map((m) => cars[rows.findIndex((r) => r.entry === m.entry)]).filter((car) => car?.strong).map((car) => ({ car, text: car.note })),
+    marked,
+    { left: x(0), right: x(laps), top: TOP, bottom: plotBottom },
+  )
 
   return {
     width,
@@ -187,37 +335,19 @@ export function gridFlagLayout(entries, width = GRID_FLAG_WIDTH) {
     })),
     tickY: plotBottom + 14,
     axisY: plotBottom + 30,
-    cars: rows.map((r, i) => {
-      const end = x(r.entry.laps_completed)
-      return {
-        key: r.entry.id ?? r.entry.driver_id,
-        out: r.out,
-        // The winner's line wears the accent (VD-94): the race's lede says
-        // who won, and this is that line. Every car classified first, so a
-        // shared winning drive marks both of its drivers.
-        won: r.entry.finish_position === 1,
-        x1: round(x(0)),
-        y1: round(y(r.start)),
-        x2: round(end),
-        y2: round(y(r.end)),
-        // A dotted rule from a line that stops short of the flag - a
-        // retirement, or a finisher laps down - to its label, so the eye
-        // can carry the row across the gap.
-        leader: end + 5 < labelX - 3 ? { from: round(end + 5), to: round(labelX - 3) } : null,
-        grid: gridText(r.entry),
-        result: result(r.entry),
-        name: names[i],
-      }
-    }),
+    cars: [...cars.filter((car) => !car.won && !car.strong), ...marked],
+    notes,
   }
 }
 
 /**
  * A car's group class, which both renderers write: a car that was not
- * classified is `flag-out`, dashed and ending on a cross, and the winner
- * `flag-won`, in the accent (styles/app.css).
+ * classified is `flag-out`, dashed and ending on a cross, the winner
+ * `flag-won`, in the accent, and one of the race's biggest moves
+ * `flag-strong`, in full ink (styles/app.css).
  */
-export const flagCarClass = (car) => `flag-car${car.out ? ' flag-out' : ''}${car.won ? ' flag-won' : ''}`
+export const flagCarClass = (car) =>
+  `flag-car${car.out ? ' flag-out' : ''}${car.won ? ' flag-won' : ''}${car.strong ? ' flag-strong' : ''}`
 
 /** The cross a car that was not classified ends on, as path data. */
 export const crossPath = (x, y, size = 3) =>
