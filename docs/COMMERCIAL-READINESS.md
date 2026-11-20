@@ -248,8 +248,8 @@ field in it reads original. Ten of the twelve took it then.
 paraphrased field, and stays CC BY-SA until that is rewritten (`PM-62`,
 #692). Nor, at first, did the glossary, whose definitions all read original
 but which the ruling expected to stay CC BY-SA. `PM-67` (#835) read it by
-hand against formula1.com's glossary, the FIA's regulations and Wikipedia,
-found nine definitions that followed one of them without copying a clause,
+hand against whichever of formula1.com's glossary, the FIA's regulations and
+Wikipedia holds each term, found nine definitions that followed one of them without copying a clause,
 and on the maintainer's ruling of 2026-11-16 rewrote those nine and granted
 the glossary, the eleventh table. `verify.py` now holds every granted field
 to the text the pass labelled, so a rewritten one waits for the pass.

@@ -179,8 +179,9 @@ do, under *What this project wrote* below. `technical_innovations` stays
 CC BY-SA because its fan-car description is paraphrased, until that field is
 rewritten (`PM-62`, #692). The glossary was the last to be granted: all 55 of
 its definitions read original, but the ruling expected it to stay, so it was
-read again by hand against formula1.com's glossary, the FIA's regulations and
-Wikipedia. That reading found nine definitions following one of those
+read again by hand, term by term, against whichever of formula1.com's
+glossary, the FIA's regulations and Wikipedia holds the term (two that none
+of them defines rest on the pass's screen). That reading found nine definitions following one of those
 sources' way of putting it, though none copied; the maintainer ruled to
 rewrite them and then grant, and the nine were written again in this
 project's own words (`PM-67`, #835).
@@ -406,7 +407,9 @@ The share-alike on everything else comes from Wikipedia, and
 none of Wikipedia's text is in these columns. A disagreement between two
 sources is found here, by the build, and written up here; a gap is this
 project's account of what it does not hold. The eleven tables were written here
-from general knowledge, and the prose pass measured every field in them
+from general knowledge, with a few figures taken as facts from facts-only
+sources (the glossary's plank and cost cap from the FIA's regulations), and
+the prose pass measured every field in them
 against the Wikipedia articles a writer would have reached for and found
 none of their expression. There is no upstream to owe anything to, and the
 whole-file licence covered them by the convenience LICENSE-DATA records —

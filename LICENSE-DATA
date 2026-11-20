@@ -71,8 +71,9 @@ first five were written for this project, about this project's own database.
 The eleven tables' prose was measured field by field against the Wikipedia
 articles a writer would have reached for — `docs/prose_pass.tsv`, the prose
 pass — and every field in them reads as this project's own expression. The
-glossary was read by hand as well, against formula1.com's glossary, the FIA's
-regulations and Wikipedia, and the nine definitions that reading found
+glossary was read by hand as well, term by term against whichever of
+formula1.com's glossary, the FIA's regulations and Wikipedia holds the term,
+and the nine definitions that reading found
 following one of them were written again in this project's own words before
 it was granted (PM-67). The
 remaining columns of the tables they sit in — the subject and field of a
