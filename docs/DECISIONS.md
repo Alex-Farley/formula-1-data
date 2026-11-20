@@ -453,6 +453,27 @@ fourth face on the font request. What it does not change: the scale, the
 weights, the inks, the measure, any contrast floor, the label register, or
 the page title's capitals.
 
+### D-67 · A race's disagreements follow its classification, closed — 2026-11-20 (`VD-131`, #1399)
+§3 and §5 placed the disagreement box directly above the table it
+concerns. On a race page that is the classification, and on 44 of the
+1,169 completed race pages the box stood between the tiles and the table at
+366 to 1,702 px (the 2001 Belgian Grand Prix, four rows, 1,702). Measured on
+VD-108's branch build, with the podium in the tiles the classification's
+heading reached the first screen at 1440 x 900 on all 1,125 race pages
+without a box and on none of the 44 with one.
+
+It changes a rule the system states, so this is §8's *Changing or
+reversing*; the maintainer ruled on 2026-11-18, on VD-108's review page
+(#1330): move the box under the classification and close it to one line
+until it is opened. The ruling is recorded on the item.
+
+The rule: on a race page the box follows the classification, closed to its
+heading, and a line above the table gives the box's count and links to it.
+Both renderers write both, so the box opens without script on the static
+page. What it does not change: what is recorded, the box's words, its frame,
+or its place on driver, constructor and car pages, where it stays open
+above what it concerns.
+
 ---
 
 ## The queue

@@ -55,4 +55,22 @@ export const fieldLabel = (field) => {
   const words = String(field ?? '').replace(/_/g, ' ')
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
+/**
+ * The heading of a box of open rows, one string for both renderers, and the
+ * count a race page's pointer repeats (VD-131): one heading, so the pointer
+ * and the box it points to cannot give two counts.
+ */
+export const openHeading = (what, n) =>
+  n === 1 ? `Two sources disagree about ${what}` : `Two sources disagree about ${what}, in ${n} places`
+
+/**
+ * A race page's box follows the classification, closed to its heading, and a
+ * line above the classification points to it (VD-131, ruled 2026-11-18 on
+ * #1330): on 44 race pages the box, open above the table, ran 366 to 1,702 px
+ * and pushed the classification's heading off the first screen. The id is the
+ * box's, the pointer's link is to it, and the words are both renderers'.
+ */
+export const FOLDED_ID = 'disagreements'
+export const POINTER_LINK = 'see below the table'
+
 export const OPEN_FOOTER = 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '

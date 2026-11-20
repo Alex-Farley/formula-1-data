@@ -56,6 +56,7 @@ const drawn = new Map()
 const opened = new Set()
 // The team-mates face-off's disclosure (VD-130), one to a page, in the same Set.
 const FACE_FOLD = Symbol('the face-off disclosure')
+const DISAGREEMENTS = Symbol("a race's folded disagreements")
 
 /**
  * Count the static page's tables. Call this while it is still in the document
@@ -121,6 +122,7 @@ export function captureOpenFolds() {
     if (name && table.closest('.table-wrap')?.querySelector(':scope > details.table-fold')?.open) opened.add(name)
   }
   if (pre.querySelector('details.face-fold')?.open) opened.add(FACE_FOLD)
+  if (pre.querySelector('aside.disagreement > details')?.open) opened.add(DISAGREEMENTS)
 }
 
 /**
@@ -146,6 +148,17 @@ export function staticFaceFoldOpen() {
   const at = drawn.get(ARRIVAL)
   if (at === undefined || location.pathname !== at) return false
   return opened.has(FACE_FOLD)
+}
+
+/**
+ * Whether the reader opened a race's folded disagreements (VD-131) on the
+ * static page, on the route it was written for: the readings stay open at
+ * the handover.
+ */
+export function staticDisagreementsOpen() {
+  const at = drawn.get(ARRIVAL)
+  if (at === undefined || location.pathname !== at) return false
+  return opened.has(DISAGREEMENTS)
 }
 
 /**

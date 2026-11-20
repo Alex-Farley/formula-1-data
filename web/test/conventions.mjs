@@ -2205,7 +2205,7 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     '.lede': "a page's lede", '.section > .note': "a section's intro", 'p.note': 'a note under a block',
     '.note-box': 'a note box', '.table-foot > span': "a table's source line, not the controls beside it",
     '.table-how p': 'how a column is derived', '.figure-note': "a figure's note", '.source-note': 'a source line',
-    '.disagreement-why': "a recorded disagreement's reading", 'p.measure': 'running text at the measure, as on /data',
+    '.disagreement-why': "a recorded disagreement's reading", '.disagreement-pointer': "the line pointing to a race's folded disagreements", 'p.measure': 'running text at the measure, as on /data',
     'p.faint': 'a faint line of running text: the footer credit, a caveat', '.livery-band span': 'the sentence under a livery band',
   }
   it('the text serif is set only on prose, and never on a heading (VD-96)', () => {

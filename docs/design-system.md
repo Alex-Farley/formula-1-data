@@ -1199,14 +1199,29 @@ style.
 that fits its box* (`.wraps` on Grand Prix, Circuit and Winner), which is
 IX-45's second page and so the step §8 needs to promote it.
 
-### Notes, attached notes and the disagreement box (core) — built (VD-78, VD-86); pending: the box heading's role (VD-119 #1341, §2 *Type*)
+### Notes, attached notes and the disagreement box (core) — built (VD-78, VD-86); provisional: a race's box folded under the classification, with its pointer (VD-131 #1399); pending: the box heading's role (VD-119 #1341, §2 *Type*)
 
 | Block | Kind (text rule) | Frame |
 |---|---|---|
 | Section intro | free prose | none |
 | Source line, "same on every row" | belongs to a box | footer band of its table or figure |
 | Note box | framed | 3 px left edge; the box and its lines end together at the measure |
-| Disagreement ("Two sources disagree") | framed | 1 px frame, 3 px left edge, spans the column; placed directly above the table it explains, as the shared-drive box already is |
+| Disagreement ("Two sources disagree") | framed | 1 px frame, 3 px left edge, spans the column; placed directly above the table it explains, as the shared-drive box already is, but on a race page (below) |
+| Pointer to a folded disagreement | free prose | none; a note attached to the table under it, on one line at 1440 |
+
+**A race's box, folded** (provisional, VD-131 #1399, `[D-67]`). On a race
+page the box follows the classification, closed to its heading: a
+`<details>` inside the aside, its h2 the summary, set inline beside the
+disclosure's marker, so the closed box is one line in its frame. The open
+box is the box as it stands. Above the classification, and above the
+shared-drive note where there is one, a line in the prose voice at
+`--size-4` gives the box's own heading, so the two counts are one string,
+and links to the box (*Two sources disagree about this race, in 4 places:
+see below the table.*); following it in the app opens the box. The line
+takes the section gap above it and `--space-5` over the table. A reader
+who opened the box on the static page finds it open at the handover
+(`lib/handover.js`). Driver, constructor and car pages keep the box open
+above what it concerns.
 
 **A row mark** (provisional, DA-46 #911). Where one row of a table needs a
 reason the columns cannot give, its row-header cell carries a mark after
@@ -1596,7 +1611,9 @@ citation, is already one system and is kept.
 
 Race pages follow the entity layout (DP-11): the header, with the weather
 line where one is held (§3, Page header), beside the outline slot; tiles;
-*On this page* (§3, provisional, IA-30); the classification at full width; Grid to flag; qualifying; pit
+*On this page* (§3, provisional, IA-30); the classification at full width,
+with the line pointing to a recorded disagreement above it and the box after
+it, closed (§3, *A race's box, folded*, VD-131); Grid to flag; qualifying; pit
 stops; practice (folded); the timetable, once a result is held;
 photographs. The page of the next round to run, until its results land,
 carries *What's at stake* after the timetable: the season page's answer and
@@ -1779,7 +1796,8 @@ puts the classification before the outline (visual defect 7).
 - **NULL** is an em dash, never zero (**floor**).
 - **Uncertainty and disagreement:**
   - a disagreement is a framed note above the table it concerns, naming both
-    sources and both values;
+    sources and both values; on a race page it follows the classification,
+    closed, and a line above the table points to it (VD-131, `[D-67]`);
   - a derived-against-published pair always says which the page shows (DA-43
     #751);
   - an open gap is linked to `/data/quality`.
@@ -2104,3 +2122,7 @@ comparison in `docs/critiques/2026-11-14-serif-comparison/`: **Source Serif
 4 for prose**, chosen over Newsreader and over leaving prose in Saira, and
 **section heads in the words as written**, the page title staying in
 capitals `[D-66]`.
+
+The maintainer's ruling on VD-108's review page (#1330), 2026-11-18: **a
+race's disagreements move under the classification, closed to one line**,
+with a pointer above the table (VD-131 #1399) `[D-67]`.

@@ -2629,6 +2629,7 @@ p.note,
 .figure-note,
 .source-note,
 .disagreement-why,
+.disagreement-pointer,
 p.measure,
 p.faint {
   font-family: var(--serif);
@@ -2731,6 +2732,35 @@ p.faint {
   color: var(--ink-soft);
   margin: var(--space-3) 0 0;
   overflow-wrap: anywhere; /* a source's address in the note has no break in it (AF-110) */
+}
+
+/* A race page's box, folded (VD-131): after the classification, closed to
+   its one-line heading, the frame round it as it is open. The heading runs
+   inline beside the disclosure's marker, so the closed box is one line. */
+.disagreement > details > summary {
+  cursor: pointer;
+}
+
+.disagreement > details > summary > h2 {
+  display: inline;
+}
+
+.disagreement > details[open] > summary {
+  margin-bottom: var(--space-5);
+}
+
+/* The line above the classification that says what the folded box holds and
+   links to it: a note attached to the table under it, so it sits the
+   section gap below the block before it and close over the table. */
+.disagreement-pointer {
+  font-size: var(--size-4);
+  color: var(--ink-soft);
+  max-width: var(--measure);
+  margin: var(--space-9) 0 0;
+}
+
+.page > .disagreement-pointer + .section {
+  margin-top: var(--space-5);
 }
 
 /* A source line set at the small measure: four columns from --bp-desktop.
@@ -3329,8 +3359,11 @@ figure.photo figcaption a {
 
   /* A grid item holds its own margins, where a block let a margin under the
      header, a disagreement or a section's last paragraph collapse into the
-     40 px above the next section. These keep every gap the one it was. */
+     40 px above the next section. These keep every gap the one it was; a
+     race's folded disagreements stand before the slot, which the grid lifts
+     into the band, so the section after the slot is the next block (VD-131). */
   .page:has(> .slot) > :has(+ .section),
+  .page:has(> .slot) > .disagreement:has(+ .slot),
   .page:has(> .slot) > .section > :last-child {
     margin-bottom: 0;
   }

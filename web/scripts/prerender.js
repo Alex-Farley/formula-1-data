@@ -158,7 +158,18 @@ import {
   NOT_FOUND_LEDE,
   titled,
 } from '../src/lib/site.js'
-import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading, fieldLabel } from '../src/lib/disagreement.js'
+import {
+  DRIVER_READINGS,
+  EXPLAINED_FOOTER,
+  FOLDED_ID,
+  OPEN_FOOTER,
+  POINTER_LINK,
+  allExplained,
+  byReading,
+  explainedHeading,
+  fieldLabel,
+  openHeading,
+} from '../src/lib/disagreement.js'
 import {
   CHANGES_DESCRIPTION,
   CHANGES_LEDE,
@@ -2287,24 +2298,31 @@ const namesItsMaker = (name, maker) => {
  * Both values are shown because neither has been established as the right one.
  * Naming one correct here would be exactly the silent pick the table exists to
  * avoid. Markup and class names match components/Disagreement.jsx, so the static
- * page and the app render the same thing.
+ * page and the app render the same thing. `folded` is a race page's (VD-131):
+ * the box after the classification, closed to its heading, as Race.jsx
+ * passes it.
  */
-const disagree = (rows, what) => byReading(rows).map((group) => readings(group, what)).join('\n')
+const disagree = (rows, what, folded = false) =>
+  byReading(rows)
+    .map((group, i) => readings(group, what, folded, folded && i === 0 ? FOLDED_ID : null))
+    .join('\n')
+
+// The line above a race's classification pointing to the folded box, in the
+// box's own heading: components/Disagreement.jsx's DisagreementPointer.
+const disagreementPointer = (rows, what) =>
+  rows.length
+    ? `<p class="disagreement-pointer">${esc(openHeading(what, rows.length))}: <a href="#${FOLDED_ID}">${esc(POINTER_LINK)}</a>.</p>`
+    : ''
 
 // The same two readings as the app's Disagreement component, each group in an
 // aside of its own: explained rows - a span the register and the records
 // define differently (CD-25), a stored total with its gap explained (DA-43) -
 // are introduced as readings, open ones as a disagreement to settle.
-const readings = (rows, what) => {
+const readings = (rows, what, folded = false, id = null) => {
   const explained = allExplained(rows)
-  return `<aside class="disagreement" aria-label="${explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}">
-    <h2>${
-      explained
-        ? esc(explainedHeading(what))
-        : rows.length === 1
-          ? `Two sources disagree about ${esc(what)}`
-          : `Two sources disagree about ${esc(what)}, in ${rows.length} places`
-    }</h2>
+  const heading = `<h2>${esc(explained ? explainedHeading(what) : openHeading(what, rows.length))}</h2>`
+  return `<aside class="disagreement"${id ? ` id="${id}"` : ''} aria-label="${explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}">
+    ${folded ? `<details><summary>${heading}</summary>` : heading}
     <dl>${rows
       .map(
         (d) => `<div><dt>${esc(fieldLabel(d.field))}</dt><dd>
@@ -2317,7 +2335,7 @@ const readings = (rows, what) => {
       explained ? EXPLAINED_FOOTER : OPEN_FOOTER
     }${link('data/quality', 'the quality page')}.${
       explained ? '' : ` ${esc(SETTLE_ASK)}<a href="${esc(REPORT_URL)}">${esc(SETTLE_LINK)}</a>.`
-    }</p>
+    }</p>${folded ? '</details>' : ''}
   </aside>`
 }
 
@@ -3767,6 +3785,7 @@ const seasonsTable = (rows) =>
     // take the classification's order.
     const entryRows = all(ENTRIES, r.year, r.round)
     const entries = inClassificationOrder(entryRows)
+    const raceDisagreements = disagreements.all(`${r.year} round ${r.round}`)
     const flag = gridFlagRows(entryRows)
     const km = layoutLength(r)
     const qualifying = withDistance(all(QUALIFYING, r.year, r.round), km, r.qualifying_laps)
@@ -3894,7 +3913,11 @@ const seasonsTable = (rows) =>
         ${scheduled ? ownSection(timetable) : ''}
         ${isUpcoming(TITLE, r) ? ownSection(`<h2 id="stake">${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}${clinchParts(TITLE.clinch)}`) : ''}
         ${ownSection(startsBlock(historyHere, HISTORY_SAYS_HEADING, 'history'))}
-        ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
+        ${
+          // VD-131: the line pointing to the disagreements, above the table;
+          // the box follows the classification, closed, as Race.jsx has it.
+          entries.length ? disagreementPointer(raceDisagreements, 'this race') : ''
+        }
         ${
           entries.some((e) => e.shared_drive === 1)
             ? noteBox(SHARED_DRIVE_NOTE.head, SHARED_DRIVE_NOTE.body)
@@ -3922,6 +3945,7 @@ const seasonsTable = (rows) =>
               }, { unfolded: UNFOLDED.subject, footer: classificationFooter(entries) })}</section>`
             : ''
         }
+        ${disagree(raceDisagreements, 'this race', true)}
         ${
           // The opening slot (DP-11, VD-84), after the classification as
           // Race.jsx writes it, so the table never shares its width (IX-45).

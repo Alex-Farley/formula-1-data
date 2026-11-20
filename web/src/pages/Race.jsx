@@ -5,7 +5,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { UNFOLDED } from '../lib/table.js'
 import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
-import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
+import Disagreement, { DisagreementPointer, RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
 import WinnerStarts from '../components/WinnerStarts.jsx'
@@ -490,7 +490,9 @@ function RaceBody({ race, data, year, round }) {
 
       <WinnerStarts id="history" title={HISTORY_SAYS_HEADING} block={historyHere} onScope={(scope) => setScope({ history: scope })} />
 
-      <Disagreement rows={rows(data, 'disagreements')} what="this race" />
+      {/* VD-131: the line pointing to the disagreements, above the table;
+          the box itself follows the classification, closed. */}
+      {classified.length > 0 && <DisagreementPointer rows={rows(data, 'disagreements')} what="this race" />}
 
       {shared && (
         <Note>
@@ -514,6 +516,8 @@ function RaceBody({ race, data, year, round }) {
           />
         </Section>
       )}
+
+      <Disagreement rows={rows(data, 'disagreements')} what="this race" folded />
 
       {/* The opening slot (DP-11, VD-84): F1DB's drawing of the layout this
           race ran, credited on the card, beside the header from 1180 px.
