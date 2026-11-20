@@ -707,8 +707,8 @@ biggest climb (*Verstappen came from 21st to finish 2nd*), the drivers tied
 at it where several are, or the biggest fall where nobody picked climbed -
 the kicker, and each move's label: *Hamilton: 20th to 9th*, the finding's
 with its count (*up nineteen*), or the three-letter code where the chart
-names drivers by theirs (*HAM 20th → 9th*); a surname two drivers in the
-race share is written in full (*Michael Schumacher*), and the finding's
+names drivers by theirs (*HAM 20th → 9th*); a surname two drivers the
+figure draws share is written in full (*Michael Schumacher*), and the finding's
 label is placed before the others'. The field is drawn at 1.2 px,
 the moves over it in `--ink` at 2.5 px and the winner in `--series-mark` at
 2.5 px, their names at the end semibold. `charts/gridFlag.js` sets each
