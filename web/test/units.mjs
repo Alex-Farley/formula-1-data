@@ -223,7 +223,11 @@ import {
   chartData,
   chartNote,
   chartNotes,
+  dbLine,
+  homeAhead,
   homeCycle,
+  homePlate,
+  lastPodium,
   openingCaption,
   openingRace,
   podium,
@@ -3888,43 +3892,130 @@ describe("the home page's season block (PD-48)", () => {
   // a season not yet started, a season decided, and a one-round remainder are
   // reachable here and nowhere else.
   const lead = [
-    { entity: 'Lando Norris', points: 312 },
-    { entity: 'Oscar Piastri', points: 288 },
+    { entity: 'Lando Norris', driver_id: 'norris', points: 312, constructor_id: 'mclaren', constructor: 'McLaren', constructor_country: 'United Kingdom' },
+    { entity: 'Oscar Piastri', driver_id: 'piastri', points: 288, constructor_id: 'mclaren', constructor: 'McLaren', constructor_country: 'United Kingdom' },
   ]
   const running = { year: 2026, rounds: 23, run: 14, seats: 20, teams: 10, champion: null }
+  // currentTitle()'s answer once both titles are on the record with rounds
+  // to run (LV-15): the drivers' at round 19, the constructors' at 20.
+  const rounds = [19, 20, 21].map((round) => ({ round, name_used: `Round ${round} Grand Prix` }))
+  const crownedTitle = {
+    year: 2026,
+    who: 'Lando Norris is the 2026 World Champion, clinched at the Round 19 Grand Prix (round 19). McLaren is the 2026 Constructors\u2019 Champion.',
+    fought: null,
+    rounds,
+    crowned: {
+      drivers: { id: 'norris', name: 'Lando Norris', round: 19, line: 'Lando Norris is the 2026 World Champion, clinched at the Round 19 Grand Prix (round 19).' },
+      constructors: { id: 'mclaren', name: 'McLaren', round: 20, line: "McLaren is the 2026 Constructors' Champion, clinched at the Round 20 Grand Prix (round 20)." },
+    },
+  }
 
-  it('names a season with no round run as a calendar, and nobody as leading it', () => {
-    const strip = seasonStrip({ year: 2027, rounds: 24, run: 0, seats: 0, teams: 0, champion: null }, [])
+  it('names a season with no round run as a calendar, with no plate and nobody as leading it', () => {
+    const notRun = { year: 2027, rounds: 24, run: 0, seats: 0, teams: 0, champion: null }
+    assert.equal(homePlate({ now: notRun, lead: [], title: null }), null)
+    const strip = seasonStrip(notRun, null)
     assert.deepEqual(
       strip.map((t) => t.label),
       ['Rounds run', 'On the grid'],
     )
     assert.equal(strip[0].value, NOT_YET_RUN)
     assert.equal(strip[0].note, '24 on the calendar')
+    assert.equal(strip[0].lead, true, 'with no plate the rounds tile is the hero again')
   })
 
-  it('leads on the leader while the championship is open', () => {
-    const [, tile] = seasonStrip(running, lead)
-    assert.equal(tile.label, 'Leading the championship')
-    assert.equal(tile.value, 'Lando Norris')
-    assert.equal(tile.note, '312 points, 24 clear')
+  it('opens on the leader while the championship is open: the margin, the runner-up and the rounds (VD-109)', () => {
+    const plate = homePlate({ now: running, lead, title: null })
+    assert.equal(plate.label, 'Leading the 2026 championship')
+    assert.equal(plate.name, 'Lando Norris')
+    assert.equal(plate.href, 'drivers/norris')
+    assert.equal(plate.team, 'McLaren')
+    assert.equal(plate.teamHref, 'constructors/mclaren')
+    assert.equal(plate.margin, '24')
+    assert.equal(plate.sentence, 'points clear of Oscar Piastri after 14 of 23 rounds.')
+    assert.ok(plate.colour, "in the team's colour for the season")
+    assert.deepEqual(plate.said, [])
+    // The plate states the rounds and the leader, so the strip under it is
+    // who is in the cars alone, and the margin is the page's one hero.
+    assert.deepEqual(seasonStrip(running, plate).map((t) => [t.label, Boolean(t.lead)]), [['On the grid', false]])
   })
 
-  it('calls the same row the champion once the season has one', () => {
-    const [, tile] = seasonStrip({ ...running, run: 23, champion: 'Lando Norris' }, lead)
-    assert.equal(tile.label, 'Champion')
-    assert.equal(tile.value, 'Lando Norris')
+  it('calls the leader the champion only once the record names that driver', () => {
+    assert.equal(homePlate({ now: { ...running, champion: 'norris' }, lead, title: null }).label, '2026 World Champion')
+    assert.equal(homePlate({ now: { ...running, champion: 'piastri' }, lead, title: null }).label, 'Leading the 2026 championship')
+    const done = homePlate({ now: { ...running, run: 23, champion: 'norris' }, lead, title: null })
+    assert.equal(done.sentence, 'points clear of Oscar Piastri after all 23 rounds.')
   })
 
-  it('never says a leader is 0 clear, and needs no runner-up to say the points', () => {
-    const level = [lead[0], { entity: 'Oscar Piastri', points: 312 }]
-    assert.equal(seasonStrip(running, level)[1].note, '312 points, level at the top')
-    assert.equal(seasonStrip(running, [lead[0]])[1].note, '312 points')
+  it('says where each title on the record was settled, and the next race says neither again', () => {
+    const plate = homePlate({ now: { ...running, run: 20, champion: 'norris' }, lead, title: crownedTitle })
+    assert.equal(
+      plate.sentence,
+      "points clear of Oscar Piastri after 20 of 23 rounds. The title was settled at the Round 19 Grand Prix, round 19. McLaren took the constructors' title at the Round 20 Grand Prix, round 20.",
+    )
+    assert.deepEqual(plate.said, ['drivers', 'constructors'])
+    const next = { year: 2026, round: 21 }
+    assert.equal(homeAhead(crownedTitle, next, plate.said), null, 'nothing is left to say under the next race')
+    // Without the plate's word for a title, the next race keeps its line.
+    assert.equal(homeAhead(crownedTitle, next, ['drivers']), crownedTitle.crowned.constructors.line)
+    // A title still fought stays under the next race, after what is unsaid.
+    const half = { ...crownedTitle, crowned: { drivers: null, constructors: crownedTitle.crowned.constructors }, fought: 'Norris leads by 24.' }
+    assert.equal(homeAhead(half, next, ['constructors']), 'Norris leads by 24.')
+    assert.equal(homeAhead({ year: 2026, who: 'Norris leads by 24.', crowned: null }, next, []), 'Norris leads by 24.')
+    assert.equal(homeAhead(crownedTitle, { year: 2027, round: 1 }, []), null, "another season's race says nothing of this one")
+    // A title clinchRound() could not place stops at the title.
+    const placeless = { ...crownedTitle, crowned: { drivers: { ...crownedTitle.crowned.drivers, round: null }, constructors: { ...crownedTitle.crowned.constructors, round: null } } }
+    assert.equal(
+      homePlate({ now: { ...running, run: 20, champion: 'norris' }, lead, title: placeless }).sentence,
+      "points clear of Oscar Piastri after 20 of 23 rounds. McLaren took the constructors' title.",
+    )
   })
 
-  it('has no strip at all without a current season', () => {
-    assert.deepEqual(seasonStrip(null, lead), [])
+  it('never says a leader is 0 clear, and prints no margin it cannot count', () => {
+    const level = homePlate({ now: running, lead: [lead[0], { ...lead[1], points: 312 }], title: null })
+    assert.equal(level.margin, null)
+    assert.equal(level.sentence, 'Level on points with Oscar Piastri after 14 of 23 rounds.')
+    // A plate with no margin has no hero, so the rounds tile keeps the role.
+    assert.deepEqual(seasonStrip(running, level).map((t) => [t.label, t.value, Boolean(t.lead)]), [['Rounds run', '14 of 23', true], ['On the grid', '20', false]])
+    const one = homePlate({ now: running, lead: [lead[0], { ...lead[1], points: 311 }], title: null })
+    assert.equal(one.sentence, 'point clear of Oscar Piastri after 14 of 23 rounds.')
+    // A total nobody established is not a zero, and a lone row has no gap.
+    for (const unknown of [[lead[0], { ...lead[1], points: null }], [{ ...lead[0], points: null }, lead[1]], [lead[0]]]) {
+      const plate = homePlate({ now: running, lead: unknown, title: null })
+      assert.equal(plate.margin, null)
+      assert.equal(plate.sentence, null)
+      assert.equal(plate.name, 'Lando Norris')
+      assert.equal(seasonStrip(running, plate)[0].value, '14 of 23', 'and the strip still says how far the season has run')
+    }
+    // A leader with no team on record is drawn in ink and named alone.
+    const bare = homePlate({ now: running, lead: [{ ...lead[0], constructor_id: null, constructor: null }, lead[1]], title: null })
+    assert.equal(bare.colour, null)
+    assert.equal(bare.team, null)
+    assert.equal(bare.teamHref, null)
+  })
+
+  it('has no plate and no strip at all without a current season', () => {
+    assert.equal(homePlate({ now: null, lead, title: null }), null)
+    assert.deepEqual(seasonStrip(null, null), [])
     assert.deepEqual(seasonStrip(undefined, undefined), [])
+  })
+
+  it('says what the database holds in one line, each count from the shape (VD-109)', () => {
+    const shape = { races_run: 1169, from_year: 1950, entries: 27636, qualifying: 27149, standings: 34771, pit_stops: 22746, pit_stops_from: 1994, images: 711 }
+    assert.deepEqual(
+      dbLine(shape).map((p) => `${p.value} ${p.words}`),
+      ['1,169 races run since 1950', '27,636 entries', '27,149 qualifying rows', '34,771 standings rows', '22,746 pit stops since 1994', '711 photographs of cars'],
+    )
+    const bare = dbLine({ ...shape, from_year: null, pit_stops_from: null })
+    assert.equal(bare[0].words, 'races run', 'a year nobody holds drops the clause')
+    assert.equal(bare[4].words, 'pit stops')
+  })
+
+  it("stands the last race's podium with where each driver started (VD-109)", () => {
+    const row = (position, driver_id, grid, pole = 0, grid_text = String(grid)) => ({ position, driver_id, driver: driver_id, constructor_id: 'mclaren', constructor: 'McLaren', constructor_country: null, year: 2026, grid, grid_text, pole })
+    const steps = lastPodium([row(1, 'norris', 1, 1), row(2, 'verstappen', 21), { ...row(3, 'hadjar', null, 0, 'PL') }])
+    assert.deepEqual(steps.map((s) => s.start), ['from pole', 'from 21st', 'from the pit lane'])
+    assert.equal(lastPodium([row(1, 'norris', 1, 1), row(2, 'verstappen', 21)]), null, 'a missing place is no podium')
+    assert.equal(lastPodium(undefined), null)
   })
 
   it('counts what is left of the named season, not of the register', () => {

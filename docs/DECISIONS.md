@@ -507,6 +507,27 @@ classification at full width, the outline in the slot, the strip where no
 podium can be drawn, or the rule holding the app and the static page to it
 alike.
 
+### D-69 · Home opens on the season: the leader's margin is its hero, and the last race's podium stands in every state — 2026-11-13 (`VD-109`, #1331)
+Home opened on a strip of six database counts, two of them row counts
+(*Qualifying rows*, *Standings rows*). §2 *Type* made the rounds run its one
+hero figure (VD-84), the big number the visual direction names as a sign of
+a generated page, and §3 *Season cycle* stood the last race's podium in the
+three days after it alone, so for the rest of the cycle the last race was
+one sentence. The visual critique of 2026-11-13 proposed the season instead
+(P01), and the maintainer approved it as a mockup that day, with the rules
+it changes named on the item.
+
+The rule: from the first round run, home opens on the season plate of the
+season being run, its hero figure the leader's margin over the runner-up,
+its sentence saying after how many rounds and where each title on the record
+was settled, and the last race and its podium beside it; the six counts are
+one line under it. Where nobody leads yet, or the plate has no margin to
+print, the rounds tile leads as before.
+The last race's podium stands in every state of the cycle, each step saying
+where its driver started. What it does not change: the cycle's states, the
+reach chart in the results state alone, the outline in the slot, the plate
+on the season page, or the app and the static page drawing one page.
+
 ---
 
 ## The queue

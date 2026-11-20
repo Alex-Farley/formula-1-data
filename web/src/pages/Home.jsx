@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
 import { FigurePart, Page, Section, Slot, Stats } from '../components/Page.jsx'
@@ -11,6 +11,7 @@ import ReachChart from '../charts/ReachChart.jsx'
 import { drawnColours } from '../charts/gridStarts.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Podium from '../components/Podium.jsx'
+import SeasonPlate from '../components/SeasonPlate.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, raceDates } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
@@ -19,7 +20,7 @@ import { NAMES } from '../lib/site.js'
 
 import { LATEST } from '../queries/races.js'
 import { STARTS_COLUMNS, startsLabel, startsNote, startsTable, winnerStarts } from '../queries/circuit.js'
-import { FIGHT_QUERIES, currentTitle, fightAhead, reachFigures, teamsByDriver } from '../queries/season.js'
+import { FIGHT_QUERIES, currentTitle, reachFigures, teamsByDriver } from '../queries/season.js'
 import { readerZone, until } from '../queries/sessions.js'
 import { LAP_WORDS, lapLayout } from '../lib/lap.js'
 import {
@@ -43,8 +44,13 @@ import {
   NEXT_STARTS,
   PODIUM,
   THIS_WEEKEND,
+  DB_LINE_LEAD,
+  DB_LINE_LINK,
+  dbLine,
+  homeAhead,
   homeCycle,
-  podium,
+  homePlate,
+  lastPodium,
   reachHeading,
   sessionsClock,
   startsHeadingAt,
@@ -83,7 +89,6 @@ import {
   seasonComplete,
   seasonLink,
   seasonStrip,
-  strip,
 } from '../queries/home.js'
 
 /**
@@ -220,6 +225,92 @@ function WeekendSessions({ sessions, lap, zone, request, clock }) {
   )
 }
 
+/**
+ * What the database holds, in one line under the season plate (VD-109):
+ * queries/home.js dbLine()'s counts, each figure in bold, and the way to how
+ * far they can be trusted. scripts/prerender.js writes the same line.
+ */
+function HoldingsLine({ shape }) {
+  return (
+    <p className="db-line">
+      {DB_LINE_LEAD}
+      {dbLine(shape).map((part, k) => (
+        <Fragment key={part.words}>
+          {k > 0 ? ' · ' : null}
+          <b>{part.value}</b> {part.words}
+        </Fragment>
+      ))}
+      . <Link to={DB_LINE_LINK.to}>{DB_LINE_LINK.text}</Link>
+    </p>
+  )
+}
+
+/**
+ * The last race run, as a round panel: its name, place and dates, then its
+ * podium with where each driver started (VD-109, in every state of the
+ * cycle), or, where podium() declines a shared or empty place, who won it
+ * for whom. Beside the champion on the season plate, or in the season block
+ * where there is no plate.
+ */
+function LastRace({ latest, steps }) {
+  // The winning car's colour (AF-47 clause 1: the constructor is a
+  // first-class attribute of the race), in the race's own season, as
+  // /races draws it beside the same name. One mark for the sentence,
+  // beside the constructor and not the driver, which is clause 3.
+  // LiveryMark is given no `year`: its spacer exists to keep a table
+  // column's names aligned and there is no column here, so a season
+  // without a colour leaves the prose as it reads today. It is given
+  // `prose`, because a word precedes it here, and it rides in a
+  // .livery-prose-pair with the name, so a line never breaks between
+  // the two (VD-45).
+  const winnerColour = colourForEntry({
+    constructorId: latest.constructor_id,
+    country: latest.constructor_country,
+    year: latest.year,
+    team: latest.constructor,
+  })
+  return (
+    <div className="round-panel">
+      <p className="eyebrow">{LAST_RACE}</p>
+      <h3>
+        <Link to={`/races/${latest.year}/${latest.round}`}>
+          {latest.year} {latest.name_used}
+        </Link>
+      </h3>
+      <p className="muted small">
+        {latest.circuit}
+        {latest.circuit && raceDates(latest) ? ' · ' : null}
+        {raceDates(latest) ? <RaceDates race={latest} /> : null}
+      </p>
+      {steps ? (
+        <Podium steps={steps} />
+      ) : (
+        <p>
+          {WON_BY}
+          {latest.winner_id ? <Link to={`/drivers/${latest.winner_id}`}>{latest.winner}</Link> : UNRECORDED_WINNER}
+          {latest.constructor ? (
+            <>
+              {WON_FOR}
+              <span className="livery-prose-pair">
+                <LiveryMark colour={winnerColour} prose />
+                {latest.constructor_id ? (
+                  <Link to={`/constructors/${latest.constructor_id}`}>{latest.constructor}</Link>
+                ) : (
+                  <span>{latest.constructor}</span>
+                )}
+              </span>
+            </>
+          ) : null}
+          .
+        </p>
+      )}
+      <p>
+        <Link to={`/races/${latest.year}/${latest.round}`}>{CLASSIFICATION_LINK}</Link>
+      </p>
+    </div>
+  )
+}
+
 function Board({ shape }) {
   return (
     <div className="board index">
@@ -275,7 +366,12 @@ export default function Home() {
           const opening = openingRace(latest, next, now)
           const caption = opening ? openingCaption(opening) : null
           const fight = currentTitle((key) => rows(data, key))
-          const ahead = fightAhead(fight, next)
+          // The season plate (VD-109): who leads the season being run, by
+          // how much, and where any title on the record was settled, in
+          // place of the strip of row counts that used to open the page.
+          const plate = homePlate({ now, lead, title: fight })
+          // What the next race says of the titles, less what the plate says.
+          const ahead = homeAhead(fight, next, plate?.said)
           const sessions = rows(data, 'sessions')
           const cycle = homeCycle({ now, latest, next, sessions }, clock)
           // The weekend as a lap (AF-156), at the reader's clock.
@@ -283,7 +379,9 @@ export default function Home() {
           const zone = readerZone()
           // The next round's forecast (AF-143), asked for in the app alone.
           const forecast = forecastRequest({ cycle: cycle.state, next, sessions, point: data.forecastPoint.rows[0] }, clock)
-          const steps = cycle.state === CYCLE.results ? podium(rows(data, 'podium')) : null
+          // The last race's podium, in every state of the cycle (VD-109).
+          const steps = latest ? lastPodium(rows(data, 'podium')) : null
+          const last = latest ? <LastRace latest={latest} steps={steps} /> : null
           // The title fight after this race: the first title still fought.
           const reach =
             cycle.state === CYCLE.results && fight
@@ -293,98 +391,54 @@ export default function Home() {
           const starts = cycle.state === CYCLE.off ? [] : winnerStarts(rows(data, 'nextStarts'))
           const startsRows = startsTable(starts)
           const history = Boolean(next?.circuit) && startsRows.some((row) => row.key.startsWith('slot-'))
-          // The winning car's colour (AF-47 clause 1: the constructor is a
-          // first-class attribute of the race), in the race's own season, as
-          // /races draws it beside the same name. One mark for the sentence,
-          // beside the constructor and not the driver, which is clause 3.
-          // LiveryMark is given no `year`: its spacer exists to keep a table
-          // column's names aligned and there is no column here, so a season
-          // without a colour leaves the prose as it reads today. It is given
-          // `prose`, because a word precedes it here, and it rides in a
-          // .livery-prose-pair with the name, so a line never breaks between
-          // the two (VD-45).
-          const winnerColour = latest
-            ? colourForEntry({
-                constructorId: latest.constructor_id,
-                country: latest.constructor_country,
-                year: latest.year,
-                team: latest.constructor,
-              })
-            : null
 
           return (
             <>
+              {/* The season plate (VD-109) with the last race beside it,
+                  and under them what the database holds, in a line.
+                  scripts/prerender.js draws the same block from the same
+                  module, so the static half opens on it too. */}
               <Section>
-                <Stats items={strip(shape)} />
+                <SeasonPlate plate={plate} aside={last} heading />
+                <HoldingsLine shape={shape} />
               </Section>
 
-              {/* The season being run: what it is up to, who leads it and who
-                  is in the cars (PD-48), then the round either side of today.
-                  scripts/prerender.js draws this same block from the same
-                  module, so the static half opens on it too. */}
+              {/* The opening slot (VD-92, DR-06): the outline of the last
+                  race run, or of the opener before a season has run one
+                  (openingRace), beside the header from 1180 px. Written
+                  after the plate, as a race writes its outline after its
+                  classification, so below 1180 it follows the block that
+                  names the race rather than standing between the header
+                  and the season. scripts/prerender.js writes the same card. */}
+              <Slot>
+                {opening && (
+                  <OutlineCard
+                    path={opening.race.outline}
+                    circuit={opening.race.circuit}
+                    layoutId={opening.race.f1db_layout_id}
+                    caption={
+                      <>
+                        {caption.text}
+                        {caption.dates ? (
+                          <>
+                            , <RaceDates race={caption.dates} />
+                          </>
+                        ) : null}
+                        .
+                      </>
+                    }
+                  />
+                )}
+              </Slot>
+
+              {/* The season being run: who is in the cars (PD-48), then the
+                  round either side of today - the last one here only where
+                  there is no plate to stand beside. */}
               {now ? (
                 <Section title={seasonHeading(now.year)}>
-                  <Stats items={seasonStrip(now, lead)} />
+                  <Stats items={seasonStrip(now, plate)} />
                   <div className="split">
-                    <div className="round-panel">
-                      <p className="eyebrow">{LAST_RACE}</p>
-                      {latest && steps ? (
-                        <>
-                          <h3>
-                            <Link to={`/races/${latest.year}/${latest.round}`}>
-                              {latest.year} {latest.name_used}
-                            </Link>
-                          </h3>
-                          <p className="muted small">
-                            {latest.circuit}
-                            {latest.circuit && raceDates(latest) ? ' · ' : null}
-                            {raceDates(latest) ? <RaceDates race={latest} /> : null}
-                          </p>
-                          <Podium steps={steps} />
-                          <p>
-                            <Link to={`/races/${latest.year}/${latest.round}`}>{CLASSIFICATION_LINK}</Link>
-                          </p>
-                        </>
-                      ) : latest ? (
-                        <>
-                          <h3>
-                            <Link to={`/races/${latest.year}/${latest.round}`}>
-                              {latest.year} {latest.name_used}
-                            </Link>
-                          </h3>
-                          <p className="muted small">
-                            {latest.circuit}
-                            {latest.circuit && raceDates(latest) ? ' · ' : null}
-                            {raceDates(latest) ? <RaceDates race={latest} /> : null}
-                          </p>
-                          <p>
-                            {WON_BY}
-                            {latest.winner_id ? (
-                              <Link to={`/drivers/${latest.winner_id}`}>{latest.winner}</Link>
-                            ) : (
-                              UNRECORDED_WINNER
-                            )}
-                            {latest.constructor ? (
-                              <>
-                                {WON_FOR}
-                                <span className="livery-prose-pair">
-                                  <LiveryMark colour={winnerColour} prose />
-                                  {latest.constructor_id ? (
-                                    <Link to={`/constructors/${latest.constructor_id}`}>{latest.constructor}</Link>
-                                  ) : (
-                                    <span>{latest.constructor}</span>
-                                  )}
-                                </span>
-                              </>
-                            ) : null}
-                            .
-                          </p>
-                          <p>
-                            <Link to={`/races/${latest.year}/${latest.round}`}>{CLASSIFICATION_LINK}</Link>
-                          </p>
-                        </>
-                      ) : null}
-                    </div>
+                    {plate ? null : last}
                     <div className="round-panel">
                       <p className="eyebrow">{cycle.state === CYCLE.weekend ? THIS_WEEKEND : NEXT_RACE}</p>
                       {next && cycle.state === CYCLE.weekend ? (
@@ -461,34 +515,6 @@ export default function Home() {
                   </p>
                 </Section>
               ) : null}
-
-              {/* The opening slot (VD-92, DR-06): the outline of the last
-                  race run, or of the opener before a season has run one
-                  (openingRace), beside the header from 1180 px. Written
-                  after the season block, as a race writes its outline after
-                  its classification, so below 1180 it follows the block that
-                  names the race rather than standing between the tiles and
-                  the season. scripts/prerender.js writes the same card. */}
-              <Slot>
-                {opening && (
-                  <OutlineCard
-                    path={opening.race.outline}
-                    circuit={opening.race.circuit}
-                    layoutId={opening.race.f1db_layout_id}
-                    caption={
-                      <>
-                        {caption.text}
-                        {caption.dates ? (
-                          <>
-                            , <RaceDates race={caption.dates} />
-                          </>
-                        ) : null}
-                        .
-                      </>
-                    }
-                  />
-                )}
-              </Slot>
 
               <Section title={BOARD_HEADING} note={BOARD_NOTE}>
                 <Board shape={shape} />
