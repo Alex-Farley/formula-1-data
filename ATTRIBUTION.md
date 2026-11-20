@@ -45,6 +45,7 @@ the current position from the rows themselves.
 | Why a finisher inside the paid places scored nothing | Wikipedia per-race articles, cited row by row in `claims`; the notes are written for this project | <!-- fig:wp_entry_notes -->13<!-- /fig --> entries |
 | 2026 season, entry list, standings, calendar | <!-- credit:season_entries,sessions,standings,races -->formula1.com<!-- /credit --> | current season |
 | How each grid was set, from 1996 | <!-- credit:qualifying_formats -->The FIA Sporting Regulations of each season from 2009, and formula1.com's history of qualifying formats before that<!-- /credit -->; the facts only, with notes written for this project | every season from 1996 |
+| How a tie on points was settled, from 2009 | <!-- credit:tie_breaks -->The FIA's regulations of each season from 2009<!-- /credit -->; the facts only, with the rules written for this project | every season from 2009 |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | <!-- fig:drivers_verified -->7<!-- /fig --> drivers at `verified` |
 | Background lines for the drivers who only ran in Friday practice | <!-- credit:driver_note_sources -->Each driver's own Wikipedia article<!-- /credit -->, cited row by row in `driver_note_sources`; the lines are written for this project, and labelled in `docs/prose_pass.tsv` | <!-- fig:wp_note_sources -->55<!-- /fig --> drivers |
 | Regulations, safety, technical, glossary, eras | <!-- credit:glossary,eras,engine_eras,governance,safety_milestones,technical_innovations,points_systems,tyre_suppliers,constructor_lineage,grands_prix,personnel,engine_manufacturers -->Written for this project from general knowledge<!-- /credit -->. Since v2.16 this is a named provenance — `authored`, `source_registry` entry 18 — and everything carrying it sits at `medium`, because nothing here can contradict it | <!-- fig:authored_tables -->12<!-- /fig --> tables, <!-- fig:authored_rows -->342<!-- /fig --> rows |
@@ -109,6 +110,18 @@ outline is stored bare in the same 500-unit box, and stops on any other
 transform. The site then draws every outline in its own ink at a constant
 stroke width, with nothing added; F1DB's black 20-unit stroke is not kept.
 
+Where a placing is stored (`AF-177`), a circuit's page also draws the outline
+of its layout over the circuit's aerial photograph, scaled, turned and
+stretched by an affine transform onto the picture. The placing is this
+project's own (source 18), made from the photograph alone with no
+OpenStreetMap input: points marked by eye on the track, and the transform
+fitted to them, stored with the outline in `circuit_outlines`' `photo_`
+columns in `f1.db`. The caption says *Layout drawn over the photograph:
+F1DB, CC BY 4.0, drawn by Jules Roy, placed by eye* after the photograph's
+own credit, and the alt says the layout is drawn over it from F1DB's
+outline, which is also where the change to the CC BY-SA photograph is
+stated.
+
 This is the most permissive licence of any bulk source used here, and since
 v2.15 it is the single most important fact about this repository's data.
 
@@ -161,12 +174,17 @@ tables, one is paraphrased and none is close to source
 field close to source and ten paraphrased out of 1,208, and one of the ten
 has since been reworded as original (`CR-60`, #693). On that evidence the
 maintainer ruled table by table (`PM-49`, #573): a table takes CC BY 4.0
-only if every prose field in it reads original. Ten of the twelve now do,
-under *What this project wrote* below. `technical_innovations` stays CC BY-SA
-because its fan-car description is paraphrased, until that field is
-rewritten (`PM-62`, #692). The glossary stays CC BY-SA too: all 55 of its
-definitions read original, but the ruling expected it to stay, and a grant
-that cannot be withdrawn waits on that being settled (`PM-67`, #835).
+only if every prose field in it reads original. Eleven of the twelve now
+do, under *What this project wrote* below. `technical_innovations` stays
+CC BY-SA because its fan-car description is paraphrased, until that field is
+rewritten (`PM-62`, #692). The glossary was the last to be granted: all 55 of
+its definitions read original, but the ruling expected it to stay, so it was
+read again by hand, term by term, against whichever of formula1.com's
+glossary, the FIA's regulations and Wikipedia holds the term (the few that none
+of them defines rest on the pass's screen). That reading found nine definitions following one of those
+sources' way of putting it, though none copied; the maintainer ruled to
+rewrite them and then grant, and the nine were written again in this
+project's own words (`PM-67`, #835).
 
 The database also quotes six team radio exchanges verbatim. They are short,
 attributed, and used to document historical events, which is the ordinary
@@ -287,7 +305,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->181,174<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->181,194<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -310,14 +328,12 @@ derivative, so the obligation follows the file it belongs to and no further.
   figures — the relation, the length measured against the published one, the
   points, whether the walk closes — read from `f1-geometry.db`, with the
   credit under them on every page that carries them.
-- Where a placing is stored (`AF-96`), a circuit's page also draws the lap
-  over the circuit's aerial photograph. That drawing is a *Produced Work* of
-  the centreline, so the photograph's caption names **Track © OpenStreetMap
-  contributors** and the licence after the photograph's own credit. The
-  placing — the transform that carries the centreline onto the photograph —
-  was fitted to OpenStreetMap's coordinates, so it ships with them in
-  `f1-geometry.db`, in `circuit_geometry`'s `photo_` columns, never in
-  `f1.db`.
+- The site no longer draws the centreline over a circuit's aerial
+  photograph (`AF-96`): since `AF-177` the line there is F1DB's outline,
+  above. The `AF-96` placings — the transform that carries the centreline
+  onto the photograph, fitted to OpenStreetMap's coordinates — are still
+  built into `f1-geometry.db`, in `circuit_geometry`'s `photo_` columns,
+  never into `f1.db`, until `AF-179` removes them.
 
 The centrelines are still checked on every build — the re-measurement that
 catches Monaco's relation reading 12% long runs against the overlay.
@@ -360,16 +376,18 @@ the share-alike above. First, its account of its own sources and state:
 | Column | What it holds | Chars |
 |---|---|---:|
 | `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->73,063<!-- /fig --> |
-| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->6,295<!-- /fig --> |
-| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->15,712<!-- /fig --> |
-| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,802<!-- /fig --> |
-| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,060<!-- /fig --> |
+| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->7,165<!-- /fig --> |
+| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->18,388<!-- /fig --> |
+| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->6,195<!-- /fig --> |
+| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,179<!-- /fig --> |
 
-Second, the prose of ten of the twelve reference tables `source_registry`
-entry 18 records as written for this project (`PM-49`, #573):
+Second, the prose of eleven of the twelve reference tables
+`source_registry` entry 18 records as written for this project (`PM-49`,
+#573; the glossary by `PM-67`, #835):
 
 | Columns | What they hold |
 |---|---|
+| `glossary.definition` | what each term of the sport and each results code means |
 | `eras.summary`, `eras.defining_features` | each era of the championship, summarised, and what defined it |
 | `engine_eras.notes` | notes on each engine era |
 | `governance.detail`, `governance.significance` | what each turn in the sport's governance was, and what it changed |
@@ -382,14 +400,16 @@ entry 18 records as written for this project (`PM-49`, #573):
 | `engine_manufacturers.notes` | notes on each engine manufacturer |
 
 Every figure here is a span this build rewrites from the database
-itself: <!-- fig:prose_kb -->120 KB<!-- /fig --> between all of them, of
-which <!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
+itself: <!-- fig:prose_kb -->132 KB<!-- /fig --> between all of them, of
+which <!-- fig:prose_authored_kb -->29 KB<!-- /fig --> is the eleven tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and
 none of Wikipedia's text is in these columns. A disagreement between two
 sources is found here, by the build, and written up here; a gap is this
-project's account of what it does not hold. The ten tables were written here
-from general knowledge, and the prose pass measured every field in them
+project's account of what it does not hold. The eleven tables were written here
+from general knowledge, with a few figures taken as facts from facts-only
+sources (the glossary's plank and cost cap from the FIA's regulations), and
+the prose pass measured every field in them
 against the Wikipedia articles a writer would have reached for and found
 none of their expression. There is no upstream to owe anything to, and the
 whole-file licence covered them by the convenience LICENSE-DATA records —
@@ -405,11 +425,11 @@ The grant is in the database as well as here, as `meta.project_prose` and
 `meta.project_prose_columns`, so a copy of `f1.db` carries its own terms;
 `verify.py` fails a build where the database, `data/current.py`,
 `LICENSE-DATA` and this file do not name the same columns, and fails one
-where a granted field of the ten tables is not the text the prose pass read
-as original. A CC BY grant cannot be withdrawn from a copy already taken,
-which is why the list is exactly this long, why a rewritten field of the ten
-tables waits for the pass to read it again, and why the glossary and
-`technical_innovations` are not on it.
+where a granted field of the eleven tables is not the text the prose pass
+read as original. A CC BY grant cannot be withdrawn from a copy already
+taken, which is why the list is exactly this long, why a rewritten field of
+the eleven tables waits for the pass to read it again, and why
+`technical_innovations` is not on it.
 
 ## The facts artefact — CC BY 4.0
 

@@ -201,6 +201,10 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // three-letter abbreviation, counted as they are read; one not yet seen
     // has been seen by none.
     ['src/charts/gridFlag.js', [1, 'drivers in one figure sharing an abbreviation']],
+    // VD-123: a column's rounds still to run, which a datum carries only
+    // where its season is part run; every other column has none ahead of
+    // it. A count of a calendar's rows, never a stored figure.
+    ['src/charts/columnChart.js', [1, "rounds still to run over a season's column"]],
     // AF-134: the pit wave's stops on one lap, counted as the race's stops
     // are read; a lap no stop has been seen on has none so far. It counts
     // pit_stops rows, never reads a stored column as a figure.
@@ -232,6 +236,12 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // race entries, where a team none of whose cars won has no win.
     ['src/queries/constructor.js', [6, "derived wins and poles in a constructor's record; the strip's derived career counts"]],
     ['scripts/prerender.js', [4, "sources in a licence class, the static copy of Data.jsx; a constructor's derived wins"]],
+    // AF-137: the countback's places, each a COUNT over race_entries in
+    // PLACES, read only once every round run has its result. A place no row
+    // holds is one nobody finished in, and none IS the zero; a running count
+    // starts there too. Neither reads a stored column as a figure. AF-138's
+    // clinch strip counts the same places, a round on.
+    ['src/queries/season.js', [3, 'Grand Prix places counted for the countback, the clinch strip\'s included (AF-138)']],
   ])
 
   it('every zero fallback is a declared count or weight', () => {
@@ -265,6 +275,7 @@ describe('every declared table names its rows (AX-21)', () => {
     recordColumns: [[]],
     careerColumns: ['Ayrton Senna', 'Alain Prost'],
     reachColumns: ['drivers'],
+    clinchColumns: [10],
   }
   const modules = [
     ...readdirSync(join(web, 'src/queries')).map((entry) => join(web, 'src/queries', entry)),
@@ -2194,7 +2205,7 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     '.lede': "a page's lede", '.section > .note': "a section's intro", 'p.note': 'a note under a block',
     '.note-box': 'a note box', '.table-foot > span': "a table's source line, not the controls beside it",
     '.table-how p': 'how a column is derived', '.figure-note': "a figure's note", '.source-note': 'a source line',
-    '.disagreement-why': "a recorded disagreement's reading", 'p.measure': 'running text at the measure, as on /data',
+    '.disagreement-why': "a recorded disagreement's reading", '.disagreement-pointer': "the line pointing to a race's folded disagreements", 'p.measure': 'running text at the measure, as on /data',
     'p.faint': 'a faint line of running text: the footer credit, a caveat', '.livery-band span': 'the sentence under a livery band',
   }
   it('the text serif is set only on prose, and never on a heading (VD-96)', () => {
@@ -2487,7 +2498,7 @@ describe('one figure grammar: the heading names the figure, and the note goes un
     const { gridFlagNote, stintsNote } = await import('../src/queries/race.js')
     const { finishesFigureNote, thisSeasonFigureNote } = await import('../src/queries/driver.js')
     const records = await import('../src/queries/records.js')
-    const { progressionNote, reachNote } = await import('../src/queries/season.js')
+    const { clinchNote, progressionNote, reachNote } = await import('../src/queries/season.js')
     const { chartNote } = await import('../src/queries/home.js')
     const { CHASSIS_NOTE } = await import('../src/queries/quality.js')
     const { startsNote } = await import('../src/queries/circuit.js')
@@ -2515,11 +2526,17 @@ describe('one figure grammar: the heading names the figure, and the note goes un
       // AF-132: a team's wording, and the sentence a cut list adds.
       'reach, a team, cut': reachNote('constructors', true),
       'reach, a driver, cut': reachNote('drivers', true),
+      // AF-137: the clause a bar out on the countback adds, which a cut list does not carry.
+      'reach, a team, countback': reachNote('constructors', false, true),
+      'reach, a team, cut and countback': reachNote('constructors', true, true),
+      // AF-138: the longest leader's name the strip's rows can carry, twice.
+      'clinch strip': clinchNote('Andrea Kimi Antonelli'),
       'races per season, two calendars': chartNote([
-        { year: 1950, rounds: 7, run: true },
-        { year: 2026, rounds: 24, run: true },
-        { year: 2027, rounds: 24, run: false },
-        { year: 2028, rounds: 24, run: false },
+        { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+        { year: 1960, rounds: 10, run: 10, indianapolis: 1 },
+        { year: 2026, rounds: 24, run: 24, indianapolis: 0 },
+        { year: 2027, rounds: 24, run: 0, indianapolis: 0 },
+        { year: 2028, rounds: 24, run: 0, indianapolis: 0 },
       ]),
       'chassis named': CHASSIS_NOTE,
       // AF-133: both kinds of colour and a hollow dot, as Monza's grid has.

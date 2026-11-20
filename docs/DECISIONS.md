@@ -453,32 +453,59 @@ fourth face on the font request. What it does not change: the scale, the
 weights, the inks, the measure, any contrast floor, the label register, or
 the page title's capitals.
 
-### D-67 · A race's first screen shows the classification's heading, not its rows — 2026-11-17 (`VD-108`, #1330)
+### D-67 · A race's disagreements follow its classification, closed — 2026-11-20 (`VD-131`, #1399)
+§3 and §5 placed the disagreement box directly above the table it
+concerns. On a race page that is the classification, and on 44 of the
+1,169 completed race pages the box stood between the tiles and the table at
+366 to 1,702 px (the 2001 Belgian Grand Prix, four rows, 1,702). Measured on
+VD-108's branch build, with the podium in the tiles the classification's
+heading reached the first screen at 1440 x 900 on all 1,125 race pages
+without a box and on none of the 44 with one.
+
+It changes a rule the system states, so this is §8's *Changing or
+reversing*; the maintainer ruled on 2026-11-18, on VD-108's review page
+(#1330): move the box under the classification and close it to one line
+until it is opened. The ruling is recorded on the item.
+
+The rule: on a race page the box follows the classification, closed to its
+heading, and a line above the table gives the box's count and links to it.
+Both renderers write both, so the box opens without script on the static
+page. What it does not change: what is recorded, the box's words, its frame,
+or its place on driver, constructor and car pages, where it stays open
+above what it concerns.
+
+### D-68 · A race opens on its podium, and its first screen holds the classification's heading on every podium page — 2026-11-18 (`VD-108`, #1330)
 §4 said that at 1440 × 900 a race page shows the classification's heading
 and its first four rows on the first screen, and `smoke.mjs`'s *the result
-leads* held the four. It was eight while PD-57 put the tiles in the column
-beside the outline, and four once version A put the tiles full width under
-the header and the outline (DP-11, VD-84). The visual critique of
-2026-11-13 then proposed the podium in the race header (P03), and the
-maintainer approved it as a mockup on 2026-11-13.
+leads* held the four, on one route. The visual critique of 2026-11-13
+proposed the podium on every race page (P03), and the maintainer approved
+it as a mockup that day.
 
-Built to the mockup on 2026-11-16, the podium sat under the weather line,
-the header grew by 133 px, and no row of the classification was left on
-the first screen; its heading still was, at 842 px. Keeping the four rows
-was a floor check the feature could not meet, so it was §8's *Changing or
-reversing*, and it went on the item with three options: relax the check to
-the heading, keep the rows with a compact podium beside the outline (a new
-mockup), or something else, such as the podium under the tiles. The
-maintainer ruled on 2026-11-17 for the first, because the approved podium
-is the result and leads the page; the ruling is recorded on the item.
+Built to that mockup on 2026-11-16, the podium sat in the header under the
+weather line and left no row of the classification on the first screen. The
+maintainer ruled on 2026-11-17 to hold the heading rather than the rows.
+Measured on all 1,169 completed race pages, the heading then fell below
+900 px on 199 of them, 198 drawing the podium, where smoke had only ever
+measured one route. Ruled on 2026-11-18: hold the heading on the first
+screen on every podium page, not on the one smoke measured, and tighten the
+header to do it. Two compact forms (a flat podium; the podium in the tiles)
+were measured, at 53 and 44 pages over, and rejected as dry; the third, C,
+a stepped podium in team colour that takes the tiles' row, was approved on
+the review page the same day, measured over on none of the 1,125 pages
+without a disagreement box. The other 44 were the box's, which `[D-67]`
+moved under the classification. The rulings are recorded on the item.
 
-The rule: at 1440 × 900, in the app and on the static page, the first
-screen shows the classification's heading, whole, under the tiles, and the
-table under it has rows. What it costs is the four rows a reader saw
-before scrolling; where the podium is drawn, the first three of them are
-its steps in the header. What it does not change: the order of the page's blocks, the
-classification at full width, the outline in the slot, or the rule holding
-the app and the static page to it alike.
+The rule: where a race's podium can be drawn it takes the tiles' row, three
+slabs in team colour stood second, first, third, and the strip's other
+tiles follow on one line under it. At 1440 × 900, in the app and on the
+static page, the classification's heading is wholly on the first screen on
+every page that draws the podium, and `smoke.mjs` measures the pages with
+the tallest openings rather than one route. What it costs is the four rows a
+reader saw before scrolling, and the tiles' figures, which become a line of
+text. What it does not change: the order of the page's blocks, the
+classification at full width, the outline in the slot, the strip where no
+podium can be drawn, or the rule holding the app and the static page to it
+alike.
 
 ---
 

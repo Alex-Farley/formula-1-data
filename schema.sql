@@ -713,7 +713,21 @@ CREATE TABLE circuit_outlines (
     turns           INTEGER,
     path            TEXT NOT NULL,             -- SVG path data; viewBox 0 0 500 500
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
-    source          TEXT
+    source          TEXT,
+    -- Where this outline is drawn over the circuit's aerial photograph
+    -- (AF-177): all six NULL where it is not. Neither the drawing nor the
+    -- photograph has coordinates, so the placing is this project's own,
+    -- never a fact about either: points marked by eye on the middle of the
+    -- track, each paired with the outline's nearest point, and the affine
+    -- fitted to the pairs (PHOTO_OUTLINE in data/harvest.py), held to
+    -- source 18 and to no more than 'medium'. No OpenStreetMap input, so it
+    -- lives here, beside the CC BY 4.0 path it places.
+    photo_file      TEXT,                      -- the file it was placed on: article_images.file_name
+    photo_points    TEXT,                      -- JSON [[[x, y], [x, y]], ...]: box point, frame pixel
+    photo_transform TEXT,                      -- JSON [a, b, c, d, e, f]: SVG matrix(), box to frame
+    photo_error_px  REAL,                      -- the worst pair's distance once placed
+    photo_source_id INTEGER REFERENCES source_registry(id), -- 18: written for this project
+    photo_confidence TEXT REFERENCES provenance(confidence)
 );
 
 -- The centreline of a circuit as OpenStreetMap maps it, checked against the
@@ -1646,6 +1660,29 @@ CREATE TABLE qualifying_formats (
     confidence      TEXT NOT NULL REFERENCES provenance(confidence),
     source          TEXT NOT NULL,
     UNIQUE (session, from_year, from_round)
+);
+
+-- How a tie on points at the end of a season is settled (AF-137), period by
+-- period, as the FIA's own text sets it: the season page reads it to say who
+-- a rival who can at best draw level would lose or win the title to. A row
+-- covers from_year..to_year, the seasons whose issues were read and agree;
+-- a season no row covers is not established, and the page declines it.
+-- `countback` is what is counted, in the one spelling the page knows: 'race
+-- places' is the most first places in a race, then the most second places,
+-- and so on down the order, for a driver and, from both its cars, for a
+-- constructor. `article` is where that season's text says it and `rule`
+-- the article in this database's words, including what follows where the
+-- count settles nothing. Nothing before 2009: known_gaps #22.
+CREATE TABLE tie_breaks (
+    id              INTEGER PRIMARY KEY,
+    from_year       INTEGER NOT NULL,
+    to_year         INTEGER NOT NULL CHECK (to_year >= from_year),
+    countback       TEXT NOT NULL CHECK (countback IN ('race places')),
+    article         TEXT NOT NULL,
+    rule            TEXT NOT NULL,
+    confidence      TEXT NOT NULL REFERENCES provenance(confidence),
+    source          TEXT NOT NULL,
+    UNIQUE (from_year)
 );
 
 -- DERIVED, not authored. Until v2.23 this held thirty rows typed from general

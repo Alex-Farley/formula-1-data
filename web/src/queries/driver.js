@@ -15,7 +15,7 @@
  */
 import { EMPTY, finished, inWords, missing, number, ordinal, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
-import { FOLD_NOUN } from '../lib/table.js'
+import { FOLD_NOUN, foldMore } from '../lib/table.js'
 import { byRoundText } from '../charts/spark.js'
 import { PRACTICE_SESSIONS, STARTED, carName } from './race.js'
 import { LABELS } from '../lib/site.js'
@@ -202,7 +202,7 @@ export const DRIVER_SOURCES = `
  * source asserts two entries, which never happens for a driver.
  */
 export const STANDINGS = `
-  SELECT s.id, s.year, s.driver_id, s.engine_id, s.position, s.position_text, s.points, s.team
+  SELECT s.id, s.year, s.driver_id, s.engine_id, s.position, s.position_text, s.points, s.team, s.basis
     FROM v_standings_final s
    WHERE s.table_type = 'drivers' AND s.driver_id = ?
    ORDER BY s.year
@@ -221,6 +221,30 @@ export const RESULTS = `
     LEFT JOIN chassis ch ON ch.id = e.chassis_id
    WHERE e.driver_id = ?
    ORDER BY r.year DESC, r.round DESC
+`
+
+/**
+ * VD-124: who was second in each season this driver won the title, and on
+ * what, for the champion's note on the career chart ("By two points from
+ * Verstappen"). A title is a final table's first place, so the season being
+ * run - a 'running' table - is none. Read from the final tables themselves
+ * rather than v_standings_final, which works out every season's table to
+ * answer for one (about 0.17 s a driver against 0.004 s, read with Python's
+ * sqlite3 on f1.db); a finished season is the view's final table, so the
+ * two agree, and a
+ * season with two drivers second (or two final tables) gives no row rather
+ * than a choice of runner-up - the note then gives the points alone.
+ */
+export const TITLE_RUNNERS_UP = `
+  SELECT y.year, MIN(y.points) AS points, MIN(d.full_name) AS name
+    FROM standings y
+    JOIN drivers d ON d.id = y.driver_id
+   WHERE y.table_type = 'drivers' AND y.basis = 'final' AND y.position = 2
+     AND y.year IN (SELECT year FROM standings
+                     WHERE table_type = 'drivers' AND basis = 'final' AND position = 1 AND driver_id = ?)
+   GROUP BY y.year
+  HAVING COUNT(*) = 1
+   ORDER BY y.year
 `
 
 /**
@@ -306,9 +330,15 @@ const colourClause = (lead, source, hollow, mark, none) =>
     ? `${lead}: ${source}.${hollow ? ` A hollow ${mark} has no colour on record.` : ''}`
     : `The ${mark}s are not in team colours: ${none}.`
 
-/** The championship chart's note: 50 words at the longest, a career that runs from national colours into the gap. */
+/**
+ * The championship chart's note: 50 words at the longest, a career that runs
+ * from national colours into the gap. What is plotted and what is ringed is
+ * the kicker's over the figure (VD-124), so the note starts at what stops a
+ * misreading: and every line it gives up is one the career strip under the
+ * figure does not lose from the first screen at 1440 (PD-59).
+ */
 export const finishesFigureNote = (source, hollow) =>
-  `Final championship position by season, ringed for a title. No dot: not in the final standings, or excluded. ${colourClause(
+  `No dot: not in the final standings, or excluded. ${colourClause(
     'Dots are coloured for each season’s final team',
     source,
     hollow,
@@ -372,7 +402,7 @@ export const FINISHES_COLUMNS = [
  * `standings` is STANDINGS's rows, `teams` teamsBySeason() of SEASON_TEAMS's
  * and `bySeason` BY_SEASON's.
  */
-export function finishesFigure(driver, standings, teams, bySeason) {
+export function finishesFigure(driver, standings, teams, bySeason, { wins = [], runnersUp = [] } = {}) {
   if (standings.length <= 1) return null
   const finishes = standings.map((s) => {
     const raced = teams.get(s.year)
@@ -385,8 +415,15 @@ export function finishesFigure(driver, standings, teams, bySeason) {
   const years = [driver.first_season, driver.last_season, ...bySeason.map((b) => b.year), ...standings.map((s) => s.year)].filter(
     (year) => typeof year === 'number',
   )
+  const yMax = Math.max(10, ...standings.map((s) => s.position ?? 0))
+  const first = Math.min(...years)
+  const story = careerStory(finishes, { wins, runnersUp, first, raced: bySeason.map((b) => b.year) })
   return {
     rows: finishes,
+    finding: story.finding,
+    kicker: story.kicker,
+    annotations: story.notes.map(({ n, lead, text }) => ({ n, lead, text })),
+    marks: story.notes.map(({ n, x }) => ({ n, x })),
     note: finishesFigureNote(inColour ? colourSource(plotted.map((s) => s.colour)) : null, mixed),
     data: finishes.map((s) => ({
       x: s.year,
@@ -396,20 +433,123 @@ export function finishesFigure(driver, standings, teams, bySeason) {
       // Only where some other dot is coloured: see WHICH DOTS above.
       hollow: inColour && !s.colour,
       // The halo says nothing the dot does not: position 1 is what is
-      // already plotted at the top of the axis.
-      mark: s.position === 1,
+      // already plotted at the top of the axis. A title only: the season
+      // being run, led today, is not one (VD-124).
+      mark: isTitle(s),
       // The team is named wherever its colour is read (clause 4 of AF-47).
       note: `${s.position ? `P${s.position} · ${points(s.points)} points` : 'no classified position'}${
         s.constructor ? ` · ${s.constructor}` : ''
       }`,
     })),
-    yMax: Math.max(10, ...standings.map((s) => s.position ?? 0)),
+    yMax,
+    // P1, P5 and P10, and every ten past them, rather than five computed
+    // ticks and the floor, whose P11 met the axis's first year (VD-124).
+    yTickValues: [1, 5, ...Array.from({ length: Math.floor(yMax / 10) }, (_, k) => (k + 1) * 10)],
     format: (v) => `P${Math.round(v)}`,
     formatX: (v) => String(Math.round(v)),
-    xDomain: [Math.min(...years), Math.max(...years)],
-    height: 210,
+    formatXShort: (v) => `’${String(Math.round(v)).slice(-2)}`,
+    everyX: true,
+    line: true,
+    xDomain: [first, Math.max(...years)],
+    // 175, not 210: the finding and the kicker over it and the key under it
+    // take the room, and the career strip under the slot must still start
+    // on the first screen at 1440 for a champion with two notes and a
+    // hollow dot to explain - Hamilton, Alonso (PD-59, smoke.mjs).
+    height: 175,
     label: `Championship finishing position by season for ${driver.full_name}`,
   }
+}
+
+/** A title: first in a final table. The season being run is led, not won. */
+const isTitle = (s) => s.position === 1 && s.basis === 'final'
+
+const sentence = (words) => words.charAt(0).toUpperCase() + words.slice(1)
+
+/**
+ * What the career chart says over it and in its key (VD-124), from the
+ * chart's own seasons (`finishes`, STANDINGS' rows in year order), the wins
+ * in date order (WINS_AT) and TITLE_RUNNERS_UP's rows. `first` is the
+ * axis's first season, `raced` every season BY_SEASON holds an entry in.
+ *
+ * The finding: a champion of several titles, how many and between which
+ * seasons; of one, the climb to it - "From 11th to champion in seven
+ * seasons", counting the seasons raced, where the career's first season has
+ * a place, and the two years where it has none; a driver never champion,
+ * the best final place and when. The season being run is never a final
+ * place, and is said as one so far where it is better than any.
+ *
+ * At most two notes, each at a season the chart has a dot for: the first
+ * win, with the race and that season's final place, and the first title,
+ * with the margin over the runner-up. A first win in the first title's
+ * season is one note, so two markers never point at one dot.
+ */
+export function careerStory(finishes, { wins = [], runnersUp = [], first = null, raced = [] } = {}) {
+  const placed = finishes.filter((s) => typeof s.position === 'number')
+  const final = placed.filter((s) => s.basis === 'final')
+  const titles = final.filter(isTitle)
+  const running = placed.find((s) => s.basis !== 'final') ?? null
+  const kicker = `Final championship position each season${
+    titles.length === 0 ? '' : titles.length === 1 ? ' · the title ringed' : ' · each title ringed'
+  }`
+
+  let finding = null
+  if (titles.length > 1) {
+    finding = `${sentence(inWords(titles.length))} titles between ${titles[0].year} and ${titles[titles.length - 1].year}`
+  } else if (titles.length === 1) {
+    const title = titles[0]
+    const start = placed[0]
+    const seasons = new Set(raced.filter((year) => year <= title.year)).size
+    if (start.year === title.year) finding = start.year === first ? 'Champion at the first attempt' : `Champion in ${title.year}`
+    else if (start.year === first && seasons > 1)
+      finding = `From ${ordinal(start.position)} to champion in ${inWords(seasons)} seasons`
+    else finding = `From ${ordinal(start.position)} in ${start.year} to champion in ${title.year}`
+  } else if (final.length) {
+    const best = Math.min(...final.map((s) => s.position))
+    const at = final.filter((s) => s.position === best).map((s) => s.year)
+    const when = at.length === 1 ? `in ${at[0]}` : at.length === 2 ? `in ${at[0]} and ${at[1]}` : `${inWords(at.length)} times`
+    finding = `At best ${ordinal(best)} in the championship, ${when}`
+    if (running && running.position < best) finding += `; ${ordinal(running.position)} in ${running.year} so far`
+  } else if (running) {
+    finding = `${ordinal(running.position)} in the ${running.year} championship so far`
+  }
+
+  const dotAt = (year) => placed.some((s) => s.year === year)
+  // The first win, where its season has a dot to point to; never a later one in its place.
+  const firstWin = wins[0] && dotAt(wins[0].year) ? wins[0] : null
+  const firstTitle = titles[0] ?? null
+  const margin = (title) => {
+    const second = runnersUp.find((r) => r.year === title.year)
+    if (!second || missing(second.points) || missing(title.points)) return missing(title.points) ? null : `On ${points(title.points)} points.`
+    const by = title.points - second.points
+    const [name] = shortNames([second.name])
+    if (by === 0) return `Level on points with ${name}.`
+    return `By ${Number.isInteger(by) ? inWords(by) : points(by)} ${by === 1 ? 'point' : 'points'} from ${name}.`
+  }
+  const race = (win) => `${win.name_used}, round ${win.round}`
+  const parts = []
+  if (firstWin && firstTitle && firstWin.year === firstTitle.year) {
+    parts.push({
+      x: firstTitle.year,
+      lead: `First win and ${titles.length > 1 ? 'first title' : 'champion'}, ${firstTitle.year}`,
+      text: [`${race(firstWin)}.`, margin(firstTitle)].filter(Boolean).join(' '),
+    })
+  } else {
+    if (firstWin) {
+      const season = final.find((s) => s.year === firstWin.year)
+      parts.push({
+        x: firstWin.year,
+        lead: `First win, ${firstWin.year}`,
+        text: season ? `${race(firstWin)}; ${ordinal(season.position)} in the championship that year.` : `${race(firstWin)}.`,
+      })
+    }
+    if (firstTitle)
+      parts.push({
+        x: firstTitle.year,
+        lead: `${titles.length > 1 ? 'First title' : 'Champion'}, ${firstTitle.year}`,
+        text: margin(firstTitle) ?? '',
+      })
+  }
+  return { finding, kicker, notes: parts.map((part, i) => ({ n: i + 1, ...part })) }
 }
 
 /** The season-so-far chart's note: 50 words at the longest. A season is one year, so it draws liveries or national colours, never both. */
@@ -758,20 +898,27 @@ export const teamMatesFooter = (name) =>
  * same TEAM_MATES rows. Every figure is a sum of the table's own columns, so
  * the face-off can say nothing the table under it does not.
  *
- * One block per team-mate shown, at most FACE_OFFS of them: the latest
- * team-mate - the one with the latest round together (`last_round`), not
- * the first row, which within a year is ordered by team name; two shared
- * that round goes to the query's order - and then those with the most
- * Grands Prix together, a tie going to the later pairing and then the
- * name. A career of 106 team-mates is not 106 blocks; the table
- * holds every pairing, and the note under the blocks says how many are
- * shown of how many. The blocks are set latest first, as the table is.
+ * FACE_OFFS blocks are shown: the latest team-mate - the one with the
+ * latest round together (`last_round`), not the first row, which within a
+ * year is ordered by team name; two shared that round goes to the query's
+ * order - and then those with the most Grands Prix together, a tie going to
+ * the later pairing and then the name, set latest first, as the table is.
+ * Every other team-mate has a block too, latest first, behind one closed
+ * disclosure under them (VD-130, decided 2026-11-17): a career of 106
+ * team-mates opens on three blocks, not 106, and the key under them says
+ * where the rest are. Both halves write every block, as a fold writes every
+ * row, so the static page and the app open the same disclosure; Brabham's
+ * static page carries 103 blocks more for it, about 270 KB of HTML and 6 KB
+ * once gzipped.
  *
  * Each block's colours are its last season's team (D-65): the driver in the
  * team's pair and the team-mate in the livery's second colour, or in ink
  * where it has none, as charts/own.js faceColours() writes them.
  */
 export const FACE_OFFS = 3
+
+/** The face-offs past FACE_OFFS: the disclosure's two faces, as a fold's. */
+export const faceFold = (mates) => ({ more: foldMore(mates, 'team-mates'), less: `Show the first ${FACE_OFFS}` })
 
 /** The three counts, in the table's order, and how a sentence names each. */
 const TALLIES = [
@@ -877,7 +1024,9 @@ function headline(block) {
  * under the verdict, the `verdict`, its
  * `tallies`, its `seasons` - each a year, newest first, and its tallies,
  * summed over the year's rows where the two shared more than one team - and the
- * `colour` its last season's team wears), and `note`, the key under them.
+ * `colour` its last season's team wears), `more` (every other team-mate's
+ * block, latest first, behind the disclosure), `fold` (the disclosure's
+ * faces, or null where there is no `more`) and `note`, the key under them.
  */
 export function faceOffs(name, rows) {
   if (!rows.length) return null
@@ -897,8 +1046,9 @@ export function faceOffs(name, rows) {
     .filter((m) => m !== latest)
     .sort((x, y) => y.races - x.races || y.last - x.last || x.mate.localeCompare(y.mate))
     .slice(0, FACE_OFFS - 1)
-  const shown = [latest, ...others].sort((x, y) => y.last - x.last || y.races - x.races || x.mate.localeCompare(y.mate))
-  const blocks = shown.map(({ rows: list }) => {
+  const latestFirst = (x, y) => y.last - x.last || y.races - x.races || x.mate.localeCompare(y.mate)
+  const shown = [latest, ...others].sort(latestFirst)
+  const block = ({ rows: list }) => {
     const [a, b] = shortNames([name, list[0].mate])
     const years = [...new Set(list.map((row) => row.year))].sort((x, y) => x - y)
     // One split a year: a pairing at two teams in a season is one season.
@@ -922,7 +1072,12 @@ export function faceOffs(name, rows) {
       seasons,
       colour: colourForEntry({ constructorId: last.constructor_id, country: last.constructor_country, year: last.year, team: last.constructor }),
     }
-  })
+  }
+  const blocks = shown.map(block)
+  const more = mates
+    .filter((m) => !shown.includes(m))
+    .sort(latestFirst)
+    .map(block)
   const first = blocks[0]
   const [a] = first.names
   const together = `${capitalise(inWords(first.seasonCount))} ${first.seasonCount === 1 ? 'season' : 'seasons'} together at ${joinAnd(first.constructors)}.`
@@ -935,15 +1090,17 @@ export function faceOffs(name, rows) {
     ? ` Across ${plural(byMate.size, 'team-mate')}, ${a} was ahead in qualifying in ${number(ahead)} of ${plural(counted.length, 'team-mate season')}` +
       `${level ? `, level in ${number(level)}` : ''}${behind ? `, behind in ${number(behind)}` : ''}.`
     : ''
-  const some =
-    byMate.size > blocks.length
-      ? ` Shown: the latest team-mate and the ${inWords(blocks.length - 1)} ${blocks.length === 2 ? 'other' : 'others'} with the most Grands Prix together, of ${plural(byMate.size, 'team-mate')}; the table has every pairing.`
-      : ' The table has every pairing.'
+  const fold = more.length ? faceFold(byMate.size) : null
+  const some = fold
+    ? ` Shown first: the latest team-mate and the ${inWords(blocks.length - 1)} ${blocks.length === 2 ? 'other' : 'others'} with the most Grands Prix together; the other ${inWords(more.length)} ${more.length === 1 ? 'follows' : 'follow'} under “${fold.more}”, latest first, and the table has every pairing.`
+    : ' The table has every pairing.'
   return {
     headline: headline(first),
     standfirst: `${together}${across}`,
     blocks,
-    note: `${colourKey(a, blocks)} The larger figure is the one ahead, and the tick marks level.${some}`,
+    more,
+    fold,
+    note: `${colourKey(a, [...blocks, ...more])} The larger figure is the one ahead, and the tick marks level.${some}`,
   }
 }
 

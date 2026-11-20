@@ -66,6 +66,30 @@ const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'e
 /** "fifteen" for a count in a sentence, to twenty; digits beyond. */
 export const inWords = (n) => WORDS[n] ?? number(n)
 
+/**
+ * A full name as its given names and its surname, by one rule: the last
+ * word is the surname, with a lower-case particle before it ("von Trips",
+ * "de Angelis") or a suffix after it ("Piquet Jr.") kept with it. A name of
+ * one word is a surname with no given name ('').
+ */
+export function nameParts(name) {
+  const words = String(name).trim().split(/\s+/)
+  let k = words.length - 1
+  if (k > 0 && /^(?:Jr\.?|Sr\.?|II|III)$/.test(words[k])) k -= 1
+  while (k > 0 && /^[a-z]/.test(words[k - 1])) k -= 1
+  return { given: words.slice(0, k).join(' '), surname: words.slice(k).join(' ') }
+}
+
+/**
+ * A driver as a chart's line end and its notes name them: the surname, by
+ * nameParts()'s rule. Where two of `names` would come out the same, both
+ * keep their full names, since a label that names neither line is no label.
+ */
+export function shortNames(names) {
+  const short = names.map((name) => nameParts(name).surname)
+  return short.map((s, i) => (short.filter((t) => t === s).length > 1 ? names[i] : s))
+}
+
 /** Championship points: 24, 25.5, 0.5 — never 25.000. */
 export function points(value) {
   if (missing(value) || typeof value !== 'number') return EMPTY

@@ -111,9 +111,10 @@
   --accent-ink: #a20d20;
   --accent-wash: #fdeef0;
 
-  /* The lap drawn over a circuit's aerial photograph (AF-96): the light
-     accent on a white casing. Set here once and in neither dark block, since
-     the photograph under it is the same picture in both themes. */
+  /* The layout drawn over a circuit's aerial photograph (AF-96, AF-177):
+     the light accent on a white casing. Set here once and in neither dark
+     block, since the photograph under it is the same picture in both
+     themes. */
   --photo-trace: #c81028;
   --photo-trace-casing: #ffffff;
 
@@ -164,6 +165,13 @@
   --racing-nl: #d3600f;     /* 3.71 / 3.34 - was #e06c1f at 2.85 on sunk */
   --racing-ch: #b02733;     /* 6.35 / 5.71 */
   --racing-us: #1f3c88;     /* 9.81 / 8.83 */
+
+  /* places made and lost from the grid, on a race page's podium slab
+     (VD-108): a chip of its own colour on a slab of any team's, so the same
+     in both themes, white on each at 5.40 and 8.15:1 */
+  --move-up: #0f7a45;
+  --move-down: #9b1c1c;
+  --on-move: #ffffff;
 
   /* status */
   --good: #0a7d2b;

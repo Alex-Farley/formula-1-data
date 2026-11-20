@@ -12,6 +12,7 @@ import { measured, odblCredit } from '../lib/trace.js'
 import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import ReachChart from '../charts/ReachChart.jsx'
+import { ClinchStrips } from '../charts/ClinchStrip.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { currentProgress } from '../data/client.js'
 import { coverageYears, number, points } from '../lib/format.js'
@@ -49,11 +50,13 @@ import {
   NEXT_ROUND,
   NEXT_TRACE,
   NOT_RUN_STANDINGS,
+  PLACES,
   REMAINING,
   SEASON,
   SEASON_SOURCES,
   STANDINGS,
   TITLE_RACE_COLUMNS,
+  TIE_SOURCES,
   TITLE_SOURCES,
   WON_HERE,
   WON_HERE_COLUMNS,
@@ -336,11 +339,13 @@ export default function Season() {
     teams: [DRIVER_TEAMS, [Number(year)]],
     images: [SEASON_IMAGES, [Number(year)]],
     remaining: [REMAINING, [Number(year)]],
+    places: [PLACES, [Number(year)]],
     next: [NEXT_ROUND, [Number(year)]],
     wonHere: [WON_HERE, [Number(year)]],
     nextTrace: [NEXT_TRACE, [Number(year)]],
     sources: [SEASON_SOURCES, [Number(year)]],
     titleSources: [TITLE_SOURCES],
+    tieSources: [TIE_SOURCES, [Number(year)]],
   })
 
   return (
@@ -439,6 +444,7 @@ function SeasonBody({ year, season, data }) {
         afterRound: after,
         built: currentProgress().manifest?.built,
         year,
+        places: rows(data, 'places'),
       })
     : null
   // The same answer drawn (AF-132): each title's contenders against the
@@ -558,6 +564,7 @@ function SeasonBody({ year, season, data }) {
       sources={seasonSources(rows(data, 'sources'), rows(data, 'titleSources'), {
         answer,
         remaining: data.remaining.rows[0] ?? null,
+        tie: rows(data, 'tieSources'),
       })}
       aside={
         <Stepper {...seasonSteps(neighbours)} />
@@ -623,6 +630,10 @@ function SeasonBody({ year, season, data }) {
               </FigurePart>
             ))}
           </div>
+          {/* Which finishes at the next round would settle the drivers'
+              title (AF-138), from queries/season.js, which the static page
+              draws too. */}
+          <ClinchStrips clinch={answer?.clinch} />
         </Section>
       )}
 

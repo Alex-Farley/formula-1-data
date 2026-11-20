@@ -43,7 +43,7 @@ import {
   sharedLine,
   tableKey,
 } from '../src/lib/table.js'
-import { captureOpenFolds, captureStaticTables, staticOpen, staticRows } from '../src/lib/handover.js'
+import { captureOpenFolds, captureStaticTables, staticFaceFoldOpen, staticOpen, staticRows } from '../src/lib/handover.js'
 
 import {
   fieldText,
@@ -135,6 +135,12 @@ import {
   isUpcoming,
   outSince,
   reachFigures,
+  RACE_PLACES,
+  CLINCH_CHAMPION,
+  CLINCH_LEVEL,
+  CLINCH_ON,
+  CLINCH_TAKEN,
+  clinchStrips,
   teamAvailable,
   championPill,
   pointsShare,
@@ -147,6 +153,7 @@ import {
   titleRaceFigure,
 } from '../src/queries/season.js'
 import { reachLayout, reachText } from '../src/charts/reachChart.js'
+import { clinchLayout } from '../src/charts/clinchStrip.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { entryColumns, entryOut, entryResult } from '../src/queries/car.js'
 import { disagrees, safeToQuote } from '../src/queries/quality.js'
@@ -154,7 +161,7 @@ import { eraCell } from '../src/queries/eras.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
 import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
-import { photoTrace, traceFields } from '../src/lib/trace.js'
+import { traceFields } from '../src/lib/trace.js'
 import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
 import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
@@ -184,6 +191,9 @@ import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
 import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
 import { ONWARD, raceSteps } from '../src/lib/wayfinding.js'
 import { NEIGHBOURS as RACE_NEIGHBOURS } from '../src/queries/race.js'
+import { gridFlagLabel, gridFlagMoves, gridFlagStory } from '../src/queries/race.js'
+import { nameParts } from '../src/lib/format.js'
+import { RACING_INK, SLAB_INK, contrastRatio, inkOn, placesMoved, slab, slabVars } from '../src/lib/podium.js'
 import {
   AGGREGATE_METHOD,
   DISTANCE_LABEL,
@@ -195,6 +205,7 @@ import {
   lapSeconds,
   layoutLength,
   podiumStart,
+  raceAlso,
   racePodium,
   raceStrip,
   practiceBySession,
@@ -211,6 +222,7 @@ import {
   RESULTS_DAYS,
   chartData,
   chartNote,
+  chartNotes,
   homeCycle,
   openingCaption,
   openingRace,
@@ -252,6 +264,7 @@ import {
   leadOutline,
   outlineCaption,
   outlineFigures,
+  photoOutline,
   RACE_LAYOUT_NOTE,
   raceLayoutNote,
   roundShortName,
@@ -279,7 +292,7 @@ import {
   tiersOf,
 } from '../src/queries/records.js'
 import { columnLayout } from '../src/charts/columnChart.js'
-import { flagCarClass, gridFlagLayout, textWidth } from '../src/charts/gridFlag.js'
+import { flagCarClass, gridFlagLayout, gridFlagRows, textWidth } from '../src/charts/gridFlag.js'
 import { INK, slotColour } from '../src/charts/palette.js'
 import { clearState, oneOf, readState, urlWriter, writeState } from '../src/lib/urlstate.js'
 import { unestablished } from '../src/lib/tiles.js'
@@ -1358,6 +1371,345 @@ describe('the queries a page and the prerenderer share', () => {
     )
   })
 
+  // AF-137: a rival who can at best draw level is settled on the countback
+  // the season's own rule sets, counted from the Grand Prix places so far
+  // with the rival's best case added - every round left won, or for a team
+  // a one-two - and the leader's scoring places as they stand.
+  describe('a tie a rival can at best draw level for, settled on the countback', () => {
+    // The issue's example: before Austin 2026, Antonelli wins it and Russell
+    // is 9th. Antonelli 365 with 9 wins, Russell 240 with 3, five rounds and
+    // 125 points left. Russell's best case is level on 365 with 8 wins.
+    const live = {
+      races: 5, sprints: 0, run: 18, results: 18, dropped_scores: 'Every result counts', available: 125,
+      win_points: 25, fastest_lap_points: 0, scale: '[25,18,15,12,10,8,6,4,2,1]', sprint_scale: '[8,7,6,5,4,3,2,1]', sprint_points: 8,
+      countback: RACE_PLACES,
+    }
+    const drivers = [
+      { entity: 'Andrea Kimi Antonelli', driver_id: 'antonelli', position: 1, points: 365 },
+      { entity: 'George Russell', driver_id: 'russell', position: 2, points: 240 },
+      { entity: 'Sir Lewis Hamilton', driver_id: 'hamilton', position: 3, points: 229 },
+    ]
+    const place = (kind, id, at, n) => ({ kind, id, place: at, n })
+    const austin = [
+      place('drivers', 'antonelli', 1, 9), place('drivers', 'antonelli', 2, 3), place('drivers', 'antonelli', 3, 3),
+      place('drivers', 'russell', 1, 3), place('drivers', 'russell', 2, 4), place('drivers', 'russell', 3, 1),
+    ]
+    const answer = (args) => titleAnswer({ drivers, remaining: live, afterRound: 18, year: 2026, places: austin, ...args })
+
+    it('puts out a rival who would lose the tie, and says on what', () => {
+      const said = answer({})
+      assert.equal(
+        said.who,
+        "Only Andrea Kimi Antonelli can still win the drivers' title: no other driver can now beat the leader's total, or match it and win the countback.",
+      )
+      assert.match(said.basis, /A tie on points goes to whoever has more wins, then more second places, and so on\./)
+      assert.match(
+        said.basis,
+        /George Russell can at best draw level with Andrea Kimi Antonelli, by winning every round left, and would then lose it on the countback: 8 wins to 9\.$/,
+      )
+      assert.ok(!said.basis.includes('Points only'), 'the old sentence goes where the answer is given')
+      assert.equal(said.drivers.rows.find((d) => d.id === 'russell').alive, false)
+      assert.equal(fightLine(said, 'drivers', 'russell'), 'Out of the title fight: can at best draw level, and would lose the countback.')
+      assert.equal(fightLine(said, 'drivers', 'antonelli'), 'The only one left in the title fight: 125 clear with 125 left.')
+      // The bar meets the line and is out, so the note says why.
+      const [figure] = reachFigures(said, 2026)
+      assert.equal(figure.rows.find((d) => d.id === 'russell').alive, false)
+      assert.match(figure.note, /a bar short of it is out, as is one that meets it and loses the countback\./)
+    })
+
+    it('keeps in a rival who would win the tie, the other way round', () => {
+      const fewer = austin.map((p) => (p.id === 'antonelli' && p.place === 1 ? { ...p, n: 7 } : p))
+      const said = answer({ places: fewer })
+      assert.equal(said.who, "Who can still win the drivers' title: Andrea Kimi Antonelli and George Russell.")
+      assert.match(said.basis, /and would then take the title on the countback: 8 wins to 7\.$/)
+      assert.equal(fightLine(said, 'drivers', 'russell'), 'Still in the title fight: 125 behind with 125 left.')
+      assert.ok(!reachFigures(said, 2026)[0].note.includes('countback'))
+    })
+
+    it('goes down the order where the wins are level, and only as far as the places that score', () => {
+      // 8 wins each; then second places, Russell's 4 to Antonelli's 3.
+      const level = austin.map((p) => (p.id === 'antonelli' && p.place === 1 ? { ...p, n: 8 } : p))
+      assert.match(answer({ places: level }).basis, /take the title on the countback: level on wins, then 4 second places to 3\.$/)
+      // Seconds level too: third places, 3 to 1, against him.
+      const deeper = level.map((p) => (p.id === 'russell' && p.place === 2 ? { ...p, n: 3 } : p))
+      assert.match(answer({ places: deeper }).basis, /lose it on the countback: level on wins and every place to second, then 1 third place to 3\.$/)
+      // Level on every place that scores: below them the leader's finishes are
+      // not fixed, so nobody can say, and the rival stays in. A place below the
+      // scale and a team's place are not a driver's countback at all.
+      const same = [
+        place('drivers', 'antonelli', 1, 8), place('drivers', 'russell', 1, 3),
+        place('drivers', 'antonelli', 11, 4), place('constructors', 'russell', 2, 9),
+      ]
+      const unsaid = answer({ places: same })
+      assert.match(unsaid.who, /Andrea Kimi Antonelli and George Russell\./)
+      assert.match(unsaid.basis, /by winning every round left, and who the countback would then favour is not worked out here\.$/)
+    })
+
+    it('counts a sprint left as nothing, because a sprint place is not a race place', () => {
+      const said = answer({ remaining: { ...live, sprints: 1, available: 133 } , drivers: [drivers[0], { ...drivers[1], points: 232 }] })
+      assert.match(said.basis, /by winning every round and sprint left, and would then lose it on the countback: 8 wins to 9\.$/)
+    })
+
+    it('declines where the rule is not held, and where the results are behind the calendar', () => {
+      // A season no tie_breaks period covers: the words VD-90 printed, and the
+      // rival counted in, as before AF-137.
+      const unruled = answer({ remaining: { ...live, countback: null } })
+      assert.match(unruled.who, /Andrea Kimi Antonelli and George Russell\./)
+      assert.match(unruled.basis, /Points only: a tie at the top is settled on wins, which this does not work out\.$/)
+      assert.ok(!unruled.basis.includes('countback'))
+      // A spelling the page does not know is not the rule.
+      assert.match(answer({ remaining: { ...live, countback: 'race and sprint places' } }).basis, /Points only/)
+      // A round run with no result yet would be counted as nobody's places.
+      const behind = answer({ remaining: { ...live, results: 17 } })
+      assert.match(behind.who, /Andrea Kimi Antonelli and George Russell\./)
+      assert.match(behind.basis, /goes to whoever has more wins.*who the countback would then favour is not worked out here\.$/)
+      // And without the places at all.
+      assert.match(answer({ places: undefined }).basis, /not worked out here\.$/)
+    })
+
+    it("settles the constructors' title on both cars' places, with a one-two a round", () => {
+      const teams = [
+        { entity: 'Mercedes', constructor_id: 'mercedes', position: 1, points: 500 },
+        { entity: 'Ferrari', constructor_id: 'ferrari', position: 2, points: 414 },
+      ]
+      // Two rounds at 43 a team: Ferrari 86 behind, level at best. Its best case
+      // adds two wins and two second places: 5 and 3 against Mercedes' 5 and 4.
+      const two = { ...live, races: 2, available: 50 }
+      const places = [
+        place('constructors', 'mercedes', 1, 5), place('constructors', 'mercedes', 2, 4),
+        place('constructors', 'ferrari', 1, 3), place('constructors', 'ferrari', 2, 1),
+      ]
+      const said = titleAnswer({ drivers: [], constructors: teams, remaining: two, afterRound: 18, year: 2026, places })
+      assert.match(said.who, /^Only Mercedes can still win the constructors' title: no other team can now beat the leader's total, or match it and win the countback\./)
+      assert.match(said.basis, /Ferrari can at best draw level with Mercedes, with a one-two in every round left, and would then lose it on the countback: level on wins, then 3 second places to 4\.$/)
+      // Two more second places and it is Ferrari's.
+      const more = places.map((p) => (p.id === 'ferrari' && p.place === 2 ? { ...p, n: 3 } : p))
+      const won = titleAnswer({ drivers: [], constructors: teams, remaining: two, afterRound: 18, year: 2026, places: more })
+      assert.match(won.who, /Mercedes and Ferrari\./)
+      assert.match(won.basis, /would then take the title on the countback: level on wins, then 5 second places to 4\.$/)
+    })
+
+    it('has to beat every leader, and names no figures against two', () => {
+      const shared = [
+        { entity: 'A', driver_id: 'a', position: 1, points: 365 },
+        { entity: 'B', driver_id: 'b', position: 2, points: 365 },
+        { entity: 'C', driver_id: 'c', position: 3, points: 240 },
+      ]
+      const places = [place('drivers', 'a', 1, 6), place('drivers', 'b', 1, 9), place('drivers', 'c', 1, 3)]
+      // 8 wins beats A's 6 and loses to B's 9: out.
+      const said = titleAnswer({ drivers: shared, remaining: live, afterRound: 18, year: 2026, places })
+      assert.equal(said.who, "Who can still win the drivers' title: A and B.")
+      assert.match(said.basis, /C can at best draw level with A and B, by winning every round left, and would then lose it on the countback\.$/)
+      // Beating both keeps C in.
+      const both = places.map((p) => (p.id === 'b' ? { ...p, n: 7 } : p))
+      assert.match(titleAnswer({ drivers: shared, remaining: live, afterRound: 18, year: 2026, places: both }).who, /A, B and C\./)
+      // One id twice on a table is not counted back.
+      const twice = [...shared, { entity: 'C again', driver_id: 'c', position: 4, points: 1 }]
+      assert.match(titleAnswer({ drivers: twice, remaining: live, afterRound: 18, year: 2026, places }).basis, /not worked out here\.$/)
+    })
+  })
+
+  // AF-138: which finishes at the next round settle the drivers' title. The
+  // issue's example, before Austin 2026, from the database after round 17:
+  // Antonelli 340 with 8 wins, six rounds and 150 points left, then 125.
+  describe('the clinch strip for the next round', () => {
+    const live = {
+      races: 6, sprints: 0, run: 17, results: 17, dropped_scores: 'Every result counts', available: 150,
+      win_points: 25, fastest_lap_points: 0, scale: '[25,18,15,12,10,8,6,4,2,1]', sprint_scale: '[8,7,6,5,4,3,2,1]', sprint_points: 8,
+      countback: RACE_PLACES,
+    }
+    const drivers = [
+      { entity: 'Andrea Kimi Antonelli', driver_id: 'antonelli', position: 1, points: 340 },
+      { entity: 'George Russell', driver_id: 'russell', position: 2, points: 238 },
+      { entity: 'Sir Lewis Hamilton', driver_id: 'hamilton', position: 3, points: 229 },
+      { entity: 'Max Verstappen', driver_id: 'verstappen', position: 4, points: 221 },
+      { entity: 'Charles Leclerc', driver_id: 'leclerc', position: 5, points: 215 },
+      { entity: 'Lando Norris', driver_id: 'norris', position: 6, points: 201 },
+      { entity: 'Oscar Piastri', driver_id: 'piastri', position: 7, points: 138 },
+    ]
+    const counts = {
+      antonelli: { 1: 8, 2: 3, 3: 3, 5: 1 },
+      russell: { 1: 3, 2: 4, 3: 1, 4: 2, 5: 1, 7: 1, 9: 1 },
+      hamilton: { 1: 1, 2: 2, 3: 3, 4: 3, 5: 2, 6: 5 },
+    }
+    const placesOf = (table) =>
+      Object.entries(table).flatMap(([id, by]) => Object.entries(by).map(([at, n]) => ({ kind: 'drivers', id, place: Number(at), n })))
+    const places = placesOf(counts)
+    const names = ['Australian', 'Chinese', 'Japanese', 'Miami', 'Canadian', 'Monaco', 'Barcelona-Catalunya', 'Austrian', 'British', 'Belgian',
+      'Hungarian', 'Dutch', 'Italian', 'Spanish', 'Azerbaijan', 'Bahrain', 'Singapore', 'United States', 'Mexico City', 'Sao Paulo',
+      'Las Vegas', 'Qatar', 'Abu Dhabi']
+    const rounds = names.map((name, i) => ({
+      round: i + 1,
+      name_used: `${name} Grand Prix`,
+      sprint: [2, 4, 5, 9, 12, 17].includes(i + 1) ? 1 : 0,
+      status: i < 17 ? 'completed' : 'scheduled',
+    }))
+    const strips = ({ remaining = live, table = drivers, at = places, calendar = rounds } = {}) =>
+      clinchStrips(titleAnswer({ drivers: table, remaining, afterRound: remaining.run, year: 2026, places: at }), remaining, calendar)
+    const marks = (strip, label) => strip.data.find((d) => d.label === label).cells.map((c) => c.mark)
+    const [T, C, L, O] = [CLINCH_TAKEN, CLINCH_CHAMPION, CLINCH_LEVEL, CLINCH_ON]
+
+    it("pins Austin's strip: he wins, Russell 10th or lower, Hamilton 5th or lower", () => {
+      const clinch = strips()
+      assert.equal(clinch.race, 'United States Grand Prix')
+      assert.equal(clinch.round, 18)
+      // No other finish of his settles it: second, and Russell scoring nothing
+      // is 120 behind with 125 left.
+      assert.equal(clinch.strips.length, 1)
+      const [wins] = clinch.strips
+      assert.equal(wins.title, 'If Andrea Kimi Antonelli wins the United States Grand Prix')
+      assert.equal(wins.place, 1)
+      // Every rival still in has a row, Piastri, out, none.
+      assert.deepEqual(wins.data.map((d) => d.label), ['Russell', 'Hamilton', 'Verstappen', 'Leclerc', 'Norris'])
+      assert.deepEqual(marks(wins, 'Russell'), [T, O, O, O, O, O, O, O, L, C, C])
+      assert.deepEqual(marks(wins, 'Hamilton'), [T, O, O, O, C, C, C, C, C, C, C])
+      for (const rival of ['Verstappen', 'Leclerc', 'Norris']) assert.deepEqual(marks(wins, rival), [T, ...Array(10).fill(C)], rival)
+      // Russell 9th is level on 365, and the countback is Antonelli's: Russell
+      // wins the five rounds after for 8 wins, to his 9.
+      const ninth = wins.data[0].cells[8]
+      assert.deepEqual(ninth.countback, { wins: false, place: 1, mine: 8, theirs: 9 })
+      const russell = wins.rows.find((r) => r.id === 'russell')
+      assert.equal(russell.p1, "Antonelli's place")
+      assert.equal(russell.p8, 'Title goes on')
+      assert.equal(russell.p9, 'Level: Antonelli champion on the countback')
+      assert.equal(russell.p10, 'Antonelli champion')
+      assert.equal(russell.none, 'Antonelli champion')
+      assert.equal(russell.entity, 'George Russell')
+      // The table has a column for every place the scale pays, and none.
+      assert.deepEqual(wins.columns.map((c) => c.label), ['Rival', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', 'No points'])
+      assert.deepEqual(Object.keys(russell).sort(), ['entity', 'id', 'none', ...wins.columns.slice(1, 11).map((c) => c.key)].sort())
+      assert.match(wins.note, /A tick is Antonelli champion;.*a dash, Antonelli's own place\.$/)
+    })
+
+    it('is what seasonAnswer() and so the upcoming race carry, and nothing once the title is on the record', () => {
+      const args = { rounds, standings: [], drivers, remaining: live, afterRound: 17, year: 2026, places }
+      const open = seasonAnswer({ ...args, season: { year: 2026, drivers_champion: null } })
+      assert.deepEqual(open.clinch, strips())
+      const crowned = seasonAnswer({ ...args, season: { year: 2026, drivers_champion: 'antonelli', champion: 'Andrea Kimi Antonelli' } })
+      assert.equal(crowned.clinch, null)
+    })
+
+    it('says who the countback favours, and where it cannot', () => {
+      // Two wins fewer for Antonelli: 7 after Austin, to Russell's 8.
+      const fewer = placesOf({ ...counts, antonelli: { ...counts.antonelli, 1: 6 } })
+      const [wins] = strips({ at: fewer }).strips
+      assert.equal(wins.rows[0].p9, 'Level: Russell takes the countback')
+      assert.equal(wins.data[0].cells[8].mark, CLINCH_LEVEL)
+      // No rule held for the season: level, and not worked out.
+      const [unruled] = strips({ remaining: { ...live, countback: null } }).strips
+      assert.equal(unruled.rows[0].p9, 'Level: the countback is not worked out')
+      assert.equal(unruled.data[0].cells[8].countback, null)
+    })
+
+    it('draws a strip whose row lands only on level where the countback is the leader’s, and not where it is not', () => {
+      // Russell on 240: scoring nothing at Austin he is 125 behind with 125 left.
+      const level = [drivers[0], { ...drivers[1], points: 240 }, ...drivers.slice(2)]
+      const [wins] = strips({ table: level }).strips
+      assert.deepEqual(marks(wins, 'Russell'), [T, ...Array(9).fill(O), L])
+      assert.equal(wins.rows[0].none, 'Level: Antonelli champion on the countback')
+      // With the countback Russell's, no finish of Antonelli's settles it.
+      assert.equal(strips({ table: level, at: placesOf({ ...counts, antonelli: { 1: 6 } }) }), null)
+    })
+
+    it('draws a strip for every finish of the leader that settles it, best first', () => {
+      // After Austin: Antonelli 365, Russell 242, Hamilton 241, five rounds
+      // and 125 left, then 100. Nothing at Mexico still settles it, so long
+      // as neither of them wins.
+      const after = [
+        { ...drivers[0], points: 365 }, { ...drivers[1], points: 242 }, { ...drivers[2], points: 241 },
+        { ...drivers[3], points: 236 }, { ...drivers[4], points: 233 }, { ...drivers[5], points: 211 },
+      ]
+      const calendar = rounds.map((r) => (r.round === 18 ? { ...r, status: 'completed' } : r))
+      const clinch = strips({ table: after, remaining: { ...live, races: 5, run: 18, results: 18, available: 125 }, calendar })
+      assert.equal(clinch.race, 'Mexico City Grand Prix')
+      assert.deepEqual(clinch.strips.map((s) => s.place), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, null])
+      const none = clinch.strips.at(-1)
+      assert.equal(none.title, 'If Andrea Kimi Antonelli scores no points in the Mexico City Grand Prix')
+      assert.equal(clinch.strips[1].title, 'If Andrea Kimi Antonelli finishes second in the Mexico City Grand Prix')
+      // Scoring nothing, the leader's place is no column: no cell is taken.
+      assert.ok(none.data.every((d) => !d.cells.some((c) => c.mark === CLINCH_TAKEN)))
+      assert.deepEqual(marks(none, 'Russell'), [O, C, C, C, C, C, C, C, C, C, C])
+    })
+
+    it('draws nothing where the next round cannot settle it, or the arithmetic cannot say', () => {
+      // A round earlier, 175 left: nothing at Austin settles it.
+      assert.equal(strips({ remaining: { ...live, races: 7, run: 16, results: 16, available: 175 }, calendar: rounds.map((r) => (r.round === 17 ? { ...r, status: 'scheduled' } : r)) }), null)
+      // Two level at the top; nobody still in; a calendar a round out.
+      assert.equal(strips({ table: [drivers[0], { ...drivers[1], points: 340 }, ...drivers.slice(2)] }), null)
+      assert.equal(strips({ table: [drivers[0], drivers[6]] }), null)
+      assert.equal(strips({ calendar: rounds.map((r) => (r.round === 18 ? { ...r, status: 'completed' } : r)) }), null)
+      // A scale that is not numbers, and no answer at all.
+      assert.equal(strips({ remaining: { ...live, scale: 'not json' } }), null)
+      assert.equal(clinchStrips(null, live, rounds), null)
+    })
+
+    it('says so, rather than drawing, at a sprint weekend or where the fastest lap pays', () => {
+      const sprint = rounds.map((r) => (r.round === 18 ? { ...r, sprint: 1 } : r))
+      const atSprint = strips({ remaining: { ...live, sprints: 1, available: 158 }, calendar: sprint })
+      assert.equal(atSprint.strips, undefined)
+      assert.equal(
+        atSprint.declined,
+        'The United States Grand Prix could settle the drivers\' title, but it has a sprint as well, and which finishes in the two would settle it is not drawn here.',
+      )
+      // A point for the fastest lap: 26 a round, 130 left after Austin, and
+      // Russell on 230 out of reach of 366 if he scores nothing.
+      const lap = strips({ remaining: { ...live, fastest_lap_points: 1, available: 156 }, table: [drivers[0], { ...drivers[1], points: 230 }, ...drivers.slice(2)] })
+      assert.match(lap.declined, /^The United States Grand Prix could settle the drivers' title, but the fastest lap pays a point/)
+      // A sprint weekend that cannot settle it says nothing.
+      assert.equal(strips({ remaining: { ...live, sprints: 1, available: 158 }, calendar: sprint, table: [drivers[0], { ...drivers[1], points: 300 }] }), null)
+      // Russell on 248 can at best draw level (373 to 248 with 125 left):
+      // the sentence is said where the countback is Antonelli's, 9 wins to 8,
+      // and not where it is Russell's, 10 to 9, or cannot be counted.
+      const level = [drivers[0], { ...drivers[1], points: 248 }, ...drivers.slice(2)]
+      const atLevel = (at) => strips({ remaining: { ...live, sprints: 1, available: 158 }, calendar: sprint, table: level, at })
+      assert.match(atLevel(places).declined, /it has a sprint as well/)
+      assert.equal(atLevel(placesOf({ ...counts, russell: { ...counts.russell, 1: 5 } })), null)
+      assert.equal(strips({ remaining: { ...live, sprints: 1, available: 158, results: 16 }, calendar: sprint, table: level }), null)
+    })
+
+    it('lays each strip out inside its width, a cell a place with its symbol, and no cell at the leader’s own place', () => {
+      const [wins] = strips().strips
+      for (const width of [280, 320, 400, 479, 480, 640, 1200]) {
+        const layout = clinchLayout({ data: wins.data, width })
+        assert.equal(layout.rows.length, 5)
+        assert.equal(layout.columns.length, 11)
+        assert.equal(layout.columns.at(-1).text, width < 480 ? '0' : '0 pts')
+        for (const row of layout.rows) {
+          assert.equal(row.cells.length, 11)
+          assert.equal(row.cells[0].rect, null, `the leader's place has no cell at ${width}`)
+          assert.equal(row.cells[0].className, 'clinch-taken')
+          for (const cell of row.cells.slice(1)) {
+            assert.ok(cell.rect.x >= row.labelX && cell.rect.x + cell.rect.width <= width, `a cell outside ${width}`)
+            assert.match(cell.symbol, /^M/)
+          }
+          assert.ok(row.labelX > 0)
+        }
+        // The marks reach the classes app.css colours.
+        assert.deepEqual([...new Set(layout.rows[0].cells.map((c) => c.className))], ['clinch-taken', 'clinch-on', 'clinch-level', 'clinch-champion'])
+      }
+      assert.equal(clinchLayout({ data: [], width: 640 }), null)
+    })
+
+    it('widens the names to fit, as far as the cells allow, and cuts a name past that', () => {
+      const [wins] = strips().strips
+      const full = wins.data.map((d, i) => (i === 0 ? { ...d, label: 'Andrea Kimi Antonelli' } : d))
+      for (const width of [400, 640]) {
+        const layout = clinchLayout({ data: full, width })
+        assert.equal(layout.rows[0].label, 'Andrea Kimi Antonelli', `the full name at ${width}`)
+        assert.ok(layout.rows[0].labelX >= 8 + 21 * 6, `the names' column wide enough at ${width}`)
+        assert.ok(layout.rows[0].cells.at(-1).rect.x + layout.rows[0].cells.at(-1).rect.width <= width)
+      }
+      const long = wins.data.map((d, i) => (i === 0 ? { ...d, label: 'A Name Far Too Long To Fit Beside Eleven Cells' } : d))
+      const cut = clinchLayout({ data: long, width: 320 })
+      assert.match(cut.rows[0].label, /…$/)
+      assert.ok(cut.rows[0].cells.every((c) => !c.rect || c.rect.width >= 12))
+      assert.ok(cut.rows[0].cells.at(-1).rect.x + cut.rows[0].cells.at(-1).rect.width <= 320)
+      // Names that fit keep the usual column; one a little wider widens it.
+      assert.equal(clinchLayout({ data: wins.data.map((d) => ({ ...d, label: 'Ace' })), width: 320 }).rows[0].labelX, 68)
+      assert.equal(clinchLayout({ data: wins.data.map((d) => ({ ...d, label: 'Ace' })), width: 640 }).rows[0].labelX, 112)
+    })
+  })
+
   // LV-15. Five rounds and three run, 100, 75 and 50 left after rounds 1 to
   // 3 at 25 a driver and 43 a team. A is 80 clear after round 2 and stays so.
   describe('a title decided before the last round', () => {
@@ -1457,7 +1809,8 @@ describe('the queries a page and the prerenderer share', () => {
 
     it('is exactly titleAnswer() with no title on the record, and says nothing of a season over', () => {
       const open = { ...season, drivers_champion: null, champion: null }
-      assert.deepEqual(seasonAnswer({ ...args, season: open }), titleAnswer({ ...args }))
+      const fought = titleAnswer({ ...args })
+      assert.deepEqual(seasonAnswer({ ...args, season: open }), { ...fought, clinch: clinchStrips(fought, args.remaining, args.rounds) })
       assert.equal(seasonAnswer({ ...args, remaining: { ...remaining, races: 0, available: 0, run: 5 } }), null)
     })
 
@@ -1489,6 +1842,26 @@ describe('the queries a page and the prerenderer share', () => {
       assert.deepEqual(ids(fightCitation(get, title, 'constructors', 'x')), [5, 7])
       assert.deepEqual(ids(fightCitation(get, title)), [2, 5, 7], 'the whole answer, on the upcoming race')
       assert.deepEqual(ids(fightCitation(get, { crowned: undefined })), [5, 7])
+    })
+
+    // AF-137: the countback's entries are behind a line only where it counted
+    // a tie back - a crowned title, or a fight with no rule held, does not.
+    it('cites the countback only where the answer counted a tie back', () => {
+      const entry = (id) => ({ id, priority: id })
+      const held = { fightSources: [entry(5), entry(7)], fightTieSources: [entry(1), entry(7)], crownedSources: [entry(2)] }
+      const get = (key) => held[key]
+      const ids = (rows) => rows.map((s) => s.id)
+      const rule = { counts: new Map(), depth: 10 }
+      const level = { tie: rule, rows: [{ id: 'a', level: false }, { id: 'b', level: true }] }
+      const none = { tie: rule, rows: [{ id: 'a', level: false }] }
+      assert.deepEqual(ids(fightCitation(get, { drivers: level }, 'drivers', 'b')), [1, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, { drivers: level })), [1, 5, 7], 'the basis states the rule')
+      assert.deepEqual(ids(fightCitation(get, { drivers: none }, 'drivers', 'a')), [5, 7], 'nobody level: the line does not reach it')
+      assert.deepEqual(ids(fightCitation(get, { drivers: none })), [1, 5, 7])
+      assert.deepEqual(ids(fightCitation(get, { drivers: { ...level, tie: null } })), [5, 7], 'no rule held')
+      assert.deepEqual(ids(fightCitation(get, { drivers: null, crowned: { drivers: { id: 'a' } } }, 'drivers', 'a')), [2, 5, 7])
+      assert.deepEqual(ids(seasonSources([entry(7)], [entry(18)], { answer: { drivers: level }, remaining: null, tie: [entry(1)] })), [1, 7, 18])
+      assert.deepEqual(ids(seasonSources([entry(7)], [entry(18)], { answer: { who: 'crowned', drivers: null }, remaining: null, tie: [entry(1)] })), [7, 18])
     })
 
     it("names the champion on the strip while the gap stays a gap", () => {
@@ -3321,13 +3694,17 @@ describe('the rows the static page drew (IX-19)', () => {
         ? { querySelector: (inner) => (inner === ':scope > details.table-fold' ? { open } : null) }
         : null,
   })
-  const stand = (pathname, tables, run) => {
+  // `faceFold`: the team-mates face-off's disclosure (VD-130), or null.
+  const stand = (pathname, tables, run, faceFold = null) => {
     const hadDocument = 'document' in globalThis
     const hadLocation = 'location' in globalThis
     const document = globalThis.document
     const location = globalThis.location
     globalThis.document = {
-      getElementById: (id) => (id === 'prerendered' ? { querySelectorAll: () => tables } : null),
+      getElementById: (id) =>
+        id === 'prerendered'
+          ? { querySelectorAll: () => tables, querySelector: (selector) => (selector === 'details.face-fold' ? faceFold : null) }
+          : null,
     }
     globalThis.location = { pathname }
     try {
@@ -3408,6 +3785,27 @@ describe('the rows the static page drew (IX-19)', () => {
       captureStaticTables()
       captureOpenFolds()
       assert.equal(staticOpen('Every entry'), false)
+    })
+  })
+
+  // VD-130: the face-off's disclosure, opened while the database arrived.
+  it('remembers the face-off disclosure the reader opened, on that route only', () => {
+    const fold = { open: false }
+    stand('/drivers/brabham', [fakeTable('Team-mates', 241)], () => {
+      captureStaticTables()
+      captureOpenFolds()
+      assert.equal(staticFaceFoldOpen(), false, 'written closed')
+      fold.open = true
+      captureOpenFolds()
+      assert.equal(staticFaceFoldOpen(), true)
+      assert.equal(staticOpen('Team-mates'), false, "the table's own fold is another thing")
+      globalThis.location = { pathname: '/drivers/fangio' }
+      assert.equal(staticFaceFoldOpen(), false)
+    }, fold)
+    stand('/drivers/norris', [fakeTable('Team-mates', 12)], () => {
+      captureStaticTables()
+      captureOpenFolds()
+      assert.equal(staticFaceFoldOpen(), false, 'a page with no disclosure')
     })
   })
 
@@ -4688,6 +5086,157 @@ describe("the championship chart's axis is the career (IX-38)", async () => {
   })
 })
 
+describe('a driver’s career chart tells the career (VD-124), on rows written out', async () => {
+  const { careerStory, finishesFigure } = await import('../src/queries/driver.js')
+  const { dotPlotLayout, DOT_R, RING_R } = await import('../src/charts/dotPlot.js')
+  const { MARKER, placeDotMarkers } = await import('../src/charts/annotate.js')
+  const final = (year, position, points) => ({ year, position, points, basis: 'final' })
+  // Norris's shape: 11th, 9th, 6th, 7th, 6th, 2nd, champion by two, and the season being run.
+  const norris = [final(2019, 11, 49), final(2020, 9, 97), final(2021, 6, 160), final(2022, 7, 122), final(2023, 6, 205), final(2024, 2, 374), final(2025, 1, 423), { year: 2026, position: 6, points: 150, basis: 'running' }]
+  const raced = norris.map((s) => s.year)
+  const wins = [{ year: 2024, round: 6, name_used: 'Miami Grand Prix' }, { year: 2024, round: 15, name_used: 'Dutch Grand Prix' }]
+  const runnersUp = [{ year: 2025, points: 421, name: 'Max Verstappen' }]
+
+  it('states the climb to one title, and a note for the first win and one for the title', () => {
+    const story = careerStory(norris, { wins, runnersUp, first: 2019, raced })
+    assert.equal(story.finding, 'From 11th to champion in seven seasons')
+    assert.equal(story.kicker, 'Final championship position each season · the title ringed')
+    assert.deepEqual(story.notes, [
+      { n: 1, x: 2024, lead: 'First win, 2024', text: 'Miami Grand Prix, round 6; 2nd in the championship that year.' },
+      { n: 2, x: 2025, lead: 'Champion, 2025', text: 'By two points from Verstappen.' },
+    ])
+  })
+  it('counts the seasons raced, not the years, and names both years where the first season has no place', () => {
+    const gap = [{ year: 1968, position: null, basis: 'final' }, final(1970, 15, 4), final(1978, 1, 64)]
+    assert.equal(careerStory(gap, { first: 1968, raced: [1968, 1970, 1978] }).finding, 'From 15th in 1970 to champion in 1978')
+    const sabbatical = [final(2001, 9, 10), final(2004, 3, 50), final(2005, 1, 90)]
+    assert.equal(careerStory(sabbatical, { first: 2001, raced: [2001, 2004, 2005] }).finding, 'From 9th to champion in three seasons')
+  })
+  it('counts several titles, and makes a first win in a title season one note', () => {
+    const story = careerStory([final(1950, 1, 30), final(1951, 4, 19), final(1952, 1, 36)], {
+      wins: [{ year: 1950, round: 1, name_used: 'British Grand Prix' }],
+      runnersUp: [{ year: 1950, points: 27.5, name: 'Juan Manuel Fangio' }],
+      first: 1950,
+      raced: [1950, 1951, 1952],
+    })
+    assert.equal(story.finding, 'Two titles between 1950 and 1952')
+    assert.equal(story.kicker, 'Final championship position each season · each title ringed')
+    assert.deepEqual(story.notes, [
+      { n: 1, x: 1950, lead: 'First win and first title, 1950', text: 'British Grand Prix, round 1. By 2.5 points from Fangio.' },
+    ])
+    assert.equal(careerStory([final(1950, 1, 30), final(1951, 4, 19)], { first: 1950, raced: [1950, 1951] }).finding, 'Champion at the first attempt')
+  })
+  it('never calls the season being run a title, and says it as so far', () => {
+    const rookie = [final(2025, 7, 150), { year: 2026, position: 1, points: 390, basis: 'running' }]
+    const story = careerStory(rookie, { wins: [{ year: 2026, round: 2, name_used: 'Chinese Grand Prix' }], first: 2025, raced: [2025, 2026] })
+    assert.equal(story.finding, 'At best 7th in the championship, in 2025; 1st in 2026 so far')
+    assert.equal(story.kicker, 'Final championship position each season')
+    // No final place to state for the season of the first win.
+    assert.deepEqual(story.notes, [{ n: 1, x: 2026, lead: 'First win, 2026', text: 'Chinese Grand Prix, round 2.' }])
+    const chart = finishesFigure({ full_name: 'A Driver', first_season: 2025, last_season: 2026 }, rookie, new Map(), [{ year: 2025 }, { year: 2026 }])
+    assert.deepEqual(chart.data.map((d) => d.mark), [false, false], 'a lead in the season being run is not ringed')
+  })
+  it('names the best final place and how often, and gives no note without a dot to point to', () => {
+    const story = careerStory([final(1955, 2, 23), final(1956, 2, 27), final(1957, 2, 25), { year: 1962, position: null, basis: 'final' }], {
+      wins: [{ year: 1962, round: 1, name_used: 'A Grand Prix' }],
+      first: 1955,
+    })
+    assert.equal(story.finding, 'At best 2nd in the championship, three times')
+    assert.deepEqual(story.notes, [])
+  })
+  it('gives the points alone where no single runner-up is on record, and a level title as level', () => {
+    const one = [final(2000, 3, 20), final(2001, 1, 40)]
+    assert.equal(careerStory(one, { first: 2000 }).notes[0].text, 'On 40 points.')
+    assert.equal(careerStory(one, { first: 2000, runnersUp: [{ year: 2001, points: 40, name: 'B Driver' }] }).notes[0].text, 'Level on points with Driver.')
+    assert.equal(careerStory(one, { first: 2000, runnersUp: [{ year: 2001, points: 39, name: 'B Driver' }] }).notes[0].text, 'By one point from Driver.')
+  })
+
+  const driver = { full_name: 'Lando Norris', first_season: 2019, last_season: 2026 }
+  const chart = finishesFigure(driver, norris, new Map(), raced.map((year) => ({ year })), { wins, runnersUp })
+  it('labels every season, in the short form where only that fits, and both ends where neither does', () => {
+    assert.deepEqual(dotPlotLayout({ ...chart, width: 480 }).xTicks.map((t) => t.text), raced.map(String))
+    assert.deepEqual(dotPlotLayout({ ...chart, width: 300 }).xTicks.map((t) => t.text), raced.map((y) => `’${String(y).slice(-2)}`))
+    const long = finishesFigure({ full_name: 'A', first_season: 1993, last_season: 2011 }, [final(1993, 17, 2), final(2011, 17, 4)], new Map(), [])
+    const ticks = dotPlotLayout({ ...long, width: 320 }).xTicks.map((t) => t.value)
+    assert.equal(ticks[0], 1993)
+    assert.equal(ticks[ticks.length - 1], 2011)
+    assert.ok(ticks.length < 19, 'not every season, where they would collide')
+  })
+  it('grids P1, P5 and P10, and the tens past them, never the floor', () => {
+    assert.deepEqual(dotPlotLayout({ ...chart, width: 480 }).yTicks.map((t) => t.text), ['P1', 'P5', 'P10'])
+    const deep = finishesFigure(driver, [final(2019, 23, 0), final(2020, 9, 1)], new Map(), [])
+    assert.deepEqual(dotPlotLayout({ ...deep, width: 480 }).yTicks.map((t) => t.text), ['P1', 'P5', 'P10', 'P20'])
+  })
+  it('breaks the line at a season with no dot and at a season not raced', () => {
+    const data = [{ x: 1, y: 3 }, { x: 2, y: 2 }, { x: 3, y: null }, { x: 4, y: 1 }, { x: 5, y: 2 }, { x: 7, y: 4 }]
+    const layout = dotPlotLayout({ data, width: 400, line: true })
+    assert.equal(layout.segments.length, 2)
+    assert.equal((layout.linePath.match(/M/g) ?? []).length, 2)
+    assert.equal(dotPlotLayout({ data, width: 400 }).linePath, '', 'no line unless asked')
+  })
+  it('takes the one colour every dot shares, and ink where they differ', () => {
+    const pair = { light: '#d66c00', dark: '#ff8000' }
+    const data = [{ x: 1, y: 1, colour: pair }, { x: 2, y: 2, colour: { ...pair } }]
+    assert.deepEqual(dotPlotLayout({ data, width: 400, line: true }).lineColour, pair)
+    assert.equal(dotPlotLayout({ data: [...data, { x: 3, y: 2, colour: { light: '#000', dark: '#fff' } }], width: 400, line: true }).lineColour, null)
+    assert.equal(dotPlotLayout({ data: [...data, { x: 3, y: 2, hollow: true }], width: 400, line: true }).lineColour, null)
+  })
+  it('sets every marker under its dot, clear of every dot, the line and the other marker, at every width', () => {
+    const reach = MARKER.r + MARKER.ring / 2
+    const near = (s, px, py) => {
+      const l = (s.x2 - s.x1) ** 2 + (s.y2 - s.y1) ** 2
+      const t = Math.max(0, Math.min(1, ((px - s.x1) * (s.x2 - s.x1) + (py - s.y1) * (s.y2 - s.y1)) / l))
+      return Math.hypot(s.x1 + t * (s.x2 - s.x1) - px, s.y1 + t * (s.y2 - s.y1) - py)
+    }
+    for (const width of [300, 352, 480, 640]) {
+      const layout = dotPlotLayout({ ...chart, width })
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2], `${width}: a marker for each note`)
+      for (const m of layout.markers) {
+        const dot = layout.points.find((p) => Math.abs(p.cx - m.cx) < 0.01)
+        assert.ok(m.cy > dot.cy, `${width}: marker ${m.n} under its dot`)
+        assert.ok(m.cy + reach <= layout.tickY - 10, `${width}: marker ${m.n} above the axis`)
+        for (const p of layout.points) assert.ok(Math.hypot(p.cx - m.cx, p.cy - m.cy) >= reach + (p.d.mark ? RING_R : DOT_R), `${width}: marker ${m.n} clear of ${p.d.x}`)
+        for (const s of layout.segments) assert.ok(near(s, m.cx, m.cy) >= reach, `${width}: marker ${m.n} clear of the line`)
+      }
+      const [a, b] = layout.markers
+      assert.ok(Math.hypot(a.cx - b.cx, a.cy - b.cy) >= 2 * reach, `${width}: the two markers apart`)
+    }
+  })
+  it('goes over a dot where under would leave the drawing', () => {
+    const [m] = placeDotMarkers([{ n: 1, x: 50, y: 95, r: DOT_R }], { dots: [{ x: 50, y: 95, r: DOT_R }], bottom: 100 })
+    assert.ok(m.cy < 95)
+    assert.ok(m.leader.y1 < 95 && m.leader.y2 < m.leader.y1, 'the hairline runs up from the dot to the disc')
+  })
+  it('steps a disc aside where nothing straight under or over a title is clear: Button at 300 to 400 px', () => {
+    const reach = MARKER.r + MARKER.ring / 2
+    const near = (s, px, py) => {
+      const l = (s.x2 - s.x1) ** 2 + (s.y2 - s.y1) ** 2
+      const t = Math.max(0, Math.min(1, ((px - s.x1) * (s.x2 - s.x1) + (py - s.y1) * (s.y2 - s.y1)) / l))
+      return Math.hypot(s.x1 + t * (s.x2 - s.x1) - px, s.y1 + t * (s.y2 - s.y1) - py)
+    }
+    // A ringed P1 between an 18th and a 5th: the climb under the title fills the space below it.
+    const places = [8, 17, 7, 9, 3, 9, 6, 15, 18, 1, 5, 2, 5, 9, 8, 16, 15]
+    const button = places.map((position, i) => final(2000 + i, position, 10))
+    const years = button.map((s) => s.year)
+    const chart = finishesFigure({ full_name: 'Jenson Button', first_season: 2000, last_season: 2016 }, button, new Map(), years.map((year) => ({ year })), {
+      wins: [{ year: 2006, round: 13, name_used: 'Hungarian Grand Prix' }],
+    })
+    for (const width of [300, 320, 360, 400]) {
+      const layout = dotPlotLayout({ ...chart, width })
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2], `${width}: a marker for each note`)
+      for (const m of layout.markers) {
+        for (const p of layout.points) assert.ok(Math.hypot(p.cx - m.cx, p.cy - m.cy) >= reach + (p.d.mark ? RING_R : DOT_R), `${width}: marker ${m.n} clear of ${p.d.x}`)
+        for (const s of layout.segments) assert.ok(near(s, m.cx, m.cy) >= reach, `${width}: marker ${m.n} clear of the line`)
+        assert.ok(m.cx - reach >= 0 && m.cx + reach <= width && m.cy - reach >= 0 && m.cy + reach <= layout.tickY - 10, `${width}: marker ${m.n} inside the drawing`)
+        // The hairline runs out from the dot towards the disc, never back on itself.
+        const dot = layout.points.find((p) => Math.hypot(p.cx - m.leader.x1, p.cy - m.leader.y1) <= (p.d.mark ? RING_R : DOT_R) + 1.01)
+        assert.ok(dot, `${width}: marker ${m.n}'s hairline starts at a dot's edge`)
+        assert.ok(Math.hypot(m.leader.x2 - dot.cx, m.leader.y2 - dot.cy) >= Math.hypot(m.leader.x1 - dot.cx, m.leader.y1 - dot.cy), `${width}: marker ${m.n}'s hairline runs outward`)
+      }
+    }
+  })
+})
+
 describe("/data's identifier policy reads meta as the file states it (DA-25)", () => {
   it('sets paired backticks as code, and an unpaired one as text', () => {
     assert.deepEqual(codeSpans('join `a` on `b`'), [
@@ -4865,7 +5414,7 @@ describe('a session gap as a distance on the track (AF-131)', () => {
   })
 })
 
-describe("the race header's podium (VD-108)", () => {
+describe("a race page's podium where its tiles stood (VD-108)", () => {
   const entry = (finish_position, driver_id, over = {}) => ({
     finish_position,
     driver_id,
@@ -4912,6 +5461,85 @@ describe("the race header's podium (VD-108)", () => {
     assert.ok(labels(three).includes('Pole'))
     const shared = [three[0], three[1], three[2], entry(3, 'e')]
     assert.ok(labels(shared).includes('Winner'), 'a declined podium keeps the tile, so the strip still names who won')
+  })
+
+  it("puts the strip's other tiles on the line under the slabs, the circuit without its place", () => {
+    const placed = { ...race, locality: 'São Paulo', country: 'Brazil' }
+    const also = raceAlso(placed, three, [])
+    assert.deepEqual(
+      also.map((t) => t.label),
+      raceStrip(placed, three, []).map((t) => t.label),
+    )
+    assert.equal(also.find((t) => t.label === 'Circuit').note, undefined)
+    assert.equal(raceStrip(placed, three, []).find((t) => t.label === 'Circuit').note, 'São Paulo, Brazil', 'the strip keeps it')
+    assert.equal(also.find((t) => t.label === 'Entries').note, '4 classified')
+  })
+
+  it('counts places made or lost from a numbered slot only', () => {
+    const steps = racePodium(race, [
+      entry(1, 'a', { grid: null, grid_text: 'PL' }),
+      entry(2, 'b', { grid: 21, grid_text: '21' }),
+      entry(3, 'c', { grid: 1, grid_text: '8' }),
+    ])
+    assert.deepEqual(steps.map((s) => s.grid), [null, 21, null], 'a pit-lane start and a slot stated otherwise have none')
+    assert.deepEqual(placesMoved(21, 2), { kind: 'up', text: '\u25b2 19', said: '19 places gained' })
+    assert.deepEqual(placesMoved(1, 3), { kind: 'down', text: '\u25bc 2', said: '2 places lost' })
+    assert.deepEqual(placesMoved(3, 2), { kind: 'up', text: '\u25b2 1', said: '1 place gained' })
+    assert.equal(placesMoved(2, 2).kind, 'held')
+    assert.equal(placesMoved(null, 2), null)
+  })
+
+  it('draws each slab from its step: the place and given names, the surname linked, the team and start, the chip', () => {
+    const [first, second] = racePodium(race, [
+      entry(1, 'piquet-jr', { driver: 'Nelson Piquet Jr.', grid: 1, grid_text: '1', pole: 1 }),
+      entry(2, 'von-trips', { driver: 'Wolfgang von Trips', grid: 21, grid_text: '21' }),
+      entry(3, 'c', { driver: 'Zsolt', grid: 3, grid_text: '3' }),
+    ]).map(slab)
+    assert.deepEqual(
+      [first.numeral, first.first, first.surname, first.href, first.meta, first.move.text],
+      ['1', '1st · Nelson', 'Piquet Jr.', 'drivers/piquet-jr', 'McLaren · from pole', 'held'],
+    )
+    assert.deepEqual([second.first, second.surname, second.meta, second.move.said], ['2nd · Wolfgang', 'von Trips', 'McLaren · from 21st', '19 places gained'])
+    assert.deepEqual(nameParts('Zsolt'), { given: '', surname: 'Zsolt' }, 'a one-word name is a surname alone')
+    assert.equal(slab({ place: 3, ordinal: '3rd', driver: 'Zsolt', driver_id: 'c', constructor: 'X', start: null, grid: null, colour: null }).first, '3rd')
+  })
+
+  it('sets a slab in black or white, whichever reads better on each value of its pair, and holds 4.5:1 on every colour', () => {
+    assert.equal(inkOn('#ff8000'), SLAB_INK.dark, 'papaya takes black')
+    assert.equal(inkOn('#1f3c88'), SLAB_INK.light, 'a navy takes white')
+    assert.equal(inkOn('#000000'), SLAB_INK.light)
+    assert.equal(inkOn('#ffffff'), SLAB_INK.dark)
+    // Every livery's two values, and every national colour's value in each
+    // of tokens.css's three blocks: the ink chosen clears the text floor.
+    const tokens = readFileSync(join(web, 'src', 'styles', 'tokens.css'), 'utf8')
+    const blocks = {
+      light: tokens.slice(0, tokens.indexOf('@media (prefers-color-scheme: dark)')),
+      osDark: tokens.slice(tokens.indexOf('@media (prefers-color-scheme: dark)'), tokens.indexOf(":root[data-theme='dark']")),
+      stampedDark: tokens.slice(tokens.indexOf(":root[data-theme='dark']")),
+    }
+    const racing = (block) => Object.fromEntries([...block.matchAll(/--(racing-[a-z]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+    const light = racing(blocks.light)
+    assert.deepEqual(Object.keys(light).sort(), Object.keys(RACING_INK).sort(), 'RACING_INK names every racing token')
+    const under = []
+    for (const [theme, block] of [['light', blocks.light], ['dark', blocks.osDark], ['dark', blocks.stampedDark]]) {
+      for (const [token, hex] of Object.entries(racing(block))) {
+        assert.equal(RACING_INK[token][theme], inkOn(hex), `--${token} in the ${theme} theme (${hex}): RACING_INK is not inkOn() of it`)
+        if (contrastRatio(hex, inkOn(hex)) < 4.5) under.push(`--${token} ${theme} ${hex}`)
+      }
+    }
+    for (const l of LIVERIES)
+      for (const hex of [l.light, l.dark]) if (contrastRatio(hex, inkOn(hex)) < 4.5) under.push(`${l.constructor} ${l.from} ${hex}`)
+    assert.deepEqual(under, [], 'a slab whose words fall under 4.5:1')
+    assert.ok(LIVERIES.length > 0)
+  })
+
+  it("carries the pair and each value's ink, or nothing for a team with no colour", () => {
+    const vars = slabVars({ light: '#d66c00', dark: '#ff8000' })
+    assert.deepEqual(Object.keys(vars), ['--livery-light', '--livery-dark', '--slab-ink-light', '--slab-ink-dark'])
+    assert.deepEqual([vars['--slab-ink-light'], vars['--slab-ink-dark']], [inkOn('#d66c00'), inkOn('#ff8000')])
+    const uk = slabVars({ light: 'var(--racing-uk)', dark: 'var(--racing-uk)' })
+    assert.deepEqual([uk['--slab-ink-light'], uk['--slab-ink-dark']], [RACING_INK['racing-uk'].light, RACING_INK['racing-uk'].dark])
+    assert.equal(slabVars(null), null)
   })
 })
 
@@ -4970,28 +5598,38 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
     assert.deepEqual([0, 1, 2].map((i) => slotColour(i, 3)), ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'])
   })
 
-  it("the home chart prints the two figures its note states, marks the latest season raced and draws a calendar hollow", () => {
+  it('the home chart marks the latest season raced, draws it as the rounds it has run with the rest dashed, and a calendar hollow', () => {
     const seasons = [
-      { year: 1950, rounds: 7, run: 7 },
-      { year: 1960, rounds: 10, run: 10 },
-      { year: 2025, rounds: 24, run: 24 },
-      { year: 2026, rounds: 23, run: 18 },
-      { year: 2027, rounds: 24, run: 0 },
+      { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+      { year: 1960, rounds: 10, run: 10, indianapolis: 1 },
+      { year: 2025, rounds: 24, run: 24, indianapolis: 0 },
+      { year: 2026, rounds: 23, run: 18, indianapolis: 0 },
+      { year: 2027, rounds: 24, run: 0, indianapolis: 0 },
     ]
     const columns = chartData(seasons)
-    assert.deepEqual(columns.filter((c) => c.print).map((c) => c.key), [1950, 2026])
     assert.deepEqual(columns.filter((c) => c.mark).map((c) => c.key), [2026])
     assert.deepEqual(columns.filter((c) => c.hollow).map((c) => [c.key, c.note]), [[2027, 'calendar']])
-    // The note names the same two seasons the picture prints.
-    assert.match(chartNote(seasons), /^7 rounds in 1950; 23 by 2026\./)
-    // The layout prints those two and not the peak, 2025 and 2027's 24.
-    const layout = columnLayout({ data: columns, width: 600, height: 200 })
-    assert.deepEqual(layout.columns.filter((c) => c.value !== null).map((c) => c.d.key), [1950, 2026])
-    // With nothing raced nothing is marked, and the peak is printed as before.
+    // VD-123: the red column is the season so far, not its calendar.
+    const now = columns.find((c) => c.key === 2026)
+    assert.deepEqual([now.value, now.ahead, now.note], [18, 5, '5 still to run'])
+    assert.deepEqual([columns[0].value, columns[0].ahead], [7, 0], 'a completed season is all solid')
+    // Every figure the chart states is a note in its key now, so the plot prints none.
+    assert.equal(columns.some((c) => c.print), false)
+    const layout = columnLayout({ data: columns, width: 600, height: 260, labelPeak: false })
+    assert.equal(layout.columns.filter((c) => c.value !== null).length, 0)
+    const drawn = layout.columns.find((c) => c.d.key === 2026)
+    assert.ok(drawn.ahead !== null && drawn.peak < drawn.top, 'what is still to run is dashed over the solid column')
+    assert.ok(drawn.ahead.y1 === drawn.peak && drawn.ahead.y2 < drawn.top, 'from the calendar’s top down to just above the rounds run')
+    assert.ok(Math.abs(drawn.peak - layout.y(23)) < 1e-9, 'up to the calendar’s 23')
+    assert.equal(layout.columns.find((c) => c.d.key === 2025).ahead, null)
+    // The note says what is counted, and which column is not results.
+    assert.equal(
+      chartNote(seasons),
+      'Every championship round, the Indianapolis 500 of 1950–60 included. The 2027 column is a calendar: none of its rounds has been run.',
+    )
+    // With nothing raced nothing is marked.
     const calendar = chartData([{ year: 2027, rounds: 24, run: 0 }, { year: 2028, rounds: 20, run: 0 }])
-    assert.equal(calendar.some((c) => c.mark || c.print), false)
-    const peak = columnLayout({ data: calendar, width: 600, height: 200 })
-    assert.deepEqual(peak.columns.filter((c) => c.value !== null).map((c) => c.d.key), [2027])
+    assert.equal(calendar.some((c) => c.mark), false)
   })
 
   it('grid to flag marks the car classified first, and both of a shared winning drive', () => {
@@ -5003,10 +5641,162 @@ describe('a chart with no owner is drawn in ink, its stated value marked (VD-94)
       position_text: finish === null ? 'DNF' : String(finish),
       laps_completed: laps,
     })
+    // The field first, in the order it ended, then the marked lines, so
+    // the winner is drawn over the field (VD-113).
     const layout = gridFlagLayout([entry(1, 2, 1, 50), entry(2, 1, 2, 50), entry(3, 3, null, 20)])
-    assert.deepEqual(layout.cars.map(flagCarClass), ['flag-car flag-won', 'flag-car', 'flag-car flag-out'])
+    assert.deepEqual(layout.cars.map(flagCarClass), ['flag-car', 'flag-car flag-out', 'flag-car flag-won'])
+    assert.deepEqual(layout.notes, [])
     const shared = gridFlagLayout([entry(1, 1, 1, 50), entry(2, 1, 1, 50), entry(3, 2, 2, 50)])
-    assert.deepEqual(shared.cars.map((car) => car.won), [true, true, false])
+    assert.deepEqual(shared.cars.map((car) => car.won), [false, true, true])
+  })
+
+  // VD-113: the race's biggest moves, grid number minus finishing place.
+  const car = (id, grid, finish, extra = {}) => ({
+    id,
+    driver: `Driver Name${id}`,
+    abbreviation: `N${String(id).padStart(2, '0')}`,
+    grid,
+    grid_text: grid === null ? 'PL' : String(grid),
+    finish_position: finish,
+    position_text: finish === null ? 'DNF' : String(finish),
+    laps_completed: finish === null ? 10 : 50,
+    ...extra,
+  })
+  const story = (entries) => gridFlagStory(gridFlagRows(entries))
+
+  it('grid to flag picks the biggest moves, a gain before a loss of the same size, three at most', () => {
+    // 2 climbs six and 8 falls six, the gain first; 5 climbs four; the
+    // fourth biggest is 9's fall of two, and nothing else is two.
+    const field = [car(1, 1, 1), car(2, 8, 2), car(3, 3, 3), car(4, 4, 4), car(5, 9, 5), car(6, 5, 6), car(7, 6, 7), car(8, 2, 8), car(9, 7, 9)]
+    assert.deepEqual(
+      gridFlagMoves(gridFlagRows(field)).map((m) => [m.entry.id, m.moved]),
+      [
+        [2, 6],
+        [8, -6],
+        [5, 4],
+      ],
+    )
+    // The same rows in another order pick the same moves in the same order.
+    assert.deepEqual(
+      gridFlagMoves(gridFlagRows([...field].reverse())).map((m) => m.entry.id),
+      [2, 8, 5],
+    )
+  })
+
+  it('grid to flag leaves a tie at the cut out whole, and has no story where nothing moved', () => {
+    // 2 climbs five; 3, 4 and 5 each move one: the cut at three would keep
+    // two of them, so none is kept.
+    const tied = [car(1, 1, 1), car(2, 7, 2), car(3, 2, 3), car(4, 3, 4), car(5, 4, 5), car(6, 5, 6), car(7, 6, 7)]
+    assert.deepEqual(gridFlagMoves(gridFlagRows(tied)).map((m) => m.entry.id), [2])
+    const still = [car(1, 1, 1), car(2, 2, 2), car(3, 3, 3)]
+    assert.deepEqual(story(still), { finding: null, kicker: null, moves: [] })
+    const layout = gridFlagLayout(still, 640, [])
+    assert.equal(layout.cars.some((c) => c.strong), false)
+  })
+
+  it('grid to flag counts no move it cannot establish: a retirement, a pit-lane start, a shared drive', () => {
+    const entries = [
+      car(1, 1, 1),
+      car(2, 2, null),
+      car(3, null, 2),
+      car(4, 20, 3, { shared_drive: 1 }),
+      car(5, 4, 4),
+      car(6, 3, 5),
+    ]
+    assert.deepEqual(gridFlagMoves(gridFlagRows(entries)).map((m) => [m.entry.id, m.moved]), [[6, -2]])
+  })
+
+  it('grid to flag states the biggest climb, names a tie at it, and falls back to the biggest fall', () => {
+    const climb = story([car(1, 1, 1), car(2, 8, 2), car(3, 3, 3), car(4, 4, 4), car(5, 9, 5), car(6, 5, 6), car(7, 6, 7), car(8, 2, 8), car(9, 7, 9)])
+    assert.equal(climb.finding, 'Name2 came from 8th to finish 2nd')
+    assert.equal(climb.kicker, 'Each starter, grid slot to result · the winner in red · the biggest gains and losses drawn in full ink')
+    assert.deepEqual(
+      climb.moves.map((m) => [m.long, m.short]),
+      [
+        ['Name2: 8th to 2nd, up six', 'N02 8th → 2nd'],
+        ['Name8: 2nd to 8th', 'N08 2nd → 8th'],
+        ['Name5: 9th to 5th', 'N05 9th → 5th'],
+      ],
+    )
+    const won = story([car(1, 5, 1), car(2, 1, 2), car(3, 2, 3), car(4, 3, 4), car(5, 4, 5)])
+    assert.equal(won.finding, 'Name1 came from 5th to win')
+    assert.equal(won.kicker, 'Each starter, grid slot to result · the winner in red · the biggest gain drawn in full ink')
+    const pair = story([car(1, 1, 1), car(2, 6, 2), car(3, 7, 3), car(4, 2, 4), car(5, 3, 5), car(6, 4, 6), car(7, 5, 7)])
+    assert.equal(pair.finding, 'Name2 and Name3 each climbed four places')
+    const fall = story([car(1, 1, 1), car(2, 2, 6), car(3, 3, 2), car(4, 4, 3), car(5, 5, 4), car(6, 6, 5)])
+    // 2 fell four; 3 to 6 each climbed one, a tie past the cut.
+    assert.equal(fall.finding, 'Name2 fell from 2nd to 6th')
+    assert.equal(fall.kicker, 'Each starter, grid slot to result · the winner in red · the biggest loss drawn in full ink')
+    // An entry the figure cannot draw changes the kicker's claim.
+    const short = gridFlagStory(gridFlagRows([car(1, 1, 1), car(2, 4, 2), car(3, 2, 3), car(4, 3, 4)]), [car(9, null, null)])
+    assert.match(short.kicker, /^Grid slot to result · /)
+    // A surname another driver on the grid shares keeps the full name, though
+    // only one of the two is picked; the other keeps its surname.
+    const brothers = story([
+      car(1, 1, 1, { driver: 'Ralf Schumacher' }),
+      car(2, 9, 2, { driver: 'Michael Schumacher' }),
+      car(3, 2, 3),
+      car(4, 3, 4),
+      car(5, 4, 5),
+      car(6, 5, 6),
+      car(7, 6, 7),
+      car(8, 7, 8),
+      car(9, 8, 9),
+    ])
+    assert.equal(brothers.finding, 'Michael Schumacher came from 9th to finish 2nd')
+    assert.equal(brothers.moves[0].long, 'Michael Schumacher: 9th to 2nd, up seven')
+    // The finding's move is marked to be labelled first, even where a
+    // bigger fall comes before it in size.
+    const bigFall = story([car(1, 1, 1), car(2, 5, 2), car(3, 3, 3), car(4, 4, 4), car(5, 6, 5), car(6, 2, 9), car(7, 7, 6), car(8, 8, 7), car(9, 9, 8)])
+    assert.deepEqual(
+      bigFall.moves.map((m) => [m.entry.id, m.moved, m.lead]),
+      [
+        [6, -7, false],
+        [2, 3, true],
+      ],
+    )
+    // Three words, family name last, keep the last word though the first
+    // starts with the code.
+    assert.equal(story([car(1, 1, 1), car(2, 9, 2, { driver: 'Qing Hua Ma', abbreviation: 'QIN' }), car(3, 2, 3)]).finding, 'Ma came from 9th to finish 2nd')
+    // A family name written first is the one its code spells.
+    const zhou = story([car(1, 1, 1), car(2, 17, 2, { driver: 'Zhou Guanyu', abbreviation: 'ZHO' }), car(3, 2, 3)])
+    assert.equal(zhou.finding, 'Zhou came from 17th to finish 2nd')
+    assert.match(gridFlagLabel(gridFlagRows([car(1, 1, 1), car(2, 4, 2)]), zhou.moves), / Drawn in full ink: Zhou, 17th to 2nd, up fifteen; /)
+  })
+
+  it('grid to flag sets each picked line its label clear of the others, inside the plot, or none', () => {
+    // Three big moves: 20th to 2nd, 19th to 3rd and 1st to 18th; the rest
+    // move two places or fewer.
+    const order = [3, 20, 19, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 17, 18]
+    const entries = order.map((grid, i) => car(i + 1, grid, i + 1))
+    const rows = gridFlagRows(entries)
+    const told = gridFlagStory(rows)
+    assert.equal(told.moves.length, 3)
+    for (const width of [1000, 640, 375, 320]) {
+      const layout = gridFlagLayout(entries, width, told.moves)
+      assert.equal(layout.cars.filter((c) => c.strong).length, 3, `${width}: three lines in full ink`)
+      const coded = layout.cars.some((c) => c.name.length === 3)
+      for (const note of layout.notes) {
+        const drawn = layout.cars.find((c) => c.key === note.key)
+        assert.equal(drawn.strong, true)
+        assert.equal(note.text, coded ? told.moves.find((m) => m.entry.id === note.key).short : told.moves.find((m) => m.entry.id === note.key).long)
+        const w = textWidth(note.text) * 1.2
+        const left = note.anchor === 'end' ? note.x - w : note.x
+        assert.ok(left >= layout.start - 0.1 && left + w <= layout.finish + 0.1, `${width}: “${note.text}” inside the plot`)
+        assert.ok(note.y - 7 >= layout.top && note.y + 7 <= layout.bottom, `${width}: “${note.text}” inside the plot's height`)
+      }
+      const boxes = layout.notes.map((n) => {
+        const w = textWidth(n.text) * 1.2
+        const left = n.anchor === 'end' ? n.x - w : n.x
+        return { left, right: left + w, top: n.y - 7, bottom: n.y + 7 }
+      })
+      for (let i = 0; i < boxes.length; i++)
+        for (let j = i + 1; j < boxes.length; j++) {
+          const [a, b] = [boxes[i], boxes[j]]
+          assert.ok(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top, `${width}: two labels overlap`)
+        }
+      if (width === 1000) assert.equal(layout.notes.length, 3, 'at 1,000 px every label fits')
+    }
   })
 })
 
@@ -5073,17 +5863,18 @@ describe('where winners start at a circuit (AF-133)', async () => {
     [2024, 4, 'Charles Leclerc', 'Ferrari'],
     [2025, 1, 'Max Verstappen', 'Red Bull'],
   ].map(([year, grid, driver, team]) => won(year, grid, driver, team))
-  // WINNERS and TEAMS as the views give them, most wins first.
-  const tally = (key) =>
-    [...AUSTIN.reduce((m, r) => m.set(r[key], (m.get(r[key]) ?? 0) + 1), new Map())]
-      .map(([name, wins]) => ({ [key]: name, wins }))
-      .sort((a, b) => b.wins - a.wins || a[key].localeCompare(b[key]))
+  // STARTS_SEASONS's rows: the item's figures at every circuit, 2012-2025,
+  // in one season of the span, and a season outside it that must not count.
+  const SEASONS = [
+    { year: 1990, placed: 16, first: 9, front: 12 },
+    { year: 2015, placed: 308, first: 167, front: 250 },
+  ]
   const value = (items, label) => items.find((item) => item.label === label)?.value
 
   it("pins Austin's figures as the item worked them", () => {
     const races = winnerStarts(AUSTIN)
     assert.equal(races.length, 13)
-    const items = startsFigures(races, { placed: 308, first: 167, front: 250 }, tally('driver'), tally('constructor'))
+    const items = startsFigures(races, SEASONS)
     assert.equal(value(items, 'Won from first on the grid'), '6 of 13 (46%), against 167 of 308 (54%) at every circuit, 2012–2025')
     assert.equal(value(items, 'Won from the first two slots'), '11 of 13 (85%), against 250 of 308 (81%) at every circuit')
     assert.equal(value(items, 'Lowest winning grid slot'), '6th — Max Verstappen, 2023')
@@ -5148,7 +5939,7 @@ describe('where winners start at a circuit (AF-133)', async () => {
     assert.deepEqual(races.map((r) => [r.kind, r.slot]), [['slot', 1], ['pit', null], ['none', null], ['shared', null]])
     assert.deepEqual(races.map(chipStart), ['1st', 'pit lane', 'grid not recorded', 'shared drive'])
     // Only the one race with a slot is counted, and the rest are said.
-    const items = startsFigures(races, null, [], [])
+    const items = startsFigures(races, [])
     assert.equal(value(items, 'Won from first on the grid'), '1 of 1 (100%)')
     assert.equal(value(items, 'Not counted as a slot'), '1 pit lane · 1 grid not recorded · 1 shared drive')
     assert.deepEqual(startsTable(races).map((r) => r.start), ['1st', 'pit lane', 'grid not recorded', 'shared drive'])
@@ -5158,15 +5949,14 @@ describe('where winners start at a circuit (AF-133)', async () => {
     const unplaced = winnerStarts([rows[1]])
     assert.equal(gridDiagram(unplaced), null)
     assert.equal(dotStrip(unplaced), null)
-    assert.equal(value(startsFigures(unplaced, null, [], []), 'Won from first on the grid'), undefined)
+    assert.equal(value(startsFigures(unplaced, []), 'Won from first on the grid'), undefined)
   })
 
   it('names ties in full up to three, then counts them', () => {
     const races = winnerStarts([won(2000, 9, 'A', 'T'), won(2001, 9, 'B', 'T'), won(2002, 9, 'C', 'T'), won(2003, 9, 'D', 'T')])
-    assert.equal(value(startsFigures(races, null, [], []), 'Lowest winning grid slot'), '9th — A, 2000; B, 2001; C, 2002 and 1 more')
-    const four = ['A', 'B', 'C', 'D'].map((driver) => ({ driver, wins: 1 }))
-    assert.equal(value(startsFigures(races, null, four, []), 'Most wins by a driver'), '4 drivers, 1 each')
-    assert.equal(value(startsFigures(races, null, four.slice(0, 2), []), 'Most wins by a driver'), 'A and B, 1 each')
+    assert.equal(value(startsFigures(races, []), 'Lowest winning grid slot'), '9th — A, 2000; B, 2001; C, 2002 and 1 more')
+    assert.equal(value(startsFigures(races, []), 'Most wins by a driver'), '4 drivers, 1 each')
+    assert.equal(value(startsFigures(races.slice(0, 2), []), 'Most wins by a driver'), 'A and B, 1 each')
   })
 
   it('the note names only the colours of dots drawn, never of races folded into a count', async () => {
@@ -5204,6 +5994,150 @@ describe('where winners start at a circuit (AF-133)', async () => {
     assert.match(startsNote([null]), /every dot is hollow/)
     assert.doesNotMatch(startsNote([{ kind: 'livery' }]), /hollow/)
     assert.match(startsNote([{ kind: 'livery' }, null]), /A hollow dot has no colour on record\./)
+  })
+})
+
+describe('what history says: one layout or all, a race and a Grand Prix (AF-139)', async () => {
+  const { SCOPE, grandPrixLine, historyBlock, historyScope, layoutOf, seasonsOver, startsFigures, winnerStarts, winsBy } = await import(
+    '../src/queries/circuit.js'
+  )
+  const won = (year, grid, driver, constructor, extra = {}) => ({
+    year,
+    round: 1,
+    name_used: 'Grand Prix',
+    circuit_id: 'here',
+    layout_key: null,
+    grid,
+    grid_text: String(grid),
+    driver_id: driver.toLowerCase(),
+    driver,
+    constructor_id: constructor.toLowerCase(),
+    constructor,
+    constructor_country: null,
+    winners: 1,
+    ...extra,
+  })
+  // Bahrain's timeline as the register holds it: the Grand Prix circuit by
+  // year, and two one-offs reached only through the race's layout_key.
+  const BAHRAIN = [
+    { layout_key: 'gp', layout_name: 'Grand Prix circuit', from_year: 2004, to_year: null, by_year: 1 },
+    { layout_key: 'endurance', layout_name: 'Endurance circuit', from_year: 2010, to_year: 2010, by_year: 0 },
+    { layout_key: 'outer', layout_name: 'Outer circuit', from_year: 2020, to_year: 2020, by_year: 0 },
+  ]
+  // Silverstone's last three rows, by year, and nothing for 1949.
+  const SILVERSTONE = [
+    { layout_key: 'bridge-3', layout_name: 'Bridge circuit, revised', from_year: 1996, to_year: 1996, by_year: 1 },
+    { layout_key: 'bridge-4', layout_name: 'Bridge circuit, final form', from_year: 1997, to_year: 2009, by_year: 1 },
+    { layout_key: 'arena', layout_name: 'Arena layout', from_year: 2010, to_year: null, by_year: 1 },
+  ]
+
+  it('reads a race onto its layout as LAYOUT_RACED_JOIN does: a named one-off, else the by-year row', () => {
+    assert.equal(layoutOf(BAHRAIN, 2010, 'endurance').layout_key, 'endurance')
+    assert.equal(layoutOf(BAHRAIN, 2010).layout_key, 'gp', 'a race naming no one-off is on the by-year row')
+    assert.equal(layoutOf(BAHRAIN, 2020, 'outer').layout_key, 'outer')
+    assert.equal(layoutOf(BAHRAIN, 2003), null, 'before the timeline starts')
+    assert.equal(layoutOf(BAHRAIN, 2026, 'nowhere'), null, 'a key the timeline does not hold matches nothing')
+    assert.equal(layoutOf(SILVERSTONE, 2009).layout_key, 'bridge-4')
+    assert.equal(layoutOf(SILVERSTONE, 2010).layout_key, 'arena')
+    assert.equal(layoutOf([], 2025), null, 'no timeline, no layout')
+  })
+
+  it('counts one layout of a circuit with several, and every layout unless the reader asks', () => {
+    const races = winnerStarts([
+      won(1996, 3, 'Hill', 'Williams'),
+      won(2008, 4, 'Hamilton', 'McLaren'),
+      won(2009, 1, 'Vettel', 'Red Bull'),
+      won(2010, 2, 'Webber', 'Red Bull'),
+      won(2024, 1, 'Hamilton', 'Mercedes'),
+      won(2025, 1, 'Norris', 'McLaren'),
+    ])
+    const latest = races.at(-1)
+    const every = historyScope(races, SILVERSTONE, latest, SCOPE.all)
+    assert.deepEqual([every.offered, every.scope, every.races.length], [true, SCOPE.all, 6])
+    const one = historyScope(races, SILVERSTONE, latest, SCOPE.layout)
+    assert.deepEqual([one.scope, one.layout.layout_key, one.races.map((r) => r.year)], [SCOPE.layout, 'arena', [2010, 2024, 2025]])
+    // An address value that is not a scope counts every layout.
+    assert.equal(historyScope(races, SILVERSTONE, latest, 'bogus').races.length, 6)
+    // The block over one layout: its line says which, and its figures are of those races.
+    const block = historyBlock({ races, layouts: SILVERSTONE, seasons: [], reference: latest, asked: SCOPE.layout })
+    assert.equal(block.line, 'The 3 races won here on this layout (Arena layout, 2010–), of the 6 on every layout.')
+    assert.equal(block.figures.find((f) => f.label === 'Most wins by a team').value, 'McLaren, Mercedes and Red Bull, 1 each')
+    assert.equal(block.table.reduce((n, row) => n + row.wins, 0), 3)
+    assert.match(block.label, /^Wins here by grid slot: /)
+    // A layout with no name on record is given its years, never its key.
+    const unnamed = historyBlock({ races, layouts: SILVERSTONE.map((l) => ({ ...l, layout_name: null })), reference: latest, asked: SCOPE.layout })
+    assert.equal(unnamed.line, 'The 3 races won here on this layout (2010–), of the 6 on every layout.')
+    // On a race's own page the line names the circuit.
+    const there = historyBlock({ races, layouts: SILVERSTONE, reference: { year: 2026, layout: null }, asked: SCOPE.layout, place: 'at Silverstone' })
+    assert.match(there.line, /^The 3 races won at Silverstone on this layout/)
+    assert.match(there.label, /^Wins at Silverstone by grid slot: /)
+    const all = historyBlock({ races, layouts: SILVERSTONE, reference: { year: 2026, layout: null }, place: 'at Silverstone' })
+    assert.equal(all.line, 'All 6 races won at Silverstone, counted together, across the 3 layouts the register records.')
+  })
+
+  it('offers no switch where it would change nothing, and keeps a one-off off the layout it interrupts', () => {
+    const races = winnerStarts([
+      won(2004, 1, 'Schumacher', 'Ferrari'),
+      won(2010, 3, 'Alonso', 'Ferrari', { layout_key: 'endurance' }),
+      won(2020, 1, 'Perez', 'Racing Point', { round: 16, layout_key: 'outer' }),
+      won(2025, 1, 'Piastri', 'McLaren'),
+    ])
+    const gp = historyScope(races, BAHRAIN, races.at(-1), SCOPE.layout)
+    assert.deepEqual(gp.races.map((r) => r.year), [2004, 2025], 'the two one-offs are not the Grand Prix circuit')
+    // On the outer circuit's own race, "this layout" is the one-off.
+    assert.deepEqual(historyScope(races, BAHRAIN, { year: 2020, layout: 'outer' }, SCOPE.layout).races.map((r) => r.year), [2020])
+    // No timeline: no layout, no switch, every race.
+    const none = historyScope(races, [], races.at(-1), SCOPE.layout)
+    assert.deepEqual([none.offered, none.layout, none.races.length], [false, null, 4])
+    // One layout holding every race: the switch would change nothing.
+    const only = winnerStarts([won(2011, 1, 'A', 'T'), won(2012, 2, 'B', 'T')])
+    assert.equal(historyScope(only, SILVERSTONE, only.at(-1), SCOPE.layout).offered, false)
+    // A layout with no race won on it yet - an upcoming race on a new one.
+    assert.equal(historyScope(only, [{ layout_key: 'new', from_year: 2026, to_year: null, by_year: 1 }], { year: 2026, layout: null }, SCOPE.layout).offered, false)
+    // No race won: no block.
+    assert.equal(historyBlock({ races: [] }), null)
+  })
+
+  it('counts a Grand Prix held at several venues as one event, and says so', () => {
+    const races = winnerStarts([
+      won(1959, 1, 'McLaren', 'Cooper', { circuit_id: 'sebring' }),
+      won(1960, 1, 'Moss', 'Lotus', { circuit_id: 'riverside' }),
+      won(1961, 3, 'Ireland', 'Lotus', { circuit_id: 'watkins-glen' }),
+      won(1962, 1, 'Clark', 'Lotus', { circuit_id: 'watkins-glen' }),
+    ])
+    const block = historyBlock({ races, seasons: [], grandPrix: true })
+    assert.equal(block.offered, false, 'no layout is the event\'s')
+    assert.match(block.label, /^Wins at this Grand Prix by grid slot: /)
+    assert.equal(block.line, 'All 4 races won at this Grand Prix, counted together across the 3 circuits it has been held at, not circuit by circuit.')
+    assert.equal(block.figures.find((f) => f.label === 'Most wins by a team').value, 'Lotus, 3')
+    assert.equal(grandPrixLine(races.slice(2)), 'All 2 races won at this Grand Prix, all at one circuit.')
+    assert.equal(grandPrixLine(races.slice(0, 1)), 'The one race won at this Grand Prix.')
+  })
+
+  it('counts a shared win for each driver and each team once, and nobody for an entry with none', () => {
+    const races = winnerStarts([
+      won(1951, 1, 'Fangio', 'Alfa Romeo', { winners: 2 }),
+      won(1951, 7, 'Fagioli', 'Alfa Romeo', { winners: 2 }),
+      won(1952, 2, 'Fangio', 'Alfa Romeo'),
+      won(1953, 4, 'Nobody', 'X', { driver_id: null, constructor_id: null }),
+    ])
+    assert.deepEqual(winsBy(races, 'driver_id', 'driver').map((r) => [r.name, r.wins]), [['Fangio', 2], ['Fagioli', 1]])
+    assert.deepEqual(winsBy(races, 'constructor_id', 'constructor').map((r) => [r.name, r.wins]), [['Alfa Romeo', 2]])
+  })
+
+  it('compares with every circuit over the seasons the races span, and with nothing outside them', () => {
+    const seasons = [
+      { year: 2009, placed: 17, first: 9, front: 13 },
+      { year: 2010, placed: 19, first: 8, front: 14 },
+      { year: 2011, placed: 19, first: 12, front: 15 },
+    ]
+    assert.deepEqual(seasonsOver(seasons, 2010, 2011), { placed: 38, first: 20, front: 29 })
+    assert.equal(seasonsOver(seasons, 1950, 1951), null)
+    const races = winnerStarts([won(2010, 1, 'A', 'T'), won(2011, 2, 'B', 'T')])
+    assert.equal(
+      startsFigures(races, seasons).find((f) => f.label === 'Won from first on the grid').value,
+      '1 of 2 (50%), against 20 of 38 (53%) at every circuit, 2010–2011',
+    )
   })
 })
 
@@ -5474,7 +6408,7 @@ describe('the leader in the row and a bar in the points (VD-105, VD-110)', () =>
   })
 })
 
-import { LABEL_GAP, MARKER, STACKED_GAP, gutterWidth, nudge, placeMarker } from '../src/charts/annotate.js'
+import { LABEL_GAP, MARKER, STACKED_GAP, gutterWidth, nudge, placeAbove, placeMarker } from '../src/charts/annotate.js'
 import { lineLayout } from '../src/charts/lineChart.js'
 
 describe('the annotation pattern (VD-121)', () => {
@@ -5515,6 +6449,174 @@ describe('the annotation pattern (VD-121)', () => {
     const second = placeMarker(104, 100, [], { taken: [first] })
     const reach = MARKER.r + MARKER.ring / 2
     assert.ok(Math.hypot(second.cx - first.cx, second.cy - first.cy) >= 2 * reach, 'two markers a round apart do not overlap')
+  })
+
+  it('puts a column’s marker above it only, raised clear of one already placed, and over a band with no hairline (VD-123)', () => {
+    const one = placeAbove(100, 100)
+    assert.equal(one.cy, 100 - MARKER.offset)
+    assert.deepEqual([one.leader.y1, one.leader.y2], [100 - MARKER.gap, one.cy + MARKER.r])
+    const apart = 2 * (MARKER.r + MARKER.ring / 2) + 2
+    // A round apart on a phone: the second disc goes up, never down into its column.
+    const two = placeAbove(105, 106, { taken: [one] })
+    assert.ok(two.cy < one.cy, 'raised, not lowered')
+    assert.ok(Math.hypot(two.cx - one.cx, two.cy - one.cy) >= apart - 0.02, 'clear of the first')
+    assert.ok(Math.hypot(two.cx - one.cx, two.cy - one.cy) < apart + 0.5, 'and no further up than it must go')
+    // Far enough apart, nothing moves.
+    assert.equal(placeAbove(200, 100, { taken: [one] }).cy, 100 - MARKER.offset)
+    assert.equal(placeAbove(100, 100, { leader: false }).leader, null)
+  })
+
+  // The home chart's seasons, cut down: a steady stretch, a tied peak side by
+  // side, a season part run and a calendar.
+  const homeSeasons = (now) => [
+    { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+    { year: 1951, rounds: 8, run: 8, indianapolis: 1 },
+    ...[16, 16, 17, 16, 16, 17].map((rounds, k) => ({ year: 1984 + k, rounds, run: rounds, indianapolis: 0 })),
+    { year: 1990, rounds: 19, run: 19, indianapolis: 0 },
+    { year: 2024, rounds: 24, run: 24, indianapolis: 0 },
+    { year: 2025, rounds: 24, run: 24, indianapolis: 0 },
+    now,
+    { year: 2027, rounds: 24, run: 0, indianapolis: 0 },
+  ]
+
+  it('works the home chart’s finding and notes out from the rows (VD-123)', () => {
+    const shown = chartNotes(homeSeasons({ year: 2026, rounds: 23, run: 20, indianapolis: 0 }))
+    assert.equal(shown.finding, 'Seven races in 1950; 24 by 2024.')
+    assert.equal(shown.kicker, 'Championship rounds per season')
+    assert.deepEqual(
+      shown.notes.map((n) => `${n.n}. ${n.lead}: ${n.text}`),
+      [
+        '1. 1950: seven rounds: The first championship, the Indianapolis 500 included.',
+        '2. 1984–1989: 16 or 17, every year: Six seasons in a row within a round of each other, shaded.',
+        '3. 2024 and 2025: 24: The most in any completed season.',
+        '4. 2026: 20 of 23 run: In red; the three to come are dashed above. 2027 is a calendar.',
+      ],
+    )
+    // One marker to a note, the tied peak's one over both its seasons; the
+    // band's over the band with no hairline, and shaded from its first season to its last.
+    assert.deepEqual(
+      shown.marks.map((m) => [m.n, m.keys.join(','), m.leader]),
+      [
+        [1, '1950', true],
+        [2, '1984,1985,1986,1987,1988,1989', false],
+        [3, '2024,2025', true],
+        [4, '2026', true],
+      ],
+    )
+    assert.deepEqual(shown.bands, [{ from: 1984, to: 1989 }])
+  })
+
+  it('names the season raced last once it is complete, and the peak where it ties (VD-123)', () => {
+    // Complete and level with the peak: the peak's note names the seasons
+    // before it, and says it was matched.
+    const level = chartNotes(homeSeasons({ year: 2026, rounds: 24, run: 24, indianapolis: 0 }))
+    assert.deepEqual(
+      level.notes.slice(2).map((n) => `${n.lead}: ${n.text}`),
+      ['2024 and 2025: 24: The most in any completed season, matched in 2026.', '2026: 24 rounds: In red, the season run last. 2027 is a calendar.'],
+    )
+    // Complete and past it: no peak note of its own, and the finding names it.
+    const most = chartNotes(homeSeasons({ year: 2026, rounds: 25, run: 25, indianapolis: 0 }))
+    assert.equal(most.finding, 'Seven races in 1950; 25 by 2026.')
+    assert.deepEqual(
+      most.notes.map((n) => n.lead),
+      ['1950: seven rounds', '1984–1989: 16 or 17, every year', '2026: 25 rounds'],
+    )
+    assert.equal(most.notes[2].text, 'In red, the season run last: the most in any season. 2027 is a calendar.')
+    assert.deepEqual(most.marks.map((m) => m.n), [1, 2, 3])
+    // Nothing raced: no finding and no notes.
+    assert.deepEqual(chartNotes([{ year: 2027, rounds: 24, run: 0, indianapolis: 0 }]).notes, [])
+    // The first season holding the peak: the finding does not set it against itself.
+    const flat = [
+      { year: 1950, rounds: 7, run: 7, indianapolis: 1 },
+      { year: 1951, rounds: 7, run: 7, indianapolis: 1 },
+      { year: 1952, rounds: 6, run: 6, indianapolis: 1 },
+      { year: 1953, rounds: 7, run: 3, indianapolis: 0 },
+    ]
+    const held = chartNotes(flat)
+    assert.equal(held.finding, 'Seven races in 1950, never more.')
+    // and a peak it shares is marked over the season after it, and named with it.
+    assert.deepEqual(
+      held.notes.map((n) => n.lead),
+      ['1950: seven rounds', '1950 and 1951: 7', '1953: 3 of 7 run'],
+    )
+    assert.deepEqual(held.marks.map((m) => m.keys), [[1950], [1951], [1953]])
+  })
+
+  // The whole home series, every season 1950-2027 as the register held it in
+  // November 2026, so the layout is tested on columns as thin as the page's
+  // (the confirmation of #1409: the cut-down series' columns are wider, and
+  // hid a hairline starting inside a neighbouring disc on a phone).
+  const ROUNDS = [
+    7, 8, 8, 9, 9, 7, 8, 8, 11, 9, 10, 8, 9, 10, 10, 10, 9, 11, 12, 11, 13, 11, 12, 15, 15, 14, 16, 17, 16, 15, 14, 15, 16, 15, 16, 16, 16,
+    16, 16, 16, 16, 16, 16, 16, 16, 17, 16, 17, 16, 16, 17, 17, 17, 16, 18, 19, 18, 17, 18, 17, 19, 19, 20, 19, 19, 19, 21, 20, 21, 21,
+    17, 22, 22, 22, 24, 24, 23, 24,
+  ]
+  const wholeSeries = ROUNDS.map((rounds, k) => {
+    const year = 1950 + k
+    return { year, rounds, run: year === 2026 ? 20 : year === 2027 ? 0 : rounds, indianapolis: year <= 1960 ? 1 : 0 }
+  })
+
+  it('lays the whole home series’ markers out sound at every width from 250 to 1800 px (VD-123)', () => {
+    const shown = chartNotes(wholeSeries)
+    assert.deepEqual(shown.marks.map((m) => m.keys.length > 0), [true, true, true, true])
+    const reach = MARKER.r + MARKER.ring / 2
+    for (let width = 250; width <= 1800; width += 1) {
+      const layout = columnLayout({ data: chartData(wholeSeries), width, height: 260, labelPeak: false, marks: shown.marks, bands: shown.bands })
+      const where = (m) => `${width}: marker ${m.n} at (${m.cx.toFixed(1)}, ${m.cy.toFixed(1)})`
+      assert.equal(layout.markers.length, 4, `${width}: every note has its marker`)
+      for (const m of layout.markers) {
+        assert.ok(m.cy - reach >= -1e-9 && m.cx - reach >= -1e-9 && m.cx + reach <= width + 1e-9, `${where(m)} is inside the drawing`)
+        // Over no column it reaches: the column's own edges, read off its path.
+        for (const c of layout.columns) {
+          const half = c.centre - Number(c.path.match(/^M([-\d.]+),/)[1])
+          if (Math.abs(c.centre - m.cx) <= reach + half) assert.ok(m.cy + reach <= c.peak + 1e-9, `${where(m)} clears ${c.d.key}'s column`)
+        }
+        for (const o of layout.markers) {
+          if (o === m) continue
+          assert.ok(Math.hypot(m.cx - o.cx, m.cy - o.cy) >= 2 * reach, `${where(m)} and marker ${o.n} do not overlap`)
+          if (!m.leader) continue
+          const { x1, y1, x2, y2 } = m.leader
+          const t = Math.max(0, Math.min(1, ((o.cx - x1) * (x2 - x1) + (o.cy - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2)))
+          const d = Math.hypot(x1 + t * (x2 - x1) - o.cx, y1 + t * (y2 - y1) - o.cy)
+          assert.ok(d >= reach, `${where(m)}: its hairline clears marker ${o.n}'s disc (${d.toFixed(1)})`)
+        }
+      }
+    }
+  })
+
+  it('lays the home chart’s markers out inside the drawing at every width, none touching another (VD-123)', () => {
+    const seasons = homeSeasons({ year: 2026, rounds: 23, run: 20, indianapolis: 0 })
+    const shown = chartNotes(seasons)
+    const reach = MARKER.r + MARKER.ring / 2
+    for (const width of [300, 320, 343, 352, 375, 400, 640, 900]) {
+      const layout = columnLayout({ data: chartData(seasons), width, height: 260, labelPeak: false, marks: shown.marks, bands: shown.bands })
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2, 3, 4], `${width}: every note has its marker`)
+      for (const m of layout.markers) assert.ok(m.cy - reach >= -1e-9, `${width}: marker ${m.n} is inside the drawing (${m.cy})`)
+      for (let a = 0; a < layout.markers.length; a += 1)
+        for (let b = a + 1; b < layout.markers.length; b += 1) {
+          const [p, q] = [layout.markers[a], layout.markers[b]]
+          assert.ok(Math.hypot(p.cx - q.cx, p.cy - q.cy) >= 2 * reach, `${width}: markers ${p.n} and ${q.n} do not overlap`)
+        }
+      // No hairline runs through another marker's disc: on a phone 2026's
+      // and the 2024-25 peak's stand a few pixels apart (the review of #1409).
+      for (const m of layout.markers) {
+        if (!m.leader) continue
+        const { x1, y1, x2, y2 } = m.leader
+        for (const o of layout.markers) {
+          if (o === m) continue
+          const t = Math.max(0, Math.min(1, ((o.cx - x1) * (x2 - x1) + (o.cy - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2)))
+          const d = Math.hypot(x1 + t * (x2 - x1) - o.cx, y1 + t * (y2 - y1) - o.cy)
+          assert.ok(d >= reach, `${width}: marker ${m.n}'s hairline clears marker ${o.n}'s disc (${d.toFixed(1)})`)
+        }
+      }
+      // Each disc stands over its columns, no lower than their top.
+      const top = (keys) => Math.min(...layout.columns.filter((c) => keys.includes(c.d.key)).map((c) => c.peak))
+      for (const [k, m] of layout.markers.entries()) assert.ok(m.cy + reach <= top(shown.marks[k].keys), `${width}: marker ${m.n} clears its columns`)
+      const [band] = layout.bands
+      const inBand = layout.columns.filter((c) => c.d.key >= 1984 && c.d.key <= 1989)
+      assert.ok(band.x <= inBand[0].centre && band.x + band.width >= inBand.at(-1).centre, `${width}: the band spans its seasons`)
+      assert.ok(layout.columns.filter((c) => c.d.key === 1990).every((c) => c.centre > band.x + band.width), `${width}: and stops before the next`)
+    }
   })
 
   // Two lines ending a point apart, as 1976 did: before VD-121 the second
@@ -5759,7 +6861,37 @@ describe("the team-mates face-off (VD-122), on rows written out", async () => {
   it('shows the latest team-mate and the others with the most Grands Prix together, latest first', () => {
     assert.equal(FACE_OFFS, 3)
     assert.deepEqual(face.blocks.map((b) => b.mate_id), ['late', 'long', 'mid'])
-    assert.match(face.note, /Shown: the latest team-mate and the two others with the most Grands Prix together, of 4 team-mates; the table has every pairing\./)
+    assert.match(face.note, /Shown first: the latest team-mate and the two others with the most Grands Prix together; the other one follows under “Show all 4 team-mates”, latest first, and the table has every pairing\./)
+  })
+  // VD-130: every other team-mate has a block, behind one disclosure.
+  it('puts every other team-mate behind the disclosure, latest first, and names it for the whole count', () => {
+    assert.deepEqual(face.more.map((b) => b.mate_id), ['short'])
+    assert.deepEqual(face.fold, { more: 'Show all 4 team-mates', less: 'Show the first 3' })
+    const many = faceOffs('A Driver', [
+      row(2024, 'Late', [3, 7, 10], [2, 4, 6], [20, 40], { races: 10 }),
+      row(2023, 'Few', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1 }),
+      row(2022, 'Long', [12, 8, 20], [9, 9, 18], [100, 90.5], { races: 20 }),
+      row(2020, 'Fewer', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1, round: 2 }),
+      row(2020, 'Fewest', [1, 0, 1], [0, 0, 0], [0, 0], { races: 1, round: 1 }),
+      row(2019, 'Mid', [6, 4, 10], [5, 3, 8], [30, 10], { races: 15 }),
+    ])
+    assert.deepEqual(many.blocks.map((b) => b.mate_id), ['late', 'long', 'mid'])
+    assert.deepEqual(many.more.map((b) => b.mate_id), ['few', 'fewer', 'fewest'], 'the rest by their last round together, newest first')
+    assert.equal(new Set([...many.blocks, ...many.more].map((b) => b.mate_id)).size, 6, 'every team-mate once')
+    assert.match(many.note, /the other three follow under “Show all 6 team-mates”/)
+    const few = faceOffs('A Driver', rows.slice(0, 4))
+    assert.deepEqual([few.more, few.fold], [[], null], 'three team-mates or fewer have no disclosure')
+    assert.match(few.note, / The table has every pairing\.$/)
+  })
+  it('keys the colours of the blocks behind the disclosure as well', () => {
+    const hidden = faceOffs('A Driver', [
+      row(2024, 'A', [1, 0, 1], [1, 0, 1], [1, 0], { races: 10 }),
+      row(2023, 'B', [1, 0, 1], [1, 0, 1], [1, 0], { races: 10 }),
+      row(2022, 'C', [1, 0, 1], [1, 0, 1], [1, 0], { races: 10 }),
+      row(1955, 'D', [1, 0, 1], [1, 0, 1], [1, 0], { races: 1, team: 'maserati', name: 'Maserati', country: 'Italy' }),
+    ])
+    assert.deepEqual(hidden.more.map((b) => b.mate_id), ['d'])
+    assert.match(hidden.note, /or in ink where it has none/, 'the national colour with no second is only behind the disclosure')
   })
   it('sums the table\'s own columns, and says who led with the leader\'s figure first', () => {
     const long = face.blocks[1]
@@ -5817,34 +6949,268 @@ describe("the team-mates face-off (VD-122), on rows written out", async () => {
   it('has nothing to say with no team-mate', () => assert.equal(faceOffs('A Driver', []), null))
 })
 
-describe('the lap over a photograph (AF-96), on rows written out', () => {
-  // A transform that moves one degree of longitude to 100 px right and one of
-  // latitude to 200 px up, about an origin at (10, 50) drawn at (40, 30).
-  const transform = JSON.stringify({ origin: [10, 50], x: [100, 0, 40], y: [0, -200, 30] })
+describe("F1DB's outline over a photograph (AF-177), on rows written out", () => {
   const photo = { file_name: 'File:A.jpg', width: 800, height: 450 }
-  const row = {
-    centreline: JSON.stringify({ type: 'MultiLineString', coordinates: [[[10, 50], [10.5, 50.1]], [[10.5, 50.1], [10.25, 49.95]]] }),
-    photo_file: 'File:A.jpg',
-    photo_transform: transform,
-    licence: 'ODbL-1.0',
-  }
-  it('carries every line of the centreline onto the frame, in order', () => {
-    assert.deepEqual(photoTrace([row], photo), { d: 'M40 30L90 10M90 10L65 40', width: 800, height: 450, licence: 'ODbL-1.0' })
+  const row = { path: 'M10 10L490 490', photo_file: 'File:A.jpg', photo_transform: JSON.stringify([1.5, 0, 0, -1.25, 20, 400]) }
+  it('draws the outline as stored, under the transform its placing stores, in the frame of the photograph', () => {
+    assert.deepEqual(photoOutline([row], photo), { d: 'M10 10L490 490', transform: 'matrix(1.5 0 0 -1.25 20 400)', width: 800, height: 450 })
   })
   it('draws nothing on a photograph it was not placed on', () => {
-    assert.equal(photoTrace([row], { ...photo, file_name: 'File:B.jpg' }), null)
+    assert.equal(photoOutline([row], { ...photo, file_name: 'File:B.jpg' }), null)
   })
-  it('draws nothing where no row is placed, or the photograph has no size', () => {
-    assert.equal(photoTrace([{ ...row, photo_file: null, photo_transform: null }], photo), null)
-    assert.equal(photoTrace([], photo), null)
-    assert.equal(photoTrace([row], { ...photo, width: null }), null)
+  it('draws nothing where no outline is placed, or the photograph has no size', () => {
+    assert.equal(photoOutline([{ ...row, photo_file: null, photo_transform: null }], photo), null)
+    assert.equal(photoOutline([], photo), null)
+    assert.equal(photoOutline([row], { ...photo, width: null }), null)
+    assert.equal(photoOutline([row], null), null)
   })
-  it('credits the licence the row names, and ODbL where it names none', () => {
-    assert.equal(photoTrace([row], photo)?.licence, 'ODbL-1.0')
-    assert.equal(photoTrace([{ ...row, licence: null }], photo)?.licence, 'ODbL 1.0')
+  it('takes the placed outline where a circuit has several', () => {
+    const other = { path: 'M0 0L1 1', photo_file: null, photo_transform: null }
+    assert.equal(photoOutline([other, row], photo)?.d, 'M10 10L490 490')
   })
-  it('takes the placed row where a circuit has two', () => {
-    const other = { ...row, photo_file: null, photo_transform: null, centreline: '{"coordinates":[[[0,0],[1,1]]]}' }
-    assert.equal(photoTrace([other, row], photo)?.d, 'M40 30L90 10M90 10L65 40')
+})
+
+import { LABEL_CLEAR, SQUARE, SQUARE_ROOM, COLUMN_MARGIN } from '../src/charts/columnChart.js'
+import { winsFigure, winsStory } from '../src/queries/constructor.js'
+
+describe('a constructor’s wins chart, its titles, peak and drought marked (VD-125), on rows written out', () => {
+  // Ferrari's wins, 1950-2026, as the register held them in November 2026,
+  // so the layout is tested on columns as thin as the page's.
+  const FERRARI = [
+    0, 3, 7, 7, 2, 1, 6, 0, 2, 2, 1, 5, 0, 1, 3, 0, 2, 0, 1, 0, 4, 2, 1, 0, 3, 6, 6, 4, 5, 6, 0, 2, 3, 4, 1, 2, 0, 2, 1, 3, 6, 0, 0, 0, 1, 1,
+    3, 5, 6, 6, 10, 9, 15, 8, 15, 1, 9, 9, 8, 1, 5, 1, 3, 2, 0, 3, 0, 5, 6, 3, 0, 0, 4, 1, 5, 0, 2,
+  ]
+  const TITLES = [1961, 1964, 1975, 1976, 1977, 1979, 1982, 1983, 1999, 2000, 2001, 2002, 2003, 2004, 2007, 2008]
+  const ferrari = { id: 'ferrari', name: 'Ferrari' }
+  const seasons = FERRARI.map((wins, k) => ({ year: 1950 + k, wins, entries: 2 }))
+  // Constructors' tables: a final one each finished season, 2026 still running.
+  const standings = seasons.map((s) => ({
+    year: s.year,
+    position: TITLES.includes(s.year) ? 1 : 2,
+    basis: s.year === 2026 ? 'running' : 'final',
+  }))
+  const champ = (year, driver_id, name) => ({ year, driver_id, name })
+  const champions = [
+    champ(1952, 'ascari', 'Alberto Ascari'),
+    champ(1953, 'ascari', 'Alberto Ascari'),
+    champ(1956, 'fangio', 'Juan Manuel Fangio'),
+    champ(1958, 'hawthorn', 'Mike Hawthorn'),
+    champ(1961, 'phil-hill', 'Phil Hill'),
+    champ(1964, 'surtees', 'John Surtees'),
+    champ(1975, 'lauda', 'Niki Lauda'),
+    champ(1977, 'lauda', 'Niki Lauda'),
+    champ(1979, 'scheckter', 'Jody Scheckter'),
+    ...[2000, 2001, 2002, 2003, 2004].map((y) => champ(y, 'michael-schumacher', 'Michael Schumacher')),
+    champ(2007, 'raikkonen', 'Kimi Räikkönen'),
+  ]
+  const colour = { name: 'Rosso Scuderia livery', pair: { lead: { name: 'Rosso Scuderia' } } }
+
+  it('works Ferrari’s finding, kicker and four notes out from the rows, the notes as the approved mockup has them', () => {
+    const story = winsStory(ferrari, seasons, { standings, champions, colour })
+    // Not the mockup's "The Schumacher years": his 2001 (9) and 2003 (8) are
+    // no higher than 2006-07 (9) and 2008 (8), so the reign does not stand
+    // above everything else, and the finding states the peak.
+    assert.equal(story.finding, 'Fifteen wins in 2002 and 2004 stand above everything else')
+    assert.equal(story.kicker, 'Ferrari’s wins each season, in Rosso Scuderia')
+    assert.equal(story.titleKey, 'a constructors’ title (16)')
+    assert.deepEqual([...story.titles].sort(), TITLES)
+    assert.deepEqual(
+      story.notes.map((n) => `${n.n}. ${n.lead}: ${n.text}`),
+      [
+        '1. 1952–53: Ascari: Seven wins each season, and both drivers’ titles.',
+        '2. 1975–77: three titles in a row: Constructors’ titles each year; Lauda champion in 1975 and 1977.',
+        '3. 1991–93: no win: The longest winless run in Ferrari’s 77 seasons, shaded.',
+        '4. 2002 and 2004: 15 each: Ferrari’s most in a season, inside Schumacher’s five straight titles.',
+      ],
+    )
+    // The tie is one marker over both its seasons; the drought's disc is lifted
+    // into its band on a hairline, and the band is shaded.
+    assert.deepEqual(
+      story.marks.map((m) => [m.n, m.keys.join(','), m.leader, m.lift]),
+      [
+        [1, '1952,1953', false, false],
+        [2, '1975,1976,1977', false, false],
+        [3, '1991,1992,1993', true, true],
+        [4, '2002,2004', false, false],
+      ],
+    )
+    assert.deepEqual(story.bands, [{ from: 1991, to: 1993 }])
+    // No colour: the kicker names none. The season being run is not a title.
+    assert.equal(winsStory(ferrari, seasons, { standings, champions }).kicker, 'Ferrari’s wins each season')
+    const leading = standings.map((s) => (s.year === 2026 ? { ...s, position: 1 } : s))
+    assert.equal(winsStory(ferrari, seasons, { standings: leading, champions }).titles.has(2026), false)
+  })
+
+  const team = { id: 'x', name: 'Williams' }
+  const run = (from, wins) => wins.map((w, k) => ({ year: from + k, wins: w, entries: 2 }))
+  const finals = (rows, titles = [], running = null) =>
+    rows.map((s) => ({ year: s.year, position: titles.includes(s.year) ? 1 : 3, basis: s.year === running ? 'running' : 'final' }))
+
+  it('gives tied peaks decades apart a disc each with one number, and one key entry', () => {
+    const rows = run(1962, [2, 4, 4, 1, 0, 1, 4, 0, 0])
+    const story = winsStory({ name: 'Brabham' }, rows, { standings: finals(rows) })
+    assert.equal(story.finding, 'Four wins in 1963, 1964 and 1968 stand above everything else')
+    const peak = story.notes.find((n) => n.lead.endsWith('4 each'))
+    assert.equal(peak.lead, '1963, 1964 and 1968: 4 each')
+    assert.deepEqual(
+      story.marks.filter((m) => m.n === peak.n).map((m) => m.keys),
+      [[1963, 1964], [1968]],
+      'within two seasons, one disc; further, a disc of its own with the same number',
+    )
+    assert.equal(story.notes.filter((n) => n.n === peak.n).length, 1)
+  })
+
+  it('names every champion of a tied peak where no one driver holds it, and loses no title to a merged note', () => {
+    // Brabham: titles in a row in 1966-67 are exactly the first disc of a
+    // peak tied with 1983, so the run's note goes; Brabham's own 1966 title
+    // is at the peak too, so its note goes; the peak's note names all three.
+    const rows = run(1964, [0, 0, 4, 4, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 4])
+    const champs = [
+      champ(1966, 'jack-brabham', 'Jack Brabham'),
+      champ(1967, 'hulme', 'Denny Hulme'),
+      champ(1981, 'piquet', 'Nelson Piquet'),
+      champ(1983, 'piquet', 'Nelson Piquet'),
+    ]
+    const story = winsStory({ name: 'Brabham' }, rows, { standings: finals(rows, [1966, 1967]), champions: champs })
+    const peak = story.notes.find((n) => n.lead.endsWith('4 each'))
+    assert.equal(peak.text, 'Brabham’s most in a season; Brabham champion in 1966, Hulme in 1967, Piquet in 1983.')
+    assert.equal(story.notes.some((n) => n.lead.includes('titles in a row') || n.lead === '1966: Brabham'), false)
+  })
+
+  it('calls a reign the finding only where every season of it stands above every other', () => {
+    // Red Bull: the peak, 2023, is inside Verstappen's 2021-24, but 2021 and
+    // 2024 are below Vettel's 2011 and 2013.
+    const rows = run(2010, [9, 12, 5, 13, 0, 0, 2, 3, 4, 2, 2, 11, 17, 21, 9])
+    const champs = [
+      ...[2010, 2011, 2012, 2013].map((y) => champ(y, 'vettel', 'Sebastian Vettel')),
+      ...[2021, 2022, 2023, 2024].map((y) => champ(y, 'verstappen', 'Max Verstappen')),
+    ]
+    const story = winsStory({ name: 'Red Bull' }, rows, { standings: finals(rows), champions: champs })
+    assert.equal(story.finding, '21 wins in 2023 stand above everything else')
+    assert.equal(story.notes.find((n) => n.lead === '2023: 21').text, 'Red Bull’s most in a season, inside Verstappen’s four straight titles.')
+    // The same reign with its worst season above every other: the finding names it.
+    const higher = rows.map((s) => (s.year >= 2021 ? { ...s, wins: s.wins + 5 } : s))
+    assert.equal(winsStory({ name: 'Red Bull' }, higher, { standings: finals(higher), champions: champs }).finding, 'The Verstappen years stand above everything else')
+  })
+
+  it('marks no peak where the best is one win, and says how many seasons had one', () => {
+    const rows = run(2012, [1, 1, 0, 0])
+    const story = winsStory({ name: 'Lotus F1 Team' }, rows, { standings: finals(rows) })
+    assert.equal(story.finding, 'A win in two of Lotus F1 Team’s four seasons')
+    assert.deepEqual(story.notes.map((n) => n.lead), ['2014–15: no win'])
+    assert.equal(story.titleKey, null)
+  })
+
+  it('shades every drought as long as the longest, names a running one "since", and leaves out a single dry season', () => {
+    const rows = run(1950, [0, 0, 0, 1, 2, 0, 3, 4, 0, 0, 0])
+    const story = winsStory({ name: 'Maserati' }, rows, { standings: finals(rows) })
+    const dry = story.notes.find((n) => n.lead.endsWith('no win'))
+    assert.equal(dry.lead, '1950–52 and 1958–60: no win')
+    assert.equal(dry.text, 'The longest winless runs in Maserati’s 11 seasons, three each, shaded.')
+    assert.deepEqual(story.bands, [{ from: 1950, to: 1952 }, { from: 1958, to: 1960 }])
+    assert.equal(story.marks.filter((m) => m.n === dry.n).length, 2)
+    // Still running: it reaches the season being run.
+    const now = run(2020, [3, 1, 0, 0, 0])
+    const running = winsStory(team, now, { standings: finals(now, [], 2024) })
+    assert.equal(running.notes.map((n) => `${n.lead}: ${n.text}`).at(-1), 'Since 2022: no win: The longest winless run in Williams’ 5 seasons, and still running, shaded.')
+    // The same seasons all finished: a span, not "since".
+    assert.equal(winsStory(team, now, { standings: finals(now) }).notes.at(-1).lead, '2022–24: no win')
+    // One dry season between wins is no drought.
+    const wet = run(2000, [2, 0, 3])
+    assert.equal(winsStory(team, wet, { standings: finals(wet) }).notes.some((n) => n.lead.endsWith('no win')), false)
+  })
+
+  it('says a champion’s season once where it is the peak, and a run of titles once where it is the tie', () => {
+    // BRM 1962: Hill's title and the peak are one column, so one note.
+    const rows = run(1960, [0, 0, 4, 2, 2])
+    const hill = [champ(1962, 'graham-hill', 'Graham Hill')]
+    const brm = winsStory({ name: 'BRM' }, rows, { standings: finals(rows, [1962]), champions: hill })
+    assert.deepEqual(brm.notes.map((n) => `${n.lead}: ${n.text}`).slice(-1), ['1962: 4: BRM’s most in a season; Hill champion.'])
+    assert.equal(brm.notes.some((n) => n.lead === '1962: Hill'), false)
+    // Renault 2005-06: the titles in a row are the tied seasons, so the peak's note says it.
+    const renault = run(2004, [1, 8, 8, 0, 2])
+    const alonso = [champ(2005, 'alonso', 'Fernando Alonso'), champ(2006, 'alonso', 'Fernando Alonso')]
+    const story = winsStory({ name: 'Renault' }, renault, { standings: finals(renault, [2005, 2006]), champions: alonso })
+    assert.equal(story.finding, 'The Alonso years stand above everything else')
+    assert.deepEqual(story.notes.map((n) => n.lead), ['2005 and 2006: 8 each'])
+    assert.equal(story.notes[0].text, 'Renault’s most in a season, inside Alonso’s two straight titles.')
+    // Two champions inside the run: each named, the second without "champion".
+    const mclaren = run(1983, [1, 12, 6, 4])
+    const two = [champ(1984, 'lauda', 'Niki Lauda'), champ(1985, 'prost', 'Alain Prost'), champ(1986, 'prost', 'Alain Prost')]
+    const titles = winsStory({ name: 'McLaren' }, mclaren, { standings: finals(mclaren, [1984, 1985]), champions: two })
+    assert.equal(titles.notes.find((n) => n.lead === '1984–85: two titles in a row').text, 'Constructors’ titles each year; Lauda champion in 1984, Prost in 1985.')
+  })
+
+  it('draws a season of no win as a stub, a title as a square under its column, and labels round years clear of each other', () => {
+    const figure = winsFigure(ferrari, seasons, { standings, champions, colour })
+    assert.equal(figure.keyBeside, true, 'more seasons than the slot: full width, its key beside it')
+    assert.equal(figure.labelPeak, false, 'the peak is a marker, not a figure over its first column')
+    for (const width of [352, 900]) {
+      const layout = columnLayout({ ...figure, width })
+      const baseline = figure.height - COLUMN_MARGIN.bottom - SQUARE_ROOM
+      const zero = layout.columns.filter((c) => c.d.value === 0)
+      assert.ok(zero.length > 0 && zero.every((c) => c.zero && c.path === null), `${width}: every winless season a stub, never a column`)
+      assert.ok(zero.every((c) => Math.abs(c.zero.y - (baseline - 1)) < 1e-9), `${width}: on the baseline`)
+      const squares = layout.columns.filter((c) => c.square)
+      assert.deepEqual(squares.map((c) => c.d.key), TITLES, `${width}: a square under every title and no other season`)
+      for (const c of squares) {
+        assert.ok(c.square.y > baseline && c.square.y + c.square.size < layout.tickY - 9, `${width}: ${c.d.key}'s square between the baseline and the labels`)
+        assert.ok(c.square.size <= SQUARE && Math.abs(c.square.x + c.square.size / 2 - c.centre) < 1e-9, `${width}: centred under its column`)
+      }
+      const labels = layout.columns.filter((c) => c.label !== null)
+      assert.equal(labels[0].d.key, 1950, `${width}: the first season named`)
+      for (let k = 1; k < labels.length; k += 1)
+        assert.ok(labels[k].centre - labels[k - 1].centre >= LABEL_CLEAR, `${width}: ${labels[k - 1].label} and ${labels[k].label} clear of each other`)
+      assert.ok(labels.slice(1).every((c) => c.d.key % 5 === 0), `${width}: the rest are round years (${labels.map((c) => c.label).join(' ')})`)
+      assert.equal(labels.length, width === 352 ? 4 : 8, `${width}: every quarter-century on a phone, every decade at 900, as the mockup labels them`)
+      assert.ok(layout.columns.every((c) => c.value === null), `${width}: no figure printed over a column`)
+    }
+    // An axis that jumps decades - a team absent between - keeps its labels apart.
+    const gap = [1954, 1955, ...Array.from({ length: 17 }, (_, k) => 2010 + k)].map((year) => ({ key: year, value: 1, label: String(year) }))
+    const jumped = columnLayout({ data: gap, width: 352, roundLabels: true })
+    const named = jumped.columns.filter((c) => c.label !== null)
+    for (let k = 1; k < named.length; k += 1) assert.ok(named[k].centre - named[k - 1].centre >= LABEL_CLEAR, `${named.map((c) => c.label).join(' ')}`)
+    // Too few round years for the step (twenty seasons on a phone): every
+    // labelEvery-th, thinned the same way, never overprinting.
+    const short = Array.from({ length: 20 }, (_, k) => ({ key: 1950 + k, value: k % 3, label: String(1950 + k) }))
+    for (const width of [250, 320, 400]) {
+      const thin = columnLayout({ data: short, width, roundLabels: true, labelEvery: 2 }).columns.filter((c) => c.label !== null)
+      assert.ok(thin.length >= 2, `${width}: still labelled`)
+      for (let k = 1; k < thin.length; k += 1) assert.ok(thin[k].centre - thin[k - 1].centre >= LABEL_CLEAR, `${width}: ${thin.map((c) => c.label).join(' ')}`)
+    }
+    // A stub only where a chart asks for stubs: elsewhere a zero draws nothing.
+    const plainZero = columnLayout({ data: [{ key: 'a', value: 0 }, { key: 'b', value: 3 }], width: 400 })
+    assert.equal(plainZero.columns[0].zero, null)
+    assert.notEqual(plainZero.columns[0].path, null)
+    // A tie printed: every column at the peak, not the first of them.
+    const tie = columnLayout({ data: [3, 15, 8, 15].map((value, k) => ({ key: k, value })), width: 400 })
+    assert.deepEqual(tie.columns.map((c) => c.value), [null, '15', null, '15'])
+  })
+
+  it('lays Ferrari’s markers out sound at every width from 250 to 1800 px, the drought’s in its band', () => {
+    const figure = winsFigure(ferrari, seasons, { standings, champions, colour })
+    const reach = MARKER.r + MARKER.ring / 2
+    for (let width = 250; width <= 1800; width += 1) {
+      const layout = columnLayout({ ...figure, width })
+      const where = (m) => `${width}: marker ${m.n} at (${m.cx.toFixed(1)}, ${m.cy.toFixed(1)})`
+      assert.deepEqual(layout.markers.map((m) => m.n), [1, 2, 3, 4], `${width}: every note has its marker`)
+      for (const m of layout.markers) {
+        assert.ok(m.cy - reach >= -1e-9 && m.cx - reach >= -1e-9 && m.cx + reach <= width + 1e-9, `${where(m)} is inside the drawing`)
+        for (const c of layout.columns) {
+          if (c.path === null) continue
+          const half = c.centre - Number(c.path.match(/^M([-\d.]+),/)[1])
+          if (Math.abs(c.centre - m.cx) <= reach + half) assert.ok(m.cy + reach <= c.peak + 1e-9, `${where(m)} clears ${c.d.key}'s column`)
+        }
+        for (const o of layout.markers)
+          if (o !== m) assert.ok(Math.hypot(m.cx - o.cx, m.cy - o.cy) >= 2 * reach, `${where(m)} and marker ${o.n} do not overlap`)
+      }
+      // The drought's disc: inside its band, well above the baseline, on a hairline down to it.
+      const [band] = layout.bands
+      const dry = layout.markers[2]
+      assert.ok(dry.cx >= band.x && dry.cx <= band.x + band.width, `${where(dry)} is over its band`)
+      const baseline = layout.columns[0].top
+      assert.ok(dry.cy <= (band.y + baseline) / 2 + 1e-9, `${where(dry)} is lifted halfway up the plot or higher`)
+      assert.ok(dry.leader && dry.leader.y1 > dry.cy && Math.abs(dry.leader.y1 - (baseline - MARKER.gap)) < 1e-9, `${where(dry)} has its hairline from the baseline`)
+    }
   })
 })

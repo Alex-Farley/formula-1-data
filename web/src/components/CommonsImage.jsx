@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { THUMB_WIDTH, attribution, canShow, fileLinkName, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
-import { OSM_COPYRIGHT } from '../lib/trace.js'
+import { PHOTO_OUTLINE_BY } from '../lib/outline.js'
 import { Confidence } from './Page.jsx'
 
 /**
@@ -56,10 +56,10 @@ export function useThumbSrc(image, width) {
  * circuit page's photograph, beside a heading that already names the place
  * (VD-62). Where a caption is given and no alt, the caption is the alt.
  *
- * `trace` is the circuit's lap drawn over its aerial photograph (AF-96), as
- * photoTrace() in lib/trace.js returns it. The line is OpenStreetMap's, so
- * the caption credits it beside the photograph's own credit, and the line
- * is decoration to the alt, which says it is there.
+ * `trace` is F1DB's outline drawn over a circuit's aerial photograph
+ * (AF-177), as photoOutline() in lib/outline.js returns it. The drawing is
+ * F1DB's, so the caption credits it beside the photograph's own credit, and
+ * the line is decoration to the alt, which says it is there.
  */
 export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt, showCheck = true, trace = null }) {
   // Loading, arrived, or failed: three states that used to look the same -
@@ -105,8 +105,8 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt,
             aria-hidden="true"
             focusable="false"
           >
-            <path className="photo-trace-casing" d={trace.d} />
-            <path className="photo-trace-line" d={trace.d} />
+            <path className="photo-trace-casing" d={trace.d} transform={trace.transform} />
+            <path className="photo-trace-line" d={trace.d} transform={trace.transform} />
           </svg>
         </div>
       ) : (
@@ -142,11 +142,7 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt,
         {trace && (
           <>
             {' · '}
-            Track{' '}
-            <a href={OSM_COPYRIGHT} target="_blank" rel="noreferrer noopener">
-              © OpenStreetMap contributors
-            </a>
-            , {trace.licence}
+            {PHOTO_OUTLINE_BY}
           </>
         )}
         {unchecked && (

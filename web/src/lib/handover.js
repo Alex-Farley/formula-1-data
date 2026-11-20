@@ -54,6 +54,9 @@ const drawn = new Map()
 // The tables whose fold (VD-69) the reader had opened on the static page, by
 // name. A Set mutated in place, for the reason above.
 const opened = new Set()
+// The team-mates face-off's disclosure (VD-130), one to a page, in the same Set.
+const FACE_FOLD = Symbol('the face-off disclosure')
+const DISAGREEMENTS = Symbol("a race's folded disagreements")
 
 /**
  * Count the static page's tables. Call this while it is still in the document
@@ -118,6 +121,8 @@ export function captureOpenFolds() {
     const name = key(table.querySelector('caption')?.textContent)
     if (name && table.closest('.table-wrap')?.querySelector(':scope > details.table-fold')?.open) opened.add(name)
   }
+  if (pre.querySelector('details.face-fold')?.open) opened.add(FACE_FOLD)
+  if (pre.querySelector('aside.disagreement > details')?.open) opened.add(DISAGREEMENTS)
 }
 
 /**
@@ -132,6 +137,28 @@ export function staticOpen(name) {
   if (at === undefined || location.pathname !== at) return false
   const named = key(name)
   return opened.has(named) && drawn.get(named) !== null
+}
+
+/**
+ * Whether the reader opened the team-mates face-off's disclosure (VD-130) on
+ * the static page, on the route it was written for, as staticOpen() reads a
+ * fold: the blocks they were reading stay open at the handover.
+ */
+export function staticFaceFoldOpen() {
+  const at = drawn.get(ARRIVAL)
+  if (at === undefined || location.pathname !== at) return false
+  return opened.has(FACE_FOLD)
+}
+
+/**
+ * Whether the reader opened a race's folded disagreements (VD-131) on the
+ * static page, on the route it was written for: the readings stay open at
+ * the handover.
+ */
+export function staticDisagreementsOpen() {
+  const at = drawn.get(ARRIVAL)
+  if (at === undefined || location.pathname !== at) return false
+  return opened.has(DISAGREEMENTS)
 }
 
 /**

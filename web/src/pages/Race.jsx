@@ -5,9 +5,20 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { UNFOLDED } from '../lib/table.js'
 import { Dated, RaceDates, TimeText } from '../components/Dates.jsx'
-import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
+import Disagreement, { DisagreementPointer, RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
+import WinnerStarts from '../components/WinnerStarts.jsx'
+import { useUrlState } from '../lib/urlstate.js'
+import {
+  HISTORY_SAYS_HEADING,
+  NEXT_RACE_SEASONS,
+  NEXT_RACE_STARTS,
+  RACE_LAYOUTS,
+  SCOPE_DEFAULTS,
+  historyBlock,
+  winnerStarts,
+} from '../queries/circuit.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { lateDays, readerDay } from '../lib/refresh.js'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -68,10 +79,12 @@ import {
   hasEntryNote,
   gridFlagLabel,
   gridFlagNote,
+  gridFlagStory,
   gridFlagUndrawn,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
+  raceAlso,
   racePodium,
   raceStrip,
   raceWeather,
@@ -96,11 +109,12 @@ import {
   stintsLabel,
   stintsNote,
 } from '../queries/race.js'
+import { ClinchStrips } from '../charts/ClinchStrip.jsx'
 import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, fightCitation, isUpcoming, mergeSources, titleSettled } from '../queries/season.js'
 import { currentProgress } from '../data/client.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
-import Podium from '../components/Podium.jsx'
+import RacePodium from '../components/RacePodium.jsx'
 import Figure from '../charts/Figure.jsx'
 import GridFlag from '../charts/GridFlag.jsx'
 import { gridFlagRows, gridFlagShown, undrawnOf } from '../charts/gridFlag.js'
@@ -280,19 +294,6 @@ function RaceWeather({ weather }) {
   )
 }
 
-/* VD-108: the podium in the header, under the weather line, each step with
-   where its driver started; queries/race.js's racePodium() says when there
-   is none, and scripts/prerender.js writes the same block. */
-function RacePodium({ steps }) {
-  if (!steps) return null
-  return (
-    <div className="race-podium round-panel">
-      <p className="eyebrow">{RACE_PODIUM_HEADING}</p>
-      <Podium steps={steps} />
-    </div>
-  )
-}
-
 const sprintRenders = (year) => ({ rail: RAIL, driver: driverLink, constructor: constructorLink(year), status: outTag })
 
 const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
@@ -321,6 +322,11 @@ export default function Race() {
     title: [TITLE_STANDINGS, args],
     // AF-132: who can still win, on the upcoming race's page.
     ...FIGHT_QUERIES,
+    // AF-139: what history says at its circuit, on the same page; the
+    // starts and seasons come back empty for any other round.
+    historyStarts: [NEXT_RACE_STARTS, args],
+    historySeasons: [NEXT_RACE_SEASONS, args],
+    historyLayouts: [RACE_LAYOUTS, args],
   })
 
   return (
@@ -367,9 +373,14 @@ function RaceBody({ race, data, year, round }) {
   const classified = useMemo(() => inClassificationOrder(entries), [entries])
   // PD-30: the cars the grid-to-flag figure draws, in the order it ends them.
   const flag = useMemo(() => gridFlagRows(entries), [entries])
+  // VD-113: its biggest moves, and the finding and kicker they give it.
+  const flagStory = useMemo(() => gridFlagStory(flag, undrawnOf(entries)), [flag, entries])
   // PD-56: the drivers the stint figure draws, and the pairs the pit order reads.
   const stints = useMemo(() => stintRows(entries, pits), [entries, pits])
   const pairs = useMemo(() => pitPairs(entries, pits), [entries, pits])
+  // VD-108: the three slabs where the tiles stood, or null where a place is
+  // shared or empty, or the round not yet run.
+  const steps = racePodium(race, entries)
 
   const winners = classified.filter((e) => e.finish_position === 1)
   // The pole, the car that started first, the fastest qualifier and the
@@ -386,6 +397,18 @@ function RaceBody({ race, data, year, round }) {
   // next round to run, until its results land.
   const fight = currentTitle((key) => rows(data, key), currentProgress().manifest?.built)
   const stake = isUpcoming(fight, race) ? fight : null
+  // What history says (AF-139): the circuit page's block for the circuit
+  // the next round to run is held at, until its results land - over every
+  // layout, or the one this race is run on, as the reader chooses.
+  const [{ history: asked }, setScope] = useUrlState(SCOPE_DEFAULTS)
+  const historyHere = historyBlock({
+    races: winnerStarts(rows(data, 'historyStarts')),
+    layouts: rows(data, 'historyLayouts'),
+    seasons: rows(data, 'historySeasons'),
+    reference: { year: race.year, layout: race.layout_key ?? null },
+    asked,
+    place: race.circuit ? `at ${race.circuit}` : 'at this circuit',
+  })
 
   const timetable = sessions.length > 0 && (
     <Section id="timetable" title={TIMETABLE_HEADING} count={`${sessions.length} sessions`}>
@@ -418,14 +441,19 @@ function RaceBody({ race, data, year, round }) {
       aside={
         <>
           <RaceWeather weather={raceWeather(data.weather.rows[0])} />
-          <RacePodium steps={racePodium(race, entries)} />
           <Stepper {...raceSteps(neighbours)} />
         </>
       }
     >
       <Section>
-        {/* queries/race.js's strip, which the static page draws too (VD-49). */}
-        <Stats items={raceStrip(race, entries, qualifying)} />
+        {/* VD-108: the podium where it can be drawn, the strip's other tiles
+            on a line under it; queries/race.js's strip where it cannot. The
+            static page draws the same (VD-49). */}
+        {steps ? (
+          <RacePodium heading={RACE_PODIUM_HEADING} steps={steps} also={raceAlso(race, entries, qualifying)} />
+        ) : (
+          <Stats items={raceStrip(race, entries, qualifying)} />
+        )}
       </Section>
 
       {/* IA-30: the page's sections, from the conditions each is drawn on
@@ -435,6 +463,7 @@ function RaceBody({ race, data, year, round }) {
           scheduled,
           timetable: sessions.length > 0,
           stake: Boolean(stake),
+          history: Boolean(historyHere),
           classification: classified.length > 0,
           gridFlag: gridFlagShown(flag),
           qualifying: qualifying.length > 0,
@@ -470,10 +499,16 @@ function RaceBody({ race, data, year, round }) {
               <Dated>{stake.basis}</Dated>
             </p>
           )}
+          {/* The finishes here that would settle the drivers' title (AF-138). */}
+          <ClinchStrips clinch={stake.clinch} />
         </Section>
       )}
 
-      <Disagreement rows={rows(data, 'disagreements')} what="this race" />
+      <WinnerStarts id="history" title={HISTORY_SAYS_HEADING} block={historyHere} onScope={(scope) => setScope({ history: scope })} />
+
+      {/* VD-131: the line pointing to the disagreements, above the table;
+          the box itself follows the classification, closed. */}
+      {classified.length > 0 && <DisagreementPointer rows={rows(data, 'disagreements')} what="this race" />}
 
       {shared && (
         <Note>
@@ -497,6 +532,8 @@ function RaceBody({ race, data, year, round }) {
           />
         </Section>
       )}
+
+      <Disagreement rows={rows(data, 'disagreements')} what="this race" folded />
 
       {/* The opening slot (DP-11, VD-84): F1DB's drawing of the layout this
           race ran, credited on the card, beside the header from 1180 px.
@@ -527,9 +564,11 @@ function RaceBody({ race, data, year, round }) {
         <Section id="grid-to-flag" title={GRID_FLAG_HEADING}>
           <Figure
             note={gridFlagNote(flag)}
+            finding={flagStory.finding}
+            kicker={flagStory.kicker}
             table={{ rows: flag.map((r) => r.entry), columns: GRID_FLAG_COLUMNS, footer: gridFlagUndrawn(undrawnOf(entries)) }}
           >
-            <GridFlag entries={entries} label={gridFlagLabel(flag)} />
+            <GridFlag entries={entries} moves={flagStory.moves} label={gridFlagLabel(flag, flagStory.moves)} />
           </Figure>
         </Section>
       )}

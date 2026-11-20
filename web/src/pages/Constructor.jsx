@@ -18,6 +18,7 @@ import { LIVERY_ERA, colourForEntry, constructorBandNote, liveryFor, nationalEnt
 import { CONSTRUCTOR_IMAGES } from '../queries/photographs.js'
 import {
   BY_SEASON,
+  CHAMPIONS,
   CONSTRUCTOR,
   CONSTRUCTOR_SOURCES,
   DERIVED,
@@ -72,6 +73,28 @@ const DESIGN_APP = {
   name: { render: (name, row) => <Link to={`/cars/${row.id}`}>{name}</Link> },
   first_year: { sort: (row) => row.first_year },
 }
+/**
+ * The wins chart's kicker (VD-125): what is plotted, and the square that
+ * marks a title, drawn as the plot draws it and named for a screen reader,
+ * which hears the words and not the shape. scripts/prerender.js writes the
+ * same.
+ */
+function WinsKicker({ chart }) {
+  return (
+    <>
+      {chart.kicker}
+      {chart.titleKey && (
+        <>
+          {' · '}
+          <i className="title-square" aria-hidden="true" />
+          <span className="sr-only">a square under a season is </span>
+          {chart.titleKey}
+        </>
+      )}
+    </>
+  )
+}
+
 const withRenders = (columns, renders) =>
   columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
@@ -86,6 +109,7 @@ export default function Constructor() {
     // AF-132: where a contender stands in the title fight being run.
     ...FIGHT_QUERIES,
     wins: [WINS, [id]],
+    champions: [CHAMPIONS, [id]],
     designs: [DESIGNS, [id]],
     lineage: [LINEAGE, [id]],
     images: [CONSTRUCTOR_IMAGES, [id]],
@@ -124,9 +148,6 @@ function ConstructorBody({ constructor, data }) {
   const lineage = lineageChains(rows(data, 'lineage'), constructor)
   const images = rows(data, 'images')
 
-  // The wins chart, worked out in queries/constructor.js so the static page
-  // draws the same columns (VD-73).
-  const winsChart = winsFigure(constructor, bySeason)
   // The season they were last part of, which is the one the header's livery
   // is read from; the onward band picks it the same way (lib/wayfinding.js).
   const lastSeason = lastSeasonOf(bySeason)
@@ -148,6 +169,14 @@ function ConstructorBody({ constructor, data }) {
         team: constructor.name,
       })
     : nationalEntry(constructor.country)
+
+  // The wins chart, worked out in queries/constructor.js so the static page
+  // draws the same columns (VD-73), finding, squares and notes (VD-125).
+  const winsChart = winsFigure(constructor, bySeason, {
+    standings,
+    champions: rows(data, 'champions'),
+    colour: identity,
+  })
 
   // Where this team stands in the constructors' title fight of the season
   // being run (AF-132): queries/season.js's line, printed by both halves.
@@ -184,7 +213,15 @@ function ConstructorBody({ constructor, data }) {
           (SLOT_MARKS); then it leads under the tiles at the full width. */}
       {winsChart && (
         <Section lead={winsChart.lead} title={WINS_HEADING}>
-          <Figure lead note={winsChart.note} table={{ rows: winsChart.rows, columns: WINS_FIGURE_COLUMNS }}>
+          <Figure
+            lead
+            note={winsChart.note}
+            finding={winsChart.finding}
+            kicker={<WinsKicker chart={winsChart} />}
+            annotations={winsChart.annotations}
+            keyBeside={winsChart.keyBeside}
+            table={{ rows: winsChart.rows, columns: WINS_FIGURE_COLUMNS }}
+          >
             {/* VD-34: the team's own colour, falling back to the national
                 convention and then to the series palette. The pair, not the
                 base - a single-hue chart is read by colour against the panel,
@@ -192,10 +229,15 @@ function ConstructorBody({ constructor, data }) {
             <ColumnChart
               data={winsChart.data}
               labelEvery={winsChart.labelEvery}
+              roundLabels={winsChart.roundLabels}
+              stubs={winsChart.stubs}
+              labelPeak={winsChart.labelPeak}
               integer={winsChart.integer}
               height={winsChart.height}
               colour={identity}
               label={winsChart.label}
+              marks={winsChart.marks}
+              bands={winsChart.bands}
             />
           </Figure>
         </Section>

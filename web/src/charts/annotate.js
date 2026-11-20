@@ -13,6 +13,15 @@
  *   hairline (placeMarker());
  * - spans as shaded bands under the marks, explained in the key.
  *
+ * placeMarker() is a line's: above or below a point between other lines.
+ * placeDotMarkers() is a dot plot's (VD-124): under its dot, in the space
+ * a career's line leaves open, clear of every dot and every stretch of the
+ * line.
+ * placeColumnMarkers() is a column chart's (VD-123): a column fills the
+ * space under its top, so a marker never goes below it; where two would
+ * touch, the earlier one steps aside on an angled hairline, and where a
+ * disc would cover a column or a hairline, it is raised.
+ *
  * What a note says, and which point it marks, is the caller's: the figure
  * works it out from the data, and the key under the plot carries every word
  * of it, so nothing lives only in the drawing.
@@ -158,3 +167,204 @@ export function placeMarker(x, y, others, { top = 0, bottom = Infinity, taken = 
     leader: { x1: x, y1: up ? y - MARKER.gap : y + MARKER.gap, x2: x, y2: up ? side.cy + MARKER.r : side.cy - MARKER.r },
   }
 }
+
+/** The least distance between two discs' centres: their rings and two pixels of air. */
+const APART = 2 * (MARKER.r + MARKER.ring / 2) + 2
+
+/**
+ * Where a marker goes over the top of a column, or of several (VD-123): the
+ * disc MARKER.offset above (x, y), and where that would touch a disc already
+ * placed (`taken`, each { cx, cy }) - home's 2024-25 and 2026, a few pixels
+ * apart on a phone - raised until it clears it, by no more than it must.
+ * Never down: under the top is the column. The hairline runs from the top
+ * to the disc; `leader: false` leaves it out, for a disc set over a shaded
+ * band, which marks the band rather than a point in it. The caller makes
+ * the headroom: columnLayout() raises the plot until every disc is inside
+ * the drawing.
+ */
+export function placeAbove(x, y, { taken = [], leader = true } = {}) {
+  let cy = y - MARKER.offset
+  // Each pass only raises the disc, past the first disc it touches, so the
+  // loop ends: at most once per disc placed.
+  for (let pass = 0; pass <= taken.length; pass += 1) {
+    const hit = taken.find((t) => Math.hypot(t.cx - x, t.cy - cy) < APART - 0.01)
+    if (!hit) break
+    cy = hit.cy - Math.sqrt(APART ** 2 - Math.min(APART, Math.abs(hit.cx - x)) ** 2) - 0.01
+  }
+  return {
+    cx: x,
+    cy,
+    leader: leader ? { x1: x, y1: y - MARKER.gap, x2: x, y2: cy + MARKER.r } : null,
+  }
+}
+
+/**
+ * The hairline from a point to a disc set to one side of it: from just
+ * above the point to the disc's edge, along the line between them.
+ */
+function angled(point, cx, cy) {
+  const x1 = point.x
+  const y1 = point.y - MARKER.gap
+  const dx = cx - x1
+  const dy = cy - y1
+  const length = Math.hypot(dx, dy)
+  return { x1, y1, x2: cx - (dx / length) * MARKER.r, y2: cy - (dy / length) * MARKER.r }
+}
+
+/** How near a hairline comes to a point: the least distance from (px, py) to the segment. */
+function nearest({ x1, y1, x2, y2 }, px, py) {
+  const length = (x2 - x1) ** 2 + (y2 - y1) ** 2
+  const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / length))
+  return Math.hypot(x1 + t * (x2 - x1) - px, y1 + t * (y2 - y1) - py)
+}
+
+/**
+ * Every marker on a column chart (VD-123), in the order given: each `{ n,
+ * x, y, leader, lift }`, the top of the columns it marks at (x, y), and
+ * `lift`, where it is not null, the height its disc starts from instead of
+ * MARKER.offset above the point (VD-125: a drought's disc, halfway up the
+ * empty band it marks, on a hairline down to the baseline). A disc is
+ * sound where it lies inside [left, right], over no column within its
+ * reach (`floor(cx)`: the highest column top a disc centred at cx would
+ * cover), apart from every other disc, with its hairline clear of every
+ * other disc and every other hairline clear of it. Each disc is tried, in
+ * this order, until it and any disc it moved are sound:
+ *
+ * - MARKER.offset above its point;
+ * - there, or raised, with the disc it would touch stepped aside, away from
+ *   it, level, on an angled hairline, as the approved mockup sets home's
+ *   2024-25 beside 2026 - raising the later one straight over it would run
+ *   its hairline through the earlier disc on a phone;
+ * - raised straight up, by no more than it must (a narrow chart's first
+ *   season, under a taller column beside it);
+ * - and only where none is sound, raised clear of the discs placed, as
+ *   placeAbove() does.
+ *
+ * Never down: under the top is the column. A disc with no hairline (a
+ * band's) is never stepped aside.
+ */
+export function placeColumnMarkers(points, { left = -Infinity, right = Infinity, floor = () => Infinity } = {}) {
+  const reach = MARKER.r + MARKER.ring / 2
+  const RISE = 0.5
+  const STEPS = Math.ceil((4 * APART) / RISE)
+  const placed = []
+  const vertical = (point, cy) => (point ? { x1: point.x, y1: point.y - MARKER.gap, x2: point.x, y2: cy + MARKER.r } : null)
+  // Sound: every constraint that involves one of `changed`, against the rest.
+  const sound = (set, changed) =>
+    changed.every((m) => m.cx - reach >= left - 1e-9 && m.cx + reach <= right + 1e-9 && m.cy + reach <= floor(m.cx) - 1 + 1e-9) &&
+    set.every((m) =>
+      set.every(
+        (o) =>
+          o === m ||
+          (!changed.includes(m) && !changed.includes(o)) ||
+          (Math.hypot(m.cx - o.cx, m.cy - o.cy) >= APART - 0.01 && (!m.leader || nearest(m.leader, o.cx, o.cy) >= reach)),
+      ),
+    )
+  for (const p of points) {
+    const point = p.leader === false ? null : { x: p.x, y: p.y }
+    const start = typeof p.lift === 'number' ? Math.min(p.y - MARKER.offset, p.lift) : p.y - MARKER.offset
+    const at = (k) => {
+      const cy = start - k * RISE
+      return { n: p.n, cx: p.x, cy, leader: vertical(point, cy), point }
+    }
+    const first = at(0)
+    const hit = placed.find((t) => Math.hypot(t.cx - first.cx, t.cy - first.cy) < APART - 0.01)
+    let chosen = sound([...placed, first], [first]) ? { disc: first } : null
+    if (!chosen && hit?.point) {
+      const side = hit.point.x <= p.x ? -1 : 1
+      for (let k = 0; k <= STEPS && !chosen; k += 1) {
+        const disc = at(k)
+        const away = Math.sqrt(Math.max(0, APART ** 2 - (disc.cy - hit.cy) ** 2))
+        const cx = side * (disc.cx + side * away - hit.cx) > 0 ? disc.cx + side * away : hit.cx
+        const moved = { ...hit, cx, leader: angled(hit.point, cx, hit.cy) }
+        const set = [...placed.filter((t) => t !== hit), moved, disc]
+        if (sound(set, [moved, disc])) chosen = { disc, moved }
+      }
+    }
+    for (let k = 1; k <= STEPS && !chosen; k += 1) {
+      const disc = at(k)
+      if (sound([...placed, disc], [disc])) chosen = { disc }
+    }
+    if (chosen?.moved) Object.assign(hit, chosen.moved)
+    placed.push(chosen ? chosen.disc : { n: p.n, ...placeAbove(p.x, p.y, { taken: placed, leader: p.leader !== false }), point })
+  }
+  return placed.map(({ point, ...marker }) => marker)
+}
+
+/**
+ * Every marker on a dot plot (VD-124), in the order given: each `{ n, x, y,
+ * r }`, the dot it marks centred at (x, y), `r` out to its edge - its ring,
+ * where a title is ringed. A disc goes under its dot, in the space a
+ * career's line leaves open below its best seasons, and over it only where
+ * no distance under it is sound; as near the dot as is sound either way. A
+ * disc is sound where it lies inside [top, bottom], clear of every dot
+ * (`dots`, each { x, y, r }), of every stretch of the line (`segments`, each
+ * { x1, y1, x2, y2 }), of every label on the axes (`boxes`, each { left,
+ * right, top, bottom }) - a first season's disc beside "P5" - and of every
+ * disc placed before it, inside [left, right], with its hairline through no
+ * other dot and no disc, and no other hairline through it. Where no distance
+ * straight under or over the dot is sound - a title between two low seasons
+ * on a phone, Button's 2009 - the disc steps aside on an angled hairline, as
+ * near the dot as is sound and as near straight under it as that allows.
+ * Only where nothing within reach is sound is it placed as placeMarker()
+ * places one, clear of the discs before it. Returns `{ n, cx, cy, leader }`
+ * for each, the hairline from the dot's edge to the disc's.
+ */
+export function placeDotMarkers(
+  marks,
+  { dots = [], segments = [], boxes = [], top = 0, bottom = Infinity, left = -Infinity, right = Infinity } = {},
+) {
+  const reach = MARKER.r + MARKER.ring / 2
+  const FURTHEST = 48
+  const placed = []
+  for (const m of marks) {
+    // From the dot's edge to the disc's, along the line between their centres.
+    const leaderTo = (cx, cy) => {
+      const length = Math.hypot(cx - m.x, cy - m.y) || 1
+      const ux = (cx - m.x) / length
+      const uy = (cy - m.y) / length
+      return { x1: m.x + ux * (m.r + 1), y1: m.y + uy * (m.r + 1), x2: cx - ux * MARKER.r, y2: cy - uy * MARKER.r }
+    }
+    const sound = (cx, cy) => {
+      if (cy - reach < top || cy + reach > bottom || cx - reach < left || cx + reach > right) return false
+      if (dots.some((d) => Math.hypot(d.x - cx, d.y - cy) < reach + d.r + 1)) return false
+      if (segments.some((s) => nearest(s, cx, cy) < reach + 1)) return false
+      const off = (b) => Math.hypot(Math.max(b.left - cx, 0, cx - b.right), Math.max(b.top - cy, 0, cy - b.bottom))
+      if (boxes.some((b) => off(b) < reach + 1)) return false
+      const leader = leaderTo(cx, cy)
+      // The hairline crosses no other dot: it starts at its own.
+      if (dots.some((d) => Math.hypot(d.x - m.x, d.y - m.y) > 0.01 && nearest(leader, d.x, d.y) < d.r + 1)) return false
+      return placed.every(
+        (p) => Math.hypot(p.cx - cx, p.cy - cy) >= APART - 0.01 && nearest(leader, p.cx, p.cy) >= reach && nearest(p.leader, cx, cy) >= reach,
+      )
+    }
+    let at = null
+    for (const sign of [1, -1]) {
+      for (let d = MARKER.offset; d <= MARKER.offset + FURTHEST && at === null; d += 1) if (sound(m.x, m.y + sign * d)) at = [m.x, m.y + sign * d]
+      if (at !== null) break
+    }
+    // Aside: nearest first, and at each distance from straight under round to straight over.
+    for (let d = MARKER.offset; d <= MARKER.offset + FURTHEST && at === null; d += 1) {
+      for (let step = 1; step < ASIDE && at === null; step += 1) {
+        const turn = (step * Math.PI) / ASIDE
+        for (const sign of [1, -1]) {
+          const cx = m.x + sign * d * Math.sin(turn)
+          const cy = m.y + d * Math.cos(turn)
+          if (sound(cx, cy)) {
+            at = [cx, cy]
+            break
+          }
+        }
+      }
+    }
+    if (at === null) {
+      const fallback = placeMarker(m.x, m.y, [], { top, bottom, taken: placed })
+      at = [fallback.cx, fallback.cy]
+    }
+    placed.push({ n: m.n, cx: at[0], cy: at[1], leader: leaderTo(at[0], at[1]) })
+  }
+  return placed
+}
+
+/** The angles a dot plot's disc is tried at beside its dot, between straight under and straight over: every 15 degrees. */
+const ASIDE = 12

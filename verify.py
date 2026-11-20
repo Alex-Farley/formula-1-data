@@ -295,7 +295,8 @@ def titles_decided_before_the_last_round():
                 continue
             # Strict by design: a champion a rival could only draw level with
             # and lose the countback to is refused here, at the commit naming
-            # them, until AF-137 works the countback out.
+            # them. The season page counts that tie back from tie_breaks
+            # (AF-137); this arithmetic does not yet (AF-176, #1390).
             if held is not None and answer[kind] != held:
                 wrong.append(f"{year} {kind}: {held} recorded, "
                              f"the arithmetic has {answer[kind] or 'nobody'}")
@@ -3218,6 +3219,83 @@ def qualifying_formats_periods():
               AND key = 'qualifying-107-before-2009' AND state = 'open'""").fetchone()[0] == int(unread))
 
 
+@section('TIE BREAKS: THE RULE AGAINST THE FINAL TABLES')
+def tie_breaks_against_the_final_tables():
+    """`tie_breaks` says how a tie on points at the end of a season is
+    settled (AF-137), and the season page reads it to say who a rival who can
+    at best draw level would lose or win the title to. The periods are only
+    useful if they tile, and the reading the page relies on - a count of
+    Grand Prix places, first places before second places, with a sprint's
+    places left out - is held to every finished season a period covers:
+    where two drivers or two constructors finished level on points, the one
+    placed higher must have the more first places, or as many and more
+    second places, and so on down the order. Counting a sprint's places as
+    well puts five of the ties from 2023 to 2025 in the wrong order, so the
+    check tells the two readings apart."""
+    rows = con.execute("""SELECT id, from_year, to_year, countback, source
+        FROM tie_breaks ORDER BY from_year""").fetchall()
+    bad = [f"#{a['id']} to {a['to_year']} then #{b['id']} from {b['from_year']}"
+           for a, b in zip(rows, rows[1:]) if b["from_year"] != a["to_year"] + 1]
+    check("the tie-break periods tile from the first with no hole or overlap",
+          bool(rows) and not bad, "; ".join(bad) if rows else "no rows")
+    fia = re.compile(r"https://(www|argent)\.fia\.com/")
+    bad = [f"#{r['id']}" for r in rows if not fia.match(r["source"])]
+    check("every tie-break period cites the FIA's own text", not bad, ", ".join(bad))
+    # A warning: a new season's issue has to be read before its row can be
+    # written, and the page declines the countback until it is.
+    run = season_in_progress()
+    warn("the season being run has a tie-break period",
+         any(r["from_year"] <= run <= r["to_year"] for r in rows), str(run))
+    check("known_gaps declares the tie-break before the first period read",
+          con.execute("""SELECT COUNT(*) FROM known_gaps WHERE field = 'tie_breaks'
+              AND key = 'tie-break-before-2009' AND state = 'open'""").fetchone()[0]
+          == int(bool(rows) and rows[0]["from_year"] > 1950))
+
+    def places(year, column, ident):
+        return dict(con.execute(f"""SELECT e.finish_position, COUNT(*)
+            FROM race_entries e JOIN races r ON r.id = e.race_id
+            WHERE r.year = ? AND e.{column} = ? AND e.finish_position IS NOT NULL
+            GROUP BY e.finish_position""", (year, ident)).fetchall())
+
+    held, level, wrong, by_period = 0, 0, [], {}
+    for r in rows:
+        before = held
+        if r["countback"] != "race places":
+            wrong.append(f"#{r['id']}: {r['countback']!r} is not a count this check knows")
+            continue
+        for year in range(r["from_year"], r["to_year"] + 1):
+            for kind, column in (("drivers", "driver_id"), ("constructors", "constructor_id")):
+                table = con.execute(f"""SELECT position, entity, points, {column} AS who
+                    FROM v_standings_final
+                    WHERE year = ? AND table_type = ? AND basis = 'final'
+                      AND position IS NOT NULL AND points IS NOT NULL
+                    ORDER BY position""", (year, kind)).fetchall()
+                for a, b in zip(table, table[1:]):
+                    if a["points"] != b["points"] or a["who"] is None or b["who"] is None:
+                        continue
+                    pa, pb = places(year, column, a["who"]), places(year, column, b["who"])
+                    deepest = max([*pa, *pb], default=0)
+                    va = [pa.get(p, 0) for p in range(1, deepest + 1)]
+                    vb = [pb.get(p, 0) for p in range(1, deepest + 1)]
+                    if va == vb:
+                        level += 1
+                    elif va > vb:
+                        held += 1
+                    else:
+                        wrong.append(f"{year} {kind}: {a['entity']} placed above "
+                                     f"{b['entity']} on {a['points']:g}")
+        by_period[r["id"]] = held - before
+    check("every tie on points in a finished season a tie-break period covers is "
+          "placed by its count of Grand Prix places", held > 0 and not wrong,
+          "; ".join(wrong[:4]) if wrong or held else "no tie to hold it to")
+    print(f"  [info] {held} ties on points placed by the count; {level} level on "
+          f"every place, which the count does not settle")
+    # A period no finished tie has tested stands on the reading of its text
+    # alone, which is worth seeing: the season being run's, until it ends.
+    print("  [info] ties held by period: " + ", ".join(
+        f"#{r['id']} {r['from_year']}-{r['to_year']} {by_period.get(r['id'], 0)}" for r in rows))
+
+
 @section('FINISHING ORDER AND PODIUMS')
 def finishing_order_and_podiums():
     n_pod = con.execute("""SELECT COUNT(*) FROM race_entries
@@ -4990,6 +5068,85 @@ def circuits_and_venues():
         SUM(f1db_layout_id IS NOT NULL), SUM(f1db_layout_id IS NULL) FROM circuit_layouts""").fetchone()
     print(f"  [info] {outlines} F1DB outlines; {drawn} of this register's {drawn + split} "
           f"layouts are drawn by one, {split} span several F1DB layouts")
+
+    # F1DB's outline over the photograph (AF-177). The build stores a placing
+    # only when it passes; this fits the transform again from the stored
+    # pairs, re-measures every pair, and holds the placing to PHOTO_OUTLINE,
+    # to the drawing its pairs were read from (the path's digest), to the
+    # file and frame it was marked on, to the source it is (18,
+    # written for this project) and to the ceiling that source carries.
+    H = harvest_module()
+    bad_photo, placed = [], {}
+    for (lid, cid, path, pfile, ppoints, ptransform, perror, psource,
+         pconf) in con.execute("""SELECT f1db_layout_id, circuit_id, path,
+            photo_file, photo_points, photo_transform, photo_error_px,
+            photo_source_id, photo_confidence FROM circuit_outlines"""):
+        held = [v is not None for v in (pfile, ppoints, ptransform, perror,
+                                        psource, pconf)]
+        if not any(held):
+            continue
+        if not all(held):
+            bad_photo.append(f"{lid} holds some photo_ columns and not others")
+            continue
+        if cid in placed:
+            bad_photo.append(f"{cid} is placed twice")
+        placed[cid] = lid
+        pairs = [(tuple(o), tuple(p)) for o, p in json.loads(ppoints)]
+        entry = H.PHOTO_OUTLINE.get(cid)
+        if (entry is None or entry["file"] != pfile or entry["layout"] != lid
+                or pairs != [(tuple(o), tuple(p)) for o, p in entry["pairs"]]):
+            bad_photo.append(f"{cid}'s placing is not PHOTO_OUTLINE's")
+            continue
+        # The pairs' box points lie on the drawing they were read from; a
+        # placing over any other path would pass every distance below.
+        if H.photo_outline_digest(path) != entry["drawing"]:
+            bad_photo.append(f"{cid} is placed over a drawing of {lid} that "
+                             f"is not the one its pairs were read from")
+        photo = con.execute(
+            "SELECT file_name, width, height FROM article_images "
+            "WHERE route = 'circuit' AND circuit_id = ?", (cid,)).fetchone()
+        if photo is None or photo[0] != pfile:
+            bad_photo.append(f"{cid} is placed on {pfile}, which is not its "
+                             f"photograph")
+            continue
+        if (photo[1], photo[2]) != tuple(entry["frame"]):
+            bad_photo.append(f"{cid} is placed in a {entry['frame']} frame on a "
+                             f"photograph stored at {photo[1]} x {photo[2]}")
+        marks = [p for _, p in pairs]
+        if not all(0 <= x <= photo[1] and 0 <= y <= photo[2] for x, y in marks):
+            bad_photo.append(f"{cid} marks a point outside its photograph")
+        if len(set(marks)) != len(marks):
+            bad_photo.append(f"{cid} marks a point twice")
+        if len(pairs) < H.PHOTO_OUTLINE_MIN_POINTS:
+            bad_photo.append(f"{cid} pairs {len(pairs)} points")
+        matrix = H.photo_outline_transform(pairs)
+        if json.loads(ptransform) != matrix:
+            bad_photo.append(f"{cid} stores a transform its pairs do not fit")
+        errors = H.photo_outline_errors(matrix, pairs)
+        if max(errors) > H.PHOTO_OUTLINE_TOLERANCE_PX:
+            bad_photo.append(f"{cid} has a point {max(errors):.1f} px from its "
+                             f"paired point of the outline")
+        if round(max(errors), 2) != perror:
+            bad_photo.append(f"{cid} stores {perror} px, re-measures "
+                             f"{max(errors):.2f}")
+        if psource != 18:
+            bad_photo.append(f"{cid} cites source {psource}")
+        rank = con.execute("SELECT rank FROM provenance WHERE confidence = ?",
+                           (pconf,)).fetchone()
+        if rank is None or rank[0] < 4:
+            bad_photo.append(f"{cid} is placed at {pconf!r}, above medium")
+    check("every outline drawn over a photograph is placed within "
+          f"{H.PHOTO_OUTLINE_TOLERANCE_PX:g} px of its marked points, on the "
+          "file it was marked on",
+          not bad_photo,
+          "; ".join(bad_photo[:3]) if bad_photo else
+          f"{len(placed)} of {len(H.PHOTO_OUTLINE)} placings drawn")
+    # A placing the build declined - a new photograph, a new stored size -
+    # leaves the photograph plain. That is the right page, and a placing to
+    # redo.
+    undrawn = sorted(set(H.PHOTO_OUTLINE) - set(placed))
+    warn("every outline placed on a photograph is drawn", not undrawn,
+         ", ".join(undrawn))
 
     # A Grand Prix that has only ever run at one circuit must not have picked up
     # a second one; the register in data/events.py depends on that staying true.
@@ -7365,7 +7522,8 @@ def illustration_and_geometry():
             WHERE l.to_year IS NOT NULL""").fetchone()[0]
         check("no centreline claims to be a historic layout", historic == 0)
 
-        # The track over the photograph (AF-96). The build stores a placing
+        # The track over the photograph (AF-96), no longer drawn since AF-177
+        # and kept until AF-179 removes it. The build stores a placing
         # only when it passes; this re-measures each one from the stored
         # points and transform and the stored centreline, and holds it to the
         # file it was fitted on, the source it is (18, written for this

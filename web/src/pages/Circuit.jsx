@@ -1,12 +1,11 @@
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Slot, Stats } from '../components/Page.jsx'
-import Figure from '../charts/Figure.jsx'
-import GridStarts from '../charts/GridStarts.jsx'
-import { drawnColours } from '../charts/gridStarts.js'
 import { Result } from '../components/States.jsx'
+import WinnerStarts from '../components/WinnerStarts.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
+import { useUrlState } from '../lib/urlstate.js'
 import CommonsImage from '../components/CommonsImage.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
@@ -25,6 +24,7 @@ import {
   leadOutline,
   otherLayouts,
   outlineCaption,
+  photoOutline,
   timelineName,
   timelineStripName,
   timelineYears,
@@ -35,7 +35,6 @@ import {
   TRACE_RULE,
   noTrace,
   odblCredit,
-  photoTrace,
   traceFields,
 } from '../lib/trace.js'
 
@@ -51,28 +50,20 @@ import {
   RACES,
   RACES_HEADING,
   RACE_COLUMNS,
+  SCOPE_DEFAULTS,
   STARTS,
-  STARTS_COLUMNS,
-  STARTS_EVERYWHERE,
   STARTS_HEADING,
+  STARTS_SEASONS,
   TEAMS,
-  TIMELINE_HEADING,
   TEAM_COLUMNS,
   TRACE_COVERAGE,
   WINNERS,
   WINNER_COLUMNS,
-  byDecade,
-  chipRace,
-  chipStart,
   circuitStrip,
   heldAs,
+  historyBlock,
   photographAlt,
   racesCount,
-  startsFigures,
-  startsLabel,
-  startsLine,
-  startsNote,
-  startsTable,
   winnerStarts,
 } from '../queries/circuit.js'
 
@@ -143,7 +134,7 @@ export default function Circuit() {
     teams: [TEAMS, [id]],
     grandsPrix: [GRANDS_PRIX, [id]],
     starts: [STARTS, [id]],
-    everywhere: [STARTS_EVERYWHERE, [id]],
+    seasons: [STARTS_SEASONS],
     sources: [CIRCUIT_SOURCES, [id]],
   })
 
@@ -183,13 +174,18 @@ function CircuitBody({ circuit, data }) {
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
   const held = heldAs(rows(data, 'grandsPrix'))
+  // Where winners start here (AF-133), over every layout or the one the
+  // latest race won here was run on, as the reader chooses (AF-139).
+  const [{ history: asked }, setScope] = useUrlState(SCOPE_DEFAULTS)
+  const starts = winnerStarts(rows(data, 'starts'))
+  const block = historyBlock({ races: starts, layouts, seasons: rows(data, 'seasons'), reference: starts.at(-1) ?? null, asked })
   // VD-62: the photograph identifies the place, beside the heading - not a
   // hero, and not in place of the outline, which leads in the opening slot
   // beside the header (VD-74, VD-84). canShow() before anything
   // is drawn, so a row with nobody to credit leaves the page as it was.
   const photograph = rows(data, 'photograph').find(canShow) ?? null
-  // AF-96: the lap over it, where a placing was fitted on this very file.
-  const trace = photograph ? photoTrace(geometry, photograph) : null
+  // AF-177: F1DB's outline over it, where one was placed on this very file.
+  const drawnOver = photograph ? photoOutline(outlines, photograph) : null
   // VD-83: what sits beside the lead in *Every layout raced here* - the
   // timeline's rows with their cards behind a disclosure, or, with no
   // timeline, the other drawings behind the same one.
@@ -281,8 +277,8 @@ function CircuitBody({ circuit, data }) {
             <CommonsImage
               image={photograph}
               width={PHOTOGRAPH_WIDTH}
-              alt={photographAlt(circuit.name, Boolean(trace))}
-              trace={trace}
+              alt={photographAlt(circuit.name, Boolean(drawnOver))}
+              trace={drawnOver}
             />
           </div>
         )
@@ -341,13 +337,7 @@ function CircuitBody({ circuit, data }) {
         )}
       </div>
 
-      <WinnerStarts
-        races={winnerStarts(rows(data, 'starts'))}
-        everywhere={firstRow(data, 'everywhere')}
-        layouts={layouts.length}
-        winners={winners}
-        teams={teams}
-      />
+      <WinnerStarts title={STARTS_HEADING} block={block} onScope={(scope) => setScope({ history: scope })} />
 
       {/* AF-23: this page used to draw the circuit twice — the ODbL trace and
           then every layout F1DB draws (AF-03) — two pictures of one thing,
@@ -460,48 +450,6 @@ function CircuitBody({ circuit, data }) {
 
       <Onward {...ONWARD.circuit({ races, winners })} />
     </Page>
-  )
-}
-
-/**
- * Where winners start here (AF-133): the figures, the grid (or, on a phone,
- * the strip) with its numbers, and the chips by decade - all from
- * queries/circuit.js, which scripts/prerender.js prints too. Nothing where
- * no race here has been run.
- */
-function WinnerStarts({ races, everywhere, layouts, winners, teams }) {
-  if (races.length === 0) return null
-  const table = startsTable(races)
-  return (
-    <Section title={STARTS_HEADING} note={startsLine(races, layouts)}>
-      <Fields items={startsFigures(races, everywhere, winners, teams)} />
-      {table.some((row) => row.key.startsWith('slot-')) && (
-        <Figure note={startsNote(drawnColours(races))} table={{ rows: table, columns: STARTS_COLUMNS }}>
-          <GridStarts races={races} label={startsLabel(table)} />
-        </Figure>
-      )}
-      <h3>{TIMELINE_HEADING}</h3>
-      <ol className="win-decades">
-        {byDecade(races).map(({ decade, races: here }) => (
-          <li key={decade}>
-            <span className="win-decade">{decade}</span>
-            <ol className="win-chips">
-              {here.map((race) => (
-                <li key={race.key} className="win-chip">
-                  {race.colour && <LiveryMark colour={race.colour} year={race.year} />}
-                  <Link to={`/races/${race.year}/${race.round}`}>
-                    {race.year}
-                    <span className="sr-only">{chipRace(race)}</span>
-                  </Link>{' '}
-                  {race.team ?? EMPTY}{' '}
-                  <b>{chipStart(race)}</b>
-                </li>
-              ))}
-            </ol>
-          </li>
-        ))}
-      </ol>
-    </Section>
   )
 }
 

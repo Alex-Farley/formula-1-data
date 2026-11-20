@@ -3,13 +3,13 @@ import { ownColour } from '../charts/own.js'
 import { PODIUM_LABEL, podiumTeam } from '../lib/podium.js'
 
 /**
- * A race's top three as steps (AF-135, VD-108; design-system.md section 3,
- * *Podium*): read first to third, and stood second, first, third by
- * app.css. Each step names its place, driver and team - and on a race page
- * where the driver started - so the team's colour is never the only cue; a
- * team with no colour on record stands as an outline. `steps` is
- * lib/podium.js's podium(). scripts/prerender.js's podiumHtml() writes the
- * same markup, on home and on every race page.
+ * Home's podium, the last race run's top three as steps (AF-135;
+ * design-system.md section 3, *Season cycle*): read first to third, and
+ * stood second, first, third by app.css. Each step names its place, driver
+ * and team, so the team's colour is never the only cue; a team with no
+ * colour on record stands as an outline. `steps` is lib/podium.js's
+ * podium(), which a race page's slabs (components/RacePodium.jsx, VD-108)
+ * stand too. scripts/prerender.js's podiumHtml() writes the same markup.
  */
 export default function Podium({ steps }) {
   return (

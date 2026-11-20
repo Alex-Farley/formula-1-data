@@ -690,13 +690,177 @@ main {
   height: var(--space-8);
 }
 
-/* VD-108: a race's podium, in its header under the weather line, at the
-   lede's measure - on a phone under the standfirst and above the tiles,
-   where the header already falls. The panel's rule and label are home's
-   round panel's. */
-.race-podium {
-  margin: var(--space-8) 0 0;
-  max-width: var(--measure);
+/* VD-108: a race's podium where its tiles stood (the stepped podium
+   approved on #1330). Three slabs read first to third, as the markup lists
+   them, and stood second, first, third from 768 px, stepped like a podium
+   and aligned to the floor; on a phone they stack in reading order. Each
+   slab is its team's colour pair (.livery-series), its words in the ink
+   lib/podium.js's inkOn() chose for each of the pair's two values, or the
+   page's ink on a panel under a rule where the team has no colour on
+   record - the words carry it either way. */
+.race-podium > .eyebrow {
+  margin: 0 0 var(--space-3);
+}
+
+.race-slabs {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1fr; /* three slabs of one podium, the winner's the wider: tracks of a drawing, not page columns */
+  align-items: end;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.race-slab {
+  position: relative;
+  display: grid;
+  align-content: end;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+}
+
+.race-slab.livery-series {
+  background: var(--livery);
+  color: var(--slab-ink-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) .race-slab.livery-series {
+    color: var(--slab-ink-dark);
+  }
+}
+
+:root[data-theme='dark'] .race-slab.livery-series {
+  color: var(--slab-ink-dark);
+}
+
+.race-slab-plain {
+  background: var(--panel);
+  border-top: 1px solid var(--ink);
+  color: var(--ink);
+}
+
+/* The heights of the three steps, 120, 104 and 92 px, as the mockup
+   measured them: the winner's the tallest, third the lowest. */
+.race-slab-1 {
+  order: 2;
+  min-height: calc(var(--space-10) + var(--space-9) + var(--space-7));
+}
+
+.race-slab-2 {
+  order: 1;
+  min-height: calc(var(--space-10) + var(--space-9));
+}
+
+.race-slab-3 {
+  order: 3;
+  min-height: calc(var(--space-10) + var(--space-8) + var(--space-2));
+}
+
+/* The place, large and faint behind the words: a picture of the step, read
+   in words by the line under it, so hidden from assistive technology. */
+.race-slab-num {
+  position: absolute;
+  top: calc(var(--space-3) * -1);
+  right: var(--space-4);
+  font-family: var(--disp);
+  font-weight: var(--weight-bold);
+  font-size: 6.4em;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.race-slab-first {
+  font-weight: var(--weight-medium);
+  font-size: var(--size-3);
+  line-height: 1.2;
+}
+
+.race-slab-surname {
+  font-family: var(--disp);
+  font-weight: var(--weight-bold);
+  font-size: var(--size-8);
+  line-height: 0.95;
+  overflow-wrap: anywhere; /* in the words as written: capitals are the page title's alone [D-66], so the mockup's are not built */
+}
+
+.race-slab-1 .race-slab-surname {
+  font-size: var(--size-9);
+}
+
+.race-slab-surname a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.race-slab-surname a:hover {
+  text-decoration: underline;
+}
+
+.race-slab-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-2);
+  font-weight: var(--weight-medium);
+  font-size: var(--size-2);
+  line-height: 1.3;
+}
+
+/* Places made or lost from the grid: white on a green or a red that holds
+   4.5:1 against it on any slab, and "held" in the slab's own ink, ruled. */
+.race-slab-move {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+
+.race-slab-move.up {
+  background: var(--move-up);
+  color: var(--on-move);
+}
+
+.race-slab-move.down {
+  background: var(--move-down);
+  color: var(--on-move);
+}
+
+.race-slab-move.held {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+/* The strip's other tiles, on one line under the podium. */
+.race-also {
+  margin: var(--space-4) 0 0;
+  font-size: var(--size-3);
+  color: var(--ink-soft);
+}
+
+.race-also b {
+  font-weight: var(--weight-medium);
+  color: var(--ink-faint);
+}
+
+@media (width < 768px) {
+  .race-slabs {
+    grid-template-columns: 1fr; /* one slab a row, in reading order */
+  }
+
+  .race-slab-1,
+  .race-slab-2,
+  .race-slab-3 {
+    order: 0;
+    min-height: 0;
+    border-radius: var(--radius);
+  }
 }
 
 /* The weekend's sessions, the words the lap stands for: each one's mark as
@@ -2638,6 +2802,7 @@ p.note,
 .figure-note,
 .source-note,
 .disagreement-why,
+.disagreement-pointer,
 p.measure,
 p.faint {
   font-family: var(--serif);
@@ -2740,6 +2905,38 @@ p.faint {
   color: var(--ink-soft);
   margin: var(--space-3) 0 0;
   overflow-wrap: anywhere; /* a source's address in the note has no break in it (AF-110) */
+}
+
+/* A race page's box, folded (VD-131): after the classification, closed to
+   its one-line heading, the frame round it as it is open. The heading runs
+   inline beside the disclosure's marker, so the closed box is one line. */
+.disagreement > details > summary {
+  cursor: pointer;
+}
+
+.disagreement > details > summary > h2 {
+  display: inline;
+}
+
+.disagreement > details[open] > summary {
+  margin-bottom: var(--space-5);
+}
+
+/* The line above the classification that says what the folded box holds and
+   links to it: a note attached to the table under it, so it sits the
+   section gap below the block before it and close over the table, or over
+   the shared-drive note where one stands between (1957/5), which has no
+   margin above it of its own. */
+.disagreement-pointer {
+  font-size: var(--size-4);
+  color: var(--ink-soft);
+  max-width: var(--measure);
+  margin: var(--space-9) 0 0;
+}
+
+.page > .disagreement-pointer + .section,
+.page > .disagreement-pointer + .note-box {
+  margin-top: var(--space-5);
 }
 
 /* A source line set at the small measure: four columns from --bp-desktop.
@@ -3090,7 +3287,8 @@ figure.photo[data-state='failed'] img {
   display: none;
 }
 
-/* The lap over a circuit's aerial photograph (AF-96). The frame is the
+/* F1DB's outline over a circuit's aerial photograph (AF-177; the
+   OpenStreetMap lap until then, AF-96). The frame is the
    picture's own box, and the line's viewBox is the photograph's stored frame
    fitted the way object-fit: contain fits the pixels, so the two agree at any
    width and inside the header's capped height. A casing under the line keeps
@@ -3337,8 +3535,11 @@ figure.photo figcaption a {
 
   /* A grid item holds its own margins, where a block let a margin under the
      header, a disagreement or a section's last paragraph collapse into the
-     40 px above the next section. These keep every gap the one it was. */
+     40 px above the next section. These keep every gap the one it was; a
+     race's folded disagreements stand before the slot, which the grid lifts
+     into the band, so the section after the slot is the next block (VD-131). */
   .page:has(> .slot) > :has(+ .section),
+  .page:has(> .slot) > .disagreement:has(+ .slot),
   .page:has(> .slot) > .section > :last-child {
     margin-bottom: 0;
   }
@@ -3930,6 +4131,14 @@ figure.figure > .figure-note:first-child {
   font-weight: var(--weight-semibold);
 }
 
+/* A driver's career as a line through its dots (VD-124): thinner than a
+   line chart's and at half strength, so it reads as the shape between the
+   dots, which carry the values, and never as a mark of its own. */
+.figure .career-line {
+  stroke-width: 1.5;
+  stroke-opacity: 0.5;
+}
+
 /* A numbered marker: a disc in ink, ringed in the panel's colour so it
    reads over a gridline or a line, on a hairline to its point. */
 .figure .anno-marker line {
@@ -3997,6 +4206,33 @@ figure.figure > .figure-note:first-child {
   font-weight: var(--weight-semibold);
 }
 
+/* The key beside a full-width chart (VD-123, home's rounds per season;
+   Figure's `keyBeside`): in two columns under the plot from 768, where one
+   column of notes would run the measure's width for a line apiece, and
+   beside it from 1180, three page columns wide, its top rule a step
+   stronger, as the plot keeps the rest. On a phone it stays under the plot
+   in one column, its text reflowing rather than shrinking. */
+@media (width >= 768px) {
+  .figure.key-beside > .figure-body .figure-key {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 1180px) {
+  .figure.key-beside > .figure-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--span-3);
+    gap: var(--space-7) var(--space-8);
+    align-items: start;
+  }
+
+  .figure.key-beside > .figure-body .figure-key {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 0;
+    border-top-color: var(--rule-strong);
+  }
+}
+
 /* The ring round a dot the caller flagged - a season finished first, on a
    driver's page (VD-34). Drawn in the series' own colour, which the element
    carries as a stroke, and at full strength: that colour is the pair
@@ -4056,6 +4292,40 @@ figure.figure > .figure-note:first-child {
   stroke-width: 1.5;
 }
 
+/* What is still ahead of a column (VD-123): a season's rounds to come,
+   dashed over the rounds it has run, the column's width, in the column's
+   own colour, which the element carries as its stroke - at full strength,
+   so each dash holds the colour's 3:1 on the panel, and the gaps are what
+   tell it from the solid column at any width. */
+.figure .column-ahead {
+  stroke-dasharray: 3 2;
+}
+
+/* A constructor's season of no win (VD-125): a dashed stub on the baseline
+   in the column's colour, so a season entered and not won reads as one,
+   not as a gap in the axis. 2 px, so a whole pixel of the colour reaches
+   the screen (DP-33), and dashed, so it is never read as a column of one. */
+.figure .column-zero {
+  stroke-width: 2;
+  stroke-dasharray: 2 2;
+}
+
+/* A constructors' title (VD-125): a square in ink under its season's
+   column, the second cue beside colour that is shape; the kicker's square
+   over the figure says what it means. */
+.figure .column-title {
+  fill: var(--ink);
+}
+
+.figure-kicker .title-square {
+  display: inline-block;
+  width: 6px; /* the plot's title square (5 px), a pixel larger at text size */
+  height: 6px;
+  margin: 0 var(--space-2);
+  vertical-align: 1px;
+  background: var(--ink);
+}
+
 /* The reach chart (AF-132): the most a contender could still score, drawn
    on from the points they have. The bar's own colour outlined at full
    strength and 2 px wide (DP-33), which is what carries 3:1 against the
@@ -4072,6 +4342,53 @@ figure.figure > .figure-note:first-child {
   stroke: var(--ink);
   stroke-width: 1.5;
   stroke-dasharray: 4 3;
+}
+
+/* The clinch strip (AF-138): a cell per place a rival could finish, its
+   colour and its symbol both saying what that finish does to the title -
+   the status pairs for champion and level, the series ink for the title
+   going on. The outline and the symbol are what carry 3:1 against the
+   panel; the wash inside carries nothing. The leader's own place has no
+   cell, only a dash in faint ink. */
+.figure .clinch-symbol {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.figure .clinch-champion rect {
+  fill: var(--good-wash);
+  stroke: var(--good);
+  stroke-width: 1.5;
+}
+
+.figure .clinch-champion .clinch-symbol {
+  stroke: var(--good);
+}
+
+.figure .clinch-level rect {
+  fill: var(--warn-wash);
+  stroke: var(--warn);
+  stroke-width: 1.5;
+}
+
+.figure .clinch-level .clinch-symbol {
+  stroke: var(--warn);
+}
+
+.figure .clinch-on rect {
+  fill: var(--panel-sunk);
+  stroke: var(--series-ink);
+  stroke-width: 1;
+}
+
+.figure .clinch-on .clinch-symbol {
+  stroke: var(--series-ink);
+}
+
+.figure .clinch-taken .clinch-symbol {
+  stroke: var(--ink-faint);
 }
 
 /* Where winners start (AF-133): the starting grid and its phone form, the
@@ -4179,11 +4496,44 @@ figure.figure > .figure-note:first-child {
    accent (VD-94), one that was not classified fainter, dashed, ending on a
    cross - three channels, so the colour is never the only one, and the
    winner's result and name are printed at its end. The names are ink at the
-   axis size; the leader is the gridline's own faint rule, dotted. */
+   axis size; the leader is the gridline's own faint rule, dotted.
+   VD-113: the race's biggest moves in full ink at 2.5 px, labelled on the
+   line, over a field drawn lighter at 1.2 px - still in --series-ink, not
+   the mockup's --rule-strong, which is 1.5:1 on the panel and under the
+   3:1 a chart series owes (section 7) - and the winner at the same 2.5 px
+   in the accent. The weight is the emphasis, and the label and the
+   semibold name at the end are its second cue. */
 .figure .flag-line {
   stroke: var(--series-ink);
-  stroke-width: 1.5;
+  stroke-width: 1.2;
   fill: none;
+}
+
+.figure .flag-strong .flag-line {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+
+.figure .flag-strong .flag-start,
+.figure .flag-strong .flag-end {
+  fill: var(--ink);
+}
+
+.figure .flag-strong .flag-name,
+.figure .flag-won .flag-name {
+  font-weight: var(--weight-semibold);
+}
+
+/* A picked line's label, in the label register over a halo of the panel,
+   so it reads across the lines under it. */
+.figure .flag-note {
+  fill: var(--ink);
+  font-size: var(--size-3);
+  font-weight: var(--weight-semibold);
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 5px;
+  stroke-linejoin: round;
 }
 
 .figure .flag-start,
@@ -4193,7 +4543,7 @@ figure.figure > .figure-note:first-child {
 
 .figure .flag-won .flag-line {
   stroke: var(--series-mark);
-  stroke-width: 2;
+  stroke-width: 2.5;
 }
 
 .figure .flag-won .flag-start,
@@ -4819,6 +5169,26 @@ figure.figure > .figure-note:first-child {
 :root[data-theme='dark'] .face-off-owned {
   --face-a: var(--face-a-dark);
   --face-b: var(--face-b-dark, var(--ink));
+}
+
+/* Every other team-mate's block (VD-130), behind one closed disclosure under
+   the first three, its faces turned as a table's fold turns them. */
+.face-fold > summary {
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--rule-strong);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.face-fold > summary:hover {
+  color: var(--ink);
+}
+
+.face-fold[open] .fold-more,
+.face-fold:not([open]) .fold-less {
+  display: none;
 }
 
 .face-headline {

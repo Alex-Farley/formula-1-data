@@ -68,7 +68,7 @@ import {
   yearList,
 } from '../src/lib/format.js'
 import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../src/lib/tiles.js'
-import { podiumTeam } from '../src/lib/podium.js'
+import { podiumTeam, slab } from '../src/lib/podium.js'
 import {
   FOLD_LESS,
   FOLD_NOUN,
@@ -159,7 +159,18 @@ import {
   NOT_FOUND_LEDE,
   titled,
 } from '../src/lib/site.js'
-import { DRIVER_READINGS, EXPLAINED_FOOTER, OPEN_FOOTER, allExplained, byReading, explainedHeading, fieldLabel } from '../src/lib/disagreement.js'
+import {
+  DRIVER_READINGS,
+  EXPLAINED_FOOTER,
+  FOLDED_ID,
+  OPEN_FOOTER,
+  POINTER_LINK,
+  allExplained,
+  byReading,
+  explainedHeading,
+  fieldLabel,
+  openHeading,
+} from '../src/lib/disagreement.js'
 import {
   CHANGES_DESCRIPTION,
   CHANGES_LEDE,
@@ -247,7 +258,9 @@ import {
   SEASON_SOURCES,
   STANDINGS as SEASON_STANDINGS,
   TITLE_RACE_COLUMNS,
+  TIE_SOURCES,
   TITLE_SOURCES,
+  PLACES,
   WON_HERE,
   WON_HERE_COLUMNS,
   WON_HERE_HEADING,
@@ -286,7 +299,9 @@ import {
   BOARD,
   BOARD_HEADING,
   BOARD_NOTE,
+  CHART_COLUMNS,
   CHART_HEADING,
+  CHART_HEIGHT,
   CLASSIFICATION_LINK,
   CYCLE,
   FIGHT_TEAMS,
@@ -317,7 +332,10 @@ import {
   WON_BY,
   WON_FOR,
   calendarLink,
+  chartData,
+  chartLabel,
   chartNote,
+  chartNotes,
   openingCaption,
   openingRace,
   reading,
@@ -398,12 +416,14 @@ import {
   stintsNote,
   gridFlagLabel,
   gridFlagNote,
+  gridFlagStory,
   gridFlagUndrawn,
   inClassificationOrder,
   LAYOUT_RACED_JOIN,
   QUALIFYING_LAPS,
   qualifyingColumns,
   raceLede,
+  raceAlso,
   racePodium,
   RACE_PODIUM_HEADING,
   raceStrip,
@@ -413,6 +433,7 @@ import {
 } from '../src/queries/race.js'
 import {
   BY_SEASON as TEAM_BY_SEASON,
+  CHAMPIONS as TEAM_CHAMPIONS,
   CONSTRUCTOR_SOURCES,
   DERIVED as TEAM_DERIVED,
   DESIGNS,
@@ -443,10 +464,15 @@ import {
   TEAM_COLUMNS,
   OUTLINES as CIRCUIT_OUTLINES,
   PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
+  GRAND_PRIX_STARTS,
+  GRAND_PRIX_STARTS_HEADING,
+  HISTORY_SAYS_HEADING,
+  NEXT_RACE_STARTS,
+  RACE_LAYOUTS,
   STARTS,
   STARTS_COLUMNS,
-  STARTS_EVERYWHERE,
   STARTS_HEADING,
+  STARTS_SEASONS,
   TIMELINE_HEADING,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
@@ -457,10 +483,9 @@ import {
   heldAs,
   photographAlt as circuitPhotographAlt,
   racesCount as circuitRacesCount,
+  historyBlock,
   startTitle,
-  startsFigures,
   startsLabel,
-  startsLine,
   startsNote,
   startsTable,
   winnerStarts,
@@ -565,6 +590,8 @@ import {
   otherLayouts,
   outlineCaption,
   outlineLabel,
+  PHOTO_OUTLINE_BY,
+  photoOutline,
   raceLayoutNote,
   roundShortName,
   roundStates,
@@ -649,6 +676,7 @@ import {
   STANDINGS,
   TEAM_MATES,
   WINS_AT,
+  TITLE_RUNNERS_UP,
   TEAM_MATE_COLUMNS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
@@ -673,7 +701,7 @@ import {
   teamsBySeason,
 } from '../src/queries/driver.js'
 import { faceColours } from '../src/charts/own.js'
-import { OSM_COPYRIGHT, TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, photoTrace, traceFields } from '../src/lib/trace.js'
+import { TRACE_HEADING, TRACE_RULE, noTrace, odblCredit, traceFields } from '../src/lib/trace.js'
 import {
   COMPARE_DESCRIPTION,
   COMPARE_LEDE,
@@ -775,6 +803,7 @@ import { columnLayout } from '../src/charts/columnChart.js'
 import { lineLayout } from '../src/charts/lineChart.js'
 import { MARKER } from '../src/charts/annotate.js'
 import { reachLayout } from '../src/charts/reachChart.js'
+import { clinchLayout } from '../src/charts/clinchStrip.js'
 import { dotStrip, drawnColours, gridDiagram } from '../src/charts/gridStarts.js'
 import { INK, MARK, seriesDash, slotColour } from '../src/charts/palette.js'
 import {
@@ -834,6 +863,10 @@ const prepared = (sql) => {
 }
 const all = (sql, ...params) => prepared(sql).all(...params)
 const one = (sql, ...params) => prepared(sql).get(...params) ?? null
+
+/* Where winners start's comparison at every circuit (AF-133, AF-139),
+   season by season: one reading, for every page that draws the block. */
+const STARTS_BY_SEASON = all(STARTS_SEASONS)
 
 /* A driver's standings, from a copy of v_standings_final. The view is
    evaluated whole for every query that reads it - its windows and CTEs run
@@ -1247,20 +1280,24 @@ const stats = (items) => {
  * this file draws a strip and never writes one. lib/tiles.js says what each
  * field means.
  */
+const tileValueHtml = (item) => {
+  if (item.date) return dateHtml(item.value)
+  const drawn = tileSegments(item)
+    .map(({ label, href }) => {
+      const shown = typeof label === 'number' ? formatted(label) : label
+      return href ? link(href, shown) : esc(shown)
+    })
+    .join(esc(TILE_JOIN))
+  return item.quiet ? `<span class="muted tile-quiet">${drawn}</span>` : drawn
+}
+
 const tiles = (items) =>
   stats(
     items.map((item) => {
       if (!item) return null
       // Not established: stats() draws the em dash, with no link to follow.
       if (unestablished(item)) return { ...item, value: null }
-      if (item.date) return { ...item, value: dateHtml(item.value) }
-      const drawn = tileSegments(item)
-        .map(({ label, href }) => {
-          const shown = typeof label === 'number' ? formatted(label) : label
-          return href ? link(href, shown) : esc(shown)
-        })
-        .join(esc(TILE_JOIN))
-      return { ...item, value: item.quiet ? `<span class="muted tile-quiet">${drawn}</span>` : drawn }
+      return { ...item, value: tileValueHtml(item) }
     }),
   )
 
@@ -1341,8 +1378,9 @@ const timeline = (milestones) =>
  * Most drawings are not here — a React component reading a layout this
  * file has no way to run — and that is the whole of what the static half is
  * missing; grid to flag and the stints are drawn, from layouts both halves
- * share, and so are the three lead charts, which leadFigure() below frames
- * as the app does, their numbers behind its disclosure. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words: it is the
+ * share, and so are the three lead charts and home's rounds per season
+ * (VD-123), which leadFigure() below frames as the app does, their numbers
+ * behind its disclosure. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words: it is the
  * copy of the figure that a keyboard, a screen reader and anything pasting
  * it elsewhere can actually use, and it is what both halves carry. It is
  * open here rather than behind the app's disclosure, because there is no
@@ -1351,8 +1389,10 @@ const timeline = (milestones) =>
 // What the numbers hold that the plot does not draw is their table's own
 // source line, in that table's band (`footer` on fromColumns), as Figure.jsx
 // passes `table.footer` to DataTable (VD-86); the figure prints none of its own.
-const figure = (name, figureNote, body, { plot = '' } = {}) =>
-  `<figure class="figure" aria-label="${esc(name)}">${plot ? `<div class="figure-body">${plot}</div>` : ''}<p class="figure-note"><span>${esc(
+// A `finding` and its `kicker` (the annotation pattern, VD-121) are set over
+// the figure, as Figure.jsx sets them: Grid to flag's (VD-113).
+const figure = (name, figureNote, body, { plot = '', finding = null, kicker = null } = {}) =>
+  `${finding ? `<p class="figure-finding">${esc(finding)}</p>${kicker ? `<p class="figure-kicker">${esc(kicker)}</p>` : ''}` : ''}<figure class="figure" aria-label="${esc(name)}">${plot ? `<div class="figure-body">${plot}</div>` : ''}<p class="figure-note"><span>${esc(
     figureNote,
   )}</span></p>${body}</figure>`
 
@@ -1404,7 +1444,7 @@ const gridFlagSvg = (layout, label) => {
           : `<circle class="flag-end" cx="${car.x2}" cy="${car.y2}" r="2.5"/>`) +
         `${t('axis-text flag-result', layout.labelX, car.y2, car.result, mid)}${t('flag-name', layout.nameX, car.y2, car.name, mid)}</g>`,
     )
-    .join('')}</svg></div>`
+    .join('')}${layout.notes.map((note) => t('flag-note', note.x, note.y, note.text, ` text-anchor="${note.anchor}"${mid}`)).join('')}</svg></div>`
 }
 
 /*
@@ -1533,8 +1573,8 @@ const tidy = (path) => path.replace(/\s+/g, ' ').replace(/-?\d+\.\d{3,}/g, (n) =
 // A colour pair as own.js hands it to an element: the two custom
 // properties `.livery-series` resolves per theme, and the class with them.
 const pairStyle = (colour) => esc(`--livery-light: ${colour.light}; --livery-dark: ${colour.dark}`)
-// components/Podium.jsx, on home and in a race's header (AF-135, VD-108):
-// first to third in the markup, stood by app.css.
+// components/Podium.jsx, home's podium (AF-135): first to third in the
+// markup, stood by app.css.
 const podiumHtml = (list) =>
   `<ol class="podium" aria-label="${esc(PODIUM_LABEL)}">${list
     .map(
@@ -1569,12 +1609,18 @@ const xAxis = (layout) =>
     .map((tick) => `<text class="axis-text" x="${px(tick.x)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(tick.text)}</text>`)
     .join('')
 
-/* DotPlot.jsx at rest: the halo on a flagged dot, then the dots, each in its
-   own colour's group where it has one, hollow in ink where it has none. */
+/* DotPlot.jsx at rest: a career's line under everything (VD-124), the halo
+   on a flagged dot, then the dots, each in its own colour's group where it
+   has one, hollow in ink where it has none, and the numbered markers. */
 const dotPlotSvg = (chart, width) => {
   const layout = dotPlotLayout({ ...chart, width })
   if (!layout) return ''
   const paint = (d) => (d.colour ? 'var(--livery)' : INK)
+  const line = layout.linePath
+    ? `<g${ownAttrs(layout.lineColour)}><path class="career-line" d="${tidy(layout.linePath)}" fill="none" stroke="${
+        layout.lineColour ? 'var(--livery)' : INK
+      }" stroke-linejoin="round" stroke-linecap="round"/></g>`
+    : ''
   const halos = layout.points
     .filter(({ d }) => d.mark)
     .map(
@@ -1592,27 +1638,56 @@ const dotPlotSvg = (chart, width) => {
         }"/></g>`,
     )
     .join('')
-  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${halos}${dots}`)}</div>`
+  const markers = layout.markers.map(markerSvg).join('')
+  return `<div class="plot-holder">${plotSvg(layout, chart.label, `${yAxis(layout)}${xAxis(layout)}${line}${halos}${dots}${markers}`)}</div>`
 }
 
-/* ColumnChart.jsx at rest: the columns in the entity's colour or in ink, a
-   marked one in the accent and a hollow one outlined, the printed values
-   over theirs, and every labelEvery-th season under the axis. */
+/* ColumnChart.jsx at rest: the shaded bands under everything, the columns
+   in the entity's colour or in ink, a marked one in the accent and a hollow
+   one outlined, a season of nothing as a dashed stub on the baseline, what
+   is still ahead of a column dashed over it, a title's square under it, the
+   printed values over theirs, the labelled seasons under the axis, and the
+   numbered markers over the columns (VD-123, VD-125). */
 const columnSvg = (chart, colour, width) => {
   const layout = columnLayout({ ...chart, width })
   if (!layout) return ''
   const paint = (d) => (d.hollow ? 'none' : colour ? 'var(--livery)' : d.mark ? MARK : INK)
+  const bands = layout.bands
+    .map((b) => `<rect class="plot-band" x="${px(b.x)}" y="${px(b.y)}" width="${px(b.width)}" height="${px(b.height)}"/>`)
+    .join('')
   const columns = layout.columns
     .map(
       (c) =>
-        `<g><path${c.d.hollow ? ' class="column-hollow"' : ''} d="${tidy(c.path)}" fill="${paint(c.d)}"/>${
+        `<g>${
+          c.zero
+            ? `<line class="column-zero" x1="${px(c.zero.x1)}" x2="${px(c.zero.x2)}" y1="${px(c.zero.y)}" y2="${px(c.zero.y)}" stroke="${
+                paint(c.d) === 'none' ? INK : paint(c.d)
+              }"/>`
+            : `<path${c.d.hollow ? ' class="column-hollow"' : ''} d="${tidy(c.path)}" fill="${paint(c.d)}"/>`
+        }${
+          c.square
+            ? `<rect class="column-title" x="${px(c.square.x)}" y="${px(c.square.y)}" width="${px(c.square.size)}" height="${px(c.square.size)}"/>`
+            : ''
+        }${
+          c.ahead !== null
+            ? `<line class="column-ahead" x1="${px(c.ahead.x)}" x2="${px(c.ahead.x)}" y1="${px(c.ahead.y1)}" y2="${px(c.ahead.y2)}" stroke="${paint(c.d)}" stroke-width="${px(c.ahead.width)}"/>`
+            : ''
+        }${
           c.value !== null ? `<text class="value-text" x="${px(c.centre)}" y="${px(c.top - 6)}" text-anchor="middle">${esc(c.value)}</text>` : ''
         }${c.label !== null ? `<text class="axis-text" x="${px(c.centre)}" y="${px(layout.tickY)}" text-anchor="middle">${esc(c.label)}</text>` : ''}</g>`,
     )
     .join('')
+  const markers = layout.markers.map(markerSvg).join('')
   const holder = colour ? ` class="plot-holder livery-series" style="${pairStyle(colour)}"` : ' class="plot-holder"'
-  return `<div${holder}>${plotSvg(layout, chart.label, `${yAxis(layout)}${columns}`)}</div>`
+  return `<div${holder}>${plotSvg(layout, chart.label, `${bands}${yAxis(layout)}${columns}${markers}`)}</div>`
 }
+
+/* A numbered marker as LineChart.jsx and ColumnChart.jsx draw one (VD-121,
+   VD-123): the hairline from its point, where it has one, and the disc. */
+const markerSvg = (m) =>
+  `<g class="anno-marker">${
+    m.leader ? `<line x1="${px(m.leader.x1)}" y1="${px(m.leader.y1)}" x2="${px(m.leader.x2)}" y2="${px(m.leader.y2)}"/>` : ''
+  }<circle cx="${px(m.cx)}" cy="${px(m.cy)}" r="${MARKER.r}"/><text x="${px(m.cx)}" y="${px(m.cy)}" text-anchor="middle" dominant-baseline="central">${m.n}</text></g>`
 
 /* LineChart.jsx at rest: the shaded bands under everything, each line in
    its slot's dash with its end marked, each end's name and value in the
@@ -1637,14 +1712,7 @@ const lineSvg = (chart, width) => {
       } x="${px(label.x)}" y="${px(label.y)}" dominant-baseline="middle">${words}</text></g>`
     })
     .join('')
-  const markers = layout.markers
-    .map(
-      (m) =>
-        `<g class="anno-marker"><line x1="${px(m.leader.x1)}" y1="${px(m.leader.y1)}" x2="${px(m.leader.x2)}" y2="${px(m.leader.y2)}"/><circle cx="${px(
-          m.cx,
-        )}" cy="${px(m.cy)}" r="${MARKER.r}"/><text x="${px(m.cx)}" y="${px(m.cy)}" text-anchor="middle" dominant-baseline="central">${m.n}</text></g>`,
-    )
-    .join('')
+  const markers = layout.markers.map(markerSvg).join('')
   const lines = layout.lines
     .map(({ s, i, path, end }) => {
       const stroke = s.colour ? 'var(--livery)' : slotColour(i, layout.lines.length)
@@ -1697,6 +1765,54 @@ const reachSvg = (chart, width) => {
   return `<div class="plot-holder">${plotSvg(layout, chart.label, `${bars}${lead}`)}</div>`
 }
 
+/* ClinchStrip.jsx at rest (AF-138): the axis title, each place numbered over
+   its column, and a row per rival - the name, then a cell per place with its
+   mark's class, which app.css colours, and its symbol. */
+const clinchSvg = (strip, width) => {
+  const layout = clinchLayout({ data: strip.data, width })
+  if (!layout) return ''
+  const heads = `<text class="axis-text" x="${px(layout.axis.x)}" y="${px(layout.axis.y)}">${esc(layout.axis.text)}</text>${layout.columns
+    .map((column) => `<text class="axis-text" x="${px(column.x)}" y="${px(layout.columnY)}" text-anchor="middle">${esc(column.text)}</text>`)
+    .join('')}`
+  const rows = layout.rows
+    .map(
+      (row) =>
+        `<g><text class="axis-text bar-label" x="${px(row.labelX)}" y="${px(row.labelY)}" text-anchor="end" dominant-baseline="middle" fill="var(--ink)">${esc(
+          row.label,
+        )}</text>${row.cells
+          .map(
+            (cell) =>
+              `<g class="${cell.className}">${
+                cell.rect
+                  ? `<rect x="${px(cell.rect.x)}" y="${px(cell.rect.y)}" width="${px(cell.rect.width)}" height="${px(cell.rect.height)}" rx="3"/>`
+                  : ''
+              }<path class="clinch-symbol" d="${tidy(cell.symbol)}"/></g>`,
+          )
+          .join('')}</g>`,
+    )
+    .join('')
+  return `<div class="plot-holder">${plotSvg(layout, strip.label, `${heads}${rows}`)}</div>`
+}
+
+/* clinchStrips()'s answer as ClinchStrips draws it (AF-138): a figure part
+   per strip, its table open beneath it, or the sentence saying why a round
+   that could settle the title is not drawn. */
+const clinchParts = (clinch) => {
+  if (!clinch) return ''
+  if (clinch.declined) return `<p class="note follows">${esc(clinch.declined)}</p>`
+  return clinch.strips
+    .map(
+      (strip) =>
+        `<div class="figure-part"><h3>${esc(strip.title)}</h3>${figure(
+          strip.title,
+          strip.note,
+          fromColumns(strip.columns, strip.rows, {}, { unfolded: UNFOLDED.figure }),
+          { plot: clinchSvg(strip, COLUMN_WIDTH) },
+        )}</div>`,
+    )
+    .join('')
+}
+
 /* GridStarts.jsx (AF-133): the starting grid and the dot strip, both, as the
    app draws them - app.css shows the grid from 768 px and the strip below,
    so this markup is the app's at every width and nothing moves at the
@@ -1747,19 +1863,23 @@ const gridStartsSvg = (races, label) => {
   )}</div>`
 }
 
-/* Circuit.jsx's WinnerStarts (AF-133): the heading and its line, the
+/* components/WinnerStarts.jsx (AF-133): the heading and its line, the
    figures, the figure with its numbers open beneath it, and the chips by
-   decade - nothing where no race here has been run. */
-const startsBlock = (races, everywhere, layouts, winners, teams) => {
-  if (!races.length) return ''
-  const table = startsTable(races)
-  const items = startsFigures(races, everywhere, winners, teams).map(({ label, value }) => [label, esc(value)])
+   decade - nothing where no race has been won. `block` is historyBlock()'s
+   over every layout: the reader's switch (AF-139) needs the app, which draws
+   it under the line, as /records' decade chips are the app's alone. `title`
+   is the page's heading for it, and `id` its address where *On this page*
+   links to it. */
+const startsBlock = (block, title, id = null) => {
+  if (!block) return ''
+  const { races, table } = block
+  const items = block.figures.map(({ label, value }) => [label, esc(value)])
   const drawn = table.some((row) => row.key.startsWith('slot-'))
     ? figure(
-        STARTS_HEADING,
+        title,
         startsNote(drawnColours(races)),
         fromColumns(STARTS_COLUMNS, table, {}, { unfolded: UNFOLDED.figure }),
-        { plot: gridStartsSvg(races, startsLabel(table)) },
+        { plot: gridStartsSvg(races, block.label) },
       )
     : ''
   const decades = byDecade(races)
@@ -1778,7 +1898,7 @@ const startsBlock = (races, everywhere, layouts, winners, teams) => {
     )
     .join('')
   // The line under the heading is the section's note, as Section writes it in the app.
-  return `${heading(STARTS_HEADING)}<p class="note">${esc(startsLine(races, layouts))}</p>${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
+  return `${heading(title, null, id)}<p class="note">${esc(block.line)}</p>${fields(items)}${drawn}<h3>${esc(TIMELINE_HEADING)}</h3><ol class="win-decades">${decades}</ol>`
 }
 
 /* Figure.jsx's legend: a swatch per entry, in its livery or its slot's
@@ -1811,10 +1931,28 @@ const legendHtml = (legend) =>
 // stands rather than wrapping the tiles for it.
 const opened = (head, lead) => (lead ? `<section class="section">${head}</section>${lead}` : head)
 
-const leadFigure = ({ heading: name, slot = true, note: figureNote, legend = null, finding = null, kicker = null, annotations = [], plot, table }) =>
+// `lead: false` frames a drawn figure that does not lead its page - home's
+// rounds per season (VD-123) - as Figure.jsx without `lead` does, and
+// `keyBeside` sets its key as Figure's prop of that name.
+const leadFigure = ({
+  heading: name,
+  slot = true,
+  lead = true,
+  keyBeside = false,
+  note: figureNote,
+  legend = null,
+  finding = null,
+  kicker = null,
+  // A kicker already written as markup (VD-125: a constructor's, with its
+  // title square), each text in it escaped by the caller.
+  kickerHtml = kicker ? esc(kicker) : null,
+  annotations = [],
+  plot,
+  table,
+}) =>
   `<section class="${slot ? 'section slot' : 'section'}"><h2>${esc(name)}</h2>${
-    finding ? `<p class="figure-finding">${esc(finding)}</p>${kicker ? `<p class="figure-kicker">${esc(kicker)}</p>` : ''}` : ''
-  }<figure class="figure figure-lead" aria-label="${esc(
+    finding ? `<p class="figure-finding">${esc(finding)}</p>${kickerHtml ? `<p class="figure-kicker">${kickerHtml}</p>` : ''}` : ''
+  }<figure class="${lead ? 'figure figure-lead' : 'figure'}${keyBeside && annotations.length ? ' key-beside' : ''}" aria-label="${esc(
     name,
   )}" aria-describedby="lead-figure-note"><div class="figure-body">${plot}${annotationKey(annotations)}</div>${legendHtml(legend)}<p class="figure-note" id="lead-figure-note"><span>${esc(
     figureNote,
@@ -2020,7 +2158,11 @@ const faceBlock = (block) => {
 }
 const faceOffHtml = (faceOff) =>
   faceOff
-    ? `<p class="face-headline">${esc(faceOff.headline.text)} <em>${esc(faceOff.headline.figure)}</em></p><p class="note">${esc(faceOff.standfirst)}</p>${faceOff.blocks.map(faceBlock).join('')}<p class="faint face-key">${esc(faceOff.note)}</p>`
+    ? `<p class="face-headline">${esc(faceOff.headline.text)} <em>${esc(faceOff.headline.figure)}</em></p><p class="note">${esc(faceOff.standfirst)}</p>${faceOff.blocks.map(faceBlock).join('')}${
+        faceOff.fold
+          ? `<details class="face-fold"><summary><span class="fold-more">${esc(faceOff.fold.more)}</span><span class="fold-less">${esc(faceOff.fold.less)}</span></summary>${faceOff.more.map(faceBlock).join('')}</details>`
+          : ''
+      }<p class="faint face-key">${esc(faceOff.note)}</p>`
     : ''
 
 // components/ValueBar.jsx: a figure and its bar, `share` of the leader's, in
@@ -2181,24 +2323,31 @@ const namesItsMaker = (name, maker) => {
  * Both values are shown because neither has been established as the right one.
  * Naming one correct here would be exactly the silent pick the table exists to
  * avoid. Markup and class names match components/Disagreement.jsx, so the static
- * page and the app render the same thing.
+ * page and the app render the same thing. `folded` is a race page's (VD-131):
+ * the box after the classification, closed to its heading, as Race.jsx
+ * passes it.
  */
-const disagree = (rows, what) => byReading(rows).map((group) => readings(group, what)).join('\n')
+const disagree = (rows, what, folded = false) =>
+  byReading(rows)
+    .map((group, i) => readings(group, what, folded, folded && i === 0 ? FOLDED_ID : null))
+    .join('\n')
+
+// The line above a race's classification pointing to the folded box, in the
+// box's own heading: components/Disagreement.jsx's DisagreementPointer.
+const disagreementPointer = (rows, what) =>
+  rows.length
+    ? `<p class="disagreement-pointer">${esc(openHeading(what, rows.length))}: <a href="#${FOLDED_ID}">${esc(POINTER_LINK)}</a>.</p>`
+    : ''
 
 // The same two readings as the app's Disagreement component, each group in an
 // aside of its own: explained rows - a span the register and the records
 // define differently (CD-25), a stored total with its gap explained (DA-43) -
 // are introduced as readings, open ones as a disagreement to settle.
-const readings = (rows, what) => {
+const readings = (rows, what, folded = false, id = null) => {
   const explained = allExplained(rows)
-  return `<aside class="disagreement" aria-label="${explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}">
-    <h2>${
-      explained
-        ? esc(explainedHeading(what))
-        : rows.length === 1
-          ? `Two sources disagree about ${esc(what)}`
-          : `Two sources disagree about ${esc(what)}, in ${rows.length} places`
-    }</h2>
+  const heading = `<h2>${esc(explained ? explainedHeading(what) : openHeading(what, rows.length))}</h2>`
+  return `<aside class="disagreement"${id ? ` id="${id}"` : ''} aria-label="${explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}">
+    ${folded ? `<details><summary>${heading}</summary>` : heading}
     <dl>${rows
       .map(
         (d) => `<div><dt>${esc(fieldLabel(d.field))}</dt><dd>
@@ -2211,7 +2360,7 @@ const readings = (rows, what) => {
       explained ? EXPLAINED_FOOTER : OPEN_FOOTER
     }${link('data/quality', 'the quality page')}.${
       explained ? '' : ` ${esc(SETTLE_ASK)}<a href="${esc(REPORT_URL)}">${esc(SETTLE_LINK)}</a>.`
-    }</p>
+    }</p>${folded ? '</details>' : ''}
   </aside>`
 }
 
@@ -2471,9 +2620,10 @@ const outbound = (url, label, name = null) =>
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
  *
- * `trace` is the lap over a circuit's photograph (AF-96), photoTrace()'s, as
- * CommonsImage draws it: the same frame, the same two paths, and the same
- * OpenStreetMap credit after the photograph's own.
+ * `trace` is F1DB's outline over a circuit's photograph (AF-177),
+ * photoOutline()'s, as CommonsImage draws it: the same frame, the same two
+ * paths under the same transform, and the same credit after the photograph's
+ * own.
  */
 const photograph = (image, width, caption = null, alt = caption, checks = true, trace = null) => {
   const title = fileTitle(image.file_name)
@@ -2483,12 +2633,12 @@ const photograph = (image, width, caption = null, alt = caption, checks = true, 
   return `<figure class="photo">
         ${
           trace
-            ? `<div class="photo-frame">${picture}<svg class="photo-trace" viewBox="0 0 ${esc(trace.width)} ${esc(trace.height)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path class="photo-trace-casing" d="${esc(trace.d)}"></path><path class="photo-trace-line" d="${esc(trace.d)}"></path></svg></div>`
+            ? `<div class="photo-frame">${picture}<svg class="photo-trace" viewBox="0 0 ${esc(trace.width)} ${esc(trace.height)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path class="photo-trace-casing" d="${esc(trace.d)}" transform="${esc(trace.transform)}"></path><path class="photo-trace-line" d="${esc(trace.d)}" transform="${esc(trace.transform)}"></path></svg></div>`
             : picture
         }
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title, fileLinkName(image))} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
-        }${trace ? ` · Track ${outbound(OSM_COPYRIGHT, '\u00a9 OpenStreetMap contributors')}, ${esc(trace.licence)}` : ''}${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
+        }${trace ? ` · ${esc(PHOTO_OUTLINE_BY)}` : ''}${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}${
           image.route === 'category' ? ` · ${confidencePill(image.confidence)}` : ''
         }</figcaption>
       </figure>`
@@ -2932,11 +3082,9 @@ const structure = (body, tail = '') => {
   // figure's own </figure>, which a photograph holds exactly one of.
   // The eyebrow and the livery band are the header's as well (VD-79): Page
   // draws the one above the h1 and takes the other as its aside. So is a
-  // race's weather line (AF-142), which Race.jsx passes in its aside too,
-  // and its podium under that (VD-108), whose wrapper closes on the steps'
-  // own </ol>.
+  // race's weather line (AF-142), which Race.jsx passes in its aside too.
   const head = body.match(
-    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<div class="race-weather">[\s\S]*?<\/div>)?(\s*<div class="race-podium[\s\S]*?<\/ol>\s*<\/div>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
+    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<div class="race-weather">[\s\S]*?<\/div>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
   )
   if (!head) die('prerender: a page body that does not open on an h1')
   return `<article class="page"><header>${head.slice(1).map((part) => part?.trim() ?? '').join('')}</header>${sectioned(
@@ -3007,6 +3155,37 @@ const TITLE = currentTitle(fightRows, META.built)
   const now = one(SEASON_NOW)
   const lead = all(SEASON_LEAD)
   const { headline, title } = NAMES.home()
+  // The shape of the championship, drawn (VD-123): Home.jsx's figure, its
+  // finding, markers and key from chartNotes(), at the column chart's width,
+  // its numbers behind the app's disclosure. A figure, not a lead one.
+  const shown = chartNotes(seasons)
+  const chartFigure = leadFigure({
+    heading: CHART_HEADING,
+    slot: false,
+    lead: false,
+    keyBeside: true,
+    note: chartNote(seasons),
+    finding: shown.finding,
+    kicker: shown.kicker,
+    annotations: shown.notes,
+    plot: columnSvg(
+      {
+        data: chartData(seasons),
+        height: CHART_HEIGHT,
+        labelPeak: false,
+        label: chartLabel(shape),
+        marks: shown.marks,
+        bands: shown.bands,
+      },
+      null,
+      COLUMN_WIDTH,
+    ),
+    table: table(
+      CHART_COLUMNS.map((c) => c.label),
+      seasons.map((row) => [link(`seasons/${row.year}`, row.year), num(row.rounds), num(row.run)]),
+      { aligns: CHART_COLUMNS.map((c) => c.align), rowHeaders: [true], unfolded: UNFOLDED.figure },
+    ),
+  })
 
   // The winning car's colour, as Home.jsx takes it from the same row.
   const winner = latest
@@ -3164,16 +3343,7 @@ const TITLE = currentTitle(fightRows, META.built)
             count ? `<span class="n">${esc(number(shape[count]))}</span>` : ''
           }</b><p>${esc(blurb)}</p></a>`,
       ).join('')}</div>
-      ${heading(CHART_HEADING)}
-      ${figure(
-        CHART_HEADING,
-        chartNote(seasons),
-        table(
-          ['Season', 'Rounds'],
-          seasons.map((row) => [link(`seasons/${row.year}`, row.year), num(row.rounds)]),
-          { aligns: ['num', 'num'], rowHeaders: [true], unfolded: UNFOLDED.figure },
-        ),
-      )}
+      ${chartFigure}
       ${heading(READING_HEADING)}
       <p class="note">${esc(READING_NOTE)}</p>
       <div class="grid">${reading(shape)
@@ -3313,6 +3483,7 @@ const seasonsTable = (rows) =>
           afterRound: after,
           built: META.built,
           year,
+          places: all(PLACES, year),
         })
       : null
     // The reach charts (AF-132), Season.jsx's, each in a figure part of its
@@ -3326,7 +3497,7 @@ const seasonsTable = (rows) =>
                 plot: reachSvg(f, COLUMN_WIDTH),
               })}</div>`,
           )
-          .join('')}</div>`
+          .join('')}</div>${clinchParts(answer?.clinch)}`
       : ''
     // The title race that leads the page (VD-73): Season.jsx's figure, from
     // queries/season.js, in the slot after the tiles.
@@ -3413,7 +3584,7 @@ const seasonsTable = (rows) =>
     page({
       path: `seasons/${year}`,
       lastmod: LAST_RUN.season.get(String(year)),
-      sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES), { answer, remaining: one(REMAINING, year) ?? null }),
+      sources: seasonSources(all(SEASON_SOURCES, year), all(TITLE_SOURCES), { answer, remaining: one(REMAINING, year) ?? null, tie: all(TIE_SOURCES, year) }),
       title: NAMES.season(year).title,
       description: s.champion && running
         ? `${s.champion} is the ${year} Formula One World Champion, with ${run} of ${s.rounds ?? '?'} rounds run. Every race, winner, pole and fastest lap.`
@@ -3505,7 +3676,7 @@ const seasonsTable = (rows) =>
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
-            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
+            r.f1db_layout_id, r.layout_key, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
             cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
             ${QUALIFYING_LAPS} AS qualifying_laps
        FROM races r
@@ -3581,9 +3752,41 @@ const seasonsTable = (rows) =>
   // the grid in half.
   const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
   // AF-142: the header's weather line, as Race.jsx's RaceWeather writes it.
-  // Race.jsx's RacePodium (VD-108): the header's podium, under the weather.
-  const racePodiumBlock = (steps) =>
-    steps ? `<div class="race-podium round-panel"><p class="eyebrow">${esc(RACE_PODIUM_HEADING)}</p>${podiumHtml(steps)}</div>` : ''
+  // components/RacePodium.jsx (VD-108): the three slabs where the tiles
+  // stood, from lib/podium.js's slab(), and the strip's other tiles on the
+  // line under them, each value drawn as tiles() draws it.
+  const slabHtml = (s) => {
+    const owned = s.vars
+      ? ` livery-series" style="${esc(
+          Object.entries(s.vars)
+            .map(([name, value]) => `${name}: ${value};`)
+            .join(' '),
+        )}`
+      : ' race-slab-plain'
+    const move = s.move
+      ? ` <span class="race-slab-move ${s.move.kind}"><span aria-hidden="true">${esc(s.move.text)}</span><span class="sr-only">${esc(s.move.said)}</span></span>`
+      : ''
+    return `<li class="race-slab race-slab-${s.place}${owned}"><span class="race-slab-num" aria-hidden="true">${esc(s.numeral)}</span> <span class="race-slab-first">${esc(
+      s.first,
+    )}</span> <span class="race-slab-surname">${s.href ? link(s.href, s.surname) : esc(s.surname)}</span> <span class="race-slab-meta"><span>${esc(
+      s.meta,
+    )}</span>${move}</span></li>`
+  }
+  const alsoHtml = (also) =>
+    also.length
+      ? `<p class="race-also">${also
+          .map(
+            (item) =>
+              `<span><b>${esc(item.label)}</b> ${unestablished(item) ? `<span class="empty">${EMPTY}</span>` : tileValueHtml(item)}${
+                item.note ? esc(` · ${item.note}`) : ''
+              }</span>`,
+          )
+          .join(' · ')}</p>`
+      : ''
+  const racePodiumBlock = (steps, also) =>
+    `<div class="race-podium"><p class="eyebrow">${esc(RACE_PODIUM_HEADING)}</p><ol class="race-slabs" aria-label="${esc(
+      PODIUM_LABEL,
+    )}">${steps.map(slab).map(slabHtml).join('')}</ol>${alsoHtml(also)}</div>`
   const weatherBlock = (weather) =>
     weather
       ? `<div class="race-weather"><p>${
@@ -3610,12 +3813,29 @@ const seasonsTable = (rows) =>
   const pitsFrom = one(PITS_FROM)
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
+    // What history says (AF-139), Race.jsx's block from the same queries:
+    // the circuit's every layout, on the next round to run and no other.
+    // NEXT_RACE_SEASONS is STARTS_SEASONS on that round, which this half
+    // has read once already.
+    const nextStarts = winnerStarts(all(NEXT_RACE_STARTS, r.year, r.round))
+    const historyHere = nextStarts.length
+      ? historyBlock({
+          races: nextStarts,
+          layouts: all(RACE_LAYOUTS, r.year, r.round),
+          seasons: STARTS_BY_SEASON,
+          reference: { year: r.year, layout: r.layout_key ?? null },
+          place: r.circuit ? `at ${r.circuit}` : 'at this circuit',
+        })
+      : null
     // The rows as the query returns them, which is the order the strip lists
     // a shared pole or fastest lap in, as the app's does; the tables below
     // take the classification's order.
     const entryRows = all(ENTRIES, r.year, r.round)
     const entries = inClassificationOrder(entryRows)
+    const raceDisagreements = disagreements.all(`${r.year} round ${r.round}`)
     const flag = gridFlagRows(entryRows)
+    // VD-113: its biggest moves, and the finding and kicker they give it.
+    const flagStory = gridFlagStory(flag, undrawnOf(entryRows))
     const km = layoutLength(r)
     const qualifying = withDistance(all(QUALIFYING, r.year, r.round), km, r.qualifying_laps)
     const practice = practiceBySession(all(PRACTICE, r.year, r.round), km)
@@ -3719,14 +3939,18 @@ const seasonsTable = (rows) =>
       body: `
         ${opening({ eyebrow: EYEBROWS.race(r.round, neighbours.rounds, r.date_iso), title: headline, lede: standfirst })}
         ${weatherBlock(raceWeather(one(RACE_WEATHER, r.year, r.round)))}
-        ${racePodiumBlock(racePodium(r, entryRows))}
         ${stepperNav(raceSteps(neighbours))}
-        <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
+        <section class="section">${
+          racePodium(r, entryRows)
+            ? racePodiumBlock(racePodium(r, entryRows), raceAlso(r, entryRows, qualifying))
+            : tiles(raceStrip(r, entryRows, qualifying))
+        }</section>
         ${onThisPage(
           raceSections({
             scheduled,
             timetable: sessions.length > 0,
             stake: isUpcoming(TITLE, r),
+            history: Boolean(historyHere),
             classification: entries.length > 0,
             gridFlag: gridFlagShown(flag),
             qualifying: qualifying.length > 0,
@@ -3740,8 +3964,13 @@ const seasonsTable = (rows) =>
         )}
         ${pending ? datedNoteBox(pending.head, pending.body) : ''}
         ${scheduled ? ownSection(timetable) : ''}
-        ${isUpcoming(TITLE, r) ? ownSection(`<h2 id="stake">${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}`) : ''}
-        ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
+        ${isUpcoming(TITLE, r) ? ownSection(`<h2 id="stake">${esc(STAKE_HEADING)}</h2><p>${esc(TITLE.who)}</p>${TITLE.basis ? `<p class="faint">${dated(TITLE.basis)}</p>` : ''}${clinchParts(TITLE.clinch)}`) : ''}
+        ${ownSection(startsBlock(historyHere, HISTORY_SAYS_HEADING, 'history'))}
+        ${
+          // VD-131: the line pointing to the disagreements, above the table;
+          // the box follows the classification, closed, as Race.jsx has it.
+          entries.length ? disagreementPointer(raceDisagreements, 'this race') : ''
+        }
         ${
           entries.some((e) => e.shared_drive === 1)
             ? noteBox(SHARED_DRIVE_NOTE.head, SHARED_DRIVE_NOTE.body)
@@ -3769,6 +3998,7 @@ const seasonsTable = (rows) =>
               }, { unfolded: UNFOLDED.subject, footer: classificationFooter(entries) })}</section>`
             : ''
         }
+        ${disagree(raceDisagreements, 'this race', true)}
         ${
           // The opening slot (DP-11, VD-84), after the classification as
           // Race.jsx writes it, so the table never shares its width (IX-45).
@@ -3793,7 +4023,11 @@ const seasonsTable = (rows) =>
                   GRID_FLAG_COLUMNS,
                   flag.map((r) => r.entry), {}, { unfolded: UNFOLDED.figure, footer: gridFlagUndrawn(undrawnOf(entryRows)) },
                 ),
-                { plot: gridFlagSvg(gridFlagLayout(entryRows), gridFlagLabel(flag)) },
+                {
+                  plot: gridFlagSvg(gridFlagLayout(entryRows, undefined, flagStory.moves), gridFlagLabel(flag, flagStory.moves)),
+                  finding: flagStory.finding,
+                  kicker: flagStory.kicker,
+                },
               )}</section>`
             : ''
         }
@@ -3926,6 +4160,7 @@ const seasonsTable = (rows) =>
   const thisSeasonOf = db.prepare(THIS_SEASON)
   const teamMatesOf = db.prepare(TEAM_MATES)
   const winsAtOf = db.prepare(WINS_AT)
+  const runnersUpOf = db.prepare(TITLE_RUNNERS_UP)
   const seasonTeamsOf = db.prepare(SEASON_TEAMS)
 
   for (const { id } of register) {
@@ -3966,7 +4201,8 @@ const seasonsTable = (rows) =>
     const teamMates = teamMatesOf.all(id, null)
     // Driver.jsx's circuits won at (VD-104 (b)), after the career and before
     // the tables, and no section for a driver who never won.
-    const wonAtHere = wonAt(winsAtOf.all(id))
+    const wins = winsAtOf.all(id)
+    const wonAtHere = wonAt(wins)
     const constructors = constructorsOf.all(id).map((c) => c.name)
     // A Friday driver's whole record is the practice sheets (LV-03), as in
     // Driver.jsx: the sentence, the notice and the table are the app's.
@@ -3987,11 +4223,17 @@ const seasonsTable = (rows) =>
     // The championship chart that leads the page (VD-73): Driver.jsx's
     // figure, from queries/driver.js, in the slot after the tiles. A Friday
     // driver has no championship season to draw, and no tiles to follow.
-    const finishes = practiceOnly ? null : finishesFigure(d, standings, teamsBySeason(seasonTeamsOf.all(id)), bySeason)
+    // Its finding and notes too (VD-124); the runner-up is asked for only
+    // where there is a title for it to have been second in.
+    const runnersUp = standings.some((s) => s.position === 1 && s.basis === 'final') ? runnersUpOf.all(id) : []
+    const finishes = practiceOnly ? null : finishesFigure(d, standings, teamsBySeason(seasonTeamsOf.all(id)), bySeason, { wins, runnersUp })
     const finishesChart = finishes
       ? leadFigure({
           heading: FINISHES_HEADING,
           note: finishes.note,
+          finding: finishes.finding,
+          kicker: finishes.kicker,
+          annotations: finishes.annotations,
           plot: dotPlotSvg(finishes, LEAD_WIDTH),
           table: fromColumns(FINISHES_COLUMNS, finishes.rows, {}, { unfolded: UNFOLDED.figure }),
         })
@@ -4180,12 +4422,25 @@ page({
     // from queries/constructor.js, in the team's colour, after the tiles -
     // in the slot, or at the full width for a team of more seasons than the
     // slot can draw (SLOT_MARKS), and then laid out at the column's width.
-    const winsChart = winsFigure(c, teamBySeason)
+    // Its finding, title squares and notes too (VD-125), from the same rows.
+    const winsChart = winsFigure(c, teamBySeason, {
+      standings: teamStandings,
+      champions: all(TEAM_CHAMPIONS, c.id),
+      colour: identity,
+    })
     const winsSection = winsChart
       ? leadFigure({
           heading: WINS_HEADING,
           slot: winsChart.lead,
+          keyBeside: winsChart.keyBeside,
           note: winsChart.note,
+          finding: winsChart.finding,
+          kickerHtml: `${esc(winsChart.kicker)}${
+            winsChart.titleKey
+              ? ` · <i class="title-square" aria-hidden="true"></i><span class="sr-only">a square under a season is </span>${esc(winsChart.titleKey)}`
+              : ''
+          }`,
+          annotations: winsChart.annotations,
           plot: columnSvg(winsChart, identity, winsChart.lead ? LEAD_WIDTH : COLUMN_WIDTH),
           table: fromColumns(WINS_FIGURE_COLUMNS, winsChart.rows, {}, { unfolded: UNFOLDED.figure }),
         })
@@ -4359,9 +4614,9 @@ page({
     const cv = one(CIRCUIT_ROW, c.id) ?? {}
     const winnersHere = all(WINNERS_HERE, c.id)
     const teamsHere = all(TEAMS_HERE, c.id)
-    // Where winners start here (AF-133), Circuit.jsx's block from the same
-    // functions: the figures, the grid and the strip with their numbers, and
-    // the chips by decade.
+    // Where winners start here (AF-133), components/WinnerStarts.jsx's
+    // block from the same functions: the figures, the grid and the strip
+    // with their numbers, and the chips by decade, over every layout.
     const startsHere = winnerStarts(all(STARTS, c.id))
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
     const layoutsHere = all(CIRCUIT_LAYOUTS, c.id)
@@ -4369,9 +4624,9 @@ page({
     // The photograph beside the heading, as Circuit.jsx draws it (VD-62):
     // the same query, through canShow() first, and nothing where there is none.
     const pictured = all(CIRCUIT_PHOTOGRAPH, c.id).find(canShow) ?? null
-    // AF-96: the lap over it, where a placing was fitted on this file.
+    // AF-177: F1DB's outline over it, where one was placed on this file.
     const tracesHere = geometryOf.all(c.id)
-    const pictureTrace = pictured ? photoTrace(tracesHere, pictured) : null
+    const pictureTrace = pictured ? photoOutline(outlinesHere, pictured) : null
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     // VD-83 (SD-41), as Circuit.jsx: what *Every layout raced here* holds -
     // the timeline's rows, or the other drawings, behind one disclosure. The
@@ -4468,7 +4723,7 @@ page({
               }, { fold: FOLD_NOUN.constructors })}`
             : ''
         }
-        ${startsBlock(startsHere, one(STARTS_EVERYWHERE, c.id), layoutsHere.length, winnersHere, teamsHere)}
+        ${startsBlock(historyBlock({ races: startsHere, layouts: layoutsHere, seasons: STARTS_BY_SEASON }), STARTS_HEADING)}
         ${
           // VD-83 (SD-41), as Circuit.jsx: after the winners on all 80.
           layoutHistory
@@ -4543,6 +4798,8 @@ page({
     const circuitsHere = all(GP_CIRCUITS, id)
     const editions = all(GP_EDITIONS, id)
     const winners = all(GP_WINNERS, id)
+    // Where its winners start (AF-139), GrandPrix.jsx's block by the event.
+    const startsHere = historyBlock({ races: winnerStarts(all(GRAND_PRIX_STARTS, id)), seasons: STARTS_BY_SEASON, grandPrix: true })
     const venue = (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name))
     page({
       path: `grands-prix/${id}`,
@@ -4574,6 +4831,7 @@ page({
               )}`
             : ''
         }
+        ${startsBlock(startsHere, GRAND_PRIX_STARTS_HEADING)}
         <h2>Every edition</h2>
         ${fromColumns(GP_EDITION_COLUMNS, editions, {
           year: (year) => link(`seasons/${year}`, year),
@@ -5364,7 +5622,7 @@ page({
       <p class="measure">Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0 and
         carry share-alike; the centrelines are ODbL and the obligation follows
         <code>f1-geometry.db</code> alone. Most of what this project wrote itself — its reading of
-        every disagreement, its account of every gap and the prose of ten of its twelve reference
+        every disagreement, its account of every gap and the prose of eleven of its twelve reference
         tables — is CC BY 4.0 and carries no share-alike;
         <code>meta.project_prose_columns</code> names those columns inside the database.
         ${link('data/sources', 'Every source')}, what it is

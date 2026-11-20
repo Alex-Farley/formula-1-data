@@ -51,7 +51,9 @@ import {
   BOARD,
   BOARD_HEADING,
   BOARD_NOTE,
+  CHART_COLUMNS,
   CHART_HEADING,
+  CHART_HEIGHT,
   CLASSIFICATION_LINK,
   LAST_RACE,
   LEDE,
@@ -72,6 +74,7 @@ import {
   chartData,
   chartLabel,
   chartNote,
+  chartNotes,
   openingCaption,
   openingRace,
   reading,
@@ -492,23 +495,32 @@ export default function Home() {
               </Section>
 
               <Section title={CHART_HEADING}>
-                <Figure
-                  note={chartNote(seasons)}
-                  table={{
-                    rows: seasons,
-                    columns: [
-                      { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
-                      { key: 'rounds', label: 'Rounds', align: 'num' },
-                    ],
-                  }}
-                >
-                  <ColumnChart
-                    data={chartData(seasons)}
-                    labelEvery={1}
-                    height={200}
-                    label={chartLabel(shape)}
-                  />
-                </Figure>
+                {(() => {
+                  // The finding, the notes and where their markers stand,
+                  // worked out from the rows (VD-123): the static page reads
+                  // the same function.
+                  const shown = chartNotes(seasons)
+                  return (
+                    <Figure
+                      note={chartNote(seasons)}
+                      finding={shown.finding}
+                      kicker={shown.kicker}
+                      annotations={shown.notes}
+                      keyBeside
+                      table={{ rows: seasons, columns: CHART_COLUMNS }}
+                    >
+                      <ColumnChart
+                        data={chartData(seasons)}
+                        labelEvery={1}
+                        labelPeak={false}
+                        height={CHART_HEIGHT}
+                        label={chartLabel(shape)}
+                        marks={shown.marks}
+                        bands={shown.bands}
+                      />
+                    </Figure>
+                  )
+                })()}
               </Section>
 
               <Section title={READING_HEADING} note={READING_NOTE}>
