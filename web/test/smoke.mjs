@@ -53,6 +53,7 @@ import {
   PITS_HEADING,
   PIT_ORDER_HEADING,
   PRACTICE_SESSIONS,
+  RACE_PODIUM_HEADING,
   RACE_SOURCES,
   RACE_WEATHER,
   WEATHER_CREDIT,
@@ -3061,8 +3062,12 @@ try {
     // display face is condensed and drawn for numerals, so a name set in it
     // at the figure size reads as a headline - three of five tiles were
     // underlined names in 22px display type. A name takes the sans face, and
-    // every tile that is not a name keeps the display face it had.
+    // every tile that is not a name keeps the display face it had. Read on
+    // a race whose third place is shared, which draws no podium and so keeps
+    // its strip (VD-108).
+    await go('/races/1951/2')
     const strip = await statStrip()
+    await go('/races/1976/9')
     truthy(strip.names.length >= 3, `${strip.names.length} tiles hold a name`)
     is(
       strip.names.filter((t) => /Condensed/.test(t.family)).map((t) => t.label).join(' · '),
@@ -3179,13 +3184,23 @@ try {
    * round is run, its timetable leads instead.
    */
   await section('/races  (the result leads)', async () => {
+    // Read once the web fonts are in: at `load` they may still be arriving,
+    // and a page read in the fallback faces wraps its lede and its line under
+    // the podium other than the page a reader sees, which is the one the rule
+    // is about (CI read /races/1950/6's static page 62 px taller that way).
+    const settled = async (target, root) => {
+      await target.evaluate(() => document.fonts.ready)
+      return target.evaluate(readLead, root)
+    }
     const readLead = (root) => {
       const main = document.querySelector(root)
       const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
       const sheets = main.querySelector('details.session-sheets')
       const classification = [...main.querySelectorAll('h2')].find((h) => clean(h).startsWith('Classification'))
       const table = classification?.closest('section')?.querySelector('table')
-      const tiles = main.querySelector('.stats, .fields')
+      // The podium where the race draws one, which stands where the tiles
+      // stood (VD-108), or the strip.
+      const tiles = main.querySelector('.race-podium, .stats, .fields')
       return {
         // Each block once, in document order: an h2 outside the disclosure,
         // and the disclosure by its summary.
@@ -3193,10 +3208,9 @@ try {
           .filter((n) => n.tagName === 'SUMMARY' || !n.closest('details.session-sheets'))
           .map(clean),
         heading: classification ? classification.getBoundingClientRect().top + window.scrollY : null,
+        headingEnd: classification ? classification.getBoundingClientRect().bottom + window.scrollY : null,
         tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
-        rows: table
-          ? [...table.querySelectorAll('tbody tr')].filter((tr) => tr.getBoundingClientRect().bottom <= window.innerHeight).length
-          : 0,
+        rows: table ? table.querySelectorAll('tbody tr').length : 0,
         sheetsOpen: sheets ? sheets.open : null,
         sheetTables: sheets ? sheets.querySelectorAll('table').length : 0,
         // The two halves' blocks are the same shape: the outline's slot a
@@ -3240,32 +3254,77 @@ try {
     await go(route, run.name_used)
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.evaluate(() => window.scrollTo(0, 0))
-    const app = await page.evaluate(readLead, '#root main')
+    const app = await settled(page, '#root main')
     await page.setViewportSize({ width: 1280, height: 900 })
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
     const plain = await noJs.newPage()
     await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
-    const served = await plain.evaluate(readLead, '#prerendered')
+    const served = await settled(plain, '#prerendered')
     await noJs.close()
     for (const [half, got] of [['the app', app], ['the static page', served]]) {
       truthy(
         inOrder(got.blocks, order),
         `${route}, ${half}: ${order.join(' → ')} — ${got.blocks.join(' · ')}`,
       )
-      truthy(
-        got.heading !== null && got.tilesEnd !== null && got.heading > got.tilesEnd && got.heading < 900,
-        `${half}: the classification heading is under the tiles and inside the first 900 px at 1440 — at ${Math.round(got.heading)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
-      )
+      truthy(got.rows > 0, `${half}: the classification under that heading has rows`)
       is(got.sheetsOpen, false, `${half}: the practice sheets are behind a closed disclosure`)
       is(got.sheetTables, run.sheets, `${half}: with all ${run.sheets} of their tables inside it`)
       is(got.shape.join(' '), 'true true', `${half}: the outline's slot is a block of the page, and the disclosure sits in a section of its own`)
     }
     // Eight rows while the tiles sat in the column beside the outline
-    // (PD-57). Version A puts the outline beside the header and the tiles
-    // full width under both (DP-11, VD-84), so the band is as tall as the
-    // drawing and the table starts lower: the heading and the podium, at
-    // least, are on the first screen.
-    atLeast(app.rows, 4, 'the app shows at least the first four rows of the classification on a 1440 × 900 screen')
+    // (PD-57), four once version A put the outline beside the header and
+    // the tiles full width under both (DP-11, VD-84). The podium where the
+    // tiles stood (VD-108) is the result, and the first screen keeps the
+    // classification's heading, whole, under it, not its rows, on every
+    // page that draws the podium [D-68]: so it is measured here on this
+    // route and on the pages whose openings are the longest, not on this
+    // one alone, which is how 199 pages came to be over the line unseen.
+    // The longest are read off the static pages the build wrote: most
+    // blocks above the classification first - a section, a nav, a note -
+    // then most text, the two that set the opening's height, since the
+    // header beside the outline and the podium are the same height on
+    // every page. Measured on all 1,150 podium pages on #1330's branch, the
+    // tallest 22 were the first 22 by this order, at 899.95 px.
+    const opening = (year, round) => {
+      const html = readFileSync(join(web, 'dist', 'races', String(year), String(round), 'index.html'), 'utf8')
+      const above = html.slice(html.indexOf('<article'), html.indexOf('id="classification"'))
+      return {
+        podium: above.includes('class="race-podium"'),
+        blocks: (above.match(/<(?:section|nav)\b|class="note-box"|class="note\b/g) ?? []).length,
+        text: above.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').length,
+      }
+    }
+    const longest = db
+      .prepare(`SELECT year, round, name_used FROM races WHERE status = 'completed' ORDER BY year, round`)
+      .all()
+      .map((r) => ({ ...r, ...opening(r.year, r.round) }))
+      .filter((r) => r.podium)
+      .sort((a, b) => b.blocks - a.blocks || b.text - a.text)
+      .slice(0, 4)
+    truthy(longest.length === 4, `four podium pages to measure the longest openings on — ${longest.map((r) => `${r.year}/${r.round}`).join(', ')}`)
+    const measured = [[route, app, served]]
+    for (const r of longest) {
+      const there = `/races/${r.year}/${r.round}`
+      if (there === route) continue
+      await go(there, r.name_used)
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.evaluate(() => window.scrollTo(0, 0))
+      const inApp = await settled(page, '#root main')
+      await page.setViewportSize({ width: 1280, height: 900 })
+      const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+      const still = await quiet.newPage()
+      await still.goto(`${BASE}${there}`, { waitUntil: 'load' })
+      measured.push([there, inApp, await settled(still, '#prerendered')])
+      await quiet.close()
+    }
+    for (const [there, inApp, inStatic] of measured) {
+      for (const [half, got] of [['the app', inApp], ['the static page', inStatic]]) {
+        truthy(
+          got.heading !== null && got.tilesEnd !== null && got.heading > got.tilesEnd && got.headingEnd <= 900,
+          `${there}, ${half}: the classification heading is under the podium, or the tiles where there is none, and wholly inside the first 900 px at 1440 — from ${Math.round(got.heading)} to ${Math.round(got.headingEnd)}, the block above ending at ${Math.round(got.tilesEnd)}`,
+        )
+      }
+    }
 
     // A round not yet run: the timetable is what there is to lead with.
     const unrun = db
@@ -3323,7 +3382,7 @@ try {
       const details = box?.querySelector(':scope > details')
       const heading = [...main.querySelectorAll('h2')].find((h) => clean(h).startsWith('Classification'))
       const classification = heading?.closest('section')
-      const tiles = main.querySelector('.stats, .fields')
+      const tiles = main.querySelector('.race-podium, .stats, .fields')
       const after = (a, b) => Boolean(a && b && a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
       return {
         pointer: clean(pointer),
@@ -3363,7 +3422,7 @@ try {
       is(got.order.join(' '), 'true true', `${half}: the line is above the classification and the box under it`)
       truthy(
         got.heading !== null && got.tilesEnd !== null && got.heading > got.tilesEnd && got.heading < 900,
-        `${half}: the classification heading is under the tiles and inside the first 900 px at 1440 — at ${Math.round(got.heading)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+        `${half}: the classification heading is under the podium, or the tiles where there is none, and inside the first 900 px at 1440 — at ${Math.round(got.heading)}, the block above ending at ${Math.round(got.tilesEnd)}`,
       )
     }
     // Following the line opens the box, and brings it into view.
@@ -3723,9 +3782,11 @@ try {
       const slot = article.querySelector(':scope > .slot')
       const tiles = article.querySelector(':scope > header + section.section')
       const before = slot?.previousElementSibling
-      // The strip's last row of tiles, and the blank after its last tile.
-      const strip = tiles?.querySelector('.stats')
-      const cells = [...(strip?.querySelectorAll(':scope > div') ?? [])].map((tile) => tile.getBoundingClientRect())
+      // The strip's last row of tiles, and the blank after its last tile; on
+      // a race page that draws its podium, the slabs, which stand where the
+      // strip stood (VD-108).
+      const strip = tiles?.querySelector('.stats, .race-podium')
+      const cells = [...(strip?.querySelectorAll(':scope > div, :scope > .race-slabs > li') ?? [])].map((tile) => tile.getBoundingClientRect())
       const lastTop = cells.length ? Math.max(...cells.map((b) => Math.round(b.top))) : null
       const lastRow = cells.filter((b) => Math.round(b.top) === lastTop)
       return {
@@ -4807,7 +4868,7 @@ try {
         how: block?.querySelector('details')?.open,
         credit: block?.querySelector('details p')?.textContent,
         afterLede: block?.previousElementSibling?.className,
-        beforeStepper: block?.nextElementSibling?.className,
+        beforeStepper: block?.nextElementSibling?.classList[0],
       }
     })
     const html = await (await fetch(`${BASE}/races/1951/3`)).text()
@@ -4820,7 +4881,11 @@ try {
     is(app.how, false, 'the method is folded')
     is(app.credit, WEATHER_METHOD, 'with the credit inside it in the app')
     is(unescape(staticBlock(html)).includes(WEATHER_METHOD), true, 'and on the static page')
-    is([app.afterLede, app.beforeStepper].join(' '), 'lede stepper', 'the line is the header\'s, between the lede and the stepper')
+    is(
+      [app.afterLede, app.beforeStepper].join(' '),
+      'lede stepper',
+      "the line is the header's, between the lede and the stepper",
+    )
     truthy(/<header>[\s\S]*race-weather[\s\S]*<\/header>/.test(html.slice(html.indexOf('<article'), html.indexOf('class="section"'))), 'and in the static header too')
     for (const halfHtml of [await page.content(), html]) {
       truthy(unescape(halfHtml).includes('Two sources disagree about this race'), 'the model and the report disagree here, and the box says so in both halves')
@@ -5466,9 +5531,10 @@ try {
      * "Watson-Offenhauser" -- that no constructor row holds, so constructor_id
      * is NULL. carName() in queries/race.js falls back to the entrant, and the
      * claim here is that all four surfaces on the page apply it: the
-     * standfirst, the Winner tile, the classification's Constructor cell and
-     * the static Constructor fact row. Two of the four did and two did not,
-     * so the page named the car above and below a blank (AF-64).
+     * standfirst, the winner's podium slab (the Winner tile until VD-108),
+     * the classification's Constructor cell and the static Constructor fact
+     * row. Two of the four did and two did not, so the page named the car
+     * above and below a blank (AF-64).
      */
     const car = one(
       `SELECT e.entrant FROM race_entries e JOIN races r ON r.id = e.race_id
@@ -5478,14 +5544,9 @@ try {
 
     await go('/races/1950/3')
     is(
-      await page.$eval('#root main .stats', (dl) => {
-        const tile = [...dl.querySelectorAll(':scope > div')].find(
-          (el) => el.querySelector('dt')?.textContent === 'Winner',
-        )
-        return tile?.querySelector('dd small')?.textContent ?? ''
-      }),
+      ((await text('#root main .race-podium .race-slab-1 .race-slab-meta > span:first-child')) ?? '').split(' \u00b7 ')[0],
       car,
-      'the Winner tile names the car under the driver',
+      "the winner's podium slab names the car under the driver",
     )
     truthy((await text('#root main .lede')).includes(car), 'and the standfirst names it')
     is(
@@ -5505,6 +5566,191 @@ try {
       car,
       'and the static Constructor fact row names it rather than an em dash',
     )
+  })
+
+  await section('/races/2026/20, /races/1955/4, /races/1976/9 and /races/1951/2  (the podium where the tiles stood, each slab with its start: VD-108)', async () => {
+    /*
+     * A race page opens on its podium where its tiles stood - three slabs,
+     * listed first to third and stood second, first, third - and the strip's
+     * other tiles follow on a line under it, the Winner's left out, since the
+     * podium carries it. Where a place is shared the strip stands, Winner
+     * tile and all. Each slab's start and its places made or lost are read
+     * here off race_entries in SQL of its own, not through podiumStart() or
+     * placesMoved(), and its given names and surname are held together to
+     * the full name, so the test is not the rule it checks. The routes are a
+     * race in liveries, one in national colours, one between the two eras
+     * with no colour, and one with a shared third place.
+     */
+    const expected = (year, round) =>
+      db
+        .prepare(
+          `SELECT e.finish_position AS place, d.full_name AS driver, d.id AS id,
+                  CASE WHEN e.grid = 1 AND e.pole = 1 THEN 'from pole'
+                       WHEN e.grid = 1 THEN 'from the front of the grid'
+                       WHEN e.grid IS NOT NULL THEN 'from ' || e.grid ||
+                            CASE WHEN e.grid % 100 BETWEEN 11 AND 13 THEN 'th'
+                                 WHEN e.grid % 10 = 1 THEN 'st' WHEN e.grid % 10 = 2 THEN 'nd'
+                                 WHEN e.grid % 10 = 3 THEN 'rd' ELSE 'th' END
+                       WHEN e.grid_text = 'PL' THEN 'from the pit lane'
+                       ELSE 'grid not recorded' END AS start,
+                  CASE WHEN e.grid IS NULL OR (e.grid_text IS NOT NULL AND e.grid_text <> CAST(e.grid AS TEXT)) THEN ''
+                       WHEN e.grid > e.finish_position THEN (e.grid - e.finish_position) || ' gained'
+                       WHEN e.grid < e.finish_position THEN (e.finish_position - e.grid) || ' lost'
+                       ELSE 'held' END AS moved
+             FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
+            WHERE r.year = ? AND r.round = ? AND e.finish_position BETWEEN 1 AND 3
+            ORDER BY e.finish_position`,
+        )
+        .all(year, round)
+        .map((row) => `${row.place} ${row.driver} /drivers/${row.id} ${row.start} ${row.moved}`)
+    const read = (root) => {
+      const podium = document.querySelector(`${root} .race-podium`)
+      const slabs = [...document.querySelectorAll(`${root} .race-podium ol.race-slabs > li`)]
+      const said = (li) => {
+        const chip = li.querySelector('.race-slab-move')
+        if (!chip) return ''
+        const words = chip.querySelector('.sr-only')?.textContent ?? ''
+        return chip.classList.contains('held') ? 'held' : words.replace(/^(\d+) places? (gained|lost)$/, '$1 $2')
+      }
+      return {
+        steps: slabs.map((li) => {
+          const first = li.querySelector('.race-slab-first')?.textContent ?? ''
+          const surname = li.querySelector('.race-slab-surname')?.textContent ?? ''
+          const place = parseInt(first, 10)
+          const given = first.split(' · ')[1]
+          const meta = li.querySelector('.race-slab-meta > span:first-child')?.textContent ?? ''
+          const href = li.querySelector('.race-slab-surname a')?.getAttribute('href') ?? ''
+          return `${place} ${[given, surname].filter(Boolean).join(' ')} ${href} ${meta.split(' · ').at(-1)} ${said(li)}`
+        }),
+        numerals: slabs.map((li) => li.querySelector('.race-slab-num')?.textContent).join(' '),
+        hidden: slabs.every((li) => li.querySelector('.race-slab-num')?.getAttribute('aria-hidden') === 'true'),
+        inHeader: Boolean(document.querySelector(`${root} article.page > header .race-podium`)),
+        label: podium?.querySelector(':scope > .eyebrow')?.textContent ?? null,
+        tiles: [...document.querySelectorAll(`${root} dl.stats > div > dt`)].map((dt) => dt.textContent),
+        also: [...document.querySelectorAll(`${root} .race-podium .race-also b`)].map((b) => b.textContent),
+        alsoText: podium?.querySelector('.race-also')?.textContent ?? '',
+        // Each slab as the two halves colour it: its classes and its custom
+        // properties, which the text parity does not read.
+        colours: slabs.map((li) => `${[...li.classList].sort().join('.')} ${(li.getAttribute('style') ?? '').replace(/\s+/g, '')}`),
+        // Where each stands, and the colours its words are drawn in.
+        boxes: slabs.map((li) => {
+          const r = li.getBoundingClientRect()
+          return { left: r.left, top: r.top, bottom: r.bottom }
+        }),
+        // Every line of words on a slab, each by the colour it is drawn in
+        // and the opacity that would thin it.
+        inks: slabs.flatMap((li, i) =>
+          ['.race-slab-first', '.race-slab-surname a', '.race-slab-surname', '.race-slab-meta > span:first-child'].flatMap((part) => {
+            const node = li.querySelector(part)
+            if (!node) return []
+            const words = getComputedStyle(node)
+            return [{ part: `slab ${i + 1} ${part}`, ink: words.color, ground: getComputedStyle(li).backgroundColor, opacity: words.opacity }]
+          }),
+        ),
+      }
+    }
+    // WCAG 2's ratio, from the rgb() the browser resolved.
+    const rgb = (value) => (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+    const lum = (value) => {
+      const [r, g, b] = rgb(value).map((c) => c / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    const ratio = (a, b) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
+      return (hi + 0.05) / (lo + 0.05)
+    }
+    const quiet = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } })
+    const still = await quiet.newPage()
+    for (const [route, year, round] of [['/races/2026/20', 2026, 20], ['/races/1955/4', 1955, 4], ['/races/1976/9', 1976, 9], ['/races/1951/2', 1951, 2]]) {
+      const shared = one(
+        `SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+          WHERE r.year = ? AND r.round = ? AND e.finish_position BETWEEN 1 AND 3`,
+        year,
+        round,
+      ) !== 3
+      await go(route)
+      await still.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const halves = [
+        ['the app', await page.evaluate(read, '#root main')],
+        ['the static page', await still.evaluate(read, '#prerendered')],
+      ]
+      is(halves[0][1].colours.length, shared ? 0 : 3, `${route}: the app draws a slab for each podium place`)
+      is(halves[1][1].colours.join(' | '), halves[0][1].colours.join(' | '), `${route}: both halves colour each slab alike`)
+      for (const [half, got] of halves) {
+        if (shared) {
+          is(got.steps.length, 0, `${route}, ${half}: a podium place held by two entries draws no podium`)
+          truthy(got.tiles.includes('Winner'), `${route}, ${half}: and the strip stands, its Winner tile with it`)
+          continue
+        }
+        is(got.steps.join(' | '), expected(year, round).join(' | '), `${route}, ${half}: the slabs stand first to third, each driver linked, with where they started and the places made or lost`)
+        is(got.numerals, '1 2 3', `${route}, ${half}: each behind its place's numeral`)
+        truthy(got.hidden, `${route}, ${half}: which is hidden from assistive technology, the words saying the place`)
+        is(got.label, RACE_PODIUM_HEADING, `${route}, ${half}: under its label`)
+        truthy(!got.inHeader, `${route}, ${half}: where the tiles stood, not in the header`)
+        is(got.tiles.length, 0, `${route}, ${half}: in place of the strip — ${got.tiles.join(', ')}`)
+        truthy(
+          got.also[0] === 'Circuit' && got.also.includes('Pole') && got.also.includes('Fastest lap') && !got.also.includes('Winner'),
+          `${route}, ${half}: whose other tiles follow on the line under it — ${got.alsoText}`,
+        )
+        // 2nd, 1st, 3rd from the left, on the floor of one row.
+        const [one_, two, three] = got.boxes
+        truthy(
+          two.left < one_.left && one_.left < three.left && Math.abs(one_.bottom - two.bottom) < 1 && Math.abs(one_.bottom - three.bottom) < 1,
+          `${route}, ${half}: stood second, first, third at 1280, aligned to the floor`,
+        )
+        truthy(one_.top < two.top && two.top < three.top, `${route}, ${half}: the winner's slab the tallest, third's the lowest`)
+      }
+      // The words on each slab hold 4.5:1 against it, in both themes and
+      // however the theme was chosen - the reader's system, or the toggle's
+      // stamp over a system that says the other - in the colours the browser
+      // resolved (lib/podium.js's inkOn()), in both halves. And the focus
+      // ring on the surname's link is drawn in that ink, so it holds 3:1 on
+      // the slab where the accent ring would vanish into a red.
+      const themes = [
+        ['light', null, 'light'],
+        ['dark', null, 'dark'],
+        ['light', 'dark', 'dark, stamped over a light system'],
+        ['dark', 'light', 'light, stamped over a dark system'],
+      ]
+      for (const [half, target, root] of shared ? [] : [['the app', page, '#root main'], ['the static page', still, '#prerendered']]) {
+        for (const [scheme, stamp, said] of themes) {
+          await target.emulateMedia({ colorScheme: scheme })
+          await target.evaluate((value) => {
+            if (value) document.documentElement.dataset.theme = value
+            else delete document.documentElement.dataset.theme
+          }, stamp)
+          const { inks } = await target.evaluate(read, root)
+          const under = inks
+            .map((k) => ({ ...k, r: ratio(k.ink, k.ground) }))
+            .filter((k) => k.r < 4.5 || k.opacity !== '1')
+            .map((k) => `${k.part}: ${k.ink} on ${k.ground}, ${k.r.toFixed(2)}:1 at opacity ${k.opacity}`)
+          truthy(inks.length >= 9 && under.length === 0, `${route}, ${half}, ${said}: every line on every slab clears 4.5:1 on it${under.length ? `; ${under.join('; ')}` : ''}`)
+          await target.keyboard.press('Shift')
+          await target.focus(`${root} .race-slab-1 .race-slab-surname a`)
+          const ring = await target.evaluate((sel) => {
+            const a = document.querySelector(sel)
+            const s = getComputedStyle(a)
+            return { visible: a.matches(':focus-visible'), style: s.outlineStyle, colour: s.outlineColor, ground: getComputedStyle(a.closest('li')).backgroundColor }
+          }, `${root} .race-slab-1 .race-slab-surname a`)
+          truthy(
+            ring.visible && ring.style !== 'none' && ratio(ring.colour, ring.ground) >= 3,
+            `${route}, ${half}, ${said}: the winner's link shows a focus ring that holds 3:1 on the slab — ${ring.style} ${ring.colour} on ${ring.ground}, ${ratio(ring.colour, ring.ground).toFixed(2)}:1`,
+          )
+        }
+        await target.evaluate(() => delete document.documentElement.dataset.theme)
+        await target.emulateMedia({ colorScheme: 'light' })
+      }
+    }
+    // On a phone the slabs stack in reading order, first at the top.
+    await page.setViewportSize({ width: 400, height: 900 })
+    await go('/races/2026/20')
+    const phone = (await page.evaluate(read, '#root main')).boxes
+    truthy(
+      phone.length === 3 && phone[0].bottom <= phone[1].top && phone[1].bottom <= phone[2].top && phone.every((b) => b.left === phone[0].left),
+      'at 400 px the slabs stack first, second, third, each at full width',
+    )
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await quiet.close()
   })
 
   await section('/seasons/1950 and /drivers/parsons  (the Indianapolis 500 names its car off the race page too)', async () => {
@@ -11801,10 +12047,16 @@ try {
           stripNames: [...(main?.querySelectorAll('dl.stats') ?? [])].map((dl) =>
             dl.parentElement?.getAttribute('role') === 'group' ? dl.parentElement.getAttribute('aria-label') : null,
           ),
-          // The tiles drawn as a value nobody has established (VD-88), by label.
-          dashed: [...(main?.querySelectorAll('dl.stats > div') ?? [])]
-            .filter((tile) => flatten(tile.querySelector('dd > .empty')) === '\u2014')
-            .map((tile) => flatten(tile.querySelector('dt'))),
+          // The tiles drawn as a value nobody has established (VD-88), by
+          // label: a strip's, or the line under a race's podium (VD-108).
+          dashed: [
+            ...[...(main?.querySelectorAll('dl.stats > div') ?? [])]
+              .filter((tile) => flatten(tile.querySelector('dd > .empty')) === '\u2014')
+              .map((tile) => flatten(tile.querySelector('dt'))),
+            ...[...(main?.querySelectorAll('.race-also > span') ?? [])]
+              .filter((item) => flatten(item.querySelector(':scope > .empty')) === '\u2014')
+              .map((item) => flatten(item.querySelector(':scope > b'))),
+          ],
           // How many headings stand above the first tile strip (VD-83).
           beforeTiles: (() => {
             const strip = main?.querySelector('dl.stats')

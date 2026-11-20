@@ -68,6 +68,7 @@ import {
   yearList,
 } from '../src/lib/format.js'
 import { TILE_JOIN, TILE_STRIP_NAME, tileSegments, unestablished } from '../src/lib/tiles.js'
+import { podiumTeam, slab } from '../src/lib/podium.js'
 import {
   FOLD_LESS,
   FOLD_NOUN,
@@ -422,6 +423,9 @@ import {
   QUALIFYING_LAPS,
   qualifyingColumns,
   raceLede,
+  raceAlso,
+  racePodium,
+  RACE_PODIUM_HEADING,
   raceStrip,
   raceWeather,
   railOf,
@@ -1276,20 +1280,24 @@ const stats = (items) => {
  * this file draws a strip and never writes one. lib/tiles.js says what each
  * field means.
  */
+const tileValueHtml = (item) => {
+  if (item.date) return dateHtml(item.value)
+  const drawn = tileSegments(item)
+    .map(({ label, href }) => {
+      const shown = typeof label === 'number' ? formatted(label) : label
+      return href ? link(href, shown) : esc(shown)
+    })
+    .join(esc(TILE_JOIN))
+  return item.quiet ? `<span class="muted tile-quiet">${drawn}</span>` : drawn
+}
+
 const tiles = (items) =>
   stats(
     items.map((item) => {
       if (!item) return null
       // Not established: stats() draws the em dash, with no link to follow.
       if (unestablished(item)) return { ...item, value: null }
-      if (item.date) return { ...item, value: dateHtml(item.value) }
-      const drawn = tileSegments(item)
-        .map(({ label, href }) => {
-          const shown = typeof label === 'number' ? formatted(label) : label
-          return href ? link(href, shown) : esc(shown)
-        })
-        .join(esc(TILE_JOIN))
-      return { ...item, value: item.quiet ? `<span class="muted tile-quiet">${drawn}</span>` : drawn }
+      return { ...item, value: tileValueHtml(item) }
     }),
   )
 
@@ -1565,6 +1573,20 @@ const tidy = (path) => path.replace(/\s+/g, ' ').replace(/-?\d+\.\d{3,}/g, (n) =
 // A colour pair as own.js hands it to an element: the two custom
 // properties `.livery-series` resolves per theme, and the class with them.
 const pairStyle = (colour) => esc(`--livery-light: ${colour.light}; --livery-dark: ${colour.dark}`)
+// components/Podium.jsx, home's podium (AF-135): first to third in the
+// markup, stood by app.css.
+const podiumHtml = (list) =>
+  `<ol class="podium" aria-label="${esc(PODIUM_LABEL)}">${list
+    .map(
+      (step) =>
+        `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span> <span class="podium-driver">${
+          step.driver_id ? link(`drivers/${step.driver_id}`, step.driver) : esc(step.driver)
+        }</span> <span class="podium-team muted small">${esc(podiumTeam(step))}</span><span class="${
+          step.colour ? `podium-block livery-series" style="${pairStyle(step.colour)}` : 'podium-block podium-block-none'
+        }" aria-hidden="true"></span></li>`,
+    )
+    .join('')}</ol>`
+
 const ownAttrs = (colour) => (colour ? ` class="livery-series" style="${pairStyle(colour)}"` : '')
 
 // The <svg> every lead plot opens with: the app's viewBox at the width laid
@@ -3190,19 +3212,6 @@ const TITLE = currentTitle(fightRows, META.built)
   const nextStartsRows = startsTable(nextStarts)
   const history = Boolean(upcoming?.circuit) && nextStartsRows.some((row) => row.key.startsWith('slot-'))
 
-  // Home.jsx's Podium: first to third in the markup, stood by app.css.
-  const podiumHtml = (list) =>
-    `<ol class="podium" aria-label="${esc(PODIUM_LABEL)}">${list
-      .map(
-        (step) =>
-          `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span> <span class="podium-driver">${
-            step.driver_id ? link(`drivers/${step.driver_id}`, step.driver) : esc(step.driver)
-          }</span> <span class="podium-team muted small">${text(step.constructor)}</span><span class="${
-            step.colour ? `podium-block livery-series" style="${pairStyle(step.colour)}` : 'podium-block podium-block-none'
-          }" aria-hidden="true"></span></li>`,
-      )
-      .join('')}</ol>`
-
   const racePlace = (race) =>
     `<p class="muted small">${[race.circuit ? esc(race.circuit) : null, raceDates(race) ? raceDatesHtml(race) : null].filter(Boolean).join(' \u00b7 ')}</p>`
 
@@ -3743,6 +3752,41 @@ const seasonsTable = (rows) =>
   // the grid in half.
   const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
   // AF-142: the header's weather line, as Race.jsx's RaceWeather writes it.
+  // components/RacePodium.jsx (VD-108): the three slabs where the tiles
+  // stood, from lib/podium.js's slab(), and the strip's other tiles on the
+  // line under them, each value drawn as tiles() draws it.
+  const slabHtml = (s) => {
+    const owned = s.vars
+      ? ` livery-series" style="${esc(
+          Object.entries(s.vars)
+            .map(([name, value]) => `${name}: ${value};`)
+            .join(' '),
+        )}`
+      : ' race-slab-plain'
+    const move = s.move
+      ? ` <span class="race-slab-move ${s.move.kind}"><span aria-hidden="true">${esc(s.move.text)}</span><span class="sr-only">${esc(s.move.said)}</span></span>`
+      : ''
+    return `<li class="race-slab race-slab-${s.place}${owned}"><span class="race-slab-num" aria-hidden="true">${esc(s.numeral)}</span> <span class="race-slab-first">${esc(
+      s.first,
+    )}</span> <span class="race-slab-surname">${s.href ? link(s.href, s.surname) : esc(s.surname)}</span> <span class="race-slab-meta"><span>${esc(
+      s.meta,
+    )}</span>${move}</span></li>`
+  }
+  const alsoHtml = (also) =>
+    also.length
+      ? `<p class="race-also">${also
+          .map(
+            (item) =>
+              `<span><b>${esc(item.label)}</b> ${unestablished(item) ? `<span class="empty">${EMPTY}</span>` : tileValueHtml(item)}${
+                item.note ? esc(` · ${item.note}`) : ''
+              }</span>`,
+          )
+          .join(' · ')}</p>`
+      : ''
+  const racePodiumBlock = (steps, also) =>
+    `<div class="race-podium"><p class="eyebrow">${esc(RACE_PODIUM_HEADING)}</p><ol class="race-slabs" aria-label="${esc(
+      PODIUM_LABEL,
+    )}">${steps.map(slab).map(slabHtml).join('')}</ol>${alsoHtml(also)}</div>`
   const weatherBlock = (weather) =>
     weather
       ? `<div class="race-weather"><p>${
@@ -3896,7 +3940,11 @@ const seasonsTable = (rows) =>
         ${opening({ eyebrow: EYEBROWS.race(r.round, neighbours.rounds, r.date_iso), title: headline, lede: standfirst })}
         ${weatherBlock(raceWeather(one(RACE_WEATHER, r.year, r.round)))}
         ${stepperNav(raceSteps(neighbours))}
-        <section class="section">${tiles(raceStrip(r, entryRows, qualifying))}</section>
+        <section class="section">${
+          racePodium(r, entryRows)
+            ? racePodiumBlock(racePodium(r, entryRows), raceAlso(r, entryRows, qualifying))
+            : tiles(raceStrip(r, entryRows, qualifying))
+        }</section>
         ${onThisPage(
           raceSections({
             scheduled,

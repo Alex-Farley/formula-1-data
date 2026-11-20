@@ -166,6 +166,13 @@
   --racing-ch: #b02733;     /* 6.35 / 5.71 */
   --racing-us: #1f3c88;     /* 9.81 / 8.83 */
 
+  /* places made and lost from the grid, on a race page's podium slab
+     (VD-108): a chip of its own colour on a slab of any team's, so the same
+     in both themes, white on each at 5.40 and 8.15:1 */
+  --move-up: #0f7a45;
+  --move-down: #9b1c1c;
+  --on-move: #ffffff;
+
   /* status */
   --good: #0a7d2b;
   --good-wash: #e6f3ea;

@@ -16,6 +16,7 @@
 import { EMPTY, classificationOrder, finished, inWords, missing, number, ordinal, points, raceDates, result, shortNames, text } from '../lib/format.js'
 import { DERIVATION } from './records.js'
 import { linked } from '../lib/tiles.js'
+import { podium } from '../lib/podium.js'
 import { LABELS, SHARED } from '../lib/site.js'
 import { LATE_NOTE, raceDay } from '../lib/refresh.js'
 
@@ -1130,6 +1131,64 @@ const startedFrom = (entry) => {
   return ` from ${ordinal(grid)} on the grid`
 }
 
+/**
+ * Where a podium step's driver started (VD-108), by startedFrom()'s rule for
+ * a numbered slot - "from pole" for the driver the season record credits
+ * with pole who also started first, "from the front of the grid" for one who
+ * started first without it, "from 21st" otherwise - and, since a step says
+ * it of every driver it stands rather than of a winner alone, the two starts
+ * that are not a slot in words: "from the pit lane" (grid_text 'PL'), and
+ * "grid not recorded" where nobody recorded one. A slot the source states
+ * otherwise than `grid` says nothing, as startedFrom() does.
+ */
+export const podiumStart = (entry) => {
+  const grid = entry?.grid
+  if (missing(grid) || typeof grid !== 'number') return entry?.grid_text === 'PL' ? 'from the pit lane' : 'grid not recorded'
+  if (!missing(entry.grid_text) && String(entry.grid_text) !== String(grid)) return null
+  if (grid === 1) return entry.pole === 1 ? 'from pole' : 'from the front of the grid'
+  return `from ${ordinal(grid)}`
+}
+
+/**
+ * The numbered slot a podium step counts its places made or lost from
+ * (VD-108): `grid` where podiumStart() reads it as a slot, null where the
+ * start is not a number - the pit lane, nobody's record - or the source
+ * states the slot otherwise.
+ */
+export const podiumSlot = (entry) =>
+  typeof entry?.grid === 'number' && (missing(entry.grid_text) || String(entry.grid_text) === String(entry.grid))
+    ? entry.grid
+    : null
+
+/** The eyebrow over a race page's podium, where its tiles stood (VD-108). */
+export const RACE_PODIUM_HEADING = 'The podium · and where each started'
+
+/**
+ * A race page's podium (VD-108): lib/podium.js's steps for this race's
+ * ENTRIES rows, each with where its driver started, or null where podium()
+ * declines - a place two entries share, or none holds, as a round not yet
+ * run holds none. The team is carName()'s, the rule the standfirst and the
+ * classification's Constructor column apply, so an Indianapolis 500's
+ * winner stands with the car the sentence above it names; its colour is the
+ * constructor's for the race's season, as the classification's mark is.
+ */
+export const racePodium = (race, entries) =>
+  race.status === 'scheduled'
+    ? null
+    : podium(
+        (entries ?? []).map((e) => ({
+          position: e.finish_position,
+          driver: e.driver,
+          driver_id: e.driver_id,
+          constructor: carName(e),
+          constructor_id: e.constructor_id,
+          constructor_country: e.constructor_country,
+          year: race.year,
+          start: podiumStart(e),
+          grid: podiumSlot(e),
+        })),
+      )
+
 /** "A", "A and B", "A, B and C". */
 const listed = (names) =>
   names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
@@ -1314,10 +1373,25 @@ const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
  * Entries tile while no entry is held (PD-47, UR-20): "0" on this site is a
  * positive claim that nobody entered.
  *
+ * The Winner tile is the podium's where a race page draws one (VD-108): the
+ * winner's slab names the driver and their car, so the strip leaves the tile
+ * out, and raceAlso() puts the rest on the line under the slabs. A race whose podium is declined - a shared drive, a dead
+ * heat, a place nobody holds - keeps it, so the strip still names who won.
+ *
  * A round run with nobody on record against a name tile - no entry credited
  * with the 2021 Belgian Grand Prix's fastest lap - draws that tile's em dash
  * (VD-88), which is what an empty `linked()` value is to both renderers.
  */
+/**
+ * The line under a race page's podium (VD-108): the strip's tiles but the
+ * Winner, which raceStrip() leaves out where the podium is drawn, each as
+ * its label, its value and its note - all but the circuit's place, which its
+ * own page carries - so the podium takes the tiles' row and nothing the
+ * strip said is lost.
+ */
+export const raceAlso = (race, entries, qualifying) =>
+  raceStrip(race, entries, qualifying).map((item) => (item.label === 'Circuit' ? { ...item, note: undefined } : item))
+
 export const raceStrip = (race, entries, qualifying) => {
   const scheduled = race.status === 'scheduled'
   const winners = inClassificationOrder(entries).filter((e) => e.finish_position === 1)
@@ -1342,6 +1416,8 @@ export const raceStrip = (race, entries, qualifying) => {
     },
     scheduled
       ? { label: 'Status', value: 'Scheduled', note: raceDates(race) ?? undefined }
+      : racePodium(race, entries)
+      ? null
       : {
           label: 'Winner',
           kind: 'name',

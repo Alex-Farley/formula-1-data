@@ -324,7 +324,7 @@ export function FigurePart({ title, children }) {
  * field means. A value that is already an element draws as it is, and one
  * nobody has established is the em dash a table cell would draw.
  */
-const tileValue = (item) => {
+export const tileValue = (item) => {
   if (unestablished(item)) return <span className="empty">{EMPTY}</span>
   if (item.date) return <DateText iso={item.value} />
   const drawn = tileSegments(item).map(({ label, href }, i) => (

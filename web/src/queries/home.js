@@ -23,8 +23,7 @@
  *     is split around it, as UNCHECKED_NOTE and ABOUT_REPOSITORY already are
  *     in lib/site.js, so the words are still decided once.
  */
-import { inWords, number, ordinal, raceDates } from '../lib/format.js'
-import { colourForEntry } from '../lib/liveries.js'
+import { inWords, number, raceDates } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { LABELS, NOT_YET_RUN } from '../lib/site.js'
 import { ON_A_CAR_PAGE } from './car.js'
@@ -669,10 +668,9 @@ export const THIS_WEEKEND = 'This weekend'
 export const sessionsClock = (zone) => (zone ? `Start times, your time (${zone.replace(/_/g, ' ')}).` : 'Start times, UTC.')
 
 /**
- * The top three of the last race run, for the podium. A place held by two
- * entries - a shared drive, a dead heat - or by none is not a podium this
- * graphic can draw, so podium() declines it and the block keeps its
- * sentence.
+ * The top three of the last race run, for the podium (lib/podium.js's
+ * podium(), which declines a place held by two entries or by none, and the
+ * block then keeps its sentence).
  */
 export const PODIUM = `
   WITH last AS (SELECT id, year FROM races WHERE status = 'completed' ORDER BY year DESC, round DESC LIMIT 1)
@@ -686,27 +684,9 @@ export const PODIUM = `
    ORDER BY e.finish_position, e.id
 `
 
-export const PODIUM_LABEL = 'The podium'
-
-/**
- * The three steps, first to third - the order they are read in; app.css
- * stands the winner in the middle - or null. Each names its place, driver
- * and team, and wears the team's colour for the race's season where one is
- * on record (colourForEntry()); the words carry it either way.
- */
-export function podium(rows) {
-  const steps = [1, 2, 3].map((place) => (rows ?? []).filter((r) => r.position === place))
-  if (steps.some((held) => held.length !== 1)) return null
-  return steps.map(([r]) => ({
-    place: r.position,
-    ordinal: ordinal(r.position),
-    driver: r.driver ?? r.driver_id,
-    driver_id: r.driver_id,
-    constructor: r.constructor,
-    constructor_id: r.constructor_id,
-    colour: colourForEntry({ constructorId: r.constructor_id, country: r.constructor_country, year: r.year, team: r.constructor }),
-  }))
-}
+// The steps themselves are lib/podium.js's, which a race page's slabs stand
+// as well (VD-108); home's modules and tests read them from here.
+export { PODIUM_LABEL, podium } from '../lib/podium.js'
 
 /** The heading over the reach chart in the results state: which title it is. */
 export const reachHeading = (title) => `Who can still win ${title.replace(/^The /, 'the ')}`

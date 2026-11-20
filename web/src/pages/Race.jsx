@@ -62,6 +62,7 @@ import {
   QUALIFYING_FOOTER,
   RACE,
   RACE_HISTORY,
+  RACE_PODIUM_HEADING,
   RACE_SOURCES,
   RACE_WEATHER,
   SHARED_DRIVE_NOTE,
@@ -83,6 +84,8 @@ import {
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
+  raceAlso,
+  racePodium,
   raceStrip,
   raceWeather,
   railOf,
@@ -111,6 +114,7 @@ import { FIGHT_QUERIES, STAKE_HEADING, TITLE_STANDINGS, currentTitle, fightCitat
 import { currentProgress } from '../data/client.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
+import RacePodium from '../components/RacePodium.jsx'
 import Figure from '../charts/Figure.jsx'
 import GridFlag from '../charts/GridFlag.jsx'
 import { gridFlagRows, gridFlagShown, undrawnOf } from '../charts/gridFlag.js'
@@ -374,6 +378,9 @@ function RaceBody({ race, data, year, round }) {
   // PD-56: the drivers the stint figure draws, and the pairs the pit order reads.
   const stints = useMemo(() => stintRows(entries, pits), [entries, pits])
   const pairs = useMemo(() => pitPairs(entries, pits), [entries, pits])
+  // VD-108: the three slabs where the tiles stood, or null where a place is
+  // shared or empty, or the round not yet run.
+  const steps = racePodium(race, entries)
 
   const winners = classified.filter((e) => e.finish_position === 1)
   // The pole, the car that started first, the fastest qualifier and the
@@ -439,8 +446,14 @@ function RaceBody({ race, data, year, round }) {
       }
     >
       <Section>
-        {/* queries/race.js's strip, which the static page draws too (VD-49). */}
-        <Stats items={raceStrip(race, entries, qualifying)} />
+        {/* VD-108: the podium where it can be drawn, the strip's other tiles
+            on a line under it; queries/race.js's strip where it cannot. The
+            static page draws the same (VD-49). */}
+        {steps ? (
+          <RacePodium heading={RACE_PODIUM_HEADING} steps={steps} also={raceAlso(race, entries, qualifying)} />
+        ) : (
+          <Stats items={raceStrip(race, entries, qualifying)} />
+        )}
       </Section>
 
       {/* IA-30: the page's sections, from the conditions each is drawn on

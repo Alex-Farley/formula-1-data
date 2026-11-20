@@ -474,6 +474,39 @@ page. What it does not change: what is recorded, the box's words, its frame,
 or its place on driver, constructor and car pages, where it stays open
 above what it concerns.
 
+### D-68 · A race opens on its podium, and its first screen holds the classification's heading on every podium page — 2026-11-18 (`VD-108`, #1330)
+§4 said that at 1440 × 900 a race page shows the classification's heading
+and its first four rows on the first screen, and `smoke.mjs`'s *the result
+leads* held the four, on one route. The visual critique of 2026-11-13
+proposed the podium on every race page (P03), and the maintainer approved
+it as a mockup that day.
+
+Built to that mockup on 2026-11-16, the podium sat in the header under the
+weather line and left no row of the classification on the first screen. The
+maintainer ruled on 2026-11-17 to hold the heading rather than the rows.
+Measured on all 1,169 completed race pages, the heading then fell below
+900 px on 199 of them, 198 drawing the podium, where smoke had only ever
+measured one route. Ruled on 2026-11-18: hold the heading on the first
+screen on every podium page, not on the one smoke measured, and tighten the
+header to do it. Two compact forms (a flat podium; the podium in the tiles)
+were measured, at 53 and 44 pages over, and rejected as dry; the third, C,
+a stepped podium in team colour that takes the tiles' row, was approved on
+the review page the same day, measured over on none of the 1,125 pages
+without a disagreement box. The other 44 were the box's, which `[D-67]`
+moved under the classification. The rulings are recorded on the item.
+
+The rule: where a race's podium can be drawn it takes the tiles' row, three
+slabs in team colour stood second, first, third, and the strip's other
+tiles follow on one line under it. At 1440 × 900, in the app and on the
+static page, the classification's heading is wholly on the first screen on
+every page that draws the podium, and `smoke.mjs` measures the pages with
+the tallest openings rather than one route. What it costs is the four rows a
+reader saw before scrolling, and the tiles' figures, which become a line of
+text. What it does not change: the order of the page's blocks, the
+classification at full width, the outline in the slot, the strip where no
+podium can be drawn, or the rule holding the app and the static page to it
+alike.
+
 ---
 
 ## The queue

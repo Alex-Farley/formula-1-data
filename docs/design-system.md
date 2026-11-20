@@ -1383,7 +1383,8 @@ carry it.
     the grid has two (§2). The strip is the form this section already named.
   - **Costs:** about 50 px of the first screen, the block after it taking
     `--space-8` above it rather than a section's `--space-9`; the race
-    page's classification still shows four rows at 1440 × 900 (§4).
+    page's classification heading is still on the first screen at 1440 ×
+    900 (§4).
   - **Held by:** `smoke.mjs` (*On this page*): in both halves, every link
     resolves to a section of that id under that heading, in document order,
     every top-level section heading is linked, and the two halves list the
@@ -1442,7 +1443,7 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
-### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); pending: the podium on every race page (VD-108 #1330), and the season plate (VD-109 #1331, VD-115 #1337)
+### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); core: the podium, on home and every race page (VD-108 #1330), its race page's form the stepped slabs; pending: the season plate (VD-109 #1331, VD-115 #1337)
 
 Home's season block follows the calendar while the season being run has a
 round to come, in three states worked out from the database and a clock —
@@ -1467,10 +1468,53 @@ AF-133's grid — and these are new:
   none is on record, so colour is never the only cue. Heights are spacing
   tokens. A place held by two entries or by none is not drawn: the panel
   keeps its sentence. Race gaps are not shown: the database holds no
-  race times (AF-157 #1252). **Pending (VD-108 #1330):** every race page's
-  header carries it, each step adding where its driver started (*2nd, from
-  21st*), and the Winner tile leaves the strip. That is its second page, and
-  §8 then promotes it to core.
+  race times (AF-157 #1252). One component in each renderer,
+  `components/Podium.jsx` and `podiumHtml()` in `prerender.js`.
+  **Core** since its second page (VD-108 #1330, §8 *Promoting*): every race
+  page draws the same three, from the same `podium()` in `lib/podium.js`,
+  in the form approved for it on 2026-11-18 (C, `[D-68]`) — **the stepped
+  slabs**, which take the tiles' row under the header:
+  - Three slabs under the eyebrow *The podium · and where each started*,
+    listed first to third and stood second, first, third from 768 px in
+    tracks of 1fr, 1.15fr and 1fr, aligned to the floor, their minimum
+    heights 104, 120 and 92 px from spacing tokens; under 768 px they stack
+    in reading order at full width. Each is its team's colour pair
+    (`.livery-series`), or the page's ink on `--panel` under a rule where
+    none is on record.
+  - On each: the place in the display face, large, at 22 % opacity and
+    hidden from assistive technology; the place and given names (*2nd ·
+    Max*); the surname in the display face, `--size-8` (`--size-9` for the
+    winner), a link to the driver, in the words as written (`[D-66]`:
+    capitals for the page title alone, so the mockup's capitals are not
+    built); and a line with the team and where the driver started —
+    *from pole*, *from 21st*, *from the front of the grid* where the driver
+    started first without the pole credit, *from the pit lane*, or *grid
+    not recorded* (`podiumStart` in `queries/race.js`; no podium drawn on
+    the present data says the last, since every podium place with no grid
+    on record is on a page whose podium is declined for a shared place) —
+    then a chip for the
+    places made or lost from a numbered slot: *▲ 19* on `--move-up`, *▼ 2*
+    on `--move-down`, both white (`--on-move`), *held* ruled in the slab's
+    ink, and no chip with no slot. A screen reader hears the chip's words
+    (*19 places gained*) in place of the arrow.
+  - The surname's link keeps the focus ring, drawn in the slab's ink
+    (`currentColor`) rather than `--accent`, which on a red or papaya slab
+    all but vanishes into it.
+  - The words on a slab are whichever of black and white has the higher
+    contrast ratio against that value of the pair (`inkOn()` in
+    `lib/podium.js`, `RACING_INK` there for the national colours, which are
+    tokens), so papaya takes black. Black rather than `--ink`, because
+    against black and white the better ratio is never under 4.58:1, which
+    holds §7's 4.5:1 floor on any colour; `units.mjs` holds every livery
+    and racing colour to it in both themes.
+  - Under the slabs, the strip's other tiles on one line, each its label
+    in `--ink-faint` and its value, the circuit without its place
+    (*Circuit Interlagos · Pole Norris · Fastest lap … · Entries 22 · 20
+    classified*; `raceAlso()` in `queries/race.js`).
+  - Where a place is shared or empty, or the round is not yet run, no
+    podium is drawn and the strip stands, its Winner tile with it.
+  - One component in each renderer, `components/RacePodium.jsx` and
+    `racePodiumBlock()` in `prerender.js`, from `slab()` in `lib/podium.js`.
 - **The season plate** — provisional on the season page (VD-104 #1239
   (c)); pending on home (VD-109 #1331) and a constructor's page (VD-115
   #1337). One component, `SeasonPlate`: a 4 px rule (`--space-2`) in the
@@ -1647,7 +1691,9 @@ citation, is already one system and is kept.
 ### Event pages: race
 
 Race pages follow the entity layout (DP-11): the header, with the weather
-line where one is held (§3, Page header), beside the outline slot; tiles;
+line where one is held (§3, Page header), beside the outline slot; the
+podium where one can be drawn, with the strip's other tiles on a line under
+it (§3, *Season cycle*, VD-108), and the tiles where it cannot;
 *On this page* (§3, provisional, IA-30); the classification at full width,
 with the line pointing to a recorded disagreement above it and the box after
 it, closed (§3, *A race's box, folded*, VD-131); Grid to flag; qualifying; pit
@@ -1668,17 +1714,20 @@ scroll at tablet width.
 The slot is written after the classification, so below 1180 the outline
 follows the result.
 
-**Pending:** the podium in the header, under the weather line, each step
-with its start slot, and the Winner tile gone from the strip (VD-108 #1330;
-on a phone it stacks under the standfirst, above the tiles); Grid to flag
+**Pending:** Grid to flag
 naming its story, the biggest climb and fall drawn in full ink and labelled
 over a halo, the other lines in `--rule-strong`, with a title that states it
 (VD-113 #1335).
 
-What it costs: the band is as tall as the outline, so at 1440 × 900 the
-classification's heading and its first four rows are on the first screen,
-where PD-57's tiles in the column beside the outline showed eight. The smoke
-suite holds the four.
+What it costs: the band is as tall as the outline, and the podium is
+taller than the tiles it replaces, so at 1440 × 900 the classification's
+heading is on the first screen and its rows may not be. PD-57's tiles in
+the column beside the outline showed eight rows, and version A, before the
+podium, four. The podium is the result and leads the page, so the first
+screen holds the heading, not the rows, on every page that draws the
+podium (VD-108, ruled on #1330, `[D-68]`). The smoke suite holds the
+heading, whole, under the podium and inside the first 900 px, in both
+halves, on the race pages whose openings are the longest.
 
 ### Lookup pages: records, Grand Prix, registers, `/data`
 
@@ -1886,7 +1935,7 @@ control (VD-82).
 |---|---|---|
 | WCAG A/AA on the ten smoke routes | **floor** | axe-core in `web/test/smoke.mjs` (and 0 violations on 104 runs across 26 routes on 2026-10-06) |
 | Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); `smoke.mjs` *Sorting* focuses a sort button and a console example from the keyboard and reads the ring (VD-82) |
-| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. A block wholly to the right of an earlier one is a column read after it, and may start higher. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it |
+| DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. A block wholly to the right of an earlier one is a column read after it, and may start higher. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it. Declared here: the podium's steps on home and its slabs on a race page (§3 *Season cycle*), listed first, second, third and stood second, first, third as a podium stands, so the eye and the keyboard part company inside that one block; ruled with the approved designs (AF-135, VD-108 #1330), and under 768 px the slabs stand in reading order |
 | Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
 | Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27; a field's placeholder, AX-27) |
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |
@@ -2159,6 +2208,14 @@ comparison in `docs/critiques/2026-11-14-serif-comparison/`: **Source Serif
 4 for prose**, chosen over Newsreader and over leaving prose in Saira, and
 **section heads in the words as written**, the page title staying in
 capitals `[D-66]`.
+
+The maintainer's rulings on VD-108 (#1330), 2026-11-17 and 2026-11-18:
+**the race page's first screen holds the classification's heading, not
+its first four rows, on every page that draws the podium**, because the
+approved podium is the result and leads the page; the opening was to
+tighten to hold it there, and the podium was redrawn as the stepped slabs
+that take the tiles' row, approved on the review page after two compact
+forms read as dry `[D-68]`.
 
 The maintainer's ruling on VD-108's review page (#1330), 2026-11-18: **a
 race's disagreements move under the classification, closed to one line**,

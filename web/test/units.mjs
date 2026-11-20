@@ -192,6 +192,8 @@ import { DIGEST_NOTE, EYEBROWS, NOT_YET_RUN, behindThisPage, citation, licenceTe
 import { ONWARD, raceSteps } from '../src/lib/wayfinding.js'
 import { NEIGHBOURS as RACE_NEIGHBOURS } from '../src/queries/race.js'
 import { gridFlagLabel, gridFlagMoves, gridFlagStory } from '../src/queries/race.js'
+import { nameParts } from '../src/lib/format.js'
+import { RACING_INK, SLAB_INK, contrastRatio, inkOn, placesMoved, slab, slabVars } from '../src/lib/podium.js'
 import {
   AGGREGATE_METHOD,
   DISTANCE_LABEL,
@@ -202,6 +204,10 @@ import {
   distanceMethod,
   lapSeconds,
   layoutLength,
+  podiumStart,
+  raceAlso,
+  racePodium,
+  raceStrip,
   practiceBySession,
   practiceColumns,
   qualifyingColumns,
@@ -5405,6 +5411,135 @@ describe('a session gap as a distance on the track (AF-131)', () => {
     } finally {
       db.close()
     }
+  })
+})
+
+describe("a race page's podium where its tiles stood (VD-108)", () => {
+  const entry = (finish_position, driver_id, over = {}) => ({
+    finish_position,
+    driver_id,
+    driver: driver_id,
+    constructor_id: 'mclaren',
+    constructor: 'McLaren',
+    constructor_country: null,
+    entrant: null,
+    grid: 4,
+    grid_text: '4',
+    pole: 0,
+    fastest_lap: 0,
+    ...over,
+  })
+  const race = { status: 'completed', year: 2026, circuit_id: 'interlagos', circuit: 'Interlagos' }
+  const three = [entry(1, 'a', { grid: 1, grid_text: '1', pole: 1 }), entry(2, 'b', { grid: 21, grid_text: '21' }), entry(3, 'c', { grid: 5, grid_text: '5' }), entry(4, 'd')]
+
+  it('says where each driver started, a slot or the words for one that is not', () => {
+    assert.equal(podiumStart(entry(1, 'a', { grid: 1, grid_text: '1', pole: 1 })), 'from pole')
+    assert.equal(podiumStart(entry(1, 'a', { grid: 1, grid_text: '1', pole: 0 })), 'from the front of the grid', 'first on the grid without the pole credit (2022 Brazil)')
+    assert.equal(podiumStart(entry(2, 'b', { grid: 21, grid_text: '21' })), 'from 21st')
+    assert.equal(podiumStart(entry(2, 'b', { grid: 12, grid_text: '12' })), 'from 12th')
+    assert.equal(podiumStart(entry(2, 'b', { grid: null, grid_text: 'PL' })), 'from the pit lane')
+    assert.equal(podiumStart(entry(2, 'b', { grid: null, grid_text: null })), 'grid not recorded', 'a slot nobody recorded is not a zero')
+    assert.equal(podiumStart(entry(2, 'b', { grid: 1, grid_text: '8' })), null, 'a slot the source states otherwise says nothing')
+  })
+
+  it('stands the three with their starts, and declines a shared place, a missing one and a round not run', () => {
+    assert.deepEqual(
+      racePodium(race, three).map((s) => [s.ordinal, s.driver, s.constructor, s.start]),
+      [['1st', 'a', 'McLaren', 'from pole'], ['2nd', 'b', 'McLaren', 'from 21st'], ['3rd', 'c', 'McLaren', 'from 5th']],
+    )
+    assert.equal(racePodium(race, [three[0], three[1], three[2], entry(3, 'e')]), null)
+    assert.equal(racePodium(race, [three[0], three[1]]), null)
+    assert.equal(racePodium({ ...race, status: 'scheduled' }, three), null)
+    // The car by carName()'s rule, as the standfirst names it (AF-64).
+    const indy = entry(1, 'parsons', { constructor_id: null, constructor: null, entrant: 'Kurtis Kraft-Offenhauser' })
+    assert.equal(racePodium(race, [indy, three[1], three[2]])[0].constructor, 'Kurtis Kraft-Offenhauser')
+  })
+
+  it('takes the Winner tile out of the strip only where the podium is drawn', () => {
+    const labels = (entries) => raceStrip(race, entries, []).map((t) => t.label)
+    assert.ok(!labels(three).includes('Winner'))
+    assert.ok(labels(three).includes('Pole'))
+    const shared = [three[0], three[1], three[2], entry(3, 'e')]
+    assert.ok(labels(shared).includes('Winner'), 'a declined podium keeps the tile, so the strip still names who won')
+  })
+
+  it("puts the strip's other tiles on the line under the slabs, the circuit without its place", () => {
+    const placed = { ...race, locality: 'São Paulo', country: 'Brazil' }
+    const also = raceAlso(placed, three, [])
+    assert.deepEqual(
+      also.map((t) => t.label),
+      raceStrip(placed, three, []).map((t) => t.label),
+    )
+    assert.equal(also.find((t) => t.label === 'Circuit').note, undefined)
+    assert.equal(raceStrip(placed, three, []).find((t) => t.label === 'Circuit').note, 'São Paulo, Brazil', 'the strip keeps it')
+    assert.equal(also.find((t) => t.label === 'Entries').note, '4 classified')
+  })
+
+  it('counts places made or lost from a numbered slot only', () => {
+    const steps = racePodium(race, [
+      entry(1, 'a', { grid: null, grid_text: 'PL' }),
+      entry(2, 'b', { grid: 21, grid_text: '21' }),
+      entry(3, 'c', { grid: 1, grid_text: '8' }),
+    ])
+    assert.deepEqual(steps.map((s) => s.grid), [null, 21, null], 'a pit-lane start and a slot stated otherwise have none')
+    assert.deepEqual(placesMoved(21, 2), { kind: 'up', text: '\u25b2 19', said: '19 places gained' })
+    assert.deepEqual(placesMoved(1, 3), { kind: 'down', text: '\u25bc 2', said: '2 places lost' })
+    assert.deepEqual(placesMoved(3, 2), { kind: 'up', text: '\u25b2 1', said: '1 place gained' })
+    assert.equal(placesMoved(2, 2).kind, 'held')
+    assert.equal(placesMoved(null, 2), null)
+  })
+
+  it('draws each slab from its step: the place and given names, the surname linked, the team and start, the chip', () => {
+    const [first, second] = racePodium(race, [
+      entry(1, 'piquet-jr', { driver: 'Nelson Piquet Jr.', grid: 1, grid_text: '1', pole: 1 }),
+      entry(2, 'von-trips', { driver: 'Wolfgang von Trips', grid: 21, grid_text: '21' }),
+      entry(3, 'c', { driver: 'Zsolt', grid: 3, grid_text: '3' }),
+    ]).map(slab)
+    assert.deepEqual(
+      [first.numeral, first.first, first.surname, first.href, first.meta, first.move.text],
+      ['1', '1st · Nelson', 'Piquet Jr.', 'drivers/piquet-jr', 'McLaren · from pole', 'held'],
+    )
+    assert.deepEqual([second.first, second.surname, second.meta, second.move.said], ['2nd · Wolfgang', 'von Trips', 'McLaren · from 21st', '19 places gained'])
+    assert.deepEqual(nameParts('Zsolt'), { given: '', surname: 'Zsolt' }, 'a one-word name is a surname alone')
+    assert.equal(slab({ place: 3, ordinal: '3rd', driver: 'Zsolt', driver_id: 'c', constructor: 'X', start: null, grid: null, colour: null }).first, '3rd')
+  })
+
+  it('sets a slab in black or white, whichever reads better on each value of its pair, and holds 4.5:1 on every colour', () => {
+    assert.equal(inkOn('#ff8000'), SLAB_INK.dark, 'papaya takes black')
+    assert.equal(inkOn('#1f3c88'), SLAB_INK.light, 'a navy takes white')
+    assert.equal(inkOn('#000000'), SLAB_INK.light)
+    assert.equal(inkOn('#ffffff'), SLAB_INK.dark)
+    // Every livery's two values, and every national colour's value in each
+    // of tokens.css's three blocks: the ink chosen clears the text floor.
+    const tokens = readFileSync(join(web, 'src', 'styles', 'tokens.css'), 'utf8')
+    const blocks = {
+      light: tokens.slice(0, tokens.indexOf('@media (prefers-color-scheme: dark)')),
+      osDark: tokens.slice(tokens.indexOf('@media (prefers-color-scheme: dark)'), tokens.indexOf(":root[data-theme='dark']")),
+      stampedDark: tokens.slice(tokens.indexOf(":root[data-theme='dark']")),
+    }
+    const racing = (block) => Object.fromEntries([...block.matchAll(/--(racing-[a-z]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+    const light = racing(blocks.light)
+    assert.deepEqual(Object.keys(light).sort(), Object.keys(RACING_INK).sort(), 'RACING_INK names every racing token')
+    const under = []
+    for (const [theme, block] of [['light', blocks.light], ['dark', blocks.osDark], ['dark', blocks.stampedDark]]) {
+      for (const [token, hex] of Object.entries(racing(block))) {
+        assert.equal(RACING_INK[token][theme], inkOn(hex), `--${token} in the ${theme} theme (${hex}): RACING_INK is not inkOn() of it`)
+        if (contrastRatio(hex, inkOn(hex)) < 4.5) under.push(`--${token} ${theme} ${hex}`)
+      }
+    }
+    for (const l of LIVERIES)
+      for (const hex of [l.light, l.dark]) if (contrastRatio(hex, inkOn(hex)) < 4.5) under.push(`${l.constructor} ${l.from} ${hex}`)
+    assert.deepEqual(under, [], 'a slab whose words fall under 4.5:1')
+    assert.ok(LIVERIES.length > 0)
+  })
+
+  it("carries the pair and each value's ink, or nothing for a team with no colour", () => {
+    const vars = slabVars({ light: '#d66c00', dark: '#ff8000' })
+    assert.deepEqual(Object.keys(vars), ['--livery-light', '--livery-dark', '--slab-ink-light', '--slab-ink-dark'])
+    assert.deepEqual([vars['--slab-ink-light'], vars['--slab-ink-dark']], [inkOn('#d66c00'), inkOn('#ff8000')])
+    const uk = slabVars({ light: 'var(--racing-uk)', dark: 'var(--racing-uk)' })
+    assert.deepEqual([uk['--slab-ink-light'], uk['--slab-ink-dark']], [RACING_INK['racing-uk'].light, RACING_INK['racing-uk'].dark])
+    assert.equal(slabVars(null), null)
   })
 })
 
