@@ -444,7 +444,6 @@ import {
   SEASON_COLUMNS as TEAM_SEASON_COLUMNS,
   STANDINGS as TEAM_STANDINGS,
   WINS as TEAM_WINS,
-  WINS_FOOTER as TEAM_WINS_FOOTER,
   WIN_COLUMNS,
   WINS_FIGURE_COLUMNS,
   WINS_HEADING,
@@ -452,7 +451,9 @@ import {
   recordFigures,
   seasonsFooter,
   teamStrip,
+  winsByRace,
   winsFigure,
+  winsFooter,
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
@@ -4439,7 +4440,8 @@ page({
     const identity = livery
       ? colourForEntry({ constructorId: c.id, country: c.country, year: lastSeason.year, team: c.name })
       : nationalEntry(c.country)
-    const wins = all(TEAM_WINS, c.id)
+    // A row a race, a shared drive once, as Constructor.jsx draws it (VD-117).
+    const wins = winsByRace(all(TEAM_WINS, c.id))
     const designs = all(DESIGNS, c.id)
     // The wins chart that leads the page (VD-73): Constructor.jsx's figure,
     // from queries/constructor.js, in the team's colour, after the tiles -
@@ -4474,9 +4476,8 @@ page({
     // Lotus, so a count of zero would be a figure nobody established. Joined,
     // so a team with neither figure gets no stray ". ." in its description.
     // A team that never won says so in words rather than as "0 wins" (CD-11),
-    // over the championship races it entered: a SUM that is NULL is a team
-    // whose every entry went unclassified, and every race with entries has
-    // one at finish_position 1, so it too is a team that never won.
+    // over the championship races it entered. Wins are races won, a shared
+    // drive once (VD-117), a count and so never NULL.
     const teamFigures = [
       teamDerived.entries > 0
         ? teamDerived.wins > 0
@@ -4532,9 +4533,19 @@ page({
                 year: (year) => link(`seasons/${year}`, year),
                 name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
                 circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name) : text(name)),
-                driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
-                chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
-              }, { fold: FOLD_NOUN.wins, footer: TEAM_WINS_FOOTER })}`
+                driver: (name, row) =>
+                  row.drivers.length > 1
+                    ? row.drivers.map((d) => (d.id ? link(`drivers/${d.id}`, d.name) : text(d.name))).join(esc(TILE_JOIN))
+                    : row.driver_id
+                      ? link(`drivers/${row.driver_id}`, name)
+                      : text(name),
+                chassis: (name, row) =>
+                  row.designs.length > 1
+                    ? row.designs.map((d) => (d.id ? link(`cars/${d.id}`, d.name ?? d.id) : text(d.name))).join(esc(TILE_JOIN))
+                    : row.chassis_id
+                      ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id)
+                      : text(name),
+              }, { fold: FOLD_NOUN.wins, footer: winsFooter(wins) })}`
             : ''
         }
         ${
@@ -4555,9 +4566,9 @@ page({
           ['Full name', text(c.full_name)],
           ['Country', text(c.country)],
           ['Base', text(c.base)],
-          // Both figures, as the app's "On the record" gives them (CD-34):
-          // the stored wins are published ones and part from the count on
-          // four teams, so the list no longer prints one the strip contradicts.
+          // Both figures, as the app's "On the record" gives them (CD-34),
+          // so the list never prints one the strip contradicts; counted by
+          // race (VD-117), the two now agree wherever both are held.
           ...recordFigures(c, teamDerived).map(([label, value]) => [label, esc(value)]),
           ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
         ])}`,
