@@ -7,11 +7,13 @@ import { useMeasure } from './useMeasure.js'
  * markup here and gridFlagSvg() there are the same elements with the same
  * classes - the smoke suite compares them - and a change to one is a change
  * to both. There is no hover: every value a line carries is printed beside
- * it, and the table under the figure has them all.
+ * it, and the table under the figure has them all. `moves` are the race's
+ * biggest, which queries/race.js's gridFlagStory() picks (VD-113): drawn in
+ * full ink, over the field, with their labels on their lines last of all.
  */
-export default function GridFlag({ entries, label }) {
+export default function GridFlag({ entries, moves = [], label }) {
   const [ref, width] = useMeasure(GRID_FLAG_WIDTH)
-  const layout = gridFlagLayout(entries, width)
+  const layout = gridFlagLayout(entries, width, moves)
   if (!layout) return null
   const { height, cars } = layout
   return (
@@ -54,6 +56,11 @@ export default function GridFlag({ entries, label }) {
               {car.name}
             </text>
           </g>
+        ))}
+        {layout.notes.map((note) => (
+          <text key={note.key} className="flag-note" x={note.x} y={note.y} textAnchor={note.anchor} dominantBaseline="middle">
+            {note.text}
+          </text>
         ))}
       </svg>
     </div>

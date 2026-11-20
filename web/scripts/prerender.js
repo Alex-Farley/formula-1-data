@@ -415,6 +415,7 @@ import {
   stintsNote,
   gridFlagLabel,
   gridFlagNote,
+  gridFlagStory,
   gridFlagUndrawn,
   inClassificationOrder,
   LAYOUT_RACED_JOIN,
@@ -1380,8 +1381,10 @@ const timeline = (milestones) =>
 // What the numbers hold that the plot does not draw is their table's own
 // source line, in that table's band (`footer` on fromColumns), as Figure.jsx
 // passes `table.footer` to DataTable (VD-86); the figure prints none of its own.
-const figure = (name, figureNote, body, { plot = '' } = {}) =>
-  `<figure class="figure" aria-label="${esc(name)}">${plot ? `<div class="figure-body">${plot}</div>` : ''}<p class="figure-note"><span>${esc(
+// A `finding` and its `kicker` (the annotation pattern, VD-121) are set over
+// the figure, as Figure.jsx sets them: Grid to flag's (VD-113).
+const figure = (name, figureNote, body, { plot = '', finding = null, kicker = null } = {}) =>
+  `${finding ? `<p class="figure-finding">${esc(finding)}</p>${kicker ? `<p class="figure-kicker">${esc(kicker)}</p>` : ''}` : ''}<figure class="figure" aria-label="${esc(name)}">${plot ? `<div class="figure-body">${plot}</div>` : ''}<p class="figure-note"><span>${esc(
     figureNote,
   )}</span></p>${body}</figure>`
 
@@ -1433,7 +1436,7 @@ const gridFlagSvg = (layout, label) => {
           : `<circle class="flag-end" cx="${car.x2}" cy="${car.y2}" r="2.5"/>`) +
         `${t('axis-text flag-result', layout.labelX, car.y2, car.result, mid)}${t('flag-name', layout.nameX, car.y2, car.name, mid)}</g>`,
     )
-    .join('')}</svg></div>`
+    .join('')}${layout.notes.map((note) => t('flag-note', note.x, note.y, note.text, ` text-anchor="${note.anchor}"${mid}`)).join('')}</svg></div>`
 }
 
 /*
@@ -3787,6 +3790,8 @@ const seasonsTable = (rows) =>
     const entries = inClassificationOrder(entryRows)
     const raceDisagreements = disagreements.all(`${r.year} round ${r.round}`)
     const flag = gridFlagRows(entryRows)
+    // VD-113: its biggest moves, and the finding and kicker they give it.
+    const flagStory = gridFlagStory(flag, undrawnOf(entryRows))
     const km = layoutLength(r)
     const qualifying = withDistance(all(QUALIFYING, r.year, r.round), km, r.qualifying_laps)
     const practice = practiceBySession(all(PRACTICE, r.year, r.round), km)
@@ -3970,7 +3975,11 @@ const seasonsTable = (rows) =>
                   GRID_FLAG_COLUMNS,
                   flag.map((r) => r.entry), {}, { unfolded: UNFOLDED.figure, footer: gridFlagUndrawn(undrawnOf(entryRows)) },
                 ),
-                { plot: gridFlagSvg(gridFlagLayout(entryRows), gridFlagLabel(flag)) },
+                {
+                  plot: gridFlagSvg(gridFlagLayout(entryRows, undefined, flagStory.moves), gridFlagLabel(flag, flagStory.moves)),
+                  finding: flagStory.finding,
+                  kicker: flagStory.kicker,
+                },
               )}</section>`
             : ''
         }

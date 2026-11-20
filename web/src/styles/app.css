@@ -4323,11 +4323,44 @@ figure.figure > .figure-note:first-child {
    accent (VD-94), one that was not classified fainter, dashed, ending on a
    cross - three channels, so the colour is never the only one, and the
    winner's result and name are printed at its end. The names are ink at the
-   axis size; the leader is the gridline's own faint rule, dotted. */
+   axis size; the leader is the gridline's own faint rule, dotted.
+   VD-113: the race's biggest moves in full ink at 2.5 px, labelled on the
+   line, over a field drawn lighter at 1.2 px - still in --series-ink, not
+   the mockup's --rule-strong, which is 1.5:1 on the panel and under the
+   3:1 a chart series owes (section 7) - and the winner at the same 2.5 px
+   in the accent. The weight is the emphasis, and the label and the
+   semibold name at the end are its second cue. */
 .figure .flag-line {
   stroke: var(--series-ink);
-  stroke-width: 1.5;
+  stroke-width: 1.2;
   fill: none;
+}
+
+.figure .flag-strong .flag-line {
+  stroke: var(--ink);
+  stroke-width: 2.5;
+}
+
+.figure .flag-strong .flag-start,
+.figure .flag-strong .flag-end {
+  fill: var(--ink);
+}
+
+.figure .flag-strong .flag-name,
+.figure .flag-won .flag-name {
+  font-weight: var(--weight-semibold);
+}
+
+/* A picked line's label, in the label register over a halo of the panel,
+   so it reads across the lines under it. */
+.figure .flag-note {
+  fill: var(--ink);
+  font-size: var(--size-3);
+  font-weight: var(--weight-semibold);
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 5px;
+  stroke-linejoin: round;
 }
 
 .figure .flag-start,
@@ -4337,7 +4370,7 @@ figure.figure > .figure-note:first-child {
 
 .figure .flag-won .flag-line {
   stroke: var(--series-mark);
-  stroke-width: 2;
+  stroke-width: 2.5;
 }
 
 .figure .flag-won .flag-start,

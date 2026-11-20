@@ -15,11 +15,16 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, inWords, missing, number, ordinal, points, raceDates, roundResult, text } from '../lib/format.js'
+import { EMPTY, inWords, missing, number, ordinal, points, raceDates, roundResult, shortNames, text } from '../lib/format.js'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { carName } from './race.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
+
+// Kept here for the pages and tests that import it from this module; it
+// lives in lib/format.js, where queries/race.js - which this module imports -
+// can reach it without a cycle (VD-113).
+export { shortNames }
 
 export const SEASON = `
   SELECT s.*, d.full_name AS champion, t.name AS champion_team_name, t.country AS champion_team_country,
@@ -805,25 +810,6 @@ export const CONTENDER_ENTRIES = `
                             AND driver_id IS NOT NULL AND position <= 3)
    ORDER BY r.round, e.driver_id, e.id
 `
-
-/**
- * A driver as a chart's line end and its notes name them: the surname, with
- * a lower-case particle before it ("von Trips", "de Angelis") or a suffix
- * after it ("Piquet Jr.") kept. Where two of `names` would come out the
- * same, both keep their full names, since a label that names neither line
- * is no label.
- */
-export function shortNames(names) {
-  const surname = (name) => {
-    const words = String(name).trim().split(/\s+/)
-    let k = words.length - 1
-    if (k > 0 && /^(?:Jr\.?|Sr\.?|II|III)$/.test(words[k])) k -= 1
-    while (k > 0 && /^[a-z]/.test(words[k - 1])) k -= 1
-    return words.slice(k).join(' ')
-  }
-  const short = names.map(surname)
-  return short.map((s, i) => (short.filter((t) => t === s).length > 1 ? names[i] : s))
-}
 
 /**
  * Who led the drivers' table after each round, from STANDINGS' rows: one

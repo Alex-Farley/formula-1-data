@@ -13,7 +13,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, classificationOrder, finished, missing, number, ordinal, points, raceDates, result, text } from '../lib/format.js'
+import { EMPTY, classificationOrder, finished, inWords, missing, number, ordinal, points, raceDates, result, shortNames, text } from '../lib/format.js'
 import { DERIVATION } from './records.js'
 import { linked } from '../lib/tiles.js'
 import { LABELS, SHARED } from '../lib/site.js'
@@ -822,10 +822,111 @@ export const gridFlagUndrawn = (undrawn) =>
       } in the classification and not drawn.`
     : undefined
 
-/** The figure's name for a screen reader, which hears the table and the note with it. */
-export const gridFlagLabel = (rows) => {
+/**
+ * The figure's name for a screen reader, which hears the table and the note
+ * with it, and every move the drawing picks out, since a phone may have no
+ * room to label one on its line (VD-113).
+ */
+export const gridFlagLabel = (rows, moves = []) => {
   const out = rows.filter((r) => r.out).length
-  return `Grid to flag: ${rows.length} drivers from their grid slots to the result, ${rows.length - out} classified and ${out} not.`
+  const picked = moves.length ? ` Drawn in full ink: ${moves.map((m) => m.said).join('; ')}.` : ''
+  return `Grid to flag: ${rows.length} drivers from their grid slots to the result, ${rows.length - out} classified and ${out} not.${picked}`
+}
+
+/** How many moves Grid to flag picks out at most: the annotation pattern's one to three (VD-113). */
+export const GRID_FLAG_MOVES = 3
+
+/**
+ * The race's biggest moves, grid slot to result (VD-113, to the approved
+ * mockup P04): each classified car's grid number minus its finishing
+ * place, largest first whichever way, a gain before a loss of the same
+ * size, at most GRID_FLAG_MOVES of them. A car that did not move is none.
+ * A tie at the cut is left out whole rather than settled by the order of
+ * the rows, so where four cars climbed eleven places none of them is
+ * picked: the figure picks out no more than three, and no one of four.
+ *
+ * A move needs both numbers. A car not classified has no place to end on,
+ * a pit-lane start no grid number (`grid` is NULL, `grid_text` PL), and a
+ * shared drive's result is its car's, not the slot its driver started
+ * from, so none of them is a move.
+ */
+export function gridFlagMoves(rows) {
+  const moves = rows
+    .filter((r) => !r.out && !missing(r.entry.grid) && !missing(r.entry.finish_position) && r.entry.shared_drive !== 1)
+    .map((r) => ({ entry: r.entry, moved: r.entry.grid - r.entry.finish_position }))
+    .filter((m) => m.moved !== 0)
+    .sort((a, b) => Math.abs(b.moved) - Math.abs(a.moved) || b.moved - a.moved)
+  let k = Math.min(GRID_FLAG_MOVES, moves.length)
+  while (k > 0 && k < moves.length && Math.abs(moves[k].moved) === Math.abs(moves[k - 1].moved)) k -= 1
+  return moves.slice(0, k)
+}
+
+/**
+ * What Grid to flag says over itself and on its lines (VD-113; the
+ * annotation pattern, docs/design-system.md section 3, *Figure*). `moves`
+ * are gridFlagMoves()', each given the words drawn on its line: `long`,
+ * the surname and both places (*Hamilton: 20th to 9th*), and `short`, the
+ * three-letter code the chart's phone labels already use (*HAM 20th →
+ * 9th*), with `said`, the screen reader's. The finding is the biggest
+ * climb among them - the drivers tied at it, where more than one is - or,
+ * where nobody picked climbed, the biggest fall, and its line's label
+ * carries the count as well. Places are ordinals in digits throughout, as
+ * a race's standfirst writes them (lib/format.js's `ordinal`). With no
+ * move there is no finding and no kicker, and the figure is as it was.
+ */
+export function gridFlagStory(rows, undrawn = []) {
+  const picked = gridFlagMoves(rows)
+  if (!picked.length) return { finding: null, kicker: null, moves: [] }
+  // Surnames are worked out over every driver drawn, not the picked alone,
+  // so a surname two of them share (Michael and Ralf Schumacher) keeps both
+  // full names, as shortNames() keeps them, rather than naming neither line.
+  const full = (entry) => text(entry.driver ?? entry.driver_id)
+  const field = [...new Set(rows.map((r) => full(r.entry)))]
+  const short = new Map(shortNames(field).map((name, i) => [field[i], name]))
+  // A two-word name whose family name comes first - Zhou Guanyu, ZHO - is
+  // named by the word its code spells, where the last word's is not
+  // (shortNames() takes the last).
+  const surnames = picked.map((m) => {
+    const name = short.get(full(m.entry))
+    const code = m.entry.abbreviation
+    const words = full(m.entry).split(/\s+/)
+    return code && words.length === 2 && words[0].slice(0, 3).toUpperCase() === code && name.slice(0, 3).toUpperCase() !== code ? words[0] : name
+  })
+  const gains = picked.filter((m) => m.moved > 0)
+  const losses = picked.filter((m) => m.moved < 0)
+  const pool = gains.length ? gains : losses
+  const top = pool.filter((m) => m.moved === pool[0].moved)
+  const places = (m) => `${ordinal(m.entry.grid)} to ${ordinal(m.entry.finish_position)}`
+  const by = (m) => `${m.moved > 0 ? 'up' : 'down'} ${inWords(Math.abs(m.moved))}`
+  const moves = picked.map((m, i) => {
+    const counted = top.includes(m) ? `, ${by(m)}` : ''
+    const code = m.entry.abbreviation
+    return {
+      entry: m.entry,
+      moved: m.moved,
+      // The finding's own, whose label is placed before the others'.
+      lead: top.includes(m),
+      long: `${surnames[i]}: ${places(m)}${counted}`,
+      short: code ? `${code} ${ordinal(m.entry.grid)} → ${ordinal(m.entry.finish_position)}` : null,
+      said: `${surnames[i]}, ${places(m)}, ${by(m)}`,
+    }
+  })
+  const lead = top[0]
+  const named = listed(top.map((m) => surnames[picked.indexOf(m)]))
+  let finding
+  if (top.length > 1) finding = `${named} each ${lead.moved > 0 ? 'climbed' : 'fell'} ${inWords(Math.abs(lead.moved))} places`
+  else if (lead.moved < 0) finding = `${named} fell from ${places(lead)}`
+  else if (lead.entry.finish_position === 1) finding = `${named} came from ${ordinal(lead.entry.grid)} to win`
+  else finding = `${named} came from ${ordinal(lead.entry.grid)} to finish ${ordinal(lead.entry.finish_position)}`
+  const kinds = [gains.length ? (gains.length > 1 || losses.length ? 'gains' : 'gain') : null, losses.length ? (losses.length > 1 || gains.length ? 'losses' : 'loss') : null]
+  const kicker = [
+    undrawn.length ? 'Grid slot to result' : 'Each starter, grid slot to result',
+    rows.some((r) => r.entry.finish_position === 1) ? 'the winner in red' : null,
+    `the biggest ${kinds.filter(Boolean).join(' and ')} drawn in full ink`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  return { finding, kicker, moves }
 }
 
 /*
