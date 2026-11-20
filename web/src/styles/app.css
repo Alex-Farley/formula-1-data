@@ -4088,6 +4088,12 @@ figure.figure > .figure-note:first-child {
   font-variant-numeric: tabular-nums;
 }
 
+/* The leader's margin after its value on a leaderboard, "15 clear" (VD-114):
+   the label register, in ink, as a record card's margin is. */
+.figure .value-text .bar-margin {
+  font-weight: var(--weight-medium);
+}
+
 .figure .mark-ring {
   stroke: var(--panel);
   stroke-width: 2;

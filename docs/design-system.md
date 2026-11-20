@@ -1798,15 +1798,26 @@ this Grand Prix's winners start* between *Most wins* and *Every edition*
   reaches the latest completed race says so. `recordLead` lays the page out
   for both renderers; `smoke.mjs` (*/records/:key*) reads the lead, the
   strip and the runs in both halves and against the race records.
+- **A leaderboard on a phone** (provisional, VD-114 #1336; approved as the
+  mockup `docs/critiques/2026-11-13-visual-design/P13-records-leaderboard-phone.html`):
+  below 768 px (`PHONE`, the page's width, not the plot's) each of
+  BarChart's rows is the name on its own line from the plot's left edge,
+  with the bar at the plot's width under it and the value at its end, as
+  the reach chart does below a 480 px plot; from 768 the names keep their
+  168 px column beside the bars, where the drivers' two leaderboards sit
+  side by side in `.split`. The one bar that alone holds the top value says how far clear
+  of the next value it is after its own, *15 clear*, in the label register
+  (Saira 500) and in ink, as a record card's margin does; a tie at the top
+  says nothing. Where the margin would cost the bars more than a quarter of
+  their length (half of `.split` from 768 to about 930 px) it is left off, the
+  table under the figure carrying every value it is worked from.
+  `charts/barChart.js` lays it out; `units.mjs` holds the layout and the
+  margin, a tie included, and `smoke.mjs` every name above or beside its bar
+  and every figure inside the plot at 1280, 768, 767, 400 and 320, and the
+  margin on the wins leader's own bar. The static page draws no bar chart,
+  only each leaderboard's table, so it has nothing to stack.
 - Registers keep their address contract.
 - `/data` keeps its sub-navigation.
-
-**Pending, records (decided on the 2026-11-13 visual critique):**
-
-- **A leaderboard on a phone** (VD-114 #1336): below 768 px each row is the
-  name on its own line with the bar at full width under it and the value at
-  its end, as the reach chart already does below 480 px; from 768 nothing
-  changes.
 
 Home's opening is under *Season cycle* (the season plate, built by VD-109), and its
 *Where winners start* figure takes the drawing's width rather than 100 px of

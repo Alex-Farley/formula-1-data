@@ -153,6 +153,7 @@ import {
   titleRaceFigure,
 } from '../src/queries/season.js'
 import { reachLayout, reachText } from '../src/charts/reachChart.js'
+import { BAR_LABEL_WIDTH, barLayout, barMargin, textRoom } from '../src/charts/barChart.js'
 import { clinchLayout } from '../src/charts/clinchStrip.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { entryColumns, entryOut, entryResult } from '../src/queries/car.js'
@@ -2019,7 +2020,68 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(reachLayout({ data: [], lead: 0, width: 640 }), null)
   })
 
-  // VD-90: the answer takes the lede position, and the season's own note
+  it('lays out a leaderboard: names beside the bars from the tablet breakpoint, above them below it, and the leader clear', () => {
+    const format = (v) => v.toLocaleString('en-GB')
+    const data = [
+      { key: 'a', label: 'Sir Lewis Hamilton', value: 106 },
+      { key: 'b', label: 'Michael Schumacher', value: 91 },
+      { key: 'c', label: 'Max Verstappen', value: 74 },
+      { key: 'd', label: 'Damon Hill', value: 22 },
+    ]
+    // Every x coordinate a bar's path visits.
+    const xs = (path) => [...path.matchAll(/[MLQ]\s*(-?[\d.]+)|\s(-?[\d.]+),-?[\d.]+\s+L/g)].map((m) => Number(m[1] ?? m[2]))
+    for (const width of [288, 340, 400, 560, 720]) {
+      const beside = barLayout({ data, width, stacked: false, format })
+      const above = barLayout({ data, width, stacked: true, format })
+      for (const layout of [beside, above]) {
+        for (const bar of layout.bars) {
+          // The bar runs from its start to its tip, and its value, with the
+          // margin after the leader's, stays inside the plot.
+          assert.equal(Math.min(...xs(bar.path)), layout.stacked ? 0 : BAR_LABEL_WIDTH)
+          assert.equal(Math.max(...xs(bar.path)), bar.tip)
+          assert.ok(bar.valueX + textRoom(bar, format) <= width, `${bar.d.label}'s figures fit at ${width}`)
+          if (layout.stacked) {
+            assert.equal(bar.labelAnchor, 'start')
+            assert.equal(bar.labelX, 0)
+            assert.ok(bar.labelY + 8 <= bar.y, `the name sits above its bar at ${width}`)
+            assert.ok(bar.labelY - 8 >= bar.rowTop, `and inside its own row at ${width}`)
+          } else {
+            assert.equal(bar.labelAnchor, 'end')
+            assert.equal(bar.labelX, BAR_LABEL_WIDTH - 10)
+            assert.equal(bar.labelY, bar.middle)
+          }
+        }
+        // The bars keep their order of length.
+        const tips = layout.bars.map((bar) => bar.tip)
+        assert.deepEqual([...tips].sort((p, q) => q - p), tips)
+        assert.deepEqual(layout.bars.slice(1).map((bar) => bar.margin), [null, null, null])
+      }
+      // The leader says how far clear it is wherever that costs the bars at
+      // most a quarter of their length: always with the names above, and
+      // beside them only with room to spare - not in half of .split at 768.
+      assert.equal(above.bars[0].margin, '15 clear')
+      assert.equal(beside.bars[0].margin, width >= 560 ? '15 clear' : null, `the margin beside the names at ${width}`)
+      // The point of stacking: with no name column the longest bar is longer.
+      const length = (layout) => layout.bars[0].tip - Math.min(...xs(layout.bars[0].path))
+      assert.ok(length(above) > length(beside), `the stacked bar is the longer at ${width}`)
+    }
+    // A tie at the top leads nobody, and every bar level with it says nothing.
+    const tied = [
+      { key: 'a', value: 25 },
+      { key: 'b', value: 25 },
+      { key: 'c', value: 24 },
+    ]
+    assert.equal(barMargin(tied, format), null)
+    assert.deepEqual(barLayout({ data: tied, width: 400, stacked: true, format }).bars.map((bar) => bar.margin), [null, null, null])
+    // The margin is to the next value down, not the next row; one bar, or
+    // every bar level, has nothing to be clear of.
+    assert.deepEqual(barMargin([{ key: 'b', value: 3 }, { key: 'a', value: 10 }, { key: 'c', value: 7 }], format), { key: 'a', text: '3 clear' })
+    assert.equal(barMargin([{ key: 'a', value: 4 }], format), null)
+    assert.equal(barMargin([{ key: 'a', value: 4 }, { key: 'b', value: 4 }], format), null)
+    assert.equal(barLayout({ data: [], width: 400, stacked: true, format }), null)
+  })
+
+
   // follows it rather than giving way, as a race's follows who won (SD-39).
   it("leads a season's lede with who can still win, and keeps the note after it", () => {
     const said = "Who can still win the drivers' title: Antonelli and Russell."
