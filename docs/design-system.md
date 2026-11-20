@@ -902,13 +902,20 @@ and word everything else.
 
 - **The starting grid** (from 768 px): grid boxes in two lanes, the even
   slots set half a box back, front at the left, each numbered outside its
-  box, as far as the furthest slot won from and always a whole row. One dot
+  box: nine rows at the least (`GRID_MIN_SLOTS`, VD-116 #1338), 676 px,
+  the most that draw at their natural size in the 698 px plot the grid
+  first shows in at 768, and as far as the furthest slot won from where
+  that is further back, always a whole row. A circuit of a few races drew
+  its last winner's row and stopped, so Las Vegas's three on home were
+  100 px of a 1,232 px frame. One dot
   per race won from a box, oldest first, four across and two down; a box of
   more than eight (`STARTS_CAP`) holds its count in `.value-text` instead.
   The boxes stand two abreast whatever the year, and the note says so,
   because the database does not record how each grid was formed.
 - **The dot strip** (below 768 px): the grid's phone form, not a second
-  chart. One column per slot, numbered under a baseline, the dots stacked up
+  chart. One column per slot, as far as the furthest slot won from and no
+  minimum, so a phone's box is not filled with empty columns; numbered under
+  a baseline, the dots stacked up
   from it; a count stands over a pale bar outlined in `--series-ink`. Both
   drawings are in the markup and `app.css` shows one, so the static page is
   the app's at every width and nothing moves at the handover; each keeps its
@@ -1034,7 +1041,7 @@ style.
   hidden while it loads, so it never stands alone in the empty box, and
   gone with it when it fails.
 
-### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98); provisional: a table that fits its box (IX-45 #848), the reference density (VD-95 #925), column groups and a picture in a row at the reference density (VD-106 #1248), and a value bar and the leader in the row (VD-110 #1332, VD-105 #1247); pending: the season calendar fitting its box (VD-116 #1338)
+### Table (core) — built (VD-82, AX-21, VD-84, VD-89, VD-86, VD-98), and a table that fits its box (IX-45 #848; core on its second page, the season calendar, VD-116 #1338); provisional: the reference density (VD-95 #925), column groups and a picture in a row at the reference density (VD-106 #1248), and a value bar and the leader in the row (VD-110 #1332, VD-105 #1247)
 
 - **Job:** every row, sortable, copyable.
 - **Parts:**
@@ -1152,12 +1159,16 @@ style.
   `<title>`: every round entered and its place or the source's code. The
   table's source line says how to read it. `smoke.mjs` counts each season's
   bars and ticks in both halves against the database.
-- **A table that fits its box** (provisional, IX-45 #848). A table that is
+- **A table that fits its box** (core, IX-45 #848; promoted by its second
+  page, VD-116 #1338). A table that is
   its page's subject, and has to be read whole, fits its content box from
   `--bp-tablet` rather than scrolling behind the fade. Its columns of words
   carry `.wraps` (a column's `cellClass`, so both renderers write it), and
-  from 768 to 1,180 px those cells may break at a space and every cell of
-  the table pads `--space-3` a side, not `--space-6`. A figure never wraps,
+  from 768 px those cells may break at a space, which the auto layout does
+  only where the row would not otherwise fit, and at the reference density
+  such a cell keeps the reading leading, as any cell that wraps does
+  (VD-95); from 768 to 1,180 px every cell of
+  the table also pads `--space-3` a side, not `--space-6`. A figure never wraps,
   and below `--bp-tablet` the rows keep to one line and the table scrolls,
   as every other does on a phone. The race classification was the first
   user: its ten columns are about 960 px at one line, and Points and FL
@@ -1179,12 +1190,18 @@ style.
   then fitted at 768 in the static page. The sprint's classification and the practice
   sheets are not yet held to it (IX-49 #944); the practice sheets carry
   the derived column too, keep one line, and since it some run over at
-  900 as well as at 768. Still provisional: §8
-  promotes on a second *page*, and both users are on the race page.
-  What it costs: between the breakpoints a long name takes two lines, so
-  the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024
-  in both halves, their classification and qualifying sheets (*the
-  classification and the qualifying sheets fit their box*).
+  900 as well as at 768. The season calendar is the second page (VD-116):
+  at one line its eight columns were about 1,285 px for 2026, 55 px past
+  the box at 1440, so *Fastest lap* was clipped behind the fade on a
+  desktop. Its Grand Prix, Circuit, Winner, Constructor, Pole and Fastest
+  lap carry `.wraps`; the round and the dates do not. Every season's
+  calendar, 1950 to 2026, then fitted in the static page at 768, 1,024,
+  1,180 and 1,440; at 1440 four broke a name, 1953, 1954, 1960 and 2026.
+  What it costs: a long name takes two lines where the table needs the
+  room, so the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024
+  in both halves, their classification and qualifying sheets, and three
+  seasons' calendars at those widths and 1,440 (*the classification, the
+  qualifying sheets and the calendar fit their box*).
 
 - **A value bar, and the leader in the row** (provisional, VD-110 #1332
   and VD-105 #1247). Decided on the 2026-11-13 visual critique
@@ -1228,11 +1245,6 @@ style.
   rows marked against the database's P1, a bar for each total held with
   the same shares, the pill on the champion's row, the colours or ink, and
   Wins and the stacking on a phone.
-
-**The season calendar fits its box — pending (VD-116 #1338).** At 1440 the
-2026 calendar overflows by 55 px and clips *Fastest lap*. It takes *a table
-that fits its box* (`.wraps` on Grand Prix, Circuit and Winner), which is
-IX-45's second page and so the step §8 needs to promote it.
 
 ### Notes, attached notes and the disagreement box (core) — built (VD-78, VD-86); provisional: a race's box folded under the classification, with its pointer (VD-131 #1399); pending: the box heading's role (VD-119 #1341, §2 *Type*)
 
@@ -1701,8 +1713,9 @@ citation, is already one system and is kept.
   width with its leader in the row and a bar beside each total (provisional,
   VD-110) · calendar · Who entered · photographs.
   **Pending:** the title-race chart annotated, the pattern's first use
-  (VD-121 #1345); the stray OpenStreetMap sentence in *The next round* moved
-  into its outline card (VD-116 #1338). The
+  (VD-121 #1345). The stray OpenStreetMap sentence in *The next round*,
+  once VD-116's to move into its outline card, goes with OpenStreetMap
+  itself (AF-179 #1395). The
   photographs follow *Who entered* so that they sit where the photo strip
   puts them on every type (§3), which this line had the other way round.
 - **Car:** tiles directly under the h1 · Why it mattered · Specification ·
@@ -1820,8 +1833,9 @@ this Grand Prix's winners start* between *Most wins* and *Every edition*
 - `/data` keeps its sub-navigation.
 
 Home's opening is under *Season cycle* (the season plate, built by VD-109), and its
-*Where winners start* figure takes the drawing's width rather than 100 px of
-a 1,232 px frame (VD-116 #1338).
+*Where winners start* figure draws the grid's nine rows at the least, 676 px
+of a 1,232 px frame at 1440 rather than 100 px (§3, *The starting grid*,
+VD-116 #1338).
 
 ### Phone
 

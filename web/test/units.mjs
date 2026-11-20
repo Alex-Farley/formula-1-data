@@ -6062,7 +6062,7 @@ describe('where winners start at a circuit (AF-133)', async () => {
     byDecade,
     chipStart,
   } = await import('../src/queries/circuit.js')
-  const { STARTS_CAP, dotStrip, gridDiagram, slotsDrawn } = await import('../src/charts/gridStarts.js')
+  const { GRID_MIN_SLOTS, STARTS_CAP, dotStrip, gridDiagram, slotsDrawn } = await import('../src/charts/gridStarts.js')
   // One STARTS row: a winning entry of a race run here.
   const won = (year, grid, driver, constructor, extra = {}) => ({
     year,
@@ -6118,11 +6118,20 @@ describe('where winners start at a circuit (AF-133)', async () => {
     assert.deepEqual(table.map((row) => [row.start, row.wins]), [['1st', 6], ['2nd', 5], ['4th', 1], ['6th', 1]])
     const named = STARTS_COLUMNS.find((c) => c.key === 'races').text(table[3].races)
     assert.equal(named, '2023 Max Verstappen (Red Bull)')
-    // The drawings: six slots, a whole row past the 6th; every race a dot.
+    // The drawings: the grid at its nine rows, though no winner here
+    // started further back than 6th (VD-116), and the strip as far as the
+    // 6th and a whole row; every race a dot, in the slot it was won from.
     const grid = gridDiagram(races)
-    assert.equal(grid.boxes.length, 6)
+    assert.equal(GRID_MIN_SLOTS, 18)
+    assert.equal(grid.boxes.length, GRID_MIN_SLOTS)
+    assert.deepEqual(grid.boxes.map((b) => b.slot), Array.from({ length: GRID_MIN_SLOTS }, (_, i) => i + 1))
     assert.equal(grid.boxes.flatMap((b) => b.dots).length, 13)
+    assert.deepEqual(grid.boxes.map((b) => b.dots.length).slice(0, 7), [6, 5, 0, 1, 0, 1, 0])
+    assert.ok(grid.boxes.slice(6).every((b) => b.dots.length === 0), 'the boxes past the 6th are drawn empty')
     assert.ok(grid.boxes.every((b) => b.count === null))
+    // Nine rows are 676 px across, which the grid keeps unscaled in the
+    // 698 px plot it first shows in, at 768.
+    assert.equal(grid.width, 676)
     // The even slots stand half a box back of the odd ones beside them.
     const [p1, p2] = grid.boxes
     assert.ok(p2.x > p1.x && p2.y > p1.y)
@@ -6156,6 +6165,10 @@ describe('where winners start at a circuit (AF-133)', async () => {
     const eight = winnerStarts(Array.from({ length: STARTS_CAP }, (_, i) => won(2000 + i, 3, 'D', 'T')))
     assert.equal(gridDiagram(eight).boxes[2].dots.length, STARTS_CAP)
     assert.equal(slotsDrawn(new Map([[3, []]])), 4)
+    // The grid's minimum is a floor, not a cap: a winner from further back
+    // than the ninth row draws as far as that slot and its partner.
+    assert.equal(slotsDrawn(new Map([[3, []]]), GRID_MIN_SLOTS), GRID_MIN_SLOTS)
+    assert.equal(slotsDrawn(new Map([[21, []]]), GRID_MIN_SLOTS), 22)
   })
 
   it('keeps a pit-lane start, a slot not recorded and a shared drive apart from the slots', () => {
