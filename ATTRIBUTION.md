@@ -174,12 +174,17 @@ tables, one is paraphrased and none is close to source
 field close to source and ten paraphrased out of 1,208, and one of the ten
 has since been reworded as original (`CR-60`, #693). On that evidence the
 maintainer ruled table by table (`PM-49`, #573): a table takes CC BY 4.0
-only if every prose field in it reads original. Ten of the twelve now do,
-under *What this project wrote* below. `technical_innovations` stays CC BY-SA
-because its fan-car description is paraphrased, until that field is
-rewritten (`PM-62`, #692). The glossary stays CC BY-SA too: all 55 of its
-definitions read original, but the ruling expected it to stay, and a grant
-that cannot be withdrawn waits on that being settled (`PM-67`, #835).
+only if every prose field in it reads original. Eleven of the twelve now
+do, under *What this project wrote* below. `technical_innovations` stays
+CC BY-SA because its fan-car description is paraphrased, until that field is
+rewritten (`PM-62`, #692). The glossary was the last to be granted: all 55 of
+its definitions read original, but the ruling expected it to stay, so it was
+read again by hand, term by term, against whichever of formula1.com's
+glossary, the FIA's regulations and Wikipedia holds the term (the few that none
+of them defines rest on the pass's screen). That reading found nine definitions following one of those
+sources' way of putting it, though none copied; the maintainer ruled to
+rewrite them and then grant, and the nine were written again in this
+project's own words (`PM-67`, #835).
 
 The database also quotes six team radio exchanges verbatim. They are short,
 attributed, and used to document historical events, which is the ordinary
@@ -376,11 +381,13 @@ the share-alike above. First, its account of its own sources and state:
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->6,195<!-- /fig --> |
 | `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,179<!-- /fig --> |
 
-Second, the prose of ten of the twelve reference tables `source_registry`
-entry 18 records as written for this project (`PM-49`, #573):
+Second, the prose of eleven of the twelve reference tables
+`source_registry` entry 18 records as written for this project (`PM-49`,
+#573; the glossary by `PM-67`, #835):
 
 | Columns | What they hold |
 |---|---|
+| `glossary.definition` | what each term of the sport and each results code means |
 | `eras.summary`, `eras.defining_features` | each era of the championship, summarised, and what defined it |
 | `engine_eras.notes` | notes on each engine era |
 | `governance.detail`, `governance.significance` | what each turn in the sport's governance was, and what it changed |
@@ -393,14 +400,16 @@ entry 18 records as written for this project (`PM-49`, #573):
 | `engine_manufacturers.notes` | notes on each engine manufacturer |
 
 Every figure here is a span this build rewrites from the database
-itself: <!-- fig:prose_kb -->124 KB<!-- /fig --> between all of them, of
-which <!-- fig:prose_authored_kb -->21 KB<!-- /fig --> is the ten tables' prose.
+itself: <!-- fig:prose_kb -->132 KB<!-- /fig --> between all of them, of
+which <!-- fig:prose_authored_kb -->29 KB<!-- /fig --> is the eleven tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and
 none of Wikipedia's text is in these columns. A disagreement between two
 sources is found here, by the build, and written up here; a gap is this
-project's account of what it does not hold. The ten tables were written here
-from general knowledge, and the prose pass measured every field in them
+project's account of what it does not hold. The eleven tables were written here
+from general knowledge, with a few figures taken as facts from facts-only
+sources (the glossary's plank and cost cap from the FIA's regulations), and
+the prose pass measured every field in them
 against the Wikipedia articles a writer would have reached for and found
 none of their expression. There is no upstream to owe anything to, and the
 whole-file licence covered them by the convenience LICENSE-DATA records —
@@ -416,11 +425,11 @@ The grant is in the database as well as here, as `meta.project_prose` and
 `meta.project_prose_columns`, so a copy of `f1.db` carries its own terms;
 `verify.py` fails a build where the database, `data/current.py`,
 `LICENSE-DATA` and this file do not name the same columns, and fails one
-where a granted field of the ten tables is not the text the prose pass read
-as original. A CC BY grant cannot be withdrawn from a copy already taken,
-which is why the list is exactly this long, why a rewritten field of the ten
-tables waits for the pass to read it again, and why the glossary and
-`technical_innovations` are not on it.
+where a granted field of the eleven tables is not the text the prose pass
+read as original. A CC BY grant cannot be withdrawn from a copy already
+taken, which is why the list is exactly this long, why a rewritten field of
+the eleven tables waits for the pass to read it again, and why
+`technical_innovations` is not on it.
 
 ## The facts artefact — CC BY 4.0
 

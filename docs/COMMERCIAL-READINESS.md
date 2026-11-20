@@ -243,11 +243,15 @@ Of the twelve tables `source_registry` entry 18 records as written for this
 project (381 fields), one field is paraphrased and none is close. That is
 the evidence `PM-49` (#573) waited for, and the maintainer ruled on it table
 by table on 2026-09-30: a table takes the CC BY 4.0 grant only if every prose
-field in it reads original. Ten of the twelve took it. `technical_innovations`
-did not, its fan-car description being the one paraphrased field, and stays
-CC BY-SA until that is rewritten (`PM-62`, #692). Nor did the glossary, whose
-definitions all read original but which the ruling expected to stay CC BY-SA;
-`PM-67` (#835) holds that question. `verify.py` now holds every granted field
+field in it reads original. Ten of the twelve took it then.
+`technical_innovations` did not, its fan-car description being the one
+paraphrased field, and stays CC BY-SA until that is rewritten (`PM-62`,
+#692). Nor, at first, did the glossary, whose definitions all read original
+but which the ruling expected to stay CC BY-SA. `PM-67` (#835) read it by
+hand against whichever of formula1.com's glossary, the FIA's regulations and
+Wikipedia holds each term, found nine definitions that followed one of them without copying a clause,
+and on the maintainer's ruling of 2026-11-16 rewrote those nine and granted
+the glossary, the eleventh table. `verify.py` now holds every granted field
 to the text the pass labelled, so a rewritten one waits for the pass.
 
 The earlier figure here, 552 fields, was counted on 2026-09-08 against a
@@ -670,8 +674,8 @@ carried whole. Each is derived:
   registry classes as redistributable and not share-alike — F1DB's, and the
   facts-only official sources'. A table without one takes its
   `table_provenance` source for the whole table. An authored table goes in
-  only if `PM-49` granted it, so the glossary and `technical_innovations`
-  stay out. A table every one of whose rows is keyed to a table left out —
+  only if it is granted (`PM-49`; the glossary by `PM-67`), so
+  `technical_innovations` stays out. A table every one of whose rows is keyed to a table left out —
   `car_seasons`, to `cars` — goes with it. A claim goes in only where its
   source does and the column it is about does, and a `table_provenance` row
   only where the table it is about does.

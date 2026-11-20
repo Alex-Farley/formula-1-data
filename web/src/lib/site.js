@@ -744,7 +744,7 @@ export const DOCUMENTS = [
   ],
   [
     'LICENSE-DATA',
-    'The terms the data is offered under \u2014 CC BY-SA 4.0; CC BY 4.0 for the columns holding this project\u2019s own writing: its reading of each disagreement, its account of each gap and the prose of ten of its twelve reference tables; and CC BY 4.0 for f1-facts.db, the facts alone \u2014 and why share-alike rather than something looser.',
+    'The terms the data is offered under \u2014 CC BY-SA 4.0; CC BY 4.0 for the columns holding this project\u2019s own writing: its reading of each disagreement, its account of each gap and the prose of eleven of its twelve reference tables; and CC BY 4.0 for f1-facts.db, the facts alone \u2014 and why share-alike rather than something looser.',
   ],
 ]
 
@@ -871,7 +871,7 @@ export const ABOUT = [
         'against this site still being up.',
       'The data is offered under CC BY-SA 4.0 \u2014 with the columns named in ' +
         'meta.project_prose_columns, this project\u2019s reading of each disagreement, its ' +
-        'account of each gap and the prose of ten of its twelve reference tables, under CC BY 4.0 ' +
+        'account of each gap and the prose of eleven of its twelve reference tables, under CC BY 4.0 ' +
         '\u2014 and the code under the MIT licence, except the livery palette in ' +
         'web/src/lib/liveries.js, which is CC BY-SA 4.0; the circuit ' +
         'centrelines are © OpenStreetMap contributors under ODbL 1.0, and that obligation follows ' +
