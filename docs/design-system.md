@@ -985,7 +985,8 @@ PD-56's). One question asked of a race: when the field stopped.
   order, from lap 0 to the last lap completed, broken with an ink tick at
   each stop; a car not classified ends on grid to flag's cross.
 - **A stint's label** (VD-103): its laps under its bar, centred, in the
-  axis's type (`--size-2`, `--ink-faint`) — *1–18*, then *19–41*, a stint
+  label register at the axis's size and ink (Saira 500, `--size-2`,
+  `--ink-faint`) — *1–18*, then *19–41*, a stint
   of one lap by that lap — drawn only where they fit inside its length, and
   its number and laps as its tooltip, *Stint 2: laps 19–41*.
 - **Colour:** rule 2 above, every stint and every column in
