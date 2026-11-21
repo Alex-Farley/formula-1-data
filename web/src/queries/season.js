@@ -2147,15 +2147,21 @@ export const roundWinner = (name, row) => (row.status !== 'completed' ? NOT_YET_
 export const winningCar = (row) =>
   carName({ constructor_id: row.winning_team_id, constructor: row.winning_team, entrant: row.winning_entrant })
 
+// The calendar is a table that fits its box (IX-45, VD-116): at one line its
+// eight columns are about 1,285 px for 2026, 55 px past the content box even
+// at 1440, so Fastest lap was clipped behind the fade. Its columns of words
+// may break at a space from 768 px (app.css); the round and the dates never.
+const WRAPS = 'wraps'
+
 export const CALENDAR_COLUMNS = [
   { key: 'round', label: 'R', align: 'num' },
-  { key: 'name_used', rowHeader: true, label: 'Grand Prix', text: roundName },
-  { key: 'circuit', label: 'Circuit' },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix', text: roundName, cellClass: WRAPS },
+  { key: 'circuit', label: 'Circuit', cellClass: WRAPS },
   { key: 'date_iso', label: 'Dates', date: 'race' },
-  { key: 'winner', label: 'Winner', text: roundWinner },
-  { key: 'winning_team', label: 'Constructor', text: (_, row) => roundResult(winningCar(row), row) },
-  { key: 'pole', label: 'Pole', text: roundResult },
-  { key: 'fastest', label: 'Fastest lap', text: roundResult },
+  { key: 'winner', label: 'Winner', text: roundWinner, cellClass: WRAPS },
+  { key: 'winning_team', label: 'Constructor', text: (_, row) => roundResult(winningCar(row), row), cellClass: WRAPS },
+  { key: 'pole', label: 'Pole', text: roundResult, cellClass: WRAPS },
+  { key: 'fastest', label: 'Fastest lap', text: roundResult, cellClass: WRAPS },
 ]
 
 export const CALENDAR_FOOTER =

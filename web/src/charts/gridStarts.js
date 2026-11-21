@@ -23,12 +23,23 @@ import { bySlot } from '../queries/circuit.js'
 export const STARTS_CAP = 8
 
 /**
- * How many slots are drawn: as far as the furthest one won from, at least
- * the front row, and always a whole row of two, so the last box has its
- * partner.
+ * The fewest slots the starting grid draws: nine rows of two (VD-116). A
+ * circuit of a few races drew as far as its furthest winner and no further,
+ * so Las Vegas's three on home's front page were a 100 px figure in a
+ * 1,232 px frame. Eighteen slots are 676 px across, the most that draw at
+ * their natural size in the narrowest plot the grid is shown in, 698 px at
+ * 768, so its labels never scale below the size they are set at; a winner
+ * from further back still draws as far as that slot.
  */
-export function slotsDrawn(slots) {
-  const furthest = Math.max(2, ...slots.keys())
+export const GRID_MIN_SLOTS = 18
+
+/**
+ * How many slots are drawn: as far as the furthest one won from, at least
+ * `least` (the front row unless the caller asks for more), and always a
+ * whole row of two, so the last box has its partner.
+ */
+export function slotsDrawn(slots, least = 2) {
+  const furthest = Math.max(least, ...slots.keys())
   return furthest + (furthest % 2)
 }
 
@@ -52,7 +63,7 @@ const DOTS_ACROSS = 4
 export function gridDiagram(races) {
   const slots = bySlot(races)
   if (!slots.size) return null
-  const n = slotsDrawn(slots)
+  const n = slotsDrawn(slots, GRID_MIN_SLOTS)
   const pitch = BOX_W + GAP_X
   const lanes = [LABEL, LABEL + BOX_H + LANE_GAP]
   const width = PAD * 2 + (n / 2 - 1) * pitch + pitch / 2 + BOX_W

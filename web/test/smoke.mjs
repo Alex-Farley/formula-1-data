@@ -5145,8 +5145,14 @@ try {
    * qualifying and sprint qualifying ran 112 px past their box. Read on the
    * same races, where they are held: the three-session sheet and the sprint
    * one in 2024, and the one-time sheet of 1955 and 1997.
+   *
+   * VD-116. The season calendar is the rule's second page, and the one
+   * table it reaches past --bp-desktop: 2026's ran 55 px past its box at
+   * 1440 and clipped Fastest lap. Read at the race widths and 1440 on 2026
+   * and on 1953 and 1960, two of the four seasons whose calendars still
+   * break a name at 1440 once they fit.
    */
-  await section('/races  (the classification and the qualifying sheets fit their box from 768 px: IX-45, IX-48)', async () => {
+  await section('/races /seasons  (the classification, the qualifying sheets and the calendar fit their box from 768 px: IX-45, IX-48, VD-116)', async () => {
     const readFit = ([root, name]) => {
       const main = document.querySelector(root)
       const h2 = [...main.querySelectorAll('section > h2')].find((h) => h.textContent.trim().startsWith(name))
@@ -5195,6 +5201,27 @@ try {
             truthy(got.over <= 0, `${route} at ${width} (${half}): ${name} fits its box${got.over > 0 ? `, ${got.over} px over` : ''}`)
             is(got.wrapped, 0, `${route} at ${width} (${half}): and no figure in ${name} wraps`)
           }
+        }
+      }
+    }
+    for (const year of ['2026', '1953', '1960']) {
+      const route = `/seasons/${year}`
+      for (const width of [768, 900, 1024, 1440]) {
+        await page.setViewportSize({ width, height: 900 })
+        await go(route, year)
+        await page.waitForSelector('#root main .table-scroll', { state: 'attached', timeout: 20000 })
+        await plain.setViewportSize({ width, height: 900 })
+        await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+        for (const [half, got] of [
+          ['app', await page.evaluate(readFit, ['#root main', 'The calendar'])],
+          ['static', await plain.evaluate(readFit, ['#prerendered main', 'The calendar'])],
+        ]) {
+          if (!got) {
+            fail(`${route} at ${width} (${half}): no calendar table`)
+            continue
+          }
+          truthy(got.over <= 0, `${route} at ${width} (${half}): the calendar fits its box${got.over > 0 ? `, ${got.over} px over` : ''}`)
+          is(got.wrapped, 0, `${route} at ${width} (${half}): and no round number wraps`)
         }
       }
     }
