@@ -1530,7 +1530,10 @@ const stintsSvg = (layout, label) => {
         `<g class="${car.out ? 'stint-car stint-out' : 'stint-car'}">` +
         t('axis-text stint-result', layout.resultX, car.y, car.result, ` text-anchor="end"${mid}`) +
         t('stint-name', layout.nameX, car.y, car.name, mid) +
-        car.stints.map((s) => `<rect class="stint" x="${s.x}" y="${car.barY}" width="${s.width}" height="${layout.bar}"/>`).join('') +
+        car.stints
+          .map((s) => `<rect class="stint" x="${s.x}" y="${car.barY}" width="${s.width}" height="${layout.bar}"><title>${esc(s.title)}</title></rect>`)
+          .join('') +
+        car.stints.map((s) => (s.laps ? t('axis-text stint-laps', s.lapsX, car.lapsY, s.laps, ' text-anchor="middle"') : '')).join('') +
         car.stops
           .map(
             (x, i) =>

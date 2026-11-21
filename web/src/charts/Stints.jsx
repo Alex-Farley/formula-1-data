@@ -8,7 +8,8 @@ import { useMeasure } from './useMeasure.js'
  * classes - the smoke suite compares them - and a change to one is a change
  * to both. A tick's one hover is its native <title>, the stop's lap and
  * pit-lane time on a target wider than the tick; the table under the figure
- * has them all, for anyone who cannot hover (AF-141).
+ * has them all, for anyone who cannot hover (AF-141). A stint's is its
+ * number and laps, which the label under it prints where they fit (VD-103).
  * The pit wave (AF-134) is the strip of columns above the bars.
  */
 export default function Stints({ entries, pits, label }) {
@@ -48,8 +49,18 @@ export default function Stints({ entries, pits, label }) {
               {car.name}
             </text>
             {car.stints.map((s) => (
-              <rect key={s.x} className="stint" x={s.x} y={car.barY} width={s.width} height={bar} />
+              <rect key={s.x} className="stint" x={s.x} y={car.barY} width={s.width} height={bar}>
+                <title>{s.title}</title>
+              </rect>
             ))}
+            {car.stints.map(
+              (s) =>
+                s.laps && (
+                  <text key={s.x} className="axis-text stint-laps" x={s.lapsX} y={car.lapsY} textAnchor="middle">
+                    {s.laps}
+                  </text>
+                ),
+            )}
             {car.stops.map((x, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: two stops can share a position, at a bar's end
               <g key={i} className="stint-tick">
