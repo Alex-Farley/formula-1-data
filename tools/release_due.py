@@ -38,9 +38,10 @@ early renumbers every row after it, which is not a change to any of them.
 So an integer primary key named `id`, outside that list, is left out of the
 comparison, and so is any column that references one (`source_id` ->
 source_registry.id), both read from the schema; an integer primary key with
-a name of its own, seasons.year, is a natural key and is compared. A text id is a natural key and is compared like any other column.
-meta's `built`, `verification_date` and `version` rows are left out too: they
-move when a build is dated or a version bumped, not when the data does.
+a name of its own, seasons.year, is a natural key and is compared, as is a
+text id. meta's `built`, `verification_date` and `version` rows are left
+out too: they move when a build is dated or a version bumped, not when the
+data does.
 
 Nothing here reads the clock. The build's date is a constant ([D-01]) and is
 left out as above; the release's age is the time between the tag's commit

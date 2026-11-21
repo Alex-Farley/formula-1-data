@@ -108,7 +108,8 @@ THE PULL REQUEST CI REFUSES (SD-36)
 Needs GH_TOKEN (the workflow's own token, with issues: write, actions: read
 and pull-requests: read - never the refresh App's; `release` needs only
 issues: write), GH_REPO, RUN_ID, RUN_URL and OWNER; for `failure`, the
-four jobs' results as GATE, REFRESH, LAND and RELEASE, and HELD, the line tools/refresh_hold.py wrote if the run held rows back.
+four jobs' results as GATE, REFRESH, LAND and RELEASE, and HELD, the line
+tools/refresh_hold.py wrote if the run held rows back.
 """
 import json
 import os
