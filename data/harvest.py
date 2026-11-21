@@ -1498,10 +1498,11 @@ RECORDS_LIST_READINGS = [
     ("most-entries-before-first-pole", "drivers", "perez",
      "218: the list numbers his first pole his 219th entry",
      "Wikipedia's List of Formula One driver records numbered the 2022 Saudi Arabian Grand Prix, Perez's first "
-     "pole, his 219th entry; race_entries holds 216 entries for him before it. The "
-     "list counts two entries before his first win that race_entries does not hold "
-     "as well, which the reading of most-entries-before-first-win sets out. The list "
-     "does not name them. "
+     "pole, his 219th entry; race_entries holds 216 entries for him before it, so "
+     "the list counts two entries race_entries does not hold. It counts two more than "
+     "race_entries before his first win as well, as the reading of "
+     "most-entries-before-first-win sets out. "
+     "The list does not name them. "
      "Source: https://en.wikipedia.org/w/index.php?oldid=1384674133",
      "open", "sources differ"),
     ("most-entries-without-a-pole", "drivers", "ocon",
