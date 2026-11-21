@@ -2879,8 +2879,16 @@ p.faint {
   margin-top: var(--space-9);
 }
 
+/* The box's heading is a box heading, not a section head (VD-119, design
+   system section 2 Type): the label face at the body step, semibold, in
+   ink. It was the condensed display face at --size-4, 13.5 px condensed
+   bold, the smallest display setting on the site and on no role. It stays
+   an h2; only its type changed. */
 .disagreement h2 {
-  font-size: var(--size-4);
+  font-family: var(--sans);
+  font-size: var(--size-5);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
   margin: 0 0 var(--space-5);
   letter-spacing: 0;
 }
