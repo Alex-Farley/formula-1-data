@@ -76,6 +76,11 @@ on:
 # unreported past its date. From 2026-10-02 sixteen runs failed in three days
 # and nobody knew, because a failed scheduled run tells only whoever last
 # touched the workflow.
+#
+# A fifth, `release`, says when a release is due (AF-183): it keeps one
+# issue open while tools/release_due.py finds the newest tag's f1.db behind
+# main's. It never tags or publishes; releasing stays the maintainer's push
+# of a tag.
 permissions:
   contents: read
 
@@ -460,3 +465,59 @@ jobs:
       - name: Is the data behind the calendar?
         if: ${{ !cancelled() }}
         run: python3 -B .github/scripts/refresh_alarm.py freshness
+
+  # A RELEASE DUE (AF-183). At v2.26 the published database fell three races,
+  # four tables and a month behind the site while both said version 2.26,
+  # because a release is cut only when someone remembers to. This job keeps
+  # one `release-due` issue open while tools/release_due.py finds any of its
+  # four criteria firing against the newest v* tag - new results, a schema
+  # change, corrections to existing rows, or a month's age with anything
+  # changed - and closes it on the first run that finds none, which a release
+  # tagged from main brings. It never tags or publishes:
+  # releasing stays a person's push of a tag, and this token cannot write
+  # contents at all.
+  #
+  # Its own job, not a step of `report`, so the history it needs cannot cost
+  # the other two alarms their checkout. Every commit and tree with no blobs
+  # but the five files below (`filter: blob:none`), which is what `git
+  # describe` and the tag's date need; the one blob more, the tag's f1.db, is
+  # fetched when `git show` asks for it, without a credential, the repository
+  # being public. It reads f1.db as committed at the run's commit, as the
+  # results-late check does, so the results a refresh fetches reach it on the
+  # first run after their pull request merges.
+  #
+  # Only on the runs the gate lets through - the day's first, a run by hand,
+  # a race weekend's - because the answer changes only when main or the tags
+  # do, and each of the three-hourly runs the gate stops would fetch the
+  # history again to say the same thing.
+  # Holds the workflow's own token with issues: write and nothing else, runs
+  # nothing from npm or from the pack, and checks out five files.
+  release:
+    needs: [gate, refresh, land]
+    if: ${{ !cancelled() && needs.gate.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            f1.db
+            build.py
+            tools/release_due.py
+            .github/scripts/refresh_alarm.py
+            .github/scripts/refresh_health.py
+          sparse-checkout-cone-mode: false
+
+      - name: Is a release due?
+        run: python3 -B .github/scripts/refresh_alarm.py release

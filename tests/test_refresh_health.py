@@ -25,6 +25,7 @@ import datetime as dt
 import importlib.util
 import io
 import os
+import re
 import sqlite3
 import sys
 import tempfile
@@ -441,6 +442,95 @@ class AnAlarmIsAnItemOfTheQueue(unittest.TestCase):
         self.assertIn("or the refresh pull request carrying the results is open", late)
         for body in (failure, late):
             self.assertTrue(body.endswith("Either way, skip the item."), body[-80:])
+
+
+class AReleaseDue(unittest.TestCase):
+    """refresh_alarm.py release (AF-183): one `release-due` issue, open while
+    tools/release_due.py finds a criterion firing, closed by the first run
+    that finds none, and never an item a loop fork is handed."""
+
+    DUE = [("new results", True, "1,169 races with results, 1,166 in the release (+3)"),
+           ("schema", False, "no table or column added or removed"),
+           ("corrections", False, "no row the release held in a core table has changed"),
+           ("age", False, "3 days old, against 28; 2 of 53 shared tables changed")]
+    QUIET = [(name, False, what) for name, _, what in DUE]
+
+    def run_release(self, found, issue=None, calls=None):
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        import release_due
+        calls = [] if calls is None else calls
+
+        def found_issue(kind):
+            calls.append(("find", kind["label"]))
+            return issue
+
+        def fake(*args, check=True):
+            calls.append(args)
+            return mock.Mock(returncode=0, stdout="", stderr="")
+
+        opened = []
+        with mock.patch.object(release_due, "check", return_value=("2.26", "v2.26", found)), \
+                mock.patch.object(alarm, "gh", fake), \
+                mock.patch.object(alarm, "find", found_issue), \
+                mock.patch.object(alarm, "open_issue",
+                                  lambda kind, body, labels: opened.append((kind, body, labels))), \
+                mock.patch.dict(os.environ, {"RUN_URL": "https://run"}), \
+                contextlib.redirect_stdout(io.StringIO()):
+            alarm.release()
+        return calls, opened
+
+    def mark(self, found):
+        calls, opened = self.run_release(found)
+        return opened[0][1]
+
+    def test_a_criterion_firing_opens_it_as_a_decision(self):
+        calls, opened = self.run_release(self.DUE)
+        self.assertEqual(calls, [("find", "release-due")])
+        (kind, body, labels), = opened
+        self.assertEqual(kind["label"], "release-due")
+        # A person's push of a tag: `decision` keeps it out of a fork's hands.
+        self.assertIn("decision", labels)
+        self.assertIn("source: maintainer", labels)
+        self.assertIn("- **new results** fires: 1,169 races", body)
+        self.assertIn("- **age** quiet:", body)
+        self.assertIn("bump VERSION in build.py to 2.27", body)
+        self.assertIn("Do not close it by hand or by a pull request", body)
+
+    def test_it_is_not_one_of_the_loops_alarms(self):
+        # next.py would put an alarm at the head of *Now*, for a fork that
+        # cannot tag a release.
+        with open(os.path.join(ROOT, ".claude", "skills", "backlog-loop", "next.py")) as f:
+            next_py = f.read()
+        alarms = re.search(r"^ALARMS = frozenset\(\{(.*)\}\)$", next_py, re.M)
+        self.assertIsNotNone(alarms)
+        self.assertNotIn(alarm.DUE["label"], alarms.group(1))
+        self.assertIn(alarm.FAILING["label"], alarms.group(1))
+
+    def test_while_open_it_is_rewritten_and_commented_only_on_a_change(self):
+        issue = dict(number=7, body=self.mark(self.DUE))
+        calls, opened = self.run_release(self.DUE, issue)
+        self.assertEqual(opened, [])
+        self.assertEqual([c[:2] for c in calls[1:]], [("issue", "edit")])
+        more = [(n, n in ("new results", "age"), w) for n, _, w in self.DUE]
+        calls, _ = self.run_release(more, issue)
+        self.assertEqual([c[:2] for c in calls[1:]], [("issue", "edit"), ("issue", "comment")])
+        self.assertIn("new results, age now fire.", calls[2][-1])
+
+    def test_nothing_firing_closes_it(self):
+        calls, opened = self.run_release(self.QUIET, dict(number=7, body=""))
+        self.assertEqual(opened, [])
+        self.assertEqual([c[:3] for c in calls[1:]], [("issue", "close", "7")])
+
+    def test_nothing_firing_and_none_open_does_nothing(self):
+        self.assertEqual(self.run_release(self.QUIET), ([("find", "release-due")], []))
+
+    def test_nothing_to_compare_against_fails_and_touches_nothing(self):
+        for issue in (None, dict(number=7, body="")):
+            calls = []
+            with self.assertRaises(SystemExit) as stop:
+                self.run_release("git cannot give the f1.db committed at v2.26", issue, calls)
+            self.assertIn("nothing is opened or closed", str(stop.exception.code))
+            self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":

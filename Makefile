@@ -32,14 +32,18 @@ all: build readme verify export release-due   ## rebuild, regenerate the README 
 build:                            ## rebuild f1.db from data/*.py
 	$(call run,$(PYTHON) build.py)
 
-# Last, so it is the line still on screen when the build finishes. A REMINDER
-# and never a gate: it exits 0 whatever it finds, because whether a body of
-# work is worth a release is a judgement and not a check. VERSION sat at 2.23
-# for 141 commits with nothing anywhere saying so (AF-39); this says so.
+# Last, so it is the lines still on screen when the build finishes. A
+# REMINDER and never a gate: the tool exits 1 when a release is due and 2
+# when it has no tag to compare against - which refresh.yml's alarm reads -
+# and this target goes on through both, because whether a body of work is
+# worth a release is a judgement and not a check (AF-39, AF-183). A status
+# above 2 fails the target; a traceback exits 1 like a due release, so it
+# prints and passes here, and tests/test_release_due.py in `make ci` is what
+# holds the tool to working.
 # Not in `make ci` - CI's checkout is shallow and has no tags, and a reminder
 # addressed to nobody is noise in a log.
-release-due:                      ## say whether enough has landed to be worth a release
-	@$(PYTHON) tools/release_due.py
+release-due:                      ## say whether a release is due: the last tag's f1.db against this one
+	@$(PYTHON) tools/release_due.py; status=$$?; test $$status -le 2
 
 # Every number README.md states about the current database is a span the
 # tool rewrites from f1.db. It runs before verify because verify checks the
