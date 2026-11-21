@@ -77,7 +77,9 @@ A RELEASE DUE (AF-183)
     would put it at the head of *Now* for a fork that cannot act on it.
     Where there is nothing to compare against - no tag, or the tag's f1.db
     unreadable - the step fails and the issue is left as it is: a check
-    that cannot see is not a check that found nothing.
+    that cannot see is not a check that found nothing. A failed `release`
+    job is one of the results `failure` reads, so it raises the
+    refresh-failing alarm like any other job's (review on #1434).
 
 THE PULL REQUEST CI REFUSES (SD-36)
     `land` passing means only that the refresh reached its pull request,
@@ -105,8 +107,8 @@ THE PULL REQUEST CI REFUSES (SD-36)
 
 Needs GH_TOKEN (the workflow's own token, with issues: write, actions: read
 and pull-requests: read - never the refresh App's; `release` needs only
-issues: write), GH_REPO, RUN_ID, RUN_URL and OWNER; for `failure`, the three jobs' results as GATE, REFRESH and LAND,
-and HELD, the line tools/refresh_hold.py wrote if the run held rows back.
+issues: write), GH_REPO, RUN_ID, RUN_URL and OWNER; for `failure`, the
+four jobs' results as GATE, REFRESH, LAND and RELEASE, and HELD, the line tools/refresh_hold.py wrote if the run held rows back.
 """
 import json
 import os
@@ -151,7 +153,7 @@ DUE_LABELS = QUEUE_LABELS + ("decision",)
 # ------------------------------------------------------------- the decisions
 
 def failure_action(results, is_open, refused=False, held=False):
-    """'open', 'update', 'close' or None, from the three jobs' results,
+    """'open', 'update', 'close' or None, from the jobs' results,
     whether CI is refusing the refresh's pull request, and whether the run
     held back a race's rows (AF-90).
 
@@ -334,7 +336,11 @@ def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
 def release_body(advice, tag, found, run_url):
     """`found` is release_due.criteria()'s list for `tag` against main, and
     `advice` release_due.advice()'s sentence for it."""
-    lines = "\n".join(f"- **{name}** {'fires' if fired else 'quiet'}: {what}"
+    # Table and column names from the databases, with no `<` or `>`, so
+    # none can be read as the state marker below it (security review on
+    # #1434, as held_text() for HELD).
+    lines = "\n".join(f"- **{name}** {'fires' if fired else 'quiet'}: "
+                      + what.replace("<", "").replace(">", "")
                       for name, fired, what in found)
     return (
         f"A release is due. `tools/release_due.py` compares the newest release's "
@@ -487,7 +493,8 @@ def now_utc():
 
 
 def failure():
-    results = {k.lower(): os.environ.get(k, "") for k in ("GATE", "REFRESH", "LAND")}
+    results = {k.lower(): os.environ.get(k, "")
+               for k in ("GATE", "REFRESH", "LAND", "RELEASE")}
     held = held_text(os.environ.get("HELD", ""))
     print(f"job results: {results}; held back: {held or 'nothing'}")
     issue = find(FAILING)

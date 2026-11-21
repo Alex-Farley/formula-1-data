@@ -36,7 +36,8 @@ from tools import release_due  # noqa: E402
 SCHEMA = """
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE source_registry (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
-CREATE TABLE races (id INTEGER PRIMARY KEY, year INTEGER, round INTEGER);
+CREATE TABLE seasons (year INTEGER PRIMARY KEY, rounds INTEGER);
+CREATE TABLE races (id INTEGER PRIMARY KEY, year INTEGER REFERENCES seasons(year), round INTEGER);
 CREATE TABLE race_entries (
     id INTEGER PRIMARY KEY,
     race_id INTEGER REFERENCES races(id),
@@ -51,12 +52,13 @@ META = [("id_stability_stable", "races, race_entries"), ("version", "2.26"),
         ("built", "2030-03-10"), ("verification_date", "2030-03-10"),
         ("current_season", "2030")]
 SOURCES = [(1, "F1DB"), (2, "Wikipedia")]
+SEASONS = [(2030, 3), (2031, 3)]
 RACES = [(1, 2030, 1), (2, 2030, 2), (3, 2030, 3)]
 ENTRIES = [(1, 1, "alpha", 1, 1), (2, 1, "beta", 2, 1), (3, 2, "alpha", 2, 1), (4, 2, "beta", 1, 2)]
 STANDINGS = [(1, 2030, "alpha", 43.0), (2, 2030, "beta", 43.0)]
 GLOSSARY = [("pole", "First on the grid.")]
-# Six tables in SCHEMA, all shared by the two copies unless a test adds one.
-SHARED = 6
+# Seven tables in SCHEMA, all shared by the two copies unless a test adds one.
+SHARED = 7
 
 
 class Fixture(unittest.TestCase):
@@ -65,13 +67,14 @@ class Fixture(unittest.TestCase):
         self.addCleanup(self.dir.cleanup)
         self.old = self.write("old.db")
 
-    def write(self, name, schema="", meta=META, sources=SOURCES, races=RACES,
+    def write(self, name, schema="", meta=META, sources=SOURCES, seasons=SEASONS, races=RACES,
               entries=ENTRIES, standings=STANDINGS, glossary=GLOSSARY):
         path = os.path.join(self.dir.name, name)
         con = sqlite3.connect(path)
         con.executescript(SCHEMA + schema)
         con.executemany("INSERT INTO meta (key, value) VALUES (?, ?)", meta)
         con.executemany("INSERT INTO source_registry (id, name) VALUES (?, ?)", sources)
+        con.executemany("INSERT INTO seasons (year, rounds) VALUES (?, ?)", seasons)
         con.executemany("INSERT INTO races (id, year, round) VALUES (?, ?, ?)", races)
         con.executemany("INSERT INTO race_entries (id, race_id, driver_id, finish_position, "
                         "source_id) VALUES (?, ?, ?, ?, ?)", entries)
@@ -191,6 +194,23 @@ class Corrections(Fixture):
         entries = [(10 + i, *rest) for i, *rest in ENTRIES]
         diff, _ = self.judge(entries=entries)
         self.assertEqual(diff["corrections"], {"race_entries": len(ENTRIES)})
+
+    def test_a_table_named_stable_only_since_the_release_is_not_held_to_it(self):
+        # The undertaking was not given when the release was cut, so its ids
+        # may have moved before it was.
+        self.old = self.write("older.db", meta=[("id_stability_stable", "races")] + META[1:])
+        entries = [(10 + i, *rest) for i, *rest in ENTRIES]
+        diff, _ = self.judge(entries=entries)
+        self.assertEqual(diff["corrections"], {})
+
+    def test_an_integer_primary_key_with_a_name_of_its_own_is_compared(self):
+        # seasons.year is a natural key, not a surrogate: a race moved to
+        # another season is a correction, and so is the season's own key.
+        races = [r if r[0] != 3 else (3, 2031, 1) for r in RACES]
+        diff, _ = self.judge(races=races)
+        self.assertEqual(diff["corrections"], {"races": 1})
+        diff = release_due.compare(self.old, self.write("other.db", seasons=[(2030, 3), (2032, 3)]))
+        self.assertEqual(diff["changed"], ["seasons"])
 
     def test_a_reference_to_a_renumbered_surrogate_is_not_a_correction(self):
         # A source inserted ahead of the others moves every source_id that

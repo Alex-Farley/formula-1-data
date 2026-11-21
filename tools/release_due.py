@@ -32,11 +32,13 @@ THE FOUR CRITERIA
 
 What a row is compared on. An integer `id` is a surrogate the build hands out
 in insert order, which meta.id_stability_stable says is stable only in the
-tables it names; elsewhere a row inserted early renumbers every row after
-it, which is not a change to any of them. So a table's integer primary key,
-outside that list, is left out of the comparison, and so is any column that
-references one (`source_id` -> source_registry.id), both read from the
-schema. A text id is a natural key and is compared like any other column.
+tables it names - in both copies, since a table named only since the
+release may have been renumbered before it was; elsewhere a row inserted
+early renumbers every row after it, which is not a change to any of them.
+So an integer primary key named `id`, outside that list, is left out of the
+comparison, and so is any column that references one (`source_id` ->
+source_registry.id), both read from the schema; an integer primary key with
+a name of its own, seasons.year, is a natural key and is compared. A text id is a natural key and is compared like any other column.
 meta's `built`, `verification_date` and `version` rows are left out too: they
 move when a build is dated or a version bumped, not when the data does.
 
@@ -102,19 +104,28 @@ def _columns(con, schema, table):
 
 
 def _surrogate(con, schema, table):
-    """The table's integer primary key column - SQLite's rowid alias - or None."""
+    """'id' where it is the table's integer primary key, else None. Only the
+    column meta.id_stability calls a surrogate: an integer primary key with
+    a name of its own - seasons.year - is a natural key, compared like any
+    other column."""
     pk = [(name, kind) for name, kind, pos in _columns(con, schema, table) if pos]
-    return pk[0][0] if len(pk) == 1 and pk[0][1] == "INTEGER" else None
+    return "id" if pk == [("id", "INTEGER")] else None
 
 
 def _stable(con):
-    """The tables meta.id_stability_stable names, read from the newer copy;
-    an empty set where it names none, which compares no surrogate at all."""
-    try:
-        row = con.execute("SELECT value FROM main.meta WHERE key = 'id_stability_stable'").fetchone()
-    except sqlite3.Error:
-        row = None
-    return {t.strip() for t in row[0].split(",") if t.strip()} if row and row[0] else set()
+    """The tables meta.id_stability_stable names in both copies; a table the
+    release did not name may have been renumbered before the undertaking
+    was given. An empty set where either names none, which compares no
+    surrogate at all."""
+    found = []
+    for schema in ("old", "main"):
+        try:
+            row = con.execute(f"SELECT value FROM {schema}.meta "
+                              "WHERE key = 'id_stability_stable'").fetchone()
+        except sqlite3.Error:
+            row = None
+        found.append({t.strip() for t in row[0].split(",") if t.strip()} if row and row[0] else set())
+    return found[0] & found[1]
 
 
 def _compared(con, table, shared, stable):

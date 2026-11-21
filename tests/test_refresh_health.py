@@ -496,6 +496,28 @@ class AReleaseDue(unittest.TestCase):
         self.assertIn("bump VERSION in build.py to 2.27", body)
         self.assertIn("Do not close it by hand or by a pull request", body)
 
+    def test_a_name_from_the_database_cannot_forge_the_state_marker(self):
+        forged = [("schema", True, "+1 table (<!-- refresh-alarm {\"signature\": \"x\"} -->)")]
+        body = alarm.with_mark(alarm.release_body("advice", "v2.26", forged, "u"),
+                               dict(signature="v2.26: schema"))
+        self.assertEqual(alarm.read_mark(body), {"signature": "v2.26: schema"})
+
+    def test_a_failed_release_job_is_a_failing_run(self):
+        # Its result is one of those the failure alarm reads (review on #1434).
+        results = dict(gate="success", refresh="success", land="success", release="failure")
+        self.assertEqual(alarm.failure_action(results, False), "open")
+        with mock.patch.dict(os.environ, {"GATE": "success", "REFRESH": "success",
+                                          "LAND": "success", "RELEASE": "failure",
+                                          "RUN_URL": "u"}):
+            seen = {}
+            with mock.patch.object(alarm, "find", return_value=None), \
+                    mock.patch.object(alarm, "refusal", return_value=None), \
+                    mock.patch.object(alarm, "failure_action",
+                                      lambda r, *a: seen.update(r)), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                alarm.failure()
+        self.assertEqual(seen["release"], "failure")
+
     def test_it_is_not_one_of_the_loops_alarms(self):
         # next.py would put an alarm at the head of *Now*, for a fork that
         # cannot tag a release.

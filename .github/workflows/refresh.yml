@@ -401,7 +401,7 @@ jobs:
           .github/scripts/land-refresh.sh "refresh: checked F1DB, nothing new" \
             "The harvest already matches F1DB. This records that the check ran."
 
-  # SAYING SO (SD-35). Runs after the other three on every run that was not
+  # SAYING SO (SD-35). Runs after the other four on every run that was not
   # cancelled - the gate's quick stops included - and holds the workflow's
   # own token with the three scopes it needs and nothing else: issues: write
   # to open, edit and close its two issues; actions: read to name the step
@@ -424,7 +424,7 @@ jobs:
   #              when the refresh is not running at all.
   # refresh_alarm.py and refresh_health.py say the rest.
   report:
-    needs: [gate, refresh, land]
+    needs: [gate, refresh, land, release]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -457,6 +457,7 @@ jobs:
           GATE: ${{ needs.gate.result }}
           REFRESH: ${{ needs.refresh.result }}
           LAND: ${{ needs.land.result }}
+          RELEASE: ${{ needs.release.result }}
           HELD: ${{ needs.refresh.outputs.held }}
         run: python3 -B .github/scripts/refresh_alarm.py failure
 
@@ -491,7 +492,9 @@ jobs:
   # do, and each of the three-hourly runs the gate stops would fetch the
   # history again to say the same thing.
   # Holds the workflow's own token with issues: write and nothing else, runs
-  # nothing from npm or from the pack, and checks out five files.
+  # nothing from npm or from the pack, and checks out five files. `report`
+  # waits for it and reads its result with the other jobs', so a run in
+  # which it fails raises the refresh-failing alarm like any other.
   release:
     needs: [gate, refresh, land]
     if: ${{ !cancelled() && needs.gate.outputs.run == 'true' }}
