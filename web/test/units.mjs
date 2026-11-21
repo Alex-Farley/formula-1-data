@@ -169,7 +169,7 @@ import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { driverName, fastestLapMark, inClassificationOrder, outcome, position, RACE_HISTORY, raceAftermath, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty, stintsLabel } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
-import { STINT_HEADS, pitPairs, pitWave, stintLaps, stintLayout, stintRows, stintTableRows, stintsShown, stopTitle, unbarredOf } from '../src/charts/stints.js'
+import { STINT_HEADS, lapRange, pitPairs, pitWave, stintLaps, stintLayout, stintRows, stintTableRows, stintTitle, stintsShown, stopTitle, unbarredOf } from '../src/charts/stints.js'
 import {
   BY_ROUND_WIDTH,
   ROW_SPARK_HEIGHT,
@@ -4743,6 +4743,37 @@ describe('stint windows and the pit order (PD-56)', () => {
     assert.ok(c.cross, 'a car not classified ends on a cross')
     assert.equal(a.cross, null)
     assert.ok(Math.max(...layout.cars.map((car) => car.end)) <= layout.width)
+  })
+
+  // VD-103: a stint is labelled in words under its bar, never by a second ink.
+  it('labels each stint by its laps under the bar, and by its number and laps in its tooltip', () => {
+    const [a, b, c] = stintLayout(entries, pits).cars
+    assert.deepEqual(
+      a.stints.map((s) => [s.laps, s.title]),
+      [
+        ['1–20', 'Stint 1: laps 1–20'],
+        ['21–35', 'Stint 2: laps 21–35'],
+        ['36–50', 'Stint 3: laps 36–50'],
+      ],
+    )
+    assert.deepEqual(
+      c.stints.map((s) => s.title),
+      ['Stint 1: laps 1–20'],
+      'a stop past the last lap does not make a stint',
+    )
+    assert.equal(lapRange(17, 18), '18')
+    assert.equal(stintTitle(2, 17, 18), 'Stint 2: lap 18')
+    assert.ok(a.lapsY > a.barY + 8 + 3 && a.lapsY < b.barY - 3, 'the label sits between its bar’s ticks and the next row’s')
+    // A stint too short for its laps keeps its tooltip and loses the label.
+    const short = stintLayout([entry('a', 1, 50, 1), entry('b', 2, 50, 2)], [stop('a', 1, 10), stop('a', 2, 11), stop('b', 1, 25)]).cars[0]
+    assert.deepEqual(
+      short.stints.map((s) => [s.laps, s.title]),
+      [
+        ['1–10', 'Stint 1: laps 1–10'],
+        [null, 'Stint 2: lap 11'],
+        ['12–50', 'Stint 3: laps 12–50'],
+      ],
+    )
   })
 
   it('tables the drawn drivers and the ones with stops and no lap count', () => {

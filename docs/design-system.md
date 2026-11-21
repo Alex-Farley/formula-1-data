@@ -984,11 +984,16 @@ PD-56's). One question asked of a race: when the field stopped.
 - **The bars:** one per driver who started with a lap count, in finishing
   order, from lap 0 to the last lap completed, broken with an ink tick at
   each stop; a car not classified ends on grid to flag's cross.
+- **A stint's label** (VD-103): its laps under its bar, centred, in the
+  axis's type (`--size-2`, `--ink-faint`) — *1–18*, then *19–41*, a stint
+  of one lap by that lap — drawn only where they fit inside its length, and
+  its number and laps as its tooltip, *Stint 2: laps 19–41*.
 - **Colour:** rule 2 above, every stint and every column in
   `--series-ink`; no accent, since the page states no one value of it, and
   no second shade or hue between stints, which would read as a tyre
   compound the record does not hold. A stint is told from the next by the
-  break and the tick, which is shape, not colour (1.4.1).
+  break, the tick and its label, which are shape and words, not colour
+  (1.4.1); the maintainer kept the one ink on VD-103.
 - **What it may say:** the lap of each stop, and (AF-141) its pit-lane time,
   which only a tick's tooltip and the table print: no mark's size or place
   measures it, and the footer under the table says it is all of the stop's

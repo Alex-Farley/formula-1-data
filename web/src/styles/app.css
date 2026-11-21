@@ -4616,7 +4616,9 @@ figure.figure > .figure-note:first-child {
    holds none. A stop is a break in the bar and an ink tick across it, past
    the bar's edges - shape, not colour - and a car not classified ends on the
    grid-to-flag cross. A tick's tooltip sits on a target that draws nothing,
-   since the tick alone is too thin to hover (AF-141). */
+   since the tick alone is too thin to hover (AF-141). Each stint is labelled
+   by its laps under the bar, in the axis's own type (VD-103): words, not a
+   second ink. */
 .figure .stint {
   fill: var(--series-ink);
 }

@@ -11,6 +11,10 @@
  *     with a tick at the stop. The bars are in the classification's order -
  *     finishers by position, then everyone else by how far they got - so a
  *     retirement's bar stops short where it went out, and ends on a cross.
+ *     Under each stint, its laps - 1–18, then 19–41 - where they fit inside
+ *     its length, and its number and laps as its tooltip (VD-103): words
+ *     tell one stint from the next, never a second shade, which would read
+ *     as a tyre compound the record does not hold (VD-94).
  *
  * WHAT IT DOES NOT
  *     `pit_stops` holds the lap of each stop (F1DB, from 1994) and its time
@@ -56,8 +60,13 @@ export const stopTitle = (lap, seconds) => `Lap ${lap}: pit lane ${stopTime(seco
 /** The width the static page draws at, and the app's before it has measured. */
 export const STINTS_WIDTH = 640
 
-const ROW = 16
+// A row: its bar and ticks at the top, its stints' laps under them (VD-103).
+const ROW = 24
 const BAR = 8
+// The bar's middle below the row's top, clear of the ticks above it.
+const MIDDLE = 8
+// A stint's laps: their baseline below the bar's foot.
+const LAPS_BELOW = 11
 const TOP = 6
 // The pit wave: its name's baseline below TOP, then the strip, then the gap
 // above the first bar.
@@ -76,6 +85,14 @@ const STOP_TARGET = 6
 const STOP_REACH = 3
 
 const round = (value) => Math.round(value * 10) / 10
+
+/**
+ * A stint's laps (VD-103), from the lap after one stop to the lap of the
+ * next: as its label under the bar prints them, and with its number as its
+ * tooltip does. A stint of one lap is that lap alone.
+ */
+export const lapRange = (from, to) => (to - from === 1 ? String(to) : `${from + 1}–${to}`)
+export const stintTitle = (n, from, to) => `Stint ${n}: ${to - from === 1 ? 'lap' : 'laps'} ${lapRange(from, to)}`
 
 /** Whether an entry has a bar: it started, and its laps are recorded. */
 export const barOf = (entry) => !missing(entry.laps_completed) && !NOT_STARTED.has(entry.position_text)
@@ -209,7 +226,7 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
   const waveTop = TOP + WAVE_HEAD
   const waveBase = waveTop + WAVE
   const top = waveBase + WAVE_GAP
-  const y = (slot) => top + slot * ROW + ROW / 2
+  const y = (slot) => top + slot * ROW + MIDDLE
   const plotBottom = top + rows.length * ROW
   // A column three-fifths of a lap wide, so neighbouring laps stay apart, at
   // least a pixel, and never wider than a bar is tall, so a short race does
@@ -258,16 +275,28 @@ export function stintLayout(entries, pits, width = STINTS_WIDTH) {
       // broken only where one stint meets the next.
       const bounds = [0, ...cuts, done]
       const pieces = bounds.slice(1).map((to, k) => [bounds[k], to]).filter(([from, to]) => to > from)
-      const stints = pieces
-        .map(([from, to], k) => [x(from) + (k > 0 ? BREAK : 0), x(to) - (k < pieces.length - 1 ? BREAK : 0)])
-        .filter(([x1, x2]) => x2 > x1)
-        .map(([x1, x2]) => ({ x: round(x1), width: round(x2 - x1) }))
       const cy = y(i)
+      // Each stint's laps under it, centred, where they fit inside its
+      // length; the table gives every stop's lap where they do not (VD-103).
+      const stints = pieces
+        .map(([from, to], k) => [x(from) + (k > 0 ? BREAK : 0), x(to) - (k < pieces.length - 1 ? BREAK : 0), from, to, k + 1])
+        .filter(([x1, x2]) => x2 > x1)
+        .map(([x1, x2, from, to, n]) => {
+          const laps = lapRange(from, to)
+          return {
+            x: round(x1),
+            width: round(x2 - x1),
+            title: stintTitle(n, from, to),
+            laps: textWidth(laps) <= x2 - x1 ? laps : null,
+            lapsX: round((x1 + x2) / 2),
+          }
+        })
       return {
         key: r.entry.id ?? r.entry.driver_id,
         out: r.out,
         y: round(cy),
         barY: round(cy - BAR / 2),
+        lapsY: round(cy + BAR / 2 + LAPS_BELOW),
         stints,
         stops: cuts.map((lap) => round(x(lap))),
         // The stop's own lap, which a stop past the bar's end is not drawn at.
