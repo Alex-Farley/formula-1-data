@@ -743,7 +743,25 @@ class Figures:
                 f"writing the figures")
         return n(self._licence_tally()[1].get(self.WIKI, 0))
 
-    def wp_races(self):             return n(self._wp("races"))
+    # ATTRIBUTION.md credits Wikipedia's season articles with the race
+    # winners of these races (CR-121), so a season-article race whose winner
+    # cites another source, or that has no winner, stops the writer, as
+    # _later_winners() does for the races after them.
+    WIKI_REGISTRY_ID = 8
+
+    def wp_races(self):
+        rows = self.con.execute(f"""SELECT e.id, e.source_id FROM races r
+            LEFT JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
+            WHERE {self._wp_race('r.source')}""").fetchall()
+        other = sorted({"no winner" if e is None else f"source_registry {s}"
+                        for e, s in rows if e is None or s != self.WIKI_REGISTRY_ID})
+        if other:
+            raise SystemExit(
+                f"races citing a Wikipedia season article have {', '.join(other)}: "
+                f"ATTRIBUTION.md credits their winners to the season articles "
+                f"(registry entry {self.WIKI_REGISTRY_ID}) alone")
+        return n(self._wp("races"))
+
     def wp_race_entries(self):      return n(self._wp("race_entries"))
     def wp_race_rows(self):         return n(self._wp("races") + self._wp("race_entries"))
     def wp_claims(self):            return n(self._wp("claims"))
