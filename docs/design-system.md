@@ -1196,9 +1196,12 @@ style.
   desktop. Its Grand Prix, Circuit, Winner, Constructor, Pole and Fastest
   lap carry `.wraps`; the round and the dates do not. Every season's
   calendar, 1950 to 2026, then fitted in the static page at 768, 1,024,
-  1,180 and 1,440; at 1440 four broke a name, 1953, 1954, 1960 and 2026.
-  What it costs: a long name takes two lines where the table needs the
-  room, so the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024
+  1,180 and 1,440. At 1440 four seasons still wrap, 1953, 1954, 1960 and
+  2026, and in each of them most rows do, not a few names: the auto layout
+  narrows every column of words, so 2026 has 16 of its 23 rows on two
+  lines, 1954 all 9, 1953 6 of 9 and 1960 7 of 10, at 46 px a row against
+  24.5. What it costs: a long name takes two lines where the table needs
+  the room, so the table is taller. `smoke.mjs` reads three races at 768, 900 and 1,024
   in both halves, their classification and qualifying sheets, and three
   seasons' calendars at those widths and 1,440 (*the classification, the
   qualifying sheets and the calendar fit their box*).

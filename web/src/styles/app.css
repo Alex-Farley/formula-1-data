@@ -1710,8 +1710,11 @@ tbody th:not(.prose) {
  * the auto layout fit the figures in. A figure never wraps. The auto layout
  * breaks a cell only where the row would not otherwise fit, so a table with
  * the width for one line keeps it: the classification from --bp-desktop.
- * The calendar, 55 px wider than its box at 1440 for 2026, breaks a few of
- * its names there instead. Below --bp-tablet a phone keeps its
+ * The calendar, 55 px wider than its box at 1440 for 2026, wraps there
+ * instead, and more than the overflow suggests: the auto layout narrows
+ * every column of words, so 16 of 2026's 23 rows take two lines (46 px
+ * against 24.5), as do most rows of 1953, 1954 and 1960, the other three
+ * seasons that wrap at 1440. Below --bp-tablet a phone keeps its
  * one-line rows and scrolls (§4, Phone). The result rail keeps its own zero
  * padding.
  */
