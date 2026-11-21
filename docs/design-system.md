@@ -136,7 +136,7 @@ role and not a number:
 | Between a livery mark and its name: in a table cell, where nothing precedes the mark | `--space-4` (8) after it, `.livery` |
 | Around a livery mark in a sentence, after a word (**provisional**, VD-45) | `--space-2` (4) on each side, `.livery-prose` (`LiveryMark`'s `prose`), so the word space before it makes that gap the larger and the mark reads as the name's; the mark and the name sit in one `.livery-prose-pair`, so a line never breaks between them |
 
-### Type — built: the scale and the middle register (VD-84), the label register (VD-91), and the prose voice and heading case (VD-96)
+### Type — built: the scale and the middle register (VD-84), the label register (VD-91), and the prose voice and heading case (VD-96); provisional: a box's heading (VD-119 #1341)
 
 The eight small steps and the two display clamps hold. **`--size-9/10/11`
 (32/40/50 px) were documented as VD-53's "one number per page" and used
@@ -159,6 +159,7 @@ unused.
 | Column heads, tile labels; credits, source lines, footnotes | `--size-3` 12 |
 | Tables, controls, notes **attached to a box**; the eyebrow above an h1 | `--size-4` 13.5 |
 | Body, a value in a row | `--size-5` 15 |
+| A box's heading: the disagreement box's h2, in Saira semibold (provisional, VD-119) | `--size-5` 15 |
 | Lede, a name in a tile | `--size-6` 17 |
 | Section head (h2) | `--size-7` 20 |
 | A tile figure | `--size-8` 25 |
@@ -199,11 +200,13 @@ card are in the words as written, in the display face, untracked. The
 wordmark, the site's name rather than a heading, keeps them; `DISPLAY_CAPS`
 declares the two.
 
-**A box's heading — pending (VD-119 #1341).** The disagreement box's
-heading is an h2 set at `--size-4` in the display face, the smallest
-display setting on the site and off this table. It gets a declared role,
-in the label register or as an existing heading role, added to the table
-above when it is built.
+**A box's heading — provisional (VD-119 #1341).** The disagreement box's
+heading is an h2, and it heads a box, not a section: it is set in the
+label face, Saira rather than the condensed display face, semibold at
+`--size-5` in ink, the table's row above. It was the display face at
+`--size-4`, a 13.5 px condensed bold heading, the smallest display
+setting on the site and on no role. A section head's `--size-7` would
+outweigh the box's own reading and, on a race page, its one closed line.
 
 ### Measure — built (VD-78): one rule, two lengths, both on the grid
 
@@ -1249,7 +1252,7 @@ style.
   the same shares, the pill on the champion's row, the colours or ink, and
   Wins and the stacking on a phone.
 
-### Notes, attached notes and the disagreement box (core) — built (VD-78, VD-86); provisional: a race's box folded under the classification, with its pointer (VD-131 #1399); pending: the box heading's role (VD-119 #1341, §2 *Type*)
+### Notes, attached notes and the disagreement box (core) — built (VD-78, VD-86); provisional: a race's box folded under the classification, with its pointer (VD-131 #1399); provisional: the box heading's role (VD-119 #1341, §2 *Type*)
 
 | Block | Kind (text rule) | Frame |
 |---|---|---|
@@ -1271,8 +1274,9 @@ and links to the box (*Two sources disagree about this race, in 4 places:
 see below the table.*); following it in the app opens the box. The line
 takes the section gap above it and `--space-5` over the table, or over the
 shared-drive note where one stands between. An h2 inside a summary is
-flattened into the disclosure's name by some screen readers, which VD-119's
-role for the box heading should weigh. A reader
+flattened into the disclosure's name by some screen readers. VD-119 set
+only the heading's type: the element is still an h2, and that question is
+where VD-131 left it. A reader
 who opened the box on the static page finds it open at the handover
 (`lib/handover.js`). Driver, constructor and car pages keep the box open
 above what it concerns.
