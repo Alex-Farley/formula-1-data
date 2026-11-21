@@ -5,7 +5,8 @@ ATTRIBUTION.md credits Wikipedia's season articles with the winners of every
 race that cites one, sized by the wp_races figure. These cases build a two-race
 database in memory, so they hold whatever the committed f1.db says: the figure
 is written while every winner cites registry entry 8, and refused when one
-cites another source, cites none, or is missing.
+cites another source, cites none, cites another Wikipedia page, or is
+missing.
 """
 import os
 import sqlite3
@@ -41,8 +42,15 @@ class WinnerCredit(unittest.TestCase):
 
     def test_a_refusal(self):
         for change, named in (
-                ("UPDATE race_entries SET source_id = 10 WHERE id = 3", "source_registry 10"),
-                ("UPDATE race_entries SET source_id = NULL WHERE id = 3", "source_registry None"),
+                ("UPDATE race_entries SET source_id = 10 WHERE id = 3",
+                 "a winner citing source_registry 10"),
+                ("UPDATE race_entries SET source_id = NULL WHERE id = 3",
+                 "a winner citing source_registry None"),
+                ("UPDATE race_entries SET source = "
+                 "'https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters' WHERE id = 3",
+                 "a winner citing no season article"),
+                ("UPDATE source_registry SET id = 9 WHERE id = 8",
+                 "a winner citing source_registry 8"),
                 ("UPDATE race_entries SET finish_position = 3 WHERE id = 3", "no winner")):
             with self.subTest(named=named):
                 con = database()

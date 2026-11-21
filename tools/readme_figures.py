@@ -744,22 +744,26 @@ class Figures:
         return n(self._licence_tally()[1].get(self.WIKI, 0))
 
     # ATTRIBUTION.md credits Wikipedia's season articles with the race
-    # winners of these races (CR-121), so a season-article race whose winner
-    # cites another source, or that has no winner, stops the writer, as
-    # _later_winners() does for the races after them.
-    WIKI_REGISTRY_ID = 8
-
+    # winners of these races (CR-121), so a season-article race that has no
+    # winner, or whose winner cites a registry entry that is not Wikipedia's or
+    # a page that is not a season article, stops the writer, as
+    # _later_winners() does for the races after them. The entry is read by its
+    # domains, not by its number.
     def wp_races(self):
-        rows = self.con.execute(f"""SELECT e.id, e.source_id FROM races r
-            LEFT JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
-            WHERE {self._wp_race('r.source')}""").fetchall()
-        other = sorted({"no winner" if e is None else f"source_registry {s}"
-                        for e, s in rows if e is None or s != self.WIKI_REGISTRY_ID})
+        wiki = {i for i, d in self.con.execute("SELECT id, domains FROM source_registry")
+                if self.WIKI in (x.strip() for x in (d or "").split(","))}
+        rows = self.con.execute(f"""SELECT e.id, e.source_id, {self._wp_race('e.source')}
+              FROM races r
+              LEFT JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
+             WHERE {self._wp_race('r.source')}""").fetchall()
+        other = sorted({"no winner" if e is None else
+                        f"a winner citing source_registry {s}" if s not in wiki else
+                        "a winner citing no season article"
+                        for e, s, article in rows if e is None or s not in wiki or not article})
         if other:
             raise SystemExit(
                 f"races citing a Wikipedia season article have {', '.join(other)}: "
-                f"ATTRIBUTION.md credits their winners to the season articles "
-                f"(registry entry {self.WIKI_REGISTRY_ID}) alone")
+                f"ATTRIBUTION.md credits their winners to the season articles alone")
         return n(self._wp("races"))
 
     def wp_race_entries(self):      return n(self._wp("race_entries"))
