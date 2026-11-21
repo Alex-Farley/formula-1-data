@@ -256,7 +256,13 @@ comment has been re-filed as undecided three times `[D-43]`.
 the merge closes the issue and the board moves it to *Done*. The one
 exception is refresh.yml's alarm issue (`refresh-failing`, `results-late`):
 the workflow closes it on the run that proves the fix, so a PR says
-`Refs #n`. An issue `security.yml` files for an open alert closes by
+`Refs #n`. Its `release-due` issue is not an alarm of the loop's: it is
+open while `tools/release_due.py` finds the newest tag's `f1.db` behind
+`main`'s — new results, a schema change, corrections to existing rows, or
+a release more than 28 days old with anything changed — and closes on the
+first run that finds nothing due, which a release tagged from `main` brings. It carries `decision`,
+because a release is a person's push of a tag, so no fork is handed it and
+no pull request closes it (`AF-183`). An issue `security.yml` files for an open alert closes by
 `Closes #n` like any other; it arrives labelled `security: high`, `medium`
 or `low`, which places it under *Now*, *Next* or *Someday* until a person
 gives it a status, and only the maintainer dismisses an alert. The PR is the

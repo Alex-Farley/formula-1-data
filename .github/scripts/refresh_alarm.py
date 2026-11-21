@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Keep one issue open while the refresh is failing, and one while the data
-is behind the calendar (SD-35).
+is behind the calendar (SD-35); and one while a release is due (AF-183).
 
     refresh_alarm.py failure     refresh.yml's `report` job, every run
     refresh_alarm.py freshness   the same job, every run
+    refresh_alarm.py release     refresh.yml's `release` job, every run the
+                                 gate lets through
 
 From 2026-10-02 09:00 every run of refresh.yml failed - sixteen of them by
 2026-10-05 - and nobody knew for three days, because a failed scheduled run
@@ -61,6 +63,24 @@ ONE ISSUE EACH, NEVER ONE PER RUN
                or broken before its first step - is still caught here as
                soon as a race goes unreported.
 
+A RELEASE DUE (AF-183)
+    release    tools/release_due.py's verdict on the newest v* tag's f1.db
+               against the one committed: open while any of its four
+               criteria fires, closed by the first run that finds none,
+               which a release tagged from main brings.
+               A comment, which notifies, only when what fires changes.
+    It is not an alarm of the loop's. Releasing is the maintainer's push of
+    a tag, which nothing in a workflow or a loop fork makes, so the issue
+    takes the id and queue labels the other two do and `decision` beside
+    them: `next.py` prints it among the decisions and never returns it as
+    next, wherever it is placed. Nor is it one of next.py's ALARMS, which
+    would put it at the head of *Now* for a fork that cannot act on it.
+    Where there is nothing to compare against - no tag, or the tag's f1.db
+    unreadable - the step fails and the issue is left as it is: a check
+    that cannot see is not a check that found nothing. A failed `release`
+    job is one of the results `failure` reads, so it raises the
+    refresh-failing alarm like any other job's (review on #1434).
+
 THE PULL REQUEST CI REFUSES (SD-36)
     `land` passing means only that the refresh reached its pull request,
     which merges itself once ci.yml's required checks pass ([D-45]). When
@@ -86,9 +106,10 @@ THE PULL REQUEST CI REFUSES (SD-36)
     its own job names into the issue (security review on #812).
 
 Needs GH_TOKEN (the workflow's own token, with issues: write, actions: read
-and pull-requests: read - never the refresh App's), GH_REPO, RUN_ID, RUN_URL
-and OWNER; for `failure`, the three jobs' results as GATE, REFRESH and LAND,
-and HELD, the line tools/refresh_hold.py wrote if the run held rows back.
+and pull-requests: read - never the refresh App's; `release` needs only
+issues: write), GH_REPO, RUN_ID, RUN_URL and OWNER; for `failure`, the
+four jobs' results as GATE, REFRESH, LAND and RELEASE, and HELD, the line
+tools/refresh_hold.py wrote if the run held rows back.
 """
 import json
 import os
@@ -117,17 +138,23 @@ LATE = dict(label="results-late", colour="D93F0B",
             description="A race has gone unreported past its date; opened and closed by refresh.yml",
             title="Results are behind the calendar")
 
+DUE = dict(label="release-due", colour="0E8A16",
+           description="A release is due; opened and closed by refresh.yml",
+           title="A release is due")
+
 # What makes an alarm an item of the queue. AF is the maintainer's prefix,
 # and an alarm is the maintainer's defect; `file.py new AF` labels it so.
 # Its size is unknown until somebody reads the run.
 PREFIX = "AF"
 QUEUE_LABELS = ("source: maintainer", "size: ?")
+# The release-due issue's: a person's to act on, so next.py never returns it.
+DUE_LABELS = QUEUE_LABELS + ("decision",)
 
 
 # ------------------------------------------------------------- the decisions
 
 def failure_action(results, is_open, refused=False, held=False):
-    """'open', 'update', 'close' or None, from the three jobs' results,
+    """'open', 'update', 'close' or None, from the jobs' results,
     whether CI is refusing the refresh's pull request, and whether the run
     held back a race's rows (AF-90).
 
@@ -307,6 +334,30 @@ def failure_body(failing, run_url, when, count, first, refusal=None, held=None):
     return "\n\n".join(parts)
 
 
+def release_body(advice, tag, found, run_url):
+    """`found` is release_due.criteria()'s list for `tag` against main, and
+    `advice` release_due.advice()'s sentence for it."""
+    # Table and column names from the databases, with no `<` or `>`, so
+    # none can be read as the state marker below it (security review on
+    # #1434, as held_text() for HELD).
+    lines = "\n".join(f"- **{name}** {'fires' if fired else 'quiet'}: "
+                      + what.replace("<", "").replace(">", "")
+                      for name, fired, what in found)
+    return (
+        f"A release is due. `tools/release_due.py` compares the newest release's "
+        f"`f1.db`, {tag}, with the one committed to `main`, and at least one of its "
+        f"four criteria fires:\n\n{lines}\n\n"
+        f"**To release:** {advice}. `release.yml` builds "
+        "and publishes the tag.\n\n"
+        f"**Checked by:** {run_url}\n\n"
+        "This issue is the maintainer's. A release is a person's push of a tag, and "
+        "nothing in a workflow or the backlog loop tags or publishes, so it carries "
+        "`decision` and `next.py` never hands it to a loop fork. Do not close it by "
+        "hand or by a pull request: refresh.yml's `release` job closes it on the first "
+        "run after the tag that finds nothing due against it, and until then rewrites "
+        "this body on every run, commenting only when what fires changes.")
+
+
 def freshness_body(report, run_url):
     return (
         f"{report}\n\n"
@@ -336,7 +387,7 @@ def find(kind):
     return found[0] if found else None
 
 
-def open_issue(kind, body):
+def open_issue(kind, body, labels=QUEUE_LABELS):
     """Open the alarm as an item of the queue: an id, its labels, assigned.
 
     Only the alarm itself is required. The id, the queue labels and the
@@ -362,7 +413,7 @@ def open_issue(kind, body):
         return
     # Assigned, so the owner is told whether or not they watch the repository.
     for extra in (("--add-assignee", os.environ["OWNER"]),
-                  *(("--add-label", lb) for lb in QUEUE_LABELS)):
+                  *(("--add-label", lb) for lb in labels)):
         r = gh("issue", "edit", number, *extra, check=False)
         if r.returncode:
             print(f"::warning::#{number}: {' '.join(extra)} failed: {r.stderr.strip()}")
@@ -443,7 +494,8 @@ def now_utc():
 
 
 def failure():
-    results = {k.lower(): os.environ.get(k, "") for k in ("GATE", "REFRESH", "LAND")}
+    results = {k.lower(): os.environ.get(k, "")
+               for k in ("GATE", "REFRESH", "LAND", "RELEASE")}
     held = held_text(os.environ.get("HELD", ""))
     print(f"job results: {results}; held back: {held or 'nothing'}")
     issue = find(FAILING)
@@ -522,5 +574,35 @@ def freshness():
     print(f"freshness issue: {action or 'nothing to do'}")
 
 
+def release():
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import release_due
+    version, tag, found = release_due.check()
+    if isinstance(found, str):
+        sys.exit(f"::error::no release to compare against, so nothing is opened or "
+                 f"closed: {found}")
+    print("\n".join(release_due.report(version, tag, found)))
+    fired = [name for name, hit, _ in found if hit]
+    issue = find(DUE)
+    action = freshness_action(fired, issue is not None)
+    run_url = os.environ["RUN_URL"]
+    if action == "close":
+        gh("issue", "close", str(issue["number"]), "--comment",
+           f"Nothing is due against {tag}: none of the four criteria fires. ({run_url})")
+    elif action:
+        signature = f"{tag}: " + ", ".join(fired)
+        body = with_mark(release_body(release_due.advice(version, tag), tag, found, run_url), dict(signature=signature))
+        if action == "open":
+            open_issue(DUE, body, DUE_LABELS)
+        else:
+            before = read_mark(issue["body"]).get("signature")
+            gh("issue", "edit", str(issue["number"]), "--body", body)
+            if signature != before:
+                gh("issue", "comment", str(issue["number"]), "--body",
+                   f"What makes a release due has changed: against {tag}, "
+                   + ", ".join(fired) + f" now fire{'s' if len(fired) == 1 else ''}.")
+    print(f"release issue: {action or 'nothing to do'}")
+
+
 if __name__ == "__main__":
-    {"failure": failure, "freshness": freshness}[sys.argv[1]]()
+    {"failure": failure, "freshness": freshness, "release": release}[sys.argv[1]]()

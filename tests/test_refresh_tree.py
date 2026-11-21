@@ -217,7 +217,7 @@ class NoJobThatRunsNpmHoldsTheToken(unittest.TestCase):
         return "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
 
     def test_the_jobs_are_still_there(self):
-        self.assertEqual(sorted(self.jobs()), ["gate", "land", "refresh", "report"])
+        self.assertEqual(sorted(self.jobs()), ["gate", "land", "refresh", "release", "report"])
 
     def test_no_job_that_runs_npm_holds_a_secret_or_the_app(self):
         npm = [name for name, body in self.jobs().items()
@@ -238,15 +238,17 @@ class NoJobThatRunsNpmHoldsTheToken(unittest.TestCase):
             with self.subTest(job=name):
                 self.assertEqual(body.count("actions/checkout@"), body.count("persist-credentials: false"))
 
-    def test_report_writes_issues_and_nothing_else(self):
-        # SD-35. The one job that holds a token that writes, other than
-        # `land`: the workflow's own, scoped to issues, with no secret, no
-        # App, no npm and nothing from the pack.
-        body = self.code(self.jobs()["report"])
-        self.assertIn("issues: write", body)
-        self.assertNotRegex(body, r"contents: write|pull-requests: write|secrets\.|create-github-app-token")
-        self.assertNotRegex(body, r"\b(?:npm|npx|node|pip|download-artifact)\b")
-        self.assertEqual(body.count("actions/checkout@"), body.count("persist-credentials: false"))
+    def test_report_and_release_write_issues_and_nothing_else(self):
+        # SD-35, AF-183. The two jobs that hold a token that writes, other
+        # than `land`: the workflow's own, scoped to issues, with no secret,
+        # no App, no npm and nothing from the pack.
+        for name in ("report", "release"):
+            body = self.code(self.jobs()[name])
+            with self.subTest(job=name):
+                self.assertIn("issues: write", body)
+                self.assertNotRegex(body, r"contents: write|pull-requests: write|secrets\.|create-github-app-token")
+                self.assertNotRegex(body, r"\b(?:npm|npx|node|pip|download-artifact)\b")
+                self.assertEqual(body.count("actions/checkout@"), body.count("persist-credentials: false"))
 
     def test_land_runs_only_its_own_checkout(self):
         body = self.code(self.jobs()["land"])
