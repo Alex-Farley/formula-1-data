@@ -380,7 +380,7 @@ the share-alike above. First, its account of its own sources and state:
 | Column | What it holds | Chars |
 |---|---|---:|
 | `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->72,092<!-- /fig --> |
-| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->7,882<!-- /fig --> |
+| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->7,914<!-- /fig --> |
 | `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->19,545<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->6,570<!-- /fig --> |
 | `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,261<!-- /fig --> |
