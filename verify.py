@@ -4770,9 +4770,10 @@ def practice_and_sprint_qualifying():
     # shared drive, then in his own Kurtis Kraft, which he qualified second
     # and in which F1DB's qualifying sheet places him. race_entries keeps the
     # first row's car (data/harvest.py SECOND_ENTRIES, which leaves out a make
-    # the register does not hold); qualifying names Kurtis Kraft, which the
-    # register does not hold, so its row has no constructor. Both read F1DB
-    # as published.
+    # the register does not hold), and fills that row's empty grid, laps and
+    # retirement from the Kurtis Kraft's; qualifying names Kurtis Kraft, which
+    # the register does not hold, so its row has no constructor. Neither
+    # constructor contradicts F1DB: each is the car of the row it came from.
     QUALIFYING_TEAM_EXCEPTIONS = {(1950, 3, "qualifying", "agabashian")}
     differ = {}
     for t, sess, declared in (("practice", "p.session", PRACTICE_TEAM_EXCEPTIONS),
