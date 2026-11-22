@@ -133,7 +133,7 @@ RESOURCED = {
             "constructor_id": "f1db", "grid": "f1db", "grid_text": "f1db",
             "finish_position": "f1db", "position_text": "f1db", "shared_drive": "f1db",
             "classified": "f1db", "status": "f1db", "laps_completed": "f1db",
-            "points": "f1db",
+            "time": "f1db", "gap": "f1db", "points": "f1db",
             "pole": "rule", "fastest_lap": "rule", "fastest_lap_shared": "rule",
             "chassis_id": "linkage",
             # Wikipedia's house style, the constructor and the engine as the
@@ -792,6 +792,7 @@ def rebuild(con):
             "classified": 1 if pos is not None else 0,
             "status": row["reason_retired"] or (row["position_text"] if pos is None else None),
             "laps_completed": _int(row["laps"]),
+            "time": row["time"] or None, "gap": row["gap"] or None,
             "points": float(row["points"]) if row["points"] else None,
             "entrant": None, **cited}
 

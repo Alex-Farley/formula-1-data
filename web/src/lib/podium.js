@@ -8,7 +8,7 @@
  * the slabs Race.jsx's RacePodium and racePodiumBlock() there, both from
  * slab() below.
  */
-import { EMPTY, nameParts, ordinal } from './format.js'
+import { EMPTY, missing, nameParts, ordinal } from './format.js'
 import { ownColour } from '../charts/own.js'
 import { colourForEntry } from './liveries.js'
 
@@ -26,11 +26,22 @@ export const PODIUM_LABEL = 'The podium'
  * numbered slot the start was (queries/race.js's podiumSlot()). A place held by two
  * entries - a shared drive, a dead heat - or by none is not a podium this
  * graphic can draw, so podium() declines it and the page keeps its sentence.
+ *
+ * `time` and `gap` are the entry's race_entries pair where the caller gives
+ * them (AF-157), and each step's `time` is what it shows: the winner's race
+ * time, and the gap for second and third - "+1.173", "+1 lap" - or the em
+ * dash for a step with none where another step has one. Null on every step
+ * where none of the three has one, and where the winner holds a gap: F1DB's
+ * gaps are then to a car ahead of the winner on the road that was
+ * disqualified (2024 round 14), and under the winner's time they would read
+ * as gaps to the winner, which they are not.
  */
 export function podium(rows) {
   const steps = [1, 2, 3].map((place) => (rows ?? []).filter((r) => r.position === place))
   if (steps.some((held) => held.length !== 1)) return null
-  return steps.map(([r]) => ({
+  const shown = steps.map(([r]) => (r.position === 1 ? r.time : r.gap) ?? null)
+  const timed = missing(steps[0][0].gap) && shown.some((t) => !missing(t))
+  return steps.map(([r], i) => ({
     place: r.position,
     ordinal: ordinal(r.position),
     driver: r.driver ?? r.driver_id,
@@ -39,6 +50,7 @@ export function podium(rows) {
     constructor_id: r.constructor_id,
     start: r.start ?? null,
     grid: r.grid ?? null,
+    time: timed ? (missing(shown[i]) ? EMPTY : shown[i]) : null,
     colour: colourForEntry({ constructorId: r.constructor_id, country: r.constructor_country, year: r.year, team: r.constructor }),
   }))
 }
@@ -156,7 +168,8 @@ export function placesMoved(grid, place) {
 /**
  * One slab as both renderers draw it, from a podium() step: the numeral
  * behind it, the place and given name over the surname, the surname that
- * links to the driver, the team and start under it, the chip for the places
+ * links to the driver, the team and start under it, the race time or gap
+ * (podium()'s `time`, null where none is shown), the chip for the places
  * moved, and the colour's properties or null.
  */
 export function slab(step) {
@@ -168,6 +181,7 @@ export function slab(step) {
     surname: surname || EMPTY,
     href: step.driver_id ? `drivers/${step.driver_id}` : null,
     meta: podiumTeam(step),
+    time: step.time,
     move: placesMoved(step.grid ?? null, step.place),
     vars: slabVars(step.colour),
   }

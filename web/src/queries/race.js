@@ -5,7 +5,7 @@
  *
  * WHY THIS FILE EXISTS
  *     The static race page carried a seven-column classification to the
- *     app's ten — no chassis, no fastest-lap column, "Status" against "Out",
+ *     app's then ten — no chassis, no fastest-lap column, "Status" against "Out",
  *     the fastest lap folded into the status cell — ordered by a different
  *     rule, and no qualifying, sprint or pit-stop table at all, so a crawler
  *     read a different race from the one a reader saw. The definitions live
@@ -462,9 +462,43 @@ export const carName = (row) =>
   row?.constructor_id ? row.constructor : (row?.entrant ?? row?.constructor)
 
 /*
- * The classification fits its own box from --bp-tablet (IX-45): ten columns
- * at max-content are about 960 px, so from 768 to 1,010 px Points and FL
- * scrolled out of view. `WRAPS` on its four columns of words lets a name or
+ * AF-157: the race's finishing time, F1DB's as published (race_entries.time
+ * and .gap): the winner's elapsed time, and for every other car its gap -
+ * "+1.173", "+2 laps" - to the first car home, or its own time where it has
+ * no gap, which only the first car home has. The em dash where F1DB gives
+ * neither, as for most retirements. It sorts by how far behind: the first
+ * car home, then the gaps in seconds, then those in laps, the em dashes
+ * last, as any missing value sorts.
+ */
+export const raceTime = (row) => (row.finish_position === 1 ? (row.time ?? row.gap) : (row.gap ?? row.time)) ?? null
+
+export const raceBehind = (row) => {
+  if (missing(row.gap)) return missing(row.time) ? null : 0
+  const laps = /^\+(\d+) laps?$/.exec(row.gap)
+  if (laps) return Number(laps[1]) * 1e6
+  const [whole, ...rest] = row.gap.slice(1).split(':').reverse()
+  const seconds = rest.reduce((sum, part, i) => sum + Number(part) * 60 ** (i + 1), Number(whole))
+  return Number.isFinite(seconds) ? seconds : null
+}
+
+/**
+ * Where F1DB's gaps are measured from a car not classified first - 2024
+ * round 14, where Russell crossed the line first and was disqualified, and
+ * every gap is to his time - the sentence that says so, naming the car; the
+ * first car home is the one row holding a time and no gap (verify.py holds
+ * both). Nothing in any other race.
+ */
+export const firstHomeNote = (entries) => {
+  const first = entries.find((row) => !missing(row.time) && missing(row.gap) && row.finish_position !== 1)
+  return first
+    ? `Each time behind is to the first car home, ${text(first.driver ?? first.driver_id)}’s, which is not classified first.`
+    : ''
+}
+
+/*
+ * The classification fits its own box from --bp-tablet (IX-45): its ten
+ * columns (eleven since AF-157's Time) at max-content were about 960 px, so
+ * from 768 to 1,010 px Points and FL scrolled out of view. `WRAPS` on its four columns of words lets a name or
  * a reason break at a space between those widths, and the stylesheet closes
  * the table's cells up there (app.css, "A table that fits its box"); the
  * figures never wrap. A class rather than a rule on the page, so the static
@@ -481,6 +515,7 @@ export const CLASSIFICATION_COLUMNS = [
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id), cellClass: WRAPS },
   { key: 'grid_text', label: 'Grid', align: 'num' },
   { key: 'laps_completed', label: 'Laps', align: 'num' },
+  { key: 'time', label: 'Time', align: 'num', text: (_, row) => text(raceTime(row)), sort: raceBehind },
   { key: 'status', label: 'Out', text: outcome, cellClass: WRAPS },
   { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'fastest_lap', label: 'FL', align: 'num', text: fastestLapMark },
@@ -529,6 +564,7 @@ export const CHASSIS_NOTE =
 export const classificationFooter = (entries) =>
   [
     ...entryNotes(entries),
+    firstHomeNote(entries),
     entries.some((row) => missing(row.status) && missing(row.finish_position)) ? OUT_NOTE : '',
     entries.some((row) => missing(row.chassis) && missing(row.chassis_id)) ? CHASSIS_NOTE : '',
   ]
@@ -1186,6 +1222,8 @@ export const racePodium = (race, entries) =>
           year: race.year,
           start: podiumStart(e),
           grid: podiumSlot(e),
+          time: e.time,
+          gap: e.gap,
         })),
       )
 

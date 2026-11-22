@@ -1180,8 +1180,9 @@ style.
   the table also pads `--space-3` a side, not `--space-6`. A figure never wraps,
   and below `--bp-tablet` the rows keep to one line and the table scrolls,
   as every other does on a phone. The race classification was the first
-  user: its ten columns are about 960 px at one line, and Points and FL
-  scrolled out from 768 to 1,010 px. When the rule landed it fitted every
+  user: its ten columns were about 960 px at one line, and Points and FL
+  scrolled out from 768 to 1,010 px. AF-157's Time made it eleven, and the
+  races the smoke suite reads it on still fit at 768. When the rule landed it fitted every
   classification held from 780 px, and all but two at 768: the 1950 and
   1951 Indianapolis 500, where a car named *Championship Racer* leaves the
   table 12 px over below 780. The qualifying and sprint qualifying sheets
@@ -1499,8 +1500,14 @@ AF-133's grid — and these are new:
   (`.livery-series`, held to 3:1 like any series) or an outline in ink where
   none is on record, so colour is never the only cue. Heights are spacing
   tokens. A place held by two entries or by none is not drawn: the panel
-  keeps its sentence. Race gaps are not shown: the database holds no
-  race times (AF-157 #1252). Home's steps say where each driver started
+  keeps its sentence. Under the team, each step shows the race's
+  finishing time as F1DB publishes it (AF-157 #1252): the winner's
+  elapsed time, and the gap for second and third (*+1.173*, *+1 lap*),
+  tabular and never broken (`.podium-time`), or the em dash on a step
+  with none where another has one. None is shown where no step has one,
+  or where the winner holds a gap — the gaps are then to a car ahead on
+  the road that was disqualified (2024 round 14), and would read as gaps
+  to the winner (`podium()` in `lib/podium.js`). Home's steps say where each driver started
   under the team, as a race page's slabs do — *McLaren · from pole* —
   from the same `podiumStart` (`lastPodium` in `queries/home.js`, VD-109).
   One component in each renderer,
@@ -1527,7 +1534,8 @@ AF-133's grid — and these are new:
     not recorded* (`podiumStart` in `queries/race.js`; no podium drawn on
     the present data says the last, since every podium place with no grid
     on record is on a page whose podium is declined for a shared place) —
-    then a chip for the
+    then the step's race time or gap, as home's steps show it
+    (`.race-slab-time`), then a chip for the
     places made or lost from a numbered slot: *▲ 19* on `--move-up`, *▼ 2*
     on `--move-down`, both white (`--on-move`), *held* ruled in the slab's
     ink, and no chip with no slot. A screen reader hears the chip's words

@@ -663,10 +663,12 @@ KNOWN_GAPS = [
      # caught it filed as fillable. The pre-2018 race-report route is a
      # separate question the maintainer note still records.
      "position",
-     "No race times, by decision: per-race timing is Formula One's own data "
-     "and the table that would hold it is kept empty, as gap 5 says. The "
-     "winner's time and margin as printed in race reports are a different "
-     "source and have not been read.",
+     "No per-race timing, by decision: it is Formula One's own data and the "
+     "table that would hold it is kept empty, as gap 5 says. Each entry's "
+     "finishing time and gap are held all the same, on race_entries, because "
+     "F1DB publishes them in its race classification under CC BY 4.0 "
+     "(AF-157); the winner's time and margin as printed in race reports are "
+     "a different source and have not been read.",
      "The race_timing table is empty. These figures are published per race "
      "rather than per season, so filling them for 1950-2017 means reading "
      "{{fig:races_before_2018}} individual race articles, which was judged too expensive against "
@@ -780,9 +782,10 @@ KNOWN_GAPS = [
     (12, "underivable-records", "records", "the records the database cannot derive",
      "open",
      "Five records the authored table used to carry are not published, "
-     "because the database cannot derive them: the youngest and oldest "
+     "because the database does not derive them: the youngest and oldest "
      "champion need the round at which the title was clinched, the closest "
-     "finish and the longest race need race times it does not hold, and "
+     "finish and the longest race wait on a derivation from the race times "
+     "race_entries has held since AF-157 (CR-132), and "
      "'only woman to score points' needs an attribute no table models. Nor "
      "are the race-leader records in Wikipedia's lists of driver and "
      "constructor records - laps and distance led, races led, leading every "
@@ -791,15 +794,15 @@ KNOWN_GAPS = [
      "one query, with its rule in `detail` - and a record the tables cannot "
      "support is not shipped rather than typed in from memory, which is how "
      "the table came to say Hamilton had 105 wins beside a drivers.wins of "
-     "106. Five that the authored table carried are not derivable here. The "
+     "106. Five that the authored table carried are not derived here. The "
      "youngest and oldest World Champion need the round at which the title "
      "was clinched, which would have to be computed from the points still "
      "available under each season's scoring system; the database holds the "
      "standings after every round but not that calculation. The closest race "
-     "finish needs the winning margin, and race_entries holds no race times "
-     "or gaps. The race_timing table, which would hold them, is EMPTY; see "
-     "gap #6. The longest race by duration needs the race time, which the "
-     "same absence covers. "
+     "finish needs the winning margin, and the longest race by duration the "
+     "winner's time: race_entries has held each entry's finishing time and "
+     "gap, from F1DB's classification, since AF-157, and neither record is "
+     "derived from them yet. The race_timing table stays EMPTY; see gap #6. "
      "'Only woman to score points' needs a gender attribute, which no table "
      "holds and no source in use publishes as data. The closest qualifying "
      "margin IS derived - qualifying.gap holds a parseable gap for second "
@@ -824,9 +827,11 @@ KNOWN_GAPS = [
      "season page already adds them up to say who can still win (PD-28). What "
      "is left is walking the standings back round by round to find the first "
      "at which the gap exceeded what remained; this gap stays open until that "
-     "is derived and checked. The others need race timing, which no source "
-     "publishes under a licence that permits passing it on (known_gaps #5), "
-     "or an attribute the project does not model."),
+     "is derived and checked. The closest finish and the longest race are a "
+     "query over race_entries' times and gaps, filed as CR-132 (#1440). The "
+     "others need race timing, which no source publishes under a licence "
+     "that permits passing it on (known_gaps #5), or an attribute the "
+     "project does not model."),
     (13, "team-entry-fee", "governance", "what a new team pays to enter",
      "open",
      "The sum a new team pays to join - the anti-dilution fund - is a term "
@@ -2221,6 +2226,22 @@ def svg_path_in_box(d, box=OUTLINE_BOX, margin=5.0):
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
+
+# A race gap in laps F1DB publishes that its own lap counts do not bear out
+# (AF-157). A gap of "+N laps" is the most laps any car of the race
+# completed less the entry's own, and verify.py holds every one to that but
+# these, where F1DB's gap and its laps disagree with each other and nothing
+# read here says which is right. Both are kept as F1DB publishes them, as
+# the session sheets' disagreements are; verify.py refuses one not named
+# here, and a name here the data no longer bears out.
+#   (year, round, our driver id): (F1DB's gap, its laps, the race's most laps)
+RACE_GAP_LAPS_DISAGREE = {
+    (1963, 9, "jim-hall"): ("+4 laps", 60, 65),
+    (1983, 7, "roberto-guerrero"): ("+12 laps", 38, 60),
+    (2005, 18, "antonio-pizzonia"): ("+1 lap", 9, 53),
+    (2006, 12, "webber"): ("+1 lap", 59, 67),
+    (2006, 12, "sato"): ("+2 laps", 38, 67),
+}
 
 # A driver F1DB enters twice in one race, in cars of two constructors this
 # database holds (CR-62). race_entries is one row per driver per race

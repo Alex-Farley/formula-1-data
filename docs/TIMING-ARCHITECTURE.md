@@ -44,6 +44,21 @@ the committed database. It publishes no lap times from a race — the
 qualifying and practice times it does publish are the `qualifying`,
 `sprint_qualifying` and `practice` tables, and are here.
 
+### A race's finishing time is a result, not lap timing
+
+`race_entries` holds each entry's finishing time and gap — a winner's
+*1:19:57.566*, a *+1.173* or a *+2 laps* behind — as F1DB publishes them
+under CC BY 4.0, beside the place, the laps and the points (AF-157, ruled by
+the maintainer on 2026-11-16). That is the race's classification, one line
+per entry, as the sprint's already is in `sprint_results` and as a
+qualifying sheet's best lap is: what the result says, not how the race was
+run. Lap timing is the lap-by-lap record — every lap's time, the order after
+each, the stints, the messages — and none of that is in a classification.
+So the line is the one above, drawn again: `race_timing`, a per-race table
+shaped for a timing feed's pole, fastest lap, winner's time and margin, stays
+one of the four kept empty, and the finishing time lives on the result row
+its source publishes it on.
+
 So the empty tables are not a gap in the harvest. They are the correct and
 permanent state until a source appears that both has the data and permits
 passing it on. `tools/ergast_load.py --from-dump --timing` fills them **on your

@@ -1369,6 +1369,22 @@ CREATE TABLE race_entries (
     classified      INTEGER,                   -- 1 = classified finisher
     status          TEXT,                      -- Finished | +1 Lap | Engine | Accident ...
     laps_completed  INTEGER,
+    -- The race's finishing time and gap, as F1DB publishes them (AF-157):
+    -- `time` the car's elapsed race time ("1:19:57.566"), `gap` how far
+    -- behind the first car across the line it finished ("+1.173", "+2
+    -- laps"). Both are text, as published, the way sprint_results holds
+    -- them. A result fact, not lap timing: one figure per entry from the
+    -- classification, which is why it is here and race_timing, one of the
+    -- four tables kept empty, is not (docs/TIMING-ARCHITECTURE.md). The
+    -- gap is measured from the first car home, which is the winner except
+    -- where that car was disqualified after the flag - 2024 round 14,
+    -- where every gap is to Russell's time - and verify.py holds each gap
+    -- in seconds to the two times it is the difference of. NULL where F1DB
+    -- gives none: `time` on a lapped finisher, whose gap is in laps, and
+    -- both on most retirements and on a few classified finishers in every
+    -- decade.
+    time            TEXT,
+    gap             TEXT,
     -- 0 for a classified finisher below the last place the season's points
     -- system paid (points_systems.scale, DA-08), and for an entry that was
     -- not classified - retired, disqualified, did not start, did not qualify
@@ -2362,6 +2378,7 @@ SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.circuit_id,
        s.position_text   AS sprint_position_text,
        s.points          AS sprint_points,
        e.finish_position, e.position_text, e.status, e.laps_completed,
+       e.time, e.gap,
        e.classified, e.shared_drive, e.fastest_lap, e.fastest_lap_shared,
        e.points,
        e.points + CASE WHEN s.id IS NULL THEN 0 ELSE s.points END
