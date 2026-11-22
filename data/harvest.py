@@ -657,25 +657,29 @@ KNOWN_GAPS = [
      "already stored from the pole harvest - 446 races, no disagreement. "
      "docs/TIMING-ARCHITECTURE.md has the measurements and the design this "
      "would take if a redistributable source ever appears."),
-    (6, "race-timing", "race_timing", "pole, fastest lap and race times per race",
+    (6, "race-timing", "race_timing", "pole and fastest-lap times per race, as a timing feed gives them",
      # A position, not an open gap: the table is one of the four verify.py
      # keeps empty, because per-race timing is FOM's data. The review of #72
      # caught it filed as fillable. The pre-2018 race-report route is a
      # separate question the maintainer note still records.
      "position",
-     "No per-race timing, by decision: it is Formula One's own data and the "
-     "table that would hold it is kept empty, as gap 5 says. Each entry's "
-     "finishing time and gap are held all the same, on race_entries, because "
-     "F1DB publishes them in its race classification under CC BY 4.0 "
-     "(AF-157); the winner's time and margin as printed in race reports are "
-     "a different source and have not been read.",
-     "The race_timing table is empty. These figures are published per race "
-     "rather than per season, so filling them for 1950-2017 means reading "
+     "The race_timing table is kept empty, by decision: it is shaped for a "
+     "timing feed, and per-race timing is Formula One's own data, as gap 5 "
+     "says. Each entry's finishing time and gap are held all the same, on "
+     "race_entries, because F1DB publishes them in its race classification "
+     "under CC BY 4.0 (AF-157); that covers the winner's time and margin the "
+     "table has columns for. Race reports are a different source and have "
+     "not been read.",
+     "The race_timing table is empty. Its winner's time and margin are held "
+     "on race_entries from F1DB's classification since AF-157. Its pole and "
+     "fastest-lap times are published per race rather than per season, so "
+     "filling them for 1950-2017 from race reports means reading "
      "{{fig:races_before_2018}} individual race articles, which was judged too expensive against "
-     "what it returns. From 2018 the FastF1 loader supplies the same "
-     "information at far greater resolution.",
-     "Either harvest race articles for the pre-2018 seasons, or accept that "
-     "timing starts in 2018 and fill it with tools/fastf1_load.py."),
+     "what it returns. From 2018 the FastF1 loader supplies them at far "
+     "greater resolution, on a local copy only (gap 5).",
+     "For the pole and fastest-lap times, harvest race articles for the "
+     "pre-2018 seasons; tools/fastf1_load.py fills the table from 2018 on a "
+     "local copy, which may not be published (gap 5)."),
     (7, "layout-as-raced", "layout_name", "circuit configuration as raced, for most circuits",
      "open",
      "For most circuits we hold one shape - the current one - so a 1976 "
@@ -2226,6 +2230,23 @@ def svg_path_in_box(d, box=OUTLINE_BOX, margin=5.0):
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
+
+def race_clock(t):
+    """A race time as F1DB publishes it, with every field after the first
+    written in two digits: "2:4:44.859" is 2:04:44.859 and "2:00:0.189"
+    2:00:00.189. Sixteen of F1DB's race times drop the leading zero of a
+    minute or a second; the value is the same, and the build holds it in the
+    form the other 8,215 take, so a page never prints 2:4:44.859 (AF-157).
+    Anything else, None included, comes back as it was given."""
+    if not t or ":" not in t:
+        return t or None
+    head, *rest = t.split(":")
+    *mins, secs = rest
+    whole, dot, frac = secs.partition(".")
+    if not (head.isdigit() and all(m.isdigit() for m in mins) and whole.isdigit()):
+        return t
+    return ":".join([head] + [m.zfill(2) for m in mins] + [whole.zfill(2) + dot + frac])
+
 
 # A race gap in laps F1DB publishes that its own lap counts do not bear out
 # (AF-157). A gap of "+N laps" is the most laps any car of the race

@@ -494,14 +494,15 @@ export const CROSS_CHECKED =
  * the licences on offer, not about what anyone may lawfully do - FOM and its
  * licensees redistribute timing every weekend - and it names race timing,
  * because the qualifying table holds 27,000 lap times F1DB publishes under
- * CC BY (the review of #94).
+ * CC BY (the review of #94), and race_entries each car's finishing time and
+ * gap from the race's classification, a result rather than timing (AF-157).
  */
 export const NOT_HELD =
   'Nobody publishes Formula One race timing under a licence that permits passing it on, so this ' +
   'database holds none of it: lap times, stints, race timing and race control messages ship as ' +
   'four empty tables, on purpose. Everything that is here may be passed on under the licence ' +
-  'shown beside it; the pit stops and the qualifying times come from F1DB, whose CC BY 4.0 ' +
-  'allows exactly that.'
+  'shown beside it; the pit stops, the qualifying times and each race’s finishing times come ' +
+  'from F1DB, whose CC BY 4.0 allows exactly that.'
 
 /**
  * Where NOT_HELD sits on /data, for the links that promise it: the console's

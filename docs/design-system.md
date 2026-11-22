@@ -1503,8 +1503,9 @@ AF-133's grid — and these are new:
   keeps its sentence. Under the team, each step shows the race's
   finishing time as F1DB publishes it (AF-157 #1252): the winner's
   elapsed time, and the gap for second and third (*+1.173*, *+1 lap*),
-  tabular and never broken (`.podium-time`), or the em dash on a step
-  with none where another has one. None is shown where no step has one,
+  tabular and never broken (`.podium-time`), a screen reader hearing
+  first what it is (*race time*, *gap to the winner*), or the em dash on a
+  step with none where another has one. None is shown where no step has one,
   or where the winner holds a gap — the gaps are then to a car ahead on
   the road that was disqualified (2024 round 14), and would read as gaps
   to the winner (`podium()` in `lib/podium.js`). Home's steps say where each driver started

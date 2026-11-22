@@ -1381,8 +1381,10 @@ CREATE TABLE race_entries (
     -- where every gap is to Russell's time - and verify.py holds each gap
     -- in seconds to the two times it is the difference of. NULL where F1DB
     -- gives none: `time` on a lapped finisher, whose gap is in laps, and
-    -- both on most retirements and on a few classified finishers in every
-    -- decade.
+    -- both on most retirements and on some classified finishers - a fifth
+    -- of the 1950s', fewer than one in ten in each decade since. `time` is
+    -- F1DB's with each field after the first in two digits, which sixteen
+    -- of its values are not (data/harvest.py race_clock).
     time            TEXT,
     gap             TEXT,
     -- 0 for a classified finisher below the last place the season's points

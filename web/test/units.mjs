@@ -722,7 +722,7 @@ describe("a race's finishing time and gap (AF-157)", () => {
   })
 
   it('says where the gaps are to a car not classified first, and nowhere else', () => {
-    const note = "Each time behind is to the first car home, George Russell’s, which is not classified first."
+    const note = 'Each gap is to the first car home, George Russell, who is not classified first.'
     assert.equal(firstHomeNote([winner, second, dsq, out]), note)
     assert.ok(classificationFooter([winner, second, dsq]).includes(note))
     assert.equal(firstHomeNote([{ ...winner, gap: null }, second, lapped, out]), '', 'the winner is the first car home')
@@ -4133,6 +4133,8 @@ describe("the home page's season block (PD-48)", () => {
     assert.deepEqual(times([row(1, '1:31:44.742', null), row(2, null, null), row(3, null, '+1 lap')]), ['1:31:44.742', '—', '+1 lap'], 'a step with none beside one that has one is the em dash')
     assert.deepEqual(times([row(1, null, null), row(2, null, null), row(3, null, null)]), [null, null, null], 'no step has one: no line')
     assert.deepEqual(times([row(1, '1:19:57.566', '+0.526'), row(2, '1:19:58.213', '+1.173'), row(3, '1:20:05.589', '+8.549')]), [null, null, null], 'a winner with a gap: the gaps are not to the winner')
+    assert.deepEqual(lastPodium([row(1, '1:31:44.742', null), row(2, null, '+1.173'), row(3, null, '+1 lap')]).map((s) => s.timeSaid), ['race time', 'gap to the winner', 'gap to the winner'], 'each figure says what it is')
+    assert.deepEqual(lastPodium([row(1, null, null), row(2, null, null), row(3, null, null)]).map((s) => s.timeSaid), [null, null, null])
   })
 
   it('counts what is left of the named season, not of the register', () => {

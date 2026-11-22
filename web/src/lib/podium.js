@@ -34,7 +34,9 @@ export const PODIUM_LABEL = 'The podium'
  * where none of the three has one, and where the winner holds a gap: F1DB's
  * gaps are then to a car ahead of the winner on the road that was
  * disqualified (2024 round 14), and under the winner's time they would read
- * as gaps to the winner, which they are not.
+ * as gaps to the winner, which they are not. `timeSaid` is what the
+ * figure is, for a screen reader, which hears it before the figure: a bare
+ * "+14.602" under a team says nothing of what it measures.
  */
 export function podium(rows) {
   const steps = [1, 2, 3].map((place) => (rows ?? []).filter((r) => r.position === place))
@@ -51,6 +53,7 @@ export function podium(rows) {
     start: r.start ?? null,
     grid: r.grid ?? null,
     time: timed ? (missing(shown[i]) ? EMPTY : shown[i]) : null,
+    timeSaid: timed ? (r.position === 1 ? 'race time' : 'gap to the winner') : null,
     colour: colourForEntry({ constructorId: r.constructor_id, country: r.constructor_country, year: r.year, team: r.constructor }),
   }))
 }
@@ -182,6 +185,7 @@ export function slab(step) {
     href: step.driver_id ? `drivers/${step.driver_id}` : null,
     meta: podiumTeam(step),
     time: step.time,
+    timeSaid: step.timeSaid,
     move: placesMoved(step.grid ?? null, step.place),
     vars: slabVars(step.colour),
   }

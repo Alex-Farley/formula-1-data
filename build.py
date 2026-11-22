@@ -2369,15 +2369,23 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                     -- laps the entry keeps: a shared drive's winner is a
                     -- driver's first row, and his second car's "+22 laps"
                     -- on it would be a gap to a place he did not finish
-                    -- in. So a later row fills them only where neither is
-                    -- held yet and its place and laps are the ones kept.
-                    time            = CASE WHEN time IS NULL AND gap IS NULL
+                    -- in. So the row that brings the place brings its pair,
+                    -- replacing a placeless row's; and otherwise a later
+                    -- row fills them only where neither is held yet and
+                    -- its place and laps are the ones kept.
+                    time            = CASE WHEN finish_position IS NULL
+                                            AND excluded.finish_position IS NOT NULL
+                                           THEN excluded.time
+                                           WHEN time IS NULL AND gap IS NULL
                                             AND excluded.finish_position IS
                                                 COALESCE(finish_position, excluded.finish_position)
                                             AND excluded.laps_completed IS
                                                 COALESCE(laps_completed, excluded.laps_completed)
                                            THEN excluded.time ELSE time END,
-                    gap             = CASE WHEN time IS NULL AND gap IS NULL
+                    gap             = CASE WHEN finish_position IS NULL
+                                            AND excluded.finish_position IS NOT NULL
+                                           THEN excluded.gap
+                                           WHEN time IS NULL AND gap IS NULL
                                             AND excluded.finish_position IS
                                                 COALESCE(finish_position, excluded.finish_position)
                                             AND excluded.laps_completed IS
@@ -2405,7 +2413,7 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                  r["reason_retired"] or (r["position_text"]
                                          if pos is None else None),
                  int(r["laps"]) if r["laps"] else None,
-                 r["time"] or None, r["gap"] or None,
+                 HV.race_clock(r["time"]), r["gap"] or None,
                  float(r["points"]) if r["points"] else None,
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1

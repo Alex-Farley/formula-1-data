@@ -35,7 +35,10 @@ export default function RacePodium({ heading, steps, also }) {
               {s.time && (
                 <>
                   {' '}
-                  <span className="race-slab-time num">{s.time}</span>
+                  <span className="race-slab-time num">
+                    <span className="sr-only">{s.timeSaid} </span>
+                    {s.time}
+                  </span>
                 </>
               )}
               {s.move && (

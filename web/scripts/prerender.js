@@ -1589,7 +1589,7 @@ const podiumHtml = (list) =>
         `<li class="podium-step podium-${step.place}"><span class="podium-place">${esc(step.ordinal)}</span> <span class="podium-driver">${
           step.driver_id ? link(`drivers/${step.driver_id}`, step.driver) : esc(step.driver)
         }</span> <span class="podium-team muted small">${esc(podiumTeam(step))}</span>${
-          step.time ? ` <span class="podium-time muted small num">${esc(step.time)}</span>` : ''
+          step.time ? ` <span class="podium-time muted small num"><span class="sr-only">${esc(step.timeSaid)} </span>${esc(step.time)}</span>` : ''
         }<span class="${
           step.colour ? `podium-block livery-series" style="${pairStyle(step.colour)}` : 'podium-block podium-block-none'
         }" aria-hidden="true"></span></li>`,
@@ -3792,7 +3792,7 @@ const seasonsTable = (rows) =>
             .join(' '),
         )}`
       : ' race-slab-plain'
-    const time = s.time ? ` <span class="race-slab-time num">${esc(s.time)}</span>` : ''
+    const time = s.time ? ` <span class="race-slab-time num"><span class="sr-only">${esc(s.timeSaid)} </span>${esc(s.time)}</span>` : ''
     const move = s.move
       ? ` <span class="race-slab-move ${s.move.kind}"><span aria-hidden="true">${esc(s.move.text)}</span><span class="sr-only">${esc(s.move.said)}</span></span>`
       : ''

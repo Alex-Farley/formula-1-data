@@ -27,7 +27,10 @@ export default function Podium({ steps }) {
             {step.time && (
               <>
                 {' '}
-                <span className="podium-time muted small num">{step.time}</span>
+                <span className="podium-time muted small num">
+                  <span className="sr-only">{step.timeSaid} </span>
+                  {step.time}
+                </span>
               </>
             )}
             <span

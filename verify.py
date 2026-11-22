@@ -7879,10 +7879,11 @@ def views():
 def race_times_and_gaps():
     """A race's finishing time and gap are F1DB's, held on race_entries as
     published (AF-157). Each gap is the difference of two things the
-    classification also holds, so each is checked against them rather than
-    only for its shape: a gap in seconds is the entry's time less the time
-    of the first car home, to the millisecond, and a gap in laps is the most
-    laps any car of the race completed less the entry's own."""
+    classification also holds, so each is held to them, which pins a pair to
+    its place: a gap in seconds is the entry's time less the time of the
+    first car home, to the millisecond, and a gap in laps is the most laps
+    any car of the race completed less the entry's own. That is F1DB checked
+    against itself, not against a second source."""
     rows = con.execute("""SELECT r.year, r.round, e.race_id, e.driver_id,
             e.finish_position AS pos, e.position_text, e.laps_completed AS laps,
             e.time, e.gap
@@ -7893,12 +7894,14 @@ def race_times_and_gaps():
     check("race times and gaps are held", timed and gapped,
           f"{len(timed)} times, {len(gapped)} gaps")
 
-    time_re = re.compile(r"(\d+:)?\d{1,2}:\d{1,2}\.\d{3}")
+    # Every field after the first in two digits, as build.py writes it
+    # (harvest.race_clock): 2:04:44.859, never F1DB's 2:4:44.859.
+    time_re = re.compile(r"\d+(:\d{2}){1,2}\.\d{3}")
     gap_re = re.compile(r"\+(?:(?P<laps>\d+) (?P<word>laps?)|(?P<secs>(\d+:)?\d{1,2}\.\d{3}))")
     bad = [f"{r['year']} r{r['round']} {r['driver_id']} {r['time']!r}"
            for r in timed if not time_re.fullmatch(r["time"])]
-    check("every race time reads as published, minutes and seconds to the "
-          "millisecond", not bad, "; ".join(bad[:5]))
+    check("every race time reads as a clock, minutes and seconds in two digits "
+          "to the millisecond", not bad, "; ".join(bad[:5]))
     bad = []
     for r in gapped:
         m = gap_re.fullmatch(r["gap"])

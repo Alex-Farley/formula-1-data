@@ -792,7 +792,7 @@ def rebuild(con):
             "classified": 1 if pos is not None else 0,
             "status": row["reason_retired"] or (row["position_text"] if pos is None else None),
             "laps_completed": _int(row["laps"]),
-            "time": row["time"] or None, "gap": row["gap"] or None,
+            "time": HV.race_clock(row["time"]), "gap": row["gap"] or None,
             "points": float(row["points"]) if row["points"] else None,
             "entrant": None, **cited}
 

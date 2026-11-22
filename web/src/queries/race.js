@@ -5,7 +5,7 @@
  *
  * WHY THIS FILE EXISTS
  *     The static race page carried a seven-column classification to the
- *     app's then ten — no chassis, no fastest-lap column, "Status" against "Out",
+ *     app's ten — no chassis, no fastest-lap column, "Status" against "Out",
  *     the fastest lap folded into the status cell — ordered by a different
  *     rule, and no qualifying, sprint or pit-stop table at all, so a crawler
  *     read a different race from the one a reader saw. The definitions live
@@ -491,7 +491,7 @@ export const raceBehind = (row) => {
 export const firstHomeNote = (entries) => {
   const first = entries.find((row) => !missing(row.time) && missing(row.gap) && row.finish_position !== 1)
   return first
-    ? `Each time behind is to the first car home, ${text(first.driver ?? first.driver_id)}’s, which is not classified first.`
+    ? `Each gap is to the first car home, ${text(first.driver ?? first.driver_id)}, who is not classified first.`
     : ''
 }
 

@@ -13,7 +13,9 @@ shown beside it. That is a claim about the licences on offer, not about what
 anyone may lawfully do — FOM and its licensees redistribute timing every
 weekend — and it is about *race* timing: the qualifying and practice tables
 hold lap times, which F1DB publishes under CC BY 4.0 — each driver's best lap
-of a session, a classification, and not the lap-by-lap record of it.
+of a session, a classification, and not the lap-by-lap record of it — and
+`race_entries` holds each car's finishing time and gap from the race's
+classification, which is a result and not timing (below).
 
 The rest of this file is that paragraph with its working shown. `/data` states
 it for a reader, the console states it in one line where a reader meets an
@@ -36,7 +38,7 @@ No source publishes Formula One race timing on terms that allow passing it on.
 | **Jolpica-F1** | 628,454 laps, 1996– | CC BY-**NC**-SA 4.0 | **No.** Non-commercial. |
 | **FastF1** | 2018–, with sectors | FOM's data; personal, non-commercial use | **No.** |
 | **OpenF1** | 2023–, telemetry | FOM's data | **No.** |
-| **F1DB** | none from a race | CC BY 4.0 | Nothing of a race to ship. |
+| **F1DB** | none from a race | CC BY 4.0 | No lap timing to ship; a race's classified time and gap are shipped (below). |
 
 F1DB is the one source here whose licence permits redistribution, and it is why
 the full classification, qualifying, standings and **22,481 pit stops** are in
