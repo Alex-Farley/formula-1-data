@@ -1078,6 +1078,30 @@ KNOWN_GAPS = [
      "the stops it numbers - a refresh then takes them, this gap's measure "
      "falls to none and verify.py requires the row closed - or when a source "
      "that may be passed on holds them. Never by typing in Jolpica's rows."),
+    (24, "circuit-register-unread", "circuits.source",
+     "circuit facts not yet read against the page a circuit cites",
+     "open",
+     "A circuit raced in 2019 or later cites formula1.com's page for its "
+     "latest race weekend, and its length is the one that page gives. Its "
+     "number of turns, direction, type and official name are not on that "
+     "page, and were not checked against it. A circuit last raced before "
+     "then cites formula1.com's racing index, which does not describe it, "
+     "so none of its facts has been checked against the page it cites.",
+     "CR-111 (#1184), ruled 2026-11-16: formula1.com for the circuits it "
+     "describes, each circuit's Wikipedia article for the rest, every value "
+     "read again against the page it will cite. On 2026-11-22 formula1.com's "
+     "race pages were found for every circuit raced from 2019 and read for "
+     "their length (data/circuits.py CIRCUIT_SOURCES); three changed - the "
+     "Red Bull Ring 4.318 to 4.326 km, the Madring 5.474 to 5.414 km and "
+     "Marina Bay 4.940 to 4.927 km. The pages tried for 2013 and earlier "
+     "seasons gave no circuit facts. The other circuits (AWAITING_ARTICLE) were read against "
+     "their articles too, but citing those revisions takes the rows out of "
+     "the CC BY facts artefact while the races it carries still name them, "
+     "which the ruling did not settle.",
+     "Closes when CR-130 (#1437) is decided and the circuits formula1.com "
+     "does not describe cite the revision of their article they were read "
+     "against, with what that issue decides for the columns no cited page "
+     "gives."),
 ]
 
 # known_gaps.races_affected, measured rather than typed (DA-16, #210).

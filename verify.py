@@ -4959,6 +4959,40 @@ def circuits_and_venues():
     check("circuit race counts sum to the race table", held + sched == n,
           f"{held} held + {sched} scheduled vs {n} races")
 
+    # CR-111 (#1184): a circuit formula1.com describes cites its page for the
+    # latest season raced there when it was read, which the length was read
+    # against, and the rest keep the index until CR-130 (#1437) is decided.
+    # Read from the data module rather than the row, so a build that copied
+    # the wrong page is caught, and the page is held to the race records: a
+    # page of a season the circuit was not raced in describes another venue.
+    # Not to the latest season, which a refresh moves on without a page
+    # being read again.
+    from data import circuits as C
+    race_page = re.compile(r"^https://www\.formula1\.com/en/racing/(\d{4})/[a-z-]+$")
+    f1com = {i for (i,) in con.execute(
+        "SELECT id FROM source_registry WHERE domains = 'formula1.com'")}
+    bad = []
+    for r in con.execute("SELECT id, source, source_id FROM circuits ORDER BY id"):
+        cid, src = r["id"], r["source"]
+        given = C.CIRCUIT_SOURCES.get(cid)
+        if given is None:
+            if cid not in C.AWAITING_ARTICLE or src != C.UNREAD_SOURCE:
+                bad.append(f"{cid}: cites {src}, which data/circuits.py does not give it")
+            continue
+        m = race_page.match(given)
+        if src != given or not m or r["source_id"] not in f1com:
+            bad.append(f"{cid}: cites {src} (source {r['source_id']}), not {given}")
+            continue
+        if not con.execute("SELECT 1 FROM races WHERE circuit_id = ? AND year = ?",
+                           (cid, int(m.group(1)))).fetchone():
+            bad.append(f"{cid}: cites the {m.group(1)} page, a season it was not raced in")
+    both = set(C.CIRCUIT_SOURCES) & set(C.AWAITING_ARTICLE)
+    bad += [f"{cid}: both read and awaiting its article" for cid in sorted(both)]
+    check("every circuit cites the formula1.com page it was read against, or is declared unread",
+          not bad, "; ".join(bad[:4]))
+    print(f"  [info] {len(C.CIRCUIT_SOURCES)} circuits cite their formula1.com race page; "
+          f"{len(C.AWAITING_ARTICLE)} await their article (CR-130)")
+
     # Where a circuit has layout rows at all, they must form a complete,
     # non-overlapping timeline of the configurations used for championship races.
     bad = con.execute("""SELECT COUNT(*) FROM circuit_layouts a
@@ -5554,6 +5588,19 @@ def provenance_resolves():
         if "year" in cols:
             rows = con.execute(f"""SELECT year, source, COUNT(*) n FROM "{t}"
                 WHERE source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        elif t == "circuits":
+            # A circuit has no season of its own: it cites the page of a
+            # weekend there (CR-111), so it is held to a season it was raced
+            # in - the page's own where it was, its last where not.
+            rows = []
+            for cid, src in con.execute(
+                    "SELECT id, source FROM circuits WHERE source LIKE '%formula1.com/en/%'"):
+                m = season_page.match(src)
+                years = {y for (y,) in con.execute(
+                    "SELECT DISTINCT year FROM races WHERE circuit_id = ?", (cid,))}
+                year = int(m.group(1)) if m and m.group(1).isdigit() \
+                    and int(m.group(1)) in years else max(years, default=None)
+                rows.append((year, src, 1))
         elif "race_id" in cols:
             rows = con.execute(f"""SELECT r.year, x.source, COUNT(*) n
                 FROM "{t}" x LEFT JOIN races r ON r.id = x.race_id

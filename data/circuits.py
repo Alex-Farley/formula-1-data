@@ -42,7 +42,7 @@ CIRCUITS = [
      "A test-track archetype: fast opening sector rewarding aerodynamic load, slow final sector rewarding traction",
      "The sport's default winter testing venue for two decades, which makes it the circuit teams understand best and the one that most reliably ranks cars by raw performance. The Turn 10 chicane added in 2007 was removed in 2023.", "high"),
     ("red-bull-ring", "Red Bull Ring", "Red Bull Ring", "Spielberg", "Austria", "permanent",
-     1970, None, 4.318, 10, "clockwise",
+     1970, None, 4.326, 10, "clockwise",
      "Only ten corners and the shortest lap time of the season; steep gradients and three long uphill straights",
      "Originally the 5.9 km Osterreichring (1970-1987), shortened as the A1-Ring (1997-2003), then rebuilt by Red Bull and returned in 2014. Track-limits penalties at Turns 9 and 10 have become a recurring controversy.", "high"),
     ("silverstone", "Silverstone Circuit", "Silverstone Circuit", "Silverstone, Northamptonshire", "United Kingdom", "permanent",
@@ -66,7 +66,7 @@ CIRCUITS = [
      "The Temple of Speed: lowest downforce configuration of the year and the highest average speed",
      "Built in 1922, the third purpose-built permanent motor circuit in the world. Has held every Italian GP but one (Imola, 1980). The banked oval was used in combination with the road course in 1955-56 and 1960-61.", "high"),
     ("madring", "Madrid IFEMA", "Circuito del Jarama-IFEMA Madrid (Madring)", "Madrid", "Spain", "hybrid",
-     2026, None, 5.474, 22, "clockwise",
+     2026, None, 5.414, 22, "clockwise",
      "New for 2026: a mix of public roads and permanent sections around the IFEMA exhibition centre, including a banked turn",
      "Host of the Spanish Grand Prix from 2026, the year Barcelona's race ran as the Barcelona-Catalunya Grand Prix. Contracted to become the sole Spanish round from 2027, when Barcelona's deal ends.", "verified"),
     ("baku", "Baku City Circuit", "Baku City Circuit", "Baku", "Azerbaijan", "street",
@@ -78,7 +78,7 @@ CIRCUITS = [
      "Two enormously wide straights joined by a hairpin, extreme heat and reliable afternoon thunderstorms",
      "Tilke's first F1 commission and the template for the modern purpose-built venue. Held the Malaysian GP 1999-2017; returns to the calendar in 2026 as the host of the Bahrain Grand Prix while Sakhir is rebuilt.", "medium"),
     ("marina-bay", "Marina Bay Street Circuit", "Marina Bay Street Circuit", "Singapore", "Singapore", "street",
-     2008, None, 4.940, 19, "anti-clockwise",
+     2008, None, 4.927, 19, "anti-clockwise",
      "The first night race; bumpy, humid, high-downforce and physically the most demanding event of the year",
      "Drivers lose two to three kilograms in a race here. The 2008 inaugural event was later found to have been decided by a deliberately crashed Renault — the 'Crashgate' affair. Shortened and reprofiled in 2023.", "high"),
     ("cota", "Circuit of The Americas", "Circuit of The Americas", "Austin, Texas", "United States", "permanent",
@@ -336,6 +336,76 @@ CIRCUITS = [
      "Flat, hot and abrasive; a long pit straight and a longer back straight with grandstands giving a view of the whole lap",
      "Opened in 1978 and originally called the Autodromo Internacional do Rio de Janeiro; renamed for Nelson Piquet in 1988 after his third title. Hosted the Brazilian Grand Prix in 1978 and from 1981 to 1989, after which the race returned permanently to Interlagos. Demolished in 2012 for the 2016 Olympic park.", "high"),
 ]
+
+# ---------------------------------------------------------------------
+# The page each row of CIRCUITS cites (CR-111, #1184). Decided 2026-11-16:
+# formula1.com for the circuits it describes, and each circuit's Wikipedia
+# article for the rest, every value read again against the page it will cite.
+#
+# formula1.com describes a circuit on its page for a race weekend there, and
+# the row cites the page of the latest season the circuit had been raced in
+# when read. Read on 2026-11-22, each gave the circuit's length, which the
+# row holds, and the year of its first Grand Prix, which verify.py holds to
+# the race records whatever a page says. The page does not give the turns,
+# the direction, the circuit type or the official name; those are the values
+# the register held before it was read, and known_gaps says so.
+#
+# circuit_id -> the page
+F1_RACE = "https://www.formula1.com/en/racing/{}"
+CIRCUIT_SOURCES = {
+    "albert-park": F1_RACE.format("2026/australia"),
+    "shanghai": F1_RACE.format("2026/china"),
+    "suzuka": F1_RACE.format("2026/japan"),
+    "miami": F1_RACE.format("2026/miami"),
+    "gilles-villeneuve": F1_RACE.format("2026/canada"),
+    "monaco": F1_RACE.format("2026/monaco"),
+    "catalunya": F1_RACE.format("2026/barcelona-catalunya"),
+    "red-bull-ring": F1_RACE.format("2026/austria"),
+    "silverstone": F1_RACE.format("2026/great-britain"),
+    "spa": F1_RACE.format("2026/belgium"),
+    "hungaroring": F1_RACE.format("2026/hungary"),
+    "zandvoort": F1_RACE.format("2026/netherlands"),
+    "monza": F1_RACE.format("2026/italy"),
+    "madring": F1_RACE.format("2026/spain"),
+    "baku": F1_RACE.format("2026/azerbaijan"),
+    "sepang": F1_RACE.format("2026/bahrain"),
+    "marina-bay": F1_RACE.format("2026/singapore"),
+    "cota": F1_RACE.format("2026/united-states"),
+    "rodriguez": F1_RACE.format("2026/mexico"),
+    "interlagos": F1_RACE.format("2026/brazil"),
+    "las-vegas": F1_RACE.format("2026/las-vegas"),
+    "lusail": F1_RACE.format("2026/qatar"),
+    "yas-marina": F1_RACE.format("2026/united-arab-emirates"),
+    "bahrain": F1_RACE.format("2025/bahrain"),
+    "jeddah": F1_RACE.format("2025/saudi-arabia"),
+    "imola": F1_RACE.format("2025/emiliaromagna"),
+    "paul-ricard": F1_RACE.format("2022/france"),
+    "sochi": F1_RACE.format("2021/russia"),
+    "istanbul": F1_RACE.format("2021/turkey"),
+    "hockenheim": F1_RACE.format("2019/germany"),
+    "nurburgring-gp": F1_RACE.format("2020/germany"),
+    "portimao": F1_RACE.format("2021/portugal"),
+    "mugello": F1_RACE.format("2020/tuscany"),
+}
+
+# The circuits formula1.com does not describe: the pages tried for 2013 and
+# earlier seasons gave no circuit facts. Each is to cite a dated revision of its
+# Wikipedia article, and until what the facts artefact does
+# with those rows is decided (CR-130, #1437) they keep the citation every
+# row carried before CR-111: formula1.com's racing index, which describes
+# none of them. The readings are on the branch CR-130 names.
+UNREAD_SOURCE = "https://www.formula1.com/en/racing"
+AWAITING_ARTICLE = (
+    "valencia", "yeongam", "buddh", "magny-cours", "jerez", "estoril",
+    "adelaide", "kyalami", "aida", "donington", "brands-hatch", "long-beach",
+    "watkins-glen", "detroit", "dallas", "caesars-palace", "phoenix",
+    "indianapolis", "mosport", "mont-tremblant", "anderstorp", "dijon",
+    "zolder", "nivelles", "jarama", "montjuic", "zeltweg", "nordschleife",
+    "avus", "reims", "rouen", "charade", "le-mans-bugatti", "aintree",
+    "bremgarten", "pedralbes", "pescara", "ain-diab", "porto", "monsanto",
+    "sebring", "riverside", "buenos-aires", "east-london", "fuji",
+    "nurburgring-sudschleife", "jacarepagua",
+)
 
 # circuit_id, layout_key, layout_name, from_year, to_year, by_year,
 #   length_km, turns, change_reason
