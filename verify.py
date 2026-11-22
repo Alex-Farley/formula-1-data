@@ -1363,9 +1363,10 @@ def pole_position_and_fastest_lap():
     # between sources, so not in `discrepancies` -- the count is pinned here
     # instead, so a fifteenth arrives as a question rather than as noise. The
     # fourteenth is Las Vegas in 2026: Antonelli fastest in qualifying and
-    # sixth on the grid, after a five-place penalty for a sixth combustion
-    # engine (AF-186, #1443; https://www.planetf1.com/news/fia-kimi-antonelli-
-    # las-vegas-grand-prix-2026-grid-penalty), and Verstappen on grid 1.
+    # sixth on the grid, which bears out the five-place drop for a new
+    # combustion engine reported beforehand (AF-186, #1443;
+    # https://www.planetf1.com/news/fia-kimi-antonelli-las-vegas-grand-prix-
+    # 2026-grid-penalty), and Verstappen on grid 1.
     split = con.execute("""SELECT COUNT(*) FROM (
         SELECT r.id FROM races r
          WHERE r.status = 'completed'

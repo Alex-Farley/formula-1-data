@@ -1040,9 +1040,10 @@ KNOWN_GAPS = [
      "The pit stops shown are F1DB's. Formula 1's own pit stop summary "
      "numbers some stops it does not list, and at each race named here F1DB "
      "holds the same rows as that summary, numbering included. At the 2026 Dutch "
-     "and Italian Grands Prix, both red-flagged in their opening laps "
-     "according to Wikipedia, no driver's first stop is listed, so each "
-     "race's stops begin at stop 2. At the 2025 Monaco Grand Prix and the "
+     "Grand Prix, red-flagged on its opening lap according to Wikipedia, no "
+     "driver's first stop is listed, so the race's stops begin at stop 2; "
+     "the Italian Grand Prix read the same until F1DB listed its first stops. "
+     "At the 2025 Monaco Grand Prix and the "
      "2026 Australian, Monaco, Barcelona-Catalunya, British, Bahrain and "
      "Mexico City Grands Prix, one or more drivers' stops skip a number in "
      "the same way. A stop that is not listed is not held here, and none is "
@@ -1057,7 +1058,10 @@ KNOWN_GAPS = [
      "reproduces the official table rather than dropping rows from it. "
      "According to the English Wikipedia article on each race, Zandvoort was "
      "red-flagged at the end of the opening lap and Monza at the end of lap "
-     "3. No official source was read for the suspensions: the FIA's documents "
+     "3. F1DB v2026.21.0, read 2026-11-22 (AF-186, #1443), lists a stop 1 at "
+     "Monza for 21 drivers, on lap 3, each between 30:39 and 30:47 in the "
+     "pit lane, and still none at Zandvoort; formula1.com's summary for "
+     "Monza was not read again. No official source was read for the suspensions: the FIA's documents "
      "page returned an error, and neither formula1.com results page mentions "
      "them. Jolpica, licence class no, holds a stop 1 for 21 drivers at each "
      "race - on lap 2 at Zandvoort, every one over 26 minutes in the pit "
@@ -1166,7 +1170,8 @@ GAP_RACES = {
                    OR ABS(x.length_km - v.length_km) <= 0.15))""",
     # a race where a driver's F1DB stops skip a number: a stop the official
     # summary numbers and does not list - every driver's stop 1 at 2026
-    # rounds 12 and 13, one or more drivers' at seven other races (LV-19)
+    # round 12, one or more drivers' at seven other races (LV-19); round 13's
+    # stop 1 rows arrived with F1DB v2026.21.0 (AF-186)
     "pit-stop-not-listed": """SELECT COUNT(*) FROM races r WHERE EXISTS (
         SELECT 1 FROM pit_stops p WHERE p.race_id = r.id AND p.source = 'f1db'
         GROUP BY p.driver_key
