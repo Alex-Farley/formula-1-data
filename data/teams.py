@@ -304,7 +304,7 @@ ENGINES = [
     ("renault-eng", "Renault", "France", 1977, 2024, 168, 12, 11,
      "Introduced the turbo to F1 in 1977 and powered Williams, Benetton and Red Bull to titles as a supplier. Withdrew from power-unit supply after 2024.", "medium"),
     ("honda-eng", "Honda", "Japan", 1964, None, None, 6, 6,
-     "Four distinct eras: works constructor 1964-68, supplier to Williams and McLaren 1983-92, 2000s works entry, and the 2015- return that powered Verstappen's four titles. Badged HRC and supplying Aston Martin in 2026.", "medium"),
+     "Four distinct eras: works constructor 1964-68, supplier to Williams and McLaren 1983-92, 2000s works entry, and the 2015- return, which powered Verstappen's 2021 title as Honda; the Red Bull engines of 2022-25 raced as RBPT and Honda RBPT and are counted under Red Bull Powertrains. Badged HRC and supplying Aston Martin in 2026.", "medium"),
     ("climax", "Coventry Climax", "United Kingdom", 1953, 1965, None, 4, 4,
      "A fire-pump engine manufacturer whose FPF and FWMV engines powered Cooper and Lotus to championships.", "medium"),
     ("brm-eng", "BRM", "United Kingdom", 1951, 1977, None, 1, 1,
@@ -330,7 +330,7 @@ ENGINES = [
     ("mugen", "Mugen-Honda", "Japan", 1992, 2000, 4, 0, 0, "A Honda-derived independent that won with Ligier and Jordan.", "medium"),
     ("toyota-eng", "Toyota", "Japan", 2002, 2009, 0, 0, 0, "Supplied its own team plus Williams; no wins.", "medium"),
     ("rbpt", "Red Bull Powertrains", "Austria/United Kingdom", 2022, None, None, 2, 3,
-     "Created when Honda withdrew as a badged supplier; from 2026 a full in-house power unit developed with Ford.", "medium"),
+     "Red Bull's own engine name from 2022, once Honda had officially withdrawn: F1DB names the engines RBPT in 2022 and Honda RBPT in 2023-25. From 2026 a full in-house power unit developed with Ford.", "medium"),
     ("audi-eng", "Audi", "Germany", 2026, None, 0, 0, 0,
      "Designed and built at Neuburg an der Donau — the first all-new works manufacturer power unit of the 2026 formula.", "verified"),
 ]
