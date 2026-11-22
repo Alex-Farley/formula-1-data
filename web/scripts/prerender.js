@@ -1367,7 +1367,7 @@ const timeline = (milestones) =>
               m.trigger_event
                 ? `<p class="faint small"><strong>After:</strong> ${esc(m.trigger_event)}</p>`
                 : ''
-            }${m.description ? `<p>${esc(m.description)}</p>` : ''}</article>`,
+            }${m.description ? `<p class="measure">${esc(m.description)}</p>` : ''}</article>`,
         )
         .join('')}</div>`
     : ''
@@ -5446,7 +5446,7 @@ page({
           (e) =>
             `<article><h3>${link(eraPath(e), e.era_name)}<span class="years">${esc(span(e.from_year, e.to_year))}</span>${
               eraTiers.length > 1 ? confidencePill(e.confidence) : ''
-            }</h3><p>${esc(e.summary)}</p>${ERA_LINES.map(([key, label]) =>
+            }</h3><p class="measure">${esc(e.summary)}</p>${ERA_LINES.map(([key, label]) =>
               e[key] ? `<p class="faint small"><strong>${esc(label)}</strong> ${esc(e[key])}</p>` : '',
             ).join('')}</article>`,
         )
