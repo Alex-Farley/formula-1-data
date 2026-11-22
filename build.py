@@ -3872,12 +3872,10 @@ def _stage_30_derived_win_totals(b):
                       || 'chassis it entered, so it holds no constructor win total of its own.'
         WHERE id = 'rob-walker'""")
     # Racing Bulls is still racing, so its figure is the derived one, which
-    # already leaves out the two wins the note names; only the note is added.
-    # Sauber has stopped, so its typed figure, which counted its one, is
-    # corrected.
-    cur.execute("UPDATE constructors SET notes = notes || ? WHERE id = 'racing-bulls'",
-                (" The Faenza team's two wins are credited to the constructor names "
-                 "it raced under at the time, Toro Rosso (2008) and AlphaTauri (2020).",))
+    # already leaves out the wins it took under earlier names; its own note in
+    # data/teams.py says where they are credited, without a count that would
+    # go stale at its next win (CR-120). Sauber has stopped, so its typed
+    # figure, which counted its one, is corrected.
     cur.execute("UPDATE constructors SET wins = 0, notes = notes || ? WHERE id = 'sauber'",
                 (" Its single victory is credited to BMW Sauber, the constructor name in "
                  "use in 2008.",))
