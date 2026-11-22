@@ -4763,14 +4763,31 @@ def practice_and_sprint_qualifying():
         WHERE r.year >= 1994 AND p.time IS NOT NULL AND (p.laps IS NULL OR p.laps < 1)""").fetchone()[0]
     check("every timed practice row from 1994 ran at least one lap", no_laps == 0,
           f"{no_laps} rows")
-    for t, sess in (("practice", "p.session"), ("sprint_qualifying", "'sq'")):
-        wrong = [k for k in con.execute(f"""SELECT r.year, r.round, {sess}, p.driver_id
+    # Qualifying is held to the race the same way (PM-89), NULL included: a
+    # qualifying row with no constructor beside a race entry with one is a
+    # disagreement too. One is declared. At the 1950 Indianapolis 500 F1DB
+    # enters Fred Agabashian twice: first in Henry Banks's Maserati, a
+    # shared drive, then in his own Kurtis Kraft, which he qualified second
+    # and in which F1DB's qualifying sheet places him. race_entries keeps the
+    # first row's car (data/harvest.py SECOND_ENTRIES, which leaves out a make
+    # the register does not hold); qualifying names Kurtis Kraft, which the
+    # register does not hold, so its row has no constructor. Both read F1DB
+    # as published.
+    QUALIFYING_TEAM_EXCEPTIONS = {(1950, 3, "qualifying", "agabashian")}
+    differ = {}
+    for t, sess, declared in (("practice", "p.session", PRACTICE_TEAM_EXCEPTIONS),
+                              ("sprint_qualifying", "'sq'", PRACTICE_TEAM_EXCEPTIONS),
+                              ("qualifying", "'qualifying'", QUALIFYING_TEAM_EXCEPTIONS)):
+        differ[t] = [tuple(k) for k in con.execute(f"""SELECT r.year, r.round, {sess}, p.driver_id
             FROM {t} p JOIN races r ON r.id = p.race_id
             JOIN race_entries e ON e.race_id = p.race_id AND e.driver_id = p.driver_id
-            WHERE p.constructor_id IS NOT e.constructor_id""")
-                 if tuple(k) not in PRACTICE_TEAM_EXCEPTIONS]
+            WHERE p.constructor_id IS NOT e.constructor_id""")]
+        wrong = [k for k in differ[t] if k not in declared]
         check(f"every {t} driver's team is their team in that weekend's race",
               not wrong, ", ".join(f"{y} r{r} {s_} {d}" for y, r, s_, d in wrong[:4]))
+    stale = sorted(QUALIFYING_TEAM_EXCEPTIONS - set(differ["qualifying"]))
+    check("every declared qualifying team exception is one the data still holds",
+          not stale, ", ".join(f"{y} r{r} {d}" for y, r, _s, d in stale))
 
     bad = con.execute("""SELECT COUNT(DISTINCT q.race_id) FROM sprint_qualifying q
         JOIN races r ON r.id = q.race_id WHERE r.sprint != 1""").fetchone()[0]
