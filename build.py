@@ -661,14 +661,20 @@ def _stage_06_circuits(b):
     cur = b.cur
 
     # ------------------------------------------------------ circuits
+    # Each row cites the page its values were read against (CR-111), named
+    # in data/circuits.py beside the register; a circuit with none is refused
+    # rather than given a citation nobody read.
     for r in C.CIRCUITS:
         (cid, name, official, loc, country, ctype, first, last, length, turns,
          direction, chars, notes, conf) = r
+        if cid not in C.CIRCUIT_SOURCES:
+            raise SystemExit(f"circuit {cid} has no entry in CIRCUIT_SOURCES "
+                             f"in data/circuits.py: name the page it was read against.")
         cur.execute("""INSERT INTO circuits (id, name, official_name, locality, country,
             circuit_type, first_gp, last_gp, length_km, turns, direction, characteristics,
             notes, confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (cid, name, official, loc, country, ctype, first, last, length, turns,
-             direction, chars, notes, conf, "https://www.formula1.com/en/racing"))
+             direction, chars, notes, conf, C.CIRCUIT_SOURCES[cid][0]))
 
     for i, (cid, key, lname, fy, ty, byyear, length, turns, reason) in \
             enumerate(C.LAYOUTS, 1):

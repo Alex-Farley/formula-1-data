@@ -746,6 +746,12 @@ SOURCE_PATTERNS = [
     # point, the day and the model, so the row can be asked for again.
     (19, r"^https://archive-api\.open-meteo\.com/v1/archive\?",
      "the historical weather request for one race's day"),
+    # A dated revision of the article a circuits row was read against
+    # (CR-111, #1184). The pattern is any article's revision, so verify.py
+    # holds it to the circuits rows: each names the article circuits.article
+    # gives, and no other table cites a revision this way.
+    (17, r"^https://en\.wikipedia\.org/w/index\.php\?title=[^&]+&oldid=\d+$",
+     "the revision of a circuit's own article its circuits row was read against"),
 ]
 
 # ------------------------------------------------------------------ claims
