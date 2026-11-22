@@ -661,14 +661,25 @@ def _stage_06_circuits(b):
     cur = b.cur
 
     # ------------------------------------------------------ circuits
+    # Each row cites the page its values were read against, or is declared
+    # as not yet read (CR-111, data/circuits.py); a circuit that is neither
+    # is refused rather than given a citation nobody chose.
     for r in C.CIRCUITS:
         (cid, name, official, loc, country, ctype, first, last, length, turns,
          direction, chars, notes, conf) = r
+        if cid in C.CIRCUIT_SOURCES:
+            cited = C.CIRCUIT_SOURCES[cid]
+        elif cid in C.AWAITING_ARTICLE:
+            cited = C.UNREAD_SOURCE
+        else:
+            raise SystemExit(f"circuit {cid} is in neither CIRCUIT_SOURCES nor "
+                             f"AWAITING_ARTICLE in data/circuits.py: name the page "
+                             f"it was read against.")
         cur.execute("""INSERT INTO circuits (id, name, official_name, locality, country,
             circuit_type, first_gp, last_gp, length_km, turns, direction, characteristics,
             notes, confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (cid, name, official, loc, country, ctype, first, last, length, turns,
-             direction, chars, notes, conf, "https://www.formula1.com/en/racing"))
+             direction, chars, notes, conf, cited))
 
     for i, (cid, key, lname, fy, ty, byyear, length, turns, reason) in \
             enumerate(C.LAYOUTS, 1):

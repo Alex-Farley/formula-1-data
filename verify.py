@@ -4959,6 +4959,80 @@ def circuits_and_venues():
     check("circuit race counts sum to the race table", held + sched == n,
           f"{held} held + {sched} scheduled vs {n} races")
 
+    # CR-111 (#1184): a circuit formula1.com describes cites its page for the
+    # latest season whose calendar it was on when read, which the length was
+    # read against, and the rest keep the index until CR-130 (#1437) is
+    # decided. Read from the data module rather than the row, so a build that
+    # copied the wrong page is caught, and the page is held to the race
+    # records: to a season whose calendar holds the circuit and that has
+    # begun, and, where that season's sessions cite a page for the weekend,
+    # to that page, so a slug naming another circuit fails. Sessions are held
+    # for 2026 alone, so a page of an earlier season has its slug unchecked
+    # here; its length is still held to F1DB's below. Not to the latest
+    # season, which a refresh moves on without a page being read again.
+    from data import circuits as C
+    race_page = re.compile(r"^https://www\.formula1\.com/en/racing/(\d{4})/[a-z-]+$")
+    f1com = {i for (i,) in con.execute(
+        "SELECT id FROM source_registry WHERE domains = 'formula1.com'")}
+    bad = []
+    for r in con.execute("SELECT id, source, source_id FROM circuits ORDER BY id"):
+        cid, src = r["id"], r["source"]
+        given = C.CIRCUIT_SOURCES.get(cid)
+        if given is None:
+            if cid not in C.AWAITING_ARTICLE or src != C.UNREAD_SOURCE:
+                bad.append(f"{cid}: cites {src}, which data/circuits.py does not give it")
+            continue
+        m = race_page.match(given)
+        if src != given or not m or r["source_id"] not in f1com:
+            bad.append(f"{cid}: cites {src} (source {r['source_id']}), not {given}")
+            continue
+        year = int(m.group(1))
+        if year > season_in_progress() or not con.execute(
+                "SELECT 1 FROM races WHERE circuit_id = ? AND year = ?",
+                (cid, year)).fetchone():
+            bad.append(f"{cid}: cites the {year} page, a season whose calendar "
+                       f"does not hold it or that has not begun")
+            continue
+        weekend = {s for (s,) in con.execute("""SELECT DISTINCT s.source FROM sessions s
+            JOIN races x ON x.id = s.race_id WHERE x.circuit_id = ? AND x.year = ?""",
+            (cid, year))}
+        if weekend and given not in weekend:
+            bad.append(f"{cid}: cites {given}, its {year} sessions cite {sorted(weekend)}")
+    both = set(C.CIRCUIT_SOURCES) & set(C.AWAITING_ARTICLE)
+    bad += [f"{cid}: both read and awaiting its article" for cid in sorted(both)]
+    # The split known_gaps describes: formula1.com describes every circuit
+    # raced from 2019, so none of those may wait for its article.
+    bad += [f"{cid}: raced from 2019, but awaiting its article" for (cid,) in con.execute(
+        f"""SELECT DISTINCT circuit_id FROM races WHERE year >= 2019 AND circuit_id
+            IN ({",".join("?" * len(C.AWAITING_ARTICLE))}) ORDER BY 1""",
+        C.AWAITING_ARTICLE)]
+    check("every circuit cites the formula1.com page it was read against, or is declared unread",
+          not bad, "; ".join(bad[:4]))
+    print(f"  [info] {len(C.CIRCUIT_SOURCES)} circuits cite their formula1.com race page; "
+          f"{len(C.AWAITING_ARTICLE)} await their article (CR-130)")
+
+    # The length on a row citing a race page, against F1DB's for the layout
+    # the circuit's latest completed race ran: two sources, measured apart.
+    # All 33 agreed within 2 metres when read, and the three figures the
+    # pages replaced were 8 to 58 metres out.
+    # The latest completed race is found first and its outline joined after,
+    # so a layout with no outline fails rather than an older race's standing
+    # in. A failure after a refresh may mean F1DB has a newer layout than the
+    # page was read for: read the page again before deciding which is wrong.
+    bad = []
+    for cid in sorted(C.CIRCUIT_SOURCES):
+        row = con.execute("""SELECT c.length_km, o.length_km FROM circuits c
+            JOIN (SELECT f1db_layout_id FROM races WHERE circuit_id = ?
+                  AND status = 'completed' ORDER BY year DESC, round DESC LIMIT 1) r
+            LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+            WHERE c.id = ?""", (cid, cid)).fetchone()
+        if row is None or row[1] is None or abs(row[0] - row[1]) > 0.005:
+            bad.append(f"{cid}: {row[0] if row else '?'} km against F1DB's "
+                       f"{row[1] if row and row[1] is not None else 'nothing'} "
+                       f"- read the page again, or record the disagreement")
+    check("every length read from a formula1.com race page is F1DB's within 5 metres",
+          not bad, "; ".join(bad[:4]))
+
     # Where a circuit has layout rows at all, they must form a complete,
     # non-overlapping timeline of the configurations used for championship races.
     bad = con.execute("""SELECT COUNT(*) FROM circuit_layouts a
@@ -5554,6 +5628,19 @@ def provenance_resolves():
         if "year" in cols:
             rows = con.execute(f"""SELECT year, source, COUNT(*) n FROM "{t}"
                 WHERE source LIKE '%formula1.com/en/%' GROUP BY 1, 2""")
+        elif t == "circuits":
+            # A circuit has no season of its own: it cites the page of a
+            # weekend there (CR-111), so it is held to a season whose calendar
+            # holds it - the page's own where it does, its last where not.
+            rows = []
+            for cid, src in con.execute(
+                    "SELECT id, source FROM circuits WHERE source LIKE '%formula1.com/en/%'"):
+                m = season_page.match(src)
+                years = {y for (y,) in con.execute(
+                    "SELECT DISTINCT year FROM races WHERE circuit_id = ?", (cid,))}
+                year = int(m.group(1)) if m and m.group(1).isdigit() \
+                    and int(m.group(1)) in years else max(years, default=None)
+                rows.append((year, src, 1))
         elif "race_id" in cols:
             rows = con.execute(f"""SELECT r.year, x.source, COUNT(*) n
                 FROM "{t}" x LEFT JOIN races r ON r.id = x.race_id

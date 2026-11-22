@@ -384,8 +384,9 @@ SOURCE_REGISTRY = [
     (5, "Official circuit/promoter sources", "https://www.formula1.com/en/racing/2026",
      "Circuit/event facts; verify against FIA homologation where a technical or legal detail matters.", "official",
      "Promoter copyright.", "Around an event.",
-     "Circuit length and turn counts are checked against the layout "
-     "timelines, which must be complete and non-overlapping where present."),
+     "A circuit length read from a race page is checked against F1DB's for "
+     "the layout last raced there; the layout timelines must be complete and "
+     "non-overlapping where present."),
     (6, "Official driver profiles", "https://www.formula1.com/en/drivers",
      "Driver nationality, number, biography and career statistics.", "official",
      "FOM copyright.", "Per event.",
