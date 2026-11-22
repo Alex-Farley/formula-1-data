@@ -4966,7 +4966,9 @@ def circuits_and_venues():
     # copied the wrong page is caught, and the page is held to the race
     # records: to a season whose calendar holds the circuit and that has
     # begun, and, where that season's sessions cite a page for the weekend,
-    # to that page, so a slug naming another circuit fails. Not to the latest
+    # to that page, so a slug naming another circuit fails. Sessions are held
+    # for 2026 alone, so a page of an earlier season has its slug unchecked
+    # here; its length is still held to F1DB's below. Not to the latest
     # season, which a refresh moves on without a page being read again.
     from data import circuits as C
     race_page = re.compile(r"^https://www\.formula1\.com/en/racing/(\d{4})/[a-z-]+$")
@@ -5013,15 +5015,21 @@ def circuits_and_venues():
     # the circuit's latest completed race ran: two sources, measured apart.
     # All 33 agreed within 2 metres when read, and the three figures the
     # pages replaced were 8 to 58 metres out.
+    # The latest completed race is found first and its outline joined after,
+    # so a layout with no outline fails rather than an older race's standing
+    # in. A failure after a refresh may mean F1DB has a newer layout than the
+    # page was read for: read the page again before deciding which is wrong.
     bad = []
     for cid in sorted(C.CIRCUIT_SOURCES):
         row = con.execute("""SELECT c.length_km, o.length_km FROM circuits c
-            JOIN races r ON r.circuit_id = c.id AND r.status = 'completed'
-            JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
-            WHERE c.id = ? ORDER BY r.year DESC, r.round DESC LIMIT 1""", (cid,)).fetchone()
-        if row is None or abs(row[0] - row[1]) > 0.005:
+            JOIN (SELECT f1db_layout_id FROM races WHERE circuit_id = ?
+                  AND status = 'completed' ORDER BY year DESC, round DESC LIMIT 1) r
+            LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+            WHERE c.id = ?""", (cid, cid)).fetchone()
+        if row is None or row[1] is None or abs(row[0] - row[1]) > 0.005:
             bad.append(f"{cid}: {row[0] if row else '?'} km against F1DB's "
-                       f"{row[1] if row else 'nothing'}")
+                       f"{row[1] if row and row[1] is not None else 'nothing'} "
+                       f"- read the page again, or record the disagreement")
     check("every length read from a formula1.com race page is F1DB's within 5 metres",
           not bad, "; ".join(bad[:4]))
 

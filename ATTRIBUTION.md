@@ -70,7 +70,8 @@ unnamed under the same heading (`tools/credit_sources.py`). One cell is
 checked for less than it says: the circuit register's is checked for the
 layout timelines alone, because its `circuits` rows cite formula1.com while
 the cell credits Wikipedia. A circuit raced from 2019 cites formula1.com's
-page for its latest race weekend, whose length it holds (`CR-111`, #1184);
+page for its race weekend in the latest season whose calendar held it when
+read, and holds that page's length (`CR-111`, #1184);
 the rest are to cite their Wikipedia articles, and keep formula1.com's
 racing index until what the facts artefact does with them is decided
 (`CR-130`, #1437). Cells that credit some of a table's rows or columns — the
