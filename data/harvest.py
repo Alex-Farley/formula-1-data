@@ -1082,7 +1082,8 @@ KNOWN_GAPS = [
      "circuit facts not yet read against the page a circuit cites",
      "open",
      "A circuit raced in 2019 or later cites formula1.com's page for its "
-     "latest race weekend, and its length is the one that page gives. Its "
+     "latest race weekend when this was read, and its length is the one that "
+     "page gives. Its "
      "number of turns, direction, type and official name are not on that "
      "page, and were not checked against it. A circuit last raced before "
      "then cites formula1.com's racing index, which does not describe it, "

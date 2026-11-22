@@ -50,7 +50,7 @@ fails — so a row nobody has read cannot be counted as read:
 | Table | Rows | Source | What the row holds | Prose |
 |---|---:|---|---|---|
 | `drivers` | <!-- fig:fo_drivers -->118<!-- /fig --> | formula1.com | names, dates, career totals | `notes` |
-| `circuits` | <!-- fig:fo_circuits -->80<!-- /fig --> | formula1.com | length, turns, GP count | `notes`, `characteristics` |
+| `circuits` | <!-- fig:fo_circuits -->80<!-- /fig --> | formula1.com | length, turns, GP count; the race page each circuit raced from 2019 cites gives the length, and the racing index the rest cite gives nothing of theirs (`CR-130`) | `notes`, `characteristics` |
 | `seasons` | <!-- fig:fo_seasons -->78<!-- /fig --> | formula1.com, fia.com | champion, points, rounds | `notes` |
 | `standings` | <!-- fig:fo_standings -->65<!-- /fig --> | formula1.com | 2025 final, 2026 current | — |
 | `constructors` | <!-- fig:fo_constructors -->55<!-- /fig --> | formula1.com | register facts | `notes` |

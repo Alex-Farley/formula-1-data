@@ -343,8 +343,9 @@ CIRCUITS = [
 # article for the rest, every value read again against the page it will cite.
 #
 # formula1.com describes a circuit on its page for a race weekend there, and
-# the row cites the page of the latest season the circuit had been raced in
-# when read. Read on 2026-11-22, each gave the circuit's length, which the
+# the row cites the page of the latest season whose calendar held the
+# circuit when read (2026's for Las Vegas, Lusail and Yas Marina, whose 2026
+# races had not yet been run). Read on 2026-11-22, each gave the circuit's length, which the
 # row holds, and the year of its first Grand Prix, which verify.py holds to
 # the race records whatever a page says. The page does not give the turns,
 # the direction, the circuit type or the official name; those are the values
@@ -383,6 +384,8 @@ CIRCUIT_SOURCES = {
     "sochi": F1_RACE.format("2021/russia"),
     "istanbul": F1_RACE.format("2021/turkey"),
     "hockenheim": F1_RACE.format("2019/germany"),
+    # The page gives 1951 as the first Grand Prix: the Nordschleife's, which
+    # is a circuit of its own here. first_gp stays 1984, the race records'.
     "nurburgring-gp": F1_RACE.format("2020/germany"),
     "portimao": F1_RACE.format("2021/portugal"),
     "mugello": F1_RACE.format("2020/tuscany"),

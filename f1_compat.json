@@ -816,7 +816,7 @@
       "authority": "official",
       "licence": "Promoter copyright.",
       "cadence": "Around an event.",
-      "checkability": "Circuit length and turn counts are checked against the layout timelines, which must be complete and non-overlapping where present.",
+      "checkability": "A circuit length read from a race page is checked against F1DB's for the layout last raced there; the layout timelines must be complete and non-overlapping where present.",
       "redistributable": "facts-only",
       "share_alike": 0,
       "attribution_required": 0,
