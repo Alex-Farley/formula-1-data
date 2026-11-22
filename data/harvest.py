@@ -1285,21 +1285,14 @@ FASTEST_LAP_DISAGREEMENTS = {
 # Each is one source against itself, and the stored values stay F1DB's as
 # published: the race result and the sheets are both held, and the row says
 # which a second source sides with. Worth reporting upstream.
+#
+# Two more were declared here until F1DB v2026.21.0 corrected both, each the
+# way the race article read it (AF-186, #1443): Gianfranco Brancatelli at
+# Monaco in 1979, DNPQ in the race result, has no qualifying row now; Alex
+# Caffi at the Hungaroring in 1991, DNQ there with no qualifying row, is DNPQ.
 #   (year, round, driver_id): (status, status_note, assessment)
 _F1DB_RACES = "https://github.com/f1db/f1db/tree/main/src/data/seasons/"
 SESSION_SHEET_DISAGREEMENTS = {
-    (1979, 7, "gianfranco-brancatelli"): (
-        "open", "a second source favours the race result",
-        "F1DB's race result has Brancatelli DNPQ. He is slowest of the "
-        "three on its pre-qualifying sheet, behind Hans-Joachim Stuck and "
-        "Jochen Mass, but its qualifying sheet holds all three - him 25th "
-        "with no time - which says he went through. The race article sides "
-        "with the race result: two went through, and it lists him as not "
-        "pre-qualifying, on 1:38.15, and leaves him out of its qualifying "
-        "table. Both F1DB rows are kept as published. "
-        "Source: " + _F1DB_RACES + "1979/races/07-monaco (race-results.yml "
-        "and pre-qualifying-results.yml against qualifying-results.yml); "
-        "https://en.wikipedia.org/wiki/1979_Monaco_Grand_Prix"),
     (1990, 6, "moreno"): (
         "explained", "went through pre-qualifying, excluded in qualifying",
         "F1DB's pre-qualifying sheet has Moreno third, inside the four who "
@@ -1315,18 +1308,6 @@ SESSION_SHEET_DISAGREEMENTS = {
         "Source: " + _F1DB_RACES + "1990/races/06-mexico (race-results.yml, "
         "pre-qualifying-results.yml and qualifying-results.yml); "
         "https://en.wikipedia.org/wiki/1990_Mexican_Grand_Prix"),
-    (1991, 10, "alex-caffi"): (
-        "open", "a second source favours the session sheets",
-        "F1DB's race result has Caffi DNQ, but its own sheets say he failed "
-        "pre-qualifying: sixth on the pre-qualifying sheet, behind the four "
-        "who went through, and no qualifying row. The race article agrees "
-        "with the sheets - sixth in Friday's pre-qualifying, one of the four "
-        "who did not pre-qualify - citing Murray Walker's Grand Prix Year "
-        "(1991). Both readings are a non-start, so his starts do not move. "
-        "The race result is kept as F1DB publishes it. "
-        "Source: " + _F1DB_RACES + "1991/races/10-hungary (race-results.yml "
-        "against pre-qualifying-results.yml and qualifying-results.yml); "
-        "https://en.wikipedia.org/wiki/1991_Hungarian_Grand_Prix"),
 }
 
 # Where a second source classifies a driver's race otherwise than F1DB's race
@@ -3659,15 +3640,11 @@ def load_f1db_pit_stops():
 # until the declaration is removed (#1375).
 #   (year, round): rows that repeat a stop, and are dropped
 #
-# 2026 round 13, the Italian Grand Prix. F1DB v2026.20.0's pit-stops.yml
-# (src/data/seasons/2026/races/13-italy) holds 18 rows, positions 1 to 18:
-# nine drivers' stop 2, each twice, the two rows alike but for the position.
-# F1DB's main branch read the same on 2026-11-17. One of each is kept.
-# Jolpica, which this database may not redistribute, holds the same nine
-# stop 2 rows once each, at the same lap and time. Worth reporting upstream.
-F1DB_PIT_STOP_REPEATS = {
-    (2026, 13): 9,
-}
+# None is declared now. The one there was - 2026 round 13, the Italian
+# Grand Prix, where F1DB v2026.20.0 listed nine drivers' stop 2 twice each -
+# was removed when v2026.21.0 corrected the file: each of those nine stops is
+# listed once, at the lap and time it had (AF-186, #1443).
+F1DB_PIT_STOP_REPEATS = {}
 
 
 def load_race_dates():

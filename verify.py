@@ -1357,11 +1357,15 @@ def pole_position_and_fastest_lap():
          f"{len(inferred)} credited from F1DB's grid 1 awaiting the harvest: "
          + "; ".join(f"{y} r{r}" for y, r in inferred[:5]))
 
-    # The 13 races where the credited pole-sitter was not the fastest qualifier.
+    # The 14 races where the credited pole-sitter was not the fastest qualifier.
     # Every one is a penalty or a grid set by a sprint, and both columns are
     # true of what they describe; the race page shows both. Not a disagreement
     # between sources, so not in `discrepancies` -- the count is pinned here
-    # instead, so a fourteenth arrives as a question rather than as noise.
+    # instead, so a fifteenth arrives as a question rather than as noise. The
+    # fourteenth is Las Vegas in 2026: Antonelli fastest in qualifying and
+    # sixth on the grid, after a five-place penalty for a sixth combustion
+    # engine (AF-186, #1443; https://www.planetf1.com/news/fia-kimi-antonelli-
+    # las-vegas-grand-prix-2026-grid-penalty), and Verstappen on grid 1.
     split = con.execute("""SELECT COUNT(*) FROM (
         SELECT r.id FROM races r
          WHERE r.status = 'completed'
@@ -1374,7 +1378,7 @@ def pole_position_and_fastest_lap():
             != (SELECT q.driver_id FROM qualifying q
                  WHERE q.race_id = r.id AND q.position = 1))""").fetchone()[0]
     check("pole and the fastest qualifier part company only where they should",
-          split == 13, f"{split} races (13 known: penalties and sprint-set grids)")
+          split == 14, f"{split} races (14 known: penalties and sprint-set grids)")
 
     multi = con.execute("""SELECT race_id, COUNT(*) n FROM race_entries
         WHERE finish_position = 1 GROUP BY race_id HAVING n > 1""").fetchall()
@@ -4639,10 +4643,11 @@ def practice_and_sprint_qualifying():
     # a driver to the place. In pre-qualifying, nobody who failed it sits
     # above a driver who went through - "went through" being a qualifying
     # row that weekend, which is what going through means, rather than the
-    # race result, which F1DB gets wrong at least once: Caffi at the
-    # Hungaroring in 1991 is DNQ there with no qualifying row (review of
-    # #714), and Brancatelli at Monaco in 1979 DNPQ with one. Both are filed
-    # in `discrepancies`, kind 'session-sheet' (PM-62, #716). One sheet is
+    # race result, which F1DB has got wrong: Caffi at the Hungaroring in 1991
+    # was DNQ there with no qualifying row (review of #714), and Brancatelli
+    # at Monaco in 1979 DNPQ with one, until F1DB v2026.21.0 corrected both
+    # (AF-186, #1443). Any such contradiction is filed in `discrepancies`,
+    # kind 'session-sheet' (PM-62, #716). One sheet is
     # published out of this order, declared as published: Mexico 1990, where
     # Moreno is 3rd with no qualifying row, above Suzuki, who went through -
     # disqualified in qualifying for a push start, which the race result
