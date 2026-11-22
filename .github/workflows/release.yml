@@ -49,7 +49,9 @@ jobs:
       #
       # No step pushes or fetches, and the release goes through the API, so
       # the contents: write token is not left in .git/config for the
-      # pip-installed Parquet writer below to read.
+      # pip-installed Parquet writer below to read. The one read of the
+      # remote, the tag check before the release step, goes to the public
+      # URL with no credentials.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
@@ -152,6 +154,34 @@ jobs:
           sha256sum f1.db f1-geometry.db f1-facts.db f1_database.json.gz \
             f1_compat.json f1-parquet.zip schema.sql > SHA256SUMS
           cat SHA256SUMS
+
+      # The tag must still name the commit built (AF-165). Given a tag that
+      # exists, the release action ignores target_commitish, so a tag deleted
+      # and pushed again at another commit while this job ran would carry
+      # assets built from the first. Read from the public remote with no
+      # credentials, peeled (^{}) for an annotated tag; a tag that no longer
+      # exists passes, because the release step recreates it at the commit
+      # built (AF-145). It narrows the window to the seconds between this
+      # step and the next, and cannot close it.
+      - name: The tag must still name the commit built
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+          BUILT: ${{ steps.commit.outputs.sha }}
+        run: |
+          refs=$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" \
+            "refs/tags/$TAG" "refs/tags/$TAG^{}")
+          now=$(printf '%s\n' "$refs" | awk -v r="refs/tags/$TAG^{}" '$2 == r { print $1 }')
+          if [ -z "$now" ]; then
+            now=$(printf '%s\n' "$refs" | awk -v r="refs/tags/$TAG" '$2 == r { print $1 }')
+          fi
+          if [ -z "$now" ]; then
+            echo "tag $TAG no longer exists; the release step creates it at $BUILT"
+          elif [ "$now" != "$BUILT" ]; then
+            echo "::error::tag $TAG now names $now, not $BUILT, the commit these assets were built from"
+            exit 1
+          else
+            echo "tag $TAG still names $BUILT"
+          fi
 
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:

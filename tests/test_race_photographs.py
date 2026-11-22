@@ -56,7 +56,8 @@ class NotTakenAtTheRace(unittest.TestCase):
                  1957),
                 ("File:Rundentabelle GP Monaco 1971.jpg", 1971),
                 ("File:Car and Driver August 1962 cover.jpg", 1962),
-                ("File:Clay Regazzoni 1975 Watkins Glen 5.jpg", 1974)):
+                ("File:Clay Regazzoni 1975 Watkins Glen 5.jpg", 1974),
+                ("File:Anthony Davidson USA 2005.jpg", 2006)):
             self.assertTrue(self.elsewhere(name, year), name)
 
     def test_what_they_kept(self):
@@ -66,7 +67,9 @@ class NotTakenAtTheRace(unittest.TestCase):
                  1967),
                 ("File:Lewis Hamilton (35871613510).jpg", 2017),
                 ("File:Ferrari F1-2000 Barrichello.jpg", 2000),
-                ("File:Damon Hill Williams FW18 2010 Bahrain.jpg", 2010)):
+                ("File:Damon Hill Williams FW18 2010 Bahrain.jpg", 2010),
+                ("File:2026-08-21 Motorsport, Formel 1, Großer Preis der "
+                 "Niederlande 2026 STP 2058 by Stepro.jpg", 2026)):
             self.assertFalse(self.elsewhere(name, year), name)
 
 
