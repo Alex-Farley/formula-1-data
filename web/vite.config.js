@@ -18,11 +18,13 @@ const base = process.env.SITE_BASE ?? '/'
 /**
  * Serve /drivers/hamilton from dist/drivers/hamilton/index.html in preview.
  *
- * Cloudflare's static assets do this by default — html_handling defaults to
- * "auto-trailing-slash", which resolves an extensionless path to the
- * index.html inside it, and that is the URL shape prerender.js writes as
- * canonical. sirv, which is what `vite preview` runs on, only serves the
- * directory when the path ends in a slash.
+ * Cloudflare's static assets do this because wrangler.jsonc sets
+ * html_handling to "drop-trailing-slash": the host serves an extensionless
+ * path from the index.html inside it, which is the URL shape prerender.js
+ * writes as canonical. Its default, "auto-trailing-slash", would redirect
+ * /drivers/hamilton to /drivers/hamilton/ instead, and wrangler.jsonc says
+ * why that is not wanted. sirv, which is what `vite preview` runs on, only
+ * serves the directory when the path ends in a slash.
  *
  * Without this the preview answers a canonical deep link with a 404 while
  * production answers it with the page, which is the worst kind of difference

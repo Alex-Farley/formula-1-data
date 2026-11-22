@@ -99,7 +99,8 @@ export function SafetyTimeline({ milestones, empty }) {
               <strong>After:</strong> {milestone.trigger_event}
             </p>
           )}
-          <p>{milestone.description}</p>
+          {/* Running text, in the prose voice its faint line is in (VD-127). */}
+          <p className="measure">{milestone.description}</p>
         </article>
       ))}
     </div>
@@ -160,7 +161,7 @@ function Body({ data }) {
                 <span className="years">{span(era.from_year, era.to_year)}</span>
                 {eraTiers.length > 1 && <Confidence value={era.confidence} />}
               </h3>
-              <p>{era.summary}</p>
+              <p className="measure">{era.summary}</p>
               {ERA_LINES.map(
                 ([key, label]) =>
                   era[key] && (
