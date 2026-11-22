@@ -2234,9 +2234,9 @@ F1DB_CONFIDENCE = "reference"
 def race_clock(t):
     """A race time as F1DB publishes it, with every field after the first
     written in two digits: "2:4:44.859" is 2:04:44.859 and "2:00:0.189"
-    2:00:00.189. Sixteen of F1DB's race times drop the leading zero of a
-    minute or a second; the value is the same, and the build holds it in the
-    form the other 8,215 take, so a page never prints 2:4:44.859 (AF-157).
+    2:00:00.189. Some of F1DB's race times drop the leading zero of a minute
+    or a second; the value is the same, and the build holds it in the form
+    the rest take, so a page never prints 2:4:44.859 (AF-157).
     Anything else, None included, comes back as it was given."""
     if not t or ":" not in t:
         return t or None

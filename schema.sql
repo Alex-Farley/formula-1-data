@@ -1383,8 +1383,8 @@ CREATE TABLE race_entries (
     -- gives none: `time` on a lapped finisher, whose gap is in laps, and
     -- both on most retirements and on some classified finishers - a fifth
     -- of the 1950s', fewer than one in ten in each decade since. `time` is
-    -- F1DB's with each field after the first in two digits, which sixteen
-    -- of its values are not (data/harvest.py race_clock).
+    -- F1DB's with each field after the first in two digits, which a few of
+    -- its values are not (data/harvest.py race_clock).
     time            TEXT,
     gap             TEXT,
     -- 0 for a classified finisher below the last place the season's points
