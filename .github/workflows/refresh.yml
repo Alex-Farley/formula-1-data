@@ -157,7 +157,8 @@ jobs:
       # F1DB's published career totals come from the release artefact, not
       # the clone, so they are a second fetch - of the release the step above
       # just stamped into harvest/f1db_drivers.txt, which is the tool's
-      # default. verify.py holds a driver still racing to these totals and
+      # default. verify.py holds a driver still racing to these totals, and
+      # a constructor still racing to its published wins (CR-117), and
       # fails when they are from another release than the harvest: a total
       # typed in, or pinned to an older release, goes stale with the driver's
       # next result, and from 2026-10-02 that stopped every run (CR-69).

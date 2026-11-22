@@ -3546,14 +3546,33 @@ CREDIT_PERMISSION = re.compile(r"\bpermission\b", re.I)
 # so an archive's reference number or a Flickr id names none.
 _SEASON_IN_NAME = re.compile(r"(?<![0-9])((?:19|20)[0-9]{2})(?![0-9])")
 
+# A photographer's frame number after the initials they file under - "Grosser
+# Preis der Niederlande 2026 STP 2058" - is four digits too (PM-91). One that
+# follows a run of capitals and is later than the season after the current
+# one is read as that rather than as a year. A number at or under that bound
+# still reads as a year, which fails closed: "Anthony Davidson USA 2005",
+# filed under the 2006 race, still names 2005, and a frame numbered under the
+# bound is still passed over.
+_FRAME_AFTER = re.compile(r"(?<![A-Za-z])[A-Z]{2,} $")
+
 
 def race_file_names_another_season(file_name, year):
     """Does the file's name name a season that is not the race's? "Clay
     Regazzoni 1975 Watkins Glen" filed under the 1974 race, or a trophy
     "2019 Michael Schumacher Private Collection" under the 1995 one, was
     photographed another year. An archive caption that names the year it was
-    donated is lost with them, which fails closed."""
-    return any(int(y) != int(year) for y in _SEASON_IN_NAME.findall(file_name))
+    donated is lost with them, which fails closed. A frame number after a
+    photographer's initials is not a season (_FRAME_AFTER)."""
+    from data.current import CURRENT_SEASON
+    for m in _SEASON_IN_NAME.finditer(file_name):
+        y = int(m.group(1))
+        if y == int(year):
+            continue
+        if (y > CURRENT_SEASON + 1
+                and _FRAME_AFTER.search(file_name, 0, m.start())):
+            continue
+        return True
+    return False
 
 # How many photographs a race keeps. The strip draws six (PHOTOGRAPHS_SHOWN
 # in web/src/lib/site.js) and the rest sit behind a disclosure, so twelve is

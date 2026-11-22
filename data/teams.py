@@ -36,7 +36,7 @@ CONSTRUCTORS = [
      "Frank Williams's second and lasting venture. Nine constructors' titles, all between 1980 and 1997. Sold to Dorilton Capital in 2020, ending family control.", "high"),
     ("alpine", "Alpine", "BWT Alpine Formula One Team", "France", "Enstone, United Kingdom", 2021, None,
      None, 0, 0, None, "enstone", 1,
-     "The Renault works entry rebadged for 2021. One win, at the 2021 Hungarian GP with Ocon. The Enstone factory it occupies has won two constructors' titles under earlier names.", "high"),
+     "The Renault works entry rebadged for 2021. Its first win came at the 2021 Hungarian GP, with Ocon. The Enstone factory it occupies has won two constructors' titles under earlier names.", "high"),
     # first_entry is 1959, not 2021: Aston Martin entered the DBR4 and DBR5
     # as a constructor in 1959-60. Two spells under one marque is how this
     # register already treats Mercedes (1954-55 and 2010-) and Alfa Romeo
@@ -51,7 +51,7 @@ CONSTRUCTORS = [
      "The first American constructor since 1986, and the first to run a customer-parts model built around Ferrari supply and Dallara manufacture.", "high"),
     ("racing-bulls", "Racing Bulls", "Visa Cash App Racing Bulls Formula One Team", "Italy", "Faenza, Italy", 1985, None,
      None, 0, 0, None, "faenza", 1,
-     "The Faenza entry, continuously in the championship since Minardi's 1985 debut. Two wins, both giant-killings: Vettel at Monza in 2008 and Gasly at Monza in 2020.", "high"),
+     "The Faenza entry, continuously in the championship since Minardi's 1985 debut. It won at Monza under two of its earlier names, both times a giant-killing: Vettel for Toro Rosso in 2008 and Gasly for AlphaTauri in 2020.", "high"),
     ("audi", "Audi", "Audi Revolut F1 Team", "Germany", "Hinwil, Switzerland", 2026, None,
      None, 0, 0, None, "hinwil", 1,
      "The Hinwil operation founded by Peter Sauber, taken over completely by Audi for the 2026 regulations. Audi builds its own power unit at Neuburg an der Donau — the first new works manufacturer entry since Honda's return.", "verified"),

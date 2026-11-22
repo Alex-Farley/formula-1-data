@@ -49,8 +49,12 @@ CONSTRAINED_BY = {
         "every driver's wins, poles and fastest laps equal the race records",
         "headline career records match the known official figures",
         "every external-vs-derived difference is accounted for"]),
+    # The first compares a total with the race records; for a constructor
+    # still racing build.py derives the total from those records, so it is
+    # the second, against F1DB's published wins, that constrains it (CR-117).
     "constructors": ("cross", [
-        "every constructor win total equals the number of races it won"]),
+        "every constructor win total equals the number of races it won",
+        "every constructor still racing holds the win total F1DB publishes"]),
     "races": ("cross", [
         "every winner agreed with the independently harvested winner (build.py)",
         "completed race count per season matches the rounds recorded"]),

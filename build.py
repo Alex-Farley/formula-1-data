@@ -6275,7 +6275,10 @@ def derive_records(cur, leave_out=frozenset()):
                         holder_id=str(holders[0][1]) if len(holders) == 1 else None,
                         value_num=value_num, unit=unit, value=value, detail=detail))
 
-    lo, hi = q("SELECT MIN(year), MAX(year) FROM seasons")[0]
+    # The seasons a count of completed races spans: from the completed races,
+    # not the seasons table, which holds the next season before a race of it
+    # is run and so named one that had none (WK-27).
+    lo, hi = q("SELECT MIN(year), MAX(year) FROM races WHERE status = 'completed'")[0]
     completed = q("SELECT COUNT(*) FROM races WHERE status = 'completed'")[0][0]
     decided = q("SELECT COUNT(*) FROM seasons WHERE drivers_champion IS NOT NULL")[0][0]
     race_name = lambda year, name: f"{year} {name}"                       # noqa: E731
