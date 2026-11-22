@@ -69,7 +69,7 @@ would read as a pass however it was written.
 Three things stay typed, and the rule says so. A figure about another
 source's holdings — Jolpica's 628,454 lap times, its 118 of 26,082 readings —
 counts rows that are not here to count. A figure `verify.py` already pins as
-an invariant, like the 13 races where the credited pole-sitter was not the
+an invariant, like the races where the credited pole-sitter was not the
 fastest qualifier, is checked where it is pinned; a second place to state it
 is a second place to be wrong. And a figure house style spells out —
 "sixteen distinct licence strings", which `web/src/queries/sources.js` and
