@@ -32,6 +32,15 @@ export default function RacePodium({ heading, steps, also }) {
             <span className="race-slab-surname">{s.href ? <Link to={`/${s.href}`}>{s.surname}</Link> : s.surname}</span>{' '}
             <span className="race-slab-meta">
               <span>{s.meta}</span>
+              {s.time && (
+                <>
+                  {' '}
+                  <span className="race-slab-time num">
+                    <span className="sr-only">{s.timeSaid} </span>
+                    {s.time}
+                  </span>
+                </>
+              )}
               {s.move && (
                 <>
                   {' '}

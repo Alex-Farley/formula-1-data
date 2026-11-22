@@ -168,6 +168,7 @@ import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { driverName, fastestLapMark, inClassificationOrder, outcome, position, RACE_HISTORY, raceAftermath, raceLede, raceSentence, railOf, scheduledNote, stintsEmpty, stintsLabel } from '../src/queries/race.js'
+import { classificationFooter, firstHomeNote, raceBehind, raceTime } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere, racesCount } from '../src/queries/circuit.js'
 import { STINT_HEADS, lapRange, pitPairs, pitWave, stintLaps, stintLayout, stintRows, stintTableRows, stintTitle, stintsShown, stopTitle, unbarredOf } from '../src/charts/stints.js'
 import {
@@ -693,6 +694,39 @@ describe('the data-quality helpers (CR-26)', () => {
 
   it('disagrees counts a published zero as a figure to compare', () => {
     assert.equal(disagrees({ ...agreeing, wins_external: 0 }), true)
+  })
+})
+
+describe("a race's finishing time and gap (AF-157)", () => {
+  const winner = { finish_position: 1, driver: 'Lewis Hamilton', time: '1:19:57.566', gap: '+0.526' }
+  const second = { finish_position: 2, driver: 'Oscar Piastri', time: '1:19:58.213', gap: '+1.173' }
+  const lapped = { finish_position: 9, driver: 'A', time: null, gap: '+2 laps' }
+  const out = { finish_position: null, driver: 'B', time: null, gap: null, status: 'Engine' }
+  const dsq = { finish_position: null, driver: 'George Russell', time: '1:19:57.040', gap: null, position_text: 'DSQ' }
+
+  it("prints the winner's time and every other car's gap, its own time with no gap, the em dash with neither", () => {
+    assert.equal(raceTime(winner), '1:19:57.566', 'the winner shows the time, whatever its gap')
+    assert.equal(raceTime(second), '+1.173')
+    assert.equal(raceTime(lapped), '+2 laps')
+    assert.equal(raceTime(dsq), '1:19:57.040', 'the first car home holds a time and no gap')
+    assert.equal(raceTime(out), null)
+    assert.equal(raceTime({ finish_position: 1, time: null, gap: null }), null, 'a shared winner F1DB gives no time')
+  })
+
+  it('sorts by how far behind: the first car home, seconds, then laps, and nothing for neither', () => {
+    assert.equal(raceBehind(dsq), 0)
+    assert.equal(raceBehind(winner), 0.526)
+    assert.equal(raceBehind({ gap: '+1:03.011' }), 63.011)
+    assert.ok(raceBehind(lapped) > raceBehind({ gap: '+1 lap' }) && raceBehind({ gap: '+1 lap' }) > raceBehind({ gap: '+1:03.011' }))
+    assert.equal(raceBehind(out), null)
+  })
+
+  it('says where the gaps are to a car not classified first, and nowhere else', () => {
+    const note = 'Each gap is to the first car home, George Russell, who is not classified first.'
+    assert.equal(firstHomeNote([winner, second, dsq, out]), note)
+    assert.ok(classificationFooter([winner, second, dsq]).includes(note))
+    assert.equal(firstHomeNote([{ ...winner, gap: null }, second, lapped, out]), '', 'the winner is the first car home')
+    assert.equal(firstHomeNote([out, lapped]), '')
   })
 })
 
@@ -4090,6 +4124,17 @@ describe("the home page's season block (PD-48)", () => {
     assert.deepEqual(steps.map((s) => s.start), ['from pole', 'from 21st', 'from the pit lane'])
     assert.equal(lastPodium([row(1, 'norris', 1, 1), row(2, 'verstappen', 21)]), null, 'a missing place is no podium')
     assert.equal(lastPodium(undefined), null)
+  })
+
+  it("shows the winner's race time and the others' gaps, and none where they are not to the winner (AF-157)", () => {
+    const row = (position, time, gap) => ({ position, driver_id: `d${position}`, driver: `D${position}`, constructor_id: 'mclaren', constructor: 'McLaren', year: 2026, time, gap })
+    const times = (rows) => lastPodium(rows).map((s) => s.time)
+    assert.deepEqual(times([row(1, '1:31:44.742', null), row(2, '1:31:45.915', '+1.173'), row(3, null, '+1 lap')]), ['1:31:44.742', '+1.173', '+1 lap'])
+    assert.deepEqual(times([row(1, '1:31:44.742', null), row(2, null, null), row(3, null, '+1 lap')]), ['1:31:44.742', '—', '+1 lap'], 'a step with none beside one that has one is the em dash')
+    assert.deepEqual(times([row(1, null, null), row(2, null, null), row(3, null, null)]), [null, null, null], 'no step has one: no line')
+    assert.deepEqual(times([row(1, '1:19:57.566', '+0.526'), row(2, '1:19:58.213', '+1.173'), row(3, '1:20:05.589', '+8.549')]), [null, null, null], 'a winner with a gap: the gaps are not to the winner')
+    assert.deepEqual(lastPodium([row(1, '1:31:44.742', null), row(2, null, '+1.173'), row(3, null, '+1 lap')]).map((s) => s.timeSaid), ['race time', 'gap to the winner', 'gap to the winner'], 'each figure says what it is')
+    assert.deepEqual(lastPodium([row(1, null, null), row(2, null, null), row(3, null, null)]).map((s) => s.timeSaid), [null, null, null])
   })
 
   it('counts what is left of the named season, not of the register', () => {

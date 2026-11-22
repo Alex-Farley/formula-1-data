@@ -781,7 +781,7 @@ export const PODIUM = `
   WITH last AS (SELECT id, year FROM races WHERE status = 'completed' ORDER BY year DESC, round DESC LIMIT 1)
   SELECT e.finish_position AS position, e.driver_id, d.full_name AS driver,
          e.constructor_id, k.name AS constructor, k.country AS constructor_country, l.year,
-         e.grid, e.grid_text, e.pole
+         e.grid, e.grid_text, e.pole, e.time, e.gap
     FROM race_entries e
     JOIN last l ON l.id = e.race_id
     LEFT JOIN drivers d ON d.id = e.driver_id

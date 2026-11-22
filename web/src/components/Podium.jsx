@@ -7,7 +7,8 @@ import { PODIUM_LABEL, podiumTeam } from '../lib/podium.js'
  * design-system.md section 3, *Season cycle*): read first to third, and
  * stood second, first, third by app.css. Each step names its place, driver
  * and team, so the team's colour is never the only cue; a team with no
- * colour on record stands as an outline. `steps` is lib/podium.js's
+ * colour on record stands as an outline. Under the team, the winner's race
+ * time and the others' gaps where podium() gives them (AF-157). `steps` is lib/podium.js's
  * podium(), which a race page's slabs (components/RacePodium.jsx, VD-108)
  * stand too. scripts/prerender.js's podiumHtml() writes the same markup.
  */
@@ -23,6 +24,15 @@ export default function Podium({ steps }) {
               {step.driver_id ? <Link to={`/drivers/${step.driver_id}`}>{step.driver}</Link> : step.driver}
             </span>{' '}
             <span className="podium-team muted small">{podiumTeam(step)}</span>
+            {step.time && (
+              <>
+                {' '}
+                <span className="podium-time muted small num">
+                  <span className="sr-only">{step.timeSaid} </span>
+                  {step.time}
+                </span>
+              </>
+            )}
             <span
               className={own.className ? `podium-block ${own.className}` : 'podium-block podium-block-none'}
               style={own.style}

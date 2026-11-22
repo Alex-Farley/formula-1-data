@@ -309,7 +309,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->181,196<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->181,198<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to
@@ -380,10 +380,10 @@ the share-alike above. First, its account of its own sources and state:
 | Column | What it holds | Chars |
 |---|---|---:|
 | `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->73,410<!-- /fig --> |
-| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->7,585<!-- /fig --> |
-| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->19,125<!-- /fig --> |
-| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->6,405<!-- /fig --> |
-| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,238<!-- /fig --> |
+| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->7,832<!-- /fig --> |
+| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->19,317<!-- /fig --> |
+| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->6,570<!-- /fig --> |
+| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,261<!-- /fig --> |
 
 Second, the prose of eleven of the twelve reference tables
 `source_registry` entry 18 records as written for this project (`PM-49`,
@@ -404,7 +404,7 @@ Second, the prose of eleven of the twelve reference tables
 | `engine_manufacturers.notes` | notes on each engine manufacturer |
 
 Every figure here is a span this build rewrites from the database
-itself: <!-- fig:prose_kb -->134 KB<!-- /fig --> between all of them, of
+itself: <!-- fig:prose_kb -->135 KB<!-- /fig --> between all of them, of
 which <!-- fig:prose_authored_kb -->29 KB<!-- /fig --> is the eleven tables' prose.
 
 The share-alike on everything else comes from Wikipedia, and

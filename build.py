@@ -2348,8 +2348,9 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                     constructor_id, entrant, grid, grid_text,
                     finish_position, position_text, shared_drive, classified,
-                    status, laps_completed, points, confidence, source)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    status, laps_completed, time, gap, points, confidence,
+                    source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT (race_id, driver_id) DO UPDATE SET
                     constructor_id  = COALESCE(constructor_id, excluded.constructor_id),
                     grid            = COALESCE(grid, excluded.grid),
@@ -2363,6 +2364,33 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                     classified      = COALESCE(classified, excluded.classified),
                     status          = COALESCE(status, excluded.status),
                     laps_completed  = COALESCE(laps_completed, excluded.laps_completed),
+                    -- The time and gap (AF-157) are one F1DB row's pair,
+                    -- and are only ever that of the row whose place and
+                    -- laps the entry keeps: a shared drive's winner is a
+                    -- driver's first row, and his second car's "+22 laps"
+                    -- on it would be a gap to a place he did not finish
+                    -- in. So the row that brings the place brings its pair,
+                    -- replacing a placeless row's; and otherwise a later
+                    -- row fills them only where neither is held yet and
+                    -- its place and laps are the ones kept.
+                    time            = CASE WHEN finish_position IS NULL
+                                            AND excluded.finish_position IS NOT NULL
+                                           THEN excluded.time
+                                           WHEN time IS NULL AND gap IS NULL
+                                            AND excluded.finish_position IS
+                                                COALESCE(finish_position, excluded.finish_position)
+                                            AND excluded.laps_completed IS
+                                                COALESCE(laps_completed, excluded.laps_completed)
+                                           THEN excluded.time ELSE time END,
+                    gap             = CASE WHEN finish_position IS NULL
+                                            AND excluded.finish_position IS NOT NULL
+                                           THEN excluded.gap
+                                           WHEN time IS NULL AND gap IS NULL
+                                            AND excluded.finish_position IS
+                                                COALESCE(finish_position, excluded.finish_position)
+                                            AND excluded.laps_completed IS
+                                                COALESCE(laps_completed, excluded.laps_completed)
+                                           THEN excluded.gap ELSE gap END,
                     points          = COALESCE(points, excluded.points),
                     -- `source` names who established the FINISHING
                     -- POSITION. The pole harvest ran first and created a
@@ -2385,6 +2413,7 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                  r["reason_retired"] or (r["position_text"]
                                          if pos is None else None),
                  int(r["laps"]) if r["laps"] else None,
+                 HV.race_clock(r["time"]), r["gap"] or None,
                  float(r["points"]) if r["points"] else None,
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1
@@ -6216,9 +6245,10 @@ def derive_records(cur, leave_out=frozenset()):
     `key`. The rule for each is in its `detail`, including what was excluded
     and why, so a reader can dispute the definition rather than the arithmetic.
     A tie holds every holder; one is never picked. What the database CANNOT
-    derive - the youngest champion needs the clinching round, the closest
-    finish needs race times it does not hold - is not here, and is declared in
-    known_gaps rather than typed in from memory.
+    derive - the youngest champion needs the clinching round - is not here,
+    and is declared in known_gaps rather than typed in from memory; so is
+    what it could and does not yet, the closest finish from the race times
+    race_entries holds since AF-157.
 
     `leave_out` names records not to derive, for a database that does not
     hold what their definitions read: tools/facts_export.py runs these on

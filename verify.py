@@ -7875,6 +7875,120 @@ def views():
           bad_points == 0, f"{bad_points} rows")
 
 
+@section('RACE TIMES AND GAPS (AF-157)')
+def race_times_and_gaps():
+    """A race's finishing time and gap are F1DB's, held on race_entries as
+    published (AF-157). Each gap is the difference of two things the
+    classification also holds, so each is held to them, which pins a pair to
+    its place: a gap in seconds is the entry's time less the time of the
+    first car home, to the millisecond, and a gap in laps is the most laps
+    any car of the race completed less the entry's own. That is F1DB checked
+    against itself, not against a second source."""
+    rows = con.execute("""SELECT r.year, r.round, e.race_id, e.driver_id,
+            e.finish_position AS pos, e.position_text, e.laps_completed AS laps,
+            e.time, e.gap
+        FROM race_entries e JOIN races r ON r.id = e.race_id
+        ORDER BY e.race_id, e.id""").fetchall()
+    timed = [r for r in rows if r["time"] is not None]
+    gapped = [r for r in rows if r["gap"] is not None]
+    check("race times and gaps are held", timed and gapped,
+          f"{len(timed)} times, {len(gapped)} gaps")
+
+    # Every field after the first in two digits, as build.py writes it
+    # (harvest.race_clock): 2:04:44.859, never F1DB's 2:4:44.859.
+    time_re = re.compile(r"\d+(:\d{2}){1,2}\.\d{3}")
+    gap_re = re.compile(r"\+(?:(?P<laps>\d+) (?P<word>laps?)|(?P<secs>(\d+:)?\d{1,2}\.\d{3}))")
+    bad = [f"{r['year']} r{r['round']} {r['driver_id']} {r['time']!r}"
+           for r in timed if not time_re.fullmatch(r["time"])]
+    check("every race time reads as a clock, minutes and seconds in two digits "
+          "to the millisecond", not bad, "; ".join(bad[:5]))
+    bad = []
+    for r in gapped:
+        m = gap_re.fullmatch(r["gap"])
+        if not m or (m["laps"] and (m["word"] == "lap") != (m["laps"] == "1")):
+            bad.append(f"{r['year']} r{r['round']} {r['driver_id']} {r['gap']!r}")
+    check("every race gap is a + and seconds to the millisecond, or a + and "
+          "laps", not bad, "; ".join(bad[:5]))
+
+    def seconds(t):
+        out = 0.0
+        for part in t.split(":"):
+            out = out * 60 + float(part)
+        return out
+
+    by_race = {}
+    for r in rows:
+        by_race.setdefault(r["race_id"], []).append(r)
+    off, untimed, origin, lapped = [], [], [], set()
+    for race in by_race.values():
+        times = [r for r in race if r["time"] is not None and time_re.fullmatch(r["time"])]
+        first = min(times, key=lambda r: seconds(r["time"])) if times else None
+        most = max((r["laps"] for r in race if r["laps"] is not None), default=None)
+        for r in race:
+            m = gap_re.fullmatch(r["gap"] or "")
+            where = f"{r['year']} r{r['round']} {r['driver_id']}"
+            # The first car home holds a time and no gap, and every other
+            # time is behind it by its gap.
+            if r["time"] is not None and r["gap"] is None and first is not None \
+                    and seconds(r["time"]) != seconds(first["time"]):
+                untimed.append(f"{where} {r['time']} and no gap")
+            if not m:
+                continue
+            if m["secs"]:
+                if r["time"] is None or first is None:
+                    untimed.append(f"{where} {r['gap']} and no time")
+                elif round((seconds(r["time"]) - seconds(first["time"])) * 1000) \
+                        != round(seconds(m["secs"]) * 1000):
+                    off.append(f"{where} {r['gap']}: {r['time']} less {first['time']}")
+            elif most is None or r["laps"] is None or most - r["laps"] != int(m["laps"]):
+                lapped.add((r["year"], r["round"], r["driver_id"],
+                            r["gap"], r["laps"], most))
+        # The first car home is the winner, or a car disqualified after the
+        # flag - 2024 round 14's Russell - whose time the gaps still count
+        # from, as F1DB publishes them.
+        if first is not None and first["pos"] != 1 and first["position_text"] != "DSQ":
+            origin.append(f"{first['year']} r{first['round']} {first['driver_id']} "
+                          f"{first['position_text']}")
+    check("every race gap in seconds is the entry's time less the first car "
+          "home's, to the millisecond", not off, "; ".join(off[:5]))
+    check("a race time with no gap is the race's first car home, and a gap in "
+          "seconds has a time", not untimed, "; ".join(untimed[:5]))
+    check("the first car home is the winner, or was disqualified", not origin,
+          "; ".join(origin[:5]))
+    declared = {k + v for k, v in harvest_module().RACE_GAP_LAPS_DISAGREE.items()}
+    new, gone = sorted(lapped - declared), sorted(declared - lapped)
+    check("every race gap in laps is the race's most laps less the entry's, "
+          "but those declared in RACE_GAP_LAPS_DISAGREE", not new and not gone,
+          (f"undeclared {new[:3]}" if new else "")
+          + (f" declared and not held {gone[:3]}" if gone else ""))
+    # A gap is to a place: the entry's own, never another car's of the
+    # driver's (build.py takes the pair from the one row whose place it
+    # keeps). A shared drive's winner given his other car's "+22 laps" would
+    # pass the lap count, which is that car's too, and fail here: down the
+    # classified order a gap never shrinks, laps before seconds.
+    def behind(gap):
+        m = gap_re.fullmatch(gap or "")
+        if not m:
+            return (0, 0.0)
+        return (int(m["laps"]), 0.0) if m["laps"] else (0, seconds(m["secs"]))
+    shrinks = []
+    for race in by_race.values():
+        last = None
+        for r in sorted((r for r in race if r["pos"] is not None
+                         and (r["gap"] is not None or r["pos"] == 1)),
+                        key=lambda r: r["pos"]):
+            if last is not None and behind(r["gap"]) < behind(last["gap"]):
+                shrinks.append(f"{r['year']} r{r['round']} P{r['pos']} {r['gap']} "
+                               f"after P{last['pos']} {last['gap']}")
+            last = r
+    check("down a race's classified order no gap is smaller than the one above it",
+          not shrinks, "; ".join(shrinks[:5]))
+    stray = con.execute("""SELECT COUNT(*) FROM race_entries
+        WHERE (time IS NOT NULL OR gap IS NOT NULL) AND laps_completed IS NULL""").fetchone()[0]
+    check("a race time or gap is held only beside the laps it was run over",
+          stray == 0, f"{stray} rows")
+
+
 @section('POINTS: ZERO WHERE NOTHING WAS PAID, NULL ONLY WHERE NOT ESTABLISHED')
 def points_below_the_paid_places():
     """A classified finisher below the last place the season's points system

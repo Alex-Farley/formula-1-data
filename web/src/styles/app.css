@@ -665,6 +665,13 @@ main {
   font-size: var(--size-6);
 }
 
+/* AF-157: the winner's race time, the others' gaps. A figure, so it never
+   breaks: the step's overflow-wrap would otherwise split 1:31:44.742. */
+.podium-time,
+.race-slab-time {
+  white-space: nowrap;
+}
+
 .podium-block {
   display: block;
   margin-top: var(--space-3);
