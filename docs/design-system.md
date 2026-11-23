@@ -273,10 +273,18 @@ liveries in one chart are hard to tell apart (Red Bull's navy beside
 Williams' blue; 2026's three blues), they are kept apart by order or by a
 one-pixel `--panel` outline per mark. Names stay beside every mark.
 
-**The browser's own surfaces — pending (VD-118 #1340).** Text selection in
-`--accent-wash`, `accent-color: var(--accent)` on the toggle and form
-controls, the caret in the accent, and a scrollbar from the paper and rule
-tokens, in both themes and above §7's contrast floor.
+**The browser's own surfaces — built (VD-118 #1340); provisional: the
+`--selection` token.** One rule on the root sets `accent-color` and the
+caret in `--accent`, and the scrollbar's thumb in `--ink-faint` on a
+`--rule` track; all three inherit, so every field, check box and scrolling
+box takes them. Selected text sits on `--selection`, the accent mixed into
+the panel, and takes `--ink`. It is not `--accent-wash`, which this section
+first named: the wash sits too near the paper and the panel for a selection
+in it to be seen. `conventions.mjs` holds the selected ink to 4.5:1, the
+selection to 1.2:1 against `--bg`, each `--panel` surface, `--stage` and
+the three washes a pill is filled with, and the thumb
+to 3:1 on its track, in both themes; the figures are in `tokens.css` and
+`app.css`.
 
 ### Radii, borders, elevation — built; rules, not boxes (VD-93)
 
@@ -2016,7 +2024,7 @@ control (VD-82).
 | Every focusable element shows a visible change on `:focus-visible` | **floor** | `conventions.mjs` refuses an unset outline with no `:focus-visible` ring beside it (VD-78); `smoke.mjs` *Sorting* focuses a sort button and a console example from the keyboard and reads the ring (VD-82) |
 | DOM order equals reading order at every width; no grid placement lifts content above earlier markup | **floor** | `smoke.mjs` *The grid* (VD-86): on the driver, race and circuit pages at 1440, 1024 and 400, in both halves, no block stands left of an earlier one in its container on its row, or above it in its column. A block wholly to the right of an earlier one is a column read after it, and may start higher. Declared there: A's opening slot, beside the header and above the tiles it follows in the markup, read header → tiles → slot as §6 keeps it. Declared here: the podium's steps on home and its slabs on a race page (§3 *Season cycle*), listed first, second, third and stood second, first, third as a podium stands, so the eye and the keyboard part company inside that one block; ruled with the approved designs (AF-135, VD-108 #1330), and under 768 px the slabs stand in reading order |
 | Focus on the h1 after the handover, on every page type | **floor** | `smoke.mjs` *The handover* (VD-79): eleven page types, the first a held cold load |
-| Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27; a field's placeholder, AX-27) |
+| Text contrast 4.5:1 and a chart series 3:1, in both themes | **floor** | `web/test/conventions.mjs` (AX-06, AX-07, VD-27; a field's placeholder, AX-27; selected text, VD-118) |
 | Every table names its rows; one h1; focus to h1 on navigation | **floor** | `conventions.mjs` (AX-21), `smoke.mjs` |
 | No meaning by colour alone | **floor** (1.4.1) | review, `frontend-reviewer` item 7 |
 | Reflow at 400 and 320 px with no sideways page scroll | **floor** | smoke at 400 |

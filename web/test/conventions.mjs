@@ -1202,6 +1202,67 @@ describe('a placeholder clears 4.5:1 on the fields it is drawn in (AX-27)', () =
   }
 })
 
+describe("the browser's own surfaces: selection and scrollbar (VD-118)", () => {
+  // Unstyled, a selection was the browser's blue and a scrollbar its grey.
+  // The item first named --accent-wash for the selection, which is 1.01:1
+  // against the light paper: a selection nobody could see. So the selection
+  // is measured twice - its ink on it, and it against every surface it can
+  // fall on - and the scrollbar's thumb against its track.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const app = read(join(web, 'src', 'styles', 'app.css'))
+  const dark = css.indexOf('@media (prefers-color-scheme: dark)')
+  const stamped = css.indexOf(":root[data-theme='dark']")
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const selection = app.match(/\n::selection \{([^}]*)\}/)?.[1] ?? ''
+  const ground = selection.match(/(?:^|;|\n)\s*background-color:\s*var\(--([a-z0-9-]+)\)/)?.[1]
+  const ink = selection.match(/(?:^|;|\n)\s*color:\s*var\(--([a-z0-9-]+)\)/)?.[1]
+  const root = [...app.matchAll(/\n:root \{([^}]*)\}/g)].map((m) => m[1]).find((body) => body.includes('scrollbar-color')) ?? ''
+  const bar = root.match(/scrollbar-color:\s*var\(--([a-z0-9-]+)\)\s+var\(--([a-z0-9-]+)\)/)
+
+  it('app.css styles ::selection with a token for its ground and its ink', () => assert.ok(ground && ink, 'no ::selection rule setting background-color and color from tokens'))
+  it('app.css sets the scrollbar from two tokens on :root', () => assert.ok(bar, 'no :root scrollbar-color of two tokens'))
+
+  // Every ground text is set on: the page, the panels, the stage, and the
+  // washes a pill or tag is filled with (.pill-unverified, .tag-dnf).
+  const SURFACES = ['bg', 'panel', 'panel-sunk', 'panel-raised', 'stage', 'accent-wash', 'good-wash', 'warn-wash']
+  for (const [label, block] of [
+    ['light', css.slice(0, dark)],
+    ['dark (system)', css.slice(dark, stamped)],
+    ['dark (chosen)', css.slice(stamped)],
+  ]) {
+    it(`${label}: selected text clears 4.5:1, and the selection stands off every surface`, () => {
+      const t = tokens(block)
+      assert.ok(t[ground] && t[ink], `${label} block lacks --${ground} or --${ink}`)
+      const failing = []
+      const text = contrast(t[ink], t[ground])
+      if (text < 4.5) failing.push(`--${ink} on --${ground}: ${text.toFixed(2)}:1`)
+      for (const surface of SURFACES) {
+        assert.ok(t[surface], `${label} block lacks --${surface}`)
+        const apart = contrast(t[ground], t[surface])
+        if (apart < 1.2) failing.push(`--${ground} against --${surface}: ${apart.toFixed(2)}:1, under 1.2`)
+      }
+      assert.deepEqual(failing, [])
+    })
+
+    it(`${label}: the scrollbar's thumb clears 3:1 on its track`, () => {
+      const t = tokens(block)
+      const [, thumb, track] = bar
+      assert.ok(t[thumb] && t[track], `${label} block lacks --${thumb} or --${track}`)
+      const ratio = contrast(t[thumb], t[track])
+      assert.ok(ratio >= 3, `--${thumb} on --${track}: ${ratio.toFixed(2)}:1`)
+    })
+  }
+})
+
 describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () => {
   // The light green was reference-palette slot 3 as published, #1baf7a, at
   // 2.82:1 on --panel, and charts/palette.js called every figure's data
