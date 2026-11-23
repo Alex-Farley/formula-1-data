@@ -4864,6 +4864,32 @@ def _stage_35_link_race_entries_to_the_curated(b):
         f"{t} {n}" for t, n in cur.execute(
             "SELECT tbl, COUNT(*) FROM claims GROUP BY tbl ORDER BY tbl")))
 
+    # ------------------------------------------- the ids a release published
+    #
+    # DA-55. A surrogate id is handed out in insert order, so a row removed or
+    # added mid-table renumbers every row after it, and between v2.26 and the
+    # build that was to be v2.27 that moved 19,545 qualifying ids and 151
+    # pit_stops ids the release had published as stable. Here, after every
+    # loader, each table in ID_LEDGER_APPLIED gets its ids back from its
+    # ledger in data/ids/ (tools/id_ledger.py); verify.py checks every stable
+    # table against its ledger, these and the ones not rewritten alike.
+    ledger = _tool("id_ledger")
+    for table in N.ID_LEDGER_APPLIED:
+        stability, key = N.ID_STABILITY.get(table, (None, None))
+        if stability != "stable" or not key:
+            raise SystemExit(f"ID_LEDGER_APPLIED names {table}, which ID_STABILITY "
+                             f"does not declare stable with a natural key")
+        held = ledger.read(table)
+        if held is None:
+            raise SystemExit(f"ID_LEDGER_APPLIED names {table}, which has no "
+                             f"ledger at {os.path.relpath(ledger.path(table), HERE)}")
+        if held[1] != tuple(key):
+            raise SystemExit(f"{table}: the ledger is keyed on ({', '.join(held[1])}), "
+                             f"ID_STABILITY on ({', '.join(key)})")
+        moved = ledger.assign(con, table, key, held[2])
+        print(f"  {table}: {moved:,} ids set apart from insert order, to keep the "
+              f"ones releases up to {held[0]} published")
+
     # ------------------------------------------- the authored ceiling
     #
     # The first instalment of the rule in docs/DERIVED-CONFIDENCE.md, and the
