@@ -1071,11 +1071,15 @@ EMPTY_COLUMNS = {
 #               store them.
 #   "unstable"  the ids are the build's business. Join on the natural key.
 #
-# "stable" is an UNDERTAKING and not a measurement. Nothing in the build
-# compares a release with the one before it - doing that is the M half of
-# DA-04 - so what keeps the promise is whoever changes a loader reading this
-# comment. Write nothing here that the artefacts do not bear out: `records`
-# was proposed for the stable list and is not on it, because 23 of its 29 ids
+# "stable" is an UNDERTAKING, and since DA-55 a measured one. For a while it
+# was only declared, and between v2.26 and the build that was to be v2.27 it
+# broke for two tables: 19,545 `qualifying` ids and 151 `pit_stops` ids
+# moved. So every stable table has a ledger, data/ids/<table>.txt - the ids
+# the releases published, by the natural key below - which
+# tools/id_ledger.py --write extends after each tag; verify.py fails a build
+# in which a stable table's row holds any id but its key's in the ledger.
+# Write nothing here that the artefacts do not bear out: `records` was
+# proposed for the stable list and is not on it, because 23 of its 29 ids
 # moved between v2.21 and v2.23.
 #
 # The second element is the NATURAL KEY - the columns that identify the fact
@@ -1188,6 +1192,19 @@ ID_STABILITY = {
     "tyre_suppliers":        ("unstable", None),
 }
 
+# DA-55. The stable tables whose ids build.py hands back from the ledger at
+# the end of the build: each row gets its key's id from data/ids/<table>.txt,
+# and a row no release has published an id above every id the ledger holds,
+# so a row removed or added mid-table renumbers nothing a release published.
+# Only a table no other row cites by id can be rewritten that way after its
+# loader has run, and verify.py holds each one here to that: no foreign key
+# names it, and no `discrepancies` or `claims` row is filed against it. The
+# other stable tables are not rewritten - `races.id` is every session table's
+# `race_id`, and `race_entries` rows carry discrepancies - so there the ledger
+# is a measurement: a loader that moves one of their ids fails verify.py, and
+# the fix is in the loader's insert order.
+ID_LEDGER_APPLIED = ("pit_stops", "qualifying")
+
 # The sentence the database carries as `meta.id_stability`. It is written out
 # here rather than assembled in build.py so that the policy and the tables it
 # governs sit on one screen.
@@ -1195,8 +1212,9 @@ ID_STABILITY_NOTE = (
     "Integer `id` columns are surrogates, handed out by the build in insert "
     "order, and are NOT stable between releases except in the tables named by "
     "meta.id_stability_stable. There the maintainers undertake not to renumber "
-    "them; nothing in the build measures that, because no release is compared "
-    "with the one before it. Join on the natural keys published in "
+    "them, and the build is held to it: an id a release has published stays "
+    "with the row it named, and is never given to another, whatever is added "
+    "or removed around it. Join on the natural keys published in "
     "meta.id_stability_keys - a `?` in one of those marks a column that holds "
     "NULL, so join it with IS rather than =. A text id is a natural key and "
     "does not move.")

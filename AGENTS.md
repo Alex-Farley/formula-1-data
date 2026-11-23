@@ -147,6 +147,12 @@ match it — `release.yml` checks this before building, because nothing
 downstream reads that field and a mismatch would publish silently. Bump
 `VERSION`, rebuild so `meta.version` agrees, then tag `v<VERSION>`.
 
+After the tag, `python3 tools/id_ledger.py --write`, `make all`, and commit
+`data/ids/` with the rebuild: the ledger is what the next release's stable
+ids are held to, and one that missed a release lets that release's new rows
+renumber `DA-55`. Never edit a ledger by hand; a merge conflict in one takes
+`main`'s side and rebuilds, since `main`'s is the one a release published.
+
 `SHA256SUMS` must digest the files actually uploaded, including the
 compressed export rather than the original.
 

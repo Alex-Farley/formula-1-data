@@ -425,11 +425,19 @@ The JSON exports carry the same keys: `f1_compat.json` at its top level, and
 
 An integer id is **unstable between releases** unless its table is named in
 `meta.id_stability_stable` — the <!-- fig:stable_id_tables -->7<!-- /fig -->
-tables this release undertakes not to renumber. That is an undertaking and not
-yet a measurement: nothing in the build compares a release with the one before
-it, so what keeps it is whoever next changes a loader. Comparing a release with
-its predecessor, and making the unstable tables' insert order deterministic so
-they could be promised too, is separate open work.
+tables this release undertakes not to renumber. The undertaking is measured.
+Each of those tables has a ledger in `data/ids/` of the ids the releases have
+published, by natural key, which `tools/id_ledger.py --write` extends after
+each release is tagged, and `verify.py` fails a build in which a row holds any
+id but its key's in the ledger, or an id the ledger gives another key. In
+`qualifying` and `pit_stops` the build hands the published ids back after
+loading, so a row removed or added mid-table renumbers nothing a release
+published, and an id whose row has gone is never reused; in the others, whose
+ids other rows cite, the check is what holds them. That was not always so:
+after v2.26, before the ledger, 19,545 `qualifying` ids and 151 `pit_stops` ids
+moved in the build; the ledger gives each row back the id v2.26 published, and
+the one `qualifying` id whose row has gone since, 7538, stays unused. Making the unstable tables' insert order
+deterministic, so they could be promised too, is separate open work.
 
 Everywhere else the id is the build's business: join on the **natural key**,
 the columns that identify the fact rather than the row. `verify.py` checks on

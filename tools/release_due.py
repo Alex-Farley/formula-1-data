@@ -247,15 +247,22 @@ def next_version(version, tag):
     return f"{head}.{int(last) + 1}" if head else str(int(last) + 1)
 
 
+# The step after the tag: the ids the release published go into the ledger
+# the next one is held to (tools/id_ledger.py, DA-55).
+AFTER_THE_TAG = ("; after the tag, `python3 tools/id_ledger.py --write`, `make all` "
+                 "and merge, so the next release keeps the ids this one published")
+
+
 def advice(version, tag):
     """What to do about a release that is due, in one sentence."""
     to = next_version(version, tag)
     if to == version:
         return (f"VERSION is already {version} and the last tag is {tag}: `make all`, "
-                f"merge, then `git tag v{version} && git push origin v{version}`")
+                f"merge, then `git tag v{version} && git push origin v{version}`"
+                + AFTER_THE_TAG)
     to = to or "<next>"
     return (f"bump VERSION in build.py to {to}, `make all`, merge, then "
-            f"`git tag v{to} && git push origin v{to}`")
+            f"`git tag v{to} && git push origin v{to}`" + AFTER_THE_TAG)
 
 
 # ---------------------------------------------------------------- the effects
@@ -351,7 +358,23 @@ def main(argv):
     due = any(fired for _, fired, _ in found)
     if due or not quiet:
         print("\n".join(f"  {line}" for line in report(version, tag, found)))
+    late = ledger_behind(tag)
+    if late:
+        print(f"  id ledger: behind {tag} for {', '.join(late)} - "
+              f"`python3 tools/id_ledger.py --write`, then `make all`")
     return 1 if due else 0
+
+
+def ledger_behind(tag):
+    """The stable tables whose id ledger has not taken in `tag`'s ids, or []
+    where tools/id_ledger.py is not beside this file - refresh.yml's release
+    job checks out this file and not that one."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import id_ledger
+    except ImportError:
+        return []
+    return id_ledger.behind(tag)
 
 
 if __name__ == "__main__":

@@ -1665,6 +1665,59 @@ def identifier_stability():
         check(f"{table} natural key ({cols}) identifies one row", dup == 0,
               "" if not dup else f"{dup} key(s) on more than one row")
 
+    # DA-55: the undertaking, measured. Every stable table has a ledger of the
+    # ids the releases published, by natural key (tools/id_ledger.py), and no
+    # row may hold another id than its key's there, nor an id the ledger gives
+    # another key. Read row by row here rather than through the build's
+    # assignment, so a fault in that is not a fault in this.
+    id_ledger = _tool("id_ledger")
+    root = os.path.dirname(os.path.abspath(__file__))
+    stable = {t: k for t, (s, k) in _N.ID_STABILITY.items() if s == "stable"}
+    on_disk = sorted(f[:-4] for f in os.listdir(id_ledger.LEDGERS) if f.endswith(".txt"))
+    check("every ledger in data/ids/ is a stable table's",
+          set(on_disk) <= set(stable),
+          ", ".join(sorted(set(on_disk) - set(stable))))
+    releases = set()
+    for table in sorted(stable):
+        got = id_ledger.read(table)
+        if got is None:
+            check(f"{table} has an id ledger", False,
+                  f"no {os.path.relpath(id_ledger.path(table), root)}: "
+                  f"python3 tools/id_ledger.py --write")
+            continue
+        release, columns, ids = got
+        releases.add(release)
+        check(f"{table} ledger is keyed on its natural key",
+              columns == tuple(stable[table] or ()),
+              f"ledger ({', '.join(columns)}), ID_STABILITY "
+              f"({', '.join(stable[table] or ())})")
+        moved, reused = id_ledger.departures(
+            id_ledger.held(con, table, columns), ids)
+        check(f"{table} ids are the ones the releases up to {release} published",
+              not moved,
+              f"{len(moved):,} moved, e.g. " + "; ".join(
+                  f"{list(k)} {was} -> {now}" for now, k, was in moved[:3]))
+        check(f"{table} gives no published id to another key", not reused,
+              f"{len(reused):,}, e.g. " + "; ".join(
+                  f"{rid} was {list(was)}, now {list(k)}" for rid, k, was in reused[:3]))
+    check("every ledger names the same release", len(releases) <= 1,
+          ", ".join(sorted(releases)))
+
+    # A table whose ids the build rewrites after its loader must be one no
+    # other row cites by id: a foreign key, or a register row filed against
+    # one of its rows by row_key, would be left naming the old id.
+    for table in _N.ID_LEDGER_APPLIED:
+        citing = [t for (t,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").fetchall()
+            if any(fk[2] == table for fk in con.execute(
+                f"PRAGMA foreign_key_list('{t}')"))]
+        filed = [r[0] for r in con.execute(
+            "SELECT 'discrepancies' FROM discrepancies WHERE tbl = ? UNION "
+            "SELECT 'claims' FROM claims WHERE tbl = ?", (table, table))]
+        check(f"{table} ids are cited by no other row, so the build may hand "
+              f"them back", not citing and not filed,
+              ", ".join(citing + filed))
+
 
 @section('EXTERNAL FIGURES VS THE RACE RECORDS')
 def external_figures_vs_the_race_records():
