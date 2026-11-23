@@ -1697,7 +1697,11 @@ def identifier_stability():
               not moved,
               f"{len(moved):,} moved, e.g. " + "; ".join(
                   f"{list(k)} {was} -> {now}" for now, k, was in moved[:3]))
-        check(f"{table} gives no published id to another key", not reused,
+        # A local timing load inserts pit stops after the build, at the
+        # table's highest id plus one, which is a retired id wherever the
+        # ledger's highest row has gone; that copy is not the one to publish.
+        (warn if LOCAL_TIMING and table == "pit_stops" else check)(
+              f"{table} gives no published id to another key", not reused,
               f"{len(reused):,}, e.g. " + "; ".join(
                   f"{rid} was {list(was)}, now {list(k)}" for rid, k, was in reused[:3]))
     check("every ledger names the same release", len(releases) <= 1,

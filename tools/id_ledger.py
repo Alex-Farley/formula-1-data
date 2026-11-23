@@ -6,8 +6,8 @@ The ids a release has published, by natural key, so the next one keeps them.
 maintainers undertake not to renumber. Nothing measured it, and between
 v2.26 and the build that was to be v2.27 the undertaking broke for two of
 the seven (DA-55): 19,545 `qualifying` ids moved down by one behind a single
-row removed from 1979, and 151 `pit_stops` ids moved behind stops F1DB added
-late to five 2026 races. An id is handed out in
+row removed from 1979, and 151 `pit_stops` ids, in 2026 rounds 13 to 17,
+moved up by 21 behind the 21 stops F1DB added late to round 13. An id is handed out in
 insert order, so a row removed or added mid-table renumbers everything after
 it; nothing a loader does can keep the promise by construction.
 
