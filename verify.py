@@ -3909,6 +3909,27 @@ def race_day_weather():
     check("every modelled row cites the model, point and day it was asked for", not wrong_url,
           f"{len(wrong_url)}: " + ", ".join(wrong_url[:5]))
     check("every modelled day is a possible day", not odd, "; ".join(odd[:5]))
+    # The Copernicus credit the figures carry (AF-149, ruled on #1200): its
+    # year is the harvest file's, read again here, and it is the credit
+    # ATTRIBUTION.md gives - in its Open-Meteo section and in the attribution
+    # text - and LICENSE-DATA quotes, word for word. The race page and the
+    # facts artefact read it from meta, so this is the check on them too.
+    held = con.execute("SELECT value FROM meta WHERE key = 'copernicus_credit'").fetchone()
+    held = held and held[0]
+    modelled_n = con.execute("SELECT COUNT(*) FROM race_weather_modelled").fetchone()[0]
+    want = H.copernicus_credit() if modelled_n else None
+    check("meta.copernicus_credit is the credit with the harvest's year", held == want,
+          f"holds {held!r}, the harvest gives {want!r}")
+    if want:
+        here = os.path.dirname(os.path.abspath(__file__))
+        # Exactly as many as each holds, so a copy added where
+        # readme_figures.py cannot rewrite it fails rather than going stale.
+        for doc, times in (("ATTRIBUTION.md", 2), ("LICENSE-DATA", 1)):
+            with open(os.path.join(here, doc), encoding="utf-8") as f:
+                folded = " ".join(re.sub(r"(?m)^>", "", f.read()).split())
+            check(f"{doc} gives the Copernicus credit word for word, the harvest's year in it",
+                  folded.count(want) == times,
+                  f"{folded.count(want)} of {times} places")
     # The disagreements, recomputed here by their own query, against the ones
     # build.py filed: none missing, none extra, and each still about what it
     # names.

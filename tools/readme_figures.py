@@ -49,6 +49,12 @@ README = os.path.join(ROOT, "README.md")
 # left to drift.
 DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"),
              os.path.join(ROOT, "ATTRIBUTION.md"))
+# Documents holding a PHRASES figure and no span, which --write and --check
+# read beside DOCUMENTS (AF-149): LICENSE-DATA states the Copernicus credit's
+# year. It is not in DOCUMENTS because that list is also what a refresh may
+# rewrite the spans of (.github/scripts/refresh_tree.py), and no refresh
+# moves this figure; verify.py checks the credit in it word for word.
+PLAIN = (os.path.join(ROOT, "LICENSE-DATA"),)
 
 # <!-- fig:name -->value<!-- /fig -->. The value may run over a line break -
 # the centreline table is one figure - so DOTALL, and non-greedy so two spans
@@ -56,6 +62,20 @@ DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"),
 # would read that line as an HTML block and cut it out of its paragraph
 # (tests/test_conventions.py, NoLineOpensOnAFigureSpan).
 SPAN = re.compile(r"<!-- fig:([a-z0-9_]+) -->(.*?)<!-- /fig -->", re.DOTALL)
+
+# A figure inside wording a licence fixes, found by the words around it
+# rather than by a span: LICENSE-DATA is plain text, served as it is and
+# quoted into the Parquet bundle's notice, where a marker would be read as
+# words, and the credit is quoted whole, which a marker inside it would
+# break. Name -> a pattern matching the figure alone. stated() reads these
+# and render() rewrites them as it does the spans.
+PHRASES = {
+    # The year the Copernicus licence's credit for modified information
+    # names: the harvest's, which build.py reads off the file's date into
+    # meta.copernicus_credit (AF-149, ruled on #1200).
+    "copernicus_year": re.compile(
+        r"(?<=Contains modified Copernicus Climate Change Service information )\d{4}(?=\.)"),
+}
 
 
 def _folded(text):
@@ -1251,6 +1271,15 @@ class Figures:
     def fo_sessions(self):           return self._fo("sessions")
     def fo_claims(self):             return self._fo("claims")
 
+    # -- the Copernicus credit (AF-149) ----------------------------------------
+    def copernicus_year(self):
+        credit = self.con.execute(
+            "SELECT value FROM meta WHERE key = 'copernicus_credit'").fetchone()
+        if credit is None:
+            raise SystemExit("f1.db has no meta.copernicus_credit for the documents' "
+                             "Copernicus credit to take its year from: rebuild it")
+        return PHRASES["copernicus_year"].search(credit[0]).group(0)
+
 
 # Public names, in definition order - which is README order, so the printout
 # reads like the document.
@@ -1269,7 +1298,9 @@ def stated(text):
     stated twice with two different values, which is the drift this exists
     to stop."""
     out = {}
-    for name, value in SPAN.findall(text):
+    found = SPAN.findall(text) + [(name, value) for name, pattern in PHRASES.items()
+                                  for value in pattern.findall(text)]
+    for name, value in found:
         if name in out and out[name] != value:
             raise ValueError(f"fig:{name} is stated twice with different values: "
                              f"{out[name]!r} and {value!r}")
@@ -1283,7 +1314,11 @@ def render(text, values):
         if name not in values:
             raise KeyError(name)
         return f"<!-- fig:{name} -->{values[name]}<!-- /fig -->"
-    return SPAN.sub(sub, text)
+    text = SPAN.sub(sub, text)
+    for name, pattern in PHRASES.items():
+        if pattern.search(text):
+            text = pattern.sub(values[name], text)
+    return text
 
 
 def compare(text, values):
@@ -1294,6 +1329,12 @@ def compare(text, values):
     unused = sorted(set(values) - set(said))
     wrong = {k: (said[k], values[k]) for k in said if k in values and said[k] != values[k]}
     return unknown, unused, wrong
+
+
+def figures(text):
+    """How many figures a document holds, spans and PHRASES, for --write."""
+    phrases = sum(len(p.findall(text)) for p in PHRASES.values())
+    return f"{len(SPAN.findall(text))} figure spans" + (f" and {phrases} phrase figures" if phrases else "")
 
 
 def connect(db=DB):
@@ -1311,7 +1352,7 @@ def main(argv):
     con, geo = connect()
     values = compute(con, geo)
     texts = {}
-    for path in DOCUMENTS:
+    for path in DOCUMENTS + PLAIN:
         with open(path, encoding="utf-8") as f:
             texts[path] = f.read()
     label = lambda path: os.path.relpath(path, ROOT)
@@ -1327,9 +1368,9 @@ def main(argv):
             if new != text:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(new)
-                print(f"{label(path)}: rewrote {len(SPAN.findall(new))} figure spans")
+                print(f"{label(path)}: rewrote {figures(new)}")
             else:
-                print(f"{label(path)}: {len(SPAN.findall(new))} figure spans already current")
+                print(f"{label(path)}: {figures(new)} already current")
         return 0
 
     if "--check" in argv:

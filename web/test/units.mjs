@@ -225,6 +225,7 @@ import {
   practiceColumns,
   qualifyingColumns,
   raceWeather,
+  WEATHER_METHOD,
   sessionParts,
   sprintQualifyingColumns,
   withDistance,
@@ -5853,7 +5854,7 @@ describe("a race page's podium where its tiles stood (VD-108)", () => {
 describe("the race header's weather line (AF-142)", () => {
   const nb = '\u00a0'
   const said = (conditions, reported) => ({ conditions, reported, air_max_c: null, rain_mm: null })
-  const model = { air_max_c: 18.4, rain_mm: 3.2 }
+  const model = { air_max_c: 18.4, rain_mm: 3.2, credit: 'The credit.' }
 
   it('says nothing where neither source holds anything', () => {
     assert.equal(raceWeather(undefined), null)
@@ -5872,18 +5873,24 @@ describe("the race header's weather line (AF-142)", () => {
       mark: null,
       text: `High of 18${nb}°C, 3.2${nb}mm of rain on the day`,
       modelled: true,
+      method: `${WEATHER_METHOD} The credit.`,
     })
     assert.equal(raceWeather({ conditions: null, reported: 'Temperatures of 68 °F', ...model }).mark, null)
   })
 
   it('both are joined, and no rain at all is said as none', () => {
     assert.equal(raceWeather({ conditions: 'wet', reported: 'Wet', ...model }).text, `Wet · High of 18${nb}°C, 3.2${nb}mm of rain on the day`)
-    assert.equal(raceWeather({ conditions: 'dry', reported: 'Dry', air_max_c: 7.5, rain_mm: 0 }).text, `Dry · High of 8${nb}°C, no rain on the day`)
+    assert.equal(raceWeather({ conditions: 'dry', reported: 'Dry', ...model, air_max_c: 7.5, rain_mm: 0 }).text, `Dry · High of 8${nb}°C, no rain on the day`)
   })
 
   it('a half-held model row is not established, and rain is never read as none', () => {
     const missing = raceWeather({ conditions: 'dry', reported: 'Dry', air_max_c: 20, rain_mm: null })
     assert.deepEqual(missing, { mark: 'sun', text: 'Dry', modelled: false })
+  })
+
+  it('the figures go out with the Copernicus credit or not at all (AF-149)', () => {
+    assert.deepEqual(raceWeather({ conditions: 'dry', reported: 'Dry', ...model, credit: null }), { mark: 'sun', text: 'Dry', modelled: false })
+    assert.equal(raceWeather({ conditions: null, reported: null, ...model, credit: null }), null)
   })
 
   it('dry is cloud where the phrase says cloud and not sun, and the word says what the mark does', () => {

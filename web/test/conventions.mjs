@@ -2487,11 +2487,14 @@ describe('one figure grammar: the heading names the figure, and the note goes un
     assert.equal((prerender.match(/<figure class="figure"/g) ?? []).length, 1, 'a static figure written out by hand rather than through figure()')
   })
 
-  it("the race page's Copernicus credit is ATTRIBUTION.md's, word for word (AF-142)", async () => {
-    const { COPERNICUS_CREDIT, WEATHER_METHOD } = await import('../src/queries/race.js')
-    const attribution = read(join(web, '..', 'ATTRIBUTION.md'))
-    assert.ok(attribution.includes(`*${COPERNICUS_CREDIT}*`), 'the credit has drifted from ATTRIBUTION.md')
-    assert.ok(WEATHER_METHOD.endsWith(COPERNICUS_CREDIT), 'the disclosure does not carry the credit')
+  it("the race page's Copernicus credit is the database's, not typed (AF-142, AF-149)", async () => {
+    // verify.py holds meta.copernicus_credit to ATTRIBUTION.md word for word,
+    // its year the harvest's; the page reads it rather than keeping a copy.
+    const { RACE_WEATHER } = await import('../src/queries/race.js')
+    assert.match(RACE_WEATHER, /SELECT value FROM meta WHERE key = 'copernicus_credit'\) AS credit/, 'the weather query does not read the credit')
+    for (const file of [join(web, 'src', 'queries', 'race.js'), join(web, 'src', 'pages', 'Race.jsx'), join(web, 'scripts', 'prerender.js')]) {
+      assert.doesNotMatch(read(file), /Copernicus Climate Change Service information/, `${file} types the credit`)
+    }
   })
 
   it('every note builder is 50 words at its longest', async () => {

@@ -5863,6 +5863,11 @@ def _stage_36c_race_day_weather_reported_and_modelled(b):
     cur.executemany("""INSERT INTO race_weather_modelled (race_id, day, latitude,
         longitude, timezone, air_max_c, rain_mm, rain_hours, wind_max_kmh,
         source) VALUES (?,?,?,?,?,?,?,?,?,?)""", modelled)
+    # The credit the figures carry wherever they go, its year the harvest's
+    # (AF-149): the race page and the facts artefact read it from here.
+    if modelled:
+        cur.execute("INSERT INTO meta VALUES (?,?)",
+                    ("copernicus_credit", HV.copernicus_credit()))
     print(f"  race weather: {len(reported)} reported ({stale} passed over), "
           f"{len(modelled)} modelled ({stale_m} passed over)")
 

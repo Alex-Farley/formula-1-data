@@ -58,7 +58,6 @@ import {
   RACE_WEATHER,
   WEATHER_CREDIT,
   WEATHER_MARKS,
-  WEATHER_METHOD,
   raceWeather,
 } from '../src/queries/race.js'
 import { GRID_FLAG_WIDTH } from '../src/charts/gridFlag.js'
@@ -5009,8 +5008,9 @@ try {
     is(app.href, WEATHER_CREDIT.href, 'the link Open-Meteo asks for is beside its figures in the app')
     truthy(staticBlock(html).includes(`href="${WEATHER_CREDIT.href}"`), 'and on the static page')
     is(app.how, false, 'the method is folded')
-    is(app.credit, WEATHER_METHOD, 'with the credit inside it in the app')
-    is(unescape(staticBlock(html)).includes(WEATHER_METHOD), true, 'and on the static page')
+    truthy(weather.method?.includes('Copernicus'), 'the database holds the Copernicus credit')
+    is(app.credit, weather.method, 'with the credit inside it in the app')
+    is(unescape(staticBlock(html)).includes(weather.method), true, 'and on the static page')
     is(
       [app.afterLede, app.beforeStepper].join(' '),
       'lede stepper',

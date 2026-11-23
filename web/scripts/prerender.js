@@ -409,7 +409,6 @@ import {
   WEATHER_CREDIT,
   WEATHER_HOW,
   WEATHER_MARKS,
-  WEATHER_METHOD,
   carName,
   classificationFooter,
   hasEntryNote,
@@ -3826,7 +3825,7 @@ const seasonsTable = (rows) =>
         }${esc(weather.text)}${
           weather.modelled ? ` (modelled, ${outbound(WEATHER_CREDIT.href, WEATHER_CREDIT.text)})` : ''
         }</p>${
-          weather.modelled ? `<details class="table-how"><summary>${esc(WEATHER_HOW)}</summary><p>${esc(WEATHER_METHOD)}</p></details>` : ''
+          weather.modelled ? `<details class="table-how"><summary>${esc(WEATHER_HOW)}</summary><p>${esc(weather.method)}</p></details>` : ''
         }</div>`
       : ''
   // AF-131: how a sheet's distance column is derived, as Race.jsx's
