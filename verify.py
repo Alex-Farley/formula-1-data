@@ -3922,11 +3922,13 @@ def race_day_weather():
           f"holds {held!r}, the harvest gives {want!r}")
     if want:
         here = os.path.dirname(os.path.abspath(__file__))
+        # Exactly as many as each holds, so a copy added where
+        # readme_figures.py cannot rewrite it fails rather than going stale.
         for doc, times in (("ATTRIBUTION.md", 2), ("LICENSE-DATA", 1)):
             with open(os.path.join(here, doc), encoding="utf-8") as f:
                 folded = " ".join(re.sub(r"(?m)^>", "", f.read()).split())
             check(f"{doc} gives the Copernicus credit word for word, the harvest's year in it",
-                  folded.count(want) >= times,
+                  folded.count(want) == times,
                   f"{folded.count(want)} of {times} places")
     # The disagreements, recomputed here by their own query, against the ones
     # build.py filed: none missing, none extra, and each still about what it

@@ -1331,6 +1331,12 @@ def compare(text, values):
     return unknown, unused, wrong
 
 
+def figures(text):
+    """How many figures a document holds, spans and PHRASES, for --write."""
+    phrases = sum(len(p.findall(text)) for p in PHRASES.values())
+    return f"{len(SPAN.findall(text))} figure spans" + (f" and {phrases} phrase figures" if phrases else "")
+
+
 def connect(db=DB):
     con = sqlite3.connect(db)
     geo = "circuit_geometry"
@@ -1362,9 +1368,9 @@ def main(argv):
             if new != text:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(new)
-                print(f"{label(path)}: rewrote {len(SPAN.findall(new))} figure spans")
+                print(f"{label(path)}: rewrote {figures(new)}")
             else:
-                print(f"{label(path)}: {len(SPAN.findall(new))} figure spans already current")
+                print(f"{label(path)}: {figures(new)} already current")
         return 0
 
     if "--check" in argv:

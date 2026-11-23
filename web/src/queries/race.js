@@ -345,7 +345,7 @@ export const raceWeather = (row) => {
   const said = row?.conditions ?? null
   const mark = said === null ? null : said === 'wet' ? 'rain' : CLOUDED.test(row.reported) && !/sun/i.test(row.reported) ? 'cloud' : 'sun'
   const word = mark === null ? null : { rain: 'Wet', cloud: 'Dry, with cloud', sun: 'Dry' }[mark]
-  const modelled = row?.air_max_c != null && row?.rain_mm != null && row?.credit != null
+  const modelled = row?.air_max_c != null && row?.rain_mm != null && Boolean(row?.credit)
   const figures = modelled
     ? `High of ${Math.round(row.air_max_c)}\u00a0°C, ${row.rain_mm === 0 ? 'no rain' : `${row.rain_mm}\u00a0mm of rain`} on the day`
     : null

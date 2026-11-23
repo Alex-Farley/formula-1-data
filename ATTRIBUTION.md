@@ -273,8 +273,9 @@ for one point, worked out by Open-Meteo - so the credit is the wording it
 gives for modified information, carried wherever Open-Meteo's is:
 *Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.*
 Its year is the one the harvest was run in, read off the date its file
-gives: a later harvest moves it here, in LICENSE-DATA and wherever the
-figures go, and the build fails on a year left behind.
+gives and stored in `f1.db` as `meta.copernicus_credit`, which the race page
+and the facts artefact read: a later harvest moves it there, here and in
+LICENSE-DATA, and the build fails on a year left behind.
 Open-Meteo asks for a link to it beside wherever its data is shown, so each
 weather disagreement in `discrepancies` ends its assessment with *weather
 data by Open-Meteo.com* and the address, wherever that row is shown, the
