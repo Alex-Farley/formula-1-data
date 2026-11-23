@@ -114,10 +114,11 @@
   /* Selected text (VD-118). Not --accent-wash, which the item first named:
      that is 1.01:1 against the paper in light and 1.04:1 against the dark
      panel, so a selection drawn in it could not be seen. This is the accent
-     mixed into --panel, 20% in light and 25% in dark: 1.32 / 1.42 / 1.28 /
-     1.42 against bg / panel / panel-sunk / panel-raised in light and 1.50 /
-     1.40 / 1.45 / 1.29 in dark. ::selection sets --ink on it, which is
-     12.2:1 in light and 10.8:1 in dark (test/conventions.mjs). */
+     mixed into --panel, 20% in light and 28% in dark, so it stands off every
+     ground text sits on, the washes a pill is drawn on included: at least
+     1.28:1 in light (on --panel-sunk) and 1.25:1 in dark (on --warn-wash,
+     where 25% fell to 1.19). ::selection sets --ink on it, which is 12.2:1
+     in light and 10.2:1 in dark (test/conventions.mjs). */
   --selection: #f3cbcd;
 
   /* The layout drawn over a circuit's aerial photograph (AF-96, AF-177):
@@ -426,7 +427,7 @@
     --accent: #ff4757;
     --accent-ink: #ff6b7a;
     --accent-wash: #2a1418;
-    --selection: #532223;
+    --selection: #5a2325;
 
     --rail-podium: #ff4757;
     --rail-points: #c0394f;
@@ -480,7 +481,7 @@
   --accent: #ff4757;
   --accent-ink: #ff6b7a;
   --accent-wash: #2a1418;
-  --selection: #532223;
+  --selection: #5a2325;
 
   --rail-podium: #ff4757;
   --rail-points: #c0394f;

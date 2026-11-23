@@ -1231,7 +1231,9 @@ describe("the browser's own surfaces: selection and scrollbar (VD-118)", () => {
   it('app.css styles ::selection with a token for its ground and its ink', () => assert.ok(ground && ink, 'no ::selection rule setting background-color and color from tokens'))
   it('app.css sets the scrollbar from two tokens on :root', () => assert.ok(bar, 'no :root scrollbar-color of two tokens'))
 
-  const SURFACES = ['bg', 'panel', 'panel-sunk', 'panel-raised']
+  // Every ground text is set on: the page, the panels, the stage, and the
+  // washes a pill or tag is filled with (.pill-unverified, .tag-dnf).
+  const SURFACES = ['bg', 'panel', 'panel-sunk', 'panel-raised', 'stage', 'accent-wash', 'good-wash', 'warn-wash']
   for (const [label, block] of [
     ['light', css.slice(0, dark)],
     ['dark (system)', css.slice(dark, stamped)],

@@ -281,7 +281,8 @@ box takes them. Selected text sits on `--selection`, the accent mixed into
 the panel, and takes `--ink`. It is not `--accent-wash`, which this section
 first named: the wash sits too near the paper and the panel for a selection
 in it to be seen. `conventions.mjs` holds the selected ink to 4.5:1, the
-selection to 1.2:1 against `--bg` and each `--panel` surface, and the thumb
+selection to 1.2:1 against `--bg`, each `--panel` surface, `--stage` and
+the three washes a pill is filled with, and the thumb
 to 3:1 on its track, in both themes; the figures are in `tokens.css` and
 `app.css`.
 
