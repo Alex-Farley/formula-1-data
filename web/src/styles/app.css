@@ -69,6 +69,26 @@ a:hover {
   border-radius: 3px;
 }
 
+/* The browser's own surfaces, in the site's colours (VD-118): the caret and
+   a checked box in the accent, and a warm scrollbar whose thumb, --ink-faint,
+   is 4.3:1 on its --rule track in light and 4.1:1 in dark, where a
+   --rule-strong thumb on the light paper would have been 1.4:1. All three
+   inherit, so one rule on the root reaches every field and every scrolling
+   box. */
+:root {
+  accent-color: var(--accent);
+  caret-color: var(--accent);
+  scrollbar-color: var(--ink-faint) var(--rule);
+}
+
+/* Selected text takes --ink as well as its ground, so a selected link, a
+   faint note or a label on an accent fill reads at the ink's contrast rather
+   than its own (tokens.css, --selection). */
+::selection {
+  background-color: var(--selection);
+  color: var(--ink);
+}
+
 code,
 kbd,
 pre,
