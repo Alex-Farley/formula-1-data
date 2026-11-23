@@ -272,6 +272,9 @@ credit, and these figures are changed from the reanalysis - daily figures
 for one point, worked out by Open-Meteo - so the credit is the wording it
 gives for modified information, carried wherever Open-Meteo's is:
 *Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.*
+Its year is the one the harvest was run in, read off the date its file
+gives: a later harvest moves it here, in LICENSE-DATA and wherever the
+figures go, and the build fails on a year left behind.
 Open-Meteo asks for a link to it beside wherever its data is shown, so each
 weather disagreement in `discrepancies` ends its assessment with *weather
 data by Open-Meteo.com* and the address, wherever that row is shown, the
@@ -309,7 +312,7 @@ Stronger in a specific way that matters: ODbL reaches the **whole database**
 its data lands in. A database derived from an ODbL one is a *Derivative
 Database* and must itself be published under ODbL. Confining the rows to one
 table is not enough, because the table is inside the database — twenty-five
-centrelines would set the licence of <!-- fig:rows -->181,363<!-- /fig --> rows that
+centrelines would set the licence of <!-- fig:rows -->181,364<!-- /fig --> rows that
 have nothing to do with them.
 
 So they are **not in `f1.db` at all**. `build.py` writes them to

@@ -73,7 +73,6 @@ import {
   WEATHER_CREDIT,
   WEATHER_HOW,
   WEATHER_MARKS,
-  WEATHER_METHOD,
   carName,
   classificationFooter,
   hasEntryNote,
@@ -287,7 +286,7 @@ function RaceWeather({ weather }) {
       {weather.modelled && (
         <details className="table-how">
           <summary>{WEATHER_HOW}</summary>
-          <p>{WEATHER_METHOD}</p>
+          <p>{weather.method}</p>
         </details>
       )}
     </div>

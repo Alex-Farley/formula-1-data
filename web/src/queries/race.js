@@ -290,11 +290,13 @@ export const RACE_SOURCES = `
 /**
  * AF-142: what the header says of the race's weather. One row for a race
  * whatever is held, each table's columns NULL where it holds nothing, which
- * raceWeather() reads as not established. Read by Race.jsx and by
+ * raceWeather() reads as not established, and the Copernicus credit the
+ * figures carry, which is the database's (AF-149). Read by Race.jsx and by
  * scripts/prerender.js with (year, round).
  */
 export const RACE_WEATHER = `
-  SELECT w.conditions, w.reported, m.air_max_c, m.rain_mm
+  SELECT w.conditions, w.reported, m.air_max_c, m.rain_mm,
+         (SELECT value FROM meta WHERE key = 'copernicus_credit') AS credit
     FROM races r
     LEFT JOIN race_weather_reported w ON w.race_id = r.id
     LEFT JOIN race_weather_modelled m ON m.race_id = r.id
@@ -314,14 +316,13 @@ export const WEATHER_CREDIT = { text: 'Open-Meteo', href: 'https://open-meteo.co
 
 export const WEATHER_HOW = 'How it is modelled'
 
-/* The Copernicus wording ATTRIBUTION.md carries beside Open-Meteo's credit,
-   word for word (web/test/conventions.mjs compares them), so a change to it
-   there, its year or what #1200 rules, fails until it is made here too. */
-export const COPERNICUS_CREDIT =
-  'Contains modified Copernicus Climate Change Service information 2026. Neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data it contains.'
-
+/* How the figures are modelled, for the disclosure under the line. The
+   Copernicus credit raceWeather() puts after it is meta.copernicus_credit,
+   whose year build.py reads off the harvest file's date (AF-149, ruled on
+   #1200) and which verify.py holds to ATTRIBUTION.md word for word, so
+   nothing here types it. */
 export const WEATHER_METHOD =
-  `ERA5's reanalysis, through Open-Meteo, of the circuit's whole local day and not the race's hours, for the grid cell the circuit sits in and not the track, so a shower can be missing from it. ${COPERNICUS_CREDIT}`
+  "ERA5's reanalysis, through Open-Meteo, of the circuit's whole local day and not the race's hours, for the grid cell the circuit sits in and not the track, so a shower can be missing from it."
 
 const CLOUDED = /cloud|overcast|thunder|\bgr[ae]y\b|\bdull\b/i
 
@@ -337,18 +338,20 @@ const CLOUDED = /cloud|overcast|thunder|\bgr[ae]y\b|\bdull\b/i
  * temperature and rain are ERA5's for the circuit's whole local day: nothing
  * here holds a start time before 2023, so the figure is the day's high and
  * never the temperature at the start, and `modelled` is what makes a renderer
- * label it and credit it.
+ * label it and credit it: `method` is the disclosure, credit and all. The
+ * figures go out with the credit or not at all.
  */
 export const raceWeather = (row) => {
   const said = row?.conditions ?? null
   const mark = said === null ? null : said === 'wet' ? 'rain' : CLOUDED.test(row.reported) && !/sun/i.test(row.reported) ? 'cloud' : 'sun'
   const word = mark === null ? null : { rain: 'Wet', cloud: 'Dry, with cloud', sun: 'Dry' }[mark]
-  const modelled = row?.air_max_c != null && row?.rain_mm != null
+  const modelled = row?.air_max_c != null && row?.rain_mm != null && row?.credit != null
   const figures = modelled
     ? `High of ${Math.round(row.air_max_c)}\u00a0°C, ${row.rain_mm === 0 ? 'no rain' : `${row.rain_mm}\u00a0mm of rain`} on the day`
     : null
   if (word === null && figures === null) return null
-  return { mark, text: [word, figures].filter(Boolean).join(' · '), modelled }
+  const text = [word, figures].filter(Boolean).join(' · ')
+  return modelled ? { mark, text, modelled, method: `${WEATHER_METHOD} ${row.credit}` } : { mark, text, modelled }
 }
 
 /* ------------------------------------------------------------------ order */

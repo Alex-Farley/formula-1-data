@@ -341,15 +341,14 @@ RECORDS_READ = {
 
 # ------------------------------------------------------------- the file
 
-# Open-Meteo's credit, with its link, and the Copernicus licence's for the
-# modified ERA5 information under it, as ATTRIBUTION.md gives them.
+# Open-Meteo's credit, with its link, and after it the Copernicus licence's
+# for the modified ERA5 information under it, as ATTRIBUTION.md gives them.
+# The second is f1.db's meta.copernicus_credit, whose year is the harvest's
+# (AF-149).
 WEATHER_CREDIT = ("Race-day air temperature, rain and wind (race_weather_modelled) are "
                   "modelled, from the Copernicus Climate Change Service's ERA5 reanalysis: "
                   "weather data by Open-Meteo.com (https://open-meteo.com/), licensed under "
-                  "CC BY 4.0. Contains modified Copernicus Climate Change Service "
-                  "information 2026. Neither the European Commission nor ECMWF is "
-                  "responsible for any use that may be made of the Copernicus "
-                  "information or data it contains.")
+                  "CC BY 4.0.")
 
 
 def _meta(src, records_out=()):
@@ -365,6 +364,11 @@ def _meta(src, records_out=()):
     # credit, and its link, wherever it goes: this file is the one built to
     # be handed on.
     weather = src.execute("SELECT COUNT(*) FROM race_weather_modelled").fetchone()[0]
+    copernicus = src.execute("SELECT value FROM meta "
+                             "WHERE key = 'copernicus_credit'").fetchone()
+    if weather and copernicus is None:
+        raise SystemExit("f1.db holds modelled weather and no meta.copernicus_credit "
+                         "to carry with it: rebuild it")
     return [
         ("database_name", "F1 facts (the CC BY 4.0 subset of f1.db)"),
         ("version", held["version"]),
@@ -375,7 +379,7 @@ def _meta(src, records_out=()):
         ("attribution", f"Lap Ledger (https://lapledger.org), built from {name} by "
                         f"{F1DB_CREATOR} ({url}, CC BY 4.0) and the other sources its rows cite: each row's "
                         "source_id names one in source_registry"
-                        + (f". {WEATHER_CREDIT}" if weather else "")),
+                        + (f". {WEATHER_CREDIT} {copernicus[0]}" if weather else "")),
         ("companion", "f1.db, the whole database, under CC BY-SA 4.0 as its LICENSE-DATA "
                       "says; this file is the part of it that may be offered under "
                       "CC BY 4.0"),
