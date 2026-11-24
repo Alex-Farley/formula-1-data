@@ -5519,6 +5519,8 @@ describe('a driver’s career chart tells the career (VD-124), on rows written o
     const story = careerStory(rookie, { wins: [{ year: 2026, round: 2, name_used: 'Chinese Grand Prix' }], first: 2025, raced: [2025, 2026] })
     assert.equal(story.finding, 'At best 7th in the championship, in 2025; 1st in 2026 so far')
     assert.equal(story.kicker, 'Final championship position each season, 2026 so far')
+    // A season being run with no place yet has no dot, so the kicker does not name it.
+    assert.equal(careerStory([final(2025, 7, 150), { year: 2026, position: null, basis: 'running' }], { first: 2025, raced: [2025, 2026] }).kicker, 'Final championship position each season')
     // No final place to state for the season of the first win.
     assert.deepEqual(story.notes, [{ n: 1, x: 2026, lead: 'First win, 2026', text: 'Chinese Grand Prix, round 2.' }])
     const chart = finishesFigure({ full_name: 'A Driver', first_season: 2025, last_season: 2026 }, rookie, new Map(), [{ year: 2025 }, { year: 2026 }])
