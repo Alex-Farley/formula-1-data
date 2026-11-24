@@ -523,6 +523,15 @@ class Figures:
         return n(self.one("""SELECT COUNT(DISTINCT race_id) FROM race_entries
                              WHERE finish_position IS NOT NULL"""))
 
+    def races_classified_span(self):
+        # The years of the races races_classified counts, so the sentence that
+        # states both is of one set of races. Not season_span: the seasons
+        # table holds a season before any race of it is run (WK-29).
+        lo, hi = self.con.execute("""SELECT MIN(r.year), MAX(r.year) FROM races r
+            WHERE EXISTS (SELECT 1 FROM race_entries e
+                          WHERE e.race_id = r.id AND e.finish_position IS NOT NULL)""").fetchone()
+        return f"{lo}–{hi}"
+
     def drivers_verified(self):
         return n(self.count("drivers", "confidence = 'verified'"))
 

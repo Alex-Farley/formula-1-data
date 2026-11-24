@@ -476,7 +476,8 @@ const sentence = (words) => words.charAt(0).toUpperCase() + words.slice(1)
  * seasons", counting the seasons raced, where the career's first season has
  * a place, and the two years where it has none; a driver never champion,
  * the best final place and when. The season being run is never a final
- * place, and is said as one so far where it is better than any.
+ * place, and is said as one so far where it is better than any; the kicker
+ * names it as so far wherever one is plotted.
  *
  * At most two notes, each at a season the chart has a dot for: the first
  * win, with the race and that season's final place, and the first title,
@@ -488,7 +489,9 @@ export function careerStory(finishes, { wins = [], runnersUp = [], first = null,
   const final = placed.filter((s) => s.basis === 'final')
   const titles = final.filter(isTitle)
   const running = placed.find((s) => s.basis !== 'final') ?? null
-  const kicker = `Final championship position each season${
+  // The season being run is plotted from its table so far, so the kicker
+  // says so by year rather than calling every dot final (VD-132).
+  const kicker = `Final championship position each season${running ? `, ${running.year} so far` : ''}${
     titles.length === 0 ? '' : titles.length === 1 ? ' · the title ringed' : ' · each title ringed'
   }`
 
