@@ -4463,8 +4463,9 @@ try {
    * out; this holds what reaches the header, in both halves: a plate a
    * season in liveryRibbon()'s scheme, the years at each change, the runs
    * as one line where the brackets cannot carry their names (McLaren) and
-   * under brackets that stand over their own plates where they can
-   * (Renault), the line alone on a phone, and the credit's links.
+   * under brackets that stand over their own plates where they can - every
+   * team whose ribbon says so, at 768 too, where the measure is narrowest -
+   * the line alone on a phone, and the credit's links.
    */
   await section('/constructors/mclaren  (the livery ribbon: VD-115)', async () => {
     const read = (root) => {
@@ -4498,17 +4499,25 @@ try {
     const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
     const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
     const plain = await noJs.newPage()
-    for (const id of ['mclaren', 'renault']) {
+    const ribbonOf = (id) => {
       const team = db.prepare(CONSTRUCTOR_ROW).get(id)
-      const ribbon = liveryRibbon(
-        team,
-        db.prepare(CONSTRUCTOR_BY_SEASON).all(id).map((s) => s.year),
-      )
-      truthy(ribbon && ribbon.fits === (id === 'renault'), `/constructors/${id}: the ribbon ${id === 'renault' ? 'can' : 'cannot'} carry its names under brackets`)
+      return { team, ribbon: liveryRibbon(team, db.prepare(CONSTRUCTOR_BY_SEASON).all(id).map((s) => s.year)) }
+    }
+    // Every team whose ribbon carries its names under brackets, worked out
+    // from the rows, so next season's liveries are read as they land.
+    const bracketed = db
+      .prepare('SELECT DISTINCT e.constructor_id AS id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year >= ? ORDER BY 1')
+      .all(LIVERY_ERA)
+      .map((row) => row.id)
+      .filter((id) => ribbonOf(id).ribbon?.fits)
+    truthy(!ribbonOf('mclaren').ribbon?.fits, '/constructors/mclaren: the ribbon cannot carry its names under brackets')
+    truthy(bracketed.includes('renault'), `/constructors/renault: the ribbon can carry its names under brackets (${bracketed.length} teams can)`)
+    for (const id of ['mclaren', ...bracketed]) {
+      const { team, ribbon } = ribbonOf(id)
       if (!ribbon) continue
       await go(`/constructors/${id}`, team.name)
       await plain.goto(`${BASE}/constructors/${id}`, { waitUntil: 'load' })
-      for (const width of [1440, 400]) {
+      for (const width of [1440, 768, 400]) {
         await page.setViewportSize({ width, height: 900 })
         await plain.setViewportSize({ width, height: 900 })
         await settle()

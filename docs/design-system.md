@@ -413,7 +413,8 @@ string runs past.
       `--size-2` faint; on a phone the first and the last alone.
     - The **runs**, each name's seasons, under a rule across their plates
       in the label register — but only where every word of every name fits
-      its bracket at the narrowest measure the brackets are drawn at (`fits`).
+      its bracket a little under the narrowest measure the brackets are drawn
+      at, at the widest character any name measures (`fits`).
       At the measure seventeen plates are 24 to 27 px each, narrower than a
       one-season name such as *Tarocco orange*; the mockup's bracket for it
       widened its column and pushed the brackets after it off their plates.
@@ -427,7 +428,7 @@ string runs past.
       `--size-3` faint: every page any plate was read from, each Wikipedia
       article by title and link with its licence (AF-19), whose word each
       name is, that the shades are this site's rendering, and an accent this
-      site chose named as its own (`bandWords()`'s clause). Colour stays
+      site chose named as its own, as the band's `bandWords()` names one. Colour stays
       identity beside a name (§2 *Colour*): every plate's name is in the
       runs and in its tooltip.
 - **Widths:** the header column: 7 columns from 1180 beside the slot, the

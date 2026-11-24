@@ -3127,7 +3127,7 @@ describe('a constructor ribbon draws every season from 2010 in its own scheme (V
     assert.equal(mclaren.list, 'Chrome 2010–14 · Graphite grey 2015–16 · Tarocco orange 2017 · Papaya 2018–')
     assert.equal(
       mclaren.aria,
-      "McLaren's livery by season: Chrome 2010 to 2014, Graphite grey 2015 and 2016, Tarocco orange 2017, Papaya from 2018",
+      'McLaren\u2019s livery by season: Chrome 2010 to 2014, Graphite grey 2015 and 2016, Tarocco orange 2017, Papaya from 2018',
     )
   })
 

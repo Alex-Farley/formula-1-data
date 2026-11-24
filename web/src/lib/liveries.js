@@ -1697,10 +1697,10 @@ export function constructorBandNote(team, colour) {
  * three times that: drawn under its bracket it runs into the next run's
  * name, and in the mockup its column widened and pushed the brackets after
  * it off the plates they belong to. So the brackets carry the names only where every word of
- * every name fits the bracket it sits under, worked out here at the
- * narrowest measure they are drawn at with a generous width per character,
- * so a name under-estimated is one the layout does not draw rather than one
- * it overlaps. Everywhere else, and on a phone always, the runs are one line
+ * every name fits the bracket it sits under, worked out here a little under
+ * the narrowest measure they are drawn at, with the widest character any
+ * word here measures, so a name is estimated wide and a near miss is one
+ * the layout does not draw rather than one it overlaps. Everywhere else, and on a phone always, the runs are one line
  * of text, as the mockup's phone width has them.
  */
 
@@ -1708,8 +1708,13 @@ export function constructorBandNote(team, colour) {
 const RIBBON_WIDTH = 420
 /** The gap between two plates, in px: --space-1. */
 const RIBBON_GAP = 2
-/** A generous width, in px, for one character of a run's name: Saira 500 at --size-3. */
-const RIBBON_CHAR = 7
+/**
+ * The width, in px, of one character of a run's name, Saira 500 at --size-3:
+ * the widest per character of any word in LIVERIES, measured in the built
+ * bracket (BWT, 9.0; Romeo 8.0; Chrome 7.3). An average would let a word
+ * of wide letters pass and run past its bracket.
+ */
+const RIBBON_CHAR = 9
 
 const yearTick = (year) => `’${String(year).slice(2)}`
 
@@ -1805,7 +1810,8 @@ export function liveryRibbon(team, years) {
   })
   return {
     label: `What ${team.name} raced in, season by season since ${raced[0]}`,
-    aria: `${team.name}'s livery by season: ${runs.map((run) => `${run.name} ${runSpoken(run)}`).join(', ')}`,
+    // The possessive queries/constructor.js owns() writes on the same page.
+    aria: `${team.name}${team.name.endsWith('s') ? '\u2019' : '\u2019s'} livery by season: ${runs.map((run) => `${run.name} ${runSpoken(run)}`).join(', ')}`,
     plates: plates.map(({ year, title, scheme }) => ({ year, title, scheme })),
     ticks,
     runs: runs.map(({ name, from, to, start, end, years: span, bracket, named }) => ({ name, from, to, start, end, years: span, bracket, named })),
