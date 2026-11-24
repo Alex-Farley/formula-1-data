@@ -213,6 +213,15 @@ class Figures:
         lo, hi = self.con.execute("SELECT MIN(year), MAX(year) FROM seasons").fetchone()
         return f"{lo}–{hi}"
 
+    def completed_season_span(self):
+        # The seasons verify.py holds to a champion: every one before the
+        # season being run, which is the latest with a round completed. Not
+        # season_span, which runs on to the season the register holds ahead
+        # of any race of it (WK-30).
+        lo, hi = self.con.execute("""SELECT MIN(year), MAX(year) FROM seasons
+            WHERE year < (SELECT MAX(year) FROM races WHERE status = 'completed')""").fetchone()
+        return f"{lo}–{hi}"
+
     def races(self):
         return n(self.count("races"))
 
@@ -530,6 +539,13 @@ class Figures:
         lo, hi = self.con.execute("""SELECT MIN(r.year), MAX(r.year) FROM races r
             WHERE EXISTS (SELECT 1 FROM race_entries e
                           WHERE e.race_id = r.id AND e.finish_position IS NOT NULL)""").fetchone()
+        return f"{lo}–{hi}"
+
+    def qualifying_span(self):
+        # The years of the races the qualifying rows are of, for the span
+        # ATTRIBUTION.md states beside the qualifying figure (WK-31).
+        lo, hi = self.con.execute("""SELECT MIN(r.year), MAX(r.year) FROM races r
+            WHERE EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id)""").fetchone()
         return f"{lo}–{hi}"
 
     def drivers_verified(self):

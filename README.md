@@ -162,11 +162,13 @@ nobody has established goes in `known_gaps`.
 ## What's in it
 
 **Championship history** — all <!-- fig:seasons -->78<!-- /fig -->
-seasons <!-- fig:season_span -->1950–2027<!-- /fig -->: champion, points, wins,
-runner-up, margin, constructors' champion, engine formula, tyre suppliers and a
-paragraph of context on each, plus **<!-- fig:standings -->34,807<!-- /fig -->
-championship standings rows** — the table after every round of every season
-and the end-of-season classification for each.
+seasons <!-- fig:season_span -->1950–2027<!-- /fig -->, each with its engine
+formula, tyre suppliers and a paragraph of context, and every completed
+season, <!-- fig:completed_season_span -->1950–2025<!-- /fig -->, with its
+champion, points, wins, runner-up and margin, and from 1958 its constructors'
+champion; plus **<!-- fig:standings -->34,807<!-- /fig --> championship
+standings rows** — the table after every round run and the end-of-season
+classification of every season completed.
 
 **Every race** — <!-- fig:races -->1,196<!-- /fig --> championship Grands
 Prix on the calendar, <!-- fig:races_run -->1,170<!-- /fig --> of them run,
@@ -1393,8 +1395,8 @@ result is far more often an un-harvested race than a race that did not happen.
 
 `python3 verify.py` runs every check and prints the live count; nothing else
 states one. What it checks, in outline: referential integrity across every
-foreign-key relationship; every season <!-- fig:season_span -->1950–2027<!-- /fig -->
-present with a champion; constructors' champions only from 1958; driver and
+foreign-key relationship; every completed season, <!-- fig:completed_season_span -->1950–2025<!-- /fig -->,
+with a champion; constructors' champions only from 1958; driver and
 constructor title counts cross-tabulated against the seasons table (and
 `title_years` strings checked year by year against it); margins recomputed;
 standings positions contiguous and points monotonic; driver and constructor
