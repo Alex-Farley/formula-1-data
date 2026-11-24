@@ -31,8 +31,8 @@ the current position from the rows themselves.
 | Race venues <!-- fig:wp_venues_first -->1950<!-- /fig -->–<!-- fig:wp_venues_last -->2026<!-- /fig --> | <!-- credit:races -->Wikipedia season articles<!-- /credit --> | <!-- fig:wp_venue_races -->1,161<!-- /fig --> races |
 | Car specifications and design histories | <!-- credit:cars -->Wikipedia per-car articles<!-- /credit --> | <!-- fig:cars -->29<!-- /fig --> curated cars |
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
-| **Full race classification 1950–2026** | <!-- credit:race_entries -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:race_entries -->27,658<!-- /fig --> entries, <!-- fig:races_classified -->1,170<!-- /fig --> races |
-| **Qualifying 1950–2026** | <!-- credit:qualifying -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:qualifying -->27,170<!-- /fig --> rows |
+| **Full race classification <!-- fig:races_classified_span -->1950–2026<!-- /fig -->** | <!-- credit:race_entries -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:race_entries -->27,658<!-- /fig --> entries, <!-- fig:races_classified -->1,170<!-- /fig --> races |
+| **Qualifying <!-- fig:qualifying_span -->1950–2026<!-- /fig -->** | <!-- credit:qualifying -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:qualifying -->27,170<!-- /fig --> rows |
 | **Championship standings, every round** | <!-- credit:standings -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:standings -->34,807<!-- /fig --> rows |
 | Pit stops | <!-- credit:pit_stops -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:pit_stops -->22,790<!-- /fig --> |
 | Chassis, engine and season-entrant register | <!-- credit:chassis,engines,season_entrants -->[F1DB](https://github.com/f1db/f1db)<!-- /credit --> | <!-- fig:chassis -->1,153<!-- /fig --> chassis, <!-- fig:engines -->424<!-- /fig --> engines, <!-- fig:season_entrants -->1,925<!-- /fig --> entrant rows |
