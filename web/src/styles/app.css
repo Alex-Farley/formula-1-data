@@ -5676,6 +5676,124 @@ figure.figure > .figure-note:first-child {
   color: var(--ink-soft);
 }
 
+/* A constructor's livery ribbon (VD-115): a plate a season from 2010, in
+   that season's scheme, the year at each change and the runs named, in the
+   band's place (components/LiveryRibbon.jsx, lib/liveries.js liveryRibbon).
+   The plates, the years and the brackets share one grid of --plates columns,
+   each minmax(0, 1fr) so that no name can widen its column and push the
+   brackets off the plates they stand under. It is set closer than the
+   mockup, its plates --space-9 rather than --space-10, because a team whose
+   wins chart leads under the tiles (Ferrari) must still draw it inside the
+   first 900 px at 1440 (smoke.mjs, the chart leads). */
+.livery-ribbon {
+  margin-top: var(--space-6);
+  max-width: var(--measure);
+}
+
+.livery-ribbon-label {
+  margin: 0 0 var(--space-3);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink-soft);
+}
+
+.livery-ribbon-plates,
+.livery-ribbon-years,
+.livery-ribbon-names {
+  display: grid;
+  grid-template-columns: repeat(var(--plates), minmax(0, 1fr)); /* a plate a season, inside the ribbon at the measure: tracks of a drawing, not page columns */
+  gap: var(--space-1);
+}
+
+/* The primary fills the plate and each accent is a strip under it, as the
+   mockup draws them. The edge is drawn over the colours, not under them, so
+   a white plate on a white panel is still a plate. */
+.livery-ribbon-plate {
+  display: flex;
+  flex-direction: column;
+  height: var(--space-9);
+  outline: 1px solid color-mix(in oklab, var(--ink) 18%, transparent);
+  outline-offset: -1px;
+}
+
+.livery-ribbon-plate i {
+  display: block;
+  height: var(--space-2);
+}
+
+.livery-ribbon-plate i:first-child {
+  flex: 1;
+}
+
+.livery-ribbon-plate i:nth-child(2) {
+  height: var(--space-3);
+}
+
+.livery-ribbon-years {
+  margin-top: var(--space-2);
+  font-size: var(--size-2);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink-faint);
+}
+
+.livery-ribbon-names {
+  margin-top: var(--space-4);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.livery-ribbon-names span {
+  border-top: 1px solid var(--ink);
+  padding-top: var(--space-2);
+}
+
+.livery-ribbon-list {
+  margin: var(--space-3) 0 0;
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.livery-ribbon-credit {
+  margin: var(--space-3) 0 0;
+  max-width: var(--measure-small);
+  font-family: var(--serif);
+  font-size: var(--size-3);
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+/* On a phone the runs are one line of text, and the years under the plates
+   are the first and the last; from 768 px the brackets carry the names where
+   they fit (liveryRibbon `fits`), and the line is not drawn twice. */
+@media (width < 768px) {
+  .livery-ribbon-names {
+    display: none;
+  }
+
+  /* Seventeen plates at 320 px are narrower than a year: the first stands
+     under the first plate and the last under the last. */
+  .livery-ribbon-years {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .livery-ribbon-years span:not(.livery-ribbon-edge) {
+    display: none;
+  }
+}
+
+@media (width >= 768px) {
+  .livery-ribbon-bracketed .livery-ribbon-list {
+    display: none;
+  }
+}
+
 /* Announced but not shown: a table's caption, the words behind a mark such
    as the fastest-lap bullet, a live status line. */
 .sr-only {

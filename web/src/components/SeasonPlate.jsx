@@ -9,8 +9,9 @@ import { ownColour } from '../charts/own.js'
  * value as a chart series does - or in ink where no colour is on record.
  * The label names the team in words beside its mark, so the colour is never
  * the only cue. scripts/prerender.js writes the same markup. One component:
- * home's opening (VD-109, queries/home.js homePlate) is built on it, and a
- * constructor's ribbon (VD-115) is to be.
+ * home's opening (VD-109, queries/home.js homePlate) is built on it. A
+ * constructor's livery ribbon (VD-115) was to be, and is LiveryRibbon.jsx
+ * instead: its plates hold no words and draw each colour as itself.
  *
  * `aside` is what stands beside the champion under the same rule, from
  * 1180 px in the slot's column: home's last race and its podium (VD-109).

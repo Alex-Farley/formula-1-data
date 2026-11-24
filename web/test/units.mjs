@@ -264,6 +264,7 @@ import {
   liveryFor,
   liveryPair,
   liveryPrimary,
+  liveryRibbon,
   winnerColour,
 } from '../src/lib/liveries.js'
 import { seasonSources, teamsByDriver } from '../src/queries/season.js'
@@ -3097,6 +3098,85 @@ describe('the circuit outlines (AF-03)', () => {
   })
 })
 
+
+describe('a constructor ribbon draws every season from 2010 in its own scheme (VD-115)', () => {
+  const seasons = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i)
+  const mclaren = liveryRibbon({ id: 'mclaren', name: 'McLaren', last_entry: null }, seasons(1966, 2026))
+
+  it('a plate a season raced from 2010, each in the scheme liveryFor gives it', () => {
+    assert.equal(mclaren.plates.length, 17)
+    for (const plate of mclaren.plates)
+      assert.deepEqual(plate.scheme, liveryFor('mclaren', plate.year).scheme.map((c) => c.base), `${plate.year}`)
+    assert.equal(mclaren.plates[0].title, '2010: Chrome')
+    assert.equal(mclaren.label, 'What McLaren raced in, season by season since 2010')
+  })
+
+  it('runs of one name, the year at each change and at the end, the last run open while the team races', () => {
+    assert.deepEqual(
+      mclaren.runs.map((r) => [r.name, r.start, r.end, r.years]),
+      [
+        ['Chrome', 1, 6, '2010–14'],
+        ['Graphite grey', 6, 8, '2015–16'],
+        ['Tarocco orange', 8, 9, '2017'],
+        ['Papaya', 9, 18, '2018–'],
+      ],
+    )
+    assert.equal(mclaren.runs[3].bracket, 'Papaya, 2018–')
+    assert.equal(mclaren.ticks.map((t) => t.tick).filter(Boolean).join(' '), '’10 ’15 ’17 ’18 ’26')
+    assert.deepEqual(mclaren.ticks.filter((t) => t.edge).map((t) => t.year), [2010, 2026])
+    assert.equal(mclaren.list, 'Chrome 2010–14 · Graphite grey 2015–16 · Tarocco orange 2017 · Papaya 2018–')
+    assert.equal(
+      mclaren.aria,
+      'McLaren\u2019s livery by season: Chrome 2010 to 2014, Graphite grey 2015 and 2016, Tarocco orange 2017, Papaya from 2018',
+    )
+  })
+
+  it('names the runs under brackets only where every word fits its bracket', () => {
+    // A season-long run of a two-word name cannot sit under one 23 px plate.
+    assert.equal(mclaren.fits, false)
+    const renault = liveryRibbon({ id: 'renault', name: 'Renault', last_entry: 2020 }, [...seasons(2002, 2011), ...seasons(2016, 2020)])
+    assert.equal(renault.fits, true)
+    // A gap in the seasons raced ends a run, and a team that has stopped has no open run.
+    assert.deepEqual(
+      renault.runs.map((r) => [r.start, r.end, r.years]),
+      [
+        [1, 2, '2010'],
+        [2, 3, '2011'],
+        [3, 8, '2016–20'],
+      ],
+    )
+    assert.equal(renault.ticks.map((t) => t.tick).join(' '), '’10 ’11 ’16    ’20')
+    const audi = liveryRibbon({ id: 'audi', name: 'Audi', last_entry: null }, [2026])
+    assert.equal(audi.fits, true)
+    assert.deepEqual(audi.ticks, [{ year: 2026, tick: '’26', edge: true }])
+  })
+
+  it('no ribbon before 2010 or for a team with no livery here; a season with none is an empty plate, never a colour', () => {
+    assert.equal(liveryRibbon({ id: 'brabham', name: 'Brabham', last_entry: 1992 }, seasons(1962, 1992)), null)
+    assert.equal(liveryRibbon({ id: 'nobody', name: 'Nobody', last_entry: null }, [2024, 2025]), null)
+    const missing = liveryRibbon({ id: 'mclaren', name: 'McLaren', last_entry: 2027 }, [2026, 2027])
+    assert.deepEqual(missing.plates[1], { year: 2027, title: '2027: Not established', scheme: [] })
+    assert.equal(missing.list, 'Papaya 2026 · Not established 2027')
+  })
+
+  it('credits every page each plate was read from, says whose word each name is, and names a colour this site chose', () => {
+    const text = (note) => note.map((part) => (typeof part === 'string' ? part : part.text)).join('')
+    const links = mclaren.note.filter((part) => typeof part !== 'string').map((part) => part.href)
+    const drawn = new Set(mclaren.plates.map((p) => liveryFor('mclaren', p.year)))
+    for (const livery of drawn)
+      for (const url of livery.source)
+        if (/wikipedia\.org/.test(url)) assert.ok(links.includes(url), `${url} is linked`)
+        else assert.ok(text(mclaren.note).includes(new URL(url).hostname.replace(/^www\./, '')), `${url} is named`)
+    assert.ok(links.includes('https://creativecommons.org/licenses/by-sa/4.0/'), 'with the licence')
+    assert.match(text(mclaren.note), /Tarocco orange and Papaya are the team's own names, the rest the sources' description\./)
+    assert.match(text(mclaren.note), /Before 2010 this site has no sourced livery to draw\./)
+    const tr = liveryRibbon({ id: 'toro-rosso', name: 'Toro Rosso', last_entry: 2019 }, seasons(2006, 2019))
+    assert.match(text(tr.note), /The plates for 2010–16 also carry red and silver, which no page cited here states/)
+    const aston = liveryRibbon({ id: 'aston-martin', name: 'Aston Martin', last_entry: null }, seasons(2021, 2026))
+    assert.match(text(aston.note), /each name is the team's own\./)
+    assert.doesNotMatch(text(aston.note), /Before 2010/)
+  })
+})
 
 describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
   // Three eras, one call. Before 1968 the national convention; 1968-2009 a

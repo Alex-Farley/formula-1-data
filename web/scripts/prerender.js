@@ -215,6 +215,7 @@ import {
   constructorBandNote,
   driverBandNote,
   liveryFor,
+  liveryRibbon,
   markStyleAttr,
   nationalEntry,
   winnerColour,
@@ -2220,6 +2221,43 @@ const seasonPlateHtml = (plate, aside = '', heading = false) => {
   }</div>`
 }
 
+// A sentence of parts, a string or a `{ text, href }` link, as the band and
+// the ribbon credit their pages (lib/liveries.js liveryCredit, AF-19).
+const creditParts = (note) =>
+  note
+    .map((part) =>
+      typeof part === 'string'
+        ? esc(part)
+        : `<a href="${esc(part.href)}" target="_blank" rel="noreferrer noopener">${esc(part.text)}</a>`,
+    )
+    .join('')
+
+// A constructor's livery ribbon, as components/LiveryRibbon.jsx draws it and
+// from the same object (lib/liveries.js liveryRibbon, VD-115). It closes on
+// its credit, which structure() reads as the end of the header's aside.
+const liveryRibbonHtml = (ribbon) => {
+  if (!ribbon) return ''
+  const plates = ribbon.plates
+    .map(
+      (plate) =>
+        `<span class="${plate.scheme.length ? 'livery-ribbon-plate' : 'livery-ribbon-plate livery-ribbon-none'}" title="${esc(plate.title)}">${plate.scheme
+          .map((base) => `<i style="background:${esc(base)}"></i>`)
+          .join('')}</span>`,
+    )
+    .join('')
+  const years = ribbon.ticks.map((tick) => `<span${tick.edge ? ' class="livery-ribbon-edge"' : ''}>${esc(tick.tick)}</span>`).join('')
+  const names = ribbon.fits
+    ? `<div class="livery-ribbon-names">${ribbon.runs
+        .map((run) => `<span style="grid-column:${run.start} / ${run.end}">${esc(run.bracket)}</span>`)
+        .join('')}</div>`
+    : ''
+  return `<div class="${ribbon.fits ? 'livery-ribbon livery-ribbon-bracketed' : 'livery-ribbon'}"><p class="livery-ribbon-label">${esc(
+    ribbon.label,
+  )}</p><div class="livery-ribbon-figure" role="img" aria-label="${esc(ribbon.aria)}" style="--plates:${ribbon.plates.length}"><div class="livery-ribbon-plates">${plates}</div><div class="livery-ribbon-years">${years}</div>${names}</div><p class="livery-ribbon-list" aria-hidden="true">${esc(
+    ribbon.list,
+  )}</p><p class="livery-ribbon-credit">${creditParts(ribbon.note)}</p></div>`
+}
+
 // A driver's or a constructor's livery band, as components/LiveryScheme.jsx
 // draws it and from the same words (lib/liveries.js bandWords, VD-79): the
 // header's aside, which the static page left out, so the app's header was
@@ -2234,15 +2272,7 @@ const liveryBand = (colour, note) => {
     .join(';')
   // A note is a string, or parts with links where it credits its pages
   // (lib/liveries.js liveryCredit, AF-19), drawn as LiveryScheme draws them.
-  const sentence = Array.isArray(note)
-    ? note
-        .map((part) =>
-          typeof part === 'string'
-            ? esc(part)
-            : `<a href="${esc(part.href)}" target="_blank" rel="noreferrer noopener">${esc(part.text)}</a>`,
-        )
-        .join('')
-    : esc(note ?? '')
+  const sentence = Array.isArray(note) ? creditParts(note) : esc(note ?? '')
   return `<p class="livery-band"><i class="livery" style="${esc(style)}" aria-hidden="true"></i>${esc(
     words.name,
   )}${words.sourced ? `<em>${esc(words.sourced)}</em>` : ''}<span>${sentence}${esc(words.chosen)}</span></p>`
@@ -3097,10 +3127,11 @@ const structure = (body, tail = '') => {
   // reason: Circuit.jsx passes it as <Page aside>. Its wrapper closes on the
   // figure's own </figure>, which a photograph holds exactly one of.
   // The eyebrow and the livery band are the header's as well (VD-79): Page
-  // draws the one above the h1 and takes the other as its aside. So is a
+  // draws the one above the h1 and takes the other as its aside, as it takes
+  // a constructor's livery ribbon in the band's place (VD-115). So is a
   // race's weather line (AF-142), which Race.jsx passes in its aside too.
   const head = body.match(
-    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<div class="race-weather">[\s\S]*?<\/div>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>)?/,
+    /^\s*(<p class="eyebrow">[\s\S]*?<\/p>\s*)?(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<div class="race-weather">[\s\S]*?<\/div>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?(\s*<p class="livery-band">[\s\S]*?<\/p>|\s*<div class="livery-ribbon[ "][\s\S]*?<p class="livery-ribbon-credit">[\s\S]*?<\/p><\/div>)?/,
   )
   if (!head) die('prerender: a page body that does not open on an h1')
   return `<article class="page"><header>${head.slice(1).map((part) => part?.trim() ?? '').join('')}</header>${sectioned(
@@ -4445,6 +4476,12 @@ page({
     const identity = livery
       ? colourForEntry({ constructorId: c.id, country: c.country, year: lastSeason.year, team: c.name })
       : nationalEntry(c.country)
+    // Every season from 2010 in its own scheme, in the band's place, as
+    // Constructor.jsx draws it (VD-115).
+    const ribbon = liveryRibbon(
+      c,
+      teamBySeason.map((s) => s.year),
+    )
     // A row a race, a shared drive once, as Constructor.jsx draws it (VD-117).
     const wins = winsByRace(all(TEAM_WINS, c.id))
     const designs = all(DESIGNS, c.id)
@@ -4520,7 +4557,7 @@ page({
       },
       body: `
         ${opening({ eyebrow: EYEBROWS.constructor(c.country, c.base), title: NAMES.constructor(c.name).headline, lede: c.notes })}
-        ${liveryBand(identity, constructorBandNote(c, lastSeason, livery, identity))}
+        ${ribbon ? liveryRibbonHtml(ribbon) : liveryBand(identity, constructorBandNote(c, identity))}
         ${opened(`${tiles(teamStrip(c, teamDerived))}${teamFight ? `<p class="note follows">${esc(teamFight)}</p>` : ''}`, winsSection)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>

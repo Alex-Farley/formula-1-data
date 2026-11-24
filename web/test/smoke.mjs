@@ -222,7 +222,7 @@ import {
   WINS_HEADING as CONSTRUCTOR_WINS_HEADING,
   winsFigure,
 } from '../src/queries/constructor.js'
-import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry } from '../src/lib/liveries.js'
+import { LIVERY_ERA, colourForEntry, liveryFor, liveryRibbon, nationalEntry } from '../src/lib/liveries.js'
 import { GRAND_PRIX_SOURCES } from '../src/queries/grandprix.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -4451,6 +4451,105 @@ try {
           width >= 1180 ? got.key.left >= got.plot.right - 0.5 : got.key.top >= got.plot.bottom - 0.5,
           `${at}: the key ${width >= 1180 ? 'beside the plot' : 'under the plot'}`,
         )
+      }
+    }
+    await noJs.close()
+    await page.setViewportSize({ width: 1280, height: 900 })
+  })
+
+  /*
+   * VD-115: a constructor's livery band as a ribbon of season plates, built
+   * to the approved mockup P08. units.mjs holds the working on rows written
+   * out; this holds what reaches the header, in both halves: a plate a
+   * season in liveryRibbon()'s scheme, the years at each change, the runs
+   * as one line where the brackets cannot carry their names (McLaren) and
+   * under brackets that stand over their own plates where they can - every
+   * team whose ribbon says so, at 768 too, where the measure is narrowest -
+   * the line alone on a phone, and the credit's links.
+   */
+  await section('/constructors/mclaren  (the livery ribbon: VD-115)', async () => {
+    const read = (root) => {
+      const ribbon = document.querySelector(`${root} header > .livery-ribbon`)
+      if (!ribbon) return null
+      const flat = (n) => (n ? n.textContent.replace(/\s+/g, ' ').trim() : null)
+      const shown = (n) => Boolean(n) && getComputedStyle(n).display !== 'none' && n.getBoundingClientRect().height > 0
+      const box = (n) => {
+        const b = n.getBoundingClientRect()
+        return { left: b.left, right: b.right }
+      }
+      const plates = [...ribbon.querySelectorAll('.livery-ribbon-plates > .livery-ribbon-plate')]
+      const names = ribbon.querySelector('.livery-ribbon-names')
+      const ink = (n) => {
+        const range = document.createRange()
+        range.selectNodeContents(n)
+        return box(range)
+      }
+      return {
+        figure: ribbon.querySelector('.livery-ribbon-figure')?.getAttribute('aria-label') ?? null,
+        plates: plates.map((n) => [...n.children].map((i) => i.style.backgroundColor)),
+        plateBoxes: plates.map(box),
+        years: [...ribbon.querySelectorAll('.livery-ribbon-years > span')].map((n) => (getComputedStyle(n).display === 'none' ? '' : flat(n))),
+        list: shown(ribbon.querySelector('.livery-ribbon-list')) ? flat(ribbon.querySelector('.livery-ribbon-list')) : null,
+        brackets: shown(names) ? [...names.children].map((n) => ({ text: flat(n), ...box(n), ink: ink(n) })) : null,
+        links: [...ribbon.querySelectorAll('.livery-ribbon-credit a')].map((a) => a.getAttribute('href')),
+        band: Boolean(document.querySelector(`${root} header .livery-band`)),
+      }
+    }
+    // The browser reads an inline hex back as rgb().
+    const rgb = (hex) => `rgb(${[1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    const ribbonOf = (id) => {
+      const team = db.prepare(CONSTRUCTOR_ROW).get(id)
+      return { team, ribbon: liveryRibbon(team, db.prepare(CONSTRUCTOR_BY_SEASON).all(id).map((s) => s.year)) }
+    }
+    // Every team whose ribbon carries its names under brackets, worked out
+    // from the rows, so next season's liveries are read as they land.
+    const bracketed = db
+      .prepare('SELECT DISTINCT e.constructor_id AS id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year >= ? ORDER BY 1')
+      .all(LIVERY_ERA)
+      .map((row) => row.id)
+      .filter((id) => ribbonOf(id).ribbon?.fits)
+    truthy(!ribbonOf('mclaren').ribbon?.fits, '/constructors/mclaren: the ribbon cannot carry its names under brackets')
+    truthy(bracketed.includes('renault'), `/constructors/renault: the ribbon can carry its names under brackets (${bracketed.length} teams can)`)
+    for (const id of ['mclaren', ...bracketed]) {
+      const { team, ribbon } = ribbonOf(id)
+      if (!ribbon) continue
+      await go(`/constructors/${id}`, team.name)
+      await plain.goto(`${BASE}/constructors/${id}`, { waitUntil: 'load' })
+      for (const width of [1440, 768, 400]) {
+        await page.setViewportSize({ width, height: 900 })
+        await plain.setViewportSize({ width, height: 900 })
+        await settle()
+        for (const [half, tab, root] of [['the app', page, '#root main'], ['the static page', plain, '#prerendered main']]) {
+          const at = `/constructors/${id} at ${width}, ${half}`
+          const got = await tab.evaluate(read, root)
+          if (!got) {
+            fail(`${at}: no livery ribbon in the header`)
+            continue
+          }
+          is(got.band, false, `${at}: the ribbon stands in the band's place`)
+          is(got.figure, ribbon.aria, `${at}: the figure is named by its runs`)
+          is(JSON.stringify(got.plates), JSON.stringify(ribbon.plates.map((p) => p.scheme.map(rgb))), `${at}: a plate a season, each in its scheme`)
+          const ticks = ribbon.ticks.map((t) => (width >= 768 || t.edge ? t.tick : ''))
+          is(got.years.join(' '), ticks.join(' '), `${at}: the year at each change${width < 768 ? ', and on a phone the first and the last' : ''}`)
+          const bracketed = ribbon.fits && width >= 768
+          is(got.list, bracketed ? null : ribbon.list, `${at}: the runs ${bracketed ? 'under brackets, not as one line' : 'as one line'}`)
+          if (bracketed) {
+            is(got.brackets?.map((b) => b.text).join(' | ') ?? null, ribbon.runs.map((r) => r.bracket).join(' | '), `${at}: a bracket a run, named`)
+            const over = (got.brackets ?? []).filter((b, i) => {
+              const run = ribbon.runs[i]
+              const first = got.plateBoxes[run.start - 1]
+              const last = got.plateBoxes[run.end - 2]
+              return Math.abs(b.left - first.left) > 1 || Math.abs(b.right - last.right) > 1 || b.ink.right > b.right + 1
+            })
+            is(over.map((b) => b.text).join(', '), '', `${at}: every bracket spans its own plates, and its name stays inside it`)
+          } else {
+            is(got.brackets, null, `${at}: no bracket drawn`)
+          }
+          const links = ribbon.note.filter((part) => typeof part !== 'string').map((part) => part.href)
+          is(got.links.join(' '), links.join(' '), `${at}: the credit links every article and the licence`)
+        }
       }
     }
     await noJs.close()
