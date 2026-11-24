@@ -36,7 +36,7 @@ import {
   ACCENT_APART,
   accentsBySource,
   colourForEntry,
-  constructorBandNote,
+  liveryRibbon,
   deltaE,
   LIVERIES,
   LIVERY_ARTICLE,
@@ -706,25 +706,28 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     // liveries.js since VD-79, which the two pages and the static page read.
     const liveries = read(join(web, 'src', 'lib', 'liveries.js'))
     for (const [note, page] of [
-      ['constructorBandNote', 'Constructor.jsx'],
+      ['liveryRibbon', 'Constructor.jsx'],
       ['driverBandNote', 'Driver.jsx'],
     ]) {
       const from = liveries.slice(liveries.indexOf(`export function ${note}`))
-      assert.match(from.slice(0, from.indexOf('\n}\n')), /raced in \$\{/, `${note}: the band no longer says what the car raced in`)
+      assert.match(from.slice(0, from.indexOf('\n}\n')), /raced in[ ,]/, `${note}: the band no longer says what the car raced in`)
       assert.match(read(join(web, 'src', 'pages', page)), new RegExp(`\\b${note}\\(`), `${page}: the band no longer reads ${note}()`)
     }
+    // A constructor with no livery from 2010 keeps the band, in the convention.
+    assert.match(read(join(web, 'src', 'pages', 'Constructor.jsx')), /\bconstructorBandNote\(/, 'Constructor.jsx: the band no longer reads constructorBandNote()')
   })
 
-  it('a constructor band credits each Wikipedia article by title and link, with the licence, never as a bare host (AF-19)', () => {
+  it("a constructor's ribbon credits each Wikipedia article by title and link, with the licence, never as a bare host (AF-19)", () => {
     // The ruling on #301: the palette adapts the sponsorship liveries
     // article's tables, so CC BY-SA 4.0 is engaged and the credit names and
     // links the article with its licence. Every entry is drawn through the
-    // real sentence builder, so a credit that drops one is caught.
+    // real sentence builder, a ribbon of its first season since VD-115, so a
+    // credit that drops one is caught.
     const wikipedia = (url) => /(^|\.)wikipedia\.org$/.test(new URL(url).hostname)
     const failing = []
     for (const l of LIVERIES) {
       const where = `${l.constructor} ${l.from}`
-      const note = constructorBandNote({ name: 'Team' }, { year: l.from }, l, { claim: 'as its sources describe it' })
+      const note = liveryRibbon({ id: l.constructor, name: 'Team', last_entry: l.to }, [l.from])?.note
       if (!Array.isArray(note)) {
         failing.push(`${where}: the sentence is not parts, so it cannot link`)
         continue
@@ -2268,6 +2271,7 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     '.table-how p': 'how a column is derived', '.figure-note': "a figure's note", '.source-note': 'a source line',
     '.disagreement-why': "a recorded disagreement's reading", '.disagreement-pointer': "the line pointing to a race's folded disagreements", 'p.measure': 'running text at the measure, as on /data',
     'p.faint': 'a faint line of running text: the footer credit, a caveat', '.livery-band span': 'the sentence under a livery band',
+    '.livery-ribbon-credit': 'the sentence under a livery ribbon',
   }
   it('the text serif is set only on prose, and never on a heading (VD-96)', () => {
     const rules = [...app.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selectors: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), body: m[2] }))

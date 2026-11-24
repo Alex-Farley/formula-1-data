@@ -1670,20 +1670,153 @@ export function driverBandNote(lastTeam, colour) {
 }
 
 /**
- * A constructor's band sentence (VD-79, from Constructor.jsx). `livery` is
- * the liveryFor() entry of the last season it raced, or null where the band
- * shows the national convention instead. A livery's sentence is a list of
- * parts, because its credit links (liveryCredit); the convention's is a
- * string, as a driver's is, and LiveryScheme and scripts/prerender.js draw
- * either.
+ * A constructor's band sentence (VD-79, from Constructor.jsx), which
+ * LiveryScheme and scripts/prerender.js draw. Since VD-115 a team with a
+ * livery here for any season from 2010 has the ribbon in the band's place,
+ * crediting its pages itself (liveryRibbon), so the band is drawn for the
+ * national convention alone: `colour` is nationalEntry()'s, or null.
  */
-export function constructorBandNote(team, lastSeason, livery, colour) {
+export function constructorBandNote(team, colour) {
   if (!colour) return null
-  return livery
-    ? [
-        `The colour ${team.name} raced in ${lastSeason.year}, ${colour.claim}. Read from `,
-        ...liveryCredit(livery),
-        "; the shades here are this site's rendering of them, not a measurement.",
-      ]
-    : `${team.country}'s international racing colour, under the convention that painted a car for the country that entered it until sponsor liveries took over around 1968. Not this team's own livery.`
+  return `${team.country}'s international racing colour, under the convention that painted a car for the country that entered it until sponsor liveries took over around 1968. Not this team's own livery.`
+}
+
+/*
+ * THE RIBBON (VD-115, docs/design-system.md section 3, Page header). A
+ * constructor's band drew the livery of the last season it raced, on a page
+ * about every season, while this file holds a scheme for each one from 2010.
+ * The ribbon draws them all: a plate per season raced from LIVERY_ERA, the
+ * primary over a strip of each accent, the year at each change and the run
+ * of seasons each name covers. components/LiveryRibbon.jsx and
+ * scripts/prerender.js draw it from what liveryRibbon() returns, so the two
+ * cannot put a plate, a year or a name in different places.
+ *
+ * WHERE THE NAMES GO. The approved mockup (P08) sets each run's name under a
+ * bracket across its plates. At the measure, seventeen plates are 24 to 27
+ * px each, and a name of one season - Tarocco orange, Rosso Scuderia - is
+ * three times that: drawn under its bracket it runs into the next run's
+ * name, and in the mockup its column widened and pushed the brackets after
+ * it off the plates they belong to. So the brackets carry the names only where every word of
+ * every name fits the bracket it sits under, worked out here at the
+ * narrowest measure they are drawn at with a generous width per character,
+ * so a name under-estimated is one the layout does not draw rather than one
+ * it overlaps. Everywhere else, and on a phone always, the runs are one line
+ * of text, as the mockup's phone width has them.
+ */
+
+/** In px, a little under the narrowest the measure is (448) from 768 px, where the brackets are drawn. */
+const RIBBON_WIDTH = 420
+/** The gap between two plates, in px: --space-1. */
+const RIBBON_GAP = 2
+/** A generous width, in px, for one character of a run's name: Saira 500 at --size-3. */
+const RIBBON_CHAR = 7
+
+const yearTick = (year) => `’${String(year).slice(2)}`
+
+/** 2017; 2010–14; 2018– for a run the team is still on. */
+const runYears = ({ from, to, open }) =>
+  open ? `${from}–` : from === to ? String(from) : `${from}–${String(to).slice(2)}`
+
+/** The same run read aloud: 2017; 2015 and 2016; 2010 to 2014; from 2018. */
+const runSpoken = ({ from, to, open }) =>
+  open ? `from ${from}` : from === to ? String(from) : to === from + 1 ? `${from} and ${to}` : `${from} to ${to}`
+
+/** Names joined as prose: A, B and C. */
+const nameList = (names) =>
+  names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+
+/**
+ * A constructor's ribbon, or null where no season it raced from 2010 has a
+ * livery here - before 2010, or a team with no entries - which keeps the
+ * band (LiveryScheme) as it was. `team` is the constructors row, read for
+ * its id, name and last_entry (NULL while it still races, so its last run is
+ * open-ended); `years` the seasons it raced, any order. Each plate carries
+ * its scheme's bases in order, primary first, and the run of seasons with
+ * one name its grid columns (`start`, `end`, one-based, end exclusive). A
+ * season with no livery here is an empty plate, its run named as not
+ * established, never a colour.
+ */
+export function liveryRibbon(team, years) {
+  const all = [...new Set(years.map(Number).filter(Number.isFinite))].sort((a, b) => a - b)
+  const raced = all.filter((year) => year >= LIVERY_ERA)
+  const plates = raced.map((year) => {
+    const livery = liveryFor(team.id, year)
+    const name = livery?.name ?? 'Not established'
+    return { year, livery, name, title: `${year}: ${name}`, scheme: livery ? livery.scheme.map((c) => c.base) : [] }
+  })
+  if (!plates.some((plate) => plate.livery)) return null
+  const runs = []
+  for (const [i, plate] of plates.entries()) {
+    const last = runs.at(-1)
+    if (last && last.name === plate.name && plates[i - 1].year === plate.year - 1) {
+      last.to = plate.year
+      last.end = i + 2
+      last.liveries.push(plate.livery)
+    } else {
+      runs.push({ name: plate.name, from: plate.year, to: plate.year, start: i + 1, end: i + 2, liveries: [plate.livery] })
+    }
+  }
+  const final = runs[runs.length - 1]
+  final.open = team.last_entry == null
+  for (const run of runs) {
+    run.years = runYears(run)
+    run.bracket = run.open ? `${run.name}, ${run.years}` : run.name
+    // The team's own term only where every season of the run says so.
+    run.named = run.liveries.every((livery) => livery && liveryPrimary(livery).named === true)
+  }
+  const plate = (RIBBON_WIDTH - (plates.length - 1) * RIBBON_GAP) / plates.length
+  const fits = runs.every((run) => {
+    const span = run.end - run.start
+    const longest = Math.max(...run.bracket.split(/\s+/).map((word) => word.length))
+    return longest * RIBBON_CHAR <= span * plate + (span - 1) * RIBBON_GAP
+  })
+  const starts = new Set(runs.map((run) => run.from))
+  const ticks = plates.map((p, i) => ({
+    year: p.year,
+    tick: starts.has(p.year) || i === plates.length - 1 ? yearTick(p.year) : '',
+    // The first and the last stand on a phone, where the run line says the rest.
+    edge: i === 0 || i === plates.length - 1,
+  }))
+
+  // The credit: every page any plate's entry was read from, Wikipedia's
+  // articles by title and link with their licence (liveryCredit, AF-19).
+  const entries = [...new Set(plates.map((p) => p.livery).filter(Boolean))]
+  const credit = liveryCredit({ source: [...new Set(entries.flatMap((livery) => livery.source))] })
+  const own = [...new Set(runs.filter((run) => run.named).map((run) => run.name))]
+  const described = runs.filter((run) => !run.named && run.liveries.some(Boolean))
+  const claim = !own.length
+    ? "each name is the sources' description"
+    : !described.length
+      ? "each name is the team's own"
+      : `${nameList(own)} ${own.length === 1 ? "is the team's own name" : "are the team's own names"}, the rest the sources' description`
+  // An accent this site chose (`sourced: false`) is drawn and said to be
+  // this site's, as bandWords() says it on the band.
+  const chosen = entries.flatMap((livery) => {
+    const { chosen: added } = accentsBySource(livery.scheme)
+    if (!added.length) return []
+    const drawn = plates.filter((p) => p.livery === livery).map((p) => p.year)
+    const span = runYears({ from: drawn[0], to: drawn[drawn.length - 1] })
+    const them = added.length === 1 ? 'it' : 'them'
+    return [
+      ` The ${drawn.length === 1 ? 'plate' : 'plates'} for ${span} also ${drawn.length === 1 ? 'carries' : 'carry'} ${colourList(added)},` +
+        ` which no page cited here states: this site added ${them} because the car is recognised by ${them},` +
+        ' not because a source names the colour.',
+    ]
+  })
+  return {
+    label: `What ${team.name} raced in, season by season since ${raced[0]}`,
+    aria: `${team.name}'s livery by season: ${runs.map((run) => `${run.name} ${runSpoken(run)}`).join(', ')}`,
+    plates: plates.map(({ year, title, scheme }) => ({ year, title, scheme })),
+    ticks,
+    runs: runs.map(({ name, from, to, start, end, years: span, bracket, named }) => ({ name, from, to, start, end, years: span, bracket, named })),
+    fits,
+    list: runs.map((run) => `${run.name} ${run.years}`).join(' · '),
+    note: [
+      'Colour names from ',
+      ...credit,
+      `; ${claim}. The shades are this site's rendering, not a measurement.`,
+      ...(all[0] < LIVERY_ERA ? [` Before ${LIVERY_ERA} this site has no sourced livery to draw.`] : []),
+      ...chosen,
+    ],
+  }
 }

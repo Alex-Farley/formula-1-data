@@ -13,8 +13,9 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { FIGHT_QUERIES, currentTitle, fightCitation, fightLine, mergeSources } from '../queries/season.js'
 import { span } from '../lib/format.js'
 import { FOLD_NOUN } from '../lib/table.js'
+import LiveryRibbon from '../components/LiveryRibbon.jsx'
 import LiveryScheme from '../components/LiveryScheme.jsx'
-import { LIVERY_ERA, colourForEntry, constructorBandNote, liveryFor, nationalEntry } from '../lib/liveries.js'
+import { LIVERY_ERA, colourForEntry, constructorBandNote, liveryFor, liveryRibbon, nationalEntry } from '../lib/liveries.js'
 
 import { CONSTRUCTOR_IMAGES } from '../queries/photographs.js'
 import {
@@ -191,6 +192,13 @@ function ConstructorBody({ constructor, data }) {
         team: constructor.name,
       })
     : nationalEntry(constructor.country)
+  // Every season from 2010 in its own scheme (VD-115), in the band's place;
+  // the band stays, in the national convention, for a team that raced only
+  // before 2010 or has no livery here.
+  const ribbon = liveryRibbon(
+    constructor,
+    bySeason.map((s) => s.year),
+  )
 
   // The wins chart, worked out in queries/constructor.js so the static page
   // draws the same columns (VD-73), finding, squares and notes (VD-125).
@@ -217,7 +225,11 @@ function ConstructorBody({ constructor, data }) {
           : rows(data, 'sources')
       }
       aside={
-        <LiveryScheme colour={identity} note={constructorBandNote(constructor, lastSeason, livery, identity)} />
+        ribbon ? (
+          <LiveryRibbon ribbon={ribbon} />
+        ) : (
+          <LiveryScheme colour={identity} note={constructorBandNote(constructor, identity)} />
+        )
       }
     >
       <Section>

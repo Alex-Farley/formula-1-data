@@ -396,6 +396,40 @@ string runs past.
     - **Nothing is guessed.** A race with neither row has no line, and either
       half stands without the other. Where the two cannot both be true the
       disagreement box says so, as it does for any open row.
+  - The **livery ribbon** (provisional, VD-115 #1337,
+    `docs/critiques/2026-11-13-visual-design/P08-constructor-livery-ribbon.html`)
+    takes the livery band's place on a constructor's page wherever a season
+    it raced from 2010 has a livery in `lib/liveries.js`; before 2010, or
+    for a team with none, the band stands. `liveryRibbon()` there works out
+    every part, `LiveryRibbon` in `components/` and `liveryRibbonHtml()` in
+    `prerender.js` draw the same markup from it:
+    - A **plate a season** raced, on one grid of `minmax(0, 1fr)` tracks,
+      `--space-9` tall, not the mockup's `--space-10`, so that Ferrari's wins
+      chart still starts inside the first 900 px at 1440: the primary over a `--space-3` strip of the first
+      accent and a `--space-2` strip of the second, each colour as itself
+      (AF-16), edged over the colours so a white plate still reads. A season
+      with no livery is an empty plate, never a colour.
+    - The **year** under the plate at each change and under the last, in
+      `--size-2` faint; on a phone the first and the last alone.
+    - The **runs**, each name's seasons, under a rule across their plates
+      in the label register — but only where every word of every name fits
+      its bracket at the narrowest measure the brackets are drawn at (`fits`).
+      At the measure seventeen plates are 24 to 27 px each, narrower than a
+      one-season name such as *Tarocco orange*; the mockup's bracket for it
+      widened its column and pushed the brackets after it off their plates.
+      Where the names do not fit, and on a phone always, the runs are one
+      line of text: *Chrome 2010–14 · Graphite grey 2015–16 · Tarocco
+      orange 2017 · Papaya 2018–*.
+    - The plates, years and brackets are **one image** to a screen reader,
+      named by the runs read aloud; the line, which says the same in print,
+      is hidden from it.
+    - The **credit** under it at `--measure-small`, in the prose voice at
+      `--size-3` faint: every page any plate was read from, each Wikipedia
+      article by title and link with its licence (AF-19), whose word each
+      name is, that the shades are this site's rendering, and an accent this
+      site chose named as its own (`bandWords()`'s clause). Colour stays
+      identity beside a name (§2 *Colour*): every plate's name is in the
+      runs and in its tooltip.
 - **Widths:** the header column: 7 columns from 1180 beside the slot, the
   full width where the slot is empty or below 1180. The lede is at the
   measure.
@@ -1479,7 +1513,7 @@ not added here: a new explanation goes to `/data`, or beside what it
 explains, and the footer links it. `smoke.mjs` holds both renderers to the
 same lines and to the count.
 
-### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); core: the podium, on home and every race page (VD-108 #1330), its race page's form the stepped slabs; the season plate, on the season page and home (VD-104 #1239, VD-109 #1331); pending: the plate on a constructor's page (VD-115 #1337)
+### Season cycle (A) — provisional (AF-135 #1141, the lap AF-156 #1250, the forecast AF-143 #1149); core: the podium, on home and every race page (VD-108 #1330), its race page's form the stepped slabs; the season plate, on the season page and home (VD-104 #1239, VD-109 #1331)
 
 Home's season block follows the calendar while the season being run has a
 round to come, in three states worked out from the database and a clock —
@@ -1568,8 +1602,7 @@ AF-133's grid — and these are new:
   - One component in each renderer, `components/RacePodium.jsx` and
     `racePodiumBlock()` in `prerender.js`, from `slab()` in `lib/podium.js`.
 - **The season plate** — **core** since its second page (§8 *Promoting*):
-  the season page (VD-104 #1239 (c)) and home (VD-109 #1331); pending on a
-  constructor's page (VD-115 #1337). One component, `SeasonPlate`: a 4 px rule (`--space-2`) in the
+  the season page (VD-104 #1239 (c)) and home (VD-109 #1331). One component, `SeasonPlate`: a 4 px rule (`--space-2`) in the
   champion's team pair, `.livery-series` choosing the light or the dark
   value as a series does, or in ink where no colour is on record (1968 to
   2009, or a team with none sourced); the label, *2021 World Champion ·
@@ -1588,8 +1621,11 @@ AF-133's grid — and these are new:
   is not ranked. No accent (D-61). `seasonPlate` in `queries/season.js`
   gives both renderers the plate; `units.mjs` holds it and the strip it
   trims, `smoke.mjs` the plate and the strip in both halves. A
-  constructor page is to run it season by season as a livery ribbon
-  (VD-115, `P08-constructor-livery-ribbon.html`), built on this component.
+  constructor's season-by-season livery ribbon (VD-115,
+  `P08-constructor-livery-ribbon.html`) was to be built on this component,
+  and is not: a plate there holds no words and draws each colour as
+  itself, where this one names a champion under a rule in a series pair, so
+  the ribbon is its own component, under §3 *Page header*.
   - **On home** (VD-109, `[D-69]`,
     `docs/critiques/2026-11-13-visual-design/P01-home-season-plate.html`):
     the season being run, from the first round run, in place of the six
@@ -1717,8 +1753,9 @@ citation, is already one system and is kept.
 - **Constructor:** lead chart (wins by season) · Season by season · Every
   win · Cars built · photographs. The lead chart is annotated in the shared
   pattern, titles, peak and drought marked (provisional, VD-125 #1349, §3
-  *Figure*). **Pending:** the livery band as a
-  season-by-season ribbon (VD-115 #1337); one count of wins wherever the
+  *Figure*). The livery band is a
+  season-by-season ribbon from 2010 (provisional, VD-115 #1337, §3 *Page
+  header*). **Pending:** one count of wins wherever the
   page and `/records` show them side by side (VD-117 #1339).
 - **Circuit:** the current outline in the slot (VD-74, VD-84) · winners
   first on **all 80**, not only the 13 with a layout timeline (S2) ·
