@@ -5488,7 +5488,7 @@ describe('a driver’s career chart tells the career (VD-124), on rows written o
   it('states the climb to one title, and a note for the first win and one for the title', () => {
     const story = careerStory(norris, { wins, runnersUp, first: 2019, raced })
     assert.equal(story.finding, 'From 11th to champion in seven seasons')
-    assert.equal(story.kicker, 'Final championship position each season · the title ringed')
+    assert.equal(story.kicker, 'Final championship position each season, 2026 so far · the title ringed')
     assert.deepEqual(story.notes, [
       { n: 1, x: 2024, lead: 'First win, 2024', text: 'Miami Grand Prix, round 6; 2nd in the championship that year.' },
       { n: 2, x: 2025, lead: 'Champion, 2025', text: 'By two points from Verstappen.' },
@@ -5518,7 +5518,7 @@ describe('a driver’s career chart tells the career (VD-124), on rows written o
     const rookie = [final(2025, 7, 150), { year: 2026, position: 1, points: 390, basis: 'running' }]
     const story = careerStory(rookie, { wins: [{ year: 2026, round: 2, name_used: 'Chinese Grand Prix' }], first: 2025, raced: [2025, 2026] })
     assert.equal(story.finding, 'At best 7th in the championship, in 2025; 1st in 2026 so far')
-    assert.equal(story.kicker, 'Final championship position each season')
+    assert.equal(story.kicker, 'Final championship position each season, 2026 so far')
     // No final place to state for the season of the first win.
     assert.deepEqual(story.notes, [{ n: 1, x: 2026, lead: 'First win, 2026', text: 'Chinese Grand Prix, round 2.' }])
     const chart = finishesFigure({ full_name: 'A Driver', first_season: 2025, last_season: 2026 }, rookie, new Map(), [{ year: 2025 }, { year: 2026 }])

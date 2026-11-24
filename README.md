@@ -1054,7 +1054,7 @@ remembered, and several famous ones are missing for exactly that reason.
 
 `race_entries` holds **<!-- fig:race_entries -->27,658<!-- /fig --> rows —
 every entry of every one of the <!-- fig:races_classified -->1,170<!-- /fig -->
-run races**, <!-- fig:season_span -->1950–2027<!-- /fig -->, in the committed
+run races**, <!-- fig:races_classified_span -->1950–2026<!-- /fig -->, in the committed
 database. Position, grid, laps, retirement cause and points. Alongside it sit
 **<!-- fig:qualifying -->27,170<!-- /fig --> qualifying rows** and
 **<!-- fig:standings -->34,807<!-- /fig --> championship standings rows**: the
